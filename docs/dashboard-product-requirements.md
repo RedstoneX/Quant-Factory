@@ -32,9 +32,10 @@ dependency, and do not replace approved behavior. Caching, scalable multi-run
 design or Explorer work, aesthetic polish, and broad refactoring are excluded
 unless evidence demonstrates that an item blocks the beta. If thin integration
 expands, work stops for reuse and budget reassessment. Each slice has one
-bounded implementer and one independent reviewer. Review covers the owned diff,
-decisive evidence, and boundary compliance without reimplementation, broad
-audit, discretionary redesign, or duplicate testing. The dashboard remains
+bounded implementer and the cheapest capable independent reviewer, whose full
+effort counts inside the same six-development-hour ceiling. Review covers the
+owned diff, decisive evidence, and boundary compliance without reimplementation,
+broad audit, discretionary redesign, or duplicate testing. The dashboard remains
 essential for its single operator, but this beta MVP need not be perfect.
 
 ## Current owner review outcome — refreshed 2026-09-18

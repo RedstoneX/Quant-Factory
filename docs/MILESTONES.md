@@ -11,6 +11,10 @@ enterprise, SaaS, software-sales, multitenant, billing, or team-platform
 project; capabilities needed only for hypothetical external customers require
 separate owner approval.
 
+The controlling delivery priority is the shortest safe, evidence-truthful path
+to an operator-usable MVP that can validate or reject a trading edge. Reuse is
+a means to that outcome, not an end or a reason to delay operator value.
+
 Quant Factory is infrastructure first, evidence first, dashboard first, and
 operating-proof first. Plotly Dash is the normal operator interface; Python,
 terminal output, SQLite, CSV, JSON, and logs are implementation details.
@@ -117,7 +121,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Under Decision 286's honestly reported six-development-hour planning ceiling, complete exactly three remaining selected-run Results beta slices: (1) reuse/integrate the approved page and working chart behavior with existing persisted results, (2) make only focused browser fixes demonstrated by that integration, and (3) perform a backed-up validated OVH deployment; use one bounded implementer and one independent reviewer per slice, with review limited to the owned diff, decisive evidence and boundary compliance rather than reimplementation, broad audit, redesign or duplicate tests; report active progress at least hourly with current slice, reuse, boundary compliance, scope pressure and next action; add no framework, chart/grid/panel system or architecture, paid dependency, or replacement behavior; stop and reassess reuse and remaining budget if thin integration expands; defer caching, scalable multi-run design or Explorer work, aesthetic polish, and broad refactoring unless evidence demonstrates a beta blocker; preserve ADR 0011 durable run tickets and the required truthfulness, licensed-target, browser, workflow, failure-handling, test, documentation/status, backup and rollback gates; later accepted multi-run and safe-cache requirements remain pending rather than cancelled |
+| R05 | 1 | in_progress | none | Follow the shortest safe, evidence-truthful path to an operator-usable MVP that can validate or reject an edge; under Decision 286's honestly reported six-development-hour planning ceiling, complete exactly three remaining selected-run Results beta slices: (1) reuse/integrate the approved page and working chart behavior with existing persisted results, (2) make only focused browser fixes demonstrated by that integration, and (3) perform a backed-up validated OVH deployment; use one bounded implementer and the cheapest capable independent reviewer per slice, count all reviewer effort inside the same ceiling, and limit review to the owned diff, decisive evidence and boundary compliance rather than reimplementation, broad audit, redesign or duplicate tests; report active progress at least hourly with current slice, reuse, boundary compliance, scope pressure and next action; add no framework, chart/grid/panel system or architecture, paid dependency, or replacement behavior; stop and reassess reuse and remaining budget if thin integration expands; defer caching, scalable multi-run design or Explorer work, aesthetic polish, and broad refactoring unless evidence demonstrates a beta blocker; preserve ADR 0011 durable run tickets and the required truthfulness, licensed-target, browser, workflow, failure-handling, test, documentation/status, backup and rollback gates; later accepted multi-run and safe-cache requirements remain pending rather than cancelled |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 

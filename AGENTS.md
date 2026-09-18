@@ -90,6 +90,10 @@ authorization forward within its approved scope and do not repeatedly ask.
   organization administration, and features that exist only for hypothetical
   external customers are out of scope unless the owner separately approves
   them.
+- The controlling delivery priority is the shortest safe, evidence-truthful
+  path to an operator-usable MVP that can validate or reject a trading edge.
+  Reuse, architecture, testing, and documentation serve that outcome; they are
+  not independent product goals.
 - Quant Factory is infrastructure first, evidence first, dashboard first, and operating-proof first.
 - The goal is to reject false edges, preserve reproducible evidence, paper trade qualified strategies, reconcile model and venue state, and deploy only tightly bounded capital under explicit human approval and independent risk controls.
 - The dashboard is the primary operator interface. Python, terminals, raw CSV/JSON, and backend logs are implementation details.
@@ -134,7 +138,8 @@ authorization forward within its approved scope and do not repeatedly ask.
 
 ## Reuse before custom implementation
 
-- Before custom implementation, inventory the existing Quant Factory code and
+- Reuse is a means to the controlling operator-usable MVP outcome, not an end
+  in itself. Before custom implementation, inventory the existing Quant Factory code and
   tests, licensed dependencies including VectorBT Pro, owner-approved
   prototypes, and mature maintained external components or reference projects
   that may already solve the need. Start with
@@ -169,9 +174,10 @@ authorization forward within its approved scope and do not repeatedly ask.
   do not replace the approved behavior. Caching, scalable multi-run design or
   Explorer work, aesthetic polish, and broad refactoring remain outside these
   slices unless evidence demonstrates that an item blocks the beta. Each slice
-  has one bounded implementer and one independent reviewer while the lead
-  orchestrates and validates. The reviewer checks only the owned diff, decisive
-  evidence, and boundary compliance; review is not a second implementation,
+  has one bounded implementer and the cheapest capable independent reviewer
+  while the lead orchestrates and validates. All reviewer effort counts inside
+  the same six-development-hour ceiling. The reviewer checks only the owned
+  diff, decisive evidence, and boundary compliance; review is not a second implementation,
   broad audit, discretionary redesign, or duplicate-test exercise. While beta
   work is active, report progress at least hourly with the current slice,
   selected reuse, boundary compliance, scope pressure, and next action. If thin

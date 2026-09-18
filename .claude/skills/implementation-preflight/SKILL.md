@@ -137,6 +137,11 @@ orders, discovery, optimization, or live capital.
 
 ## 4a. Complete the reuse-before-build assessment
 
+The controlling priority is the shortest safe, evidence-truthful path to an
+operator-usable MVP that can validate or reject a trading edge. Treat reuse as
+a means to that outcome, not an end or a reason to continue component research
+after a suitable path is established.
+
 Before proposing custom executable code, inventory the relevant:
 
 - existing Quant Factory implementation, tests, adapters, and assets;
@@ -174,9 +179,10 @@ For the temporary Decision 286 selected-run Results beta boundary, also state:
 - the honestly measured effort already used and the remaining portion of the
   six-development-hour planning ceiling, without treating the estimate as a
   completion guarantee or inventing precision;
-- the one bounded implementer and independent reviewer for the slice, with the
-  reviewer limited to the owned diff, decisive evidence, and boundary
-  compliance rather than reimplementation, a broad audit, discretionary
+- the one bounded implementer and cheapest capable independent reviewer for the
+  slice, confirming that all reviewer effort counts inside the same
+  six-development-hour ceiling, with review limited to the owned diff,
+  decisive evidence, and boundary compliance rather than reimplementation, a broad audit, discretionary
   redesign, or duplicate testing;
 - that no new framework, chart/grid/panel system or architecture, paid
   dependency, or replacement of approved behavior is proposed;

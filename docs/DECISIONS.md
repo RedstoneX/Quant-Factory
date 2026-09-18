@@ -335,6 +335,8 @@ explicitly.
      owner separately approves them. This boundary does not weaken the
      evidence, reproducibility, credential isolation, execution safety, or
      capital-approval controls that protect the owner's research and money.
+     The controlling delivery priority is the shortest safe, evidence-truthful
+     path to an operator-usable MVP that can validate or reject a trading edge.
 
 285. **Reuse before custom implementation (accepted 2026-09-18).** Before
      writing custom executable code, agents must inventory and evaluate the
@@ -348,6 +350,11 @@ explicitly.
      a verified product-specific gap or a case where reuse is materially worse
      under that comparison, and the implementation preflight records the
      inventory, selected reuse, remaining gap, and rationale.
+
+     Reuse is a means to Decision 284's controlling operator-usable MVP
+     outcome, not an independent product goal. Once a suitable safe and
+     evidence-truthful path is established, the rule does not authorize more
+     component research or integration work that delays operator value.
 
      Agents must not recreate mature commercial-grade dashboard, charting,
      grid, panel, or research-engine behavior merely for architectural
@@ -388,10 +395,11 @@ explicitly.
      behavior with the existing application and persisted results; (2) make
      only focused browser fixes demonstrated by that integration; and (3)
      perform a backed-up, validated deployment to the existing private OVH
-     research target. Each slice uses one bounded implementer and one
-     independent reviewer while the lead orchestrates and independently
-     validates. The reviewer is limited to the owned diff, decisive evidence,
-     and boundary compliance; review is not a second implementation, broad
+     research target. Each slice uses one bounded implementer and the cheapest
+     capable independent reviewer while the lead orchestrates and independently
+     validates. All reviewer effort counts inside the same
+     six-development-hour ceiling. The reviewer is limited to the owned diff,
+     decisive evidence, and boundary compliance; review is not a second implementation, broad
      audit, discretionary redesign, or duplicate-test exercise.
 
      These slices add no new framework, chart/grid/panel system or

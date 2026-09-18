@@ -144,7 +144,12 @@ After the identified correctness fixes, the package remains justified because it
 
 Replacing it now with a generic tracker would require migration and adapters while still needing this trading-specific layer. It must not expand into a custom workflow engine, artifact store or visualization framework.
 
-## Revised path
+## Historical pre-Milestone-18 path — non-actionable
+
+The sequence below is retained only as historical context from the earlier
+Milestone 17/18 planning period. Those milestones have passed. Do not execute,
+resume, or use this list to order current work. `docs/MILESTONES.md` is the
+only current work queue and sequencing authority.
 
 1. Apply the small Milestone 17 correctness fixes.
 2. Do not add MLflow, Aim or Trackio.

@@ -32,8 +32,9 @@ Decision 286 temporarily narrows the remaining selected-run Results beta to a
 six-development-hour planning ceiling and exactly three slices: reuse/integrate
 the approved page and working chart behavior; make only focused browser fixes;
 then perform a backed-up validated OVH deployment. Use one bounded implementer
-and one independent reviewer per slice; review only the owned diff, decisive
-evidence, and boundary compliance, without reimplementation, broad audit,
+and the cheapest capable independent reviewer per slice; all reviewer effort
+counts inside the same six-development-hour ceiling. Review only the owned diff,
+decisive evidence, and boundary compliance, without reimplementation, broad audit,
 discretionary redesign, or duplicate testing. Add no new framework,
 chart/grid/panel system or architecture, paid dependency, or replacement
 behavior. Caching, scalable multi-run design or Explorer work, aesthetic

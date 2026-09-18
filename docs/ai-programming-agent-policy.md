@@ -42,12 +42,18 @@ remain allowed where necessary; incompatible or unverified licensing remains
 a stop condition. Prototype approval is design input, not proof of application
 integration, testing, deployment, or final operator acceptance.
 
+The controlling priority is the shortest safe, evidence-truthful path to an
+operator-usable MVP that can validate or reject a trading edge. Reuse is a
+means to that result, not an end or a mandate to prolong evaluation after a
+suitable path is established.
+
 For Decision 286's temporary selected-run Results beta boundary, use exactly
 three slices: reuse/integrate the approved page, make focused browser fixes,
 then perform the backed-up validated OVH deployment. Each slice has one bounded
-implementer and one independent reviewer; the lead remains the orchestrator
-and independently validates the result. The reviewer is limited to the owned
-diff, decisive evidence, and boundary compliance; it does not reimplement,
+implementer and the cheapest capable independent reviewer; the lead remains
+the orchestrator and independently validates the result. All reviewer effort
+counts inside the same six-development-hour ceiling. The reviewer is limited
+to the owned diff, decisive evidence, and boundary compliance; it does not reimplement,
 conduct a broad audit, redesign at discretion, or duplicate already decisive
 tests. The remaining work has a six-development-hour planning ceiling that
 must be measured and reported
