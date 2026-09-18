@@ -82,14 +82,13 @@ Support navigation remains visually separate from the numbered flow:
 | Data sources | `/system/providers` | `Data sources` |
 | Settings | `/settings` | `Settings` |
 
-The brand always returns to `/`. The current `Strategy Review` page is folded
-into the Results review area; it is not a seventh workflow step. During a
-staged implementation, `/research/strategy-review` may remain registered only
-until the Results page has equivalent durable-review behavior and route tests.
-It must not remain as a duplicate primary-navigation destination or hidden
-compatibility surface. Existing Paper Trading routes may remain read-only
-pending pages during the transition, but are not primary Milestone 23
-navigation and expose no operational controls.
+The brand always returns to `/`. Durable review belongs to the Results review
+area; it is not a seventh workflow step. The completed transitional
+`/research/strategy-review` address is retired and renders Page Not Found like
+any other unknown route. It is neither a duplicate primary-navigation
+destination nor a hidden compatibility surface. Existing Paper Trading routes
+may remain read-only pending pages during the transition, but are not primary
+Milestone 23 navigation and expose no operational controls.
 
 Every final registered route has one real, permanently mounted container. Route
 changes alter container visibility and active-link styling only. There is one
