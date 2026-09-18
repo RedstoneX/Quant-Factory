@@ -32,10 +32,18 @@ palette selection. The remaining
 detailed specification or mockup, implementation, deployment, tests, and
 renewed operator acceptance remain pending. Decision 278 accepts ADR 0011's
 safer durable run-ticket architecture and
-authorizes implementation, but that implementation and its required evidence
-remain pending. Systematic discovery, optimization, protected-test evaluation,
-paper-order activation, and live work remain blocked except for the bounded
-offline and deployment preparation already authorized and retained.
+authorizes implementation. Its schema-5 core, shared launch service, and Run
+test, historical-relaunch, and reproduction integrations are implemented,
+tested, and merged in the canonical source through PRs #35–#38; PR #42 adds
+the claim-core suite to required Portable CI and separately merges focused
+claim-aware stale-recovery evidence. At revision
+`5462c796809e83634959cbd3e7fa75b81ec2e309`, this establishes source and
+portable/browser-fixture evidence only. It does not establish production
+deployment, current licensed-target SPYM proof, the complete end-to-end
+workflow, renewed Results acceptance, or Milestone 23 completion. Systematic
+discovery, optimization, protected-test evaluation, paper-order activation,
+and live work remain blocked except for the bounded offline and deployment
+preparation already authorized and retained.
 
 Decision 274 sets the current order:
 
@@ -143,10 +151,12 @@ is proposed or authorized here.
   direction and the validated preview controls and layout constraints. The
   remaining detailed responsive specification or mockup and its owner approval
   remain pending before broad implementation.
-- **23C-2 — Implementation:** accepted ADR 0011 durable run-ticket work remains
-  authorized but not complete. Broad Results redesign waits for the detailed
-  Decisions 280–281 specification approval and must preserve ADR 0008, Plotly
-  Dash, VectorBT Pro, and service boundaries.
+- **23C-2 — Implementation:** ADR 0011 durable run tickets are implemented,
+  tested, and merged in the canonical source for Run test, historical relaunch,
+  and reproduction. Preserve that implementation and its fail-closed tests.
+  Broad Results redesign waits for the detailed Decisions 280–281
+  specification approval and must preserve ADR 0008, Plotly Dash, VectorBT Pro,
+  and service boundaries.
 - **23C-3 — Browser/operator acceptance:** renewed owner acceptance of the
   implemented replacement plus real-browser lifecycle and complete end-to-end
   workflow evidence remain pending.

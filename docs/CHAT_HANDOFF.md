@@ -36,7 +36,12 @@ and the remaining browser-lifecycle, end-to-end workflow, failure-handling,
 and documentation/status gates remain pending. Strategy discovery remains
 blocked. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
-implementation, but does not claim it is implemented or close Milestone 23.
+implementation. That bounded implementation is merged in canonical source for
+Run test, historical relaunch, and reproduction, with claim-core coverage in
+required Portable CI and separate focused and browser-fixture recovery
+evidence. Production deployment, current licensed-target SPYM proof, the
+complete operator workflow, and Milestone 23 acceptance remain unproven; the
+source implementation does not close Milestone 23.
 Decision 274 then orders controlled Milestone 25 research until a defensible
 equity edge qualifies, followed by paper activation only after every execution
 gate passes. Live capital remains far future and requires separate explicit
@@ -56,7 +61,8 @@ source-code license: the project is all rights reserved.
 - [ADR 0008](architecture/0008-dashboard-mounted-route-architecture.md) defines
   the mounted-route Dash architecture and browser acceptance.
 - [ADR 0011](architecture/0011-durable-research-launch-claims.md) defines the
-  accepted, not-yet-implemented durable research run-ticket contract.
+  accepted, source-implemented durable research run-ticket contract and its
+  still-pending deployment and Milestone 23 evidence boundaries.
 - [Milestone 23 acceptance](milestones/milestone-23-acceptance.md) defines the
   scenario matrix and readable incident history.
 - [ADR 0007](architecture/0007-portable-deployment-and-alpaca-first-roadmap.md)
