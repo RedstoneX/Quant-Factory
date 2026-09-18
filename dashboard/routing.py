@@ -4,12 +4,20 @@ from __future__ import annotations
 
 NAVIGATION_GROUPS = (
     (
-        "Strategy Research",
+        "Research workflow",
         (
-            ("/research/market-data", "Market Data"),
-            ("/research/strategy-review", "Strategy Review"),
-            ("/research/backtest-results", "Backtest Results"),
-            ("/research/compare-backtests", "Compare Backtests"),
+            ("/research/ideas", "Ideas"),
+            ("/research/setup", "Set up"),
+            ("/research/run-test", "Run test"),
+            ("/research/backtest-results", "Results"),
+            ("/research/compare-backtests", "Compare"),
+        ),
+    ),
+    (
+        "Research support",
+        (
+            ("/research/market-data", "Market data"),
+            ("/research/strategy-review", "Strategy review"),
         ),
     ),
     (
@@ -22,8 +30,8 @@ NAVIGATION_GROUPS = (
     (
         "System",
         (
-            ("/system", "System Status"),
-            ("/system/providers", "Data Sources"),
+            ("/system", "System status"),
+            ("/system/providers", "Data sources"),
         ),
     ),
     (
@@ -42,6 +50,9 @@ NAVIGATION_LINKS = tuple(
 
 ROUTE_REGISTRY = (
     ("/", "route-home"),
+    ("/research/ideas", "route-research-ideas"),
+    ("/research/setup", "route-research-setup"),
+    ("/research/run-test", "route-research-run-test"),
     ("/research/market-data", "route-research-market-data"),
     ("/research/backtest-results", "route-research-backtest-results"),
     ("/research/strategy-review", "route-research-strategy-review"),

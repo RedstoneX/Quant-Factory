@@ -13,6 +13,16 @@ STATE_OWNERS = {
         "owner": "dashboard.callbacks.routing",
         "rule": "Route callbacks only derive visibility and navigation classes; no callback writes the URL.",
     },
+    "idea_draft": {
+        "source": "idea-draft-store.data",
+        "owner": "dashboard.callbacks.ideas",
+        "rule": "Ideas stores operator-authored text in the browser session only and never retrieves or executes it.",
+    },
+    "selected_configuration": {
+        "source": "configuration-selector.value",
+        "owner": "dashboard.callbacks.backtest_results",
+        "rule": "The persisted session selection made in Set up is read by Run test without mutation or an automatic launch.",
+    },
     "selected_backtest": {
         "source": "selected-run-selector.value",
         "store": "selected-run-state.data",
@@ -28,6 +38,6 @@ STATE_OWNERS = {
     "comparison_selection": {
         "source": "comparison-run-selector.value",
         "owner": "dashboard.callbacks.compare_backtests",
-        "rule": "Compare Backtests owns comparison selector options, selected cards, and comparison output.",
+        "rule": "Compare owns comparison selector options, selected cards, and comparison output.",
     },
 }

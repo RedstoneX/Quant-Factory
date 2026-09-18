@@ -1,4 +1,4 @@
-"""Backtest Results page callback ownership."""
+"""Mounted setup, run-test, and results callback ownership."""
 
 from __future__ import annotations
 
@@ -46,10 +46,11 @@ def register_backtest_results_callbacks(
     detail_adapter: RunDetailDashboardAdapter,
     configurations: tuple[SavedConfigurationView, ...],
 ) -> None:
-    """Register callbacks owned by the Backtest Results route."""
+    """Register callbacks shared across the mounted research workflow."""
 
     @app.callback(
         Output("configuration-preview", "children"),
+        Output("run-configuration-preview", "children"),
         Output("launch-run", "disabled"),
         Output("launch-run", "title"),
         Input("configuration-selector", "value"),
@@ -65,16 +66,20 @@ def register_backtest_results_callbacks(
             None,
         )
         if selected is None:
+            missing = html.Div(
+                "Saved configuration could not be found.",
+                className="error-state",
+            )
             return (
-                html.Div(
-                    "Saved configuration could not be found.",
-                    className="error-state",
-                ),
+                missing,
+                missing,
                 True,
                 "The selected saved configuration could not be found.",
             )
+        preview = _configuration_preview(selected).children
         return (
-            _configuration_preview(selected).children,
+            preview,
+            preview,
             not selected.launchable,
             (
                 "Launch this immutable saved configuration."
@@ -94,9 +99,9 @@ def register_backtest_results_callbacks(
     def launch_saved_configuration(
         _: int,
         configuration_id: str | None,
-        pathname: str | None = "/research/backtest-results",
+        pathname: str | None = "/research/run-test",
     ):
-        if not _active_route(pathname, "/research/backtest-results"):
+        if not _active_route(pathname, "/research/run-test"):
             raise PreventUpdate
         selected = next(
             (

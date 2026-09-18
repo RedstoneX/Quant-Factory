@@ -1,7 +1,10 @@
 """Real-browser mounted-route and durable operator workflow regressions."""
 
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import time
 
 import pytest
@@ -24,11 +27,82 @@ from persistence.database import transaction
 from persistence.models import normalized_configuration_document
 from tests.browser.test_backtest_results_spym_stability import (
     BACKTEST_PATH,
+    REPOSITORY_ROOT,
     SPYM_OPTION_TEXT,
+    _free_port,
+    _prepare_initial_run,
     _visible_routes,
+    _wait_for_server,
     _launcher,
     dashboard_server,
 )
+
+
+@pytest.fixture()
+def mounted_workflow_server(tmp_path: Path):
+    """Start the mounted shell with two generic, licensed-engine-free fixtures."""
+
+    database = tmp_path / "state" / "mounted-workflow.sqlite3"
+    initial_run_id = _prepare_initial_run(database)
+    service = PersistenceService(database)
+    try:
+        service.upsert_configuration(
+            normalized_configuration_document(
+                experiment_id="workflow_second_operator_choice",
+                strategy_id="prefect_fixture_strategy",
+                strategy_version="1.0.0",
+                market_data={"kind": "none", "choice": "second"},
+                parameters={"fixture": True, "choice": "second"},
+                execution={"kind": "prefect_fixture"},
+                ranking={
+                    "columns": ("deterministic_value",),
+                    "ascending": (False,),
+                },
+                screening={"kind": "none"},
+            )
+        )
+    finally:
+        service.close()
+
+    port = _free_port()
+    server_log = tmp_path / "mounted-workflow-server.log"
+    code = """
+from pathlib import Path
+import sys
+from dashboard.app import create_app
+from orchestration import FixtureRunService
+from tests.browser.test_backtest_results_spym_stability import _launcher
+
+database = Path(sys.argv[1])
+port = int(sys.argv[2])
+app = create_app(
+    review_database=database,
+    run_service=FixtureRunService(database=database, fixture_launcher=_launcher),
+)
+app.run(host="127.0.0.1", port=port, debug=False)
+"""
+    env = dict(os.environ)
+    env["QUANT_FACTORY_DB_PATH"] = str(database)
+    with server_log.open("w", encoding="utf-8") as log:
+        process = subprocess.Popen(
+            [sys.executable, "-c", code, str(database), str(port)],
+            cwd=REPOSITORY_ROOT,
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        _wait_for_server(base_url)
+        yield base_url, server_log, initial_run_id
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
 
 
 def _select(page, selector, label, index=0):
@@ -231,8 +305,8 @@ def _seed_history_browser_runs(database: Path) -> str:
     return target_run_id
 
 
-def test_every_route_deep_link_refresh_and_navigation(dashboard_server, tmp_path):
-    base_url, server_log, _ = dashboard_server
+def test_every_route_deep_link_refresh_and_navigation(mounted_workflow_server, tmp_path):
+    base_url, server_log, _ = mounted_workflow_server
     events = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
@@ -276,6 +350,122 @@ def test_every_route_deep_link_refresh_and_navigation(dashboard_server, tmp_path
             raise
         finally:
             context.close()
+            browser.close()
+
+
+def test_setup_selection_survives_run_route_and_refresh(
+    mounted_workflow_server,
+    tmp_path,
+):
+    base_url, server_log, _ = mounted_workflow_server
+    events = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        action = {"name": "select second saved setup"}
+        pending_requests = _attach_diagnostics(page, events, action)
+        try:
+            page.goto(base_url + "/research/setup", wait_until="networkidle")
+            _select(page, "configuration-selector", "workflow_second_operator_choice")
+            selected_identity = page.locator(
+                "#configuration-preview .configuration-identity"
+            ).inner_text()
+            action["name"] = "continue to Run test"
+            page.get_by_text("Review test", exact=True).click()
+            _assert_route(
+                page,
+                base_url,
+                "/research/run-test",
+                "route-research-run-test",
+            )
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            expect(
+                page.locator("#run-configuration-preview .configuration-identity")
+            ).to_have_text(selected_identity)
+            action["name"] = "refresh Run test"
+            page.reload(wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            expect(
+                page.locator("#run-configuration-preview .configuration-identity")
+            ).to_have_text(selected_identity)
+            page.go_back(wait_until="networkidle")
+            _assert_route(page, base_url, "/research/setup", "route-research-setup")
+            page.go_forward(wait_until="networkidle")
+            _assert_route(
+                page,
+                base_url,
+                "/research/run-test",
+                "route-research-run-test",
+            )
+            page.screenshot(
+                path=tmp_path / "setup-selection-run-test-refresh.png",
+                full_page=True,
+            )
+            _assert_no_browser_errors(events)
+        except Exception:
+            _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)
+            raise
+        finally:
+            browser.close()
+
+
+def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
+    mounted_workflow_server,
+    tmp_path,
+):
+    base_url, server_log, _ = mounted_workflow_server
+    events = []
+    external_requests = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        action = {"name": "edit safe idea draft"}
+        pending_requests = _attach_diagnostics(page, events, action)
+        page.on(
+            "request",
+            lambda request: external_requests.append(request.url)
+            if "example.invalid" in request.url
+            else None,
+        )
+        try:
+            page.goto(base_url + "/research/ideas", wait_until="networkidle")
+            page.locator("#idea-title").fill("Local-only idea")
+            page.locator("#idea-source-url").fill(
+                "https://user:secret@example.invalid/private"
+            )
+            expect(page.locator("#idea-draft-status")).to_contain_text(
+                "Unsaved local changes"
+            )
+            page.locator("#save-idea-draft").click()
+            expect(page.locator("#idea-draft-status")).to_contain_text(
+                "Your text is unchanged"
+            )
+            expect(page.locator("#idea-source-url")).to_have_value(
+                "https://user:secret@example.invalid/private"
+            )
+            assert external_requests == []
+
+            page.locator("#idea-source-url").fill("https://example.invalid/source")
+            page.locator("#save-idea-draft").click()
+            expect(page.locator("#idea-draft-status")).to_contain_text(
+                "Draft saved in this browser session at"
+            )
+            assert external_requests == []
+
+            action["name"] = "confirm idea draft discard"
+            page.once("dialog", lambda dialog: dialog.accept())
+            page.locator("#discard-idea-draft").click()
+            expect(page.locator("#idea-draft-status")).to_contain_text(
+                "Draft discarded"
+            )
+            expect(page.locator("#idea-title")).to_have_value("")
+            page.screenshot(path=tmp_path / "ideas-safe-draft.png", full_page=True)
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            _assert_no_browser_errors(events)
+        except Exception:
+            _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)
+            raise
+        finally:
             browser.close()
 
 
@@ -399,9 +589,26 @@ def test_launch_spym_and_diagnose_controlled_failure(dashboard_server, tmp_path)
         action = {"name": "launch approved SPYM fixture"}
         pending = _attach_diagnostics(page, events, action)
         try:
-            page.goto(base_url + "/research/backtest-results", wait_until="networkidle")
-            page.get_by_text("Strategy settings and launch", exact=True).click()
+            page.goto(base_url + "/research/setup", wait_until="networkidle")
             _select(page, "configuration-selector", SPYM_OPTION_TEXT)
+            selected_configuration = page.locator(
+                "#configuration-preview .configuration-identity"
+            ).inner_text()
+            page.get_by_text("Review test", exact=True).click()
+            _assert_route(
+                page,
+                base_url,
+                "/research/run-test",
+                "route-research-run-test",
+            )
+            expect(
+                page.locator("#run-configuration-preview .configuration-identity")
+            ).to_have_text(selected_configuration)
+            page.reload(wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(
+                page.locator("#run-configuration-preview .configuration-identity")
+            ).to_have_text(selected_configuration)
             expect(page.locator("#launch-run")).to_be_enabled()
             page.locator("#launch-run").click()
             expect(page.locator("#launch-message")).to_contain_text("Status: succeeded", timeout=60000)
@@ -409,6 +616,13 @@ def test_launch_spym_and_diagnose_controlled_failure(dashboard_server, tmp_path)
             page.screenshot(path=tmp_path / "launched-spym.png", full_page=True)
 
             action["name"] = "inspect a controlled failed run"
+            page.get_by_text("View results", exact=True).click()
+            _assert_route(
+                page,
+                base_url,
+                "/research/backtest-results",
+                "route-research-backtest-results",
+            )
             page.locator("#refresh-runs").click()
             _wait_for_callbacks_to_settle(page, pending)
             _select(page, "selected-run-selector", "Infrastructure Fixture · Fixture backtest · Failed")
