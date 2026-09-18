@@ -592,7 +592,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 28
+    assert len(app.callback_map) == 29
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -2241,7 +2241,7 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
         "selected_configuration": {
             "source": "selected-configuration-state.data",
             "control": "configuration-selector.value",
-            "owner": "dashboard.callbacks.backtest_results",
+            "owner": "dashboard.callbacks.setup",
             "rule": (
                 "Set up writes the operator choice to one session store; Run test "
                 "reads that identity without mutation or an automatic launch."
@@ -2627,15 +2627,20 @@ def test_selected_setup_identity_updates_run_test_preview(
     )
     app = create_app(review_database=tmp_path / "selected-setup.sqlite3")
     preserve = _callback_function(app, "selected-configuration-state.data")
-    preview = _callback_function(app, "configuration-preview")
+    setup_preview = _callback_function(app, "configuration-preview")
+    run_preview = _callback_function(app, "run-configuration-preview")
 
     assert preserve(second.configuration_id) == second.configuration_id
-    setup_children, run_children, disabled, _title = preview(
+    setup_children, href, _class_name, _setup_title = setup_preview(
+        second.configuration_id
+    )
+    run_children, disabled, _run_title = run_preview(
         second.configuration_id
     )
 
     assert "second_operator_choice" in _component_text(html.Div(setup_children))
     assert "second_operator_choice" in _component_text(html.Div(run_children))
+    assert href == "/research/run-test"
     assert disabled is False
 
 

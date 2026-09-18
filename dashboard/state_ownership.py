@@ -26,7 +26,7 @@ STATE_OWNERS = {
     "selected_configuration": {
         "source": "selected-configuration-state.data",
         "control": "configuration-selector.value",
-        "owner": "dashboard.callbacks.backtest_results",
+        "owner": "dashboard.callbacks.setup",
         "rule": "Set up writes the operator choice to one session store; Run test reads that identity without mutation or an automatic launch.",
     },
     "selected_backtest": {

@@ -1,4 +1,4 @@
-"""Mounted setup, run-test, and results callback ownership."""
+"""Mounted run-test and results callback ownership."""
 
 from __future__ import annotations
 
@@ -12,12 +12,12 @@ from dashboard.components.operator_context import (
     OperatorContextViewModel,
     operator_context,
 )
+from dashboard.components.configuration_summary import configuration_summary
 from dashboard.application import (
     _active_route,
     _backtest_selector_label,
     _callback_triggered_id,
     _configuration_is_launchable,
-    _configuration_preview,
     _detail_has_backtest_evidence,
     _operator_message,
     _preferred_backtest_id,
@@ -29,7 +29,7 @@ from dashboard.application import (
     _results_operator_context,
     _selector_options,
 )
-from dashboard.run_adapter import SavedConfigurationView
+from dashboard.run_adapter import ConfigurationReadinessView, SavedConfigurationView
 from dashboard.callbacks.review_state import load_durable_review
 from dashboard.run_detail_adapter import (
     ResultSummaryView,
@@ -51,57 +51,37 @@ def register_backtest_results_callbacks(
     runs: FixtureRunService,
     detail_adapter: RunDetailDashboardAdapter,
     configurations: tuple[SavedConfigurationView, ...],
+    readiness_by_id: dict[str, ConfigurationReadinessView],
     dashboard_database: str | Path,
     artifact_root: Path,
 ) -> None:
-    """Register callbacks shared across the mounted research workflow."""
+    """Register Run test and Results callbacks within their page boundaries."""
 
     @app.callback(
-        Output("selected-configuration-state", "data"),
-        Input("configuration-selector", "value"),
-        prevent_initial_call=True,
-    )
-    def preserve_selected_configuration(configuration_id: str | None):
-        if not configuration_id:
-            raise PreventUpdate
-        return configuration_id
-
-    @app.callback(
-        Output("configuration-preview", "children"),
         Output("run-configuration-preview", "children"),
         Output("launch-run", "disabled"),
         Output("launch-run", "title"),
         Input("selected-configuration-state", "data"),
     )
     def preview_configuration(configuration_id: str | None):
-        selected = next(
-            (
-                configuration
-                for configuration in configurations
-                if configuration.configuration_id == configuration_id
-            ),
-            None,
+        readiness = readiness_by_id.get(configuration_id or "")
+        summary = configuration_summary(
+            readiness,
+            component_id="run-configuration-preview-content",
         )
-        if selected is None:
-            missing = html.Div(
-                "Saved configuration could not be found.",
-                className="error-state",
-            )
+        if readiness is None:
             return (
-                missing,
-                missing,
+                summary.children,
                 True,
                 "The selected saved configuration could not be found.",
             )
-        preview = _configuration_preview(selected).children
         return (
-            preview,
-            preview,
-            not selected.launchable,
+            summary.children,
+            not readiness.ready,
             (
                 "Launch this immutable saved configuration."
-                if selected.launchable
-                else "This saved configuration is not launchable."
+                if readiness.ready
+                else "Resolve every preflight blocker before running this test."
             ),
         )
 
@@ -142,12 +122,13 @@ def register_backtest_results_callbacks(
                 empty_context.children,
                 empty_context.className,
             )
-        if not selected.launchable:
+        readiness = readiness_by_id.get(selected.configuration_id)
+        if readiness is None or not readiness.ready:
             empty_context = operator_context(component_id="run-test-operator-context")
             return (
                 _operator_message(
                     "Run launch did not start.",
-                    "The selected saved configuration is not launchable.",
+                    "The selected saved configuration did not pass preflight. Resolve every blocker before retrying.",
                     tone="error",
                 ),
                 "save-message error-state",
@@ -607,11 +588,13 @@ def register_backtest_results_callbacks(
         Input("selected-run-state", "data"),
         Input("refresh-runs", "n_clicks"),
         Input("review-message", "children"),
+        Input("stale-recovery-message", "children"),
     )
     def update_results_operator_context(
         run_id: str | None,
         _refresh_clicks: int,
         _review_message: object,
+        _stale_recovery_message: object = None,
     ):
         if not run_id:
             context = _results_operator_context(None)
