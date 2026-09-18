@@ -43,7 +43,7 @@ def test_stored_evidence_interfaces_import_without_vectorbtpro() -> None:
             "-c",
             (
                 "import dashboard, persistence, backtesting.experiments, strategies, sys; "
-                "from dashboard import create_app; "
+                "from dashboard import SelectedPortfolioData; "
                 "from persistence import PersistenceService; "
                 "from backtesting.experiments import ExperimentConfig; "
                 "from strategies import get_strategy; "
