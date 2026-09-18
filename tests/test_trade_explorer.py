@@ -18,6 +18,7 @@ from dashboard.app import (
 from dashboard.components.trade_explorer import (
     DATE_BASIS_LABEL,
     filter_trade_rows,
+    layout as trade_explorer_layout,
     normalize_trade_rows,
     selected_trade_detail,
 )
@@ -384,6 +385,20 @@ def test_selected_trade_detail_empty_current_view_is_neutral() -> None:
     rendered = _component_text(detail)
     assert "No trade rows are available" in rendered
     assert "filters" not in rendered
+
+
+def test_trade_grid_uses_clickable_single_selection_without_checkboxes() -> None:
+    grid = next(
+        component
+        for component in _walk_components(trade_explorer_layout())
+        if getattr(component, "id", None) == "selected-trade-grid"
+    )
+
+    assert grid.dashGridOptions["rowSelection"] == {
+        "mode": "singleRow",
+        "checkboxes": False,
+        "enableClickSelection": True,
+    }
 
 
 def test_trade_explorer_outputs_exist_in_empty_database_layout(tmp_path: Path) -> None:
