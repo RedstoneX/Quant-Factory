@@ -284,6 +284,18 @@ def test_artifact_health_reads_permission_metadata_without_opening_or_writing(
     ) == before
 
 
+def test_artifact_health_reports_a_file_as_unavailable(tmp_path: Path) -> None:
+    artifact_file = tmp_path / "not-a-directory"
+    artifact_file.write_text("unchanged", encoding="utf-8")
+    before = (artifact_file.read_bytes(), artifact_file.stat().st_mtime_ns)
+
+    health = inspect_artifact_storage(artifact_file)
+
+    assert health.status == "Unavailable"
+    assert "not a directory" in health.detail
+    assert (artifact_file.read_bytes(), artifact_file.stat().st_mtime_ns) == before
+
+
 def test_research_cache_uses_only_active_configuration_dataset_identities(
     tmp_path: Path,
 ) -> None:
@@ -413,9 +425,12 @@ def test_registered_layout_mounts_one_truthful_local_snapshot_on_home_and_system
         if getattr(component, "id", None) is not None
     }
 
-    assert "Available" in _component_text(by_id["home-health-database"])
-    assert "Available" in _component_text(by_id["home-health-cache"])
-    assert "Available" in _component_text(by_id["home-health-artifact"])
+    home_database = by_id["home-health-database"]
+    home_cache = by_id["home-health-cache"]
+    home_artifact = by_id["home-health-artifact"]
+    assert "Available" in _component_text(home_database)
+    assert "Available" in _component_text(home_cache)
+    assert "Available" in _component_text(home_artifact)
     for area in ("worker", "provider", "credential"):
         text = _component_text(by_id[f"home-health-{area}"])
         assert "Not checked" in text
@@ -425,6 +440,9 @@ def test_registered_layout_mounts_one_truthful_local_snapshot_on_home_and_system
     assert "Research database Available" in system_text
     assert "Artifact storage Available" in system_text
     assert "Local data Available" in system_text
+    assert home_database.children[-1].children in system_text
+    assert home_cache.children[-1].children in system_text
+    assert home_artifact.children[-1].children in system_text
     assert catalog_checked_at.isoformat().replace("+00:00", "Z") in system_text
 
 
