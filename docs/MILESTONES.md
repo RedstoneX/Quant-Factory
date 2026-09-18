@@ -19,10 +19,14 @@ Fixtures validate infrastructure and are not active profitability candidates.
 Milestones 1–22 are complete. Milestone 23 is pending dashboard implementation,
 objective technical evidence, and renewed operator acceptance. Decision 279
 records the owner's rejection of the current Results-page comprehension and
-flow and supersedes Decision 277's acceptance for that experience. Correctness
-repairs remain authorized; broad redesign requires a concise research-grounded
-page specification or mockup and renewed owner acceptance. Decision 278 accepts
-ADR 0011's safer durable run-ticket architecture and
+flow and supersedes Decision 277's acceptance for that experience. Decision
+280 accepts a chart-first replacement direction: a truthful selected-run price
+chart with persisted entry/exit markers is primary and links to a grouped trade
+ledger. TradingView's backtesting Strategy Report is the primary UX reference;
+QAMC informs panel, resizing, and link mechanics only, not information density.
+The detailed specification or mockup, implementation, deployment, tests, and
+renewed operator acceptance remain pending. Decision 278 accepts ADR 0011's
+safer durable run-ticket architecture and
 authorizes implementation, but that implementation and its required evidence
 remain pending. Systematic discovery, optimization, protected-test evaluation,
 paper-order activation, and live work remain blocked except for the bounded
@@ -30,8 +34,9 @@ offline and deployment preparation already authorized and retained.
 
 Decision 274 sets the current order:
 
-1. Complete the remaining Milestone 23 dashboard gates, including the
-   Decision 279 Results-page design review and renewed owner acceptance.
+1. Complete the remaining Milestone 23 dashboard gates, including the detailed
+   Decision 280 chart-first Results specification, implementation, evidence,
+   and renewed owner acceptance.
 2. Conduct controlled strategy intake and research under Milestone 25 until a
    defensible edge qualifies.
 3. Resume remaining Milestone 24 paper activation only after the qualifying
@@ -54,7 +59,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Repair selected-run persistence and Run History interaction, then complete a research-grounded Results-page specification/mockup and renewed owner review under Decision 279; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, and documentation/status gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
+| R05 | 1 | in_progress | none | Complete and obtain owner approval for the detailed Decision 280 chart-first Results specification/mockup, then implement and validate it; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, documentation/status, and renewed operator-acceptance gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 
@@ -129,15 +134,16 @@ is proposed or authorized here.
 - **23A — Scenarios and fixtures:** frozen. **Complete.**
 - **23B — Automated full-system acceptance:** supporting evidence implemented;
   keep the complete scenario inventory green.
-- **23C-1 — Review/design:** reopened for a concise research-grounded
-  Results-page specification or mockup and renewed owner acceptance under
-  Decision 279.
-- **23C-2 — Implementation:** authorized but not complete. Implement accepted
-  ADR 0011's durable run-ticket contract while preserving ADR 0008, Plotly
-  Dash, VectorBT Pro, and service boundaries.
-- **23C-3 — Browser/operator acceptance:** renewed owner acceptance plus
-  real-browser lifecycle and complete end-to-end workflow evidence remain
-  pending.
+- **23C-1 — Review/design:** Decision 280 accepts the chart-first Results
+  direction. The detailed responsive specification or mockup and its owner
+  approval remain pending before broad implementation.
+- **23C-2 — Implementation:** accepted ADR 0011 durable run-ticket work remains
+  authorized but not complete. Broad Results redesign waits for the detailed
+  Decision 280 specification approval and must preserve ADR 0008, Plotly Dash,
+  VectorBT Pro, and service boundaries.
+- **23C-3 — Browser/operator acceptance:** renewed owner acceptance of the
+  implemented replacement plus real-browser lifecycle and complete end-to-end
+  workflow evidence remain pending.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
   cancellation, stale recovery, missing-artifact, and corrupt-lineage coverage.
 - **23E — Gate decision:** record explicit pass or fail. No discovery or order

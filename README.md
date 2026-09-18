@@ -24,9 +24,11 @@ Existing RSI, MES opening-range breakout, and SPY Donchian work is retained as h
 
 No systematic strategy discovery or profitability search may resume until
 Milestone 23 passes. Decision 279 records the owner's rejection of the current
-Results-page comprehension and flow; a research-grounded replacement
-specification, renewed owner acceptance, and the remaining objective technical
-gates are not yet complete.
+Results-page comprehension and flow. Decision 280 accepts a chart-first
+replacement direction built around a truthful selected-run price chart,
+persisted trade markers, and a linked grouped trade ledger. The detailed
+specification, implementation, tests, deployment decision, renewed owner
+acceptance, and remaining objective technical gates are not yet complete.
 
 Decision 275 is implemented: this sanitized clean-history public repository is
 the canonical source of truth, and the original repository is retained as a

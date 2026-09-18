@@ -51,8 +51,8 @@ agent policy](ai-programming-agent-policy.md).
 | Dashboard navigation | Single-page minimal dashboard | Multi-page product navigation with consistent run context | Required | Database adapters | Operator reaches launch, history, results, evidence, compare and system status | Entire product | Claude Code local implementation |
 | Dashboard experiment launch | Not implemented | Approved dropdowns/forms, validation and job submission | Required | Orchestration | Fixture run launches without Python or terminal | Launch page | Claude Code local implementation |
 | Dashboard history | Not durable | Searchable/filterable persistent run history | Required | Database | Runs remain after restart and can be reopened | History page | Claude Code local implementation |
-| Dashboard charts | Equity and drawdown for selected RSI row | General VectorBT-backed equity, drawdown, benchmark and price/signal charts | Required | Artifact adapters | Charts render for stored fixture run without rerunning full grid | Results page | Claude Code local implementation |
-| Dashboard trades | Not complete | Completed-trade table, entries/exits on price chart and trade drill-down | Required | Portfolio/trade artifact | Operator can inspect every fixture trade and costs | Trades page | Claude Code local implementation |
+| Dashboard charts | Equity and drawdown for selected RSI row | Selected-run truthful price chart as the primary Results workspace, with supporting VectorBT-backed equity, drawdown and benchmark analysis | Required | Artifact adapters | Persisted charts render for a stored fixture run without rerunning the grid or reconstructing missing evidence | Results page | Claude Code local implementation |
+| Dashboard trades | Not complete | Persisted entries/exits on the price chart linked to a ledger grouped by completed trade and an accessible trade drill-down | Required | Portfolio/trade artifact | Selecting a fixture trade focuses its entry/exit context and exposes timestamps, prices, size, costs and P&L | Results chart and trade ledger | Claude Code local implementation |
 | Dashboard evidence explanations | Minimal review status | Unified pass/fail/insufficient evidence, rule details and stage progression | Required | Evidence model | Operator understands why progression stopped | Evidence page | Claude Code local implementation |
 | Dashboard run comparison | Not implemented | Side-by-side metrics, curves, assumptions and evidence differences | Required | Database | Two stored runs compare without manual files | Compare page | Claude Code local implementation |
 | Dashboard data provenance | Basic selected-row display | Complete source, coverage, adjustment, manifest and cache status | Required | Provenance persistence | Operator can verify exactly what data a run used | Provenance panel | Claude Code local implementation |
@@ -74,6 +74,7 @@ agent policy](ai-programming-agent-policy.md).
 ## Hard gate
 
 No systematic strategy discovery, optimization for profitability, or promotion
-search may resume until Milestone 23 passes. Decision 279 requires a
-research-grounded replacement Results-page specification and renewed owner
-acceptance; the remaining objective technical gates are also not yet complete.
+search may resume until Milestone 23 passes. Decision 280 accepts the
+chart-first Results direction, but detailed specification approval,
+implementation, deployment, testing, renewed operator acceptance, and the
+remaining objective technical gates are not yet complete.

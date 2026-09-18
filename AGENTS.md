@@ -88,12 +88,16 @@ authorization forward within its approved scope and do not repeatedly ask.
 - The dashboard is the primary operator interface. Python, terminals, raw CSV/JSON, and backend logs are implementation details.
 - RSI, MES opening-range breakout, and SPY Donchian are infrastructure fixtures and historical evidence, not active profitability candidates.
 - Decision 279 supersedes Decision 277's acceptance of the current Results-page
-  comprehension and flow. Correctness repairs remain authorized, but broad
-  Results-page redesign requires a concise research-grounded page specification
-  or mockup and renewed owner acceptance. Strategy discovery remains blocked
-  until Milestone 23 passes its implementation, browser-lifecycle, end-to-end
-  workflow, failure-handling, test, documentation/status-synchronization, and
-  renewed operator-acceptance gates.
+  comprehension and flow. Decision 280 accepts the replacement direction: the
+  selected-run truthful price chart is the primary workspace, persisted
+  entry/exit markers link to a grouped trade ledger, TradingView's backtesting
+  Strategy Report is the primary UX reference, and QAMC is a reference only
+  for panel, resizing, and chart/ledger-link mechanics rather than information
+  density. A detailed mockup or concise specification, implementation,
+  deployment, tests, and renewed operator acceptance remain pending. Strategy
+  discovery remains blocked until Milestone 23 passes those gates and its
+  remaining browser-lifecycle, end-to-end workflow, failure-handling, and
+  documentation/status-synchronization gates.
 - Under Decisions 259 and 262, research-only Docker/Compose packaging,
   deployment preparation, broker-neutral contracts, isolated paper-adapter
   implementation, tests, and target validation may proceed in parallel with
@@ -116,8 +120,9 @@ Decision 274 sets the current order. The milestone numbers remain unchanged;
 the remaining Milestone 24 paper activation follows strategy qualification even
 though its deployment and offline execution preparation is already retained.
 
-1. Complete the remaining Milestone 23 dashboard gates, including the
-   Decision 279 Results-page design review and renewed owner acceptance.
+1. Complete the remaining Milestone 23 dashboard gates, including the detailed
+   Decision 280 chart-first Results specification, implementation, evidence,
+   and renewed owner acceptance.
 2. Conduct controlled equity strategy intake and research backtesting under
    Milestone 25 until a defensible edge qualifies.
 3. Resume and complete the remaining Milestone 24 paper activation only after

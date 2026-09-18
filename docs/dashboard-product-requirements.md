@@ -17,24 +17,31 @@ Milestone 23 pass.
 The project owner initially accepted the dashboard/operator direction under
 Decision 277, then rejected the current Results-page comprehension and task
 flow after further use. Decision 279 supersedes that acceptance for this
-experience. Correctness repairs remain required, but broad Results-page
-redesign must wait for a concise research-grounded page specification or
-mockup and renewed owner acceptance. Retain Plotly Dash and VectorBT Pro; use
-Dash AG Grid and Dash Bootstrap Components where appropriate. Use capable
-retail-trader language while remaining understandable to a novice operator
-without programming or finance expertise.
+experience. Decision 280 accepts the replacement direction: the selected-run
+truthful OHLC/price chart is primary, persisted entry/exit markers link to a
+ledger grouped by completed trade, TradingView's backtesting Strategy Report
+is the primary UX reference, and QAMC informs only docking, resizing and linked
+panel mechanics rather than information density. The detailed responsive
+specification or mockup and its owner approval must precede broad
+implementation. Implementation, deployment, tests and renewed acceptance of
+the implemented experience remain pending. Retain Plotly Dash and VectorBT
+Pro; use Dash AG Grid and Dash Bootstrap Components where appropriate. Use
+capable retail-trader language while remaining understandable to a novice
+operator without programming or finance expertise.
 
 A separate September 17 local-only Ideas prototype browser-validated the
 extended flow on desktop and mobile. It is evidence for the approved direction,
-not a production deployment or substitute for the renewed owner acceptance
-required by Decision 279; production remains unchanged. See the retained
+not a production deployment or substitute for the detailed Results design and
+renewed owner acceptance required by Decisions 279 and 280; production remains
+unchanged. See the retained
 prototype and validation evidence referenced in [MILESTONES](MILESTONES.md#current-phase).
 
 ## Target operator information hierarchy
 
 Decision 274 extends the Decision 273 navigation direction to Home → Ideas →
-Set up → Run test → Results → Compare. Decision 279 reopens Results-page design
-and operator acceptance; implementation conformance and M23 technical
+Set up → Run test → Results → Compare. Decision 280 accepts the chart-first
+Results direction while leaving the detailed specification, implementation and
+operator acceptance open; implementation conformance and M23 technical
 completion remain unconfirmed. During 23C, the Ideas page may support safe
 draft and source-reference capture so the operator can review the complete
 research interface. An inactive Ideas route must not fetch
@@ -53,9 +60,13 @@ context:
 
 Technical hashes, implementation identifiers, and developer diagnostics remain
 available in clearly labelled drill-downs. The layout must adapt to desktop,
-tablet, and mobile screens. TradingView Lightweight Charts is an optional
-later evaluation only if the price and trade evidence requires it; it is not a
-framework direction for the current slice.
+tablet, and mobile screens. TradingView's Strategy Report/backtesting
+interaction in its chart-first Supercharts context is the primary Results UX
+reference; its live-trading, brokerage, order-entry, position and account
+surfaces are out of scope. This reference does not require the TradingView
+Lightweight Charts library, which remains an optional later implementation
+evaluation, and does not change the Plotly Dash/VectorBT Pro framework
+direction.
 
 ## Primary operator workflow
 
@@ -108,6 +119,9 @@ navigation and review flow:
 - columns responsively use the available width without avoidable horizontal scrolling or large dead space, while retaining access to every field on narrow screens;
 - artifact availability and reproducibility status.
 
+On Results, run history is a secondary **Change run** surface. It must not
+precede or displace the selected-run chart workspace.
+
 ### Run overview
 
 - run identity and timestamps;
@@ -122,11 +136,20 @@ navigation and review flow:
 - parent/child lineage;
 - review decision and notes.
 
+This context remains compact and available around the primary chart; it is not
+a report-first block that pushes the price/trade workspace below a long page.
+
 ### Price and trades
 
-- OHLC/price chart;
-- entry and exit markers;
-- completed-trade table;
+- the selected persisted run's truthful OHLC/price chart as the primary Results
+  workspace;
+- entry and exit markers at persisted timestamps and prices, never fabricated
+  from missing artifacts;
+- a chart-linked ledger grouped by completed trade, with entry and exit rows or
+  equivalent paired detail;
+- selecting a trade brings its entry/exit interval into view and identifies
+  the corresponding markers, with an explicit keyboard-accessible **Show on
+  chart** action;
 - trade drill-down with timestamps, prices, size, fees, slippage assumptions and P&L;
 - filters for winning, losing, long, short and date range;
 - clear distinction between theoretical/backtest execution and future actual fills.
@@ -280,10 +303,13 @@ Visual polish alone is insufficient. The dashboard must operate the complete res
 ## Milestone 23C design and implementation gate
 
 23C-1 must produce an approved concise page specification or mockup before
-new broad Results-page implementation. The specification must cover the approved
-workflow, responsive desktop/tablet/mobile behavior, novice language, the four
-persistent selected-run fields, and labelled technical drill-downs. 23C-2
-retains the ADR 0008 mounted-route architecture and uses Dash AG Grid and Dash
-Bootstrap Components as approved implementation components. Decision 279
-requires renewed owner approval for the replacement Results experience; 23C-3
-also requires real-browser lifecycle and end-to-end workflow evidence.
+new broad Results-page implementation. Decision 280 accepts the chart-first
+direction but not the detailed replacement. The specification must cover the
+approved workflow, responsive desktop/tablet/mobile behavior, novice language,
+the four persistent selected-run fields, truthful chart/ledger linkage,
+progressive disclosure, and labelled technical drill-downs. 23C-2 retains the
+ADR 0008 mounted-route architecture and uses Dash AG Grid and Dash Bootstrap
+Components as approved implementation components. Detailed design approval,
+implementation, deployment, automated and browser testing, and renewed owner
+acceptance of the implemented Results experience remain pending; 23C-3 also
+requires real-browser lifecycle and end-to-end workflow evidence.
