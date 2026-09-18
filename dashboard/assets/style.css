@@ -159,6 +159,45 @@ li { margin: 8px 0; line-height: 1.45; }
   text-decoration: none;
 }
 
+.navigation-item {
+  min-width: 0;
+  width: 100%;
+}
+
+.navigation-item .navigation-link {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+@media (min-width: 1200px) {
+  .navigation-item .navigation-link {
+    min-height: 62px;
+  }
+}
+
+.sidebar-brand-item .sidebar-brand {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.navigation-current-label {
+  display: none;
+}
+
+.navigation-item[aria-current="page"] .navigation-current-label {
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  display: block;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .navigation-link:hover,
 .navigation-link:focus-visible {
   background: #102b49;

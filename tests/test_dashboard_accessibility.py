@@ -5,6 +5,7 @@ from __future__ import annotations
 from dash.development.base_component import Component
 
 from dashboard.pages.setup import layout as setup_layout
+from dashboard.routing import NAVIGATION_ITEMS, navigation_item_id
 from dashboard.shell import create_dashboard_layout
 
 
@@ -57,3 +58,42 @@ def test_setup_selector_is_exposed_as_a_named_control_group() -> None:
     assert label.children == "Saved setup"
     assert label.htmlFor == "configuration-selector"
     assert _by_id(group, "configuration-selector").disabled is True
+
+
+def test_active_navigation_item_exposes_semantic_current_page_state() -> None:
+    active_path = "/research/setup"
+    layout = create_dashboard_layout(
+        context=None,
+        configurations=(),
+        page_factory=lambda *_args, **_kwargs: [],
+        initial_pathname=active_path,
+    )
+
+    current_items = [
+        item
+        for path, _label in NAVIGATION_ITEMS
+        if (
+            item := _by_id(layout, navigation_item_id(path))
+        ).to_plotly_json()["props"].get("aria-current") == "page"
+    ]
+
+    assert len(current_items) == 1
+    assert current_items[0].id == navigation_item_id(active_path)
+    assert current_items[0].role == "listitem"
+
+
+def test_home_brand_exposes_one_current_item_and_accessible_current_text() -> None:
+    layout = create_dashboard_layout(
+        context=None,
+        configurations=(),
+        page_factory=lambda *_args, **_kwargs: [],
+        initial_pathname="/",
+    )
+    current = _by_id(layout, navigation_item_id("/"))
+    props = current.to_plotly_json()["props"]
+
+    assert props["aria-current"] == "page"
+    assert current.children.className == "sidebar-brand"
+    assert "Current page" in [
+        child.children for child in current.children.children
+    ]

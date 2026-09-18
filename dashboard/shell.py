@@ -12,6 +12,7 @@ from dashboard.routing import (
     NAVIGATION_GROUPS,
     NAVIGATION_LINKS,
     ROUTE_REGISTRY,
+    navigation_item_id,
     navigation_link_id,
     route_container_styles_for_path,
 )
@@ -49,14 +50,30 @@ def navigation(pathname: str = "/") -> html.Nav:
         groups.append(
             html.Div(
                 [
-                    dcc.Link(
-                        label,
-                        id=navigation_link_id(path),
-                        href=path,
-                        className=(
-                            "navigation-link navigation-link-active"
+                    html.Div(
+                        dcc.Link(
+                            [
+                                html.Span(label),
+                                html.Span(
+                                    "Current page",
+                                    className="navigation-current-label",
+                                ),
+                            ],
+                            id=navigation_link_id(path),
+                            href=path,
+                            className=(
+                                "navigation-link navigation-link-active"
+                                if path == active_path
+                                else "navigation-link"
+                            ),
+                        ),
+                        id=navigation_item_id(path),
+                        className="navigation-item",
+                        role="listitem",
+                        **(
+                            {"aria-current": "page"}
                             if path == active_path
-                            else "navigation-link"
+                            else {}
                         ),
                     )
                     for path, label in links
@@ -66,24 +83,38 @@ def navigation(pathname: str = "/") -> html.Nav:
                     if group_label == "Global"
                     else "navigation-links"
                 ),
+                role="list",
             )
         )
     return html.Nav(
         [
-            dcc.Link(
-                [
-                    html.Span("QF", className="sidebar-logo"),
-                    html.Div(
-                        [
-                            html.P("QUANT", className="sidebar-title-line"),
-                            html.P("FACTORY", className="sidebar-title-line"),
-                        ],
-                        className="sidebar-title-lockup",
-                    ),
-                ],
-                href="/",
-                title="Quant Factory Home",
-                className="sidebar-brand",
+            html.Div(
+                dcc.Link(
+                    [
+                        html.Span("QF", className="sidebar-logo"),
+                        html.Div(
+                            [
+                                html.P("QUANT", className="sidebar-title-line"),
+                                html.P("FACTORY", className="sidebar-title-line"),
+                            ],
+                            className="sidebar-title-lockup",
+                        ),
+                        html.Span(
+                            "Current page",
+                            className="navigation-current-label",
+                        ),
+                    ],
+                    href="/",
+                    title="Quant Factory Home",
+                    className="sidebar-brand",
+                ),
+                id=navigation_item_id("/"),
+                className="sidebar-brand-item navigation-item",
+                **(
+                    {"aria-current": "page"}
+                    if active_path == "/"
+                    else {}
+                ),
             ),
             html.Div(groups, className="sidebar-navigation-groups"),
             html.Div(

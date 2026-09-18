@@ -12,7 +12,13 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import expect, sync_playwright
 
-from dashboard.routing import NAVIGATION_LINKS, ROUTE_REGISTRY, navigation_link_id
+from dashboard.routing import (
+    NAVIGATION_ITEMS,
+    NAVIGATION_LINKS,
+    ROUTE_REGISTRY,
+    navigation_item_id,
+    navigation_link_id,
+)
 from orchestration import FixtureRunService
 from persistence import (
     DataProvenanceRecord,
@@ -346,6 +352,12 @@ def _assert_route(page, base_url, path, container):
         expect(active).to_have_attribute("id", navigation_link_id(path))
     else:
         expect(active).to_have_count(0)
+    if path in dict(NAVIGATION_ITEMS):
+        current = page.locator('[aria-current="page"]')
+        expect(current).to_have_count(1)
+        expect(current).to_have_attribute("id", navigation_item_id(path))
+    else:
+        expect(page.locator('[aria-current="page"]')).to_have_count(0)
 
 
 def _attach_diagnostics(page, events, action):

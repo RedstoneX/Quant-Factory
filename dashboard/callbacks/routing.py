@@ -6,9 +6,12 @@ from dash import Dash, Input, Output, State, ctx
 from dash.exceptions import PreventUpdate
 
 from dashboard.routing import (
+    NAVIGATION_ITEMS,
     NAVIGATION_LINKS,
     ROUTE_CONTAINER_IDS,
     navigation_classes_for_path,
+    navigation_current_states_for_path,
+    navigation_item_id,
     navigation_link_id,
     route_container_styles_for_path,
 )
@@ -59,12 +62,19 @@ def register_routing_callbacks(app: Dash) -> None:
             Output(navigation_link_id(path), "className")
             for path, _ in NAVIGATION_LINKS
         ],
+        *[
+            Output(navigation_item_id(path), "aria-current")
+            for path, _ in NAVIGATION_ITEMS
+        ],
         Input("url", "pathname"),
     )
     def update_navigation_active_state(pathname: str | None):
         if pathname is None:
             raise PreventUpdate
-        return navigation_classes_for_path(pathname)
+        return (
+            *navigation_classes_for_path(pathname),
+            *navigation_current_states_for_path(pathname),
+        )
 
     @app.callback(
         Output("responsive-active-page", "children"),
