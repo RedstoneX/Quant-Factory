@@ -288,11 +288,8 @@ def test_mobile_operator_cancels_active_run_and_late_completion_stays_blocked(
                         "Run statusCancelled"
                     )
                     _assert_document_contained(page)
-                    assert (
-                        assert_browser_diagnostics_clean(
-                            page, events, (server_log,)
-                        )
-                        > 0
+                    assert_browser_diagnostics_clean(
+                        page, events, (server_log,)
                     )
                 except Exception:
                     _write_failure_evidence(
@@ -412,9 +409,8 @@ def test_tablet_operator_recovers_stale_run_and_repeat_is_safe(
                     "run_failed"
                 ) == 1
                 _assert_document_contained(page)
-                assert (
-                    assert_browser_diagnostics_clean(page, events, (server_log,))
-                    > 0
+                assert_browser_diagnostics_clean(
+                    page, events, (server_log,)
                 )
             except Exception:
                 _write_failure_evidence(

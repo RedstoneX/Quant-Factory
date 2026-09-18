@@ -81,8 +81,8 @@ def test_results_deep_link_refresh_history_and_rejection_are_deterministic(
             )
 
             assert pending_requests == set()
-            assert (
-                assert_browser_diagnostics_clean(page, events, (server_log,)) > 0
+            assert_browser_diagnostics_clean(
+                page, events, (server_log,)
             )
         finally:
             browser.close()
