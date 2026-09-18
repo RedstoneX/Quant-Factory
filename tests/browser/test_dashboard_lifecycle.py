@@ -710,11 +710,11 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
 
 
 def test_run_history_grid_opens_older_run_and_survives_refresh(
-    dashboard_server,
+    mounted_workflow_server,
     tmp_path,
 ):
-    base_url, server_log, _ = dashboard_server
-    database = server_log.parent / "state" / "browser-fixture.sqlite3"
+    base_url, server_log, _ = mounted_workflow_server
+    database = server_log.parent / "state" / "mounted-workflow.sqlite3"
     target_run_id = _seed_history_browser_runs(database)
     events = []
     with sync_playwright() as playwright:
@@ -725,6 +725,7 @@ def test_run_history_grid_opens_older_run_and_survives_refresh(
         try:
             page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
             expect(page.locator("#run-history-grid")).to_be_visible(timeout=10000)
+            _wait_for_callbacks_to_settle(page, pending_requests)
             page.evaluate(
                 """
                 async () => {
@@ -740,10 +741,16 @@ def test_run_history_grid_opens_older_run_and_survives_refresh(
                 }
                 """
             )
-            expect(page.locator("#run-history-grid").get_by_text("OLDROW")).to_be_visible()
-            page.locator("#run-history-grid").get_by_text("OLDROW").click()
+            target_cell = page.locator("#run-history-grid").get_by_text("OLDROW")
+            expect(target_cell).to_be_visible()
+            target_cell.click()
+            target_row = target_cell.locator("xpath=ancestor::div[@role='row']")
+            expect(target_row).to_have_attribute("aria-selected", "true")
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                target_run_id,
+                timeout=10000,
+            )
             _wait_for_callbacks_to_settle(page, pending_requests)
-            expect(page.locator("#selected-run-detail")).to_contain_text(target_run_id)
             expect(page.locator("#selected-run-detail")).to_contain_text(
                 "History Browser Strategy"
             )
