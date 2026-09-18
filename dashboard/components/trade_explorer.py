@@ -114,6 +114,12 @@ def layout() -> html.Section:
                 id="trade-explorer-summary",
                 className="field-help",
             ),
+            html.Div(
+                "Select a trade to identify its entry and exit on the price chart.",
+                id="results-chart-focus-status",
+                className="field-help results-chart-focus-status",
+                **{"aria-live": "polite"},
+            ),
             dag.AgGrid(
                 id="selected-trade-grid",
                 rowData=[],
@@ -129,6 +135,7 @@ def layout() -> html.Section:
                     "animateRows": False,
                     "pagination": True,
                     "paginationPageSize": 12,
+                    "domLayout": "autoHeight",
                     "rowSelection": {
                         "mode": "singleRow",
                         "checkboxes": False,
@@ -143,7 +150,7 @@ def layout() -> html.Section:
                     "ag-theme-alpine qf-data-grid qf-trades-grid "
                     "qf-trade-explorer-grid"
                 ),
-                style={"height": "360px", "width": "100%"},
+                style={"width": "100%"},
             ),
             html.Div(
                 no_trade_selected_message(),
@@ -254,6 +261,7 @@ def normalize_trade_rows(
                     f"{trade_identity if trade_identity not in (None, '') else 'no-source-id'}"
                 ),
                 "__run_id": run_id,
+                "__trade_index": index,
                 "__basis_date": basis_date,
                 "__date_status": date_status,
                 "Trade": f"Trade {index}",

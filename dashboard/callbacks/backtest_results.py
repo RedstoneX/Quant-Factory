@@ -29,6 +29,7 @@ from dashboard.application import (
     _recent_runs_panel,
     _run_action_availability,
     _run_detail_panel,
+    _results_report_tabs,
     _results_operator_context,
     _selector_options,
 )
@@ -1291,6 +1292,7 @@ def register_backtest_results_callbacks(
                         ),
                         className="error-state",
                     ),
+                    _results_report_tabs(None),
                 ],
                 className="panel run-detail-panel",
             )
@@ -1318,6 +1320,7 @@ def register_backtest_results_callbacks(
                     html.P(
                         "The Results route has been preserved and no other run is being shown in its place."
                     ),
+                    _results_report_tabs(None),
                 ],
                 className="panel run-detail-panel",
             )

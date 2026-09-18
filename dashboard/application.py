@@ -68,6 +68,12 @@ from dashboard.run_detail_adapter import (  # noqa: E402
     RunDetailDashboardAdapter,
     SelectedRunDetailView,
 )
+from dashboard.results_model import (  # noqa: E402
+    ResultsDataError,
+    TradeEvent,
+    map_event_to_bar,
+    prepare_interval,
+)
 from market_data import DataAudit, load_market_data  # noqa: E402
 from market_data.equity_contract import (  # noqa: E402
     load_spym_manifest,
@@ -1888,7 +1894,7 @@ def _trade_marker_rows(
         price_keys = ("Avg Exit Price", "Exit Price", "exit_price")
     else:
         return ()
-    for trade in trades:
+    for index, trade in enumerate(trades, start=1):
         if event == "exit" and str(trade.get("Status", "")).lower() == "open":
             continue
         timestamp = next(
@@ -1908,6 +1914,14 @@ def _trade_marker_rows(
         direction = str(trade.get("Direction", trade.get("direction", ""))).strip()
         rows.append(
             {
+                "trade_id": str(
+                    trade.get(
+                        "Exit Trade Id",
+                        trade.get("Trade Id", trade.get("Position Id", index)),
+                    )
+                ),
+                "trade_index": index,
+                "event": event,
                 "timestamp": str(timestamp),
                 "price": price,
                 "size": trade.get("Size", trade.get("size", "Not recorded")),
@@ -1929,6 +1943,220 @@ def _marker_trace_name(rows: tuple[dict[str, Any], ...], event: str) -> str:
     if directions == {"short"}:
         return f"Short {event} markers"
     return f"Trade {event} markers"
+
+
+_RESULTS_INTERVALS = ("1m", "5m", "15m", "1D")
+_RESULTS_VIEWS = (
+    ("Full run", None),
+    ("1D", timedelta(days=1)),
+    ("1W", timedelta(weeks=1)),
+    ("1M", timedelta(days=30)),
+)
+
+
+def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]:
+    """Build the approved Bars/View workspace from persisted evidence only."""
+
+    instrument = _evidence_instrument(detail)
+    timeframe = _evidence_timeframe(detail)
+    normalized_timeframe = timeframe.lower().replace("-", " ").strip()
+    source_interval = (
+        "1m"
+        if normalized_timeframe in {"1m", "1 min", "1 minute", "1 minute bars"}
+        else timeframe
+    )
+    entry_rows = _trade_marker_rows(detail.evidence.trades, event="entry")
+    exit_rows = _trade_marker_rows(detail.evidence.trades, event="exit")
+    figure = go.Figure()
+    interval_trace_indexes: dict[str, list[int]] = {}
+    unavailable: list[str] = []
+    last_timestamp: datetime | None = None
+
+    for interval in _RESULTS_INTERVALS:
+        try:
+            interval_bars = prepare_interval(
+                detail.evidence.price_series,
+                interval,
+                source_interval=source_interval,
+            )
+        except ResultsDataError as exc:
+            unavailable.append(f"{interval}: {exc.reason}")
+            continue
+        if not interval_bars.available:
+            unavailable.append(f"{interval}: {interval_bars.reason}")
+            continue
+
+        visible = interval == "1m"
+        bars = interval_bars.bars
+        if bars:
+            last_timestamp = max(last_timestamp or bars[-1].timestamp, bars[-1].timestamp)
+        interval_trace_indexes[interval] = [len(figure.data)]
+        figure.add_trace(
+            go.Candlestick(
+                x=[bar.timestamp for bar in bars],
+                open=[bar.open for bar in bars],
+                high=[bar.high for bar in bars],
+                low=[bar.low for bar in bars],
+                close=[bar.close for bar in bars],
+                increasing={
+                    "line": {"color": "#16a34a", "width": 1},
+                    "fillcolor": "#16a34a",
+                },
+                decreasing={
+                    "line": {"color": "#dc2626", "width": 1},
+                    "fillcolor": "#dc2626",
+                },
+                name=f"Observed {instrument} ({interval})",
+                visible=visible,
+                hovertemplate=(
+                    f"{interval} UTC bar %{{x}}<br>Open %{{open:$,.2f}}<br>"
+                    "High %{high:$,.2f}<br>Low %{low:$,.2f}<br>"
+                    "Close %{close:$,.2f}<extra></extra>"
+                ),
+            )
+        )
+        for event, rows, symbol, color, outline in (
+            ("entry", entry_rows, "triangle-up", "#16a34a", "#064e3b"),
+            ("exit", exit_rows, "triangle-down", "#dc2626", "#7f1d1d"),
+        ):
+            mapped_rows: list[tuple[dict[str, Any], datetime]] = []
+            for row in rows:
+                try:
+                    mapping = map_event_to_bar(
+                        TradeEvent(
+                            trade_id=row["trade_id"],
+                            leg=event,
+                            timestamp=datetime.fromisoformat(
+                                row["timestamp"].replace("Z", "+00:00")
+                            ),
+                            price=row["price"],
+                        ),
+                        interval_bars,
+                    )
+                except (ResultsDataError, ValueError):
+                    continue
+                if mapping.available and mapping.bar_timestamp is not None:
+                    mapped_rows.append((row, mapping.bar_timestamp))
+            if not mapped_rows:
+                continue
+            interval_trace_indexes[interval].append(len(figure.data))
+            figure.add_trace(
+                go.Scatter(
+                    x=[bar_timestamp for _, bar_timestamp in mapped_rows],
+                    y=[row["price"] for row, _ in mapped_rows],
+                    mode="markers",
+                    marker={
+                        "symbol": symbol,
+                        "size": 9,
+                        "color": color,
+                        "line": {"color": outline, "width": 1},
+                    },
+                    customdata=[
+                        [
+                            row["trade_index"],
+                            row["timestamp"],
+                            bar_timestamp.isoformat(),
+                            row["size"],
+                            row["fees"],
+                            row["direction"],
+                        ]
+                        for row, bar_timestamp in mapped_rows
+                    ],
+                    name=_marker_trace_name(rows, event),
+                    visible=visible,
+                    hovertemplate=(
+                        f"{event.title()} · Trade %{{customdata[0]}}<br>"
+                        "Exact event %{customdata[1]}<br>"
+                        "Containing bar %{customdata[2]}<br>Price %{y:$,.2f}<br>"
+                        "Size %{customdata[3]}<br>Fees %{customdata[4]}<br>"
+                        "Direction %{customdata[5]}<extra></extra>"
+                    ),
+                )
+            )
+
+    trace_count = len(figure.data)
+    bars_buttons = []
+    for interval in _RESULTS_INTERVALS:
+        trace_indexes = interval_trace_indexes.get(interval, [])
+        bars_buttons.append(
+            {
+                "label": interval,
+                "method": "restyle",
+                "args": [
+                    {"visible": [index in trace_indexes for index in range(trace_count)]}
+                ],
+                "execute": bool(trace_indexes),
+            }
+        )
+    view_buttons = []
+    for label, duration in _RESULTS_VIEWS:
+        if duration is None or last_timestamp is None:
+            args = [{"xaxis.autorange": True}]
+        else:
+            args = [
+                {
+                    "xaxis.autorange": False,
+                    "xaxis.range": [last_timestamp - duration, last_timestamp],
+                }
+            ]
+        view_buttons.append({"label": label, "method": "relayout", "args": args})
+
+    figure.update_layout(
+        title=f"{instrument} observed {timeframe} price with trade entries and exits",
+        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin={"l": 45, "r": 20, "t": 105, "b": 62},
+        dragmode="pan",
+        hovermode="x unified",
+        yaxis={"tickformat": "$,.2f", "title": f"{instrument} price"},
+        xaxis={"rangeslider": {"visible": False}},
+        legend={"orientation": "h", "y": -0.2},
+        updatemenus=[
+            {
+                "type": "buttons",
+                "direction": "right",
+                "active": 0,
+                "x": 0,
+                "y": 1.17,
+                "buttons": bars_buttons,
+                "showactive": True,
+            },
+            {
+                "type": "buttons",
+                "direction": "right",
+                "active": 0,
+                "x": 0.42,
+                "y": 1.17,
+                "buttons": view_buttons,
+                "showactive": True,
+            },
+        ],
+        annotations=[
+            {
+                "text": "Bars:",
+                "xref": "paper",
+                "yref": "paper",
+                "x": 0,
+                "y": 1.24,
+                "showarrow": False,
+            },
+            {
+                "text": "View:",
+                "xref": "paper",
+                "yref": "paper",
+                "x": 0.42,
+                "y": 1.24,
+                "showarrow": False,
+            },
+        ],
+    )
+    availability = (
+        "All persisted display intervals are available."
+        if not unavailable
+        else "Unavailable display intervals — " + "; ".join(unavailable)
+    )
+    return figure, availability
 
 
 def _price_marker_panel(detail: SelectedRunDetailView) -> Any:
@@ -1956,99 +2184,21 @@ def _price_marker_panel(detail: SelectedRunDetailView) -> Any:
         )
     instrument = _evidence_instrument(detail)
     timeframe = _evidence_timeframe(detail)
-    entry_rows = _trade_marker_rows(detail.evidence.trades, event="entry")
-    exit_rows = _trade_marker_rows(detail.evidence.trades, event="exit")
-    figure = go.Figure(
-        go.Scattergl(
-            x=[row.get("timestamp") for row in prices],
-            y=[row.get("close") for row in prices],
-            customdata=[
-                [row.get("open"), row.get("high"), row.get("low"), row.get("close")]
-                for row in prices
-            ],
-            mode="lines",
-            line={"color": "#172033", "width": 1.5},
-            name=f"{instrument} close",
-            hovertemplate=(
-                "%{x}<br>"
-                "Open %{customdata[0]:$,.2f}<br>"
-                "High %{customdata[1]:$,.2f}<br>"
-                "Low %{customdata[2]:$,.2f}<br>"
-                "Close %{customdata[3]:$,.2f}<extra></extra>"
-            ),
-        )
-    )
-    if entry_rows:
-        figure.add_trace(
-            go.Scatter(
-                x=[row["timestamp"] for row in entry_rows],
-                y=[row["price"] for row in entry_rows],
-                mode="markers",
-                marker={
-                    "symbol": "triangle-up",
-                    "size": 9,
-                    "color": "#16a34a",
-                    "line": {"color": "#064e3b", "width": 1},
-                },
-                customdata=[
-                    [row["size"], row["fees"], row["direction"]]
-                    for row in entry_rows
-                ],
-                name=_marker_trace_name(entry_rows, "entry"),
-                hovertemplate=(
-                    "Entry %{x}<br>Price %{y:$,.2f}<br>"
-                    "Size %{customdata[0]}<br>Fees %{customdata[1]}<br>"
-                    "Direction %{customdata[2]}<extra></extra>"
-                ),
-            )
-        )
-    if exit_rows:
-        figure.add_trace(
-            go.Scatter(
-                x=[row["timestamp"] for row in exit_rows],
-                y=[row["price"] for row in exit_rows],
-                mode="markers",
-                marker={
-                    "symbol": "triangle-down",
-                    "size": 9,
-                    "color": "#dc2626",
-                    "line": {"color": "#7f1d1d", "width": 1},
-                },
-                customdata=[
-                    [row["size"], row["fees"], row["direction"]]
-                    for row in exit_rows
-                ],
-                name=_marker_trace_name(exit_rows, "exit"),
-                hovertemplate=(
-                    "Exit %{x}<br>Price %{y:$,.2f}<br>"
-                    "Size %{customdata[0]}<br>Fees %{customdata[1]}<br>"
-                    "Direction %{customdata[2]}<extra></extra>"
-                ),
-            )
-        )
-    figure.update_layout(
-        title=f"{instrument} observed {timeframe} price with trade entries and exits",
-        template="plotly_white",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin={"l": 45, "r": 20, "t": 55, "b": 62},
-        hovermode="x unified",
-        yaxis={"tickformat": "$,.2f", "title": f"{instrument} price"},
-        xaxis={"rangeslider": {"visible": False}},
-        legend={"orientation": "h", "y": -0.2},
-    )
+    figure, availability = _price_marker_figure(detail)
     return html.Div(
         [
             dcc.Graph(
                 id="price-marker-chart",
                 figure=figure,
                 responsive=True,
+                config={"scrollZoom": True, "displaylogo": False},
                 style={"width": "100%", "minWidth": 0},
             ),
             html.Small(
                 (
-                    f"Full observed {instrument} {timeframe} series: {len(prices):,} bars. "
-                    "No synthetic bars and no chart resampling are applied."
+                    f"Persisted {instrument} {timeframe} source: {len(prices):,} bars. "
+                    "Bars changes only display aggregation; View changes only the visible range. "
+                    f"{availability}"
                 ),
                 className="empty-state-note",
             ),
@@ -2157,20 +2307,33 @@ def _trade_pnl_chart(trades: tuple[dict[str, Any], ...], *, mode: str) -> Any:
 def _run_chart_and_trade_focus(detail: SelectedRunDetailView | None) -> Any:
     if detail is None:
         return html.P(
-            "Charts and completed trades appear after selecting a persisted run.",
+            (
+                "The persisted price chart appears after selecting a completed "
+                "run with valid price evidence."
+            ),
+            className="empty-state-copy",
+        )
+    return _detail_subsection(
+        "Price and completed trades",
+        _price_marker_panel(detail),
+        "run-visual-card run-price-focus results-primary-chart",
+    )
+
+
+def _results_metrics_report(detail: SelectedRunDetailView | None) -> Any:
+    if detail is None:
+        return html.P(
+            "Persisted performance metrics appear after selecting a completed run.",
             className="empty-state-copy",
         )
     return html.Div(
         [
+            html.H3("Primary metrics"),
+            _primary_metric_cards(detail),
             _detail_subsection(
                 "Portfolio value and buy-and-hold comparison",
                 _portfolio_value_panel(detail),
                 "run-visual-card run-chart-focus run-card-span-2",
-            ),
-            _detail_subsection(
-                "Underlying price, entries, and exits",
-                _price_marker_panel(detail),
-                "run-visual-card run-price-focus run-card-span-2",
             ),
             _detail_subsection(
                 "Drawdown over time",
@@ -2201,17 +2364,35 @@ def _run_chart_and_trade_focus(detail: SelectedRunDetailView | None) -> Any:
                 _trade_review_summary(detail.evidence.trades),
                 "run-visual-card run-trade-summary-focus",
             ),
-            _detail_subsection(
-                "Recent trades",
-                _artifact_grid(
-                    detail.evidence.trades,
-                    empty="No persisted trades artifact is available.",
-                    profile="trades",
+        ],
+        className="run-chart-trade-focus results-metrics-flow",
+    )
+
+
+def _results_report_tabs(detail: SelectedRunDetailView | None) -> dcc.Tabs:
+    return dcc.Tabs(
+        [
+            _run_detail_analysis_tab(
+                label="Metrics",
+                value="metrics",
+                children=html.Div(
+                    _results_metrics_report(detail),
+                    className="results-report-panel",
                 ),
-                "run-visual-card run-trade-focus",
+            ),
+            _run_detail_analysis_tab(
+                label="Trades",
+                value="trades",
+                children=html.Div(
+                    [html.H3("Recent trades"), _trade_explorer_layout()],
+                    className="results-report-panel",
+                ),
             ),
         ],
-        className="run-chart-trade-focus",
+        id="results-report-tabs",
+        value="metrics",
+        className="run-analysis-tabs results-report-tabs",
+        parent_style={"display": "flex", "gap": "8px"},
     )
 
 
@@ -2769,11 +2950,12 @@ def _run_detail_panel(
     if run is None:
         return html.Section(
             [
-                html.H2("Run details"),
+                html.H2("No selected backtest"),
                 html.P(
                     "Select a recent run to inspect its authoritative state and events.",
                     className="empty-state-copy",
                 ),
+                _results_report_tabs(None),
             ],
                 className="panel run-detail-panel",
         )
@@ -2844,27 +3026,96 @@ def _run_detail_panel(
                 [
                     html.Div(
                         [
-                            html.H3("Primary metrics"),
+                            html.Div(
+                                [
+                                    html.P("PRIMARY WORKSPACE", className="section-eyebrow"),
+                                    html.H3("Price and trades"),
+                                ]
+                            ),
+                            html.Button(
+                                "Reset layout",
+                                id="results-reset-layout",
+                                n_clicks=0,
+                                className="secondary-action",
+                                type="button",
+                                title="Restore chart and report panel dimensions only.",
+                            ),
+                        ],
+                        className="run-section-heading results-chart-heading",
+                    ),
+                    html.Div(
+                        role="separator",
+                        tabIndex=0,
+                        **{
+                            "aria-label": "Resize chart from its top edge",
+                            "aria-orientation": "horizontal",
+                            "data-results-resizer": "chart-top",
+                        },
+                        className="results-resize-edge results-resize-chart-top",
+                    ),
+                    html.Div(
+                        _run_chart_and_trade_focus(detail),
+                        className="results-chart-region",
+                    ),
+                    html.Div(
+                        role="separator",
+                        tabIndex=0,
+                        **{
+                            "aria-label": "Resize chart and report panels",
+                            "aria-orientation": "horizontal",
+                            "data-results-resizer": "shared",
+                        },
+                        className="results-resize-edge results-resize-shared",
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.P("BACKTEST REPORT", className="section-eyebrow"),
+                                    html.H3("Metrics and trades"),
+                                ],
+                                className="run-section-heading",
+                            ),
+                            _results_report_tabs(detail),
+                        ],
+                        className="results-report-region",
+                    ),
+                    html.Div(
+                        role="separator",
+                        tabIndex=0,
+                        **{
+                            "aria-label": "Resize report from its bottom edge",
+                            "aria-orientation": "horizontal",
+                            "data-results-resizer": "report-bottom",
+                        },
+                        className="results-resize-edge results-resize-report-bottom",
+                    ),
+                ],
+                className="results-beta-workspace",
+            ),
+            html.Div(
+                "Infrastructure fixture evidence verifies the factory path; it does not imply profitability.",
+                className="fixture-disclaimer",
+            ),
+            html.Section(
+                [
+                    html.Div(
+                        [
+                            html.H3("Evidence and review context"),
                             html.P(
-                                "Only metrics present in persisted evidence are shown.",
+                                (
+                                    "Inspect the persisted validation, assumptions, "
+                                    "lineage, and technical evidence below."
+                                ),
                                 className="field-help",
                             ),
                         ],
                         className="run-section-heading",
                     ),
-                    html.Div(
-                        _primary_metric_cards(detail),
-                        className="run-primary-results-grid",
-                    ),
+                    _run_detail_analysis_tabs(detail),
                 ],
-                className="run-primary-results",
+                className="results-evidence-region",
             ),
-            _run_chart_and_trade_focus(detail),
-            html.Div(
-                "Infrastructure fixture evidence verifies the factory path; it does not imply profitability.",
-                className="fixture-disclaimer",
-            ),
-            _run_detail_analysis_tabs(detail),
             html.Details(
                 [
                     html.Summary("Operations and diagnostics"),
@@ -3064,9 +3315,10 @@ def _runs_page(
                 id="reproduction-launch-state",
                 storage_type="session",
             ),
-            html.Section(
+            html.Details(
                 [
-                    html.H2("Run history"),
+                    html.Summary("Change run history"),
+                    html.H2("Persisted run history"),
                     html.P("Search and sort every persisted run. Selecting a row opens the backtest details.", className="field-help"),
                     dag.AgGrid(
                         id="run-history-grid",
@@ -3135,7 +3387,8 @@ def _runs_page(
                         style={"height": "360px", "width": "100%"},
                     ),
                 ],
-                className="panel run-history-panel",
+                open=False,
+                className="panel run-history-panel operator-details results-change-run-history",
             ),
             html.Section(
                 [
@@ -3144,7 +3397,7 @@ def _runs_page(
                             html.Section(
                                 [
                                     html.Label(
-                                        "Selected backtest",
+                                        "Change run",
                                         htmlFor="selected-run-selector",
                                         className="field-label",
                                     ),
@@ -3172,7 +3425,6 @@ def _runs_page(
                         id="selected-run-detail",
                     ),
                     _results_review_panel(),
-                    _trade_explorer_layout(),
                 ],
                 className="backtest-detail-workspace workflow-group-results",
             ),

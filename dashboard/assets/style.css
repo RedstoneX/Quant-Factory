@@ -2667,6 +2667,117 @@ input {
   gap: 12px;
 }
 
+.results-beta-workspace {
+  --qf-results-chart-height: 520px;
+  --qf-results-report-min-height: 320px;
+  background: #ffffff;
+  border: 1px solid #dfe7f1;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.results-chart-heading h3,
+.results-report-region > .run-section-heading h3 {
+  margin: 0;
+}
+
+.results-chart-region {
+  height: var(--qf-results-chart-height);
+  min-height: 300px;
+}
+
+.results-chart-region .results-primary-chart {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.results-chart-region .run-price-marker-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.results-chart-region .dash-graph {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.results-report-region {
+  min-height: var(--qf-results-report-min-height);
+  padding: 14px 0 48px;
+}
+
+.results-report-panel {
+  padding-top: 14px;
+}
+
+.results-report-panel .panel {
+  border: 0;
+  box-shadow: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.results-resize-edge {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #dfe7f1;
+  border-top: 1px solid #dfe7f1;
+  cursor: ns-resize;
+  display: flex;
+  height: 9px;
+  justify-content: center;
+  margin: 8px -18px;
+  touch-action: none;
+  user-select: none;
+}
+
+.results-resize-edge::after {
+  border-bottom: 1px solid #94a3b8;
+  border-top: 1px solid #94a3b8;
+  content: "";
+  height: 3px;
+  width: 34px;
+}
+
+.results-resize-edge:hover,
+.results-resize-edge:focus-visible {
+  background: #eaf2ff;
+  outline: 2px solid #2357d9;
+  outline-offset: -2px;
+}
+
+.results-report-panel .qf-trades-grid,
+.results-report-panel .trade-detail-panel {
+  font-size: calc(1rem + 2px);
+}
+
+.results-change-run-history:not([open]) {
+  padding-bottom: 12px;
+  padding-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .results-chart-region {
+    height: auto;
+    min-height: 0;
+  }
+
+  .results-report-region {
+    min-height: 0;
+  }
+
+  .results-resize-edge {
+    display: none;
+  }
+}
+
 .run-results-toolbar {
   align-items: start;
   grid-template-columns: minmax(360px, 640px);
