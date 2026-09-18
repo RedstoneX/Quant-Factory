@@ -3128,6 +3128,11 @@ input {
 .catalog-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .catalog-table th, .catalog-table td { padding: 10px; text-align: left; vertical-align: top; border-bottom: 1px solid #cbd7e6; overflow-wrap: anywhere; }
 .table-panel:has(.catalog-table) { overflow-x: auto; }
+#route-research-market-data .operator-message p,
+#route-research-market-data details li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 /* Milestone 23 safe idea draft and split setup/run surfaces. */
 .idea-draft-panel {
