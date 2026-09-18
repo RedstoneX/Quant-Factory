@@ -412,28 +412,32 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
     assert option_inputs == {
         ("refresh-comparisons", "n_clicks"),
         ("url", "pathname"),
+        ("url", "search"),
     }
     assert comparison_inputs == {
         ("compare-selected-runs", "n_clicks"),
         ("refresh-comparisons", "n_clicks"),
         ("url", "pathname"),
+        ("url", "search"),
     }
     assert all("reproduction-message" not in key for key in app.callback_map)
 
     with pytest.raises(PreventUpdate):
-        compare(1, 0, "/research/setup", ["run-a", "run-b"])
+        compare(1, 0, "/research/setup", None, ["run-a", "run-b"])
     assert adapter.reads == []
 
     first, first_class = compare(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["run-a", "run-b"],
     )
     refreshed, refreshed_class = compare(
         1,
         1,
         "/research/compare-backtests",
+        None,
         ["run-a", "run-b"],
     )
     assert first_class == refreshed_class == "run-comparison-output"
@@ -442,8 +446,8 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
     assert adapter.reads == [("run-a", "run-b"), ("run-a", "run-b")]
 
     with pytest.raises(PreventUpdate):
-        options(0, "/")
-    assert options(1, "/research/compare-backtests") == []
+        options(0, "/", None)
+    assert options(1, "/research/compare-backtests", None) == []
     assert runs.recent_reads == 1
 
 
@@ -456,6 +460,7 @@ def test_compare_callback_retains_identities_on_read_failure() -> None:
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["run-a", "run-b"],
     )
 

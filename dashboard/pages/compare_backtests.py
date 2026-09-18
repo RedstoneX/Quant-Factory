@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dash import dcc, html
 
+from dashboard.compare_query import compare_query_href
 from dashboard.components.compare_results import compare_empty, compare_loading
 from orchestration import RunSummary
 
@@ -33,6 +34,7 @@ def layout(*, recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
     )
 
     selected_values = _default_comparison_values(recent_runs)
+    initial_href = compare_query_href(selected_values)
     initial_state = (
         compare_loading(selected_values) if selected_values else compare_empty()
     )
@@ -98,6 +100,21 @@ def layout(*, recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
                             html.P(
                                 "Your Compare selection is kept for this browser session.",
                                 className="field-help compact-field-help",
+                            ),
+                            html.P(
+                                id="comparison-query-message",
+                                className="field-help compact-field-help",
+                                **{"aria-live": "polite"},
+                            ),
+                            dcc.Link(
+                                "Open exact comparison",
+                                id="comparison-exact-link",
+                                href=initial_href,
+                                style={} if initial_href else {"display": "none"},
+                                className="secondary-action",
+                                title=(
+                                    "Open a durable link to these exact persisted tests."
+                                ),
                             ),
                         ],
                         className="comparison-selector-control",

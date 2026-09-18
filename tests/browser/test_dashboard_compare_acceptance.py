@@ -30,6 +30,11 @@ from tests.test_compare_adapter import _comparison_stack, _persist_run
 
 
 COMPARE_PATH = "/research/compare-backtests"
+QUERY_HYDRATION_OUTPUT = (
+    "..comparison-run-selector.value...comparison-query-message.children..."
+    "comparison-query-message.className...comparison-exact-link.href..."
+    "comparison-exact-link.style.."
+)
 
 
 def _attach_compare_diagnostics(page, events, action):
@@ -313,9 +318,10 @@ def test_compare_browser_renders_three_persisted_runs_and_survives_refresh(
             _assert_route_inactive_navigation_cancellations(
                 events,
                 pathname="/",
-                expected_outputs=(
-                    "comparison-run-selector.options",
-                    "..run-comparison-output.children...run-comparison-output.className..",
+                    expected_outputs=(
+                        "comparison-run-selector.options",
+                        QUERY_HYDRATION_OUTPUT,
+                        "..run-comparison-output.children...run-comparison-output.className..",
                     "..selected-trade-grid.rowData...trade-explorer-summary.children...selected-trade-grid.selectedRows..",
                 ),
             )
@@ -443,9 +449,10 @@ def test_compare_mobile_contains_quartets_charts_tables_and_actions(
             _assert_route_inactive_navigation_cancellations(
                 events,
                 pathname="/",
-                expected_outputs=(
-                    "comparison-run-selector.options",
-                    "..run-comparison-output.children...run-comparison-output.className..",
+                    expected_outputs=(
+                        "comparison-run-selector.options",
+                        QUERY_HYDRATION_OUTPUT,
+                        "..run-comparison-output.children...run-comparison-output.className..",
                     "..selected-trade-grid.rowData...trade-explorer-summary.children...selected-trade-grid.selectedRows..",
                 ),
             )

@@ -550,6 +550,7 @@ def test_compare_renders_independent_persisted_context_for_each_selected_run(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["review_context_target", "wf-run"],
     )
     contexts = [
@@ -602,7 +603,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 27
+    assert len(app.callback_map) == 28
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -624,7 +625,7 @@ def test_dashboard_callback_outputs_are_singly_owned(tmp_path: Path) -> None:
     assert output_keys.count("selected-run-selector.value") == 1
     assert output_keys.count("selected-run-selector.options") == 1
     assert output_keys.count("comparison-run-selector.options") == 1
-    assert output_keys.count("comparison-run-selector.value") == 0
+    assert output_keys.count("comparison-run-selector.value") == 1
     assert output_keys.count("run-comparison-output.children") == 1
     assert output_keys.count("reproduction-message.children") == 1
     assert output_keys.count("selected-run-detail.children") == 1
@@ -706,6 +707,9 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
         "..selected-trade-grid.rowData...trade-explorer-summary.children..."
         "selected-trade-grid.selectedRows..",
         "comparison-run-selector.options",
+        "..comparison-run-selector.value...comparison-query-message.children..."
+        "comparison-query-message.className...comparison-exact-link.href..."
+        "comparison-exact-link.style..",
         "..run-comparison-output.children...run-comparison-output.className..",
     }
 
@@ -1141,6 +1145,7 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
     assert set(comparison_inputs) == {
         ("refresh-comparisons", "n_clicks"),
         ("url", "pathname"),
+        ("url", "search"),
     }
 
     compare_output = next(
@@ -1156,6 +1161,7 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
         ("compare-selected-runs", "n_clicks"),
         ("refresh-comparisons", "n_clicks"),
         ("url", "pathname"),
+        ("url", "search"),
     }
 
 
@@ -1170,7 +1176,7 @@ def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
         ("reproduction-message", (1, "missing-run", "/")),
         (
             "run-comparison-output",
-            (1, 0, "/research/backtest-results", ["a", "b"]),
+            (1, 0, "/research/backtest-results", None, ["a", "b"]),
         ),
         ("cancellation-message", (1, "missing-run", "/")),
         ("stale-recovery-message", (1, "2026-07-13T12:00:00Z", "/")),
@@ -3186,6 +3192,7 @@ def test_dashboard_reproduces_persisted_run_and_renders_comparison(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["source_reproduction_run", reproduced.run_id],
     )
     restarted_rendered = str(restarted_panel)
@@ -3208,6 +3215,7 @@ def test_dashboard_reproduces_persisted_run_and_renders_comparison(
     comparison_options = refresh_comparison_options(
         0,
         "/research/compare-backtests",
+        None,
     )
     option_values = [option["value"] for option in options]
     assert selected == reproduced.run_id
@@ -3279,6 +3287,7 @@ def test_dashboard_run_comparison_renders_equal_changed_and_missing_fields(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["compare_run_a", "compare_run_b"],
     )
     rendered = str(panel)
@@ -3333,6 +3342,7 @@ def test_dashboard_comparison_read_model_follows_selection_and_refresh(
             1,
             0,
             "/research/compare-backtests",
+            None,
             ["compare_run_a"],
         )[0]
     )
@@ -3341,6 +3351,7 @@ def test_dashboard_comparison_read_model_follows_selection_and_refresh(
             1,
             1,
             "/research/compare-backtests",
+            None,
             ["compare_run_b", "compare_run_c"],
         )[0]
     )
@@ -3365,6 +3376,7 @@ def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["compare_run_a"],
     )
     assert invalid_class == "run-comparison-output"
@@ -3373,6 +3385,7 @@ def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["compare_run_a", "missing-run"],
     )
     assert missing_class == "run-comparison-output"
@@ -3393,6 +3406,7 @@ def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["compare_run_a", "compare_run_b"],
     )
     assert failure_class == "run-comparison-output"
@@ -3413,12 +3427,14 @@ def test_dashboard_run_comparison_survives_dashboard_recreation(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["compare_run_a", "compare_run_b"],
     )
     second_panel, second_class = _callback_function(second, "run-comparison-output")(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["compare_run_a", "compare_run_b"],
     )
     first_rendered = str(first_panel)
@@ -3450,6 +3466,7 @@ def test_dashboard_run_comparison_uses_callback_local_sqlite_connection(
                     1,
                     0,
                     "/research/compare-backtests",
+                    None,
                     ["compare_run_a", "compare_run_b"],
                 )
             )
