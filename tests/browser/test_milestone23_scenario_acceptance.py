@@ -30,6 +30,7 @@ from tests.browser.test_backtest_results_spym_stability import (
     REPOSITORY_ROOT,
     _free_port,
     _launcher,
+    _prepare_initial_run,
     _wait_for_server,
 )
 from tests.browser.test_dashboard_lifecycle import (
@@ -39,6 +40,11 @@ from tests.browser.test_dashboard_lifecycle import (
     _wait_for_callbacks_to_settle,
     _write_lifecycle_failure_artifacts,
 )
+from tests.browser.test_dashboard_responsive_acceptance import (
+    _assert_document_contained,
+    _assert_visible_surfaces_contained,
+)
+from tests.browser.test_dashboard_responsive_operation import _assert_runtime_clean
 from tests.test_milestone22e_acceptance import (
     _dashboard_fields,
     _database_path as _m22_database_path,
@@ -58,6 +64,23 @@ from tests.test_run_service import _configuration
 RETRY_RUN_ID = "m23-browser-retry"
 TIMEOUT_RUN_ID = "m23-browser-timeout"
 MONTE_CARLO_OPTION_TEXT = "Fixture Strategy · Monte Carlo validation · Created"
+CONTROLLED_FAILURE_MARKER_ENV = "QF_CONTROLLED_FAILURE_INVOCATION_MARKER"
+
+
+def _controlled_failure_launcher(**kwargs):
+    """Record and execute one acknowledged deterministic fixture failure."""
+
+    marker = Path(os.environ[CONTROLLED_FAILURE_MARKER_ENV])
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    with marker.open("a", encoding="utf-8") as handle:
+        handle.write(f"{kwargs['quant_factory_run_id']}\n")
+    kwargs.pop("attempt_marker_path", None)
+    kwargs["fail_after_run_start"] = True
+    return deterministic_fixture_body(
+        **kwargs,
+        prefect_flow_run_id=f"prefect-{kwargs['quant_factory_run_id']}",
+        prefect_api_url="http://127.0.0.1:4200/api",
+    )
 
 
 def _start_dashboard_process(
@@ -112,6 +135,61 @@ app.run(host="127.0.0.1", port=port, debug=False)
             process.kill()
             process.wait(timeout=10)
         raise
+
+
+@pytest.fixture()
+def controlled_failure_browser_server(tmp_path: Path):
+    database = tmp_path / "state" / "controlled-failure-browser.sqlite3"
+    _prepare_initial_run(database)
+    marker = tmp_path / "controlled-failure-invocations.txt"
+    port = _free_port()
+    server_log = tmp_path / "controlled-failure-browser-server.log"
+    code = """
+from pathlib import Path
+import sys
+from dashboard.app import create_app
+from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from orchestration import FixtureRunService
+from tests.browser.test_milestone23_scenario_acceptance import _controlled_failure_launcher
+
+database = Path(sys.argv[1])
+port = int(sys.argv[2])
+app = create_app(
+    review_database=database,
+    run_service=FixtureRunService(
+        database=database,
+        fixture_launcher=_controlled_failure_launcher,
+    ),
+    run_detail_adapter=RunDetailDashboardAdapter(
+        database=database,
+        artifact_root=database.parent.parent,
+    ),
+)
+app.run(host="127.0.0.1", port=port, debug=False)
+"""
+    env = dict(os.environ)
+    env["QUANT_FACTORY_DB_PATH"] = str(database)
+    env[CONTROLLED_FAILURE_MARKER_ENV] = str(marker)
+    with server_log.open("w", encoding="utf-8") as log:
+        process = subprocess.Popen(
+            [sys.executable, "-c", code, str(database), str(port)],
+            cwd=REPOSITORY_ROOT,
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        _wait_for_server(f"{base_url}/research/run-test")
+        yield base_url, server_log, database, marker
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=10)
 
 
 @pytest.fixture()
@@ -276,6 +354,150 @@ def _open_details(page: Page, text: str) -> None:
 
 def _selected_run_detail(page: Page):
     return page.locator("#selected-run-detail")
+
+
+def _durable_identities(database: Path) -> tuple[set[str], set[str]]:
+    service = PersistenceService(database)
+    try:
+        run_ids = {
+            str(row[0])
+            for row in service.connection.execute(
+                "SELECT run_id FROM experiment_runs"
+            ).fetchall()
+        }
+        submission_keys = {
+            str(row[0])
+            for row in service.connection.execute(
+                "SELECT idempotency_key FROM research_run_submissions"
+            ).fetchall()
+        }
+        return run_ids, submission_keys
+    finally:
+        service.close()
+
+
+def test_run_test_controlled_failure_is_truthful_replay_safe_and_diagnosable(
+    controlled_failure_browser_server,
+    tmp_path: Path,
+) -> None:
+    base_url, server_log, database, marker = controlled_failure_browser_server
+    baseline_runs, baseline_submissions = _durable_identities(database)
+    events: list[dict[str, object]] = []
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        action = {"name": "open Run test controlled failure fixture"}
+        pending = _attach_diagnostics(page, events, action)
+        try:
+            page.goto(f"{base_url}/research/run-test", wait_until="networkidle")
+            expect(page.locator("#launch-run")).to_be_enabled()
+            _assert_document_contained(page)
+            _assert_visible_surfaces_contained(page)
+
+            action["name"] = "explicitly launch one controlled failing test"
+            page.locator("#launch-run").click()
+            launch_message = page.locator("#launch-message")
+            expect(launch_message).to_contain_text(
+                "Submission: Acknowledged",
+                timeout=60_000,
+            )
+            expect(launch_message).to_contain_text("Run status: Failed")
+            expect(page.locator("#run-test-operator-context")).to_contain_text(
+                "Failed"
+            )
+            expect(page.locator("#run-test-operator-context")).to_contain_text(
+                "Review failure"
+            )
+            run_id = launch_message.locator("[data-run-id]").get_attribute(
+                "data-run-id"
+            )
+            assert run_id
+            _wait_for_callbacks_to_settle(page, pending)
+            _assert_document_contained(page)
+            _assert_visible_surfaces_contained(page)
+
+            after_launch_runs, after_launch_submissions = _durable_identities(database)
+            assert after_launch_runs - baseline_runs == {run_id}
+            assert len(after_launch_submissions - baseline_submissions) == 1
+            assert marker.read_text(encoding="utf-8").splitlines() == [run_id]
+
+            service = PersistenceService(database)
+            try:
+                run = service.runs.get(run_id)
+                assert run is not None
+                assert run.status == RunStatus.FAILED
+                assert run.attempt_count == 1
+                assert run.error_summary == "controlled Prefect fixture failure"
+                assert service.results.list_parameter_results(run_id) == ()
+                assert service.results.list_artifacts(run_id) == ()
+                assert service.read_persisted_run_manifest(run_id) is None
+            finally:
+                service.close()
+
+            action["name"] = "refresh the same failed Run test ticket"
+            page.reload(wait_until="networkidle")
+            expect(page.locator("#launch-message [data-run-id]")).to_have_attribute(
+                "data-run-id",
+                run_id,
+            )
+            expect(page.locator("#launch-message")).to_contain_text(
+                "Run status: Failed"
+            )
+            expect(page.locator("#run-test-operator-context")).to_contain_text(
+                "Review failure"
+            )
+            _wait_for_callbacks_to_settle(page, pending)
+
+            action["name"] = "open the failed run by direct Results link"
+            page.goto(
+                f"{base_url}{BACKTEST_PATH}?run_id={run_id}",
+                wait_until="networkidle",
+            )
+            detail = _selected_run_detail(page)
+            expect(detail).to_contain_text(run_id)
+            expect(detail.get_by_text("failed", exact=True).first).to_be_visible()
+            expect(detail).to_contain_text("controlled Prefect fixture failure")
+            expect(detail).to_contain_text("No artifact inventory is available")
+            expect(detail).to_contain_text(
+                "No persisted parameter result summary is available"
+            )
+            _wait_for_callbacks_to_settle(page, pending)
+            _assert_document_contained(page)
+            _assert_visible_surfaces_contained(page)
+
+            action["name"] = "refresh and reopen the failed run"
+            page.reload(wait_until="networkidle")
+            expect(_selected_run_detail(page)).to_contain_text(run_id)
+            expect(_selected_run_detail(page)).to_contain_text(
+                "controlled Prefect fixture failure"
+            )
+            _wait_for_callbacks_to_settle(page, pending)
+            page.goto(f"{base_url}/research/run-test", wait_until="networkidle")
+            expect(page.locator("#launch-message [data-run-id]")).to_have_attribute(
+                "data-run-id",
+                run_id,
+            )
+            expect(page.locator("#run-test-operator-context")).to_contain_text(
+                "Review failure"
+            )
+            _wait_for_callbacks_to_settle(page, pending)
+
+            assert _durable_identities(database) == (
+                after_launch_runs,
+                after_launch_submissions,
+            )
+            assert marker.read_text(encoding="utf-8").splitlines() == [run_id]
+            _assert_runtime_clean(page, events, server_log)
+            page.screenshot(
+                path=tmp_path / "controlled-failure-run-test-reopen.png",
+                full_page=True,
+            )
+        except Exception:
+            _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)
+            raise
+        finally:
+            browser.close()
 
 
 def test_retry_and_timeout_are_operator_visible_without_false_timeout_evidence(
