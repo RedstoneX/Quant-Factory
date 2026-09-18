@@ -7,6 +7,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import expect, sync_playwright
 
+from dashboard.routing import navigation_item_id
 from tests.browser.dashboard_diagnostics import (
     assert_browser_diagnostics_clean,
     attach_browser_diagnostics,
@@ -62,6 +63,75 @@ def test_setup_has_keyboard_bypass_and_named_selector_group(
             page.keyboard.press("Escape")
             expect(selector).to_have_attribute("aria-expanded", "false")
 
+            assert_browser_diagnostics_clean(page, events, (server_log,))
+        finally:
+            browser.close()
+
+
+@pytest.mark.parametrize(
+    "viewport",
+    (
+        pytest.param({"width": 1440, "height": 1000}, id="desktop"),
+        pytest.param({"width": 390, "height": 844}, id="mobile"),
+    ),
+)
+def test_active_navigation_item_tracks_browser_history_semantically(
+    mounted_workflow_server,
+    viewport: dict[str, int],
+) -> None:
+    base_url, server_log, _run_id = mounted_workflow_server
+    events: list[dict[str, object]] = []
+    action = {"name": "open Setup directly"}
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        page = browser.new_page(viewport=viewport)
+        pending = attach_browser_diagnostics(page, events, action)
+        try:
+            page.goto(base_url + "/research/setup", wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            current = page.locator('[aria-current="page"]')
+            expect(current).to_have_count(1)
+            expect(current).to_have_attribute(
+                "id", navigation_item_id("/research/setup")
+            )
+
+            action["name"] = "refresh Setup"
+            page.reload(wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(current).to_have_count(1)
+            expect(current).to_have_attribute(
+                "id", navigation_item_id("/research/setup")
+            )
+
+            if viewport["width"] < 1200:
+                action["name"] = "open the mobile navigation drawer"
+                page.locator("#navigation-drawer-toggle").click()
+                expect(page.locator("#navigation-drawer-panel")).to_be_visible()
+
+            action["name"] = "navigate to Run test"
+            page.locator("#navigation-link-research-run-test").click()
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(current).to_have_count(1)
+            expect(current).to_have_attribute(
+                "id", navigation_item_id("/research/run-test")
+            )
+
+            action["name"] = "go back to Setup"
+            page.go_back(wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(current).to_have_count(1)
+            expect(current).to_have_attribute(
+                "id", navigation_item_id("/research/setup")
+            )
+
+            action["name"] = "go forward to Run test"
+            page.go_forward(wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(current).to_have_count(1)
+            expect(current).to_have_attribute(
+                "id", navigation_item_id("/research/run-test")
+            )
             assert_browser_diagnostics_clean(page, events, (server_log,))
         finally:
             browser.close()

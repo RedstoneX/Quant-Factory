@@ -78,6 +78,10 @@ def navigation_link_id(path: str) -> str:
     return f"navigation-link-{path.strip('/').replace('/', '-') or 'overview'}"
 
 
+def navigation_item_id(path: str) -> str:
+    return f"navigation-item-{path.strip('/').replace('/', '-') or 'overview'}"
+
+
 def navigation_classes_for_path(pathname: str | None) -> tuple[str, ...]:
     route = pathname or "/"
     return tuple(
@@ -88,6 +92,13 @@ def navigation_classes_for_path(pathname: str | None) -> tuple[str, ...]:
         )
         for path, _ in NAVIGATION_LINKS
     )
+
+
+def navigation_current_states_for_path(
+    pathname: str | None,
+) -> tuple[str | None, ...]:
+    route = pathname or "/"
+    return tuple("page" if path == route else None for path, _ in NAVIGATION_LINKS)
 
 
 def route_container_styles_for_path(pathname: str | None) -> tuple[dict[str, str], ...]:

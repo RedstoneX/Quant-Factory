@@ -159,6 +159,10 @@ li { margin: 8px 0; line-height: 1.45; }
   text-decoration: none;
 }
 
+.navigation-item .navigation-link {
+  width: 100%;
+}
+
 .navigation-link:hover,
 .navigation-link:focus-visible {
   background: #102b49;
