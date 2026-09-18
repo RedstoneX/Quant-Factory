@@ -21,11 +21,15 @@ navigation, not competing authorities.
 
 Milestone 23 is the active gate. Decision 279 records the owner's rejection of
 the current Results-page comprehension and flow, superseding Decision 277's
-acceptance for that experience. Correctness repairs remain authorized; broad
-redesign requires a concise research-grounded specification or mockup and
-renewed owner acceptance. The implementation, browser-lifecycle, end-to-end
-workflow, failure-handling, test, and documentation/status gates also remain
-pending, and strategy discovery remains blocked. Decision 278
+acceptance for that experience. Decision 280 accepts the chart-first
+replacement direction: a truthful selected-run price chart with persisted
+entry/exit markers and a linked grouped trade ledger, using TradingView's
+backtesting Strategy Report as the primary UX reference and QAMC only for panel
+and linking mechanics. The detailed specification or mockup, its owner
+approval, implementation, deployment, testing, renewed operator acceptance,
+and the remaining browser-lifecycle, end-to-end workflow, failure-handling,
+and documentation/status gates remain pending. Strategy discovery remains
+blocked. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
 implementation, but does not claim it is implemented or close Milestone 23.
 Decision 274 then orders controlled Milestone 25 research until a defensible

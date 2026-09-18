@@ -212,3 +212,25 @@ explicitly.
      avoidable horizontal scrolling or large dead space. This decision does
      not accept a replacement design, change ADR 0008, close Milestone 23, or
      relax any research, credential, execution, paper, or live-capital gate.
+
+280. **Chart-first Results direction accepted; detailed replacement still
+     pending (accepted 2026-09-18).** The owner accepts a chart-first direction
+     for the replacement Results experience. The selected persisted run's
+     truthful OHLC/price chart is the primary workspace, with entry and exit
+     markers at the persisted trade points and a linked ledger grouped by
+     completed trade; selecting a trade must bring its entry/exit context into
+     view and identify the corresponding chart markers. TradingView's current
+     Strategy Report and backtesting-results interaction, in its chart-first
+     Supercharts context, is the primary UX reference. This reference excludes
+     TradingView's live-trading, brokerage, order-entry, position, and account
+     surfaces. QAMC may inform panel docking, resizing, and chart/ledger-link
+     mechanics, but not its information density or compressed content
+     hierarchy. This supersedes only Decision 279's report-first or purely
+     top-to-bottom implication; Decision 279's withdrawn acceptance and renewed
+     review gate remain in force. A detailed responsive mockup or concise page
+     specification, its owner approval, implementation, deployment, automated
+     and browser testing, and renewed acceptance of the implemented Results
+     experience all remain pending. This direction does not change ADR 0008,
+     accept Milestone 23, authorize production changes, begin strategy
+     discovery, or relax any research, credential, execution, paper, or
+     live-capital gate.

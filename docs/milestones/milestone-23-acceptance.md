@@ -2,9 +2,10 @@
 
 Milestone 23 proves the complete equity research workflow before strategy
 discovery. Decision 279 supersedes Decision 277's acceptance for the current
-Results-page experience: a research-grounded replacement specification and
-renewed owner acceptance are required alongside the remaining objective
-evidence.
+Results-page experience. Decision 280 accepts a chart-first replacement
+direction but not a detailed design or implemented experience. Detailed
+specification approval, implementation, deployment, testing, renewed owner
+acceptance, and the remaining objective evidence are still required.
 
 ## Required scenario matrix
 
@@ -12,7 +13,7 @@ evidence.
 |---|---|
 | Shell and routing | Direct links, refresh, back/forward, sidebar and home navigation, active state, unknown route, and no renderer errors |
 | Launch and monitoring | Approved saved configuration launches once, status is visible, refresh preserves identity, and inactive pages cannot mutate state |
-| Results | Equity, drawdown, benchmark, signals, trades, assumptions, lineage, and validation outcomes render from persisted evidence |
+| Results | The selected-run truthful price chart is primary; persisted entry/exit markers link to the grouped trade ledger; equity, drawdown, benchmark, assumptions, lineage, review, and validation outcomes remain reachable and render only from persisted evidence |
 | Compare and reproduce | Compatible runs compare; a reproduced run retains parent/configuration identity and creates a distinct run record |
 | Review | Human decision and rationale persist durably and conflicts fail before mutation |
 | Failure and recovery | Controlled failure, retry, timeout, cancellation, stale recovery, restart, missing artifact, and corrupt lineage are understandable and fail closed |
@@ -25,15 +26,17 @@ weaken protected-data boundaries.
 
 ## Acceptance checklist
 
-- [ ] The approved page specification is implemented within ADR 0008.
+- [ ] A detailed responsive chart-first Results specification or mockup is
+      explicitly approved, then implemented within ADR 0008.
 - [ ] Focused and complete relevant automated tests pass.
 - [ ] Browser lifecycle checks pass for every registered route.
 - [ ] The operator completes launch → monitor → inspect → compare → reproduce →
       review without Python, terminal, raw JSON/CSV, or SQLite.
 - [ ] Failures explain impact and the next safe action.
 - [ ] Documentation and `dashboard/project_status.py` agree.
-- [ ] The project owner explicitly accepts the replacement Results-page
-      experience after reviewing the required specification or mockup.
+- [ ] The project owner explicitly accepts the implemented replacement
+      Results-page experience after the detailed-design, browser, and workflow
+      evidence is available.
 - [ ] The Milestone 23 gate result is recorded after every remaining objective
       criterion passes or fails.
 

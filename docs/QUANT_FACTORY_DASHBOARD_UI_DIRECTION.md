@@ -1,6 +1,7 @@
 # Quant Factory Dashboard UI Direction
 
-- **Status:** Accepted Milestone 23C-1 implementation specification
+- **Status:** Accepted non-Results 23C-1 specification; Results direction
+  accepted under Decision 280 with detailed replacement specification pending
 - **Owner direction accepted:** 2026-09-18
 - **Objective implementation and browser evidence:** Pending
 
@@ -17,13 +18,17 @@ The approved research flow is:
 
 **Home → Ideas → Set up → Run test → Results → Compare**
 
-The owner-authorized bounded 23C implementation follows this specification.
-Decision 279 supersedes Decision 277's acceptance for the current Results-page
-experience. This document is retained as prior design evidence, not an accepted
-replacement Results-page specification. It does not record Milestone 23
-completion or waive implementation, browser, workflow, failure-handling or
-documentation evidence. It does not authorize strategy discovery,
-external-source retrieval, paper execution or live trading.
+The owner-authorized bounded 23C implementation follows this specification
+outside the reopened Results experience. Decision 279 supersedes Decision
+277's acceptance for the current Results page. Decision 280 accepts the
+chart-first replacement direction recorded below but does not approve this
+document as the detailed replacement Results specification. That responsive
+specification or mockup and its owner approval remain pending before broad
+implementation. This document does not record Milestone 23 completion or waive
+implementation, deployment, browser, workflow, failure-handling, testing,
+renewed operator acceptance, or documentation evidence. It does not authorize
+strategy discovery, external-source retrieval, paper execution or live
+trading.
 
 ## Product and visual contract
 
@@ -34,20 +39,41 @@ approved component for dense interactive tables. No framework migration or
 research-logic rewrite is part of this work.
 
 The product should look like a restrained, light-mode trading research
-workspace rather than a stack of administrative forms:
+workspace rather than a stack of administrative forms. On Results, the
+selected-run truthful price chart is the primary workspace rather than one
+report section in a long page:
 
-- decisions, outcome, risk and next action appear before implementation detail;
-- equity, benchmark, drawdown, price/signals and trades are visually primary;
+- selected-run identity, status, evidence outcome, human decision and next safe
+  action remain compact and visible without displacing the chart;
+- persisted price, entry/exit points and their linked trade records are
+  visually primary; equity, benchmark, drawdown, evidence, assumptions and
+  review remain immediately reachable supporting analysis;
 - one accent colour identifies selection and navigation; green, red and amber
   never carry meaning without a text label;
 - cards, charts and grids share consistent spacing, borders and type hierarchy;
 - technical identifiers, hashes, storage references and diagnostics appear only
   in labelled drill-downs.
 
+TradingView's current Strategy Report and backtesting-results interaction in
+its chart-first Supercharts context is the primary Results UX reference. This
+does not import TradingView's live-trading, brokerage, order-entry, position or
+account surfaces. QAMC is a secondary reference only for docking, resizing and
+chart/ledger-link mechanics; its information density and compressed content
+hierarchy are explicitly not the target.
+
+The primary-source interaction evidence checked on 2026-09-18 is TradingView's
+[Strategy Report overview](https://www.tradingview.com/support/solutions/43000764138-tradingview-strategy-report-how-to-start/)
+and [Pine strategy documentation](https://www.tradingview.com/pine-script-docs/concepts/strategies/):
+strategy markers remain on the main chart, the report occupies the chart's
+bottom panel, and trade records provide a **Show on chart** path. These sources
+are UX references, not a runtime dependency or proof of Quant Factory behavior.
+
 The public-safe concept images in
-[`docs/assets/dashboard/approved/`](assets/dashboard/approved/) define this
-visual density and hierarchy. They contain synthetic data and do not establish
-implemented behavior or operating evidence:
+[`docs/assets/dashboard/approved/`](assets/dashboard/approved/) continue to
+define the accepted visual density and hierarchy outside the reopened Results
+experience. They contain synthetic data and do not establish implemented
+behavior or operating evidence. The prior Results image is retained as
+historical design evidence and is not the Decision 280 replacement mockup:
 
 1. `01_research_data_catalog.png` — data catalog and coverage inspection.
 2. `02_research_experiment_overview.png` — experiment and outcome overview.
@@ -241,25 +267,34 @@ States:
 **Purpose:** understand what happened, whether the evidence is usable, and what
 human decision is required.
 
-Show, in order:
+Decision 280 accepts this direction; exact layout, labels, dimensions and
+responsive behavior still require a detailed mockup or concise specification
+and owner approval:
 
-1. selected-run identity, configuration summary and persistent quartet;
-2. compact KPI strip with explicit metric basis;
-3. equity/portfolio value and benchmark;
-4. drawdown with maximum-drawdown emphasis;
-5. price with entry/exit markers and completed-trade P&L;
-6. trade-return distribution and win/loss summary;
-7. searchable/filterable run history and recent-trades AG Grids;
-8. validation-stage evidence and every stop reason;
-9. review decision, rationale and audit history;
-10. reproduction and comparison actions.
+- keep selected-run identity and the persistent quartet in a compact context
+  strip that does not crowd out the primary workspace;
+- make the selected persisted run's truthful OHLC/price chart the primary
+  workspace; never fabricate or reconstruct missing prices or trade points;
+- plot entry and exit markers at the persisted trade timestamps and prices;
+- link the chart to a ledger grouped by completed trade, with entry and exit
+  detail, so selecting a trade brings its interval into view and identifies
+  the corresponding markers; provide an explicit keyboard-accessible
+  **Show on chart** action rather than relying only on row click;
+- place performance summary, equity and benchmark, drawdown, evidence,
+  assumptions/data, lineage, review, reproduction and comparison in a
+  progressively disclosed dock or adjacent analysis surface while preserving
+  the chart context;
+- keep searchable/filterable run history as a secondary **Change run** surface,
+  not a large table above or before the primary chart; and
+- use TradingView's backtesting Strategy Report for interaction hierarchy and
+  QAMC only for panel, resizing and linked-selection mechanics.
 
-The default selection is a persisted evidence-backed fixture run, never a
-fabricated example. Tabs are **Evidence**, **Assumptions**, **Lineage**,
-**Configuration** and **Technical details**. Saving a review records the prior
-state, new state, time, note and responsible operator through the existing
-durable service. **Reproduce** creates a distinct run from the immutable saved
-configuration and preserves parent identity.
+The default selection remains a persisted evidence-backed fixture run, never a
+fabricated example. Saving a review records the prior state, new state, time,
+note and responsible operator through the existing durable service.
+**Reproduce** creates a distinct run from the immutable saved configuration and
+preserves parent identity. The detailed replacement specification must decide
+the final analysis labels and information grouping before implementation.
 
 States:
 
@@ -351,15 +386,16 @@ page scrolling.
 - persistent left navigation and full page heading/actions;
 - 12-column content grid;
 - quartet in one four-card row;
-- primary charts use two-thirds or full width; related summaries sit beside
-  them;
+- the Results price chart uses the dominant width and height; its supporting
+  analysis dock may resize or collapse without unmounting or losing selection;
 - AG Grid uses the full panel width with important columns pinned first.
 
 ### Tablet — 768–1199 px
 
 - collapsible navigation drawer with the active page named in the header;
 - content uses six columns; quartet becomes a two-by-two grid;
-- chart/summary pairs stack when labels or legends would be compressed;
+- the Results price chart remains first and the analysis surface moves below
+  it when side-by-side layout would compress either surface;
 - grids retain a useful minimum column width and scroll inside their panel.
 
 ### Mobile — below 768 px
@@ -368,8 +404,12 @@ page scrolling.
 - page heading, actions, cards and charts form one column;
 - quartet remains near the top as four full-width labelled rows;
 - the primary action is full width and remains after explanatory text;
-- grids use a small essential-column profile, horizontal scrolling inside the
-  grid and an accessible row-detail view for omitted columns;
+- the Results price chart remains ahead of its analysis sheet; chart-linked
+  trade records use an essential-column or stacked-card profile with an
+  accessible row-detail view for omitted fields;
+- grids may scroll only inside their own bounded panel when an accessible
+  alternative cannot preserve all required values; the page itself does not
+  scroll horizontally;
 - tabs may scroll horizontally, but tab labels and active state remain visible;
 - charts keep readable axis/legend text and never replace evidence with a
   simplified invented value.
@@ -451,7 +491,10 @@ aliases or test-only presentation.
 containers/callback ownership comply with ADR 0008. 23C-3 additionally requires
 real-browser proof for every registered route at desktop, tablet and mobile
 sizes, the complete operator workflow and failure behavior, and renewed owner
-acceptance of the replacement Results-page specification under Decision 279.
+acceptance of the implemented replacement Results experience. Decision 280
+accepts the chart-first direction only: detailed specification approval,
+implementation, deployment, tests and renewed operator acceptance remain
+pending.
 
 ## Explicit exclusions
 
