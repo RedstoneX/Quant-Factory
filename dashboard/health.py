@@ -69,6 +69,10 @@ def normalize_health_reading(
 ) -> tuple[HomeHealthReading, bool]:
     """Fail closed when an observation is missing, invalid, future, or stale."""
 
+    if observed_at.tzinfo is None:
+        raise ValueError("observed_at must include a timezone")
+    if stale_after <= timedelta(0):
+        raise ValueError("stale_after must be positive")
     status = reading.status.strip() or "Not checked"
     if reading.checked_at is None:
         return (

@@ -93,15 +93,6 @@ def layout(
             "No timestamped worker or orchestrator health snapshot was supplied.",
         ),
     )
-    credential_reading = supplied.get(
-        "credential",
-        HomeHealthReading(
-            "credential",
-            "Not checked",
-            "Credential values are never displayed.",
-        ),
-    )
-    credential_reading = redact_credential_health_reading(credential_reading)
     resolved_observed_at = observed_at or datetime.now(timezone.utc)
     return html.Div(
         [
@@ -116,38 +107,25 @@ def layout(
                 ),
             ),
             html.Section(
-                [
-                    _metric(
-                        "Research database",
-                        _truthful_reading(
-                            database_reading, resolved_observed_at, stale_after
+                health_metric_cards(
+                    (
+                        database_reading,
+                        artifact_reading,
+                        cache_reading,
+                        worker_reading,
+                        supplied.get(
+                            "credential",
+                            HomeHealthReading(
+                                "credential",
+                                "Not checked",
+                                "Credential values are never displayed.",
+                            ),
                         ),
                     ),
-                    _metric(
-                        "Artifact storage",
-                        _truthful_reading(
-                            artifact_reading, resolved_observed_at, stale_after
-                        ),
-                    ),
-                    _metric(
-                        "Local data",
-                        _truthful_reading(
-                            cache_reading, resolved_observed_at, stale_after
-                        ),
-                    ),
-                    _metric(
-                        "Orchestrator",
-                        _truthful_reading(
-                            worker_reading, resolved_observed_at, stale_after
-                        ),
-                    ),
-                    _metric(
-                        "Credentials",
-                        _truthful_reading(
-                            credential_reading, resolved_observed_at, stale_after
-                        ),
-                    ),
-                ],
+                    observed_at=resolved_observed_at,
+                    stale_after=stale_after,
+                ),
+                id="system-health-summary",
                 className="summary-grid",
             ),
             html.Section(
@@ -261,3 +239,52 @@ def _truthful_reading(
         observed_at=observed_at,
         stale_after=stale_after,
     )[0]
+
+
+def health_metric_cards(
+    readings: Iterable[HomeHealthReading],
+    *,
+    observed_at: datetime,
+    stale_after: timedelta,
+) -> list[html.Div]:
+    """Render current System cards from a previously captured snapshot."""
+
+    supplied = {reading.area: reading for reading in readings}
+    specifications = (
+        (
+            "Research database",
+            "database",
+            "No timestamped research-database health snapshot was supplied.",
+        ),
+        (
+            "Artifact storage",
+            "artifact",
+            "No timestamped artifact-storage health snapshot was supplied.",
+        ),
+        (
+            "Local data",
+            "cache",
+            "No timestamped active-setup cache snapshot was supplied.",
+        ),
+        (
+            "Orchestrator",
+            "worker",
+            "No timestamped worker or orchestrator health snapshot was supplied.",
+        ),
+        ("Credentials", "credential", "Credential values are never displayed."),
+    )
+    cards: list[html.Div] = []
+    for label, area, missing_detail in specifications:
+        reading = supplied.get(
+            area,
+            HomeHealthReading(area, "Not checked", missing_detail),
+        )
+        if area == "credential":
+            reading = redact_credential_health_reading(reading)
+        cards.append(
+            _metric(
+                label,
+                _truthful_reading(reading, observed_at, stale_after),
+            )
+        )
+    return cards

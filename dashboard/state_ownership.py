@@ -18,6 +18,11 @@ STATE_OWNERS = {
         "owner": "dashboard.callbacks.routing",
         "rule": "An explicit menu-button click toggles the responsive drawer; every primary-navigation selection or pathname change closes it without rebuilding navigation or writing the URL.",
     },
+    "health_snapshot": {
+        "source": "health-observation-snapshot.data",
+        "owner": "dashboard.callbacks.health",
+        "rule": "A redacted read-only observation is fixed for the browser layout; the passive interval re-evaluates only its freshness presentation without probing services or replacing routes.",
+    },
     "idea_draft": {
         "source": "idea-draft-store.data",
         "owner": "dashboard.callbacks.ideas",
