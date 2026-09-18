@@ -17,7 +17,10 @@ from tests.browser.test_backtest_results_spym_stability import (
     TARGET_RUN_ID,
     dashboard_server,
 )
+from tests.browser.test_home_local_health import home_health_server
 from tests.browser.test_dashboard_lifecycle import (
+    _assert_no_browser_errors,
+    _assert_route,
     _attach_diagnostics,
     _select,
     _wait_for_callbacks_to_settle,
@@ -61,22 +64,49 @@ def _run_count(server_log: Path) -> int:
         connection.close()
 
 
-def test_market_data_and_system_health_are_truthful_in_browser(dashboard_server) -> None:
-    base_url, _, _ = dashboard_server
+def test_market_data_and_system_health_are_truthful_in_browser(home_health_server) -> None:
+    base_url, _, _, _ = home_health_server
+    events: list[dict[str, object]] = []
+    action = {"name": "open portable Market Data health"}
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        pending = _attach_diagnostics(page, events, action)
         try:
             _open(page, base_url, "/research/market-data")
-            expect(page.locator("#route-research-market-data h1")).to_have_text("Market Data")
-            expect(page.get_by_text("17", exact=True).first).to_be_visible()
-            expect(page.get_by_text("Quarantined — not approved", exact=True).first).to_be_visible()
-            expect(page.get_by_text("Provider connectivity, credential availability, and data freshness were not checked on this page.", exact=True)).to_be_visible()
+            _wait_for_callbacks_to_settle(page, pending)
+            _assert_route(
+                page,
+                base_url,
+                "/research/market-data",
+                "route-research-market-data",
+            )
+            market_data = page.locator("#route-research-market-data")
+            expect(market_data.locator("h1")).to_have_text("Market Data")
+            catalogued = market_data.locator(
+                ".metric-card", has_text="Catalogued datasets"
+            )
+            expect(catalogued.locator("strong")).to_have_text("2")
+            expect(
+                market_data.get_by_text("Quarantined — not approved", exact=True)
+            ).to_be_visible()
+            expect(
+                market_data.get_by_text(
+                    "Provider connectivity, credential availability, and data freshness were not checked on this page.",
+                    exact=True,
+                )
+            ).to_be_visible()
 
+            action["name"] = "navigate to portable System health"
             page.locator(f"#{navigation_link_id('/system')}").click()
-            expect(page.locator("#route-system h1")).to_have_text("System Status")
-            expect(page.get_by_text("Credentials", exact=True)).to_be_visible()
-            expect(page.get_by_text("Not checked", exact=True).last).to_be_visible()
+            _wait_for_callbacks_to_settle(page, pending)
+            _assert_route(page, base_url, "/system", "route-system")
+            system = page.locator("#route-system")
+            expect(system.locator("h1")).to_have_text("System Status")
+            credentials = system.locator(".metric-card", has_text="Credentials")
+            expect(credentials.locator(".metric-label")).to_have_text("Credentials")
+            expect(credentials.locator("strong")).to_have_text("Not checked")
+            _assert_no_browser_errors(events)
         finally:
             browser.close()
 

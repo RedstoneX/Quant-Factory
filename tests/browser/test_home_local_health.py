@@ -33,28 +33,34 @@ def _write_catalog(tmp_path: Path) -> tuple[Path, Path]:
     data_root = tmp_path / "market-data"
     manifest_root = tmp_path / "manifests"
     manifest_root.mkdir()
-    content = b"portable local health fixture"
-    target = data_root / "equities/health-fixture.parquet"
-    target.parent.mkdir(parents=True)
-    target.write_bytes(content)
-    (manifest_root / "health-fixture.json").write_text(
-        json.dumps(
-            {
-                "dataset_id": "health-fixture",
-                "status": "validated",
-                "asset_class": "equity",
-                "symbol": "SPY",
-                "provider": "Browser fixture",
-                "timeframe": "1d",
-                "format": "parquet",
-                "canonical_relative_path": "equities/health-fixture.parquet",
-                "sha256": sha256(content).hexdigest(),
-                "size_bytes": len(content),
-                "row_count": 1,
-            }
-        ),
-        encoding="utf-8",
-    )
+    for dataset_id, status in (
+        ("health-fixture", "validated"),
+        ("health-fixture-quarantined", "quarantined"),
+    ):
+        content = f"portable local health fixture: {dataset_id}".encode()
+        relative_directory = "quarantine" if status == "quarantined" else "equities"
+        relative_path = f"{relative_directory}/{dataset_id}.parquet"
+        target = data_root / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+        (manifest_root / f"{dataset_id}.json").write_text(
+            json.dumps(
+                {
+                    "dataset_id": dataset_id,
+                    "status": status,
+                    "asset_class": "equity",
+                    "symbol": "SPY",
+                    "provider": "Browser fixture",
+                    "timeframe": "1d",
+                    "format": "parquet",
+                    "canonical_relative_path": relative_path,
+                    "sha256": sha256(content).hexdigest(),
+                    "size_bytes": len(content),
+                    "row_count": 1,
+                }
+            ),
+            encoding="utf-8",
+        )
     config = tmp_path / "data_locations.toml"
     config.write_text(
         "\n".join(
