@@ -25,16 +25,14 @@ qualify a defensible equity edge under Milestone 25, then resume paper
 activation only after every execution gate passes. Live capital remains far
 future and requires separate explicit owner approval.
 
-Decision 275 authorizes the sanitized clean-history public repository. The
-candidate is currently public under a temporary name for validation; the
-existing private repository remains canonical until controlled cutover. After
-cutover, the public repository is the forward source of truth and the renamed
-private original is historical evidence only. Decision 276 keeps required
-checks and admin enforcement but permanently disables strict/up-to-date unless
-the owner changes it: independent green PRs need no refresh build after an
-unrelated merge, while dependent or overlapping work still integrates and
-retests serially. Publication does not grant a source-code license: the project
-is all rights reserved.
+Decision 275 is implemented: this clean-history public repository is the sole
+forward source of truth, and the original remains a private, read-only
+historical archive. The cutover did not modify the production runtime.
+Decision 276 keeps required checks and admin enforcement but permanently
+disables strict/up-to-date unless the owner changes it: independent green PRs
+need no refresh build after an unrelated merge, while dependent or overlapping
+work still integrates and retests serially. Publication does not grant a
+source-code license: the project is all rights reserved.
 
 ## Mechanism references
 

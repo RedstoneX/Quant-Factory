@@ -22,11 +22,10 @@ Repeatable procedures belong in `.claude/skills/`; specialist workers belong in
 
 - Resolve the active repository from `QF_REPO_ROOT`; public examples use
   `/srv/quant-factory/repo`. Isolated worktrees require explicit ownership.
-- During Decision 275's migration, treat the existing private
-  `RedstoneX/Quant-Factory` as authoritative for committed state until the
-  controlled cutover. The public repository under the temporary candidate
-  name is validation-only; after cutover it assumes the canonical name and
-  becomes authoritative.
+- Decision 275's migration is complete. Treat the clean-history public
+  `RedstoneX/Quant-Factory` repository as the sole forward authority. The
+  original repository is a private, read-only historical archive and is not a
+  development remote.
 - Use `main` as the integration baseline and a dedicated branch/PR for substantive changes. Do not push directly to main. Follow AGENTS for explicit staging, stash identity, concurrent writers, and rollback.
 - Follow Decision 276's permanent throughput policy: required checks and admin
   enforcement stay on, `strict`/up-to-date stays off unless the owner changes

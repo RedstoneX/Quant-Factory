@@ -49,13 +49,17 @@ A required gate is proven only by a disposable controlled failure that causes
 GitHub to block merging, followed by a restored green path. Never merge the
 deliberate failure or use an override.
 
-On 2026-09-18 GitHub API evidence for the temporary public candidate confirmed
-`strict: false`, the three required checks (`Documentation contracts`,
-`Portable tests`, and `Dependency review`), `enforce_admins: true`, repository
-auto-merge and merged-branch deletion enabled, per-ref workflow concurrency,
-and no merge queue. Controlled PR #1 failed the required `Portable tests`
-check and was blocked, then passed every required check after correction and
-was closed without merging.
+On 2026-09-18 GitHub API evidence re-confirmed on the canonical public
+repository `strict: false`, the three required checks (`Documentation
+contracts`, `Portable tests`, and `Dependency review`), `enforce_admins: true`,
+repository auto-merge and merged-branch deletion enabled, per-ref workflow
+concurrency, no merge queue, and no force push or branch deletion. Controlled
+PR #1 failed the required `Portable tests` check and was blocked, then passed
+every required check after correction and was closed without merging.
+Independent same-base PRs #2 and #3 were both green. After #3 merged, #2
+remained `CLEAN` and `MERGEABLE` with unchanged Test run `35301119002` and
+Dependency Review run `35301119008`, received no refresh run, and was closed
+unmerged.
 
 After dependency, secret-injection, runtime configuration, or equivalent
 environment-input changes, separately verify loading, startup, and relevant
