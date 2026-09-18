@@ -45,16 +45,9 @@ def layout(
         component_id="run-configuration-preview",
         loading=loading,
     )
-    if readiness is None:
-        launch_disabled = True
-        launch_title = "No approved saved configuration is available."
-    else:
-        launch_disabled = loading or not readiness.ready
-        launch_title = (
-            "Run this immutable saved fixture configuration."
-            if readiness.ready and not loading
-            else "Resolve every preflight blocker before running this test."
-        )
+    # The page-owned callback prepares a browser-session key before enabling.
+    launch_disabled = True
+    launch_title = "Preparing a durable browser-session run ticket."
 
     return html.Div(
         [
@@ -65,6 +58,10 @@ def layout(
             ),
             _strategy_research_path("/research/run-test"),
             operator_context(component_id="run-test-operator-context"),
+            dcc.Store(
+                id="run-test-launch-state",
+                storage_type="session",
+            ),
             html.Div(
                 [
                     html.Span("Fixture-only test", className="pending-state-badge"),

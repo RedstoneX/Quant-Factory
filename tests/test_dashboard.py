@@ -1,6 +1,7 @@
 """Deterministic tests for the minimal visual decision dashboard."""
 
 from dataclasses import replace
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -54,11 +55,16 @@ from dashboard.run_detail_adapter import (
     SelectedRunDetailView,
 )
 from orchestration import (
+    DurableResearchLaunchService,
     FixtureRunService,
+    ResearchLaunchConflictError,
+    ResearchLaunchContentionError,
+    ResearchLaunchRequest,
     RunEvent,
     RunLaunchResult,
     RunServiceError,
     RunSummary,
+    new_dispatcher_instance_id,
 )
 from market_data import DataAudit
 from persistence import (
@@ -68,6 +74,9 @@ from persistence import (
     ExecutionAssumptionsRecord,
     PersistenceService,
     ReviewState,
+    ResearchLaunchOperation,
+    ResearchRunSubmissionRecord,
+    ResearchSubmissionState,
     RunStage,
     RunStatus,
     StrategyLifecycle,
@@ -1130,9 +1139,10 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
     assert ("refresh-comparisons", "n_clicks") not in selector_inputs
     assert "run-monitor-interval" not in str(_resolved_layout(app))
     assert selector_inputs[
-        ("historical-launch-message", "children")
+        ("historical-launch-state", "data")
     ]["allow_optional"]
-    assert selector_inputs[("reproduction-message", "children")]["allow_optional"]
+    assert selector_inputs[("reproduction-launch-state", "data")]["allow_optional"]
+    assert ("run-test-launch-state", "data") in selector_inputs
     assert ("selected-run-state", "data") in selector_inputs
     assert ("selected-run-state", "data") not in selector_states
 
@@ -1169,9 +1179,9 @@ def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
 
     guarded_calls = (
-        ("launch-message", (1, "missing-configuration", "/")),
-        ("historical-launch-message", (1, "missing-run", "/")),
-        ("reproduction-message", (1, "missing-run", "/")),
+        ("launch-message", (1, "missing-configuration", None, "/")),
+        ("historical-launch-message", (1, "missing-run", None, "/")),
+        ("reproduction-message", (1, "missing-run", None, "/")),
         (
             "run-comparison-output",
             (1, 0, "/research/backtest-results", None, ["a", "b"]),
@@ -1960,8 +1970,8 @@ def test_setup_and_run_test_split_configuration_from_launch() -> None:
     assert selector.persistence_type == "session"
     assert preview.id == "configuration-preview"
     assert launch_button.id == "launch-run"
-    assert launch_button.disabled is False
-    assert launch_button.title == "Run this immutable saved fixture configuration."
+    assert launch_button.disabled is True
+    assert launch_button.title == "Preparing a durable browser-session run ticket."
     assert not any(
         getattr(component, "id", None) in {"configuration-selector", "launch-run"}
         for component in _walk_components(results_page)
@@ -2266,6 +2276,15 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
                 "reads that identity without mutation or an automatic launch."
             ),
         },
+        "run_test_launch": {
+            "source": "run-test-launch-state.data",
+            "owner": "dashboard.callbacks.backtest_results",
+            "rule": (
+                "Run test owns one session launch key bound to its immutable "
+                "configuration; submitted keys are never rebound and persisted "
+                "submission state is authoritative."
+            ),
+        },
         "selected_backtest": {
             "source": "selected-run-selector.value",
             "store": "selected-run-state.data",
@@ -2273,6 +2292,23 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             "rule": (
                 "Explicit selector changes win over passive refresh and hydration "
                 "callbacks."
+            ),
+        },
+        "historical_relaunch": {
+            "source": "historical-launch-state.data",
+            "owner": "dashboard.callbacks.backtest_results",
+            "rule": (
+                "Results owns a distinct historical-relaunch key bound to the "
+                "selected source run; it never shares reproduction or Run test state."
+            ),
+        },
+        "reproduction_launch": {
+            "source": "reproduction-launch-state.data",
+            "owner": "dashboard.callbacks.backtest_results",
+            "rule": (
+                "Results owns a distinct reproduction key bound to the selected "
+                "source run; submitted keys remain immutable across refresh and "
+                "retry delivery."
             ),
         },
         "review_selection": {
@@ -2459,6 +2495,63 @@ def test_recent_run_and_event_histories_collapse_overflow() -> None:
     assert "history-overflow" in classes
 
 
+class _DashboardResearchLaunches:
+    def __init__(self) -> None:
+        self.by_key: dict[str, ResearchRunSubmissionRecord] = {}
+
+    def acknowledge(
+        self,
+        key: str,
+        run: RunSummary,
+        *,
+        operation: ResearchLaunchOperation,
+        source_run_id: str | None,
+    ) -> ResearchRunSubmissionRecord:
+        existing = self.by_key.get(key)
+        if existing is not None:
+            return existing
+        canonical_request_json = canonical_json(
+            {
+                "operation_kind": operation.value,
+                "configuration_id": run.configuration_id,
+                "source_run_id": source_run_id,
+            }
+        )
+        record = ResearchRunSubmissionRecord(
+            idempotency_key=key,
+            run_id=run.run_id,
+            configuration_id=run.configuration_id,
+            canonical_request_json=canonical_request_json,
+            request_fingerprint=hashlib.sha256(
+                canonical_request_json.encode("utf-8")
+            ).hexdigest(),
+            state=ResearchSubmissionState.ACKNOWLEDGED,
+            dispatcher_instance_id="00000000-0000-4000-8000-000000000001",
+            prefect_flow_run_id=run.prefect_flow_run_id,
+            prefect_api_url=run.prefect_api_url,
+            claimed_at=run.created_at,
+            invocation_started_at=run.started_at,
+            acknowledged_at=run.started_at,
+            unknown_at=None,
+            unknown_evidence_reference=None,
+            resolved_at=None,
+            resolution_evidence_reference=None,
+            updated_at=run.completed_at or run.started_at or run.created_at,
+            error_summary=None,
+        )
+        self.by_key[key] = record
+        return record
+
+    def get(self, key: str) -> ResearchRunSubmissionRecord | None:
+        return self.by_key.get(key)
+
+    def get_for_run(self, run_id: str) -> ResearchRunSubmissionRecord | None:
+        return next(
+            (record for record in self.by_key.values() if record.run_id == run_id),
+            None,
+        )
+
+
 class _DashboardRunService:
     def __init__(
         self,
@@ -2479,6 +2572,9 @@ class _DashboardRunService:
         self.event_queries = 0
         self.run_detail_queries: list[str] = []
         self.run_event_queries: list[str] = []
+        self.durable_requests: list[dict[str, object]] = []
+        self.durable_request_by_key: dict[str, dict[str, object]] = {}
+        self.research_launch_service = _DashboardResearchLaunches()
         self._runs: list[RunSummary] = list(initial_runs) if initial_runs is not None else [
             self._summary("run_dashboard_fixture", "a" * 64, run_status)
         ]
@@ -2513,8 +2609,43 @@ class _DashboardRunService:
             attempt_count=1,
         )
 
-    def launch_fixture(self, *, configuration_id: str):
+    def launch_fixture(
+        self,
+        *,
+        configuration_id: str,
+        idempotency_key: str,
+        operation: ResearchLaunchOperation,
+        source_run_id: str | None,
+        source_lineage: object,
+    ):
+        existing = self.research_launch_service.get(idempotency_key)
+        if existing is not None:
+            request = {
+                "configuration_id": configuration_id,
+                "operation": operation,
+                "source_run_id": source_run_id,
+            }
+            if self.durable_request_by_key[idempotency_key] != request:
+                raise ResearchLaunchConflictError(
+                    "research launch key is already bound to a different request"
+                )
+            run = self.get_run(existing.run_id)
+            assert run is not None
+            return RunLaunchResult(run=run, prefect_result=None)
         self.configuration_ids.append(configuration_id)
+        self.durable_requests.append(
+            {
+                "idempotency_key": idempotency_key,
+                "operation": operation,
+                "source_run_id": source_run_id,
+                "source_lineage": source_lineage,
+            }
+        )
+        self.durable_request_by_key[idempotency_key] = {
+            "configuration_id": configuration_id,
+            "operation": operation,
+            "source_run_id": source_run_id,
+        }
         if self.error is not None:
             raise self.error
         run_id = (
@@ -2524,9 +2655,33 @@ class _DashboardRunService:
         )
         run = self._summary(run_id, configuration_id, self.run_status)
         self._runs.insert(0, run)
+        self.research_launch_service.acknowledge(
+            idempotency_key,
+            run,
+            operation=operation,
+            source_run_id=source_run_id,
+        )
         return RunLaunchResult(
             run=run,
             prefect_result=None,
+        )
+
+    def reproduce_fixture_run(
+        self,
+        source_run_id: str,
+        *,
+        artifact_root: Path,
+        idempotency_key: str,
+    ):
+        source = self.get_run(source_run_id)
+        if source is None:
+            raise KeyError(source_run_id)
+        return self.launch_fixture(
+            configuration_id=source.configuration_id,
+            idempotency_key=idempotency_key,
+            operation=ResearchLaunchOperation.REPRODUCTION,
+            source_run_id=source_run_id,
+            source_lineage=None,
         )
 
 
@@ -2602,6 +2757,97 @@ class _DashboardRunService:
         return self.recent_events()
 
 
+class _PersistedDashboardRunService:
+    """Minimal frozen seam backed by the real durable SQLite claim service."""
+
+    def __init__(self, database: Path, invocations: list[str]) -> None:
+        self.database_path = database
+        self.reader = FixtureRunService(database=database)
+        self.research_launch_service = DurableResearchLaunchService(database=database)
+        self.invocations = invocations
+
+    def launch_fixture(
+        self,
+        *,
+        configuration_id: str,
+        idempotency_key: str,
+        operation: ResearchLaunchOperation,
+        source_run_id: str | None,
+        source_lineage: object,
+    ) -> RunLaunchResult:
+        claim = self.research_launch_service.claim(
+            idempotency_key=idempotency_key,
+            request=ResearchLaunchRequest(
+                operation=operation,
+                configuration_id=configuration_id,
+                source_run_id=source_run_id,
+                source_lineage=source_lineage,
+            ),
+        )
+        dispatcher_id = new_dispatcher_instance_id()
+
+        def invoke(submission: ResearchRunSubmissionRecord) -> None:
+            self.invocations.append(idempotency_key)
+            self.research_launch_service.bind_prefect_identity(
+                idempotency_key=idempotency_key,
+                run_id=submission.run_id,
+                configuration_id=submission.configuration_id,
+                canonical_request_json=submission.canonical_request_json,
+                request_fingerprint=submission.request_fingerprint,
+                prefect_flow_run_id=f"prefect-{submission.run_id}",
+            )
+            persistence = PersistenceService(self.database_path)
+            try:
+                persistence.transition_run(submission.run_id, RunStatus.SUCCEEDED)
+            finally:
+                persistence.close()
+
+        self.research_launch_service.dispatch(
+            idempotency_key=idempotency_key,
+            dispatcher_instance_id=dispatcher_id,
+            invoke=invoke,
+        )
+        run = self.reader.get_run(claim.run.run_id)
+        assert run is not None
+        return RunLaunchResult(run=run, prefect_result=None)
+
+    def reproduce_fixture_run(
+        self,
+        source_run_id: str,
+        *,
+        artifact_root: Path,
+        idempotency_key: str,
+    ) -> RunLaunchResult:
+        source = self.get_run(source_run_id)
+        if source is None:
+            raise KeyError(source_run_id)
+        return self.launch_fixture(
+            configuration_id=source.configuration_id,
+            idempotency_key=idempotency_key,
+            operation=ResearchLaunchOperation.REPRODUCTION,
+            source_run_id=source_run_id,
+            source_lineage=None,
+        )
+
+    def get_run(self, run_id: str) -> RunSummary | None:
+        return self.reader.get_run(run_id)
+
+    def recent_runs(self, *, limit: int = 20):
+        return self.reader.recent_runs(limit=limit)
+
+    def recent_events(self, *, limit: int = 20):
+        return self.reader.recent_events(limit=limit)
+
+    def all_runs(self):
+        return self.reader.all_runs()
+
+    def all_history(self, *, artifact_root: Path | None = None):
+        return self.reader.all_history(artifact_root=artifact_root)
+
+    def events_for_run(self, run_id: str):
+        return self.reader.events_for_run(run_id)
+
+
 def _callback_function(app, output_fragment: str):
     entries = [
         value
@@ -2653,14 +2899,11 @@ def test_selected_setup_identity_updates_run_test_preview(
     setup_children, href, _class_name, _setup_title = setup_preview(
         second.configuration_id
     )
-    run_children, disabled, _run_title = run_preview(
-        second.configuration_id
-    )
+    run_children = run_preview(second.configuration_id)
 
     assert "second_operator_choice" in _component_text(html.Div(setup_children))
     assert "second_operator_choice" in _component_text(html.Div(run_children))
     assert href == "/research/run-test"
-    assert disabled is False
 
 
 def test_initial_idea_hydration_cannot_overwrite_first_keystroke(
@@ -3106,7 +3349,7 @@ def _reproduction_service(tmp_path: Path) -> tuple[Path, Path, FixtureRunService
     return database, artifact_root, service, configuration_id
 
 
-def test_dashboard_reproduces_persisted_run_and_renders_comparison(
+def test_dashboard_uses_frozen_durable_reproduction_service_seam(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -3124,15 +3367,15 @@ def test_dashboard_reproduces_persisted_run_and_renders_comparison(
     )
     reproduce = _callback_function(app, "reproduction-message")
 
-    message, class_name = reproduce(
+    _, message, class_name, *_ = reproduce(
         1,
         "source_reproduction_run",
     )
     rendered_message = str(message)
 
-    assert class_name == "reproduction-message reproduction-message-success"
-    assert "source_reproduction_run" in rendered_message
-    assert "Allowed differences" in rendered_message
+    assert class_name == "reproduction-message"
+    assert "Submission: Acknowledged" in rendered_message
+    assert "Run status: Succeeded" in rendered_message
 
     persistence = PersistenceService(database)
     try:
@@ -3141,66 +3384,13 @@ def test_dashboard_reproduces_persisted_run_and_renders_comparison(
             run
             for run in persistence.runs.list()
             if run.run_id != "source_reproduction_run"
-        ][0]
+        ]
         assert source is not None
         assert source.configuration_id == configuration_id
-        assert reproduced.configuration_id == configuration_id
-        assert reproduced.run_id != source.run_id
-        source_environment = json.loads(source.environment_json)
-        reproduced_environment = json.loads(reproduced.environment_json)
-        assert "reproduction" not in source_environment
-        assert reproduced_environment["reproduction"]["source_run_id"] == (
-            "source_reproduction_run"
-        )
+        assert len(reproduced) == 1
+        assert reproduced[0].configuration_id == configuration_id
     finally:
         persistence.close()
-
-    restarted = create_app(
-        context,
-        database,
-        run_service=service,
-        run_detail_adapter=RunDetailDashboardAdapter(
-            database=database,
-            artifact_root=artifact_root,
-        ),
-    )
-    restarted_compare = _callback_function(restarted, "run-comparison-output")
-    restarted_panel, restarted_class = restarted_compare(
-        1,
-        0,
-        "/research/compare-backtests",
-        None,
-        ["source_reproduction_run", reproduced.run_id],
-    )
-    restarted_rendered = str(restarted_panel)
-    assert restarted_class == "run-comparison-output"
-    assert "source_reproduction_run" in restarted_rendered
-    assert reproduced.run_id in restarted_rendered
-
-    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "reproduction-message")
-    refresh_selectors = _callback_function(app, "selected-run-selector.options")
-    options, selected = refresh_selectors(
-        0,
-        0,
-        0,
-        message,
-        "source_reproduction_run",
-        "source_reproduction_run",
-        [],
-    )
-    refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
-    comparison_options = refresh_comparison_options(
-        0,
-        "/research/compare-backtests",
-        None,
-    )
-    option_values = [option["value"] for option in options]
-    assert selected == reproduced.run_id
-    assert "source_reproduction_run" in option_values
-    assert reproduced.run_id in option_values
-    assert [option["value"] for option in comparison_options] == option_values
-    assert all(" · Test " in option["label"] for option in comparison_options)
-
 
 def test_dashboard_reproduction_fails_closed_for_invalid_lineage_or_artifacts(
     tmp_path: Path,
@@ -3224,11 +3414,12 @@ def test_dashboard_reproduction_fails_closed_for_invalid_lineage_or_artifacts(
         encoding="utf-8",
     )
 
-    message, class_name = reproduce(
+    _, message, class_name, *_ = reproduce(
         1,
         "source_reproduction_run",
     )
     assert class_name == "reproduction-message error-state"
+    assert "Run reproduction did not start" in str(message)
     assert "invalid reproduction artifacts" in str(message)
 
     persistence = PersistenceService(database)
@@ -3242,9 +3433,9 @@ def test_dashboard_reproduction_fails_closed_for_invalid_lineage_or_artifacts(
     finally:
         persistence.close()
 
-    message, class_name = reproduce(1, "source_reproduction_run")
+    _, message, class_name, *_ = reproduce(1, "source_reproduction_run")
     assert class_name == "reproduction-message error-state"
-    assert "cannot be reproduced" in str(message)
+    assert "Run reproduction did not start" in str(message)
 
 
 def test_dashboard_run_comparison_renders_equal_changed_and_missing_fields(
@@ -3485,7 +3676,7 @@ def test_dashboard_launches_selected_saved_configuration(tmp_path: Path, monkeyp
     )
 
     launch = _callback_function(app, "launch-message")
-    content, class_name, context_children, context_class = launch(
+    _, content, class_name, context_children, context_class, *_ = launch(
         1,
         configuration.configuration_id,
     )
@@ -3494,11 +3685,535 @@ def test_dashboard_launches_selected_saved_configuration(tmp_path: Path, monkeyp
     assert class_name == "save-message"
     rendered = str(content)
     assert "run_dashboard_fixture" in rendered
-    assert "succeeded" in rendered
+    assert "Succeeded" in rendered
     assert "prefect-run_dashboard_fixture" in rendered
     assert "Succeeded" in _component_text(html.Div(context_children))
     assert "Unavailable" in _component_text(html.Div(context_children))
     assert context_class == "operator-context"
+
+
+def test_durable_run_test_replays_rapid_duplicate_and_refresh_without_relaunch(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    app = create_app(review_database=tmp_path / "durable.sqlite3", run_service=service)
+    launch = _callback_function(app, "launch-message")
+    prepared = {
+        "prepared": {
+            "idempotency_key": "launch_00000000000000000000000000000001",
+            "operation": "run_test",
+            "configuration_id": configuration.configuration_id,
+            "source_run_id": None,
+        },
+        "submitted": None,
+    }
+
+    first = launch(1, configuration.configuration_id, prepared, "/research/run-test")
+    submitted = first[0]
+    duplicate = launch(
+        1,
+        configuration.configuration_id,
+        json.loads(json.dumps(prepared)),
+        "/research/run-test",
+    )
+    refreshed = launch(
+        0,
+        configuration.configuration_id,
+        submitted,
+        "/research/run-test",
+    )
+
+    assert len(service.durable_requests) == 1
+    assert submitted["submitted"]["idempotency_key"] == prepared["prepared"]["idempotency_key"]
+    assert duplicate[0]["submitted"]["idempotency_key"] == submitted["submitted"]["idempotency_key"]
+    assert refreshed[0]["submitted"]["idempotency_key"] == submitted["submitted"]["idempotency_key"]
+    assert "run_dashboard_fixture" in str(refreshed[1])
+
+
+def test_submitted_run_remains_bound_while_new_selection_gets_new_ticket(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first_configuration = _saved_configuration()
+    second_configuration = replace(
+        first_configuration,
+        configuration_id="b" * 64,
+        config_hash="b" * 64,
+        experiment_id="second_fixture_selection",
+    )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (first_configuration, second_configuration),
+    )
+    service = _DashboardRunService(
+        initial_runs=(),
+        launch_run_ids=["run_config_a", "run_config_b"],
+    )
+    launch = _callback_function(
+        create_app(
+            review_database=tmp_path / "selection-change.sqlite3",
+            run_service=service,
+        ),
+        "launch-message",
+    )
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "launch-run",
+    )
+    first = launch(
+        1,
+        first_configuration.configuration_id,
+        None,
+        "/research/run-test",
+    )
+    first_submitted = dict(first[0]["submitted"])
+    first_submission = service.research_launch_service.get(
+        first_submitted["idempotency_key"]
+    )
+    assert first_submission is not None
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-configuration-state",
+    )
+    changed = launch(
+        1,
+        second_configuration.configuration_id,
+        first[0],
+        "/research/run-test",
+    )
+
+    assert changed[0]["submitted"] == first_submitted
+    assert changed[0]["prepared"]["configuration_id"] == (
+        second_configuration.configuration_id
+    )
+    assert changed[0]["prepared"]["idempotency_key"] != (
+        first_submitted["idempotency_key"]
+    )
+    assert changed[5] is False
+    assert "Ready to create one durable run ticket" in str(changed[1])
+    assert len(service.durable_requests) == 1
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "launch-run",
+    )
+    second = launch(
+        2,
+        second_configuration.configuration_id,
+        changed[0],
+        "/research/run-test",
+    )
+
+    assert len(service.durable_requests) == 2
+    assert second[0]["submitted"]["configuration_id"] == (
+        second_configuration.configuration_id
+    )
+    assert second[0]["submitted"]["idempotency_key"] != (
+        first_submitted["idempotency_key"]
+    )
+    assert service.research_launch_service.get(
+        first_submitted["idempotency_key"]
+    ) == first_submission
+    assert service.get_run(first_submission.run_id).configuration_id == (
+        first_configuration.configuration_id
+    )
+
+
+def test_passive_browser_session_hydration_prepares_distinct_keys_before_enable(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    launch = _callback_function(
+        create_app(
+            review_database=tmp_path / "sessions.sqlite3",
+            run_service=_DashboardRunService(),
+        ),
+        "launch-message",
+    )
+
+    first_session = launch(0, configuration.configuration_id, None, "/research/run-test")
+    second_session = launch(0, configuration.configuration_id, None, "/research/run-test")
+
+    assert first_session[0]["prepared"]["idempotency_key"] != second_session[0]["prepared"]["idempotency_key"]
+    assert first_session[5] is False
+    assert second_session[5] is False
+
+
+def test_durable_run_test_reopens_same_ticket_after_application_restart(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    database, configuration_id = _reproduction_configuration(tmp_path)
+    configuration = replace(
+        _saved_configuration(),
+        configuration_id=configuration_id,
+        config_hash=configuration_id,
+        strategy_id="reproduction_strategy",
+        strategy_name="Reproduction Strategy",
+    )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    invocations: list[str] = []
+    first_service = _PersistedDashboardRunService(database, invocations)
+    first_app = create_app(review_database=database, run_service=first_service)
+    first_launch = _callback_function(first_app, "launch-message")
+    first = first_launch(
+        1,
+        configuration.configuration_id,
+        None,
+        "/research/run-test",
+    )
+
+    restarted_service = _PersistedDashboardRunService(database, invocations)
+    restarted_app = create_app(review_database=database, run_service=restarted_service)
+    reopen = _callback_function(restarted_app, "launch-message")
+    reopened = reopen(
+        0,
+        configuration.configuration_id,
+        first[0],
+        "/research/run-test",
+    )
+
+    assert len(invocations) == 1
+    assert reopened[0]["submitted"] == first[0]["submitted"]
+    assert reopened[0]["prepared"] == first[0]["prepared"]
+    assert "Submission: Acknowledged" in str(reopened[1])
+
+    rerun = reopen(
+        1,
+        configuration.configuration_id,
+        reopened[0],
+        "/research/run-test",
+    )
+    assert len(invocations) == 2
+    assert rerun[0]["submitted"]["idempotency_key"] == reopened[0]["prepared"]["idempotency_key"]
+
+
+def test_durable_run_test_two_tabs_share_one_persisted_claim(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    database, configuration_id = _reproduction_configuration(tmp_path)
+    configuration = replace(
+        _saved_configuration(),
+        configuration_id=configuration_id,
+        config_hash=configuration_id,
+        strategy_id="reproduction_strategy",
+        strategy_name="Reproduction Strategy",
+    )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    invocations: list[str] = []
+    tab_a_service = _PersistedDashboardRunService(database, invocations)
+    tab_a = _callback_function(
+        create_app(review_database=database, run_service=tab_a_service),
+        "launch-message",
+    )
+    prepared = tab_a(0, configuration_id, None, "/research/run-test")[0]
+    tab_b_copy = json.loads(json.dumps(prepared))
+
+    first = tab_a(1, configuration_id, prepared, "/research/run-test")
+    tab_b_service = _PersistedDashboardRunService(database, invocations)
+    tab_b = _callback_function(
+        create_app(review_database=database, run_service=tab_b_service),
+        "launch-message",
+    )
+    replay = tab_b(1, configuration_id, tab_b_copy, "/research/run-test")
+
+    assert len(invocations) == 1
+    assert replay[0]["submitted"] == first[0]["submitted"]
+    assert _component_text(replay[1]) == _component_text(first[1])
+
+
+def test_durable_persisted_operation_mismatch_fails_without_second_invocation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    database, configuration_id = _reproduction_configuration(tmp_path)
+    configuration = replace(
+        _saved_configuration(),
+        configuration_id=configuration_id,
+        config_hash=configuration_id,
+        strategy_id="reproduction_strategy",
+        strategy_name="Reproduction Strategy",
+    )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    invocations: list[str] = []
+    first_service = _PersistedDashboardRunService(database, invocations)
+    app = create_app(review_database=database, run_service=first_service)
+    launch = _callback_function(app, "launch-message")
+    launched = launch(1, configuration_id, None, "/research/run-test")
+    source_run_id = first_service.research_launch_service.get(
+        launched[0]["submitted"]["idempotency_key"]
+    ).run_id
+
+    second_service = _PersistedDashboardRunService(database, invocations)
+    historical = _callback_function(
+        create_app(review_database=database, run_service=second_service),
+        "historical-launch-message",
+    )
+    mismatched_store = {
+        "prepared": {
+            "idempotency_key": launched[0]["submitted"]["idempotency_key"],
+            "operation": "historical_relaunch",
+            "configuration_id": configuration_id,
+            "source_run_id": source_run_id,
+        },
+        "submitted": None,
+    }
+    result = historical(
+        1,
+        source_run_id,
+        mismatched_store,
+        "/research/backtest-results",
+    )
+
+    assert len(invocations) == 1
+    assert "different operation or selection" in _component_text(result[1])
+    assert result[3] is True
+
+
+def test_durable_run_test_key_mismatch_fails_without_new_mutation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first_configuration = _saved_configuration()
+    second_configuration = replace(
+        first_configuration,
+        configuration_id="b" * 64,
+        config_hash="c" * 64,
+    )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (first_configuration, second_configuration),
+    )
+    service = _DashboardRunService()
+    app = create_app(review_database=tmp_path / "mismatch.sqlite3", run_service=service)
+    launch = _callback_function(app, "launch-message")
+    first = launch(1, first_configuration.configuration_id, None, "/research/run-test")
+    key = first[0]["submitted"]["idempotency_key"]
+    mismatched = {
+        "prepared": {
+            "idempotency_key": key,
+            "operation": "run_test",
+            "configuration_id": second_configuration.configuration_id,
+            "source_run_id": None,
+        },
+        "submitted": None,
+    }
+
+    result = launch(
+        2,
+        second_configuration.configuration_id,
+        mismatched,
+        "/research/run-test",
+    )
+
+    assert len(service.durable_requests) == 1
+    assert "Run ticket conflict" in _component_text(result[1])
+    assert result[5] is True
+
+
+def test_unknown_submission_disables_retry_and_inactive_route_never_mutates(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(run_status="created")
+    app = create_app(review_database=tmp_path / "unknown.sqlite3", run_service=service)
+    launch = _callback_function(app, "launch-message")
+    first = launch(1, configuration.configuration_id, None, "/research/run-test")
+    key = first[0]["submitted"]["idempotency_key"]
+    service.research_launch_service.by_key[key] = replace(
+        service.research_launch_service.by_key[key],
+        state=ResearchSubmissionState.SUBMISSION_UNKNOWN,
+        unknown_at="2026-07-13T12:00:02Z",
+        error_summary="Acknowledgement could not be confirmed.",
+    )
+
+    unknown = launch(2, configuration.configuration_id, first[0], "/research/run-test")
+    assert len(service.durable_requests) == 1
+    assert unknown[5] is True
+    assert unknown[7] == "Submission unknown"
+    assert "Do not retry" in str(unknown[1])
+
+    with pytest.raises(PreventUpdate):
+        launch(3, configuration.configuration_id, first[0], "/research/backtest-results")
+    assert len(service.durable_requests) == 1
+
+
+def test_malformed_submitted_identity_fails_closed_without_callback_error(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    launch = _callback_function(
+        create_app(review_database=tmp_path / "malformed.sqlite3", run_service=service),
+        "launch-message",
+    )
+
+    result = launch(
+        1,
+        configuration.configuration_id,
+        {"prepared": None, "submitted": {"operation": "run_test"}},
+        "/research/run-test",
+    )
+
+    assert service.durable_requests == []
+    assert result[5] is True
+    assert "malformed" in _component_text(result[1]).lower()
+
+
+def test_preclaim_contention_retains_same_prepared_key_for_all_mutations(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(
+        error=ResearchLaunchContentionError("database is busy"),
+    )
+    app = create_app(review_database=tmp_path / "contention.sqlite3", run_service=service)
+    source_run_id = service.recent_runs()[0].run_id
+
+    callbacks = (
+        (
+            _callback_function(app, "launch-message"),
+            (1, configuration.configuration_id, None, "/research/run-test"),
+        ),
+        (
+            _callback_function(app, "historical-launch-message"),
+            (1, source_run_id, None, "/research/backtest-results"),
+        ),
+        (
+            _callback_function(app, "reproduction-message"),
+            (1, source_run_id, None, "/research/backtest-results"),
+        ),
+    )
+    for callback, arguments in callbacks:
+        result = callback(*arguments)
+        assert result[0]["submitted"] is None
+        assert result[0]["prepared"]["idempotency_key"].startswith("launch_")
+
+
+def test_persisted_submission_remains_visible_after_configuration_deactivation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    first_app = create_app(review_database=tmp_path / "retired.sqlite3", run_service=service)
+    launch = _callback_function(first_app, "launch-message")
+    launched = launch(1, configuration.configuration_id, None, "/research/run-test")
+
+    inactive = replace(configuration, active=False, lifecycle="retired")
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (inactive,),
+    )
+    reopened = _callback_function(
+        create_app(review_database=tmp_path / "retired.sqlite3", run_service=service),
+        "launch-message",
+    )(0, configuration.configuration_id, launched[0], "/research/run-test")
+
+    assert "Submission: Acknowledged" in _component_text(reopened[1])
+    assert "Run status: Succeeded" in _component_text(reopened[1])
+    assert reopened[5] is True
+
+
+def test_partial_durable_service_signature_keeps_launcher_disabled(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+
+    class PartialService(_DashboardRunService):
+        def launch_fixture(self, *, configuration_id: str, idempotency_key: str):
+            raise AssertionError("partial durable seam must not be invoked")
+
+    launch = _callback_function(
+        create_app(
+            review_database=tmp_path / "partial.sqlite3",
+            run_service=PartialService(),
+        ),
+        "launch-message",
+    )
+    result = launch(1, configuration.configuration_id, None, "/research/run-test")
+
+    assert result[5] is True
+    assert "legacy launcher is disabled" in _component_text(result[1])
+
+
+def test_durable_launch_outputs_have_one_callback_owner(tmp_path: Path, monkeypatch) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    app = create_app(
+        review_database=tmp_path / "owners.sqlite3",
+        run_service=_DashboardRunService(),
+    )
+    targets = {
+        "run-test-launch-state.data",
+        "launch-run.disabled",
+        "launch-message.children",
+        "historical-launch-state.data",
+        "launch-selected-run-configuration.disabled",
+        "historical-launch-message.children",
+        "reproduction-launch-state.data",
+        "reproduce-selected-run.disabled",
+        "reproduction-message.children",
+    }
+    counts = {target: 0 for target in targets}
+    for entry in app.callback_map.values():
+        outputs = entry["output"] if isinstance(entry["output"], list) else [entry["output"]]
+        for output in outputs:
+            identity = f"{output.component_id}.{output.component_property}"
+            if identity in counts:
+                counts[identity] += 1
+
+    assert counts == {target: 1 for target in targets}
 
 
 def test_dashboard_reports_launch_failure_without_creating_ui_state(
@@ -3524,7 +4239,7 @@ def test_dashboard_reports_launch_failure_without_creating_ui_state(
     )
 
     launch = _callback_function(app, "launch-message")
-    content, class_name, context_children, context_class = launch(
+    _, content, class_name, context_children, context_class, *_ = launch(
         1,
         configuration.configuration_id,
     )
@@ -3578,9 +4293,10 @@ def test_dashboard_launches_new_run_from_selected_historical_configuration(
     )
 
     launch = _callback_function(app, "historical-launch-message")
-    content, class_name = launch(1, "old_terminal_run")
+    _, content, class_name, *_ = launch(1, "old_terminal_run")
 
-    assert service.run_detail_queries == ["old_terminal_run"]
+    assert service.run_detail_queries[0] == "old_terminal_run"
+    assert "new_historical_run" in service.run_detail_queries
     assert service.configuration_ids == [configuration.configuration_id]
     assert service.configuration_ids[0] == old_run.configuration_id
     assert service.recent_runs()[0].run_id == "new_historical_run"
@@ -3588,9 +4304,53 @@ def test_dashboard_launches_new_run_from_selected_historical_configuration(
     assert "old_terminal_run" not in str(content)
     assert "new_historical_run" in str(content)
     assert "prefect-new_historical_run" in str(content)
-    assert class_name == (
-        "historical-launch-message historical-launch-message-success"
+    assert class_name == "historical-launch-message"
+    request = service.durable_requests[0]
+    assert request["operation"] == ResearchLaunchOperation.HISTORICAL_RELAUNCH
+    assert request["source_run_id"] == "old_terminal_run"
+    assert request["source_lineage"] is None
+
+
+def test_dashboard_reproduction_uses_its_own_durable_key_and_source_identity(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    source = _DashboardRunService()._summary(
+        "source_succeeded_run",
+        configuration.configuration_id,
+        "succeeded",
     )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(
+        initial_runs=(source,),
+        launch_run_ids=["reproduced_durable_run"],
+    )
+    app = create_app(review_database=tmp_path / "reproduce.sqlite3", run_service=service)
+    reproduce = _callback_function(app, "reproduction-message")
+
+    store, message, class_name, *_ = reproduce(
+        1,
+        source.run_id,
+        None,
+        "/research/backtest-results",
+    )
+
+    assert store["submitted"]["operation"] == "reproduction"
+    assert store["submitted"]["source_run_id"] == source.run_id
+    assert "reproduced_durable_run" in str(message)
+    assert class_name == "reproduction-message"
+    assert service.durable_requests == [
+        {
+            "idempotency_key": store["submitted"]["idempotency_key"],
+            "operation": ResearchLaunchOperation.REPRODUCTION,
+            "source_run_id": source.run_id,
+            "source_lineage": None,
+        }
+    ]
 
 
 def test_dashboard_rejects_historical_launch_when_configuration_unlaunchable(
@@ -3618,16 +4378,12 @@ def test_dashboard_rejects_historical_launch_when_configuration_unlaunchable(
     )
 
     launch = _callback_function(app, "historical-launch-message")
-    message, class_name = launch(1, "run_dashboard_fixture")
+    _, message, class_name, *_ = launch(1, "run_dashboard_fixture")
 
     assert service.configuration_ids == []
     rendered = _component_text(message)
-    assert "Run launch did not start." in rendered
-    assert (
-        "The selected run's saved configuration is unavailable or not launchable."
-        in rendered
-    )
-    assert class_name == "historical-launch-message error-state"
+    assert "Select a launchable persisted run" in rendered
+    assert class_name == "historical-launch-message"
 
 
 def test_dashboard_reports_historical_launch_failures_readably(
@@ -3653,7 +4409,7 @@ def test_dashboard_reports_historical_launch_failures_readably(
     )
 
     launch = _callback_function(app, "historical-launch-message")
-    message, class_name = launch(1, "run_dashboard_fixture")
+    _, message, class_name, *_ = launch(1, "run_dashboard_fixture")
 
     assert service.configuration_ids == [configuration.configuration_id]
     rendered = _component_text(message)
@@ -3685,13 +4441,12 @@ def test_dashboard_reports_missing_historical_run_before_launch(
     )
 
     launch = _callback_function(app, "historical-launch-message")
-    message, class_name = launch(1, "missing-run")
+    _, message, class_name, *_ = launch(1, "missing-run")
 
     assert service.configuration_ids == []
     rendered = _component_text(message)
-    assert "Run launch did not start." in rendered
-    assert "Selected run missing-run could not be found." in rendered
-    assert class_name == "historical-launch-message error-state"
+    assert "Select a launchable persisted run" in rendered
+    assert class_name == "historical-launch-message"
 
 
 def test_dynamic_detail_actions_ignore_initial_lifecycle_events(
@@ -3720,16 +4475,12 @@ def test_dynamic_detail_actions_ignore_initial_lifecycle_events(
     reproduce = _callback_function(app, "reproduction-message")
     cancel = _callback_function(app, "cancellation-message")
 
-    assert launch(None, "run_dashboard_fixture") == (no_update, no_update)
-    assert launch(0, "run_dashboard_fixture") == (no_update, no_update)
-    assert reproduce(None, "run_dashboard_fixture") == (
-        no_update,
-        no_update,
-    )
-    assert reproduce(0, "run_dashboard_fixture") == (
-        no_update,
-        no_update,
-    )
+    assert launch(None, "run_dashboard_fixture")[3] is False
+    assert launch(0, "run_dashboard_fixture")[3] is False
+    before = len(service.durable_requests)
+    assert reproduce(None, "run_dashboard_fixture")[3] is False
+    assert reproduce(0, "run_dashboard_fixture")[3] is False
+    assert len(service.durable_requests) == before
     assert cancel(None, "run_dashboard_fixture") == (no_update, no_update)
     assert cancel(0, "run_dashboard_fixture") == (no_update, no_update)
 
@@ -4465,14 +5216,30 @@ def test_completed_launch_run_outside_recent_limit_still_gets_selector_option(
         run_service=service,
     )
     refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    key = "launch_00000000000000000000000000000499"
+    service.research_launch_service.acknowledge(
+        key,
+        completed_run,
+        operation=ResearchLaunchOperation.RUN_TEST,
+        source_run_id=None,
+    )
+    launch_state = {
+        "prepared": None,
+        "submitted": {
+            "idempotency_key": key,
+            "operation": "run_test",
+            "configuration_id": completed_run.configuration_id,
+            "source_run_id": None,
+        },
+    }
 
     monkeypatch.setattr(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
-        lambda: "launch-message",
+        lambda: "run-test-launch-state",
     )
     options, selected = refresh_selectors(
         0,
-        {"props": {"data-run-id": "completed_launch_run"}},
+        launch_state,
         0,
         0,
         "recent_run_00",
@@ -4704,8 +5471,8 @@ def test_run_monitor_refresh_selects_new_launch_and_preserves_terminal_history(
     )
 
     launch = _callback_function(app, "historical-launch-message")
-    launch_message, _ = launch(1, "old_cancelled_run")
-    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "historical-launch-message")
+    launch_state, launch_message, _, *_ = launch(1, "old_cancelled_run")
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "historical-launch-state")
 
     refresh = _callback_function(app, "recent-runs-monitor")
     runs_panel, _ = refresh(
@@ -4720,7 +5487,7 @@ def test_run_monitor_refresh_selects_new_launch_and_preserves_terminal_history(
     options, selected = refresh_selectors(
         0,
         0,
-        launch_message,
+        launch_state,
         0,
         "old_cancelled_run",
         "old_cancelled_run",
@@ -4789,13 +5556,13 @@ def test_run_monitor_refresh_selects_new_main_launch(
         run_service=service,
     )
     launch = _callback_function(app, "launch-message")
-    launch_message, _, _, _ = launch(1, configuration.configuration_id)
-    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "launch-message")
+    launch_state, launch_message, *_ = launch(1, configuration.configuration_id)
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "run-test-launch-state")
 
     refresh_selectors = _callback_function(app, "selected-run-selector.options")
     options, selected = refresh_selectors(
         0,
-        launch_message,
+        launch_state,
         0,
         0,
         "run_dashboard_fixture",
@@ -5781,9 +6548,7 @@ def test_dashboard_requires_explicit_stale_recovery_cutoff(
     message, class_name = recover(1, "   ")
 
     assert service.stale_recovery_requests == []
-    assert message == (
-        "Enter an explicit UTC cutoff before requesting recovery."
-    )
+    assert "Age-only recovery is disabled" in message
     assert class_name == "stale-recovery-message error-state"
 
 
@@ -5812,13 +6577,9 @@ def test_dashboard_reports_no_matching_stale_runs(
     recover = _callback_function(app, "stale-recovery-message")
     message, class_name = recover(1, "2026-07-13T12:00:00Z")
 
-    assert service.stale_recovery_requests == [
-        "2026-07-13T12:00:00Z"
-    ]
-    assert message == (
-        "No stale fixture runs matched the supplied cutoff."
-    )
-    assert class_name == "stale-recovery-message"
+    assert service.stale_recovery_requests == []
+    assert "Age-only recovery is disabled" in message
+    assert class_name == "stale-recovery-message error-state"
 
 
 def test_dashboard_reports_recovered_stale_runs(
@@ -5866,16 +6627,9 @@ def test_dashboard_reports_recovered_stale_runs(
     recover = _callback_function(app, "stale-recovery-message")
     message, class_name = recover(1, "2026-07-13T12:00:00Z")
 
-    rendered = str(message)
-    assert service.stale_recovery_requests == [
-        "2026-07-13T12:00:00Z"
-    ]
-    assert "Recovered 1 stale fixture run." in rendered
-    assert "run_stale_fixture" in rendered
-    assert "remained running beyond the stale recovery cutoff" in rendered
-    assert class_name == (
-        "stale-recovery-message stale-recovery-message-success"
-    )
+    assert service.stale_recovery_requests == []
+    assert "Age-only recovery is disabled" in str(message)
+    assert class_name == "stale-recovery-message error-state"
 
 
 def test_dashboard_reports_stale_recovery_failure(
@@ -5905,9 +6659,6 @@ def test_dashboard_reports_stale_recovery_failure(
     recover = _callback_function(app, "stale-recovery-message")
     message, class_name = recover(1, "not-a-timestamp")
 
-    assert service.stale_recovery_requests == ["not-a-timestamp"]
-    assert message == (
-        "Stale-run recovery failed: "
-        "stale_before must be an ISO-8601 UTC timestamp"
-    )
+    assert service.stale_recovery_requests == []
+    assert "Age-only recovery is disabled" in message
     assert class_name == "stale-recovery-message error-state"
