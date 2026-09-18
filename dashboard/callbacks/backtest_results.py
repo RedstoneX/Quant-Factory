@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl
 
-from dash import Dash, Input, Output, State, html, no_update
+from dash import Dash, Input, Output, State, ctx, html, no_update
 from dash.exceptions import PreventUpdate
 
 from dashboard.components.operator_context import (
@@ -84,6 +84,23 @@ def _requested_results_run_id(search: str | None) -> tuple[bool, str | None]:
     ):
         return True, None
     return True, run_id
+
+
+def _callback_triggered_ids() -> frozenset[str]:
+    """Return every component that triggered the current Dash callback."""
+
+    try:
+        component_ids = {
+            component_id
+            for component_id in ctx.triggered_prop_ids.values()
+            if isinstance(component_id, str)
+        }
+    except Exception:
+        component_ids = set()
+    primary = _callback_triggered_id()
+    if primary:
+        component_ids.add(primary)
+    return frozenset(component_ids)
 
 
 def register_backtest_results_callbacks(
@@ -368,6 +385,7 @@ def register_backtest_results_callbacks(
         stored_run_id: str | None = None,
         pathname: str | None = "/research/backtest-results",
     ):
+        triggered_ids = _callback_triggered_ids()
         triggered_id = _callback_triggered_id()
 
         def stored_run_is_valid() -> bool:
@@ -378,13 +396,8 @@ def register_backtest_results_callbacks(
             except (KeyError, ValueError, RunServiceError):
                 return False
 
-        if triggered_id == "run-history-grid" and history_rows:
-            return history_rows[0].get("run_id") or stored_run_id
-        if triggered_id == "selected-run-selector" and selected_run_id:
-            return selected_run_id
-
         query_requested, requested_run_id = _requested_results_run_id(search)
-        should_consider_query = triggered_id in {None, "url"}
+        should_consider_query = triggered_id is None or "url" in triggered_ids
         if should_consider_query and not _active_route(
             pathname,
             "/research/backtest-results",
@@ -402,6 +415,10 @@ def register_backtest_results_callbacks(
                 ):
                     return requested_run_id
             return no_update if stored_run_id else None
+        if triggered_id == "run-history-grid" and history_rows:
+            return history_rows[0].get("run_id") or stored_run_id
+        if triggered_id == "selected-run-selector" and selected_run_id:
+            return selected_run_id
         if triggered_id is None and stored_run_is_valid():
             return no_update
         if selected_run_id:

@@ -4242,6 +4242,46 @@ def test_selected_run_store_recontrols_dropdown_after_detail_render_remount(
     assert selected == "selected_run_b"
 
 
+def test_results_deep_link_wins_simultaneous_stale_selector_trigger(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    service = _DashboardRunService(
+        initial_runs=(
+            base_service._summary("source_run", "a" * 64, "succeeded"),
+            base_service._summary("reproduced_run", "a" * 64, "succeeded"),
+        ),
+    )
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    preserve = _callback_function(app, "selected-run-state")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-run-selector",
+    )
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_ids",
+        lambda: frozenset({"selected-run-selector", "url"}),
+    )
+
+    selected = preserve(
+        "reproduced_run",
+        None,
+        "?run_id=source_run",
+        "reproduced_run",
+        "/research/backtest-results",
+    )
+
+    assert selected == "source_run"
+
+
 def test_initial_selector_hydration_does_not_rewrite_existing_dropdown(
     tmp_path: Path,
     monkeypatch,
