@@ -8,7 +8,7 @@ import os
 import sqlite3
 from typing import Iterator
 
-LATEST_SCHEMA_VERSION = 4
+LATEST_SCHEMA_VERSION = 5
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE_PATH = Path("state") / "quant_factory.sqlite3"
 ENV_DATABASE_PATH = "QUANT_FACTORY_DB_PATH"
@@ -220,6 +220,64 @@ MIGRATION_004_STATEMENTS = (
     """,
 )
 
+MIGRATION_005_STATEMENTS = (
+    """
+    CREATE TABLE research_run_submissions (
+        idempotency_key TEXT NOT NULL PRIMARY KEY
+            CHECK (length(idempotency_key) BETWEEN 16 AND 128)
+            CHECK (idempotency_key NOT GLOB '*[^A-Za-z0-9_-]*'),
+        run_id TEXT NOT NULL UNIQUE,
+        configuration_id TEXT NOT NULL,
+        canonical_request_json TEXT NOT NULL,
+        request_fingerprint TEXT NOT NULL
+            CHECK (length(request_fingerprint) = 64)
+            CHECK (request_fingerprint NOT GLOB '*[^0-9a-f]*'),
+        state TEXT NOT NULL CHECK (state IN (
+            'claimed', 'invoking', 'acknowledged', 'submission_unknown',
+            'failed_before_submission', 'abandoned'
+        )),
+        dispatcher_instance_id TEXT,
+        prefect_flow_run_id TEXT UNIQUE,
+        prefect_api_url TEXT,
+        claimed_at TEXT NOT NULL,
+        invocation_started_at TEXT,
+        acknowledged_at TEXT,
+        unknown_at TEXT,
+        unknown_evidence_reference TEXT,
+        resolved_at TEXT,
+        resolution_evidence_reference TEXT,
+        updated_at TEXT NOT NULL,
+        error_summary TEXT,
+        FOREIGN KEY (run_id) REFERENCES experiment_runs(run_id) ON DELETE RESTRICT,
+        FOREIGN KEY (configuration_id)
+            REFERENCES experiment_configurations(configuration_id)
+            ON DELETE RESTRICT
+    )
+    """,
+    "CREATE INDEX idx_research_submissions_state_updated ON research_run_submissions(state, updated_at)",
+    "CREATE INDEX idx_research_submissions_configuration ON research_run_submissions(configuration_id, claimed_at)",
+    """
+    CREATE TRIGGER research_run_submissions_immutable_identity
+    BEFORE UPDATE ON research_run_submissions
+    WHEN OLD.idempotency_key != NEW.idempotency_key
+      OR OLD.run_id != NEW.run_id
+      OR OLD.configuration_id != NEW.configuration_id
+      OR OLD.canonical_request_json != NEW.canonical_request_json
+      OR OLD.request_fingerprint != NEW.request_fingerprint
+      OR OLD.claimed_at != NEW.claimed_at
+    BEGIN
+        SELECT RAISE(ABORT, 'research submission identity is immutable');
+    END
+    """,
+    """
+    CREATE TRIGGER research_run_submissions_no_delete
+    BEFORE DELETE ON research_run_submissions
+    BEGIN
+        SELECT RAISE(ABORT, 'research submissions are durable evidence');
+    END
+    """,
+)
+
 
 class DatabaseError(RuntimeError):
     """Raised when the local experiment database is unusable."""
@@ -303,6 +361,9 @@ def initialize_database(path: str | Path | None = None) -> sqlite3.Connection:
             elif current == 3:
                 _migrate_v3_to_v4(connection)
                 current = 4
+            elif current == 4:
+                _migrate_v4_to_v5(connection)
+                current = 5
             else:
                 raise SchemaVersionError(
                     f"database schema {current} cannot be migrated by this version"
@@ -360,4 +421,14 @@ def _migrate_v3_to_v4(connection: sqlite3.Connection) -> None:
         connection.execute(
             "UPDATE schema_metadata SET schema_version=?, migration_id=?",
             (4, "004_artifact_identity_and_run_manifests"),
+        )
+
+
+def _migrate_v4_to_v5(connection: sqlite3.Connection) -> None:
+    with transaction(connection):
+        for statement in MIGRATION_005_STATEMENTS:
+            connection.execute(statement)
+        connection.execute(
+            "UPDATE schema_metadata SET schema_version=?, migration_id=?",
+            (5, "005_durable_research_launch_claims"),
         )

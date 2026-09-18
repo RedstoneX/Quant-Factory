@@ -35,6 +35,25 @@ class RunStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class ResearchLaunchOperation(str, Enum):
+    """Operator actions that may own one durable research-launch claim."""
+
+    RUN_TEST = "run_test"
+    HISTORICAL_RELAUNCH = "historical_relaunch"
+    REPRODUCTION = "reproduction"
+
+
+class ResearchSubmissionState(str, Enum):
+    """Submission handoff state, deliberately separate from ``RunStatus``."""
+
+    CLAIMED = "claimed"
+    INVOKING = "invoking"
+    ACKNOWLEDGED = "acknowledged"
+    SUBMISSION_UNKNOWN = "submission_unknown"
+    FAILED_BEFORE_SUBMISSION = "failed_before_submission"
+    ABANDONED = "abandoned"
+
+
 class RunEventType(str, Enum):
     """Bounded operator-visible lifecycle events for one Quant Factory run."""
 
@@ -167,6 +186,30 @@ class RunEventRecord:
     severity: EventSeverity
     source: str
     message: str
+
+
+@dataclass(frozen=True)
+class ResearchRunSubmissionRecord:
+    """Durable identity and handoff state for one explicit research launch."""
+
+    idempotency_key: str
+    run_id: str
+    configuration_id: str
+    canonical_request_json: str
+    request_fingerprint: str
+    state: ResearchSubmissionState
+    dispatcher_instance_id: str | None
+    prefect_flow_run_id: str | None
+    prefect_api_url: str | None
+    claimed_at: str
+    invocation_started_at: str | None
+    acknowledged_at: str | None
+    unknown_at: str | None
+    unknown_evidence_reference: str | None
+    resolved_at: str | None
+    resolution_evidence_reference: str | None
+    updated_at: str
+    error_summary: str | None
 
 
 @dataclass(frozen=True)

@@ -40,7 +40,7 @@ def test_existing_v1_database_migrates_to_append_only_event_schema(tmp_path: Pat
     finally:
         migrated.close()
 
-    assert version == LATEST_SCHEMA_VERSION == 4
+    assert version == LATEST_SCHEMA_VERSION == 5
     assert table is not None
 
 

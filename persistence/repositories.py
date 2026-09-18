@@ -20,6 +20,8 @@ from persistence.models import (
     ParameterResultRecord,
     ReviewRecord,
     ReviewState,
+    ResearchRunSubmissionRecord,
+    ResearchSubmissionState,
     RunStage,
     RunEventRecord,
     RunEventType,
@@ -81,6 +83,16 @@ def _run_event(row: sqlite3.Row) -> RunEventRecord:
     values["event_type"] = RunEventType(values["event_type"])
     values["severity"] = EventSeverity(values["severity"])
     return RunEventRecord(**values)
+
+
+def _research_submission(
+    row: sqlite3.Row | None,
+) -> ResearchRunSubmissionRecord | None:
+    if row is None:
+        return None
+    values = dict(row)
+    values["state"] = ResearchSubmissionState(values["state"])
+    return ResearchRunSubmissionRecord(**values)
 
 
 def _parameter(row: sqlite3.Row) -> ParameterResultRecord:
@@ -531,6 +543,190 @@ class RunEventRepository:
             )
         )
 
+
+class ResearchRunSubmissionRepository:
+    """Low-level records for the schema-5 durable research-launch boundary."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def create(
+        self,
+        *,
+        idempotency_key: str,
+        run_id: str,
+        configuration_id: str,
+        canonical_request_json: str,
+        request_fingerprint: str,
+        claimed_at: str,
+    ) -> ResearchRunSubmissionRecord:
+        self.connection.execute(
+            """
+            INSERT INTO research_run_submissions
+            (idempotency_key, run_id, configuration_id, canonical_request_json,
+             request_fingerprint, state, claimed_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                idempotency_key,
+                run_id,
+                configuration_id,
+                canonical_request_json,
+                request_fingerprint,
+                ResearchSubmissionState.CLAIMED.value,
+                claimed_at,
+                claimed_at,
+            ),
+        )
+        record = self.get(idempotency_key)
+        assert record is not None
+        return record
+
+    def get(self, idempotency_key: str) -> ResearchRunSubmissionRecord | None:
+        return _research_submission(
+            self.connection.execute(
+                "SELECT * FROM research_run_submissions WHERE idempotency_key=?",
+                (idempotency_key,),
+            ).fetchone()
+        )
+
+    def get_for_run(self, run_id: str) -> ResearchRunSubmissionRecord | None:
+        return _research_submission(
+            self.connection.execute(
+                "SELECT * FROM research_run_submissions WHERE run_id=?",
+                (run_id,),
+            ).fetchone()
+        )
+
+    def set_invoking(
+        self,
+        idempotency_key: str,
+        *,
+        dispatcher_instance_id: str,
+        invocation_started_at: str,
+    ) -> bool:
+        cursor = self.connection.execute(
+            """
+            UPDATE research_run_submissions
+            SET state=?, dispatcher_instance_id=?, invocation_started_at=?, updated_at=?
+            WHERE idempotency_key=? AND state=?
+            """,
+            (
+                ResearchSubmissionState.INVOKING.value,
+                dispatcher_instance_id,
+                invocation_started_at,
+                invocation_started_at,
+                idempotency_key,
+                ResearchSubmissionState.CLAIMED.value,
+            ),
+        )
+        return cursor.rowcount == 1
+
+    def set_unknown(
+        self,
+        idempotency_key: str,
+        *,
+        unknown_at: str,
+        error_summary: str,
+        evidence_reference: str | None = None,
+    ) -> bool:
+        cursor = self.connection.execute(
+            """
+            UPDATE research_run_submissions
+            SET state=?, unknown_at=?, updated_at=?, error_summary=?,
+                unknown_evidence_reference=COALESCE(?, unknown_evidence_reference)
+            WHERE idempotency_key=? AND state=?
+            """,
+            (
+                ResearchSubmissionState.SUBMISSION_UNKNOWN.value,
+                unknown_at,
+                unknown_at,
+                error_summary,
+                evidence_reference,
+                idempotency_key,
+                ResearchSubmissionState.INVOKING.value,
+            ),
+        )
+        return cursor.rowcount == 1
+
+    def set_acknowledged(
+        self,
+        idempotency_key: str,
+        *,
+        prefect_flow_run_id: str,
+        prefect_api_url: str | None,
+        acknowledged_at: str,
+    ) -> bool:
+        cursor = self.connection.execute(
+            """
+            UPDATE research_run_submissions
+            SET state=?, prefect_flow_run_id=?, prefect_api_url=?,
+                acknowledged_at=?, updated_at=?, error_summary=NULL
+            WHERE idempotency_key=? AND state IN (?, ?)
+            """,
+            (
+                ResearchSubmissionState.ACKNOWLEDGED.value,
+                prefect_flow_run_id,
+                prefect_api_url,
+                acknowledged_at,
+                acknowledged_at,
+                idempotency_key,
+                ResearchSubmissionState.INVOKING.value,
+                ResearchSubmissionState.SUBMISSION_UNKNOWN.value,
+            ),
+        )
+        return cursor.rowcount == 1
+
+    def set_failed_before_submission(
+        self,
+        idempotency_key: str,
+        *,
+        resolved_at: str,
+        error_summary: str,
+    ) -> bool:
+        cursor = self.connection.execute(
+            """
+            UPDATE research_run_submissions
+            SET state=?, resolved_at=?, updated_at=?, error_summary=?
+            WHERE idempotency_key=? AND state=?
+            """,
+            (
+                ResearchSubmissionState.FAILED_BEFORE_SUBMISSION.value,
+                resolved_at,
+                resolved_at,
+                error_summary,
+                idempotency_key,
+                ResearchSubmissionState.CLAIMED.value,
+            ),
+        )
+        return cursor.rowcount == 1
+
+    def set_abandoned(
+        self,
+        idempotency_key: str,
+        *,
+        resolved_at: str,
+        error_summary: str,
+        evidence_reference: str,
+    ) -> bool:
+        cursor = self.connection.execute(
+            """
+            UPDATE research_run_submissions
+            SET state=?, resolved_at=?, updated_at=?, error_summary=?,
+                resolution_evidence_reference=?
+            WHERE idempotency_key=? AND state=?
+            """,
+            (
+                ResearchSubmissionState.ABANDONED.value,
+                resolved_at,
+                resolved_at,
+                error_summary,
+                evidence_reference,
+                idempotency_key,
+                ResearchSubmissionState.SUBMISSION_UNKNOWN.value,
+            ),
+        )
+        return cursor.rowcount == 1
 
 class ResultRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
