@@ -189,9 +189,7 @@ def test_simulator_is_not_called_after_blocking_failure(
         called = True
         raise AssertionError("Simulator must not run")
 
-    monkeypatch.setattr(
-        runner_module.vbt.Portfolio, "from_signals", forbidden_simulator
-    )
+    monkeypatch.setattr(runner_module, "require_vectorbtpro", forbidden_simulator)
     invalid = _data().drop(columns="Open")
     with pytest.raises(ExperimentValidationError):
         execute_experiment(

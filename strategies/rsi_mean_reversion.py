@@ -4,7 +4,8 @@ from itertools import product
 from typing import Any, Mapping
 
 import pandas as pd
-import vectorbtpro as vbt
+
+from backtesting.vectorbt_runtime import require_vectorbtpro
 
 from strategies.models import (
     DataRequirements,
@@ -204,6 +205,7 @@ def _generate_signals(
 ) -> tuple[pd.Series, pd.Series]:
     """Preserved RSI calculation and crossing rules."""
 
+    vbt = require_vectorbtpro()
     rsi = vbt.RSI.run(close, window=window)
     entries = rsi.rsi_crossed_below(entry_threshold)
     exits = rsi.rsi_crossed_above(exit_threshold)
