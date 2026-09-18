@@ -39,7 +39,11 @@ from dashboard.components.operator_context import (  # noqa: E402
 )
 from dashboard.compare_adapter import CompareDashboardAdapter  # noqa: E402
 from dashboard.project_status import PROJECT_STATUS, DashboardProjectStatus  # noqa: E402
-from dashboard.health import inspect_catalog  # noqa: E402
+from dashboard.health import (  # noqa: E402
+    HomeHealthReading,
+    inspect_catalog,
+    local_home_health_readings,
+)
 from dashboard.routing import (  # noqa: E402
     NAVIGATION_LINKS,
     ROUTE_CONTAINER_IDS,
@@ -682,12 +686,14 @@ def _overview_page(
     recent_runs: tuple[RunSummary, ...] = (),
     recent_events: tuple[RunEvent, ...] = (),
     selected_run_id: str | None = None,
+    health_readings: tuple[HomeHealthReading, ...] = (),
     project_status: DashboardProjectStatus = PROJECT_STATUS,
 ) -> html.Div:
     from dashboard.pages.home import build_home_view_model, layout as home_layout
 
     return home_layout(
         build_home_view_model(
+            health_readings=health_readings,
             recent_runs=recent_runs,
             recent_events=recent_events,
             selected_run_id=selected_run_id,
@@ -3720,6 +3726,7 @@ def page_for_path(
     dashboard_database: Path | None = None,
     artifact_root: Path | None = None,
     catalog_snapshot: tuple | None = None,
+    home_health_readings: tuple[HomeHealthReading, ...] = (),
     all_runs: tuple[RunSummary, ...] = (),
     history_rows: tuple[dict[str, object], ...] = (),
 ) -> html.Div:
@@ -3729,6 +3736,7 @@ def page_for_path(
             recent_runs=recent_runs,
             recent_events=recent_events,
             selected_run_id=selected_run_id,
+            health_readings=home_health_readings,
         )
     if route == "/research/ideas":
         from dashboard.pages.ideas import layout as ideas_layout
@@ -3797,6 +3805,7 @@ def page_for_path(
             dashboard_database if dashboard_database is not None else database_path(),
             artifact_root if artifact_root is not None else PROJECT_ROOT,
             catalog_snapshot=catalog_snapshot,
+            health_readings=home_health_readings,
         )
     if route == "/system/providers":
         from dashboard.pages.system_health import provider_layout
@@ -3834,6 +3843,19 @@ def route_content_for_path(
     )
 
 
+def _active_configuration_dataset_ids(
+    configurations: tuple[SavedConfigurationView, ...] | None,
+) -> frozenset[str]:
+    dataset_ids: set[str] = set()
+    for configuration in configurations or ():
+        if not configuration.launchable:
+            continue
+        dataset_id = configuration.market_data.get("dataset_id")
+        if isinstance(dataset_id, str) and dataset_id.strip():
+            dataset_ids.add(dataset_id.strip())
+    return frozenset(dataset_ids)
+
+
 def create_layout(
     context: DashboardContext | None,
     configurations: tuple[SavedConfigurationView, ...] | None = None,
@@ -3848,18 +3870,32 @@ def create_layout(
     all_runs: tuple[RunSummary, ...] = (),
     history_rows: tuple[dict[str, object], ...] = (),
     catalog_snapshot: CatalogSnapshot | None = None,
+    catalog_checked_at: datetime | None = None,
 ) -> html.Div:
-    resolved_catalog_snapshot = (
-        inspect_catalog() if catalog_snapshot is None else catalog_snapshot
+    if catalog_snapshot is None:
+        resolved_catalog_snapshot = inspect_catalog()
+        resolved_catalog_checked_at = datetime.now(timezone.utc)
+    else:
+        resolved_catalog_snapshot = catalog_snapshot
+        resolved_catalog_checked_at = catalog_checked_at
+    resolved_database = dashboard_database or database_path()
+    resolved_artifact_root = artifact_root or PROJECT_ROOT
+    home_health_readings = local_home_health_readings(
+        database=resolved_database,
+        artifact_root=resolved_artifact_root,
+        catalog_snapshot=resolved_catalog_snapshot,
+        catalog_checked_at=resolved_catalog_checked_at,
+        required_dataset_ids=_active_configuration_dataset_ids(configurations),
     )
     return create_dashboard_layout(
         context,
         configurations,
         page_factory=partial(
             page_for_path,
-            dashboard_database=dashboard_database,
-            artifact_root=artifact_root,
+            dashboard_database=resolved_database,
+            artifact_root=resolved_artifact_root,
             catalog_snapshot=resolved_catalog_snapshot,
+            home_health_readings=home_health_readings,
         ),
         initial_pathname=initial_pathname,
         recent_runs=recent_runs,
@@ -3877,15 +3913,22 @@ def create_app(
     run_service: FixtureRunService | None = None,
     run_detail_adapter: RunDetailDashboardAdapter | None = None,
     compare_dashboard_adapter: CompareDashboardAdapter | None = None,
+    catalog_snapshot: CatalogSnapshot | None = None,
+    catalog_checked_at: datetime | None = None,
 ) -> Dash:
     # Mounted pages read persisted runs. Opening the dashboard must never
     # download prices or run the legacy RSI parameter grid as a side effect.
     dashboard_database = database_path(review_database)
     configurations = list_saved_configurations(dashboard_database)
-    catalog_snapshot = inspect_catalog()
+    if catalog_snapshot is None:
+        resolved_catalog_snapshot = inspect_catalog()
+        resolved_catalog_checked_at = datetime.now(timezone.utc)
+    else:
+        resolved_catalog_snapshot = catalog_snapshot
+        resolved_catalog_checked_at = catalog_checked_at
     readiness_by_id = configuration_readiness_by_id(
         configurations,
-        catalog_snapshot,
+        resolved_catalog_snapshot,
     )
     runs = run_service or FixtureRunService(database=dashboard_database)
     detail_adapter = run_detail_adapter or RunDetailDashboardAdapter(
@@ -4020,7 +4063,8 @@ def create_app(
         "selected_run_id": selected_run_id,
         "all_runs": all_run_records,
         "history_rows": history_records,
-        "catalog_snapshot": catalog_snapshot,
+        "catalog_snapshot": resolved_catalog_snapshot,
+        "catalog_checked_at": resolved_catalog_checked_at,
     }
 
     def serve_layout() -> html.Div:

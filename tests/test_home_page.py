@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterator
 
+import pytest
+
 from dashboard.pages.home import HomeHealthReading, build_home_view_model, layout
 from orchestration import RunEvent, RunSummary
 
@@ -145,6 +147,55 @@ def test_home_marks_old_health_stale_and_keeps_observation_timestamp() -> None:
     assert model.health[0].status == "Stale — Available"
     assert observed in _text(database)
     assert "stale" in _text(database).lower()
+
+
+def test_home_rejects_future_health_timestamp_instead_of_claiming_current_state() -> None:
+    model = build_home_view_model(
+        health_readings=(
+            HomeHealthReading(
+                area="database",
+                status="Available",
+                detail="A clock-skewed observation must fail closed.",
+                checked_at="2026-09-18T12:00:01Z",
+            ),
+        ),
+        as_of=NOW,
+    )
+
+    database = _component(layout(model), "home-health-database")
+
+    assert model.health[0].status == "Not checked"
+    assert model.health[0].checked_at == "Not checked"
+    assert "future" in _text(database).lower()
+
+
+@pytest.mark.parametrize(
+    "checked_at",
+    (
+        "not-a-timestamp",
+        "2026-09-18T11:59:00",
+    ),
+)
+def test_home_rejects_malformed_or_timezoneless_health_timestamps(
+    checked_at: str,
+) -> None:
+    model = build_home_view_model(
+        health_readings=(
+            HomeHealthReading(
+                area="database",
+                status="Available",
+                detail="An invalid observation time must fail closed.",
+                checked_at=checked_at,
+            ),
+        ),
+        as_of=NOW,
+    )
+
+    database = _component(layout(model), "home-health-database")
+
+    assert model.health[0].status == "Not checked"
+    assert model.health[0].checked_at == "Not checked"
+    assert "invalid" in _text(database).lower()
 
 
 def test_home_active_run_is_selected_and_requires_waiting_not_resubmission() -> None:

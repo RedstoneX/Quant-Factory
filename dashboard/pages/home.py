@@ -13,19 +13,10 @@ from typing import Iterable
 
 from dash import dcc, html
 
+from dashboard.health import HomeHealthReading
 from dashboard.pages.common import page_heading
 from dashboard.project_status import DashboardProjectStatus, PROJECT_STATUS
 from orchestration import RunEvent, RunSummary
-
-
-@dataclass(frozen=True)
-class HomeHealthReading:
-    """One redacted health result supplied by a read-only adapter."""
-
-    area: str
-    status: str
-    detail: str
-    checked_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -277,6 +268,15 @@ def _health_view(
             label=label,
             status="Not checked",
             detail="The recorded check time is invalid; current health is not assumed.",
+            checked_at="Not checked",
+            stale=False,
+        )
+    if checked_at > as_of.astimezone(timezone.utc):
+        return HomeHealthView(
+            area=area,
+            label=label,
+            status="Not checked",
+            detail="The recorded check time is in the future; current health is not assumed.",
             checked_at="Not checked",
             stale=False,
         )
