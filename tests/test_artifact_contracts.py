@@ -9,6 +9,7 @@ import hashlib
 import pytest
 
 from persistence import (
+    LATEST_SCHEMA_VERSION,
     ArtifactAvailability,
     ArtifactType,
     DataProvenanceRecord,
@@ -201,7 +202,13 @@ def test_v3_artifact_rows_migrate_forward_and_remain_readable(tmp_path: Path) ->
 
     migrated = initialize_database(path)
     try:
-        assert migrated.execute("SELECT schema_version FROM schema_metadata").fetchone()["schema_version"] == 4
+        assert migrated.execute("SELECT schema_version FROM schema_metadata").fetchone()["schema_version"] == LATEST_SCHEMA_VERSION == 5
+        assert migrated.execute(
+            "SELECT run_id FROM experiment_runs WHERE run_id='legacy-run'"
+        ).fetchone()["run_id"] == "legacy-run"
+        assert migrated.execute(
+            "SELECT COUNT(*) FROM research_run_submissions"
+        ).fetchone()[0] == 0
     finally:
         migrated.close()
     service = PersistenceService(path)

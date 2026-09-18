@@ -8,6 +8,22 @@ from orchestration.run_service import (
     RunServiceError,
     RunSummary,
 )
+from orchestration.research_launch_claims import (
+    DurableResearchLaunchService,
+    ResearchDispatchDecision,
+    ResearchDispatchResult,
+    ResearchLaunchClaim,
+    ResearchLaunchConflictError,
+    ResearchLaunchContentionError,
+    ResearchLaunchError,
+    ResearchLaunchIntegrityError,
+    ResearchLaunchInvocationError,
+    ResearchLaunchInvocationUnknownError,
+    ResearchLaunchKeyError,
+    ResearchLaunchRequest,
+    new_dispatcher_instance_id,
+    new_research_launch_key,
+)
 
 __all__ = [
     "FixtureRunService",
@@ -16,4 +32,18 @@ __all__ = [
     "RunEvent",
     "RunServiceError",
     "RunSummary",
+    "DurableResearchLaunchService",
+    "ResearchDispatchDecision",
+    "ResearchDispatchResult",
+    "ResearchLaunchClaim",
+    "ResearchLaunchConflictError",
+    "ResearchLaunchContentionError",
+    "ResearchLaunchError",
+    "ResearchLaunchIntegrityError",
+    "ResearchLaunchInvocationError",
+    "ResearchLaunchInvocationUnknownError",
+    "ResearchLaunchKeyError",
+    "ResearchLaunchRequest",
+    "new_dispatcher_instance_id",
+    "new_research_launch_key",
 ]

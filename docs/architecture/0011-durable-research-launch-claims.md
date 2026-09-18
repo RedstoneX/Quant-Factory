@@ -120,7 +120,7 @@ orchestration status or interpreted as evidence failure.
 
 ### 2. Add a research-specific schema-version-5 submission record
 
-The proposed additive table is `research_run_submissions`:
+The accepted additive table is `research_run_submissions`:
 
 | Field | Contract |
 |---|---|
@@ -137,6 +137,7 @@ The proposed additive table is `research_run_submissions`:
 | `invocation_started_at` | Time the write-ahead invocation marker was committed |
 | `acknowledged_at` | Time the Prefect identity was durably bound |
 | `unknown_at` | Time ambiguity was recorded |
+| `unknown_evidence_reference` | Nullable, non-secret process-exit-barrier reference when explicit recovery moved `INVOKING` to `SUBMISSION_UNKNOWN`; retained through later resolution |
 | `resolved_at` | Time a non-acknowledged claim reached an evidenced terminal resolution |
 | `resolution_evidence_reference` | Nullable, non-secret reference required for `ABANDONED` |
 | `updated_at` | Latest submission-state update time |
@@ -184,6 +185,14 @@ observable outcomes are defined:
 
 Exact replay of any terminal transition is a no-op. Conflicting or duplicate
 terminal events are integrity failures.
+
+The implementation keeps process-exit evidence in
+`unknown_evidence_reference`, separately from the later
+`resolution_evidence_reference`. This prevents an evidenced
+`INVOKING`-to-`SUBMISSION_UNKNOWN` recovery from losing its proof if the
+operator later resolves the Unknown claim as `ABANDONED`. This additive field
+clarifies the accepted evidence-retention requirement and does not expand
+Decision 278's scope.
 
 ### 3. Claim the run atomically before invocation
 
@@ -426,7 +435,7 @@ When this decision is implemented:
    new table in place.
 
 Any production rollout remains a separate owner-authorized, backed-up,
-validated deployment slice. Accepting this architecture would not itself
+validated deployment slice. Acceptance of this architecture does not itself
 authorize that rollout.
 
 ## Required validation before implementation can be accepted
@@ -502,7 +511,7 @@ replace licensed-target or browser evidence.
 - The existing in-request execution limit remains; process loss may terminate
   computation even though identity and recovery remain durable.
 - Milestone 23 remains pending until implementation and all required evidence
-  pass. Acceptance of this ADR would not accept the milestone.
+  pass. Acceptance of this ADR does not accept the milestone.
 
 ## Explicit exclusions
 
@@ -549,3 +558,19 @@ decision and evidence.
 - `README.md`: not applicable — public orientation is unchanged.
 - Runbook/specification: not applicable — implementation has not yet changed an
   operating procedure or product specification.
+
+## Documentation-impact assessment for the schema-5 core implementation slice
+
+- `AGENTS.md`: not applicable — permanent agent behavior and allocation are
+  unchanged.
+- `docs/MILESTONES.md`: not applicable — Milestone 23 remains pending and this
+  core slice does not change the accepted order or gate status.
+- `docs/DECISIONS.md`: not applicable — Decision 278 already authorizes this
+  bounded implementation and its scope is unchanged.
+- ADR: updated — the schema table now preserves process-exit recovery proof in
+  a field distinct from later abandonment-resolution evidence.
+- `docs/CHAT_HANDOFF.md`: not applicable — the accepted implementation
+  authority and current resume point are unchanged.
+- `README.md`: not applicable — public orientation is unchanged.
+- Runbook/specification: not applicable — production migration, backup,
+  restore and deployment remain a separate authorized-and-validated slice.
