@@ -2,6 +2,7 @@
 
 - **Status:** PROPOSED / NOT ACCEPTED / NOT AUTHORIZED FOR IMPLEMENTATION
 - **Date proposed:** 2026-09-18
+- **Proposal revised:** 2026-09-18 after independent architecture review
 - **Decision owner:** Terry, the Quant Factory project owner
 - **Scope if accepted:** Milestone 23 research-fixture submission identity,
   persistence, orchestration handoff, recovery and dashboard observation
@@ -29,7 +30,7 @@ excludes backend, persistence and orchestration redesign. The required
 server-side behavior therefore has no accepted implementation authority yet.
 
 At public repository revision
-`f3b15d65948938dbcbdba854575e6c57f52c062e`, the verified implementation has
+`35496137f95067e4e622e690fec3ed319605f255`, the verified implementation has
 these relevant properties:
 
 - `FixtureRunService` validates a configuration and checks for an existing run
@@ -39,10 +40,13 @@ these relevant properties:
   identity exists;
 - a repeated run identity is rejected rather than treated as a replay of one
   durable request;
-- the dashboard callback waits synchronously for the launcher and has no
-  persisted submission state; and
+- the Run test, historical relaunch and reproduction callbacks all reach the
+  shared synchronous fixture launcher without persisted submission state;
 - the research deployment runs Prefect in the dashboard request process. It
-  has a Prefect server but no research worker or deployment execution service.
+  has a Prefect server but no research worker or deployment execution service;
+  and
+- the dashboard process has a finite request timeout, so an in-request
+  computation is not durable merely because its identity is durable.
 
 This leaves a crash and concurrency window between validation and durable run
 creation. It also prevents the browser from knowing whether an interrupted
@@ -63,10 +67,15 @@ durable submission claim in front of the existing in-request Prefect fixture
 invocation. It will not add a worker, background thread, scheduler, broker
 connection or production deployment change.
 
+The claim boundary applies to every operator-facing path that can reach the
+fixture launcher: Run test, historical relaunch and reproduction. An entry
+point that has not adopted the claim contract must remain visibly disabled and
+must not fall back to the legacy unclaimed launcher.
+
 The guarantee is deliberately precise:
 
-- one idempotency key identifies exactly one Quant Factory research run and
-  one launch request;
+- one idempotency key identifies exactly one Quant Factory research run, one
+  operation kind and one canonical launch request;
 - Quant Factory initiates the existing launcher at most once for that claim;
 - an acknowledged Prefect identity is reconciled to the same Quant Factory
   run; and
@@ -76,6 +85,10 @@ The guarantee is deliberately precise:
 This is not a claim that arbitrary external execution can be made
 mathematically exactly once across every process or network failure. The
 unknown state is the explicit fail-closed boundary.
+
+This proposal makes submission identity durable, not computation. It does not
+promise that the in-request fixture survives dashboard timeout, termination,
+restart or replacement.
 
 ### 1. Authority remains separated
 
@@ -118,13 +131,20 @@ The proposed additive table is `research_run_submissions`:
 | `invocation_started_at` | Time the write-ahead invocation marker was committed |
 | `acknowledged_at` | Time the Prefect identity was durably bound |
 | `unknown_at` | Time ambiguity was recorded |
+| `resolved_at` | Time a non-acknowledged claim reached an evidenced terminal resolution |
+| `resolution_evidence_reference` | Nullable, non-secret reference required for `ABANDONED` |
 | `updated_at` | Latest submission-state update time |
 | `error_summary` | Nullable, sanitized operator-safe failure summary |
 
 The canonical request contains only inputs that define the meaning of this
-launch, including a protocol version, configuration identity, fixture stage
-and accepted launch policy. It contains no credentials, private coordinates,
-raw market data, results or arbitrary browser text.
+launch, including a protocol version, operation kind (`run_test`,
+`historical_relaunch` or `reproduction`), configuration identity, fixture
+stage and accepted launch policy. Historical relaunch and reproduction also
+include the immutable source-run identity and the required parent/reproduction
+lineage. It contains no credentials, private coordinates, raw market data,
+results or arbitrary browser text. Operation kind, configuration, source-run
+identity, run identity, canonical request and fingerprint are immutable after
+claim creation.
 
 The submission state machine is:
 
@@ -137,9 +157,27 @@ SUBMISSION_UNKNOWN --> ABANDONED          # explicit evidenced resolution
 ```
 
 `ACKNOWLEDGED`, `FAILED_BEFORE_SUBMISSION` and `ABANDONED` are terminal for
-the submission claim. The associated experiment run continues through its
-existing Created, Running and terminal run-status lifecycle where applicable.
-No automatic transition from `SUBMISSION_UNKNOWN` to `INVOKING` is allowed.
+the submission claim. No automatic transition from `SUBMISSION_UNKNOWN` to
+`INVOKING` is allowed. Submission and run state remain separate, but their
+observable outcomes are defined:
+
+- `CLAIMED`, `INVOKING` and `SUBMISSION_UNKNOWN` retain the associated run in
+  Created until a Prefect identity is acknowledged; the dashboard presents
+  submission state separately and must not relabel Created as Running or
+  Failed;
+- `ACKNOWLEDGED` atomically binds Prefect identity and moves a Created run to
+  Running with one `run_started` operator event;
+- `FAILED_BEFORE_SUBMISSION` atomically moves the Created run to Failed and
+  appends one terminal operator event that explicitly states no Prefect
+  submission occurred; and
+- `ABANDONED` is permitted only through an explicit evidenced reconciliation
+  record. It atomically moves any remaining Created run to Failed and appends
+  one terminal operator event stating that the unresolved submission was
+  abandoned without accepted result evidence. It is never an automatic
+  timeout transition.
+
+Exact replay of any terminal transition is a no-op. Conflicting or duplicate
+terminal events are integrity failures.
 
 ### 3. Claim the run atomically before invocation
 
@@ -157,16 +195,40 @@ that one transaction it will:
 If any step fails, the whole transaction rolls back. The transaction remains
 short and performs no Prefect, network, market-data or licensed-engine work.
 
-SQLite write contention will be bounded explicitly. This proposal does not
-authorize WAL mode; changing SQLite journal mode requires separate target
-filesystem evidence.
+Every claim and dispatch compare-and-set uses `BEGIN IMMEDIATE` with one
+declared finite busy timeout. Expiry returns a typed contention result, creates
+no run, submission or event, and never calls Prefect. It is not a submission
+state and must not be presented as Unknown or Failed. A later explicit retry
+may reuse the same prepared key because no claim exists. Implementations must
+not spin, wait without a deadline or convert `SQLITE_BUSY`/`SQLITE_LOCKED` into
+an unbounded automatic retry.
+
+This proposal does not authorize WAL mode; changing SQLite journal mode
+requires separate target-filesystem evidence.
 
 ### 4. Make replay and conflict behavior deterministic
 
-The browser prepares an opaque launch key before enabling the Run test button.
-An explicit click submits that prepared key. A lost response, refresh or
-duplicate callback therefore reuses the same key rather than creating a new
-intent.
+The owning page prepares an opaque launch key before enabling its mutation
+button. An explicit click submits that prepared key. A lost response, refresh,
+duplicate callback or same-request replay therefore reuses the same key rather
+than creating a new intent.
+
+The browser lifecycle is normative:
+
+- Run test owns a session key bound to the selected immutable configuration
+  and `run_test` operation;
+- Results owns separate session keys for `historical_relaunch` and
+  `reproduction`, each bound to the selected source run, derived configuration
+  and operation kind; a key is never shared between those actions;
+- changing configuration, source run or operation invalidates only an unused
+  prepared key and prepares a new one; a submitted key remains bound to its
+  original request and cannot be rebound by later selection changes;
+- refresh, duplicate delivery and process restart preserve a submitted key and
+  reopen its exact submission and run;
+- after a terminal claim, the old key remains read-only evidence. A new run
+  requires a new explicit operator action that prepares a new key; and
+- two tabs presenting the same key and canonical request replay one claim.
+  Reuse with any different request produces the typed conflict below.
 
 The server applies these rules:
 
@@ -176,11 +238,16 @@ The server applies these rules:
   typed conflict and creates nothing;
 - a concurrent claim loser reads and returns the committed winner only when
   the complete request identity matches; and
-- a new deliberate test after a terminal result uses a new key and a distinct
-  run, preserving any required parent/reproduction lineage.
+- a new deliberate operation after a terminal result uses a new key and a
+  distinct run, preserving any required parent/reproduction lineage.
 
 The key is an idempotency identity, not an authentication credential. It must
 be length- and format-validated and must not contain a secret.
+
+No operator-facing callback may invoke the legacy fixture launcher without a
+validated key. Until an entry point has the required store, conflict handling,
+durable-state rendering and browser proof, its mutation control remains
+disabled with a plain-language explanation.
 
 ### 5. Commit the invocation marker before calling Prefect
 
@@ -188,10 +255,32 @@ The service uses an atomic compare-and-set from `CLAIMED` to `INVOKING` and
 records its injected per-process dispatcher identity before it calls the
 existing fixture launcher.
 
+The dispatcher identity is a random boot-scoped UUID created once when a
+dashboard worker process starts. It is not a PID, hostname, container name or
+stable deployment identity. A different current identity proves only that a
+different process is observing the claim; it does not prove the recorded
+dispatcher is dead. Ordinary requests therefore never convert another
+dispatcher's `INVOKING` claim merely because the identities differ.
+
+An `INVOKING` claim may become Unknown only through one of these boundaries:
+
+1. the compare-and-set winner catches loss or an exception after the marker
+   and cannot prove acknowledgement or a terminal run; or
+2. an explicit recovery operation runs after an external stop/start barrier
+   or equivalent process inventory has proved that every process from the
+   recorded boot generation has exited.
+
+Graceful reload, overlapping old/new Gunicorn workers and concurrent request
+threads are not such proof. If process absence cannot be established, the
+claim stays Invoking and remains non-retriable until Prefect reconciliation or
+an evidenced operator resolution changes it. This design introduces no
+heartbeat, lease or background liveness thread.
+
 Only the compare-and-set winner may invoke. A concurrent callback or replay
 returns the existing submission snapshot. If preparation fails before the
 external call is possible, the service may record
-`FAILED_BEFORE_SUBMISSION` and fail the Created run with a sanitized reason.
+`FAILED_BEFORE_SUBMISSION` and must apply the atomic Failed-run/event outcome
+defined above.
 
 Once `INVOKING` is committed, a generic exception cannot prove that no Prefect
 flow was created. Unless the database already proves acknowledgement or a
@@ -200,12 +289,13 @@ launcher again.
 
 ### 6. Bind the Prefect identity inside the flow
 
-The idempotency key, Quant Factory run ID and configuration ID are passed into
-the existing fixture flow. Its first Quant Factory database operation will
-atomically:
+The idempotency key, Quant Factory run ID, configuration ID, operation kind and
+any source-run/lineage identity are passed into the existing fixture flow. Its
+first Quant Factory database operation will atomically:
 
 1. load the submission by idempotency key;
-2. verify the request, run, configuration, strategy and fixture stage;
+2. verify the fingerprint, operation, run, configuration, strategy, fixture
+   stage and source lineage where applicable;
 3. bind exactly one Prefect flow-run ID;
 4. move the submission to `ACKNOWLEDGED` or reconcile Unknown to
    Acknowledged; and
@@ -225,16 +315,18 @@ path.
 | Before claim commit | No submission, run or event exists |
 | During claim transaction | Complete rollback |
 | After `CLAIMED`, before `INVOKING` | The same explicit intent may safely resume |
-| After `INVOKING`, before Prefect binding | `SUBMISSION_UNKNOWN`; no automatic reinvocation |
+| Loss after `INVOKING`, before Prefect binding | Unknown only when the winner reports ambiguity or the process-exit barrier is proved; otherwise retain Invoking; never automatically reinvoke |
 | After Prefect binding, before callback response | Reopen and reconcile the same acknowledged run |
 | After terminal persistence, before response | Replay returns the terminal run without invocation |
-| Dashboard-process restart with old `INVOKING` owner | Convert to Unknown; never assume no work was created |
+| Dashboard-process restart with old `INVOKING` owner | Convert to Unknown only after the explicit process-exit barrier; otherwise retain Invoking and never reinvoke |
 
 Reconciliation is read-only with respect to starting work. If an exact Prefect
 identity or other authoritative Prefect record proves that one matching flow
 exists, it may bind that flow and reconcile normal run state. Zero visible
 matches after an ambiguous call is not by itself proof that it is safe to
 submit again. Multiple or mismatched matches are integrity failures.
+The presence of a different dispatcher identity is not reconciliation
+evidence.
 
 ### 8. Keep retry, cancellation and stale recovery state-valid
 
@@ -242,17 +334,20 @@ submit again. Multiple or mismatched matches are integrity failures.
   retry. Technical retry stays within the one acknowledged Prefect flow and
   appends an idempotent `run_retry_scheduled` event to the same Quant Factory
   run.
-- An explicit retry after a terminal run is a new launch key and a new run,
-  with lineage where required.
+- An explicit retry, historical relaunch or reproduction after a terminal run
+  uses its own new launch key and a new run, with source lineage where
+  required.
 - `SUBMISSION_UNKNOWN` disables launch, retry and cancellation until
   reconciliation establishes a real flow or an explicit evidenced resolution
   abandons the claim.
 - Cooperative cancellation remains available only for a known active run and
   retains the existing Prefect acknowledgement boundary.
 - A stale `CLAIMED` record is known not to have crossed the invocation marker
-  and may fail safely as not submitted.
-- A stale `INVOKING` record whose dispatcher process no longer exists becomes
-  Unknown, not Failed.
+  and may enter `FAILED_BEFORE_SUBMISSION` only with the atomic Failed-run/event
+  outcome defined above.
+- A stale `INVOKING` record becomes Unknown, not Failed, only after the
+  process-exit proof defined above. Age or a foreign dispatcher ID alone is not
+  proof.
 - A stale acknowledged run reconciles its known Prefect identity before any
   terminal recovery. Missing or unavailable reconciliation evidence must not
   be presented as proof of success or failure.
@@ -262,10 +357,12 @@ copied into the Quant Factory database.
 
 ### 9. Make the browser observe persisted state
 
-Run test remains a page-owned, route-gated mutation under ADR 0008. A session
+Run test remains a page-owned, route-gated mutation under ADR 0008. Its session
 store keeps the prepared key and selected immutable configuration. The button
 is disabled and labelled **Starting test...** as soon as the explicit request
-is pending.
+is pending. Results separately owns the historical-relaunch and reproduction
+keys, messages and controls; those actions may read the selected persisted run
+but may not write Run test state.
 
 Button state, run identity, the persistent quartet and the event timeline are
 derived from the durable claim, run and event records. Dash callback
@@ -274,15 +371,24 @@ process restart can reset it. An inactive mounted route may read no more than
 needed for passive presentation and must never claim, invoke, retry, cancel or
 recover a run.
 
-Refresh reopens the same key and run. A browser without that session identity
-must not guess that the newest run belongs to it; the run remains discoverable
-through Results.
+Refresh reopens the same submitted key and run for each operation. An unused
+prepared key follows the selection-change rules above. A browser without that
+session identity must not guess that the newest run belongs to it; the run
+remains discoverable through Results. A disabled, not-yet-converted relaunch or
+reproduction control must say that durable submission support is unavailable;
+it must not imply that clicking is safe.
 
 ## Current in-request limitation
 
 This bounded option deliberately preserves the current synchronous,
 in-request fixture invocation. It adds durable intent and truthful recovery;
 it does not make computation survive loss of the dashboard process.
+
+Durable submission identity is not durable computation. A persisted claim,
+run ID or acknowledged Prefect ID proves identity and observed handoff only;
+it does not prove that the research computation will outlive the dashboard
+request, its finite timeout, a worker termination or a container restart. The
+operator UI and acceptance evidence must use that exact boundary.
 
 The durable outcomes after process loss are therefore:
 
@@ -293,7 +399,9 @@ The durable outcomes after process loss are therefore:
 
 This option must not be described as a durable execution worker. Existing
 request timeout, process lifetime and cooperative-cancellation limits remain
-visible constraints.
+visible constraints. If later requirements demand computation that survives
+dashboard loss, a separate Prefect deployment/worker architecture is required;
+accepting this proposal would not accept or implement that larger topology.
 
 ## Migration, backup and rollback
 
@@ -325,32 +433,50 @@ authorize that rollout.
   submission, one run and one initial event;
 - same-key replay returns that run;
 - same-key request/configuration mismatch creates nothing and fails clearly;
-- concurrent dispatch compare-and-set invokes the launcher once; and
+- same-key operation/source-lineage mismatch creates nothing and fails clearly;
+- concurrent dispatch compare-and-set invokes the launcher once;
+- `BEGIN IMMEDIATE` contention expires within the declared bound, returns the
+  typed contention outcome and proves zero mutation and zero invocation; and
 - restart preserves submission, run and event identity.
 
 ### Fault and recovery
 
 - deterministic faults at every crash window in this proposal;
-- old dispatcher identity converts Invoking to Unknown after process restart;
+- an exception in the dispatch winner converts unresolved Invoking to Unknown;
+- a foreign dispatcher identity during graceful worker overlap does not
+  convert Invoking;
+- a proved stop/start barrier converts the old unresolved Invoking claim to
+  Unknown;
 - exact Prefect binding replay is idempotent;
 - mismatched binding fails closed;
 - Unknown never triggers an automatic launch retry;
 - retry events remain on one run;
-- cancellation remains cooperative and state-valid; and
+- cancellation remains cooperative and state-valid;
+- `FAILED_BEFORE_SUBMISSION` and `ABANDONED` each produce exactly one atomic,
+  truthful terminal run/event outcome; and
 - stale recovery distinguishes Claimed, Invoking, Unknown and Acknowledged.
 
 ### Registered callbacks and browser lifecycle
 
 - one callback owner for the launch button and each launch store/output;
 - route and explicit-action guards on every mutation;
+- Run test, historical relaunch and reproduction each submit through the
+  durable claim, or the unconverted control is visibly disabled and cannot
+  reach the legacy launcher;
 - immediate disabled **Starting test...** state;
 - one visible stable run identity through Created, Running and terminal state;
 - event/timeline monitoring without invented progress;
 - rapid duplicate click and duplicate request cause one invocation;
+- configuration, source-run and operation changes rotate only unused keys and
+  cannot rebind a submitted key;
+- a deliberate new run after terminal state uses a new key while same-key tabs
+  replay the existing claim;
 - refresh during launch reopens the same identity;
 - application restart reopens the same identity and shows Unknown where
   acknowledgement cannot be proved;
-- inactive mounted pages do not mutate; and
+- inactive mounted pages do not mutate;
+- process termination proves durable identity/Unknown handling without being
+  reported as durable computation; and
 - the relevant Milestone 18, Milestone 23, dashboard and browser suites pass.
 
 The successful integrated Milestone 23 proof still uses the real SPYM VectorBT
@@ -360,7 +486,9 @@ replace licensed-target or browser evidence.
 
 ## Consequences if accepted
 
-- Run test gains one durable identity before external invocation.
+- Run test, historical relaunch and reproduction gain one durable identity per
+  explicit operation before external invocation; an unconverted action remains
+  disabled.
 - Duplicate callback delivery and browser refresh become replay-safe.
 - Ambiguity becomes visible instead of being rounded to Failed or retried.
 - Quant Factory gains a small research-specific persistence contract and must
@@ -389,7 +517,9 @@ This proposal does not authorize:
 Terry must choose one of these paths before implementation:
 
 1. **Accept the bounded in-request design.** Implement and validate the
-   research-specific durable claim exactly within the boundaries above.
+   research-specific durable claim exactly within the boundaries above for
+   every enabled fixture-launch entry point. Keep any unconverted entry point
+   disabled.
 2. **Revise the proposal.** Record the required changes and keep implementation
    blocked until the revised architecture is explicitly accepted.
 3. **Choose a separate worker/deployment architecture.** Design a larger
