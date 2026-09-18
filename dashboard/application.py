@@ -4114,7 +4114,13 @@ def create_app(
 
     register_routing_callbacks(app)
     register_ideas_callbacks(app)
-    register_setup_callbacks(app, readiness_by_id=readiness_by_id)
+    register_setup_callbacks(
+        app,
+        configurations=configurations,
+        readiness_by_id=readiness_by_id,
+        dashboard_database=dashboard_database,
+        catalog_snapshot=catalog_snapshot,
+    )
     register_backtest_results_callbacks(
         app,
         runs=runs,

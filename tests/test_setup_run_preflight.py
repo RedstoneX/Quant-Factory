@@ -285,12 +285,20 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
     assert "Resolve every preflight blocker" in title
 
     setup_preview = _callback(app, "configuration-preview.children")
-    _, href, class_name, setup_title = setup_preview(
-        configuration.configuration_id
-    )
+    (
+        _,
+        href,
+        class_name,
+        setup_title,
+        save_disabled,
+        _,
+        _,
+        _,
+    ) = setup_preview(configuration.configuration_id, [], [])
     assert href is None
     assert "action-disabled" in class_name
     assert "Resolve every preflight blocker" in setup_title
+    assert save_disabled is True
 
     launch = _callback(app, "launch-message.children")
     message, class_name, _, _ = launch(

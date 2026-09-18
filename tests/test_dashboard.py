@@ -139,7 +139,11 @@ def _json_components_with_href(value: object) -> list[dict[str, object]]:
 
 def _component_ids(component) -> list[str]:
     return [
-        str(component_id)
+        (
+            json.dumps(component_id, sort_keys=True, separators=(",", ":"))
+            if isinstance(component_id, dict)
+            else str(component_id)
+        )
         for item in _walk_components(component)
         if (component_id := getattr(item, "id", None)) is not None
     ]
@@ -158,6 +162,34 @@ def _callback_ref_ids(app) -> set[str]:
             if component_id is not None:
                 refs.add(str(component_id))
     return refs
+
+
+def _callback_ref_is_mounted(reference: str, mounted_ids: set[str]) -> bool:
+    """Match one Dash callback reference to a literal or pattern-mounted ID."""
+
+    if reference in mounted_ids:
+        return True
+    try:
+        pattern = json.loads(reference)
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(pattern, dict):
+        return False
+
+    for mounted_id in mounted_ids:
+        try:
+            candidate = json.loads(mounted_id)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(candidate, dict) or candidate.keys() != pattern.keys():
+            continue
+        if all(
+            pattern_value in (["ALL"], ["MATCH"], ["ALLSMALLER"])
+            or pattern_value == candidate[key]
+            for key, pattern_value in pattern.items()
+        ):
+            return True
+    return False
 
 
 def _resolved_layout(app):
@@ -603,7 +635,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 27
+    assert len(app.callback_map) == 29
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -653,10 +685,29 @@ def test_all_callback_components_exist_in_full_mounted_layout(tmp_path: Path) ->
     context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
     app = create_app(context, tmp_path / "reviews.json")
     mounted_ids = set(_component_ids(_resolved_layout(app)))
+    callback_refs = _callback_ref_ids(app)
+    setup_draft_pattern = json.dumps(
+        {
+            "configuration": ["ALL"],
+            "path": ["ALL"],
+            "revision": ["ALL"],
+            "section": ["ALL"],
+            "type": "setup-draft-input",
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
-    missing = sorted(_callback_ref_ids(app) - mounted_ids)
+    missing = sorted(
+        reference
+        for reference in callback_refs - {setup_draft_pattern}
+        if not _callback_ref_is_mounted(reference, mounted_ids)
+    )
 
     assert "refresh-comparisons" in mounted_ids
+    assert setup_draft_pattern in callback_refs
+    assert "setup-draft-fields" in mounted_ids
+    assert "setup-draft-fields.children" in app.callback_map
     assert missing == []
 
 
@@ -699,14 +750,20 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
             if key.startswith("..responsive-active-page.children")
         ),
     }
-    # ADR 0008 permits passive page-owned refresh when entering a mounted page.
-    # Trade evidence must populate on Home -> Backtest Results navigation while
-    # retaining the URL/navigation output restrictions below.
-    passive_route_refresh_keys = {
+    # ADR 0008 permits page-owned refresh or action gating when entering a
+    # permanently mounted page. These exact callbacks still write page-local
+    # outputs only; none writes URL, route-container, or navigation state.
+    page_owned_route_input_keys = {
         "..selected-trade-grid.rowData...trade-explorer-summary.children..."
         "selected-trade-grid.selectedRows..",
         "comparison-run-selector.options",
         "..run-comparison-output.children...run-comparison-output.className..",
+        next(
+            key
+            for key in app.callback_map
+            if "configuration-selector.options" in key
+            and "setup-save-message.children" in key
+        ),
     }
 
     for output_key, metadata in app.callback_map.items():
@@ -716,7 +773,7 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
             for item in metadata["inputs"]
         }
         if ("url", "pathname") in input_refs:
-            assert output_key in route_callback_keys | passive_route_refresh_keys
+            assert output_key in route_callback_keys | page_owned_route_input_keys
         if output_key not in route_callback_keys:
             assert "page-content" not in output_text
             assert "navigation-container" not in output_text
@@ -2266,6 +2323,15 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
                 "reads that identity without mutation or an automatic launch."
             ),
         },
+        "setup_draft": {
+            "source": "setup-draft-input[*].value",
+            "owner": "dashboard.callbacks.setup",
+            "rule": (
+                "Set up owns page-local/session draft controls; only an explicit "
+                "Save configuration click may create a new immutable configuration, "
+                "and it never overwrites the selected base."
+            ),
+        },
         "selected_backtest": {
             "source": "selected-run-selector.value",
             "store": "selected-run-state.data",
@@ -2650,8 +2716,19 @@ def test_selected_setup_identity_updates_run_test_preview(
     run_preview = _callback_function(app, "run-configuration-preview")
 
     assert preserve(second.configuration_id) == second.configuration_id
-    setup_children, href, _class_name, _setup_title = setup_preview(
-        second.configuration_id
+    (
+        setup_children,
+        href,
+        _class_name,
+        _setup_title,
+        _save_disabled,
+        _save_title,
+        _draft_status,
+        _draft_class,
+    ) = setup_preview(
+        second.configuration_id,
+        [],
+        [],
     )
     run_children, disabled, _run_title = run_preview(
         second.configuration_id

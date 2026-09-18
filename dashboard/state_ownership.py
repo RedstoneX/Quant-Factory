@@ -29,6 +29,11 @@ STATE_OWNERS = {
         "owner": "dashboard.callbacks.setup",
         "rule": "Set up writes the operator choice to one session store; Run test reads that identity without mutation or an automatic launch.",
     },
+    "setup_draft": {
+        "source": "setup-draft-input[*].value",
+        "owner": "dashboard.callbacks.setup",
+        "rule": "Set up owns page-local/session draft controls; only an explicit Save configuration click may create a new immutable configuration, and it never overwrites the selected base.",
+    },
     "selected_backtest": {
         "source": "selected-run-selector.value",
         "store": "selected-run-state.data",
