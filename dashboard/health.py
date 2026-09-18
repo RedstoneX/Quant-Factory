@@ -7,6 +7,8 @@ create databases, download data, contact providers, or change dataset status.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import os
 from pathlib import Path
 import sqlite3
 from typing import Iterable
@@ -20,6 +22,7 @@ from market_data.catalog import (
     load_dataset_manifest,
     verify_dataset_file,
 )
+from persistence.database import LATEST_SCHEMA_VERSION
 
 
 @dataclass(frozen=True)
@@ -36,6 +39,28 @@ class DatabaseHealth:
     detail: str
 
 
+@dataclass(frozen=True)
+class ArtifactStorageHealth:
+    status: str
+    detail: str
+
+
+@dataclass(frozen=True)
+class CacheHealth:
+    status: str
+    detail: str
+
+
+@dataclass(frozen=True)
+class HomeHealthReading:
+    """One redacted observation supplied to the side-effect-free Home view."""
+
+    area: str
+    status: str
+    detail: str
+    checked_at: str | None = None
+
+
 def inspect_catalog(
     *,
     config_path: Path = DEFAULT_CONFIG_PATH,
@@ -48,7 +73,14 @@ def inspect_catalog(
         locations = load_data_locations(config_path)
     except (OSError, ValueError) as exc:
         detail = _join_errors((str(exc), *manifest_errors))
-        return None, tuple(_unconfigured_health(item, detail or str(exc)) for item in manifests), detail
+        return (
+            None,
+            tuple(
+                _unconfigured_health(item, detail or str(exc))
+                for item in manifests
+            ),
+            detail,
+        )
 
     health: list[DatasetHealth] = []
     for manifest in manifests:
@@ -100,13 +132,215 @@ def inspect_database(database: Path) -> DatabaseHealth:
             if missing:
                 return DatabaseHealth(
                     "Unavailable",
-                    f"The research state database is missing required table(s): {', '.join(missing)}",
+                    (
+                        "The research state database is missing required table(s): "
+                        f"{', '.join(missing)}"
+                    ),
+                )
+            schema_version = connection.execute(
+                "SELECT schema_version FROM schema_metadata"
+            ).fetchone()
+            if schema_version != (LATEST_SCHEMA_VERSION,):
+                recorded = schema_version[0] if schema_version else "missing"
+                return DatabaseHealth(
+                    "Unavailable",
+                    (
+                        "The research state database schema is not current "
+                        f"(recorded {recorded}; required {LATEST_SCHEMA_VERSION})."
+                    ),
                 )
         finally:
             connection.close()
     except (OSError, sqlite3.Error) as exc:
-        return DatabaseHealth("Unavailable", f"The research state database could not be read: {exc}")
-    return DatabaseHealth("Available", "The research state database passed a read-only integrity and schema check.")
+        return DatabaseHealth(
+            "Unavailable",
+            f"The research state database could not be read: {exc}",
+        )
+    return DatabaseHealth(
+        "Available",
+        "The research state database passed a read-only integrity and schema check.",
+    )
+
+
+def inspect_artifact_storage(root: Path) -> ArtifactStorageHealth:
+    """Inspect directory identity and read permissions without opening or writing files."""
+
+    if not root.exists():
+        return ArtifactStorageHealth(
+            "Unavailable",
+            "The configured artifact location does not exist.",
+        )
+    if not root.is_dir():
+        return ArtifactStorageHealth(
+            "Unavailable",
+            "The configured artifact location is not a directory.",
+        )
+    if not os.access(root, os.R_OK | os.X_OK):
+        return ArtifactStorageHealth(
+            "Unavailable",
+            "The configured artifact directory does not report read access.",
+        )
+    return ArtifactStorageHealth(
+        "Available",
+        (
+            "The configured artifact directory reports read access. "
+            "No file was opened or written by this check."
+        ),
+    )
+
+
+def inspect_research_cache(
+    catalog_snapshot: tuple[
+        DataLocations | None,
+        tuple[DatasetHealth, ...],
+        str | None,
+    ],
+    *,
+    required_dataset_ids: Iterable[str],
+) -> CacheHealth:
+    """Summarize only datasets required by active launchable configurations."""
+
+    required = tuple(
+        sorted(
+            {
+                dataset_id.strip()
+                for dataset_id in required_dataset_ids
+                if isinstance(dataset_id, str) and dataset_id.strip()
+            }
+        )
+    )
+    if not required:
+        return CacheHealth(
+            "Not checked",
+            "No active launchable saved setup requires a cataloged dataset.",
+        )
+
+    locations, datasets, configuration_error = catalog_snapshot
+    if locations is None or configuration_error is not None:
+        return CacheHealth(
+            "Not checked",
+            "The active-setup research cache could not be verified from the local catalog.",
+        )
+
+    by_id = {item.manifest.dataset_id: item for item in datasets}
+    verified = tuple(
+        dataset_id
+        for dataset_id in required
+        if (
+            (item := by_id.get(dataset_id)) is not None
+            and item.manifest.status == "validated"
+            and item.availability == "Available locally"
+            and item.checksum == "Verified"
+        )
+    )
+    if len(verified) == len(required):
+        status = "Available"
+    elif verified:
+        status = "Degraded"
+    else:
+        status = "Unavailable"
+    return CacheHealth(
+        status,
+        (
+            f"{len(verified)} of {len(required)} active-setup dataset(s) are "
+            "available locally with validated manifests and verified checksums."
+        ),
+    )
+
+
+def local_home_health_readings(
+    *,
+    database: Path,
+    artifact_root: Path,
+    catalog_snapshot: tuple[
+        DataLocations | None,
+        tuple[DatasetHealth, ...],
+        str | None,
+    ],
+    catalog_checked_at: datetime | None,
+    required_dataset_ids: Iterable[str],
+    observed_at: datetime | None = None,
+) -> tuple[HomeHealthReading, ...]:
+    """Capture local health only; never probe services, providers, or credentials."""
+
+    checked_at = observed_at or datetime.now(timezone.utc)
+    local_timestamp = _utc_timestamp(checked_at)
+    if local_timestamp is None:
+        database_health = DatabaseHealth(
+            "Not checked",
+            "The local observation time is not timezone-aware; database health was not checked.",
+        )
+        artifact_health = ArtifactStorageHealth(
+            "Not checked",
+            "The local observation time is not timezone-aware; artifact health was not checked.",
+        )
+    else:
+        database_health = inspect_database(database)
+        artifact_health = inspect_artifact_storage(artifact_root)
+
+    catalog_timestamp = _utc_timestamp(catalog_checked_at)
+    catalog_time_is_future = (
+        catalog_checked_at is not None
+        and local_timestamp is not None
+        and catalog_timestamp is not None
+        and catalog_checked_at.astimezone(timezone.utc)
+        > checked_at.astimezone(timezone.utc)
+    )
+    if catalog_timestamp is None or catalog_time_is_future:
+        cache_health = CacheHealth(
+            "Not checked",
+            (
+                "The catalog observation time is unavailable or invalid; "
+                "research-cache health is not assumed."
+            ),
+        )
+        catalog_timestamp = None
+    else:
+        cache_health = inspect_research_cache(
+            catalog_snapshot,
+            required_dataset_ids=required_dataset_ids,
+        )
+    return (
+        HomeHealthReading(
+            "database",
+            database_health.status,
+            database_health.detail,
+            local_timestamp,
+        ),
+        HomeHealthReading(
+            "worker",
+            "Not checked",
+            "No timestamped worker or orchestrator health snapshot was supplied.",
+        ),
+        HomeHealthReading(
+            "provider",
+            "Not checked",
+            "Recorded provider provenance does not prove live provider connectivity.",
+        ),
+        HomeHealthReading(
+            "cache",
+            cache_health.status,
+            cache_health.detail,
+            catalog_timestamp,
+        ),
+        HomeHealthReading(
+            "artifact",
+            artifact_health.status,
+            artifact_health.detail,
+            local_timestamp,
+        ),
+        HomeHealthReading(
+            "credential",
+            "Not checked",
+            "Availability only. Credential values are never displayed.",
+        ),
+    )
+
+
+def _utc_timestamp(value: datetime | None) -> str | None:
+    if value is None or value.tzinfo is None or value.utcoffset() is None:
+        return None
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _load_manifests(manifest_dir: Path) -> tuple[tuple[DatasetManifest, ...], tuple[str, ...]]:
