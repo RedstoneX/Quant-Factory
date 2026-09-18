@@ -37,8 +37,11 @@ test, historical-relaunch, and reproduction integrations are implemented,
 tested, and merged in the canonical source through PRs #35–#38; PR #42 adds
 the claim-core suite to required Portable CI and separately merges focused
 claim-aware stale-recovery evidence. At revision
-`5462c796809e83634959cbd3e7fa75b81ec2e309`, this establishes source and
-portable/browser-fixture evidence only. It does not establish production
+`5462c796809e83634959cbd3e7fa75b81ec2e309`, those merged changes establish
+canonical-source implementation and focused/browser-fixture evidence only.
+PR #50 separately adds the focused stale-recovery suite to required Portable
+CI after proving its portability in a clean Python 3.12 environment. Neither
+the anchored source evidence nor this CI enforcement establishes production
 deployment, current licensed-target SPYM proof, the complete end-to-end
 workflow, renewed Results acceptance, or Milestone 23 completion. Systematic
 discovery, optimization, protected-test evaluation, paper-order activation,
