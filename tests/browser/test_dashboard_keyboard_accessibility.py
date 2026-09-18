@@ -40,7 +40,11 @@ def _assert_accessible_current_page_link(
     ).to_have_count(1)
 
 
-def _assert_current_link_contained(page) -> None:
+def _assert_current_link_contained(
+    page,
+    *,
+    expected_height: float | None = None,
+) -> None:
     current_box = page.locator('[aria-current="page"]').bounding_box()
     link_box = page.locator('[aria-current="page"] a').bounding_box()
     sidebar_box = page.locator("#primary-navigation").bounding_box()
@@ -48,6 +52,9 @@ def _assert_current_link_contained(page) -> None:
     assert link_box is not None
     assert sidebar_box is not None
     tolerance = 0.5
+    if expected_height is not None:
+        assert abs(link_box["height"] - expected_height) <= tolerance
+        assert abs(current_box["height"] - expected_height) <= tolerance
     assert link_box["x"] >= current_box["x"] - tolerance
     assert link_box["x"] + link_box["width"] <= (
         current_box["x"] + current_box["width"] + tolerance
@@ -156,7 +163,10 @@ def test_active_navigation_item_tracks_browser_history_semantically(
                 accessible_name="Set up",
             )
 
-            _assert_current_link_contained(page)
+            _assert_current_link_contained(
+                page,
+                expected_height=62 if viewport["width"] >= 1200 else None,
+            )
 
             action["name"] = "navigate to Run test"
             page.locator("#navigation-link-research-run-test").click()

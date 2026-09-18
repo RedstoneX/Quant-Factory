@@ -169,6 +169,12 @@ li { margin: 8px 0; line-height: 1.45; }
   width: 100%;
 }
 
+@media (min-width: 1200px) {
+  .navigation-item .navigation-link {
+    min-height: 62px;
+  }
+}
+
 .sidebar-brand-item .sidebar-brand {
   box-sizing: border-box;
   width: 100%;
