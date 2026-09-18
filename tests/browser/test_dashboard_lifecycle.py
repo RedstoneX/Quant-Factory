@@ -287,6 +287,7 @@ import sys
 from dashboard.app import create_app
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService
+from tests.browser.dashboard_diagnostics import install_callback_status_recorder
 
 database = Path(sys.argv[1])
 artifact_root = Path(sys.argv[2])
@@ -299,6 +300,7 @@ app = create_app(
         artifact_root=artifact_root,
     ),
 )
+install_callback_status_recorder(app.server)
 app.run(host="127.0.0.1", port=port, debug=False)
 """
     env = dict(os.environ)
