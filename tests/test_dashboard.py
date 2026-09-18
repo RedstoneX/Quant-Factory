@@ -289,19 +289,18 @@ def test_dashboard_review_without_authoritative_context_fails_closed(
         run_service=service,
         run_detail_adapter=adapter,
     )
-    select_row = _callback_function(app, "selected-review-identity")
     load_review = _callback_function(app, "review-status")
     save_review = _callback_function(app, "review-message")
 
-    *_, target_id, parameters = select_row("decision_review_run")
-    status, note = load_review(target_id)
+    target_id = "decision_review_run"
+    status, note, history = load_review(target_id)
     assert status == ReviewState.UNREVIEWED.value
-    assert "Durable decision unavailable" in note
+    assert note == ""
+    assert "No durable decision" in str(history)
 
     message = save_review(
         1,
         target_id,
-        parameters,
         ReviewState.WATCHLIST.value,
         "  Promising, inspect execution timing.  ",
     )
@@ -333,10 +332,9 @@ def test_dashboard_review_does_not_mutate_audit_history_without_context(
     )
     save_review = _callback_function(app, "review-message")
     target_id = "decision_review_run"
-    parameters = {"run_id": target_id}
 
-    save_review(1, target_id, parameters, ReviewState.REVISE.value, "Needs work")
-    save_review(2, target_id, parameters, ReviewState.REJECT.value, "Rejected")
+    save_review(1, target_id, ReviewState.REVISE.value, "Needs work")
+    save_review(2, target_id, ReviewState.REJECT.value, "Rejected")
 
     service = PersistenceService(database)
     try:
@@ -357,10 +355,9 @@ def test_dashboard_review_invalid_state_fails_closed(tmp_path: Path) -> None:
     )
     save_review = _callback_function(app, "review-message")
     target_id = "decision_review_run"
-    parameters = {"run_id": target_id}
 
     with pytest.raises(ValueError, match="Unsupported review status"):
-        save_review(1, target_id, parameters, "Watchlist", "legacy label")
+        save_review(1, target_id, "Watchlist", "legacy label")
 
     service = PersistenceService(database)
     try:
@@ -381,11 +378,10 @@ def test_dashboard_review_with_valid_context_enables_and_persists_decision(
         run_service=service,
         run_detail_adapter=adapter,
     )
-    select_row = _callback_function(app, "selected-review-identity")
     availability = _callback_function(app, "save-review.disabled")
     save_review = _callback_function(app, "review-message")
 
-    *_, target_id, parameters = select_row("review_context_target")
+    target_id = "review_context_target"
     disabled, title, message = availability(target_id)
     assert disabled is False
     assert "Persist a durable evidence decision" in title
@@ -394,12 +390,21 @@ def test_dashboard_review_with_valid_context_enables_and_persists_decision(
     result = save_review(
         1,
         target_id,
-        parameters,
         ReviewState.WATCHLIST.value,
         "Approved with explicit persisted context.",
     )
 
     assert "Evidence decision artifact validated" in str(result)
+    status, note, history = _callback_function(app, "review-status")(target_id)
+    assert status == ReviewState.WATCHLIST.value
+    assert note == "Approved with explicit persisted context."
+    assert "Unreviewed → Watchlist" in str(history)
+    context_children, context_class = _callback_function(
+        app,
+        "results-operator-context",
+    )(target_id, 0, result)
+    assert context_class == "operator-context"
+    assert "Watchlist" in _component_text(html.Div(context_children))
     persistence = PersistenceService(database)
     try:
         current = persistence.reviews.get_current("run", target_id)
@@ -412,6 +417,161 @@ def test_dashboard_review_with_valid_context_enables_and_persists_decision(
         )
     finally:
         persistence.close()
+
+
+def test_results_review_conflict_preserves_form_and_existing_decision(
+    tmp_path: Path,
+) -> None:
+    database, _, service, adapter = _review_context_stack(tmp_path)
+    app = create_app(
+        DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data())),
+        database,
+        run_service=service,
+        run_detail_adapter=adapter,
+    )
+    save_review = _callback_function(app, "review-message")
+    first_message, first_history = save_review(
+        1,
+        "review_context_target",
+        ReviewState.WATCHLIST.value,
+        "First durable decision.",
+    )
+    conflict_message, conflict_history = save_review(
+        2,
+        "review_context_target",
+        ReviewState.REJECT.value,
+        "Unsaved conflicting decision remains in the form.",
+    )
+
+    assert "Evidence decision artifact validated" in str(first_message)
+    assert "First durable decision" in str(first_history)
+    assert "conflicting evidence decision artifact" in str(conflict_message)
+    assert "No review change was saved" in str(conflict_message)
+    assert conflict_history is no_update
+    save_entry = next(
+        entry
+        for entry in app.callback_map.values()
+        if any(item["id"] == "save-review" for item in entry.get("inputs", ()))
+    )
+    assert {output.component_id for output in save_entry["output"]} == {
+        "review-message",
+        "review-history",
+    }
+
+    persistence = PersistenceService(database)
+    try:
+        current = persistence.reviews.get_current("run", "review_context_target")
+        assert current is not None
+        assert current.state == ReviewState.WATCHLIST
+        assert current.note == "First durable decision."
+        assert len(persistence.reviews.history("run", "review_context_target")) == 1
+    finally:
+        persistence.close()
+
+
+def test_results_review_and_quartet_fail_closed_for_corrupt_decision(
+    tmp_path: Path,
+) -> None:
+    database, artifact_root, service, adapter = _review_context_stack(tmp_path)
+    app = create_app(
+        DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data())),
+        database,
+        run_service=service,
+        run_detail_adapter=adapter,
+    )
+    saved = _callback_function(app, "review-message")(
+        1,
+        "review_context_target",
+        ReviewState.WATCHLIST.value,
+        "Validated before deliberate corruption.",
+    )
+    persistence = PersistenceService(database)
+    try:
+        decision_artifact = next(
+            artifact
+            for artifact in persistence.list_run_artifacts("review_context_target")
+            if artifact.logical_name == "evidence_decision_record"
+        )
+    finally:
+        persistence.close()
+    (artifact_root / decision_artifact.location).write_text(
+        '{"corrupt": true}',
+        encoding="utf-8",
+    )
+
+    status, note, history = _callback_function(app, "review-status")(
+        "review_context_target"
+    )
+    context_children, context_class = _callback_function(
+        app,
+        "results-operator-context",
+    )("review_context_target", 0, saved)
+    context_text = _component_text(html.Div(context_children))
+
+    assert status == ReviewState.UNREVIEWED.value
+    assert note == ""
+    assert "unavailable" in str(history).lower()
+    assert context_class == "operator-context"
+    assert "Unavailable" in context_text
+    assert "Watchlist" not in context_text
+
+
+def test_compare_renders_independent_persisted_context_for_each_selected_run(
+    tmp_path: Path,
+) -> None:
+    database, artifact_root, service, adapter = _review_context_stack(tmp_path)
+    persistence = PersistenceService(database)
+    try:
+        unreviewed = persistence.runs.get("wf-run")
+        assert unreviewed is not None
+        unreviewed_configuration = unreviewed.configuration_id
+    finally:
+        persistence.close()
+    service._runs.append(
+        service._summary("wf-run", unreviewed_configuration, "succeeded")
+    )
+    app = create_app(
+        DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data())),
+        database,
+        run_service=service,
+        run_detail_adapter=adapter,
+    )
+    saved = _callback_function(app, "review-message")(
+        1,
+        "review_context_target",
+        ReviewState.WATCHLIST.value,
+        "Keep this fixture under observation.",
+    )
+
+    contexts = _callback_function(app, "comparison-operator-contexts")(
+        ["review_context_target", "wf-run"],
+        0,
+        saved,
+    )
+
+    assert len(contexts) == 2
+    assert contexts[0].to_plotly_json()["props"]["data-run-id"] == (
+        "review_context_target"
+    )
+    assert contexts[1].to_plotly_json()["props"]["data-run-id"] == "wf-run"
+    first_text = _component_text(contexts[0])
+    second_text = _component_text(contexts[1])
+    assert "Watchlist" in first_text
+    assert "Unreviewed" not in first_text
+    assert "Unreviewed" in second_text
+    assert "Watchlist" not in second_text
+    context_ids = [
+        getattr(component, "id", None)
+        for article in contexts
+        for component in _walk_components(article)
+        if str(getattr(component, "id", "")).startswith(
+            "compare-operator-context-"
+        )
+    ]
+    assert context_ids == [
+        "compare-operator-context-1",
+        "compare-operator-context-2",
+    ]
 
 
 def test_metric_and_assumption_formatting() -> None:
@@ -432,7 +592,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 29
+    assert len(app.callback_map) == 28
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -660,15 +820,25 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     backtest_active = active_hrefs(invoke_navigation("/research/backtest-results"))
     assert "Results" in backtest_text
     assert "Understand what happened, whether the evidence is usable, and what decision is required." in backtest_text
-    assert "Strategy Review" not in backtest_text
+    assert "Review decision" in backtest_text
+    assert "review-status" in str(
+        page_for_path("/research/backtest-results", context)
+    )
     assert backtest_visible == ["/research/backtest-results"]
     assert backtest_active == ["/research/backtest-results"]
+
+    home_visible = visible_routes(invoke_route("/"))
+    home_text = mounted_pages["/"]
+    assert "Research readiness" in home_text
+    assert "Not checked" in home_text
+    assert "Discovery blocked" in home_text
+    assert home_visible == ["/"]
 
     review_visible = visible_routes(invoke_route("/research/strategy-review"))
     review_text = mounted_pages["/research/strategy-review"]
     review_active = active_hrefs(invoke_navigation("/research/strategy-review"))
-    assert "Strategy Review" in review_text
-    assert "Review a strategy's results, checks, and decision." in review_text
+    assert "Review moved to Results" in review_text
+    assert "transitional address" in review_text
     assert "Run test" not in review_text
     assert review_visible == ["/research/strategy-review"]
     assert review_active == []
@@ -687,7 +857,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
         "/research/backtest-results": "Results",
-        "/research/strategy-review": "Strategy Review",
+        "/research/strategy-review": "Review moved to Results",
         "/research/compare-backtests": "Compare results",
         "/paper/fleet": "Paper Trading Overview",
         "/paper/strategy": "Strategy Monitor",
@@ -976,10 +1146,9 @@ def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
             (
                 1,
                 "missing-run",
-                {},
                 ReviewState.WATCHLIST.value,
                 "Review note",
-                "/research/backtest-results",
+                "/research/strategy-review",
             ),
         ),
     )
@@ -1058,15 +1227,16 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
 
     home = page_for_path("/", context)
     home_text = _component_text(home)
-    assert home.className == "page-container"
+    assert home.className == "page-container home-page"
     assert "RESEARCH / HOME" in home_text
     assert "Home" in home_text
     assert PROJECT_STATUS.home_subtitle in home_text
     assert str(PROJECT_STATUS.current_milestone_number) in home_text
     assert PROJECT_STATUS.current_milestone_title in home_text
     assert PROJECT_STATUS.current_milestone_status in home_text
-    assert PROJECT_STATUS.strategy_status in home_text
-    assert PROJECT_STATUS.workspace_status in home_text
+    assert "Discovery blocked" in home_text
+    assert "strategy discovery remains unavailable" in home_text
+    assert "Not checked" in home_text
     assert "Milestone 20" not in home_text
     assert "Operator Home" not in home_text
     assert (
@@ -1079,7 +1249,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     assert page_for_path("/research/backtest-results", context).className == "page-container"
     assert (
         page_for_path("/research/strategy-review", context).className
-        == "page-container review-page experiment-overview-page"
+        == "page-container review-page"
     )
     comparisons = page_for_path("/research/compare-backtests", context)
     assert comparisons.className == "page-container comparison-page"
@@ -1155,7 +1325,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         "/research/setup": "Set up a test",
         "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
-        "/research/strategy-review": "Strategy Review",
+        "/research/strategy-review": "Review moved to Results",
         "/research/backtest-results": "Results",
         "/research/compare-backtests": "Compare results",
     }
@@ -1168,10 +1338,10 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         assert title in rendered_page
         assert getattr(page, "className", "").startswith("page-container")
         if pathname == "/research/backtest-results":
-            assert "Strategy Review" not in rendered_page
+            assert "Review decision" in rendered_page
             assert "Understand what happened, whether the evidence is usable, and what decision is required." in rendered_page
         if pathname == "/research/strategy-review":
-            assert "Review a strategy's results, checks, and decision." in rendered_page
+            assert "transitional address" in rendered_page
         if pathname == "/research/market-data":
             assert "View the price history used in strategy research." in rendered_page
         if pathname == "/research/compare-backtests":
@@ -1378,21 +1548,20 @@ def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> No
         in {
             "run-test-operator-context",
             "results-operator-context",
-            "compare-operator-context",
         }
     }
 
     assert context_ids == {
         "run-test-operator-context",
         "results-operator-context",
-        "compare-operator-context",
     }
     assert "No run selected" in _component_text(run_page)
     assert "Succeeded" in _component_text(results_page)
-    assert "No run selected" in _component_text(compare_page)
+    assert "comparison-operator-contexts" in str(compare_page)
+    assert "Loading persisted context" in _component_text(compare_page)
 
 
-def test_home_activity_visual_uses_honest_empty_state() -> None:
+def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> None:
     data = _data()
     context = DashboardContext(
         pd.DataFrame([_ranked_row()]),
@@ -1403,22 +1572,38 @@ def test_home_activity_visual_uses_honest_empty_state() -> None:
     page = route_content_for_path("/", context, recent_runs=(), recent_events=())
     rendered = _component_text(page)
 
-    assert "Recent research activity" in rendered
-    assert "No recent research activity is available yet." in rendered
+    assert page.className == "page-container home-page"
+    assert "Research readiness" in rendered
+    assert "No selected, active, or persisted run is available yet." in rendered
+    assert "No recent failures require attention." in rendered
+    assert rendered.count("Not checked") >= 12
+    assert "Discovery blocked" in rendered
     assert "P&L" not in rendered
     assert "profit" not in rendered.lower()
-    empty = next(
+    action = next(
         component
         for component in _walk_components(page)
-        if getattr(component, "className", None) == "empty-state-copy"
-        and "No recent research activity is available yet."
-        in _component_text(component)
+        if getattr(component, "id", None) == "home-primary-action"
     )
-    assert empty.style["border"] == "1px dashed #94a3b8"
-    assert empty.style["backgroundColor"] == "#f8fafc"
+    assert action.children == "Capture an idea"
+    assert action.href == "/research/ideas"
+    health_ids = {
+        getattr(component, "id", None)
+        for component in _walk_components(page)
+        if str(getattr(component, "id", "")).startswith("home-health-")
+    }
+    assert health_ids == {
+        "home-health-summary",
+        "home-health-database",
+        "home-health-worker",
+        "home-health-provider",
+        "home-health-cache",
+        "home-health-artifact",
+        "home-health-credential",
+    }
 
 
-def test_home_visual_path_and_activity_timeline_have_inline_styles() -> None:
+def test_home_registered_page_uses_selected_run_and_recent_events() -> None:
     data = _data()
     context = DashboardContext(
         pd.DataFrame([_ranked_row()]),
@@ -1440,79 +1625,54 @@ def test_home_visual_path_and_activity_timeline_have_inline_styles() -> None:
         prefect_api_url=None,
         attempt_count=1,
     )
+    active = replace(
+        run,
+        run_id="active_run",
+        strategy_id="another_fixture_strategy",
+        status="running",
+        completed_at=None,
+    )
     event = RunEvent(
         event_id=1,
-        run_id="visual_run",
-        event_type="run_completed",
+        run_id="event_failure",
+        event_type="run_failed",
         timestamp="2026-07-13T12:00:03Z",
-        severity="info",
-        message="Run completed successfully.",
+        severity="error",
+        message="Recorded fixture failure requires attention.",
         source="fixture",
     )
 
-    page = route_content_for_path(
+    page = page_for_path(
         "/",
         context,
-        recent_runs=(run,),
+        recent_runs=(active, run),
         recent_events=(event,),
+        selected_run_id=run.run_id,
     )
     rendered = _component_text(page)
-    path = next(
+    current_run = next(
         component
         for component in _walk_components(page)
-        if getattr(component, "className", None) == "strategy-research-path"
+        if getattr(component, "id", None) == "home-current-run"
     )
-    path_cards = [
-        component
-        for component in _walk_components(path)
-        if "research-path-card" in str(getattr(component, "className", ""))
-    ]
-    step_circles = [
-        component
-        for component in _walk_components(path)
-        if getattr(component, "className", None) == "research-path-step"
-    ]
-    connectors = [
-        component
-        for component in _walk_components(path)
-        if getattr(component, "className", None) == "research-path-connector"
-    ]
-    timeline = next(
+    failures = next(
         component
         for component in _walk_components(page)
-        if getattr(component, "className", None) == "recent-activity-timeline"
+        if getattr(component, "id", None) == "home-attention-failures"
     )
-    activity_items = [
+    action = next(
         component
-        for component in _walk_components(timeline)
-        if getattr(component, "className", None) == "recent-activity-item"
-    ]
-    dots = [
-        component
-        for component in _walk_components(timeline)
-        if getattr(component, "className", "")
-        and "activity-dot" in component.className
-    ]
+        for component in _walk_components(page)
+        if getattr(component, "id", None) == "home-primary-action"
+    )
 
-    assert path.style["display"] == "flex"
-    assert path.style["flexWrap"] == "wrap"
-    assert len(path_cards) == 6
-    assert len(step_circles) == 6
-    assert {card.style["border"] for card in path_cards} == {"1px solid #bfdbfe"}
-    assert {step.style["backgroundColor"] for step in step_circles} == {"#2357d9"}
-    assert len(connectors) == 5
-    assert {connector.style["color"] for connector in connectors} == {"#2357d9"}
-    assert timeline.style["borderLeft"] == "2px solid #bfdbfe"
-    assert len(activity_items) == 2
-    assert {item.style["position"] for item in activity_items} == {"relative"}
-    assert any(dot.style["backgroundColor"] == "#16a34a" for dot in dots)
-    assert any(dot.style["backgroundColor"] == "#2357d9" for dot in dots)
-    assert "visual_run" not in rendered
-    assert "Fixture backtest" in rendered
+    assert "Prefect Fixture Strategy · Succeeded" in _component_text(current_run)
     assert "2026-07-13T12:00:02Z" in rendered
-    assert "Run completed successfully." in rendered
+    assert "Another Fixture Strategy" not in _component_text(current_run)
+    assert "Recorded fixture failure requires attention." in _component_text(failures)
     assert "2026-07-13T12:00:03Z" in rendered
-    assert "P&L" not in rendered
+    assert action.children == "Inspect failure"
+    assert action.href == "/research/backtest-results"
 
 
 def test_navigation_marks_current_page_active() -> None:
@@ -1609,29 +1769,20 @@ def test_ranked_grid_columns_use_operator_friendly_formats() -> None:
     assert by_field["validation_status"]["minWidth"] >= 170
 
 
-def test_review_page_uses_dash_ag_grid() -> None:
-    data = _data()
-    context = DashboardContext(
-        pd.DataFrame([_ranked_row()]),
-        data,
-        _audit(data),
-    )
-
-    page = create_review_page(context)
+def test_results_page_keeps_run_history_grid_beside_durable_review() -> None:
+    page = _runs_page()
     grid = next(
         component
         for component in _walk_components(page)
-        if getattr(component, "id", None) == "ranked-table"
+        if getattr(component, "id", None) == "run-history-grid"
     )
 
-    assert grid.id == "ranked-table"
+    assert grid.id == "run-history-grid"
     assert grid.rowData == []
     assert grid.selectedRows == []
-    assert grid.dashGridOptions["rowSelection"]["mode"] == "singleRow"
-    assert grid.columnSize == "responsiveSizeToFit"
-    assert grid.className == "ag-theme-alpine qf-data-grid qf-ranked-grid"
-    assert grid.defaultColDef["wrapHeaderText"]
-    assert grid.defaultColDef["autoHeaderHeight"]
+    assert grid.dashGridOptions["rowSelection"] == "single"
+    assert "review-status" in str(page)
+    assert "review-history" in str(page)
 
 
 def test_dashboard_css_includes_phone_breakpoint() -> None:
@@ -1806,7 +1957,7 @@ def test_setup_and_run_test_handle_empty_configuration_list() -> None:
     assert launch_button.disabled is True
 
 
-def test_review_page_renders_experiment_overview_controls() -> None:
+def test_legacy_review_page_points_to_results_without_duplicate_controls() -> None:
     data = _data()
     context = DashboardContext(
         pd.DataFrame([_ranked_row()]),
@@ -1817,13 +1968,12 @@ def test_review_page_renders_experiment_overview_controls() -> None:
     page = create_review_page(context)
     rendered = str(page)
 
-    assert "Strategy Review" in rendered
-    assert "Review a strategy's results, checks, and decision." in rendered
-    assert "Selected backtest for review" in rendered
-    assert "review-run-selector" in rendered
-    assert "Save evidence decision" in rendered
-    assert "selected-review-identity" in rendered
-    assert "review-status" in rendered
+    assert "Review moved to Results" in rendered
+    assert "transitional address" in rendered
+    assert "href='/research/backtest-results'" in rendered
+    assert "review-run-selector" not in rendered
+    assert "selected-review-identity" not in rendered
+    assert "review-status" not in rendered
 
 
 def test_backtest_selector_labels_distinguish_persisted_stages() -> None:
@@ -1847,7 +1997,7 @@ def test_backtest_selector_labels_distinguish_persisted_stages() -> None:
     }
 
 
-def test_backtest_and_experiment_defaults_prefer_successful_fixture_target() -> None:
+def test_backtest_selection_owns_results_review_form() -> None:
     service = _DashboardRunService()
     target = replace(
         service._summary("spym-target", "a" * 64),
@@ -1871,21 +2021,21 @@ def test_backtest_and_experiment_defaults_prefer_successful_fixture_target() -> 
         for component in _walk_components(detail_page)
         if getattr(component, "id", None) == "selected-run-state"
     )
-    data = _data()
-    experiment_page = create_review_page(
-        DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data)),
-        recent_runs=runs,
-    )
-    experiment_selector = next(
-        component
-        for component in _walk_components(experiment_page)
-        if getattr(component, "id", None) == "review-run-selector"
-    )
+    review_ids = {
+        getattr(component, "id", None)
+        for component in _walk_components(detail_page)
+        if getattr(component, "id", None)
+        in {"review-status", "review-note", "save-review", "review-history"}
+    }
 
     assert detail_selector.value == target.run_id
     assert detail_store.data == target.run_id
-    assert experiment_selector.value == target.run_id
-    assert experiment_selector.options[0]["label"].endswith("Fixture backtest · Succeeded")
+    assert review_ids == {
+        "review-status",
+        "review-note",
+        "save-review",
+        "review-history",
+    }
 
 
 def test_backtest_detail_analysis_tabs_are_in_page_controls_with_concise_evidence() -> None:
@@ -2107,12 +2257,11 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             ),
         },
         "review_selection": {
-            "source": "review-run-selector.value",
-            "store": "selected-review-identity.data",
+            "source": "selected-run-state.data",
             "owner": "dashboard.callbacks.strategy_review",
             "rule": (
-                "Strategy Review owns durable-review identity, form state, and "
-                "review messages."
+                "Results binds durable-review form state and messages to the shared "
+                "selected persisted run; no separate review identity is written."
             ),
         },
         "comparison_selection": {

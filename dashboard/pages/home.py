@@ -171,10 +171,13 @@ def build_home_view_model(
 def layout(view_model: HomeViewModel | None = None) -> html.Div:
     """Render the Home overview without performing any read or write."""
 
+    from dashboard.application import _strategy_research_path
+
     model = view_model or build_home_view_model()
     return html.Div(
         [
             page_heading("RESEARCH / HOME", "Home", model.subtitle),
+            _strategy_research_path("/"),
             html.Section(
                 [
                     html.Div(
@@ -207,29 +210,6 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
             ),
             _run_section(model.run),
             _failure_section(model.failures),
-            html.Section(
-                [
-                    html.H2("Strategy research path"),
-                    html.Ol(
-                        [
-                            html.Li(
-                                [
-                                    dcc.Link(step.label, href=step.href),
-                                    html.Span(step.state, className="workflow-state"),
-                                ],
-                                id=f"home-workflow-{index + 1}",
-                                className=(
-                                    "home-workflow-step "
-                                    f"home-workflow-step-{step.state.lower()}"
-                                ),
-                            )
-                            for index, step in enumerate(model.workflow)
-                        ],
-                        className="home-workflow-path",
-                    ),
-                ],
-                className="panel",
-            ),
             html.Section(
                 [
                     html.H2("Continue research"),

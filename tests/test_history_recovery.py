@@ -153,20 +153,26 @@ class _DetailAdapter:
         raise KeyError(run_id)
 
 
-def test_selected_run_actions_read_session_store_instead_of_stale_dropdown() -> None:
+def test_selected_run_actions_read_session_store_instead_of_stale_dropdown(
+    tmp_path: Path,
+) -> None:
     app = Dash(__name__)
     service = _ActionRunService()
+    database = tmp_path / "state.sqlite3"
     register_backtest_results_callbacks(
         app,
         runs=service,
         detail_adapter=_DetailAdapter(),
         configurations=(_configuration_view("config-a"),),
+        dashboard_database=database,
+        artifact_root=tmp_path,
     )
     register_compare_backtests_callbacks(
         app,
         runs=service,
-        dashboard_database=Path("state.sqlite3"),
-        artifact_root=Path("."),
+        detail_adapter=_DetailAdapter(),
+        dashboard_database=database,
+        artifact_root=tmp_path,
     )
 
     historical_state = {

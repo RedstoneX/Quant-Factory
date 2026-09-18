@@ -123,44 +123,6 @@ RESEARCH_PATH_CONNECTOR_STYLE = {
     "fontWeight": 800,
     "padding": "0 2px",
 }
-RECENT_ACTIVITY_TIMELINE_STYLE = {
-    "borderLeft": "2px solid #bfdbfe",
-    "display": "grid",
-    "gap": "12px",
-    "listStyle": "none",
-    "margin": "0",
-    "padding": "2px 0 2px 18px",
-}
-RECENT_ACTIVITY_ITEM_STYLE = {
-    "backgroundColor": "#ffffff",
-    "border": "1px solid #e2e8f0",
-    "borderRadius": "8px",
-    "display": "grid",
-    "gap": "4px",
-    "padding": "10px 12px",
-    "position": "relative",
-}
-RECENT_ACTIVITY_DOT_STYLE = {
-    "border": "2px solid #ffffff",
-    "borderRadius": "999px",
-    "height": "12px",
-    "left": "-25px",
-    "position": "absolute",
-    "top": "14px",
-    "width": "12px",
-}
-RECENT_ACTIVITY_TIMESTAMP_STYLE = {
-    "color": "#64748b",
-    "fontSize": "0.82rem",
-}
-RECENT_ACTIVITY_EMPTY_STYLE = {
-    "backgroundColor": "#f8fafc",
-    "border": "1px dashed #94a3b8",
-    "borderRadius": "8px",
-    "color": "#475569",
-    "padding": "14px",
-}
-
 OPERATOR_LABEL_OVERRIDES = {
     "config_hash": "Configuration checksum",
     "configuration_id": "Configuration ID",
@@ -627,174 +589,8 @@ def _ranked_column_definitions(
     return definitions
 
 
-def _review_run_columns() -> list[dict[str, Any]]:
-    return [
-        {"field": "rank", "headerName": "Rank", "maxWidth": 96},
-        {"field": "screening", "headerName": "Screening", "minWidth": 150},
-        {"field": "parameters", "headerName": "Parameters", "minWidth": 230, "flex": 1.2},
-        {"field": "metrics", "headerName": "Metrics", "minWidth": 260, "flex": 1.4},
-        {"field": "reason", "headerName": "Outcome reason", "minWidth": 220, "flex": 1.1},
-    ]
-
-
-def _review_run_options(runs: tuple[RunSummary, ...]) -> list[dict[str, str]]:
-    return [
-        {"label": _backtest_selector_label(run), "value": run.run_id}
-        for run in _ordered_backtests(runs)
-        if run.status == "succeeded"
-    ] or _selector_options(_ordered_backtests(runs))
-
-
-def _review_initial_run_id(runs: tuple[RunSummary, ...]) -> str | None:
-    options = _review_run_options(runs)
-    return options[0]["value"] if options else None
-
-
 def _fields_to_map(fields: tuple[DetailField, ...]) -> dict[str, str]:
     return {field.label: field.value for field in fields}
-
-
-def _review_metric_cards(
-    run: RunSummary | None,
-    detail: SelectedRunDetailView | None,
-) -> list[Any]:
-    metrics = _fields_to_map(detail.evidence.metrics if detail else ())
-    lineage = _fields_to_map(detail.lineage_fields if detail else ())
-    provenance = _fields_to_map(detail.evidence.provenance if detail else ())
-    validation = _validation_outcome_value(detail)
-    return [
-        html.Article(
-            [
-                html.Span("Strategy", className="metric-label"),
-                html.Strong(
-                    _strategy_display_name(run.strategy_id) if run is not None else "—"
-                ),
-                html.Small(run.strategy_version if run is not None else "No selection"),
-            ],
-            className="metric-card",
-        ),
-        html.Article(
-            [
-                html.Span("Instrument", className="metric-label"),
-                html.Strong(
-                    _display_or_dash(
-                        provenance.get("Symbol")
-                        or lineage.get("Symbol")
-                    )
-                ),
-                html.Small(_display_or_dash(lineage.get("Timeframe"))),
-            ],
-            className="metric-card",
-        ),
-        html.Article(
-            [
-                html.Span("Validation result", className="metric-label"),
-                html.Strong(_display_or_dash(validation)),
-                html.Small(run.status.replace("_", " ").title() if run else "No status"),
-            ],
-            className="metric-card",
-        ),
-        html.Article(
-            [
-                html.Span("Total return", className="metric-label"),
-                html.Strong(_display_or_dash(metrics.get("Total Return"))),
-                html.Small("Persisted metric"),
-            ],
-            className="metric-card",
-        ),
-        html.Article(
-            [
-                html.Span("Max drawdown", className="metric-label"),
-                html.Strong(
-                    _display_or_dash(
-                        metrics.get("Maximum Drawdown") or metrics.get("Max Drawdown")
-                    )
-                ),
-                html.Small("Persisted metric"),
-            ],
-            className="metric-card",
-        ),
-        html.Article(
-            [
-                html.Span("Trades", className="metric-label"),
-                html.Strong(
-                    _display_or_dash(
-                        metrics.get("Number Of Trades") or metrics.get("Trades")
-                    )
-                ),
-                html.Small("Completed trades"),
-            ],
-            className="metric-card",
-        ),
-    ]
-
-
-def _review_result_rows(detail: SelectedRunDetailView | None) -> list[dict[str, str]]:
-    if detail is None or not detail.result_summary.rows:
-        return []
-    rows: list[dict[str, str]] = []
-    for row in detail.result_summary.rows:
-        values = _fields_to_map(row)
-        rows.append(
-            {
-                "rank": values.get("Rank", "—"),
-                "screening": values.get("Screening", "—"),
-                "parameters": values.get("Parameters", "—"),
-                "metrics": values.get("Metrics", "—"),
-                "reason": values.get("Rejection reasons", detail.result_summary.message),
-            }
-        )
-    return rows
-
-
-def _review_summary(
-    run: RunSummary | None,
-    detail: SelectedRunDetailView | None,
-) -> html.Div:
-    if run is None:
-        return html.Div(
-            "Select an evidence-backed persisted backtest to review.",
-            className="empty-state-copy",
-        )
-    config = _fields_to_map(detail.configuration_fields if detail else ())
-    lineage = _fields_to_map(detail.lineage_fields if detail else ())
-    fields = (
-        DetailField("Experiment", config.get("Experiment ID", "—")),
-        DetailField("Configuration", run.configuration_id),
-        DetailField("Backtest ID", run.run_id),
-        DetailField("Test period", lineage.get("Actual coverage", "—")),
-        DetailField("Dataset identity", lineage.get("Dataset identity", "—")),
-        DetailField("Runtime", lineage.get("Git commit", "—")),
-    )
-    return html.Dl(
-        [
-            html.Div(
-                [
-                    html.Dt(field.label),
-                    html.Dd(_operator_value(field.value)),
-                ]
-            )
-            for field in fields
-        ],
-        className="run-detail-fields experiment-review-summary",
-    )
-
-
-def _review_artifact_summary(detail: SelectedRunDetailView | None) -> html.Ul:
-    if detail is None or not detail.artifacts:
-        return html.Ul([html.Li("No persisted artifacts are available.")])
-    return html.Ul(
-        [
-            html.Li(
-                (
-                    f"{artifact.logical_name}: {artifact.validation_state} · "
-                    f"{artifact.reference}"
-                )
-            )
-            for artifact in detail.artifacts[:8]
-        ],
-        className="artifact-reference-list",
-    )
 
 
 def create_review_page(
@@ -802,182 +598,34 @@ def create_review_page(
     *,
     recent_runs: tuple[RunSummary, ...] = (),
 ) -> html.Div:
-    initial_run_id = _review_initial_run_id(recent_runs)
+    _ = context, recent_runs
     return html.Div(
         [
-            html.Header(
-                [
-                    html.Div(
-                        [
-                            html.P("RESEARCH", className="page-eyebrow"),
-                            html.H1("Strategy Review", className="page-title"),
-                            html.P(
-                                "Review a strategy's results, checks, and decision.",
-                                className="page-description",
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        [
-                            html.Button(
-                                "Filters",
-                                className="secondary-action page-action",
-                                disabled=True,
-                            ),
-                            html.Button(
-                                "Refresh",
-                                id="refresh-experiments",
-                                n_clicks=0,
-                                className="primary-action page-action",
-                                title="Refresh persisted experiment and backtest choices.",
-                            ),
-                        ],
-                        className="page-actions",
-                    ),
-                ],
-                className="page-heading page-heading-with-actions",
+            _page_heading(
+                "RESEARCH / RESULTS",
+                "Review moved to Results",
+                "Durable human decisions now belong to the selected persisted run on Results.",
             ),
-            dcc.Store(id="selected-review-identity", data=initial_run_id),
-            dcc.Store(id="selected-parameters", data={}),
             html.Section(
                 [
-                    html.Label(
-                        "Selected backtest for review",
-                        htmlFor="review-run-selector",
-                        className="field-label",
-                    ),
-                    dcc.Dropdown(
-                        id="review-run-selector",
-                        options=_review_run_options(recent_runs),
-                        value=initial_run_id,
-                        clearable=False,
-                        placeholder="No persisted backtests available for review",
-                    ),
+                    html.H2("Use the Results review area"),
                     html.P(
-                        "The decision is recorded against the selected backtest.",
-                        className="field-help compact-field-help",
+                        (
+                            "This transitional address remains available for old bookmarks, "
+                            "but it no longer owns a separate review form or selection."
+                        ),
+                        className="section-description",
+                    ),
+                    dcc.Link(
+                        "Open Results",
+                        href="/research/backtest-results",
+                        className="primary-action",
                     ),
                 ],
-                className="panel experiment-selector-panel",
-            ),
-            html.Section(id="metric-cards", className="metric-grid experiment-kpi-grid"),
-            html.Div(
-                [
-                    html.Section(
-                        [
-                            html.H2("Strategy checks"),
-                            html.P(
-                                "Ranked parameter combinations or persisted result evidence for the selected backtest.",
-                                className="section-description",
-                            ),
-                            dag.AgGrid(
-                                id="ranked-table",
-                                columnDefs=_review_run_columns(),
-                                rowData=[],
-                                selectedRows=[],
-                                defaultColDef={
-                                    "sortable": True,
-                                    "filter": True,
-                                    "resizable": True,
-                                    "wrapHeaderText": True,
-                                    "autoHeaderHeight": True,
-                                },
-                                dashGridOptions={
-                                    "animateRows": False,
-                                    "pagination": True,
-                                    "paginationPageSize": 10,
-                                    "rowSelection": {
-                                        "mode": "singleRow",
-                                        "enableClickSelection": True,
-                                        "checkboxes": False,
-                                    },
-                                },
-                                columnSize="responsiveSizeToFit",
-                                columnSizeOptions={
-                                    "defaultMinWidth": 92,
-                                    "skipHeader": False,
-                                },
-                                className=(
-                                    "ag-theme-alpine qf-data-grid "
-                                    "qf-ranked-grid"
-                                ),
-                                style={"height": "320px", "width": "100%"},
-                            ),
-                        ],
-                        className="panel table-panel experiment-matrix-panel",
-                    ),
-                    html.Section(
-                        [
-                            html.H2("Strategy decision"),
-                            html.Label(
-                                "Validation result",
-                                htmlFor="review-status",
-                                className="field-label",
-                            ),
-                            dcc.Dropdown(
-                                id="review-status",
-                                options=_review_options(),
-                                value=ReviewState.UNREVIEWED.value,
-                                clearable=False,
-                            ),
-                            dcc.Textarea(
-                                id="review-note",
-                                placeholder="Required reason for the durable evidence decision",
-                                maxLength=500,
-                            ),
-                            html.Button(
-                                "Save evidence decision",
-                                id="save-review",
-                                n_clicks=0,
-                                className="primary-action",
-                                disabled=True,
-                                title=REVIEW_CONTEXT_UNAVAILABLE_MESSAGE,
-                            ),
-                            html.Div(
-                                _review_context_unavailable_notice(),
-                                id="review-message",
-                                className="save-message",
-                            ),
-                            html.H3("Selected checks"),
-                            html.Div(id="selected-parameter-display"),
-                        ],
-                        className="panel review-panel experiment-decision-panel",
-                    ),
-                ],
-                className="two-column review-workspace experiment-review-workspace",
-            ),
-            html.Div(
-                [
-                    html.Section(
-                        [
-                            html.H2("Supporting research"),
-                            html.Div(id="provenance"),
-                        ],
-                        className="panel",
-                    ),
-                    html.Section(
-                        [
-                            html.H2("Trading assumptions and research history"),
-                            html.Div(id="assumptions"),
-                        ],
-                        className="panel",
-                    ),
-                ],
-                className="two-column",
+                className="panel review-moved-panel",
             ),
         ],
-        className="page-container review-page experiment-overview-page",
-    )
-
-
-def _home_next_action_card(title: str, description: str, href: str) -> dcc.Link:
-    return dcc.Link(
-        [
-            html.Strong(title),
-            html.P(description),
-        ],
-        href=href,
-        className="summary-card home-action-card",
+        className="page-container review-page",
     )
 
 
@@ -1027,178 +675,21 @@ def _strategy_research_path(current_path: str = "/") -> html.Div:
     )
 
 
-def _activity_dot_style(status: str) -> dict[str, str]:
-    colors = {
-        "succeeded": "#16a34a",
-        "success": "#16a34a",
-        "failed": "#dc2626",
-        "error": "#dc2626",
-        "cancelled": "#f97316",
-        "warning": "#f97316",
-        "running": "#2357d9",
-        "info": "#2357d9",
-    }
-    return {
-        **RECENT_ACTIVITY_DOT_STYLE,
-        "backgroundColor": colors.get(status, "#64748b"),
-    }
-
-
-def _recent_research_activity(
-    recent_runs: tuple[RunSummary, ...],
-    recent_events: tuple[RunEvent, ...],
-) -> html.Div:
-    activity_items: list[Any] = []
-    for run in recent_runs[:3]:
-        activity_items.append(
-            html.Li(
-                [
-                    html.Span(
-                        "",
-                        className=f"activity-dot activity-dot-{run.status}",
-                        style=_activity_dot_style(run.status),
-                    ),
-                    html.Strong(_backtest_selector_label(run)),
-                    html.Span(
-                        run.completed_at or run.started_at or run.created_at,
-                        style=RECENT_ACTIVITY_TIMESTAMP_STYLE,
-                    ),
-                ],
-                className="recent-activity-item",
-                style=RECENT_ACTIVITY_ITEM_STYLE,
-            )
-        )
-    for event in recent_events[:2]:
-        activity_items.append(
-            html.Li(
-                [
-                    html.Span(
-                        "",
-                        className=f"activity-dot activity-dot-{event.severity}",
-                        style=_activity_dot_style(event.severity),
-                    ),
-                    html.Strong(event.event_type.replace("_", " ").title()),
-                    html.Span(event.message),
-                    html.Span(
-                        event.timestamp,
-                        style=RECENT_ACTIVITY_TIMESTAMP_STYLE,
-                    ),
-                ],
-                className="recent-activity-item",
-                style=RECENT_ACTIVITY_ITEM_STYLE,
-            )
-        )
-
-    if not activity_items:
-        return html.Div(
-            "No recent research activity is available yet.",
-            className="empty-state-copy",
-            style=RECENT_ACTIVITY_EMPTY_STYLE,
-        )
-    return html.Ul(
-        activity_items,
-        className="recent-activity-timeline",
-        style=RECENT_ACTIVITY_TIMELINE_STYLE,
-    )
-
-
 def _overview_page(
     recent_runs: tuple[RunSummary, ...] = (),
     recent_events: tuple[RunEvent, ...] = (),
+    selected_run_id: str | None = None,
     project_status: DashboardProjectStatus = PROJECT_STATUS,
 ) -> html.Div:
-    return html.Div(
-        [
-            _page_heading(
-                "RESEARCH / HOME",
-                "Home",
-                project_status.home_subtitle,
-            ),
-            html.Section(
-                [
-                    html.Div(
-                        [
-                            html.Span("Current milestone", className="summary-label"),
-                            html.Strong(
-                                (
-                                    f"{project_status.current_milestone_number} - "
-                                    f"{project_status.current_milestone_title}"
-                                )
-                            ),
-                            html.P(
-                                project_status.current_milestone_status,
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                    html.Div(
-                        [
-                            html.Span("Strategy status", className="summary-label"),
-                            html.Strong("Research only"),
-                            html.P(
-                                project_status.strategy_status,
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                    html.Div(
-                        [
-                            html.Span("Workspace status", className="summary-label"),
-                            html.Strong("Research workspace"),
-                            html.P(
-                                project_status.workspace_status,
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                ],
-                className="summary-grid",
-            ),
-            html.Section(
-                [
-                    html.H2("Next actions"),
-                    html.Div(
-                        [
-                            _home_next_action_card(
-                                "Capture an idea",
-                                "Record a safe browser-session draft. Nothing will run.",
-                                "/research/ideas",
-                            ),
-                            _home_next_action_card(
-                                "Set up a test",
-                                "Choose an approved immutable fixture setup.",
-                                "/research/setup",
-                            ),
-                            _home_next_action_card(
-                                "Inspect results",
-                                "Review persisted evidence from completed tests.",
-                                "/research/backtest-results",
-                            ),
-                        ],
-                        className="summary-grid",
-                    ),
-                ],
-                className="panel",
-            ),
-            html.Section(
-                [
-                    html.H2("Strategy research path"),
-                    _strategy_research_path("/"),
-                ],
-                className="panel",
-            ),
-            html.Section(
-                [
-                    html.H2("Recent research activity"),
-                    _recent_research_activity(recent_runs, recent_events),
-                ],
-                className="panel",
-            ),
-        ],
-        className="page-container",
+    from dashboard.pages.home import build_home_view_model, layout as home_layout
+
+    return home_layout(
+        build_home_view_model(
+            recent_runs=recent_runs,
+            recent_events=recent_events,
+            selected_run_id=selected_run_id,
+            project_status=project_status,
+        )
     )
 
 
@@ -1621,6 +1112,7 @@ def _results_operator_context(
     run: RunSummary | None,
     detail: SelectedRunDetailView | None = None,
     *,
+    human_decision: str | None = None,
     component_id: str = "results-operator-context",
 ) -> html.Section:
     """Build truthful context from the selected persisted run and evidence."""
@@ -1639,14 +1131,20 @@ def _results_operator_context(
         "failed": "Review failure",
         "cancelled": "Review failure",
         "timed_out": "Review failure",
-        "succeeded": "Inspect evidence",
     }
+    if run.status == "succeeded":
+        if human_decision == "Unreviewed":
+            next_actions["succeeded"] = "Record decision"
+        elif human_decision not in {None, "Unavailable"}:
+            next_actions["succeeded"] = "No action available"
+        else:
+            next_actions["succeeded"] = "Inspect evidence"
     return operator_context(
         OperatorContextViewModel(
             selected_run=True,
             run_status=run_status,
             evidence_outcome=evidence_outcome,
-            human_decision=None,
+            human_decision=human_decision,
             next_safe_action=next_actions.get(run.status),
         ),
         component_id=component_id,
@@ -3532,6 +3030,70 @@ def _run_detail_panel(
     )
 
 
+def _results_review_panel() -> html.Section:
+    """Editable durable-review form owned by the selected Results run."""
+
+    return html.Section(
+        [
+            html.Div(
+                [
+                    html.Span("Decision", className="section-kicker"),
+                    html.H2("Review decision"),
+                    html.P(
+                        (
+                            "Record one evidence decision against the selected persisted "
+                            "run. A completed test is not automatically approved."
+                        ),
+                        className="section-description",
+                    ),
+                ],
+                className="section-heading-row",
+            ),
+            html.Label(
+                "Human decision",
+                htmlFor="review-status",
+                className="field-label",
+            ),
+            dcc.Dropdown(
+                id="review-status",
+                options=_review_options(),
+                value=ReviewState.UNREVIEWED.value,
+                clearable=False,
+            ),
+            html.Label(
+                "Decision rationale",
+                htmlFor="review-note",
+                className="field-label",
+            ),
+            dcc.Textarea(
+                id="review-note",
+                placeholder="Required reason for the durable evidence decision",
+                maxLength=500,
+            ),
+            html.Button(
+                "Save review decision",
+                id="save-review",
+                n_clicks=0,
+                className="primary-action",
+                disabled=True,
+                title=REVIEW_CONTEXT_UNAVAILABLE_MESSAGE,
+            ),
+            html.Div(
+                _review_context_unavailable_notice(),
+                id="review-message",
+                className="save-message",
+            ),
+            html.H3("Decision history"),
+            html.Div(
+                "No durable decision has been recorded for the selected run.",
+                id="review-history",
+                className="review-history",
+            ),
+        ],
+        className="panel review-panel results-review-panel",
+    )
+
+
 def _runs_page(
     configurations: tuple[SavedConfigurationView, ...] | None = None,
     recent_runs: tuple[RunSummary, ...] = (),
@@ -3716,6 +3278,7 @@ def _runs_page(
                         else _run_detail_panel(None),
                         id="selected-run-detail",
                     ),
+                    _results_review_panel(),
                     _trade_explorer_layout(),
                 ],
                 className="backtest-detail-workspace workflow-group-results",
@@ -4021,7 +3584,15 @@ def _comparisons_page(recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
                 className="page-heading page-heading-with-actions",
             ),
             _strategy_research_path("/research/compare-backtests"),
-            operator_context(component_id="compare-operator-context"),
+            html.Div(
+                (
+                    "Loading persisted context for the selected backtests."
+                    if selected_values
+                    else "Select persisted backtests to inspect each run's context."
+                ),
+                id="comparison-operator-contexts",
+                className="comparison-operator-contexts",
+            ),
             html.Section(
                 [
                     html.Div(
@@ -4261,6 +3832,7 @@ def page_for_path(
         return _overview_page(
             recent_runs=recent_runs,
             recent_events=recent_events,
+            selected_run_id=selected_run_id,
         )
     if route == "/research/ideas":
         from dashboard.pages.ideas import layout as ideas_layout
@@ -4584,11 +4156,14 @@ def create_app(
         runs=runs,
         detail_adapter=detail_adapter,
         configurations=configurations,
+        dashboard_database=dashboard_database,
+        artifact_root=artifact_root,
     )
     register_trade_explorer_callbacks(app, detail_adapter=detail_adapter)
     register_compare_backtests_callbacks(
         app,
         runs=runs,
+        detail_adapter=detail_adapter,
         dashboard_database=dashboard_database,
         artifact_root=artifact_root,
     )

@@ -21,9 +21,11 @@ from persistence import (
     RunStage,
     RunStatus,
     StrategyLifecycle,
+    ReviewState,
     canonical_json,
 )
 from persistence.database import transaction
+from persistence.evidence_service import ValidationEvidenceArtifactService
 from persistence.models import normalized_configuration_document
 from tests.browser.test_backtest_results_spym_stability import (
     BACKTEST_PATH,
@@ -35,6 +37,12 @@ from tests.browser.test_backtest_results_spym_stability import (
     _wait_for_server,
     _launcher,
     dashboard_server,
+)
+from tests.test_review_context_artifacts import (
+    REVIEW_PARAMETERS,
+    _persist_review_prerequisites,
+    _review_service,
+    _source_lock_artifact,
 )
 
 
@@ -96,6 +104,148 @@ app.run(host="127.0.0.1", port=port, debug=False)
     try:
         _wait_for_server(base_url)
         yield base_url, server_log, initial_run_id
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+
+
+@pytest.fixture()
+def review_compare_server(tmp_path: Path, request):
+    """Start a licensed-engine-free dashboard with valid durable-review context."""
+
+    database = tmp_path / "state.sqlite3"
+    artifact_root = tmp_path / "artifacts"
+    service = _review_service(tmp_path)
+    _persist_review_prerequisites(service, artifact_root)
+    source = service.runs.get("wf-run")
+    assert source is not None
+
+    def persist_result_run(run_id: str, stage: RunStage) -> None:
+        service.create_run(
+            configuration_id=source.configuration_id,
+            strategy_id=source.strategy_id,
+            strategy_version=source.strategy_version,
+            stage=stage,
+            run_id=run_id,
+            status=RunStatus.SUCCEEDED,
+        )
+        with transaction(service.connection):
+            service.results.set_data_provenance(
+                DataProvenanceRecord(
+                    run_id=run_id,
+                    provider="fixture",
+                    provider_implementation="fixture-provider",
+                    symbol="SPY",
+                    interval="1 day",
+                    timezone="UTC",
+                    requested_coverage="2020-01-01",
+                    actual_coverage="2020-01-01..2020-04-30",
+                    adjusted=True,
+                    row_count=120,
+                    cache_action="fixture",
+                    validation_summary_json=canonical_json({"status": "valid"}),
+                    manifest_reference="data/manifests/fixture.json",
+                    checksum="dataset-checksum",
+                )
+            )
+            service.results.set_execution_assumptions(
+                ExecutionAssumptionsRecord(
+                    run_id=run_id,
+                    assumptions_json=canonical_json({"kind": "fixture"}),
+                )
+            )
+            service.results.add_parameter_result(
+                run_id=run_id,
+                row_id=f"{run_id}-row",
+                normalized_parameters=REVIEW_PARAMETERS,
+                metrics={
+                    "total_return": 0.1,
+                    "max_drawdown": -0.03,
+                    "number_of_trades": 5,
+                },
+                ranking_position=1,
+                screening_status="passed",
+            )
+        service.persist_run_manifest(service.build_run_manifest(run_id))
+
+    target_run_id = "browser_review_target"
+    peer_run_id = "browser_unreviewed_peer"
+    persist_result_run(target_run_id, RunStage.OOS)
+    persist_result_run(peer_run_id, RunStage.FIXTURE)
+    source_lock_artifact_id = _source_lock_artifact(
+        service,
+        artifact_root,
+        run_id=target_run_id,
+    )
+    evidence = ValidationEvidenceArtifactService(service)
+    evidence.persist_review_context(
+        target_run_id=target_run_id,
+        source_lock_run_id=target_run_id,
+        source_lock_artifact_id=source_lock_artifact_id,
+        walk_forward_run_id="wf-run",
+        monte_carlo_run_id="mc-run",
+        robustness_run_id="robust-run",
+        protected_data_state="gated",
+        artifact_root=artifact_root,
+        created_at="2026-01-01T00:00:00+00:00",
+    )
+    if getattr(request, "param", False):
+        gate = evidence.evaluate_persisted_review_context(
+            target_run_id,
+            artifact_root=artifact_root,
+        )
+        evidence.persist_evidence_decision(
+            run_id=target_run_id,
+            gate_result=gate,
+            review_state=ReviewState.WATCHLIST,
+            review_reason="Persisted browser comparison review.",
+            reviewer="dashboard-operator",
+            artifact_root=artifact_root,
+            created_at="2026-01-02T00:00:00+00:00",
+        )
+    service.close()
+
+    port = _free_port()
+    server_log = tmp_path / "review-compare-server.log"
+    code = """
+from pathlib import Path
+import sys
+from dashboard.app import create_app
+from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from orchestration import FixtureRunService
+
+database = Path(sys.argv[1])
+artifact_root = Path(sys.argv[2])
+port = int(sys.argv[3])
+app = create_app(
+    review_database=database,
+    run_service=FixtureRunService(database=database),
+    run_detail_adapter=RunDetailDashboardAdapter(
+        database=database,
+        artifact_root=artifact_root,
+    ),
+)
+app.run(host="127.0.0.1", port=port, debug=False)
+"""
+    env = dict(os.environ)
+    env["QUANT_FACTORY_DB_PATH"] = str(database)
+    with server_log.open("w", encoding="utf-8") as log:
+        process = subprocess.Popen(
+            [sys.executable, "-c", code, str(database), str(artifact_root), str(port)],
+            cwd=REPOSITORY_ROOT,
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        _wait_for_server(base_url + BACKTEST_PATH)
+        yield base_url, server_log, target_run_id, peer_run_id
     finally:
         process.terminate()
         try:
@@ -536,47 +686,88 @@ def test_run_history_grid_opens_older_run_and_survives_refresh(
             browser.close()
 
 
-def test_durable_review_and_reproduction_in_browser(dashboard_server, tmp_path):
-    base_url, server_log, _ = dashboard_server
+def test_results_review_persists_in_browser(review_compare_server, tmp_path):
+    base_url, server_log, target_run_id, _ = review_compare_server
     events = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
-        action = {"name": "open strategy review"}
+        action = {"name": "open Results review"}
         pending_requests = _attach_diagnostics(page, events, action)
         try:
-            page.goto(base_url + "/research/strategy-review", wait_until="networkidle")
-            _select(page, "review-run-selector", SPYM_OPTION_TEXT)
+            page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
+            _select(page, "selected-run-selector", "Out-of-sample evidence")
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                target_run_id
+            )
             expect(page.locator("#save-review")).to_be_enabled(timeout=10000)
             _select(page, "review-status", "Watchlist")
             note = "Infrastructure browser acceptance: preserve this review across refresh."
             page.locator("#review-note").fill(note)
             page.locator("#save-review").click()
             expect(page.locator("#review-message")).to_contain_text(note)
+            expect(page.locator("#results-operator-context")).to_contain_text(
+                "Watchlist"
+            )
+            expect(page.locator("#review-history")).to_contain_text(note)
             _wait_for_callbacks_to_settle(page, pending_requests)
             page.reload(wait_until="networkidle")
-            _select(page, "review-run-selector", SPYM_OPTION_TEXT)
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                target_run_id,
+                timeout=10000,
+            )
             expect(page.locator("#review-note")).to_have_value(note)
             expect(page.locator("#review-status")).to_contain_text("Watchlist")
+            expect(page.locator("#results-operator-context")).to_contain_text(
+                "Watchlist"
+            )
             page.screenshot(path=tmp_path / "durable-review.png", full_page=True)
-
-            action["name"] = "open Backtest Results"
-            page.locator(f"#{navigation_link_id('/research/backtest-results')}").click()
-            _select(page, "selected-run-selector", SPYM_OPTION_TEXT)
-            expect(page.locator("#reproduce-selected-run")).to_be_enabled()
-            action["name"] = "open selected-backtest actions"
-            page.get_by_text("Comparison and selected-backtest actions", exact=True).click()
-            expect(page.locator("#reproduce-selected-run")).to_be_visible()
-            action["name"] = "reproduce selected SPYM run"
-            page.locator("#reproduce-selected-run").click()
-            expect(page.locator("#reproduction-message")).to_contain_text("Reproduced", timeout=60000)
-            action["name"] = "open Compare Backtests"
-            page.locator(f"#{navigation_link_id('/research/compare-backtests')}").click()
-            action["name"] = "compare reproduced runs"
-            page.locator("#compare-selected-runs").click()
-            expect(page.locator("#run-comparison-output")).to_contain_text("Backtest comparison")
-            page.screenshot(path=tmp_path / "comparison.png", full_page=True)
             _wait_for_callbacks_to_settle(page, pending_requests)
+            _assert_no_browser_errors(events)
+        except Exception:
+            _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)
+            raise
+        finally:
+            browser.close()
+
+
+@pytest.mark.parametrize("review_compare_server", [True], indirect=True)
+def test_compare_renders_independent_quartets_in_browser(
+    review_compare_server,
+    tmp_path,
+):
+    base_url, server_log, target_run_id, peer_run_id = review_compare_server
+    events = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        action = {"name": "open Compare with two persisted runs"}
+        pending_requests = _attach_diagnostics(page, events, action)
+        try:
+            page.goto(
+                base_url + "/research/compare-backtests",
+                wait_until="networkidle",
+            )
+            reviewed_context = page.locator(
+                f'#comparison-operator-contexts [data-run-id="{target_run_id}"]'
+            )
+            peer_context = page.locator(
+                f'#comparison-operator-contexts [data-run-id="{peer_run_id}"]'
+            )
+            expect(reviewed_context).to_contain_text("Watchlist", timeout=10000)
+            expect(reviewed_context).not_to_contain_text("Unreviewed")
+            expect(peer_context).to_contain_text("Unreviewed", timeout=10000)
+            expect(peer_context).not_to_contain_text("Watchlist")
+            for context in (reviewed_context, peer_context):
+                expect(context).to_contain_text("Run status")
+                expect(context).to_contain_text("Evidence outcome")
+                expect(context).to_contain_text("Human decision")
+                expect(context).to_contain_text("Next safe action")
+            expect(
+                page.locator("#comparison-operator-contexts .operator-context")
+            ).to_have_count(2)
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            page.screenshot(path=tmp_path / "independent-quartets.png", full_page=True)
             _assert_no_browser_errors(events)
         except Exception:
             _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)

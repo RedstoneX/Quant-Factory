@@ -36,10 +36,9 @@ STATE_OWNERS = {
         "rule": "Explicit selector changes win over passive refresh and hydration callbacks.",
     },
     "review_selection": {
-        "source": "review-run-selector.value",
-        "store": "selected-review-identity.data",
+        "source": "selected-run-state.data",
         "owner": "dashboard.callbacks.strategy_review",
-        "rule": "Strategy Review owns durable-review identity, form state, and review messages.",
+        "rule": "Results binds durable-review form state and messages to the shared selected persisted run; no separate review identity is written.",
     },
     "comparison_selection": {
         "source": "comparison-run-selector.value",
