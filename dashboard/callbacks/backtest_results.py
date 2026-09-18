@@ -30,6 +30,7 @@ from dashboard.application import (
     _selector_options,
 )
 from dashboard.run_adapter import SavedConfigurationView
+from dashboard.callbacks.review_state import load_durable_review
 from dashboard.run_detail_adapter import (
     ResultSummaryView,
     RunDetailDashboardAdapter,
@@ -50,6 +51,8 @@ def register_backtest_results_callbacks(
     runs: FixtureRunService,
     detail_adapter: RunDetailDashboardAdapter,
     configurations: tuple[SavedConfigurationView, ...],
+    dashboard_database: str | Path,
+    artifact_root: Path,
 ) -> None:
     """Register callbacks shared across the mounted research workflow."""
 
@@ -603,10 +606,12 @@ def register_backtest_results_callbacks(
         Output("results-operator-context", "className"),
         Input("selected-run-state", "data"),
         Input("refresh-runs", "n_clicks"),
+        Input("review-message", "children"),
     )
     def update_results_operator_context(
         run_id: str | None,
         _refresh_clicks: int,
+        _review_message: object,
     ):
         if not run_id:
             context = _results_operator_context(None)
@@ -622,7 +627,20 @@ def register_backtest_results_callbacks(
             detail = detail_adapter.selected_run_detail(run_id)
         except (KeyError, RuntimeError, ValueError):
             detail = None
-        context = _results_operator_context(run, detail)
+        try:
+            review = load_durable_review(
+                dashboard_database,
+                artifact_root,
+                run_id,
+            )
+            human_decision = review.display_state
+        except (KeyError, RuntimeError, ValueError):
+            human_decision = "Unavailable"
+        context = _results_operator_context(
+            run,
+            detail,
+            human_decision=human_decision,
+        )
         return context.children, context.className
 
     @app.callback(

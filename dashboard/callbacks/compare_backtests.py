@@ -9,11 +9,15 @@ from dash.exceptions import PreventUpdate
 
 from dashboard.application import (
     _active_route,
+    _backtest_selector_label,
     _comparison_backtest_cards,
     _dashboard_persistence,
+    _results_operator_context,
     _run_comparison_panel,
     _selector_options,
 )
+from dashboard.callbacks.review_state import load_durable_review
+from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService, RunServiceError
 
 
@@ -26,6 +30,7 @@ def register_compare_backtests_callbacks(
     app: Dash,
     *,
     runs: FixtureRunService,
+    detail_adapter: RunDetailDashboardAdapter,
     dashboard_database: str | Path,
     artifact_root: Path,
 ) -> None:
@@ -53,6 +58,79 @@ def register_compare_backtests_callbacks(
             recent_run_records,
             [str(run_id) for run_id in (run_ids or ())],
         )
+
+    @app.callback(
+        Output("comparison-operator-contexts", "children"),
+        Input("comparison-run-selector", "value"),
+        Input("refresh-comparisons", "n_clicks"),
+        Input("review-message", "children"),
+    )
+    def refresh_comparison_operator_contexts(
+        run_ids: list[str] | tuple[str, ...] | None,
+        _refresh_clicks: int,
+        _review_message: object,
+    ):
+        selected = [str(run_id) for run_id in (run_ids or ())]
+        if not selected:
+            return html.Div(
+                "Select persisted backtests to inspect each run's context.",
+                className="empty-state-copy",
+            )
+
+        contexts = []
+        for index, run_id in enumerate(selected, start=1):
+            try:
+                run = runs.get_run(run_id)
+            except (KeyError, ValueError, RunServiceError):
+                run = None
+            if run is None:
+                contexts.append(
+                    html.Article(
+                        [
+                            html.H3(f"Backtest {index}"),
+                            html.P(run_id, className="comparison-trace-id"),
+                            html.Div(
+                                "This persisted backtest is unavailable.",
+                                className="error-state",
+                            ),
+                        ],
+                        className="comparison-run-context",
+                        **{"data-run-id": run_id},
+                    )
+                )
+                continue
+
+            try:
+                detail = detail_adapter.selected_run_detail(run_id)
+            except (KeyError, RuntimeError, ValueError):
+                detail = None
+            try:
+                review = load_durable_review(
+                    dashboard_database,
+                    artifact_root,
+                    run_id,
+                )
+                human_decision = review.display_state
+            except (KeyError, RuntimeError, ValueError):
+                human_decision = "Unavailable"
+            context = _results_operator_context(
+                run,
+                detail,
+                human_decision=human_decision,
+                component_id=f"compare-operator-context-{index}",
+            )
+            contexts.append(
+                html.Article(
+                    [
+                        html.H3(_backtest_selector_label(run)),
+                        html.P(run_id, className="comparison-trace-id"),
+                        context,
+                    ],
+                    className="comparison-run-context",
+                    **{"data-run-id": run_id},
+                )
+            )
+        return contexts
 
     @app.callback(
         Output("run-comparison-output", "children"),
