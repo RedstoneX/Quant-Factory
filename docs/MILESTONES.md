@@ -53,7 +53,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Implement the accepted Milestone 23C dashboard direction and prove the remaining browser, workflow, failure-handling, test, and documentation/status gates; Decision 277 records owner acceptance |
+| R05 | 1 | in_progress | none | Implement the accepted Milestone 23C dashboard direction and prove the remaining browser, workflow, failure-handling, test, and documentation/status gates; Decision 277 records owner acceptance; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 
@@ -87,6 +87,29 @@ state, responsive-layout, and renderer-error checks in a real browser.
 The Milestone 23C flow is Home → Ideas → Set up → Run test → Results → Compare.
 Ideas is non-executing during this milestone. It must not retrieve external
 content, execute code, launch a backtest, approve a strategy, or place an order.
+
+### Verified Setup-authoring limitation — 2026-09-18
+
+At public revision `6b98d7712f571da4670e51f7fe2f4c828dadca1d`,
+review of the accepted fixture specifications and launch paths found no
+approved editable configuration field that a current runner consumes. The
+[SPYM 21C parameter definitions](../strategies/spym_rsi_mean_reversion_fixture.py)
+are fixed, single-value, and non-optimizable; its
+[runner](../prefect_spike/spym_vectorbt_fixture.py) uses the fixed SPYM
+market-data, parameter, and execution helpers. The
+[generic deterministic Prefect fixture](../prefect_spike/fixture_flow.py)
+receives saved parameter and execution objects but does not use variants to
+determine its execution result. [PR #23](https://github.com/RedstoneX/Quant-Factory/pull/23)
+was therefore closed rather than presenting a synthetic fee edit as supported
+operator capability.
+
+This is a verified capability limitation, not a new owner decision and not by
+itself a Milestone 23 closure blocker. The Tier 1 contract above requires the
+operator to “create or select” an approved configuration, and current `main`
+retains the truthful select-existing path. Editable/new Setup authoring remains
+unclaimed. Implementing it requires a separately accepted, bounded contract
+whose actual fixture runner consumes the exposed field; no such runner change
+is proposed or authorized here.
 
 ## Operational milestone sequence
 
