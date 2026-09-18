@@ -291,3 +291,35 @@ explicitly.
      does not change ADR 0008, deploy production, accept Milestone 23, begin
      strategy discovery, authorize protected-data evaluation or credentials,
      activate paper execution, or permit live capital.
+
+283. **Safe exact-repeat research caching required (accepted 2026-09-18).**
+     The owner requires exact repeat research computations to be materially
+     faster through safe cache reuse rather than rebuilding all computation.
+     Every explicit run request still creates and retains its own durable run
+     ticket, lifecycle, identity, lineage and operator-visible outcome. A cache
+     hit may reuse only computed artifacts that are validated, traceable and
+     isolated by every input that can change the result, including code and
+     runtime identity, immutable configuration, dataset identity, execution
+     assumptions, engine/version inputs, evidence stage and protected-data
+     partition. Failed, partial, corrupt, mismatched, stale, or unknown work is
+     never reusable. Reusing one computation does not create an independent
+     evidence observation or increase sample count.
+
+     This accepts the product requirement, not a cache architecture. Identity
+     and keying mechanism, storage, schema, locking, concurrency, invalidation,
+     retention/eviction, target topology, implementation sequence and operator
+     presentation require a bounded design and validation before implementation.
+     Whether the explicit
+     **Reproduce** action must force recomputation, may use a cache only as a
+     verification aid, or may expose a separate choice remains undecided. The
+     existing ADR 0011 durable claim and fail-closed submission behavior remain
+     authoritative. This decision does not claim a computation cache exists,
+     close Milestone 23, begin discovery or protected testing, deploy production,
+     use credentials, activate paper execution, or permit live capital.
+
+     Documentation-impact assessment: `AGENTS.md`, `docs/MILESTONES.md`,
+     `docs/CHAT_HANDOFF.md`, `README.md`, the dashboard product requirements,
+     infrastructure inventory and Milestone 23 acceptance record are updated;
+     this decision log is appended. An ADR is not yet applicable because no
+     architecture has been selected. No operating runbook changes because no
+     cache has been implemented or deployed.

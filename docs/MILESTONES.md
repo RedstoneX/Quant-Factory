@@ -34,6 +34,15 @@ The owner also requires a separate scalable multi-run analysis surface for
 aggregating, slicing, ranking, filtering and selecting hundreds or thousands
 of persisted runs; one run opens in Results and multiple selections can feed
 Compare. Its exact UI, architecture and name remain to be designed.
+Decision 283 additionally requires safe caching so exact repeat research
+computations are materially faster than rebuilding all computation. Each
+explicit request must still retain a distinct durable run ticket and lifecycle;
+cache reuse must be validated, traceable, isolated by every result-changing
+input and protected-data partition, and must not count as independent evidence.
+Failed, partial, corrupt, or unknown work is never reusable. Cache architecture,
+storage, schema, eviction, implementation sequence, and explicit **Reproduce**
+recomputation policy remain a bounded design task rather than an approved
+solution or claimed implementation.
 Implementation, deployment, tests, licensed-target proof, and renewed owner
 acceptance of the eventual implemented experience remain pending. Decision 278
 accepts ADR 0011's
@@ -82,7 +91,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Implement and validate the owner-approved Decisions 280–282 selected-run Results specification; design the separately required scalable multi-run aggregation, slicing, ranking, filtering and selection surface without treating its UI or architecture as pre-approved; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, documentation/status, and renewed implemented-experience acceptance gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
+| R05 | 1 | in_progress | none | Implement and validate the owner-approved Decisions 280–282 selected-run Results specification; design the separately required scalable multi-run aggregation, slicing, ranking, filtering and selection surface without treating its UI or architecture as pre-approved; produce only a bounded design and sequencing recommendation for Decision 283's safe exact-repeat computation caching, without adding cache implementation as a Milestone 23 acceptance criterion or changing explicit Reproduce semantics; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, documentation/status, and renewed implemented-experience acceptance gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 
@@ -168,7 +177,9 @@ is proposed or authorized here.
   Implement the approved selected-run Results specification while preserving
   ADR 0008, Plotly Dash, VectorBT Pro, and service boundaries. Do not infer a
   multi-run implementation from the requirement before its bounded design is
-  reviewed.
+  reviewed. Decision 283's exact-repeat computation caching also requires a
+  bounded design before implementation; its milestone sequencing and explicit
+  Reproduce policy are not inferred here.
 - **23C-3 — Browser/operator acceptance:** renewed owner acceptance of the
   implemented replacement plus real-browser lifecycle and complete end-to-end
   workflow evidence remain pending.

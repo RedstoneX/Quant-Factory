@@ -99,6 +99,16 @@ authorization forward within its approved scope and do not repeatedly ask.
   discovery remains blocked until Milestone 23 passes those gates and its
   remaining browser-lifecycle, end-to-end workflow, failure-handling, and
   documentation/status-synchronization gates.
+- Decision 283 requires safe reuse of validated results for exact repeat
+  research computations so repeats are materially faster than rebuilding all
+  computation. Every explicit request still receives its own durable run
+  ticket and lifecycle. Reusable computed artifacts must be validated,
+  traceable, isolated by every result-changing input and protected-data
+  boundary, and must never turn one computation into multiple independent
+  evidence observations. Failed, partial, corrupt, or unknown work is not
+  reusable. Cache architecture, identity/keying mechanism, storage, eviction,
+  implementation sequence, and whether explicit **Reproduce** bypasses or
+  verifies cached work require a bounded design before implementation.
 - Under Decisions 259 and 262, research-only Docker/Compose packaging,
   deployment preparation, broker-neutral contracts, isolated paper-adapter
   implementation, tests, and target validation may proceed in parallel with
