@@ -85,6 +85,18 @@ def _unknown_requested_run_id(state: str | None) -> str | None:
     return state.removeprefix(_UNKNOWN_REQUESTED_RUN_PREFIX)
 
 
+def _persisted_selected_run_id(state: str | None) -> str | None:
+    """Return only identities that are safe to pass to persistence services."""
+
+    if (
+        not isinstance(state, str)
+        or state == _INVALID_REQUESTED_RUN_STATE
+        or _unknown_requested_run_id(state)
+    ):
+        return None
+    return state
+
+
 def _accepts_keywords(callable_object: Any, required: frozenset[str]) -> bool:
     """Return whether a service method implements the frozen durable seam."""
 
@@ -686,6 +698,7 @@ def register_backtest_results_callbacks(
         launch_state: object = None,
         pathname: str | None = "/research/backtest-results",
     ):
+        run_id = _persisted_selected_run_id(run_id)
         triggered_id = _callback_triggered_id()
         explicit_action = triggered_id == "launch-selected-run-configuration" and bool(n_clicks)
         if triggered_id is None and n_clicks:
@@ -829,6 +842,7 @@ def register_backtest_results_callbacks(
         launch_state: object = None,
         pathname: str | None = "/research/backtest-results",
     ):
+        run_id = _persisted_selected_run_id(run_id)
         triggered_id = _callback_triggered_id()
         explicit_action = triggered_id == "reproduce-selected-run" and bool(n_clicks)
         if triggered_id is None and n_clicks:
@@ -959,10 +973,11 @@ def register_backtest_results_callbacks(
         triggered_id = _callback_triggered_id()
 
         def stored_run_is_valid() -> bool:
-            if not stored_run_id:
+            persisted_run_id = _persisted_selected_run_id(stored_run_id)
+            if not persisted_run_id:
                 return False
             try:
-                return runs.get_run(stored_run_id) is not None
+                return runs.get_run(persisted_run_id) is not None
             except (KeyError, ValueError, RunServiceError):
                 return False
 
@@ -1016,6 +1031,7 @@ def register_backtest_results_callbacks(
         __: int,
         ___: int,
     ):
+        run_id = _persisted_selected_run_id(run_id)
         run = runs.get_run(run_id) if run_id else None
         availability = _run_action_availability(
             run,
@@ -1359,6 +1375,7 @@ def register_backtest_results_callbacks(
         _review_message: object,
         _stale_recovery_message: object = None,
     ):
+        run_id = _persisted_selected_run_id(run_id)
         if not run_id:
             context = _results_operator_context(None)
             return context.children, context.className
@@ -1406,6 +1423,7 @@ def register_backtest_results_callbacks(
             raise PreventUpdate
         if not n_clicks:
             return no_update, no_update
+        run_id = _persisted_selected_run_id(run_id)
         if not run_id:
             return (
                 "No run is selected for cancellation.",

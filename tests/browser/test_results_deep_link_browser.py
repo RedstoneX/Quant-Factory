@@ -103,7 +103,7 @@ def test_results_deep_link_refresh_history_and_rejection_are_deterministic(
                 peer_run_id
             )
 
-            assert pending_requests == set()
+            assert not pending_requests
             assert_browser_diagnostics_clean(
                 page, events, (server_log,)
             )

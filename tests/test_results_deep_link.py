@@ -210,6 +210,48 @@ def test_results_deep_link_preserves_malformed_request_as_invalid_state(
     assert runs.lookups == []
 
 
+def test_requested_run_failure_states_are_inert_for_results_actions(
+    tmp_path: Path,
+) -> None:
+    app, runs = _app(tmp_path)
+    update_actions = _callback(app, "cancel-selected-run.disabled")
+    historical = _callback(app, "historical-launch-message")
+    reproduce = _callback(app, "reproduction-message")
+    cancel = _callback(app, "cancellation-message.children")
+
+    for state in (
+        _unknown_requested_run_state("unknown-run"),
+        _INVALID_REQUESTED_RUN_STATE,
+    ):
+        cancel_disabled, cancel_title = update_actions(state, 0, None, None)
+        historical_result = historical(
+            0,
+            state,
+            None,
+            "/research/backtest-results",
+        )
+        reproduction_result = reproduce(
+            0,
+            state,
+            None,
+            "/research/backtest-results",
+        )
+        cancellation_message, cancellation_class = cancel(
+            1,
+            state,
+            "/research/backtest-results",
+        )
+
+        assert cancel_disabled is True
+        assert "select a persisted run" in cancel_title.lower()
+        assert historical_result[3] is True
+        assert reproduction_result[3] is True
+        assert cancellation_message == "No run is selected for cancellation."
+        assert cancellation_class == "cancellation-message error-state"
+
+    assert runs.lookups == []
+
+
 def test_no_query_retains_default_and_explicit_selector_wins(
     tmp_path: Path,
     monkeypatch,
