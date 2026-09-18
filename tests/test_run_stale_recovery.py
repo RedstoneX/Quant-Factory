@@ -1,14 +1,27 @@
-"""Focused Slice 18C-3 tests for deterministic stale fixture-run recovery."""
+"""Fail-closed stale-run recovery tests for the ADR 0011 claim boundary."""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
-from orchestration import FixtureRunService
-from persistence import EventSeverity, PersistenceService, RunEventType, RunStage, RunStatus
+from orchestration import (
+    DurableResearchLaunchService,
+    FixtureRunService,
+    ResearchLaunchRequest,
+    RunServiceError,
+    new_dispatcher_instance_id,
+)
+from persistence import (
+    EventSeverity,
+    PersistenceService,
+    ResearchLaunchOperation,
+    ResearchSubmissionState,
+    RunEventType,
+    RunStage,
+    RunStatus,
+)
 from tests.test_run_service import _configuration
 
 
@@ -75,9 +88,17 @@ def _create_run(
     finally:
         persistence.close()
 
-def test_stale_created_and_running_runs_recover_once_with_ordered_events(tmp_path: Path) -> None:
+def test_age_only_recovery_never_mutates_stale_created_or_running_runs(
+    tmp_path: Path,
+) -> None:
     database, configuration_id = _configuration(tmp_path)
-    _create_run(database, configuration_id, run_id="qf-stale-created", status=RunStatus.CREATED, old=True)
+    _create_run(
+        database,
+        configuration_id,
+        run_id="qf-stale-created",
+        status=RunStatus.CREATED,
+        old=True,
+    )
     _create_run(
         database,
         configuration_id,
@@ -87,46 +108,34 @@ def test_stale_created_and_running_runs_recover_once_with_ordered_events(tmp_pat
         attempts=2,
     )
     service = FixtureRunService(database=database)
+    before = {
+        run_id: (service.get_run(run_id), service.events_for_run(run_id))
+        for run_id in ("qf-stale-created", "qf-stale-running")
+    }
 
-    recovered = service.recover_stale_fixture_runs(stale_before=STALE_BEFORE)
+    with pytest.raises(RunServiceError, match="age-only fixture recovery is disabled"):
+        service.recover_stale_fixture_runs(stale_before=STALE_BEFORE)
 
-    assert {run.run_id for run in recovered} == {"qf-stale-created", "qf-stale-running"}
-    created = service.get_run("qf-stale-created")
-    running = service.get_run("qf-stale-running")
-    assert created is not None and running is not None
-    assert created.status == RunStatus.FAILED.value
-    assert running.status == RunStatus.FAILED.value
-    assert created.error_summary == "Fixture run remained created beyond the stale recovery cutoff."
-    assert running.error_summary == "Fixture run remained running beyond the stale recovery cutoff."
-    assert created.started_at is None
-    assert running.started_at == OLD
-    assert running.attempt_count == 2
-    persistence = PersistenceService(database)
-    try:
-        persisted_running = persistence.runs.get("qf-stale-running")
-        assert persisted_running is not None
-        assert json.loads(persisted_running.environment_json)["prefect_flow_run_id"] == "prefect-qf-stale-running"
-    finally:
-        persistence.close()
-
-    assert [event.event_type for event in service.events_for_run("qf-stale-created")] == [
-        "run_created",
-        "run_stale_recovered",
-        "run_failed",
-    ]
-    assert [event.event_type for event in service.events_for_run("qf-stale-running")] == [
-        "run_created",
-        "run_started",
-        "run_stale_recovered",
-        "run_failed",
-    ]
-    assert service.recover_stale_fixture_runs(stale_before=STALE_BEFORE) == ()
+    for run_id, expected in before.items():
+        assert (service.get_run(run_id), service.events_for_run(run_id)) == expected
 
 
-def test_fresh_and_terminal_runs_are_unchanged_by_recovery(tmp_path: Path) -> None:
+def test_age_only_recovery_never_mutates_fresh_or_terminal_runs(tmp_path: Path) -> None:
     database, configuration_id = _configuration(tmp_path)
-    _create_run(database, configuration_id, run_id="qf-fresh-created", status=RunStatus.CREATED, old=False)
-    _create_run(database, configuration_id, run_id="qf-fresh-running", status=RunStatus.RUNNING, old=False)
+    _create_run(
+        database,
+        configuration_id,
+        run_id="qf-fresh-created",
+        status=RunStatus.CREATED,
+        old=False,
+    )
+    _create_run(
+        database,
+        configuration_id,
+        run_id="qf-fresh-running",
+        status=RunStatus.RUNNING,
+        old=False,
+    )
     for status in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED):
         _create_run(
             database,
@@ -168,7 +177,8 @@ def test_fresh_and_terminal_runs_are_unchanged_by_recovery(tmp_path: Path) -> No
         persistence.close()
 
     service = FixtureRunService(database=database)
-    assert service.recover_stale_fixture_runs(stale_before=STALE_BEFORE) == ()
+    with pytest.raises(RunServiceError, match="age-only fixture recovery is disabled"):
+        service.recover_stale_fixture_runs(stale_before=STALE_BEFORE)
 
     persistence = PersistenceService(database)
     try:
@@ -181,9 +191,61 @@ def test_fresh_and_terminal_runs_are_unchanged_by_recovery(tmp_path: Path) -> No
         persistence.close()
 
 
-def test_recovery_requires_an_explicit_utc_cutoff(tmp_path: Path) -> None:
-    database, _ = _configuration(tmp_path)
-    service = FixtureRunService(database=database)
+def test_process_exit_evidence_recovers_only_the_exact_invoking_claim(
+    tmp_path: Path,
+) -> None:
+    database, configuration_id = _configuration(tmp_path)
+    launch_key = "launch_stale_claim_0001"
+    dispatcher_id = new_dispatcher_instance_id()
+    claims = DurableResearchLaunchService(database=database)
+    claim = claims.claim(
+        idempotency_key=launch_key,
+        request=ResearchLaunchRequest(
+            operation=ResearchLaunchOperation.RUN_TEST,
+            configuration_id=configuration_id,
+        ),
+    )
+    decision = claims.begin_dispatch(
+        idempotency_key=launch_key,
+        dispatcher_instance_id=dispatcher_id,
+    )
+    assert decision.should_invoke is True
+    assert decision.submission.state == ResearchSubmissionState.INVOKING
 
-    with pytest.raises(ValueError, match="stale_before"):
+    invocations: list[str] = []
+
+    def forbidden_launcher(**_kwargs):
+        invocations.append("invoked")
+        pytest.fail("recovery must never launch replacement research work")
+
+    service = FixtureRunService(database=database, fixture_launcher=forbidden_launcher)
+
+    with pytest.raises(RunServiceError, match="age-only fixture recovery is disabled"):
         service.recover_stale_fixture_runs(stale_before="not-a-timestamp")
+    still_invoking = claims.get(launch_key)
+    assert still_invoking is not None
+    assert still_invoking.state == ResearchSubmissionState.INVOKING
+
+    recovered = service.recover_invoking_after_process_exit(
+        idempotency_key=launch_key,
+        departed_dispatcher_instance_id=dispatcher_id,
+        process_exit_evidence_reference="process-exit-proof:stale-recovery-test",
+    )
+
+    assert recovered.state == ResearchSubmissionState.SUBMISSION_UNKNOWN
+    assert recovered.unknown_evidence_reference == (
+        "process-exit-proof:stale-recovery-test"
+    )
+    assert service.get_run(claim.run.run_id).status == RunStatus.CREATED.value
+    assert [event.event_type for event in service.events_for_run(claim.run.run_id)] == [
+        RunEventType.RUN_CREATED.value
+    ]
+    assert invocations == []
+
+    replay = service.recover_invoking_after_process_exit(
+        idempotency_key=launch_key,
+        departed_dispatcher_instance_id=dispatcher_id,
+        process_exit_evidence_reference="process-exit-proof:stale-recovery-test",
+    )
+    assert replay == recovered
+    assert invocations == []
