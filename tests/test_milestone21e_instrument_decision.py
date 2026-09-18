@@ -18,14 +18,15 @@ def test_milestone21e_selects_schx_without_promoting_profitability() -> None:
     adr = _read("docs/architecture/0005-execution-adapters-and-initial-venues.md")
     readme = _read("README.md")
 
-    for text in (milestones, decisions, adr, readme):
-        assert "SCHX" in text
-        assert "not profitability" in text or "not strategy-profitability" in text
-
-    assert "**Broad-market whole-share forward-test instrument:** SCHX" in milestones
-    assert "SCHX is selected as the future broad-market whole-share paper" in decisions
+    assert (
+        "Fixtures validate infrastructure and are not active profitability candidates."
+        in milestones
+    )
+    assert "SCHX is the broad-\n    market whole-share execution fixture" in decisions
     assert "**Broad-market whole-share forward-test instrument:** SCHX" in adr
     assert "Milestone 21E selected SCHX" in readme
+    for text in (adr, readme):
+        assert "not profitability" in text
 
 
 def test_spym_remains_fixture_not_final_forward_test_instrument() -> None:
@@ -41,7 +42,7 @@ def test_spym_remains_fixture_not_final_forward_test_instrument() -> None:
         assert stale not in text
         assert "SPYM" in text
 
-    assert "SPYM is retained as the completed Databento" in decisions
+    assert "SPYM remains an ingestion and\n    deterministic research fixture" in decisions
     assert "SPYM remains" in adr
     assert "Databento ingestion" in adr
     assert "SPYM remains the completed Databento ingestion" in readme
@@ -50,27 +51,41 @@ def test_spym_remains_fixture_not_final_forward_test_instrument() -> None:
 def test_databento_schx_schb_evidence_is_recorded() -> None:
     data_sources = _read("docs/DATA_SOURCES.md")
     decisions = _read("docs/DECISIONS.md")
+    adr = _read("docs/architecture/0005-execution-adapters-and-initial-venues.md")
 
-    for text in (data_sources, decisions):
-        assert "`EQUS.MINI`" in text
-        assert "`ohlcv-1m`" in text
-        assert "14318" in text
-        assert "14296" in text
-        assert "USD $0.100031912327" in text
-        assert "USD $0.082242786884" in text
-        assert "3-for-1" in text
-        assert "split" in text
+    for expected in (
+        "`EQUS.MINI`",
+        "`ohlcv-1m`",
+        "14318",
+        "14296",
+        "USD $0.100031912327",
+        "USD $0.082242786884",
+        "3-for-1",
+        "split",
+    ):
+        assert expected in data_sources
+    assert "Databento `EQUS.MINI`" in adr
+    assert "one-minute historical-data cost" in adr
+    assert "This selection is not profitability approval" in adr
+    assert "SCHX is the broad-\n    market whole-share execution fixture" in decisions
+    assert "SPYM remains an ingestion and\n    deterministic research fixture" in decisions
 
 
 def test_milestone21_and_22_are_complete_and_milestone23_is_active() -> None:
     milestones = _read("docs/MILESTONES.md")
 
-    assert "| 21 | Operational Equity Data and Execution Fixture" in milestones
-    assert "| 21 |" in milestones and "| **Complete** |" in milestones
-    assert "Milestone 22 is complete" in milestones
-    assert "22A complete" in milestones
-    assert "22E complete" in milestones
-    assert "23A complete" in milestones
-    assert "| 22 | Unified Validation and Evidence Integration" in milestones
+    assert "Milestones 1–22 are complete." in milestones
+    assert (
+        "| 16–22 | Infrastructure, persistence, orchestration, lineage, "
+        "dashboard foundation, equity fixture, and unified validation"
+        in milestones
+    )
+    assert "| Complete |" in milestones
+    assert "- **23A — Scenarios and fixtures:** frozen. **Complete.**" in milestones
+    assert (
+        "- **23B — Automated full-system acceptance:** supporting evidence implemented;"
+        in milestones
+    )
     assert "| 23 | End-to-End Equity Research Factory Acceptance" in milestones
-    assert "The current bounded milestone is **23" in milestones
+    assert "| R05 | 1 | in_progress |" in milestones
+    assert "milestone is **23 — End-to-End Equity Research Factory Acceptance**." in milestones

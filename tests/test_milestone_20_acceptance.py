@@ -255,7 +255,12 @@ def test_dashboard_success_workflow_and_restart_reopen(
     app = _app(service, adapter, tmp_path)
 
     launch = _callback_function(app, "launch-message")
-    launch_content, launch_class = launch(1, configuration_id)
+    (
+        launch_content,
+        launch_class,
+        launch_context,
+        launch_context_class,
+    ) = launch(1, configuration_id)
     run_id = service.recent_runs(limit=1)[0].run_id
     _prepare_success_run_artifacts(database, tmp_path / "artifact-root", run_id)
 
@@ -264,6 +269,15 @@ def test_dashboard_success_workflow_and_restart_reopen(
     assert "succeeded" in str(launch_content)
     assert "prefect-" in str(launch_content)
     assert "Attempt count: 1" in str(launch_content)
+    assert launch_context_class == "operator-context"
+    rendered_launch_context = str(launch_context)
+    assert "Run status" in rendered_launch_context
+    assert "Succeeded" in rendered_launch_context
+    assert "Evidence outcome" in rendered_launch_context
+    assert "Human decision" in rendered_launch_context
+    assert rendered_launch_context.count("Unavailable") == 2
+    assert "Next safe action" in rendered_launch_context
+    assert "Inspect evidence" in rendered_launch_context
 
     refresh_monitor = _callback_function(app, "recent-runs-monitor")
     runs_panel, events_panel = refresh_monitor(1, 1, 0, 0, 0, 0)
@@ -342,16 +356,25 @@ def test_dashboard_failure_reconciliation_remains_visible(
     )
     app = _app(service, adapter, tmp_path)
 
-    content, class_name = _callback_function(app, "launch-message")(
-        1,
-        configuration_id,
-    )
+    content, class_name, launch_context, launch_context_class = _callback_function(
+        app,
+        "launch-message",
+    )(1, configuration_id)
     run_id = service.recent_runs(limit=1)[0].run_id
 
     assert class_name == "save-message"
     assert "failed" in str(content)
     assert "controlled Prefect fixture failure" in str(content)
     assert run_id in str(content)
+    assert launch_context_class == "operator-context"
+    rendered_launch_context = str(launch_context)
+    assert "Run status" in rendered_launch_context
+    assert "Failed" in rendered_launch_context
+    assert "Evidence outcome" in rendered_launch_context
+    assert "Human decision" in rendered_launch_context
+    assert rendered_launch_context.count("Unavailable") == 2
+    assert "Next safe action" in rendered_launch_context
+    assert "Review failure" in rendered_launch_context
 
     rendered = _render_selected(app, run_id)
     assert "failed" in rendered
