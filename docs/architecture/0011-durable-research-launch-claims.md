@@ -1,6 +1,7 @@
 # ADR 0011: Durable research-launch claims
 
-- **Status:** ACCEPTED / IMPLEMENTATION AUTHORIZED / NOT YET IMPLEMENTED
+- **Status:** ACCEPTED / IMPLEMENTED IN CANONICAL SOURCE / DEPLOYMENT AND
+  MILESTONE ACCEPTANCE PENDING
 - **Date proposed:** 2026-09-18
 - **Proposal revised:** 2026-09-18 after independent architecture review
 - **Date accepted:** 2026-09-18
@@ -10,9 +11,13 @@
 - **Supplements:** [ADR 0004](0004-adopt-before-build.md),
   [ADR 0007](0007-portable-deployment-and-alpaca-first-roadmap.md) and
   [ADR 0008](0008-dashboard-mounted-route-architecture.md)
-- **Implementation status:** Not implemented. Acceptance authorizes the bounded
-  implementation and validation described here; it does not claim any code,
-  schema, runtime or deployment change is complete.
+- **Implementation status:** The schema-5 core, shared launch service, and Run
+  test, historical-relaunch, and reproduction integrations were implemented,
+  tested, and merged through PRs #35–#38. PR #42 added the claim-aware recovery
+  suite to required Portable CI. This is canonical-source implementation status
+  at revision `5462c796809e83634959cbd3e7fa75b81ec2e309`, not production
+  deployment, current licensed-target SPYM proof, complete Milestone 23
+  workflow evidence, renewed Results acceptance, or milestone completion.
 
 > **Acceptance boundary:** On 2026-09-18 Terry approved the safer run-ticket
 > design in plain language: Quant Factory must save an accepted run identity
@@ -31,9 +36,9 @@ requires the Run test page to launch an approved saved configuration once,
 show **Starting test...** while submission is unresolved, preserve the same
 run identity across refresh, distinguish an unknown submission outcome from
 run status and avoid a duplicate retry. The same specification explicitly
-excludes backend, persistence and orchestration redesign. The required
-server-side behavior is now authorized by this ADR but remains pending and is
-not yet implemented.
+excludes broader backend, persistence and orchestration redesign. The bounded
+server-side and dashboard behavior authorized by this ADR is now implemented
+in the canonical source within those exclusions.
 
 At public repository revision
 `35496137f95067e4e622e690fec3ed319605f255`, the verified implementation has
@@ -438,7 +443,20 @@ Any production rollout remains a separate owner-authorized, backed-up,
 validated deployment slice. Acceptance of this architecture does not itself
 authorize that rollout.
 
-## Required validation before implementation can be accepted
+## Implementation validation contract and current boundary
+
+PRs #35–#38 merged the schema, service, fixture-launch and dashboard integration
+after focused persistence, concurrency, fault, callback and browser-lifecycle
+validation. PR #42 placed the claim-aware core and stale-recovery coverage in
+the required Portable CI selection; later PRs #45 and #47 retained the
+fail-closed recovery contract and controlled-failure browser evidence. Each
+pull request passed the repository's three required checks. The criteria below
+remain the acceptance contract and must stay green.
+
+The successful current-revision integrated SPYM proof in a licensed target,
+the complete end-to-end operator workflow, production deployment and Milestone
+23 acceptance remain pending. Portable and deterministic browser evidence does
+not substitute for them.
 
 ### Persistence and concurrency
 
@@ -547,12 +565,13 @@ decision and evidence.
 
 - `AGENTS.md`: not applicable — owner acceptance does not change permanent
   agent behavior or allocation.
-- `docs/MILESTONES.md`: updated — ADR 0011 implementation is authorized but
-  remains incomplete within pending Milestone 23.
+- `docs/MILESTONES.md`: updated at acceptance — ADR 0011 implementation was
+  authorized but remained incomplete within pending Milestone 23 at that time.
 - `docs/DECISIONS.md`: updated — Decision 278 records the owner acceptance and
   its boundaries.
-- ADR: updated — this file now records the accepted architecture and its
-  not-yet-implemented status.
+- ADR: updated at acceptance — this file recorded the accepted architecture and
+  its then-not-yet-implemented status; the current header separately records
+  the later merged source implementation.
 - `docs/CHAT_HANDOFF.md`: updated — the accepted implementation authority is
   part of the current resume point.
 - `README.md`: not applicable — public orientation is unchanged.
