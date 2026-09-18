@@ -19,10 +19,12 @@
 
   function dimensions(workspace) {
     const chart = workspace.querySelector(".results-chart-region");
-    const report = workspace.querySelector(".results-report-region");
+    const reportDimension = Number.parseFloat(
+      getComputedStyle(workspace).getPropertyValue("--qf-results-report-min-height")
+    );
     return {
       chart: chart ? chart.getBoundingClientRect().height : CHART_DEFAULT,
-      report: report ? report.getBoundingClientRect().height : REPORT_DEFAULT,
+      report: Number.isFinite(reportDimension) ? reportDimension : REPORT_DEFAULT,
     };
   }
 
