@@ -1,0 +1,17 @@
+# Copy this file to config/data_locations.local.toml and edit for the machine.
+# The local file is intentionally excluded from Git because paths are machine-specific.
+
+[data]
+root = "/srv/quant-factory/data"
+manifests = "/srv/quant-factory/data/manifests"
+quarantine = "/srv/quant-factory/data/quarantine"
+
+[legacy]
+# Set only when performing a controlled import from an existing archive or directory.
+backup_archive = ""
+extracted_root = ""
+
+[policy]
+preserve_originals = true
+verify_sha256_before_use = true
+allow_raw_data_in_repository = false

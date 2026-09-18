@@ -1,0 +1,62 @@
+{
+  "format": "parquet",
+  "source_archive": "quant_factory_FULL_BACKUP_20260217.tar.gz",
+  "timeframe": "5m",
+  "duplicate_timestamp_count": 0,
+  "monotonic_increasing": true,
+  "apparent_bar_interval": "5 minutes (modal positive timestamp delta: 300 seconds)",
+  "imported_at_utc": "2026-07-07T17:09:09Z",
+  "validated_by": "Codex controlled legacy import",
+  "dataset_id": "equities_MSFT_5m_databento",
+  "status": "validated",
+  "asset_class": "equities",
+  "symbol": "MSFT",
+  "provider": "Databento",
+  "canonical_relative_path": "equities/MSFT/5m/MSFT_5m_databento.parquet",
+  "original_source_path": "data/MSFT/5m/MSFT_5m_databento.parquet",
+  "sha256": "9f94d54726580e35df187744b1734adb80c5d6043e8f2eb9211ecf52319828e1",
+  "size_bytes": 6336532,
+  "row_count": 299194,
+  "earliest_timestamp": "2019-05-01T08:35:00+00:00",
+  "latest_timestamp": "2026-02-13T23:55:00+00:00",
+  "timezone": "UTC",
+  "timestamp_field": "ts_event",
+  "columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "ts_event"
+  ],
+  "schema": {
+    "open": "double",
+    "high": "double",
+    "low": "double",
+    "close": "double",
+    "volume": "uint64",
+    "ts_event": "timestamp[ns, tz=UTC]"
+  },
+  "null_counts": {
+    "open": 0,
+    "high": 0,
+    "low": 0,
+    "close": 0,
+    "volume": 0,
+    "ts_event": 0
+  },
+  "ohlc_violation_count": 0,
+  "validation_notes": [
+    "Readable Parquet; prior audit catalog identifies Databento MSFT.",
+    "Chronologically ordered with no duplicate timestamps, nulls, or OHLC violations.",
+    "Timestamp coverage includes non-RTH bars; explicit exchange-session filtering is required."
+  ],
+  "approved_uses": [
+    "Intraday equity research",
+    "Opening-range research after NYSE session filtering"
+  ],
+  "restrictions": [
+    "Adjusted-price status is unresolved.",
+    "Do not treat extended-hours bars as regular session without filtering."
+  ]
+}

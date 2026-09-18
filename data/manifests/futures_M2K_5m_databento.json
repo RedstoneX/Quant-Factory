@@ -1,0 +1,62 @@
+{
+  "format": "parquet",
+  "source_archive": "quant_factory_FULL_BACKUP_20260217.tar.gz",
+  "timeframe": "5m",
+  "duplicate_timestamp_count": 0,
+  "monotonic_increasing": true,
+  "apparent_bar_interval": "5 minutes (modal positive timestamp delta: 300 seconds)",
+  "imported_at_utc": "2026-07-07T17:09:09Z",
+  "validated_by": "Codex controlled legacy import",
+  "dataset_id": "futures_M2K_5m_databento",
+  "status": "validated",
+  "asset_class": "futures",
+  "symbol": "M2K",
+  "provider": "Databento",
+  "canonical_relative_path": "futures/M2K/5m/M2K_5m_databento.parquet",
+  "original_source_path": "data/M2K/5m/M2K_5m_databento.parquet",
+  "sha256": "5336099c3f72fe7a9a7a5aafbf0e17ed4b9dbf6474dd1191bb721043edffeb88",
+  "size_bytes": 7824937,
+  "row_count": 470146,
+  "earliest_timestamp": "2019-05-05T22:00:00+00:00",
+  "latest_timestamp": "2026-02-13T21:55:00+00:00",
+  "timezone": "UTC",
+  "timestamp_field": "ts_event",
+  "columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "ts_event"
+  ],
+  "schema": {
+    "open": "double",
+    "high": "double",
+    "low": "double",
+    "close": "double",
+    "volume": "uint64",
+    "ts_event": "timestamp[ns, tz=UTC]"
+  },
+  "null_counts": {
+    "open": 0,
+    "high": 0,
+    "low": 0,
+    "close": 0,
+    "volume": 0,
+    "ts_event": 0
+  },
+  "ohlc_violation_count": 0,
+  "validation_notes": [
+    "Readable Parquet; prior audit catalog identifies Databento M2K.",
+    "Chronologically ordered with no duplicate timestamps, nulls, or OHLC violations.",
+    "Non-5-minute gaps remain and require an explicit futures session/calendar policy."
+  ],
+  "approved_uses": [
+    "Intraday futures research",
+    "Opening-range research after session and continuous-series review"
+  ],
+  "restrictions": [
+    "Contract-roll/continuous-series construction is not encoded in the file.",
+    "Do not assume a session from the symbol or timestamps alone."
+  ]
+}

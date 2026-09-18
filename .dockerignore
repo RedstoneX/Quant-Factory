@@ -1,0 +1,34 @@
+# Start closed: only runtime source and committed manifests/config examples are
+# eligible for the build context.  Local TOML, agent state, secrets, data, and
+# generated evidence can therefore never be copied by a broad Dockerfile COPY.
+**
+!Dockerfile
+!.dockerignore
+!requirements-runtime.txt
+!deployment/
+!deployment/**
+!dashboard/
+!dashboard/**
+!persistence/
+!persistence/**
+!market_data/
+!market_data/**
+!backtesting/
+!backtesting/**
+!orchestration/
+!orchestration/**
+!prefect_spike/
+!prefect_spike/**
+!strategies/
+!strategies/**
+!config/
+!config/*.py
+!config/*.example.toml
+!data/
+!data/manifests/
+!data/manifests/**
+
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/*.log

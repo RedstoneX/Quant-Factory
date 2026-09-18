@@ -1,0 +1,5267 @@
+"""Deterministic tests for the minimal visual decision dashboard."""
+
+from dataclasses import replace
+import json
+from pathlib import Path
+import subprocess
+import sys
+import threading
+
+import pandas as pd
+import pytest
+from dash import html, no_update
+from dash.exceptions import PreventUpdate
+
+import backtesting.run_rsi_demo as demo
+from dashboard.adapter import reconstruct_selected_portfolio
+from dashboard.app import (
+    DashboardContext,
+    NAVIGATION_LINKS,
+    ROUTE_CONTAINER_IDS,
+    ROUTE_REGISTRY,
+    _backtest_selector_label,
+    _details,
+    _detail_fields,
+    _curve_graph,
+    _detail_subsection,
+    _navigation,
+    _ranked_column_definitions,
+    _recent_events_panel,
+    _recent_runs_panel,
+    _run_action_controls,
+    _run_detail_analysis_tabs,
+    _run_detail_panel,
+    _trade_pnl_chart,
+    _select_initial_backtest,
+    _runs_page,
+    create_app,
+    create_layout,
+    create_review_page,
+    page_for_path,
+    parameters_from_row,
+    route_content_for_path,
+    route_container_styles_for_path,
+)
+from dashboard.formatting import format_assumption, format_metric
+from dashboard.project_status import PROJECT_STATUS
+from dashboard.state_ownership import STATE_OWNERS
+from dashboard.run_adapter import SavedConfigurationView
+from dashboard.run_detail_adapter import (
+    ArtifactInventoryView,
+    DetailField,
+    ResultSummaryView,
+    RunEvidenceView,
+    RunDetailDashboardAdapter,
+    SelectedRunDetailView,
+)
+from orchestration import (
+    FixtureRunService,
+    RunEvent,
+    RunLaunchResult,
+    RunServiceError,
+    RunSummary,
+)
+from market_data import DataAudit
+from persistence import (
+    ArtifactAvailability,
+    ArtifactType,
+    DataProvenanceRecord,
+    ExecutionAssumptionsRecord,
+    PersistenceService,
+    ReviewState,
+    RunStage,
+    RunStatus,
+    StrategyLifecycle,
+    canonical_json,
+)
+from persistence.database import transaction
+from persistence.models import normalized_configuration_document
+from prefect_spike.fixture_flow import deterministic_fixture_body
+from prefect_spike.spym_vectorbt_fixture import ensure_spym_21c_saved_configuration
+from tests.test_review_context_artifacts import (
+    REVIEW_PARAMETERS,
+    _persist_review_prerequisites,
+    _review_service,
+    _source_lock_artifact,
+)
+
+
+
+@pytest.fixture(autouse=True)
+def isolated_health_catalog(monkeypatch):
+    # Unit layout/callback tests should not hash the operator's real data on
+    # every app construction. Filesystem verification has dedicated tests;
+    # the real-browser suite exercises the configured catalog end to end.
+    monkeypatch.setattr("dashboard.application.inspect_catalog", lambda: (None, (), "Unit test catalog"))
+
+
+def _walk_components(component):
+    yield component
+    children = getattr(component, "children", None)
+    if isinstance(children, (list, tuple)):
+        for child in children:
+            yield from _walk_components(child)
+    elif children is not None:
+        yield from _walk_components(children)
+
+
+def _component_text(component) -> str:
+    return " ".join(
+        str(item)
+        for item in _walk_components(component)
+        if isinstance(item, (str, int, float))
+    )
+
+
+def _json_text(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return " ".join(_json_text(item) for item in value.values())
+    if isinstance(value, list):
+        return " ".join(_json_text(item) for item in value)
+    return ""
+
+
+def _json_components_with_href(value: object) -> list[dict[str, object]]:
+    matches: list[dict[str, object]] = []
+    if isinstance(value, dict):
+        props = value.get("props")
+        if isinstance(props, dict) and "href" in props:
+            matches.append(props)
+        for item in value.values():
+            matches.extend(_json_components_with_href(item))
+    elif isinstance(value, list):
+        for item in value:
+            matches.extend(_json_components_with_href(item))
+    return matches
+
+
+def _component_ids(component) -> list[str]:
+    return [
+        str(component_id)
+        for item in _walk_components(component)
+        if (component_id := getattr(item, "id", None)) is not None
+    ]
+
+
+def _callback_ref_ids(app) -> set[str]:
+    refs: set[str] = set()
+    for metadata in app.callback_map.values():
+        for group_name in ("inputs", "state"):
+            for item in metadata.get(group_name, ()):
+                refs.add(str(item["id"]))
+        output = metadata.get("output")
+        outputs = output if isinstance(output, (list, tuple)) else [output]
+        for item in outputs:
+            component_id = getattr(item, "component_id", None)
+            if component_id is not None:
+                refs.add(str(component_id))
+    return refs
+
+
+def _resolved_layout(app):
+    layout = app.layout
+    return layout() if callable(layout) else layout
+
+
+def _visible_route_container_ids(layout) -> list[str]:
+    return [
+        component.id
+        for component in _walk_components(layout)
+        if getattr(component, "id", None) in ROUTE_CONTAINER_IDS
+        and getattr(component, "style", None) == {"display": "block"}
+    ]
+
+
+def _active_navigation_hrefs(layout) -> list[str]:
+    return [
+        component.href
+        for component in _walk_components(layout)
+        if getattr(component, "className", None)
+        and "navigation-link-active" in component.className
+    ]
+
+
+def _data() -> pd.DataFrame:
+    index = pd.date_range("2024-01-01", periods=80, freq="D")
+    return pd.DataFrame(
+        {
+            "Open": [99 + ((i % 12) - 6) * 2 for i in range(len(index))],
+            "Close": [100 + ((i % 12) - 6) * 2 for i in range(len(index))],
+        },
+        index=index,
+        dtype=float,
+    )
+
+
+def _audit(data: pd.DataFrame) -> DataAudit:
+    return DataAudit(
+        cache_schema_version=2,
+        symbol="SPY",
+        provider="Yahoo Finance",
+        provider_implementation="vectorbtpro.YFData.pull",
+        interval="1 day",
+        requested_start="2016-01-01",
+        requested_dynamic_end_policy="test",
+        latest_completed_exchange_session="2024-03-20",
+        prices_adjusted=True,
+        adjustment_verification="test",
+        download_time="2024-03-20T17:00:00-04:00",
+        download_timezone="America/New_York",
+        actual_first_row_date="2024-01-01",
+        actual_last_row_date="2024-03-20",
+        row_count=len(data),
+        duplicate_timestamp_count=0,
+        missing_open_count=0,
+        missing_high_count=0,
+        missing_low_count=0,
+        missing_close_count=0,
+        missing_volume_count=0,
+        expected_session_gap_count=0,
+    )
+
+
+def _ranked_row() -> dict[str, object]:
+    return {
+        "rsi_window": 7,
+        "entry_threshold": 25,
+        "exit_threshold": 60,
+        "total_return": 0.5,
+        "annualized_return": 0.1,
+        "sharpe_ratio": 0.7,
+        "max_drawdown": -0.3,
+        "number_of_trades": 35,
+        "win_rate": 0.9,
+        "data_source": "Yahoo Finance",
+        "prices_adjusted": True,
+        "data_start_date": "2024-01-01",
+        "data_end_date": "2024-03-20",
+        "row_count": 80,
+    }
+
+
+def test_selected_parameter_reconstruction_outputs_series_and_metadata() -> None:
+    data = _data()
+    selected = reconstruct_selected_portfolio(
+        demo.EXPERIMENT_CONFIG,
+        data,
+        _audit(data),
+        {"window": 7, "entry_threshold": 25, "exit_threshold": 60},
+    )
+    assert selected.equity.index.equals(data.index)
+    assert selected.drawdown.index.equals(data.index)
+    assert selected.equity.name == "Equity"
+    assert selected.drawdown.name == "Drawdown"
+    assert (selected.drawdown <= 0).all()
+    assert selected.strategy_identity == {
+        "strategy_id": "rsi_mean_reversion",
+        "name": "RSI Mean Reversion",
+        "version": "1.0.0",
+        "family": "mean_reversion",
+    }
+    assert selected.provenance["provider"] == "Yahoo Finance"
+    assert selected.execution_assumptions["fees"] == 0.0005
+    assert selected.execution_assumptions["signal_timing_label"] == (
+        "Signal calculated after market close"
+    )
+    assert selected.execution_assumptions["execution_timing_label"] == (
+        "Order filled at next session open"
+    )
+    assert selected.execution_assumptions["execution_price"] == "Open"
+    assert selected.execution_assumptions["strategy"]["same_bar_limitation"]
+    _, execution_details = _details(selected)
+    rendered = " ".join(str(component.children) for component in execution_details)
+    assert "Signal calculated after market close" in rendered
+    assert "Order filled at next session open" in rendered
+    assert "Execution price: Open" in rendered
+
+
+def test_dashboard_review_without_authoritative_context_fails_closed(
+    tmp_path: Path,
+) -> None:
+    database, _, service, adapter = _review_decision_stack(tmp_path)
+    json_path = tmp_path / "reviews.json"
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data()))
+    app = create_app(
+        context,
+        database,
+        run_service=service,
+        run_detail_adapter=adapter,
+    )
+    select_row = _callback_function(app, "selected-review-identity")
+    load_review = _callback_function(app, "review-status")
+    save_review = _callback_function(app, "review-message")
+
+    *_, target_id, parameters = select_row("decision_review_run")
+    status, note = load_review(target_id)
+    assert status == ReviewState.UNREVIEWED.value
+    assert "Durable decision unavailable" in note
+
+    message = save_review(
+        1,
+        target_id,
+        parameters,
+        ReviewState.WATCHLIST.value,
+        "  Promising, inspect execution timing.  ",
+    )
+
+    assert "Durable decision unavailable" in str(message)
+    assert not json_path.exists()
+    persistence = PersistenceService(database)
+    try:
+        assert persistence.reviews.get_current("run", target_id) is None
+        assert persistence.reviews.history("run", target_id) == ()
+        assert not any(
+            artifact.logical_name == "evidence_decision_record"
+            for artifact in persistence.list_run_artifacts(target_id)
+        )
+    finally:
+        persistence.close()
+
+
+def test_dashboard_review_does_not_mutate_audit_history_without_context(
+    tmp_path: Path,
+) -> None:
+    database, _, service, adapter = _review_decision_stack(tmp_path)
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data()))
+    app = create_app(
+        context,
+        database,
+        run_service=service,
+        run_detail_adapter=adapter,
+    )
+    save_review = _callback_function(app, "review-message")
+    target_id = "decision_review_run"
+    parameters = {"run_id": target_id}
+
+    save_review(1, target_id, parameters, ReviewState.REVISE.value, "Needs work")
+    save_review(2, target_id, parameters, ReviewState.REJECT.value, "Rejected")
+
+    service = PersistenceService(database)
+    try:
+        assert service.reviews.history("run", target_id) == ()
+        assert service.reviews.get_current("run", target_id) is None
+    finally:
+        service.close()
+
+
+def test_dashboard_review_invalid_state_fails_closed(tmp_path: Path) -> None:
+    database, _, service, adapter = _review_decision_stack(tmp_path)
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data()))
+    app = create_app(
+        context,
+        database,
+        run_service=service,
+        run_detail_adapter=adapter,
+    )
+    save_review = _callback_function(app, "review-message")
+    target_id = "decision_review_run"
+    parameters = {"run_id": target_id}
+
+    with pytest.raises(ValueError, match="Unsupported review status"):
+        save_review(1, target_id, parameters, "Watchlist", "legacy label")
+
+    service = PersistenceService(database)
+    try:
+        assert service.reviews.get_current("run", target_id) is None
+        assert service.reviews.history("run", target_id) == ()
+    finally:
+        service.close()
+
+
+def test_dashboard_review_with_valid_context_enables_and_persists_decision(
+    tmp_path: Path,
+) -> None:
+    database, _, service, adapter = _review_context_stack(tmp_path)
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data()))
+    app = create_app(
+        context,
+        database,
+        run_service=service,
+        run_detail_adapter=adapter,
+    )
+    select_row = _callback_function(app, "selected-review-identity")
+    availability = _callback_function(app, "save-review.disabled")
+    save_review = _callback_function(app, "review-message")
+
+    *_, target_id, parameters = select_row("review_context_target")
+    disabled, title, message = availability(target_id)
+    assert disabled is False
+    assert "Persist a durable evidence decision" in title
+    assert message == ""
+
+    result = save_review(
+        1,
+        target_id,
+        parameters,
+        ReviewState.WATCHLIST.value,
+        "Approved with explicit persisted context.",
+    )
+
+    assert "Evidence decision artifact validated" in str(result)
+    persistence = PersistenceService(database)
+    try:
+        current = persistence.reviews.get_current("run", target_id)
+        assert current is not None
+        assert current.state == ReviewState.WATCHLIST
+        assert current.note == "Approved with explicit persisted context."
+        assert any(
+            artifact.logical_name == "evidence_decision_record"
+            for artifact in persistence.list_run_artifacts(target_id)
+        )
+    finally:
+        persistence.close()
+
+
+def test_metric_and_assumption_formatting() -> None:
+    assert format_metric("total_return", 0.994541) == "99.45%"
+    assert format_metric("sharpe_ratio", 0.70137) == "0.70"
+    assert format_metric("number_of_trades", 35) == "35"
+    assert format_assumption("initial_cash", 10_000) == "$10,000"
+    assert format_assumption("fees", 0.0005) == "0.050%"
+    assert format_assumption("leverage", 1.0) == "1×"
+
+
+def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    layout = create_layout(context)
+    assert layout is not None
+
+    app = create_app(context, tmp_path / "reviews.json")
+    assert _resolved_layout(app) is not None
+    assert app.title == "Quant Factory"
+    assert len(app.callback_map) == 24
+    assert app.config.meta_tags == [
+        {
+            "name": "viewport",
+            "content": (
+                "width=device-width, initial-scale=1, "
+                "maximum-scale=5, user-scalable=yes"
+            ),
+        }
+    ]
+
+
+def test_dashboard_callback_outputs_are_singly_owned(tmp_path: Path) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+
+    output_keys = "\n".join(app.callback_map)
+
+    assert output_keys.count("selected-run-selector.value") == 1
+    assert output_keys.count("selected-run-selector.options") == 1
+    assert output_keys.count("comparison-run-selector.options") == 1
+    assert output_keys.count("comparison-run-selector.value") == 1
+    assert output_keys.count("comparison-selected-cards.children") == 1
+    assert output_keys.count("selected-run-detail.children") == 1
+    assert output_keys.count("historical-launch-message.children") == 1
+    assert "page-content.children" not in output_keys
+    assert "navigation-container.children" not in output_keys
+    assert "url.pathname" not in output_keys
+    assert ".hidden" not in output_keys
+    route_visibility_output = next(
+        key for key in app.callback_map if key.startswith("..route-home.style")
+    )
+    route_inputs = {
+        (item["id"], item["property"])
+        for item in app.callback_map[route_visibility_output]["inputs"]
+    }
+    assert route_inputs == {("url", "pathname")}
+    for container_id in ROUTE_CONTAINER_IDS:
+        assert output_keys.count(f"{container_id}.style") == 1
+    for path, _ in NAVIGATION_LINKS:
+        link_output = f"navigation-link-{path.strip('/').replace('/', '-')}.className"
+        assert output_keys.count(link_output) == 1
+
+
+def test_all_callback_components_exist_in_full_mounted_layout(tmp_path: Path) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+    mounted_ids = set(_component_ids(_resolved_layout(app)))
+
+    missing = sorted(_callback_ref_ids(app) - mounted_ids)
+
+    assert "refresh-comparisons" in mounted_ids
+    assert missing == []
+
+
+def test_page_specific_callbacks_do_not_control_routes_or_navigation(
+    tmp_path: Path,
+) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+
+    route_callback_keys = {
+        next(key for key in app.callback_map if key.startswith("..route-home.style")),
+        next(
+            key
+            for key in app.callback_map
+            if key.startswith("..navigation-link-research-market-data.className")
+        ),
+    }
+    # ADR 0008 permits passive page-owned refresh when entering a mounted page.
+    # Trade evidence must populate on Home -> Backtest Results navigation while
+    # retaining the URL/navigation output restrictions below.
+    passive_route_refresh_keys = {
+        "..selected-trade-grid.rowData...trade-explorer-summary.children..."
+        "selected-trade-grid.selectedRows..",
+    }
+
+    for output_key, metadata in app.callback_map.items():
+        output_text = str(output_key)
+        input_refs = {
+            (item["id"], item["property"])
+            for item in metadata["inputs"]
+        }
+        if ("url", "pathname") in input_refs:
+            assert output_key in route_callback_keys | passive_route_refresh_keys
+        if output_key not in route_callback_keys:
+            assert "page-content" not in output_text
+            assert "navigation-container" not in output_text
+            assert "navigation-link" not in output_text
+            assert "url." not in output_text
+
+
+def test_dash_route_callback_endpoint_keeps_backtest_results_and_strategy_review_separate(
+    tmp_path: Path,
+) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+    client = app.server.test_client()
+    route_output = next(
+        key for key in app.callback_map if key.startswith("..route-home.style")
+    )
+    route_outputs = [
+        {"id": container_id, "property": "style"}
+        for container_id in ROUTE_CONTAINER_IDS
+    ]
+    navigation_output = next(
+        key
+        for key in app.callback_map
+        if key.startswith("..navigation-link-research-market-data.className")
+    )
+    navigation_outputs = [
+        {"id": f"navigation-link-{path.strip('/').replace('/', '-')}", "property": "className"}
+        for path, _ in NAVIGATION_LINKS
+    ]
+
+    def invoke_route(pathname: str) -> dict[str, object]:
+        response = client.post(
+            "/_dash-update-component",
+            json={
+                "output": route_output,
+                "outputs": route_outputs,
+                "inputs": [
+                    {
+                        "id": "url",
+                        "property": "pathname",
+                        "value": pathname,
+                    }
+                ],
+                "state": [],
+                "changedPropIds": ["url.pathname"],
+            },
+        )
+        assert response.status_code == 200
+        return response.get_json()
+
+    def invoke_navigation(pathname: str) -> dict[str, object]:
+        response = client.post(
+            "/_dash-update-component",
+            json={
+                "output": navigation_output,
+                "outputs": navigation_outputs,
+                "inputs": [
+                    {
+                        "id": "url",
+                        "property": "pathname",
+                        "value": pathname,
+                    }
+                ],
+                "state": [],
+                "changedPropIds": ["url.pathname"],
+            },
+        )
+        assert response.status_code == 200
+        return response.get_json()
+
+    mounted_pages = {
+        path: _component_text(
+            next(
+                component
+                for component in _walk_components(_resolved_layout(app))
+                if getattr(component, "id", None) == container_id
+            )
+        )
+        for path, container_id in ROUTE_REGISTRY
+    }
+    mounted_pages["__not_found__"] = _component_text(
+        next(
+            component
+            for component in _walk_components(_resolved_layout(app))
+            if getattr(component, "id", None) == "route-not-found"
+        )
+    )
+
+    def visible_routes(payload: dict[str, object]) -> list[str]:
+        response = payload["response"]
+        assert isinstance(response, dict)
+        visible: list[str] = []
+        for path, container_id in ROUTE_REGISTRY:
+            if response[container_id]["style"] == {"display": "block"}:
+                visible.append(path)
+        if response["route-not-found"]["style"] == {"display": "block"}:
+            visible.append("__not_found__")
+        return visible
+
+    def active_hrefs(payload: dict[str, object]) -> list[str]:
+        response = payload["response"]
+        assert isinstance(response, dict)
+        active: list[str] = []
+        for path, _ in NAVIGATION_LINKS:
+            link_id = f"navigation-link-{path.strip('/').replace('/', '-')}"
+            link_response = response[link_id]
+            if "navigation-link-active" in link_response["className"]:
+                active.append(path)
+        return active
+
+    backtest_visible = visible_routes(invoke_route("/research/backtest-results"))
+    backtest_text = mounted_pages["/research/backtest-results"]
+    backtest_active = active_hrefs(invoke_navigation("/research/backtest-results"))
+    assert "Backtest Results" in backtest_text
+    assert "Inspect the selected backtest, trades, returns, and research checks." in backtest_text
+    assert "Strategy Review" not in backtest_text
+    assert backtest_visible == ["/research/backtest-results"]
+    assert backtest_active == ["/research/backtest-results"]
+
+    review_visible = visible_routes(invoke_route("/research/strategy-review"))
+    review_text = mounted_pages["/research/strategy-review"]
+    review_active = active_hrefs(invoke_navigation("/research/strategy-review"))
+    assert "Strategy Review" in review_text
+    assert "Review a strategy's results, checks, and decision." in review_text
+    assert "Backtest Results" not in review_text
+    assert review_visible == ["/research/strategy-review"]
+    assert review_active == ["/research/strategy-review"]
+
+    missing_visible = visible_routes(invoke_route("/not-a-route"))
+    missing_text = mounted_pages["__not_found__"]
+    missing_active = active_hrefs(invoke_navigation("/not-a-route"))
+    assert "Page not found" in missing_text
+    assert missing_visible == ["__not_found__"]
+    assert missing_active == []
+
+    expected_titles = {
+        "/": "Quant Factory",
+        "/research/market-data": "Market Data",
+        "/research/backtest-results": "Backtest Results",
+        "/research/strategy-review": "Strategy Review",
+        "/research/compare-backtests": "Compare Backtests",
+        "/paper/fleet": "Paper Trading Overview",
+        "/paper/strategy": "Strategy Monitor",
+        "/system": "System Status",
+        "/system/providers": "Data Sources",
+        "/settings": "Settings",
+    }
+    for pathname, title in expected_titles.items():
+        assert visible_routes(invoke_route(pathname)) == [pathname]
+        assert title in mounted_pages[pathname]
+        expected_active = [] if pathname == "/" else [pathname]
+        assert active_hrefs(invoke_navigation(pathname)) == expected_active
+
+
+def test_route_visibility_callback_is_not_initial_call_suppressed(
+    tmp_path: Path,
+) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+    route_output = next(
+        key for key in app.callback_map if key.startswith("..route-home.style")
+    )
+    route_callback = next(
+        item for item in app._callback_list if item["output"] == route_output
+    )
+
+    assert route_callback["prevent_initial_call"] is False
+    assert route_callback["inputs"] == [{"id": "url", "property": "pathname"}]
+
+
+def test_serialized_location_uses_server_selected_pathname(
+    tmp_path: Path,
+) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+    client = app.server.test_client()
+
+    response = client.get("/_dash-layout")
+    assert response.status_code == 200
+    layout_payload = response.get_json()
+
+    def find_url_props(value: object) -> dict[str, object]:
+        if isinstance(value, dict):
+            props = value.get("props")
+            if isinstance(props, dict) and props.get("id") == "url":
+                return props
+            for item in value.values():
+                found = find_url_props(item)
+                if found:
+                    return found
+        if isinstance(value, list):
+            for item in value:
+                found = find_url_props(item)
+                if found:
+                    return found
+        return {}
+
+    url_props = find_url_props(layout_payload)
+
+    assert url_props["refresh"] == "callback-nav"
+    assert url_props["pathname"] == "/"
+    assert "href" not in url_props
+    assert "search" not in url_props
+    assert "hash" not in url_props
+
+
+def test_location_uses_standard_link_navigation_for_route_visibility_callback() -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+
+    layout = create_layout(context)
+    url = next(
+        component
+        for component in _walk_components(layout)
+        if getattr(component, "id", None) == "url"
+    )
+
+    assert url.refresh == "callback-nav"
+    assert url.pathname == "/"
+    assert not hasattr(url, "href")
+
+
+def test_deep_link_layout_initializes_visible_route_from_request_cookie(
+    tmp_path: Path,
+) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+    client = app.server.test_client()
+
+    page_response = client.get("/research/backtest-results")
+    assert page_response.status_code == 200
+
+    layout_response = client.get("/_dash-layout")
+    assert layout_response.status_code == 200
+    layout_payload = layout_response.get_json()
+
+    route_styles: dict[str, object] = {}
+    navigation_classes: dict[str, str] = {}
+
+    def collect(value: object) -> None:
+        if isinstance(value, dict):
+            props = value.get("props")
+            if isinstance(props, dict):
+                component_id = props.get("id")
+                if component_id in ROUTE_CONTAINER_IDS:
+                    route_styles[str(component_id)] = props.get("style")
+                if component_id == "navigation-link-research-backtest-results":
+                    navigation_classes[str(component_id)] = str(
+                        props.get("className")
+                    )
+            for item in value.values():
+                collect(item)
+        elif isinstance(value, list):
+            for item in value:
+                collect(item)
+
+    collect(layout_payload)
+    visible = [
+        container_id
+        for container_id in ROUTE_CONTAINER_IDS
+        if route_styles[container_id] == {"display": "block"}
+    ]
+
+    assert visible == ["route-research-backtest-results"]
+    assert route_styles["route-home"] == {"display": "none"}
+    assert (
+        navigation_classes["navigation-link-research-backtest-results"]
+        == "navigation-link navigation-link-active"
+    )
+    url_props: dict[str, object] = {}
+
+    def find_url(value: object) -> None:
+        if isinstance(value, dict):
+            props = value.get("props")
+            if isinstance(props, dict) and props.get("id") == "url":
+                url_props.update(props)
+            for item in value.values():
+                find_url(item)
+        elif isinstance(value, list):
+            for item in value:
+                find_url(item)
+
+    find_url(layout_payload)
+    assert url_props["pathname"] == "/research/backtest-results"
+
+
+def test_route_callbacks_ignore_unhydrated_location_none(
+    tmp_path: Path,
+) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+
+    route_callback = _callback_function(app, "route-home.style")
+    navigation_callback = _callback_function(
+        app,
+        "navigation-link-research-backtest-results.className",
+    )
+
+    with pytest.raises(PreventUpdate):
+        route_callback(None)
+    with pytest.raises(PreventUpdate):
+        navigation_callback(None)
+
+
+def test_deep_link_refresh_uses_browser_path_without_home_overwrite(
+    tmp_path: Path,
+) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+    route_output = next(
+        key for key in app.callback_map if key.startswith("..route-home.style")
+    )
+    route_outputs = [
+        {"id": container_id, "property": "style"}
+        for container_id in ROUTE_CONTAINER_IDS
+    ]
+
+    response = app.server.test_client().post(
+        "/_dash-update-component",
+        json={
+            "output": route_output,
+            "outputs": route_outputs,
+            "inputs": [
+                {
+                    "id": "url",
+                    "property": "pathname",
+                    "value": "/research/backtest-results",
+                }
+            ],
+            "state": [],
+            "changedPropIds": ["url.pathname"],
+        },
+    )
+    payload = response.get_json()
+    visible = [
+        container_id
+        for container_id in ROUTE_CONTAINER_IDS
+        if payload["response"][container_id]["style"] == {"display": "block"}
+    ]
+
+    assert response.status_code == 200
+    assert visible == ["route-research-backtest-results"]
+    assert payload["response"]["route-home"]["style"] == {"display": "none"}
+
+
+def test_selected_run_callbacks_use_mounted_backtest_selection_state(
+    tmp_path: Path,
+) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+
+    detail_inputs = {
+        (item["id"], item["property"]): item
+        for item in app.callback_map["selected-run-detail.children"]["inputs"]
+    }
+    refresh_output = "..recent-runs-monitor.children...recent-events-monitor.children.."
+    selector_output = (
+        "..selected-run-selector.options...selected-run-selector.value.."
+    )
+    refresh_inputs = {
+        (item["id"], item["property"]): item
+        for item in app.callback_map[refresh_output]["inputs"]
+    }
+    selector_inputs = {
+        (item["id"], item["property"]): item
+        for item in app.callback_map[selector_output]["inputs"]
+    }
+    selector_states = {
+        (item["id"], item["property"]): item
+        for item in app.callback_map[selector_output]["state"]
+    }
+
+    assert ("selected-run-state", "data") in detail_inputs
+    assert ("selected-run-selector", "value") in detail_inputs
+    assert ("launch-selected-run-configuration", "n_clicks") not in detail_inputs
+    assert ("cancel-selected-run", "n_clicks") not in detail_inputs
+    assert detail_inputs[("cancellation-message", "children")]["allow_optional"]
+    assert refresh_inputs[
+        ("historical-launch-message", "children")
+    ]["allow_optional"]
+    assert refresh_inputs[("reproduction-message", "children")]["allow_optional"]
+    assert refresh_inputs[("cancellation-message", "children")]["allow_optional"]
+    assert ("refresh-runs", "n_clicks") in refresh_inputs
+    assert ("refresh-runs", "n_clicks") in selector_inputs
+    assert ("refresh-comparisons", "n_clicks") not in selector_inputs
+    assert "run-monitor-interval" not in str(_resolved_layout(app))
+    assert selector_inputs[
+        ("historical-launch-message", "children")
+    ]["allow_optional"]
+    assert selector_inputs[("reproduction-message", "children")]["allow_optional"]
+    assert ("selected-run-state", "data") in selector_inputs
+    assert ("selected-run-state", "data") not in selector_states
+
+    comparison_inputs = {
+        (item["id"], item["property"]): item
+        for item in app.callback_map["comparison-run-selector.options"]["inputs"]
+    }
+    assert ("refresh-comparisons", "n_clicks") in comparison_inputs
+    assert ("refresh-runs", "n_clicks") in comparison_inputs
+
+
+def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+
+    guarded_calls = (
+        ("launch-message", (1, "missing-configuration", "/")),
+        ("historical-launch-message", (1, "missing-run", "/")),
+        ("reproduction-message", (1, "missing-run", "/")),
+        ("run-comparison-output", (1, ["a", "b"], "/research/backtest-results")),
+        ("cancellation-message", (1, "missing-run", "/")),
+        ("stale-recovery-message", (1, "2026-07-13T12:00:00Z", "/")),
+        (
+            "review-message",
+            (
+                1,
+                "missing-run",
+                {},
+                ReviewState.WATCHLIST.value,
+                "Review note",
+                "/research/backtest-results",
+            ),
+        ),
+    )
+
+    for output_fragment, args in guarded_calls:
+        with pytest.raises(PreventUpdate):
+            _callback_function(app, output_fragment)(*args)
+
+
+def test_selection_parameter_mapping_and_rsi_grid_preservation() -> None:
+    assert parameters_from_row(_ranked_row()) == {
+        "window": 7,
+        "entry_threshold": 25,
+        "exit_threshold": 60,
+    }
+    assert len(demo.PARAMETER_COMBINATIONS) == 27
+    assert demo.PARAMETER_COMBINATIONS[0] == {
+        "window": 7,
+        "entry_threshold": 20,
+        "exit_threshold": 50,
+    }
+
+
+def test_application_shell_routes_known_and_unknown_pages() -> None:
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+
+    layout = create_layout(context)
+    assert layout.id == "application-shell"
+    assert layout.className == "application-shell theme-light"
+    component_ids = [
+        getattr(component, "id", None)
+        for component in _walk_components(layout)
+        if getattr(component, "id", None) is not None
+    ]
+    assert len(component_ids) == len(set(component_ids))
+    navigation_container = next(
+        component
+        for component in _walk_components(layout)
+        if getattr(component, "id", None) == "navigation-container"
+    )
+    navigation = navigation_container.children
+    assert getattr(navigation, "className", None) == "sidebar"
+    assert {
+        getattr(component, "id", None)
+        for component in _walk_components(navigation)
+    } >= {
+        f"navigation-link-{path.strip('/').replace('/', '-')}"
+        for path, _ in NAVIGATION_LINKS
+    }
+    route_containers = [
+        component
+        for component in _walk_components(layout)
+        if getattr(component, "id", None) in ROUTE_CONTAINER_IDS
+    ]
+    assert [component.id for component in route_containers] == list(ROUTE_CONTAINER_IDS)
+    assert [
+        component.style for component in route_containers
+    ] == list(route_container_styles_for_path("/"))
+
+    home = page_for_path("/", context)
+    home_text = _component_text(home)
+    assert home.className == "page-container"
+    assert "HOME" in home_text
+    assert "Quant Factory" in home_text
+    assert PROJECT_STATUS.home_subtitle in home_text
+    assert str(PROJECT_STATUS.current_milestone_number) in home_text
+    assert PROJECT_STATUS.current_milestone_title in home_text
+    assert PROJECT_STATUS.current_milestone_status in home_text
+    assert PROJECT_STATUS.strategy_status in home_text
+    assert PROJECT_STATUS.workspace_status in home_text
+    assert "Milestone 20" not in home_text
+    assert "Operator Home" not in home_text
+    assert (
+        page_for_path("/research/market-data", context).className
+        == "page-container"
+    )
+    assert page_for_path("/research/backtest-results", context).className == "page-container"
+    assert (
+        page_for_path("/research/strategy-review", context).className
+        == "page-container review-page experiment-overview-page"
+    )
+    comparisons = page_for_path("/research/compare-backtests", context)
+    assert comparisons.className == "page-container comparison-page"
+    rendered_comparisons = str(comparisons)
+    assert "Compare Backtests" in rendered_comparisons
+    assert "comparison-run-selector" in rendered_comparisons
+    assert "comparison-selected-cards" in rendered_comparisons
+    assert "compare-selected-runs" in rendered_comparisons
+    assert "run-comparison-output" in rendered_comparisons
+    assert "href='/research/compare-backtests'" in str(
+        page_for_path("/research/backtest-results", context)
+    )
+    for legacy_path in (
+        "/data-catalog",
+        "/review",
+        "/runs",
+        "/comparisons",
+        "/research/data-catalog",
+        "/research/experiments",
+        "/research/backtest-detail",
+        "/research/comparisons",
+    ):
+        assert "Page not found" in _component_text(page_for_path(legacy_path, context))
+    assert page_for_path("/paper/fleet", context).className == "page-container pending-page"
+    assert page_for_path("/paper/strategy", context).className == "page-container pending-page"
+    assert page_for_path("/system", context).className == "page-container"
+    assert page_for_path("/system/providers", context).className == "page-container"
+    assert page_for_path("/settings", context).className == "page-container pending-page"
+    assert page_for_path("/missing", context).className == "page-container"
+
+
+def test_pathname_selects_one_visible_mounted_route() -> None:
+    expected_visible = {
+        "/": "route-home",
+        "/research/market-data": "route-research-market-data",
+        "/research/backtest-results": "route-research-backtest-results",
+        "/research/strategy-review": "route-research-strategy-review",
+        "/research/compare-backtests": "route-research-compare-backtests",
+        "/not-a-route": "route-not-found",
+    }
+
+    for pathname, visible_container in expected_visible.items():
+        styles = route_container_styles_for_path(pathname)
+        visible = [
+            container_id
+            for container_id, style in zip(ROUTE_CONTAINER_IDS, styles, strict=True)
+            if style == {"display": "block"}
+        ]
+        hidden = [
+            container_id
+            for container_id, style in zip(ROUTE_CONTAINER_IDS, styles, strict=True)
+            if style == {"display": "none"}
+        ]
+
+        assert visible == [visible_container]
+        assert sorted(visible + hidden) == sorted(ROUTE_CONTAINER_IDS)
+
+
+def test_location_route_renders_one_active_page_and_navigation() -> None:
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+
+    expected = {
+        "/": "HOME",
+        "/research/market-data": "Market Data",
+        "/research/strategy-review": "Strategy Review",
+        "/research/backtest-results": "Backtest Results",
+        "/research/compare-backtests": "Compare Backtests",
+    }
+
+    for pathname, title in expected.items():
+        page = route_content_for_path(pathname, context)
+        navigation = _navigation(pathname)
+        rendered_page = _component_text(page)
+
+        assert title in rendered_page
+        assert getattr(page, "className", "").startswith("page-container")
+        if pathname == "/research/backtest-results":
+            assert "Strategy Review" not in rendered_page
+            assert "Inspect the selected backtest, trades, returns, and research checks." in rendered_page
+        if pathname == "/research/strategy-review":
+            assert "Review a strategy's results, checks, and decision." in rendered_page
+        if pathname == "/research/market-data":
+            assert "View the price history used in strategy research." in rendered_page
+        if pathname == "/research/compare-backtests":
+            assert "Compare selected backtests side by side." in rendered_page
+
+        links = [
+            component
+            for component in _walk_components(navigation)
+            if getattr(component, "className", None)
+            and "navigation-link" in component.className
+        ]
+        active = [
+            link
+            for link in links
+            if "navigation-link-active" in link.className
+        ]
+
+        if pathname == "/":
+            assert active == []
+        else:
+            assert len(active) == 1
+            assert active[0].href == pathname
+
+
+def test_home_activity_visual_uses_honest_empty_state() -> None:
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+
+    page = route_content_for_path("/", context, recent_runs=(), recent_events=())
+    rendered = _component_text(page)
+
+    assert "Recent research activity" in rendered
+    assert "No recent research activity is available yet." in rendered
+    assert "P&L" not in rendered
+    assert "profit" not in rendered.lower()
+    empty = next(
+        component
+        for component in _walk_components(page)
+        if getattr(component, "className", None) == "empty-state-copy"
+        and "No recent research activity is available yet."
+        in _component_text(component)
+    )
+    assert empty.style["border"] == "1px dashed #94a3b8"
+    assert empty.style["backgroundColor"] == "#f8fafc"
+
+
+def test_home_visual_path_and_activity_timeline_have_inline_styles() -> None:
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    run = RunSummary(
+        run_id="visual_run",
+        configuration_id="a" * 64,
+        strategy_id="prefect_fixture_strategy",
+        strategy_version="1.0.0",
+        stage="fixture",
+        status="succeeded",
+        created_at="2026-07-13T12:00:00Z",
+        started_at="2026-07-13T12:00:01Z",
+        completed_at="2026-07-13T12:00:02Z",
+        error_summary=None,
+        prefect_flow_run_id=None,
+        prefect_api_url=None,
+        attempt_count=1,
+    )
+    event = RunEvent(
+        event_id=1,
+        run_id="visual_run",
+        event_type="run_completed",
+        timestamp="2026-07-13T12:00:03Z",
+        severity="info",
+        message="Run completed successfully.",
+        source="fixture",
+    )
+
+    page = route_content_for_path(
+        "/",
+        context,
+        recent_runs=(run,),
+        recent_events=(event,),
+    )
+    rendered = _component_text(page)
+    path = next(
+        component
+        for component in _walk_components(page)
+        if getattr(component, "className", None) == "strategy-research-path"
+    )
+    path_cards = [
+        component
+        for component in _walk_components(path)
+        if getattr(component, "className", None) == "research-path-card"
+    ]
+    step_circles = [
+        component
+        for component in _walk_components(path)
+        if getattr(component, "className", None) == "research-path-step"
+    ]
+    connectors = [
+        component
+        for component in _walk_components(path)
+        if getattr(component, "className", None) == "research-path-connector"
+    ]
+    timeline = next(
+        component
+        for component in _walk_components(page)
+        if getattr(component, "className", None) == "recent-activity-timeline"
+    )
+    activity_items = [
+        component
+        for component in _walk_components(timeline)
+        if getattr(component, "className", None) == "recent-activity-item"
+    ]
+    dots = [
+        component
+        for component in _walk_components(timeline)
+        if getattr(component, "className", "")
+        and "activity-dot" in component.className
+    ]
+
+    assert path.style["display"] == "flex"
+    assert path.style["flexWrap"] == "wrap"
+    assert len(path_cards) == 4
+    assert {card.style["border"] for card in path_cards} == {"1px solid #bfdbfe"}
+    assert {step.style["backgroundColor"] for step in step_circles} == {"#2357d9"}
+    assert len(connectors) == 3
+    assert {connector.style["color"] for connector in connectors} == {"#2357d9"}
+    assert timeline.style["borderLeft"] == "2px solid #bfdbfe"
+    assert len(activity_items) == 2
+    assert {item.style["position"] for item in activity_items} == {"relative"}
+    assert any(dot.style["backgroundColor"] == "#16a34a" for dot in dots)
+    assert any(dot.style["backgroundColor"] == "#2357d9" for dot in dots)
+    assert "visual_run" not in rendered
+    assert "Fixture backtest" in rendered
+    assert "2026-07-13T12:00:02Z" in rendered
+    assert "Run completed successfully." in rendered
+    assert "2026-07-13T12:00:03Z" in rendered
+    assert "P&L" not in rendered
+
+
+def test_navigation_marks_current_page_active() -> None:
+    from dashboard.app import _navigation
+
+    navigation = _navigation("/research/backtest-results")
+    brand = next(
+        child
+        for child in navigation.children
+        if getattr(child, "className", None) == "sidebar-brand"
+    )
+    groups_container = next(
+        child
+        for child in navigation.children
+        if getattr(child, "className", None) == "sidebar-navigation-groups"
+    )
+    labels = [
+        child.children
+        for child in groups_container.children
+        if getattr(child, "className", None) == "sidebar-section-label"
+    ]
+    links = [
+        link
+        for child in groups_container.children
+        if getattr(child, "className", None) == "navigation-links"
+        for link in child.children
+    ]
+
+    active = [
+        link
+        for link in links
+        if "navigation-link-active" in link.className
+    ]
+
+    assert labels == ["Strategy Research", "Paper Trading", "System"]
+    assert brand.href == "/"
+    assert brand.title == "Quant Factory Home"
+    assert "QF" in _component_text(brand)
+    assert "QUANT" in _component_text(brand)
+    assert "FACTORY" in _component_text(brand)
+    assert "/" not in [link.href for link in links]
+    assert {
+        "/research/market-data",
+        "/research/strategy-review",
+        "/research/backtest-results",
+        "/research/compare-backtests",
+    }.issubset({link.href for link in links})
+    assert len(active) == 1
+    assert active[0].href == "/research/backtest-results"
+    assert [link.children for link in links[:4]] == [
+        "Market Data",
+        "Strategy Review",
+        "Backtest Results",
+        "Compare Backtests",
+    ]
+
+
+def test_ranked_grid_columns_use_operator_friendly_formats() -> None:
+    row = {
+        **_ranked_row(),
+        "screening_status": "passed",
+        "validation_status": "passed",
+    }
+    definitions = _ranked_column_definitions(pd.DataFrame([row]))
+    by_field = {definition["field"]: definition for definition in definitions}
+
+    assert "parameter_row_id" not in by_field
+    assert "data_source" not in by_field
+
+    assert by_field["total_return"]["cellClass"] == (
+        "qf-table-cell qf-table-cell-center"
+    )
+    assert by_field["total_return"]["headerClass"] == (
+        "qf-table-header qf-table-header-wrap qf-table-header-center"
+    )
+    assert by_field["total_return"]["width"] <= 110
+    assert "* 100" in by_field["total_return"]["valueFormatter"]["function"]
+    assert "toFixed(2)" in by_field["sharpe_ratio"]["valueFormatter"]["function"]
+    assert "Math.round" in by_field["number_of_trades"]["valueFormatter"]["function"]
+    assert "Math.round" in by_field["rsi_window"]["valueFormatter"]["function"]
+    assert by_field["entry_threshold"]["headerName"] == "Entry"
+    assert by_field["annualized_return"]["headerName"] == "Annual Return"
+    assert by_field["annualized_return"]["headerTooltip"] == "Annual Return"
+    assert by_field["screening_status"]["minWidth"] >= 170
+    assert by_field["validation_status"]["minWidth"] >= 170
+
+
+def test_review_page_uses_dash_ag_grid() -> None:
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+
+    page = create_review_page(context)
+    grid = next(
+        component
+        for component in _walk_components(page)
+        if getattr(component, "id", None) == "ranked-table"
+    )
+
+    assert grid.id == "ranked-table"
+    assert grid.rowData == []
+    assert grid.selectedRows == []
+    assert grid.dashGridOptions["rowSelection"]["mode"] == "singleRow"
+    assert grid.columnSize == "responsiveSizeToFit"
+    assert grid.className == "ag-theme-alpine qf-data-grid qf-ranked-grid"
+    assert grid.defaultColDef["wrapHeaderText"]
+    assert grid.defaultColDef["autoHeaderHeight"]
+
+
+def test_dashboard_css_includes_phone_breakpoint() -> None:
+    css = (
+        Path(__file__).resolve().parents[1]
+        / "dashboard"
+        / "assets"
+        / "style.css"
+    ).read_text(encoding="utf-8")
+
+    assert "@media (max-width: 390px)" in css
+    assert "min-width: 720px" in css
+    assert "-webkit-overflow-scrolling: touch" in css
+
+
+def _saved_configuration() -> SavedConfigurationView:
+    return SavedConfigurationView(
+        configuration_id="a" * 64,
+        experiment_id="slice_18a_fixture",
+        strategy_id="prefect_fixture_strategy",
+        strategy_version="1.0.0",
+        strategy_name="Prefect Fixture Strategy",
+        lifecycle="infrastructure_fixture",
+        active=True,
+        parameters={"fixture": True},
+        execution={"kind": "prefect_fixture"},
+        market_data={"kind": "none"},
+        config_hash="a" * 64,
+    )
+
+
+def _selected_detail_view(
+    *,
+    artifacts: tuple[ArtifactInventoryView, ...] = (),
+    result_rows: tuple[tuple[DetailField, ...], ...] = (),
+    warnings: tuple[str, ...] = (),
+    lineage_value: str = "abc123",
+    evidence: RunEvidenceView | None = None,
+) -> SelectedRunDetailView:
+    return SelectedRunDetailView(
+        configuration_fields=(
+            DetailField("Configuration ID", "a" * 64),
+            DetailField("Experiment ID", "slice_18a_fixture"),
+            DetailField("Strategy", "prefect_fixture_strategy@1.0.0"),
+            DetailField("Configuration checksum", "checksum-a"),
+        ),
+        parameters=(
+            DetailField("Fixture", "Yes"),
+            DetailField("Nested", "window: 14; threshold: 25"),
+        ),
+        market_data=(DetailField("Kind", "none"),),
+        execution=(DetailField("Kind", "prefect_fixture"),),
+        ranking=(DetailField("Columns", "deterministic_value"),),
+        screening=(DetailField("Minimum Trades", "1"),),
+        lineage_fields=(
+            DetailField("Git commit", lineage_value),
+            DetailField("Python", "3.12.0"),
+            DetailField("VectorBT Pro", "Not recorded"),
+            DetailField("Dataset identity", "dataset-id"),
+            DetailField("Parent/child lineage", "Not recorded for this fixture run"),
+        ),
+        manifest_fields=(
+            DetailField("Schema version", "3"),
+            DetailField("Manifest checksum", "manifest-checksum"),
+        ),
+        artifacts=artifacts,
+        result_summary=ResultSummaryView(
+            status="available" if result_rows else "empty",
+            message=(
+                "Persisted deterministic fixture result summary."
+                if result_rows
+                else "No persisted parameter result summary is available for this run."
+            ),
+            rows=result_rows,
+        ),
+        evidence=evidence or RunEvidenceView(
+            notices=(),
+            metrics=(),
+            trades=(),
+            orders=(),
+            equity_curve=(),
+            drawdown_curve=(),
+            validation=(),
+            provenance=(),
+            warnings=(),
+        ),
+        warnings=warnings,
+    )
+
+
+class _DashboardRunDetailAdapter:
+    def __init__(self, detail: SelectedRunDetailView | Exception | None = None) -> None:
+        self.detail = detail or _selected_detail_view()
+        self.requests: list[str] = []
+
+    def selected_run_detail(self, run_id: str) -> SelectedRunDetailView:
+        self.requests.append(run_id)
+        if isinstance(self.detail, Exception):
+            raise self.detail
+        return self.detail
+
+
+def test_saved_configuration_view_is_launchable_and_labeled() -> None:
+    configuration = _saved_configuration()
+
+    assert configuration.launchable
+    assert "Prefect Fixture Strategy" in configuration.label
+    assert "slice_18a_fixture" in configuration.label
+    assert configuration.configuration_id[:10] in configuration.label
+
+
+def test_runs_page_renders_saved_configuration_preview() -> None:
+    from dashboard.app import _runs_page
+
+    page = _runs_page((_saved_configuration(),))
+    configuration_group = next(
+        component
+        for component in _walk_components(page)
+        if getattr(component, "className", None)
+        == "workflow-group workflow-group-configuration"
+    )
+    workspace = next(
+        component
+        for component in _walk_components(configuration_group)
+        if getattr(component, "className", None) == "run-configuration-workspace"
+    )
+
+    launch_row = workspace.children[0]
+    selector_panel = launch_row.children[0]
+    selector = selector_panel.children[1]
+    preview = workspace.children[1]
+    launch_panel = launch_row.children[1]
+    launch_button = next(
+        component
+        for component in _walk_components(launch_panel)
+        if getattr(component, "id", None) == "launch-run"
+    )
+
+    assert selector.id == "configuration-selector"
+    assert selector.value == "a" * 64
+    assert selector.options[0]["disabled"] is False
+    assert preview.id == "configuration-preview"
+    assert launch_panel.className == "panel launch-controls-panel"
+    assert launch_button.id == "launch-run"
+    assert launch_button.disabled is False
+    assert launch_button.title == "Launch this immutable saved configuration."
+    rendered = _component_text(preview)
+    classes = [
+        getattr(component, "className", "")
+        for component in _walk_components(preview)
+    ]
+    assert "Parameters" in rendered
+    assert "Fixture" in rendered
+    assert "Yes" in rendered
+    assert "Execution assumptions" in rendered
+    assert "Kind" in rendered
+    assert "Prefect fixture" in rendered
+    assert "prefect_fixture" in rendered
+    assert "configuration-document" not in classes
+
+
+def test_runs_page_handles_empty_configuration_list() -> None:
+    from dashboard.app import _runs_page
+
+    page = _runs_page(())
+    empty_state = next(
+        component
+        for component in _walk_components(page)
+        if getattr(component, "className", None) == "panel empty-state"
+    )
+
+    assert empty_state.className == "panel empty-state"
+    assert empty_state.children[0].children == "No saved configurations"
+
+
+def test_review_page_renders_experiment_overview_controls() -> None:
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+
+    page = create_review_page(context)
+    rendered = str(page)
+
+    assert "Strategy Review" in rendered
+    assert "Review a strategy's results, checks, and decision." in rendered
+    assert "Selected backtest for review" in rendered
+    assert "review-run-selector" in rendered
+    assert "Save evidence decision" in rendered
+    assert "selected-review-identity" in rendered
+    assert "review-status" in rendered
+
+
+def test_backtest_selector_labels_distinguish_persisted_stages() -> None:
+    service = _DashboardRunService()
+    target = replace(
+        service._summary("spym-target", "a" * 64),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+    )
+
+    labels = {
+        stage: _backtest_selector_label(replace(target, stage=stage))
+        for stage in ("fixture", "walk_forward", "monte_carlo", "robustness", "oos")
+    }
+
+    assert labels == {
+        "fixture": "SPYM RSI Mean Reversion Fixture · SPYM · 1m · Fixture backtest · Succeeded",
+        "walk_forward": "SPYM RSI Mean Reversion Fixture · SPYM · 1m · Walk-forward validation · Succeeded",
+        "monte_carlo": "SPYM RSI Mean Reversion Fixture · SPYM · 1m · Monte Carlo validation · Succeeded",
+        "robustness": "SPYM RSI Mean Reversion Fixture · SPYM · 1m · Robustness validation · Succeeded",
+        "oos": "SPYM RSI Mean Reversion Fixture · SPYM · 1m · Out-of-sample evidence · Succeeded",
+    }
+
+
+def test_backtest_and_experiment_defaults_prefer_successful_fixture_target() -> None:
+    service = _DashboardRunService()
+    target = replace(
+        service._summary("spym-target", "a" * 64),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+        stage="fixture",
+    )
+    robustness = replace(
+        service._summary("spym-robustness", "a" * 64),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+        stage="robustness",
+    )
+    runs = (robustness, target)
+    detail_page = _runs_page((_saved_configuration(),), recent_runs=runs)
+    detail_selector = next(
+        component
+        for component in _walk_components(detail_page)
+        if getattr(component, "id", None) == "selected-run-selector"
+    )
+    detail_store = next(
+        component
+        for component in _walk_components(detail_page)
+        if getattr(component, "id", None) == "selected-run-state"
+    )
+    data = _data()
+    experiment_page = create_review_page(
+        DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data)),
+        recent_runs=runs,
+    )
+    experiment_selector = next(
+        component
+        for component in _walk_components(experiment_page)
+        if getattr(component, "id", None) == "review-run-selector"
+    )
+
+    assert detail_selector.value == target.run_id
+    assert detail_store.data == target.run_id
+    assert experiment_selector.value == target.run_id
+    assert experiment_selector.options[0]["label"].endswith("Fixture backtest · Succeeded")
+
+
+def test_backtest_detail_analysis_tabs_are_in_page_controls_with_concise_evidence() -> None:
+    detail = _selected_detail_view(
+        evidence=RunEvidenceView(
+            notices=(),
+            metrics=(DetailField("Total Return", "0.01"),),
+            trades=(),
+            orders=(),
+            equity_curve=(),
+            drawdown_curve=(),
+            validation=(DetailField("Walk-forward", "passed"),),
+            provenance=(),
+            warnings=(),
+            validation_outcome=(
+                DetailField("Normalized status", "passed"),
+                DetailField("Reasons", "All persisted validation stages passed."),
+            ),
+        )
+    )
+    tabs = _run_detail_analysis_tabs(detail)
+    by_value = {tab.value: tab for tab in tabs.children}
+
+    assert tabs.id == "run-detail-analysis-tabs"
+    assert tabs.value == "evidence"
+    assert tabs.parent_style == {
+        "display": "flex",
+        "flexWrap": "wrap",
+        "gap": "8px",
+    }
+    assert list(by_value) == [
+        "evidence",
+        "assumptions",
+        "lineage",
+        "configuration",
+        "diagnostics",
+    ]
+    assert [tab.label for tab in tabs.children] == [
+        "Strategy Checks",
+        "Trading Assumptions",
+        "Research History",
+        "Strategy Settings",
+        "Technical Details",
+    ]
+    for tab in tabs.children:
+        assert tab.className == "run-analysis-tab"
+        assert tab.selected_className == "run-analysis-tab-selected"
+        assert tab.style["border"] == "1px solid #cbd7e6"
+        assert tab.style["minHeight"] == "44px"
+        assert tab.selected_style == {
+            "backgroundColor": "#2357d9",
+            "border": "1px solid #2357d9",
+            "color": "#ffffff",
+            "fontWeight": 800,
+        }
+    assert all(
+        getattr(component, "href", None) is None
+        for component in _walk_components(tabs)
+    )
+
+    expected_panels = {
+        "evidence": "Validation summary",
+        "assumptions": "Trading assumptions",
+        "lineage": "Research history",
+        "configuration": "Strategy settings",
+        "diagnostics": "Artifacts and validation",
+    }
+    for value, heading in expected_panels.items():
+        tabs.value = value
+        assert tabs.value == value
+        assert heading in _component_text(by_value[value].children)
+
+    evidence_panel = by_value["evidence"].children
+    technical_details = next(
+        component
+        for component in _walk_components(evidence_panel)
+        if component.__class__.__name__ == "Details"
+    )
+    assert "All persisted validation stages passed." in _component_text(evidence_panel)
+    assert "Next action: Review the supporting evidence" in _component_text(evidence_panel)
+    assert "Show technical details" in _component_text(technical_details)
+    assert not getattr(technical_details, "open", False)
+
+
+def test_initial_backtest_keeps_fixture_when_companion_has_richer_evidence() -> None:
+    service = _DashboardRunService()
+    fixture = replace(
+        service._summary("spym-target", "a" * 64),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+        stage="fixture",
+    )
+    robustness = replace(
+        service._summary("spym-robustness", "a" * 64),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+        stage="robustness",
+    )
+    rich_companion_detail = replace(
+        _selected_detail_view(),
+        evidence=RunEvidenceView(
+            notices=(),
+            metrics=(DetailField("Total Return", "0.01"),),
+            trades=({"PnL": 1.0},),
+            orders=(),
+            equity_curve=({"timestamp": "2026-01-01", "value": 10_000.0},),
+            drawdown_curve=(),
+            validation=(DetailField("Outcome", "passed"),),
+            provenance=(),
+            warnings=(),
+        ),
+    )
+
+    class DetailByRun:
+        def selected_run_detail(self, run_id: str) -> SelectedRunDetailView:
+            return {
+                fixture.run_id: _selected_detail_view(),
+                robustness.run_id: rich_companion_detail,
+            }[run_id]
+
+    selected, detail = _select_initial_backtest(
+        (fixture, robustness),
+        DetailByRun(),
+    )
+
+    assert selected == fixture
+    assert detail == _selected_detail_view()
+
+
+def test_application_shell_is_fixed_light_mode_without_theme_controls() -> None:
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+
+    layout = create_layout(context)
+    component_ids = {
+        component.id
+        for component in _walk_components(layout)
+        if getattr(component, "id", None)
+    }
+
+    assert layout.className == "application-shell theme-light"
+    assert "theme-toggle" not in component_ids
+    assert "theme-store" not in component_ids
+
+
+@pytest.mark.parametrize(
+    ("content", "expected_body"),
+    [
+        (html.P("Scalar"), ("Scalar",)),
+        ([html.P("List one"), html.P("List two")], ("List one", "List two")),
+        ((html.P("Tuple one"), html.P("Tuple two")), ("Tuple one", "Tuple two")),
+    ],
+)
+def test_detail_subsection_flattens_component_content(
+    content,
+    expected_body: tuple[str, ...],
+) -> None:
+    subsection = _detail_subsection(
+        "Evidence heading",
+        content,
+        "evidence-subsection",
+    )
+
+    assert subsection.className == "run-detail-subsection evidence-subsection"
+    assert subsection.children[0].children == "Evidence heading"
+    assert tuple(child.children for child in subsection.children[1:]) == expected_body
+    assert len(subsection.children[1:]) == len(expected_body)
+    assert not any(
+        isinstance(child, (list, tuple))
+        for child in subsection.children
+    )
+
+
+def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
+    assert STATE_OWNERS == {
+        "active_route": {
+            "source": "url.pathname",
+            "owner": "dashboard.callbacks.routing",
+            "rule": (
+                "Route callbacks only derive visibility and navigation classes; "
+                "no callback writes the URL."
+            ),
+        },
+        "selected_backtest": {
+            "source": "selected-run-selector.value",
+            "store": "selected-run-state.data",
+            "owner": "dashboard.callbacks.backtest_results",
+            "rule": (
+                "Explicit selector changes win over passive refresh and hydration "
+                "callbacks."
+            ),
+        },
+        "review_selection": {
+            "source": "review-run-selector.value",
+            "store": "selected-review-identity.data",
+            "owner": "dashboard.callbacks.strategy_review",
+            "rule": (
+                "Strategy Review owns durable-review identity, form state, and "
+                "review messages."
+            ),
+        },
+        "comparison_selection": {
+            "source": "comparison-run-selector.value",
+            "owner": "dashboard.callbacks.compare_backtests",
+            "rule": (
+                "Compare Backtests owns comparison selector options, selected "
+                "cards, and comparison output."
+            ),
+        },
+    }
+
+
+def test_dashboard_package_lazily_exports_create_app() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; import dashboard; "
+                "assert 'dashboard.app' not in sys.modules; "
+                "from dashboard import create_app; "
+                "assert callable(create_app); "
+                "assert 'dashboard.app' in sys.modules"
+            ),
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_dashboard_css_contains_dark_theme_rules() -> None:
+    css = (
+        Path(__file__).resolve().parents[1]
+        / "dashboard"
+        / "assets"
+        / "style.css"
+    ).read_text(encoding="utf-8")
+
+    assert ".theme-dark .application-content" in css
+    assert ".theme-dark .ag-root-wrapper" in css
+    assert ".theme-toggle" in css
+
+
+def test_dashboard_css_contains_dark_component_corrections() -> None:
+    css = (
+        Path(__file__).resolve().parents[1]
+        / "dashboard"
+        / "assets"
+        / "style.css"
+    ).read_text(encoding="utf-8")
+
+    assert "#navigation-container" in css
+    assert ".theme-dark .ag-row" in css
+    assert ".theme-dark .ag-row-selected" in css
+    assert ".theme-dark .Select-menu-outer" in css
+    assert ".theme-dark .VirtualizedSelectFocusedOption" in css
+    assert ".theme-dark .historical-launch-message" in css
+    assert ".theme-dark .run-detail-subsection" in css
+    assert ".artifact-status-error" in css
+
+
+def test_dashboard_css_includes_operator_readability_structure() -> None:
+    css = (
+        Path(__file__).resolve().parents[1]
+        / "dashboard"
+        / "assets"
+        / "style.css"
+    ).read_text(encoding="utf-8")
+
+    assert ".operator-message-error" in css
+    assert ".operator-value-list" in css
+    assert ".run-detail-subsection h3" in css
+    assert ".run-identity-strip" in css
+    assert ".run-outcome-card" in css
+    assert ".run-main-chart-grid" in css
+    assert ".run-secondary-chart-grid" in css
+    assert ".run-visual-card" in css
+    assert ".launch-controls-panel" in css
+    assert ".history-overflow" in css
+    assert ".run-comparison-table" in css
+    assert ".comparison-page" in css
+    assert ".comparison-selected-grid" in css
+    assert ".comparison-empty-state" in css
+    assert ".workflow-group" in css
+    assert ".stale-before-input" in css
+    assert "width: min(100%, 380px)" in css
+    assert "grid-template-columns: minmax(0, 1fr);" in css
+    assert "font-size: 16px" in css
+    assert "background: #e4ecf5" in css
+    assert ".configuration-detail-panel .run-detail-fields div" in css
+    assert "grid-template-columns: minmax(130px, 0.38fr) minmax(0, 0.62fr)" in css
+    assert ".qf-data-grid" in css
+    assert ".qf-ranked-grid .ag-center-cols-container" in css
+    assert ".qf-trades-grid .ag-center-cols-container" in css
+    assert ".qf-table-header-center" in css
+    assert ".qf-table-cell-center" in css
+    assert ".table-panel .ag-root-wrapper" in css
+
+
+def test_detail_fields_render_structured_values_as_operator_rows() -> None:
+    fields = (
+        DetailField(
+            "Execution assumptions",
+            {
+                "fees_bps": 1.5,
+                "same_bar_limitation": True,
+                "slippage_model": {
+                    "kind": "fixed_bps",
+                    "value": 0.25,
+                },
+            },
+        ),
+    )
+
+    rendered = _detail_fields(fields, empty="No assumptions recorded.")
+    text = _component_text(rendered)
+    classes = [
+        getattr(component, "className", "")
+        for component in _walk_components(rendered)
+    ]
+
+    assert "Fees" in text
+    assert "Same-bar limitation" in text
+    assert "Yes" in text
+    assert "Slippage model" in text
+    assert "Fixed basis points" in text
+    assert "fixed_bps" in text
+    assert "operator-value-list" in classes
+    assert "{'fees_bps'" not in text
+
+
+def test_recent_run_and_event_histories_collapse_overflow() -> None:
+    service = _DashboardRunService(
+        initial_runs=tuple(
+            _DashboardRunService()._summary(
+                f"run_{index}",
+                "a" * 64,
+                "succeeded",
+            )
+            for index in range(6)
+        )
+    )
+    runs_panel = _recent_runs_panel(service.recent_runs())
+    events_panel = _recent_events_panel(
+        tuple(
+            RunEvent(
+                event_id=index,
+                run_id=f"run_{index}",
+                event_type="run_completed",
+                severity="info",
+                message=f"Run {index} completed.",
+                timestamp=f"2026-07-13T12:00:{index:02d}Z",
+                source="fixture",
+            )
+            for index in range(7)
+        )
+    )
+
+    rendered_runs = _component_text(runs_panel)
+    rendered_events = _component_text(events_panel)
+    classes = [
+        getattr(component, "className", "")
+        for component in _walk_components(runs_panel)
+    ] + [
+        getattr(component, "className", "")
+        for component in _walk_components(events_panel)
+    ]
+
+    assert "Show 2 older runs" in rendered_runs
+    assert "Show 2 older events" in rendered_events
+    assert "history-overflow" in classes
+
+
+class _DashboardRunService:
+    def __init__(
+        self,
+        *,
+        error: Exception | None = None,
+        run_status: str = "succeeded",
+        initial_runs: tuple[RunSummary, ...] | None = None,
+        launch_run_ids: list[str] | None = None,
+    ) -> None:
+        self.error = error
+        self.run_status = run_status
+        self.configuration_ids: list[str] = []
+        self.launch_run_ids = launch_run_ids or ["run_dashboard_fixture"]
+        self.cancellation_requests: list[str] = []
+        self.stale_recovery_requests: list[str] = []
+        self.stale_recovery_result: tuple[RunSummary, ...] = ()
+        self.run_queries = 0
+        self.event_queries = 0
+        self.run_detail_queries: list[str] = []
+        self.run_event_queries: list[str] = []
+        self._runs: list[RunSummary] = list(initial_runs) if initial_runs is not None else [
+            self._summary("run_dashboard_fixture", "a" * 64, run_status)
+        ]
+
+    def _summary(
+        self,
+        run_id: str,
+        configuration_id: str,
+        status: str | None = None,
+        *,
+        error_summary: str | None = None,
+    ) -> RunSummary:
+        resolved_status = status or self.run_status
+        completed_at = (
+            "2026-07-13T12:00:02Z"
+            if resolved_status in {"succeeded", "failed", "cancelled"}
+            else None
+        )
+        return RunSummary(
+            run_id=run_id,
+            configuration_id=configuration_id,
+            strategy_id="prefect_fixture_strategy",
+            strategy_version="1.0.0",
+            stage="fixture",
+            status=resolved_status,
+            created_at="2026-07-13T12:00:00Z",
+            started_at="2026-07-13T12:00:01Z",
+            completed_at=completed_at,
+            error_summary=error_summary,
+            prefect_flow_run_id=f"prefect-{run_id}",
+            prefect_api_url="http://127.0.0.1:4200/api",
+            attempt_count=1,
+        )
+
+    def launch_fixture(self, *, configuration_id: str):
+        self.configuration_ids.append(configuration_id)
+        if self.error is not None:
+            raise self.error
+        run_id = (
+            self.launch_run_ids.pop(0)
+            if self.launch_run_ids
+            else f"run_dashboard_fixture_{len(self._runs) + 1}"
+        )
+        run = self._summary(run_id, configuration_id, self.run_status)
+        self._runs.insert(0, run)
+        return RunLaunchResult(
+            run=run,
+            prefect_result=None,
+        )
+
+
+    def recent_runs(self, *, limit: int = 20):
+        self.run_queries += 1
+        assert limit == 20
+        return tuple(self._runs[:limit])
+
+    def all_runs(self):
+        return tuple(self._runs)
+
+    def all_history(self, *, artifact_root: Path | None = None):
+        return tuple(
+            {
+                "run_id": run.run_id,
+                "created_at": run.created_at,
+                "instrument": "Not recorded",
+                "strategy": run.strategy_id.replace("_", " ").title(),
+                "stage": "Fixture backtest" if run.stage == "fixture" else run.stage,
+                "status": run.status.replace("_", " ").title(),
+                "review": "Not reviewed",
+                "evidence": "No validation evidence",
+                "metric_basis": "No persisted ranked result",
+                "total_return": None,
+                "annualized_return": None,
+                "sharpe_ratio": None,
+                "number_of_trades": None,
+                "artifact_status": "No registered artifacts",
+                "reproducibility": "Manifest missing",
+            }
+            for run in self._runs
+        )
+
+    def recent_events(self, *, limit: int = 20):
+        self.event_queries += 1
+        assert limit == 20
+        return (
+            RunEvent(
+                event_id=1,
+                run_id="run_dashboard_fixture",
+                event_type="run_succeeded",
+                timestamp="2026-07-13T12:00:02Z",
+                severity="info",
+                message="Run completed successfully.",
+                source="quant_factory",
+            ),
+        )
+
+
+    def recover_stale_fixture_runs(self, *, stale_before: str):
+        self.stale_recovery_requests.append(stale_before)
+        if self.error is not None:
+            raise self.error
+        return self.stale_recovery_result
+
+    def request_fixture_cancellation(self, run_id: str):
+        self.cancellation_requests.append(run_id)
+        if self.error is not None:
+            raise self.error
+        return self.recent_runs()[0]
+
+    def get_run(self, run_id: str):
+        self.run_detail_queries.append(run_id)
+        if run_id == "missing-run":
+            return None
+        for run in self._runs:
+            if run.run_id == run_id:
+                return run
+        return None
+
+    def events_for_run(self, run_id: str):
+        self.run_event_queries.append(run_id)
+        return self.recent_events()
+
+
+def _callback_function(app, output_fragment: str):
+    entries = [
+        value
+        for key, value in app.callback_map.items()
+        if output_fragment in key
+    ]
+    if output_fragment == "run-comparison-output" and len(entries) > 1:
+        entry = next(
+            value
+            for value in entries
+            if any(
+                item["id"] == "compare-selected-runs"
+                for item in value.get("inputs", ())
+            )
+        )
+    elif output_fragment == "review-message" and len(entries) > 1:
+        entry = next(
+            value
+            for value in entries
+            if any(item["id"] == "save-review" for item in value.get("inputs", ()))
+        )
+    else:
+        entry = entries[0]
+    callback = entry["callback"]
+    return getattr(callback, "__wrapped__", callback)
+
+
+def _comparison_run_summaries() -> tuple[RunSummary, RunSummary]:
+    service = _DashboardRunService()
+    return (
+        service._summary("compare_run_a", "a" * 64, "succeeded"),
+        service._summary("compare_run_b", "b" * 64, "succeeded"),
+    )
+
+
+def _comparison_database(tmp_path: Path) -> Path:
+    database = tmp_path / "comparison.sqlite3"
+    service = PersistenceService(database)
+    try:
+        strategy = service.register_strategy(
+            strategy_id="compare_strategy",
+            strategy_version="1.0.0",
+            display_name="Comparison Strategy",
+            description="Dashboard comparison fixture",
+            lifecycle=StrategyLifecycle.INFRASTRUCTURE_FIXTURE,
+        )
+        configs = []
+        for name, window, fee in (
+            ("a", 10, 0.0005),
+            ("b", 20, 0.001),
+        ):
+            configs.append(
+                service.upsert_configuration(
+                    normalized_configuration_document(
+                        experiment_id=f"comparison_{name}",
+                        strategy_id=strategy.strategy_id,
+                        strategy_version=strategy.strategy_version,
+                        market_data={
+                            "provider": "fixture",
+                            "symbol": "SPY",
+                            "interval": "1d",
+                        },
+                        parameters={"window": window, "threshold": 25},
+                        execution={
+                            "fill_model": "next_open",
+                            "fees": fee,
+                        },
+                        ranking={"metric": "sharpe_ratio"},
+                        screening={"minimum_trades": 1},
+                    )
+                )
+            )
+
+        for run_id, config, window, fee, checksum, return_value in (
+            ("compare_run_a", configs[0], 10, 0.0005, "dataset-a", 0.12),
+            ("compare_run_b", configs[1], 20, 0.001, "dataset-b", 0.08),
+        ):
+            service.create_run(
+                configuration_id=config.configuration_id,
+                strategy_id=strategy.strategy_id,
+                strategy_version=strategy.strategy_version,
+                stage=RunStage.FIXTURE,
+                run_id=run_id,
+                status=RunStatus.SUCCEEDED,
+            )
+            with transaction(service.connection):
+                service.results.set_data_provenance(
+                    DataProvenanceRecord(
+                        run_id=run_id,
+                        provider="fixture",
+                        provider_implementation="dashboard-test",
+                        symbol="SPY",
+                        interval="1d",
+                        timezone="America/New_York",
+                        requested_coverage="2024-01-01/2024-01-31",
+                        actual_coverage="2024-01-01/2024-01-31",
+                        adjusted=True,
+                        row_count=21,
+                        cache_action="fixture",
+                        validation_summary_json=canonical_json({"status": "valid"}),
+                        manifest_reference=f"manifest-{run_id}",
+                        checksum=checksum,
+                    )
+                )
+                service.results.set_execution_assumptions(
+                    ExecutionAssumptionsRecord(
+                        run_id=run_id,
+                        assumptions_json=canonical_json(
+                            {"fill_model": "next_open", "fees": fee}
+                        ),
+                    )
+                )
+                service.results.add_parameter_result(
+                    run_id=run_id,
+                    row_id=f"{run_id}-row",
+                    normalized_parameters={"window": window, "threshold": 25},
+                    metrics={
+                        "total_return": return_value,
+                        "sharpe_ratio": 1.1,
+                        "number_of_trades": 4,
+                    },
+                    ranking_position=1,
+                    screening_status="passed",
+                )
+        with transaction(service.connection):
+            service.results.add_artifact(
+                run_id="compare_run_a",
+                artifact_type=ArtifactType.VALIDATION_EVIDENCE.value,
+                schema_version=1,
+                path="artifacts/compare_run_a/evidence.json",
+                validation_status="valid",
+                availability=ArtifactAvailability.AVAILABLE,
+                checksum="evidence-a",
+            )
+    finally:
+        service.close()
+    return database
+
+
+def _review_decision_stack(
+    tmp_path: Path,
+) -> tuple[Path, Path, _DashboardRunService, RunDetailDashboardAdapter]:
+    database = tmp_path / "review-decision.sqlite3"
+    artifact_root = tmp_path / "artifacts"
+    service = PersistenceService(database)
+    try:
+        strategy = service.register_strategy(
+            strategy_id="review_strategy",
+            strategy_version="1.0.0",
+            display_name="Review Strategy",
+            description="Dashboard evidence decision fixture",
+            lifecycle=StrategyLifecycle.INFRASTRUCTURE_FIXTURE,
+        )
+        configuration = service.upsert_configuration(
+            normalized_configuration_document(
+                experiment_id="review_experiment",
+                strategy_id=strategy.strategy_id,
+                strategy_version=strategy.strategy_version,
+                market_data={
+                    "provider": "fixture",
+                    "symbol": "SPY",
+                    "interval": "1d",
+                },
+                parameters={"window": 14},
+                execution={"kind": "fixture"},
+                ranking={"columns": ("total_return",), "ascending": (False,)},
+                screening={"kind": "none"},
+            )
+        )
+        service.create_run(
+            configuration_id=configuration.configuration_id,
+            strategy_id=strategy.strategy_id,
+            strategy_version=strategy.strategy_version,
+            stage=RunStage.OOS,
+            run_id="decision_review_run",
+            status=RunStatus.SUCCEEDED,
+        )
+        with transaction(service.connection):
+            service.results.set_data_provenance(
+                DataProvenanceRecord(
+                    run_id="decision_review_run",
+                    provider="fixture",
+                    provider_implementation="dashboard-review-test",
+                    symbol="SPY",
+                    interval="1d",
+                    timezone="America/New_York",
+                    requested_coverage="2024-01-01/2024-01-31",
+                    actual_coverage="2024-01-01/2024-01-31",
+                    adjusted=True,
+                    row_count=21,
+                    cache_action="fixture",
+                    validation_summary_json=canonical_json({"status": "valid"}),
+                    manifest_reference="manifest-review",
+                    checksum="dataset-review",
+                )
+            )
+            service.results.set_execution_assumptions(
+                ExecutionAssumptionsRecord(
+                    run_id="decision_review_run",
+                    assumptions_json=canonical_json({"kind": "fixture"}),
+                )
+            )
+            service.results.add_parameter_result(
+                run_id="decision_review_run",
+                row_id="decision-review-row",
+                normalized_parameters={"window": 14},
+                metrics={
+                    "total_return": 0.12,
+                    "max_drawdown": -0.03,
+                    "number_of_trades": 12,
+                },
+                ranking_position=1,
+                screening_status="passed",
+            )
+        location = "artifacts/decision_review_run/validation_evidence.json"
+        target = artifact_root / location
+        target.parent.mkdir(parents=True, exist_ok=True)
+        content = canonical_json(
+            {
+                "artifact": {"evidence_identity": "review-evidence"},
+                "validation": {"status": "passed"},
+            }
+        ).encode("utf-8")
+        target.write_bytes(content)
+        service.register_artifact(
+            run_id="decision_review_run",
+            artifact_type=ArtifactType.VALIDATION_EVIDENCE,
+            logical_name="validation_evidence",
+            media_type="application/json",
+            format="json",
+            location=location,
+            content=content,
+        )
+        service.persist_run_manifest(service.build_run_manifest("decision_review_run"))
+        summary_service = _DashboardRunService(
+            initial_runs=(
+                _DashboardRunService()._summary(
+                    "decision_review_run",
+                    configuration.configuration_id,
+                    "succeeded",
+                ),
+            )
+        )
+    finally:
+        service.close()
+    return (
+        database,
+        artifact_root,
+        summary_service,
+        RunDetailDashboardAdapter(database=database, artifact_root=artifact_root),
+    )
+
+
+def _review_context_stack(
+    tmp_path: Path,
+) -> tuple[Path, Path, _DashboardRunService, RunDetailDashboardAdapter]:
+    service = _review_service(tmp_path)
+    database = tmp_path / "state.sqlite3"
+    artifact_root = tmp_path / "artifacts"
+    _persist_review_prerequisites(service, artifact_root)
+    source = service.runs.get("wf-run")
+    assert source is not None
+    service.create_run(
+        configuration_id=source.configuration_id,
+        strategy_id=source.strategy_id,
+        strategy_version=source.strategy_version,
+        stage=RunStage.OOS,
+        run_id="review_context_target",
+        status=RunStatus.SUCCEEDED,
+    )
+    with transaction(service.connection):
+        service.results.set_data_provenance(
+            DataProvenanceRecord(
+                run_id="review_context_target",
+                provider="fixture",
+                provider_implementation="fixture-provider",
+                symbol="SPY",
+                interval="1 day",
+                timezone="UTC",
+                requested_coverage="2020-01-01",
+                actual_coverage="2020-01-01..2020-04-30",
+                adjusted=True,
+                row_count=120,
+                cache_action="fixture",
+                validation_summary_json=canonical_json({"status": "valid"}),
+                manifest_reference="data/manifests/fixture.json",
+                checksum="dataset-checksum",
+            )
+        )
+        service.results.set_execution_assumptions(
+            ExecutionAssumptionsRecord(
+                run_id="review_context_target",
+                assumptions_json=canonical_json({"kind": "fixture"}),
+            )
+        )
+        service.results.add_parameter_result(
+            run_id="review_context_target",
+            row_id="review-context-row",
+            normalized_parameters=REVIEW_PARAMETERS,
+            metrics={
+                "total_return": 0.1,
+                "max_drawdown": -0.03,
+                "number_of_trades": 5,
+            },
+            ranking_position=1,
+            screening_status="passed",
+        )
+    service.persist_run_manifest(service.build_run_manifest("review_context_target"))
+    from persistence.evidence_service import ValidationEvidenceArtifactService
+
+    source_lock_artifact_id = _source_lock_artifact(
+        service,
+        artifact_root,
+        run_id="review_context_target",
+    )
+    ValidationEvidenceArtifactService(service).persist_review_context(
+        target_run_id="review_context_target",
+        source_lock_run_id="review_context_target",
+        source_lock_artifact_id=source_lock_artifact_id,
+        walk_forward_run_id="wf-run",
+        monte_carlo_run_id="mc-run",
+        robustness_run_id="robust-run",
+        protected_data_state="gated",
+        artifact_root=artifact_root,
+        created_at="2026-01-01T00:00:00+00:00",
+    )
+    service.close()
+    summary_service = _DashboardRunService(
+        initial_runs=(
+            _DashboardRunService()._summary(
+                "review_context_target",
+                source.configuration_id,
+                "succeeded",
+            ),
+        )
+    )
+    return (
+        database,
+        artifact_root,
+        summary_service,
+        RunDetailDashboardAdapter(database=database, artifact_root=artifact_root),
+    )
+
+
+def _reproduction_configuration(tmp_path: Path) -> tuple[Path, str]:
+    database = tmp_path / "state" / "reproduction.sqlite3"
+    service = PersistenceService(database)
+    try:
+        strategy = service.register_strategy(
+            strategy_id="reproduction_strategy",
+            strategy_version="1.0.0",
+            display_name="Reproduction Strategy",
+            description="Dashboard reproduction fixture",
+            lifecycle=StrategyLifecycle.INFRASTRUCTURE_FIXTURE,
+        )
+        configuration = service.upsert_configuration(
+            normalized_configuration_document(
+                experiment_id="reproduction_fixture",
+                strategy_id=strategy.strategy_id,
+                strategy_version=strategy.strategy_version,
+                market_data={"provider": "fixture", "symbol": "SPY", "interval": "1d"},
+                parameters={"fixture": True},
+                execution={"kind": "prefect_fixture"},
+                ranking={"columns": ("deterministic_value",), "ascending": (False,)},
+                screening={"kind": "none"},
+            )
+        )
+        return database, configuration.configuration_id
+    finally:
+        service.close()
+
+
+def _attach_reproduction_lineage(
+    database: Path,
+    artifact_root: Path,
+    *,
+    run_id: str,
+    configuration_id: str,
+) -> None:
+    service = PersistenceService(database)
+    try:
+        location = f"artifacts/{run_id}/run-summary.json"
+        content = b'{"status":"succeeded","deterministic_value":1729}'
+        target = artifact_root / location
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+        with transaction(service.connection):
+            service.results.set_data_provenance(
+                DataProvenanceRecord(
+                    run_id=run_id,
+                    provider="fixture",
+                    provider_implementation="dashboard-reproduction-test",
+                    symbol="SPY",
+                    interval="1d",
+                    timezone="America/New_York",
+                    requested_coverage="2024-01-01/2024-01-31",
+                    actual_coverage="2024-01-01/2024-01-31",
+                    adjusted=True,
+                    row_count=21,
+                    cache_action="fixture",
+                    validation_summary_json=canonical_json({"status": "valid"}),
+                    manifest_reference="data/manifests/reproduction.json",
+                    checksum="dataset-reproduction",
+                )
+            )
+            service.results.set_execution_assumptions(
+                ExecutionAssumptionsRecord(
+                    run_id=run_id,
+                    assumptions_json=canonical_json({"kind": "prefect_fixture"}),
+                )
+            )
+        service.register_artifact(
+            run_id=run_id,
+            artifact_type=ArtifactType.RUN_SUMMARY,
+            logical_name="run-summary",
+            media_type="application/json",
+            format="json",
+            location=location,
+            content=content,
+        )
+        service.persist_run_manifest(service.build_run_manifest(run_id))
+        _ = configuration_id
+    finally:
+        service.close()
+
+
+def _reproduction_launcher(artifact_root: Path):
+    def launch(**kwargs):
+        kwargs.pop("attempt_marker_path", None)
+        result = deterministic_fixture_body(
+            **kwargs,
+            prefect_flow_run_id=f"prefect-{kwargs['quant_factory_run_id']}",
+            prefect_api_url="http://127.0.0.1:4200/api",
+        )
+        _attach_reproduction_lineage(
+            Path(kwargs["database_path"]),
+            artifact_root,
+            run_id=kwargs["quant_factory_run_id"],
+            configuration_id=kwargs["configuration_id"],
+        )
+        return result
+
+    return launch
+
+
+def _reproduction_service(tmp_path: Path) -> tuple[Path, Path, FixtureRunService, str]:
+    database, configuration_id = _reproduction_configuration(tmp_path)
+    artifact_root = tmp_path / "artifact-root"
+    service = FixtureRunService(
+        database=database,
+        fixture_launcher=_reproduction_launcher(artifact_root),
+    )
+    service.launch_fixture(
+        configuration_id=configuration_id,
+        run_id="source_reproduction_run",
+    )
+    return database, artifact_root, service, configuration_id
+
+
+def test_dashboard_reproduces_persisted_run_and_renders_comparison(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    database, artifact_root, service, configuration_id = _reproduction_service(tmp_path)
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        database,
+        run_service=service,
+        run_detail_adapter=RunDetailDashboardAdapter(
+            database=database,
+            artifact_root=artifact_root,
+        ),
+    )
+    reproduce = _callback_function(app, "reproduction-message")
+
+    message, class_name, comparison, comparison_class, comparison_value = reproduce(
+        1,
+        "source_reproduction_run",
+    )
+    rendered_message = str(message)
+    rendered_comparison = str(comparison)
+
+    assert class_name == "reproduction-message reproduction-message-success"
+    assert comparison_class == "run-comparison-output"
+    assert len(comparison_value) == 2
+    assert comparison_value[0] == "source_reproduction_run"
+    assert "source_reproduction_run" in rendered_message
+    assert "Allowed differences" in rendered_message
+    assert "Configuration hash" in rendered_comparison
+    assert "Dataset identity" in rendered_comparison
+    assert "Runtime identity" in rendered_comparison
+    assert "Key metrics" in rendered_comparison
+    assert "Deterministic value: 1729" in rendered_comparison
+    assert "comparison-state-equal" in rendered_comparison
+
+    persistence = PersistenceService(database)
+    try:
+        source = persistence.runs.get("source_reproduction_run")
+        reproduced = [
+            run
+            for run in persistence.runs.list()
+            if run.run_id != "source_reproduction_run"
+        ][0]
+        assert source is not None
+        assert source.configuration_id == configuration_id
+        assert reproduced.configuration_id == configuration_id
+        assert comparison_value[1] == reproduced.run_id
+        source_environment = json.loads(source.environment_json)
+        reproduced_environment = json.loads(reproduced.environment_json)
+        assert "reproduction" not in source_environment
+        assert reproduced_environment["reproduction"]["source_run_id"] == (
+            "source_reproduction_run"
+        )
+    finally:
+        persistence.close()
+
+    restarted = create_app(
+        context,
+        database,
+        run_service=service,
+        run_detail_adapter=RunDetailDashboardAdapter(
+            database=database,
+            artifact_root=artifact_root,
+        ),
+    )
+    restarted_compare = _callback_function(restarted, "run-comparison-output")
+    restarted_panel, restarted_class = restarted_compare(
+        1, ["source_reproduction_run", reproduced.run_id]
+    )
+    restarted_rendered = str(restarted_panel)
+    assert restarted_class == "run-comparison-output"
+    assert "source_reproduction_run" in restarted_rendered
+    assert reproduced.run_id in restarted_rendered
+
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "reproduction-message")
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    options, selected = refresh_selectors(
+        0,
+        0,
+        0,
+        message,
+        "source_reproduction_run",
+        "source_reproduction_run",
+        [],
+    )
+    refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
+    comparison_options = refresh_comparison_options(0, 0)
+    option_values = [option["value"] for option in options]
+    assert selected == reproduced.run_id
+    assert "source_reproduction_run" in option_values
+    assert reproduced.run_id in option_values
+    assert comparison_options == options
+
+
+def test_dashboard_reproduction_fails_closed_for_invalid_lineage_or_artifacts(
+    tmp_path: Path,
+) -> None:
+    database, artifact_root, service, _ = _reproduction_service(tmp_path)
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        database,
+        run_service=service,
+        run_detail_adapter=RunDetailDashboardAdapter(
+            database=database,
+            artifact_root=artifact_root,
+        ),
+    )
+    reproduce = _callback_function(app, "reproduction-message")
+
+    (artifact_root / "artifacts/source_reproduction_run/run-summary.json").write_text(
+        '{"status":"corrupt"}',
+        encoding="utf-8",
+    )
+
+    message, class_name, comparison, comparison_class, comparison_value = reproduce(
+        1,
+        "source_reproduction_run",
+    )
+    assert class_name == "reproduction-message error-state"
+    assert comparison_class == "run-comparison-output"
+    assert comparison_value is no_update
+    assert "invalid reproduction artifacts" in str(message)
+    assert "Run reproduction failed" in str(comparison)
+
+    persistence = PersistenceService(database)
+    try:
+        assert len(persistence.runs.list()) == 1
+        persistence.connection.execute(
+            "UPDATE run_manifests SET manifest_json=? WHERE run_id=?",
+            ("{not-json", "source_reproduction_run"),
+        )
+        persistence.connection.commit()
+    finally:
+        persistence.close()
+
+    message, class_name, _, _, _ = reproduce(1, "source_reproduction_run")
+    assert class_name == "reproduction-message error-state"
+    assert "cannot be reproduced" in str(message)
+
+
+def test_dashboard_run_comparison_renders_equal_changed_and_missing_fields(
+    tmp_path: Path,
+) -> None:
+    database = _comparison_database(tmp_path)
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        database,
+        run_service=_DashboardRunService(initial_runs=_comparison_run_summaries()),
+    )
+    compare = _callback_function(app, "run-comparison-output")
+
+    panel, class_name = compare(1, ["compare_run_a", "compare_run_b"])
+    rendered = str(panel)
+
+    assert class_name == "run-comparison-output"
+    assert "Backtest comparison" in rendered
+    assert "compare_run_a" in rendered
+    assert "compare_run_b" in rendered
+    assert "comparison-state-equal" in rendered
+    assert "comparison-state-changed" in rendered
+    assert "comparison-state-missing" in rendered
+    assert "Execution assumptions" in rendered
+    assert "Fees: 0.0005" in rendered
+    assert "Fees: 0.001" in rendered
+    assert "Parameters" in rendered
+    assert "Window: 10" in rendered
+    assert "Window: 20" in rendered
+    assert "Validation evidence" in rendered
+    assert "Missing or unavailable" in rendered
+
+
+def test_dashboard_comparison_defaults_use_recent_succeeded_backtests() -> None:
+    service = _DashboardRunService()
+    failed = service._summary("failed_recent", "a" * 64, "failed")
+    succeeded_a = service._summary("succeeded_a", "b" * 64, "succeeded")
+    succeeded_b = service._summary("succeeded_b", "c" * 64, "succeeded")
+    page = page_for_path(
+        "/research/compare-backtests",
+        DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data())),
+        recent_runs=(failed, succeeded_a, succeeded_b),
+    )
+
+    rendered = str(page)
+    assert "spym_rsi_mean_reversion_fixture" not in rendered
+    assert "value=['succeeded_a', 'succeeded_b']" in rendered
+
+
+def test_dashboard_comparison_selected_cards_follow_dropdown_and_refresh(
+    tmp_path: Path,
+) -> None:
+    service = _DashboardRunService(initial_runs=_comparison_run_summaries())
+    service._runs.append(service._summary("compare_run_c", "c" * 64, "succeeded"))
+    app = create_app(
+        DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data())),
+        _comparison_database(tmp_path),
+        run_service=service,
+    )
+    cards = _callback_function(app, "comparison-selected-cards")
+
+    rendered_a = str(cards(["compare_run_a"], 0))
+    rendered_b = str(cards(["compare_run_b", "compare_run_c"], 1))
+
+    assert "compare_run_a" in rendered_a
+    assert "compare_run_b" not in rendered_a
+    assert "compare_run_b" in rendered_b
+    assert "compare_run_c" in rendered_b
+    assert "compare_run_a" not in rendered_b
+
+
+def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
+    tmp_path: Path,
+) -> None:
+    database = _comparison_database(tmp_path)
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, database)
+    compare = _callback_function(app, "run-comparison-output")
+
+    invalid, invalid_class = compare(1, ["compare_run_a"])
+    assert invalid_class == "run-comparison-output"
+    assert "at least two persisted backtests" in str(invalid)
+    missing, missing_class = compare(1, ["compare_run_a", "missing-run"])
+    assert missing_class == "run-comparison-output"
+    assert "unknown run missing-run" in str(
+        missing
+    )
+
+    service = PersistenceService(database)
+    try:
+        with transaction(service.connection):
+            service.connection.execute(
+                "UPDATE execution_assumptions SET assumptions_json=? WHERE run_id=?",
+                ("not-json", "compare_run_b"),
+            )
+    finally:
+        service.close()
+
+    failure, failure_class = compare(1, ["compare_run_a", "compare_run_b"])
+    assert failure_class == "run-comparison-output"
+    assert "Backtest comparison failed" in str(failure)
+
+
+def test_dashboard_run_comparison_survives_dashboard_recreation(
+    tmp_path: Path,
+) -> None:
+    database = _comparison_database(tmp_path)
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    first = create_app(context, database)
+    second = create_app(context, database)
+
+    first_panel, first_class = _callback_function(first, "run-comparison-output")(
+        1, ["compare_run_a", "compare_run_b"]
+    )
+    second_panel, second_class = _callback_function(second, "run-comparison-output")(
+        1, ["compare_run_a", "compare_run_b"]
+    )
+    first_rendered = str(first_panel)
+    second_rendered = str(second_panel)
+
+    assert first_class == "run-comparison-output"
+    assert second_class == "run-comparison-output"
+    assert "compare_run_a" in first_rendered
+    assert "compare_run_b" in second_rendered
+    assert "comparison-state-changed" in first_rendered
+    assert "comparison-state-changed" in second_rendered
+
+
+def test_dashboard_run_comparison_uses_callback_local_sqlite_connection(
+    tmp_path: Path,
+) -> None:
+    database = _comparison_database(tmp_path)
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, database)
+    compare = _callback_function(app, "run-comparison-output")
+    result: list[object] = []
+    errors: list[BaseException] = []
+
+    def invoke_callback() -> None:
+        try:
+            result.append(compare(1, ["compare_run_a", "compare_run_b"]))
+        except BaseException as exc:  # pragma: no cover - assertion below owns reporting
+            errors.append(exc)
+
+    callback_thread = threading.Thread(target=invoke_callback)
+    callback_thread.start()
+    callback_thread.join(timeout=5)
+
+    assert not callback_thread.is_alive()
+    assert errors == []
+    assert len(result) == 1
+    panel, class_name = result[0]
+    assert class_name == "run-comparison-output"
+    assert "Backtest comparison" in str(panel)
+    assert "SQLite objects created in a thread" not in str(result[0])
+
+
+def test_dashboard_launches_selected_saved_configuration(tmp_path: Path, monkeypatch) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    detail_adapter = _DashboardRunDetailAdapter()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+
+    launch = _callback_function(app, "launch-message")
+    content, class_name = launch(1, configuration.configuration_id)
+
+    assert service.configuration_ids == [configuration.configuration_id]
+    assert class_name == "save-message"
+    rendered = str(content)
+    assert "run_dashboard_fixture" in rendered
+    assert "succeeded" in rendered
+    assert "prefect-run_dashboard_fixture" in rendered
+
+
+def test_dashboard_reports_launch_failure_without_creating_ui_state(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(error=ValueError("duplicate run"))
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    launch = _callback_function(app, "launch-message")
+    content, class_name = launch(1, configuration.configuration_id)
+
+    rendered = _component_text(content)
+    assert "Run launch did not start." in rendered
+    assert "duplicate run" in rendered
+    assert class_name == "save-message error-state"
+
+
+def test_dashboard_launches_new_run_from_selected_historical_configuration(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    old_run = RunSummary(
+        run_id="old_terminal_run",
+        configuration_id=configuration.configuration_id,
+        strategy_id="prefect_fixture_strategy",
+        strategy_version="1.0.0",
+        stage="fixture",
+        status="failed",
+        created_at="2026-07-13T11:00:00Z",
+        started_at="2026-07-13T11:00:01Z",
+        completed_at="2026-07-13T11:00:02Z",
+        error_summary="Historical fixture failure.",
+        prefect_flow_run_id="prefect-old-terminal-run",
+        prefect_api_url=None,
+        attempt_count=1,
+    )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(
+        initial_runs=(old_run,),
+        launch_run_ids=["new_historical_run"],
+    )
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    launch = _callback_function(app, "historical-launch-message")
+    content, class_name = launch(1, "old_terminal_run")
+
+    assert service.run_detail_queries == ["old_terminal_run"]
+    assert service.configuration_ids == [configuration.configuration_id]
+    assert service.configuration_ids[0] == old_run.configuration_id
+    assert service.recent_runs()[0].run_id == "new_historical_run"
+    assert service.recent_runs()[1].run_id == "old_terminal_run"
+    assert "old_terminal_run" not in str(content)
+    assert "new_historical_run" in str(content)
+    assert "prefect-new_historical_run" in str(content)
+    assert class_name == (
+        "historical-launch-message historical-launch-message-success"
+    )
+
+
+def test_dashboard_rejects_historical_launch_when_configuration_unlaunchable(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = replace(_saved_configuration(), active=False)
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    detail_adapter = _DashboardRunDetailAdapter()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+
+    launch = _callback_function(app, "historical-launch-message")
+    message, class_name = launch(1, "run_dashboard_fixture")
+
+    assert service.configuration_ids == []
+    rendered = _component_text(message)
+    assert "Run launch did not start." in rendered
+    assert (
+        "The selected run's saved configuration is unavailable or not launchable."
+        in rendered
+    )
+    assert class_name == "historical-launch-message error-state"
+
+
+def test_dashboard_reports_historical_launch_failures_readably(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(error=RunServiceError("configuration missing"))
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    launch = _callback_function(app, "historical-launch-message")
+    message, class_name = launch(1, "run_dashboard_fixture")
+
+    assert service.configuration_ids == [configuration.configuration_id]
+    rendered = _component_text(message)
+    assert "New run launch did not start." in rendered
+    assert "configuration missing" in rendered
+    assert class_name == "historical-launch-message error-state"
+
+
+def test_dashboard_reports_missing_historical_run_before_launch(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    launch = _callback_function(app, "historical-launch-message")
+    message, class_name = launch(1, "missing-run")
+
+    assert service.configuration_ids == []
+    rendered = _component_text(message)
+    assert "Run launch did not start." in rendered
+    assert "Selected run missing-run could not be found." in rendered
+    assert class_name == "historical-launch-message error-state"
+
+
+def test_dynamic_detail_actions_ignore_initial_lifecycle_events(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    launch = _callback_function(app, "historical-launch-message")
+    reproduce = _callback_function(app, "reproduction-message")
+    cancel = _callback_function(app, "cancellation-message")
+
+    assert launch(None, "run_dashboard_fixture") == (no_update, no_update)
+    assert launch(0, "run_dashboard_fixture") == (no_update, no_update)
+    assert reproduce(None, "run_dashboard_fixture") == (
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+    )
+    assert reproduce(0, "run_dashboard_fixture") == (
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+        no_update,
+    )
+    assert cancel(None, "run_dashboard_fixture") == (no_update, no_update)
+    assert cancel(0, "run_dashboard_fixture") == (no_update, no_update)
+
+
+def test_runs_page_renders_recent_runs_and_operator_events() -> None:
+    service = _DashboardRunService()
+    page = _runs_page(
+        (_saved_configuration(),),
+        recent_runs=service.recent_runs(),
+        recent_events=service.recent_events(),
+    )
+
+    recent_runs = next(
+        child
+        for child in _walk_components(page)
+        if getattr(child, "id", None) == "recent-runs-monitor"
+    )
+    recent_events = next(
+        child
+        for child in _walk_components(page)
+        if getattr(child, "id", None) == "recent-events-monitor"
+    )
+
+    assert recent_runs.id == "recent-runs-monitor"
+    assert recent_events.id == "recent-events-monitor"
+    assert "run_dashboard_fixture" in str(recent_runs.children)
+    assert "prefect-run_dashboard_fixture" in str(recent_runs.children)
+    assert "Run completed successfully." in str(recent_events.children)
+
+
+def test_runs_page_groups_workflows_and_exposes_readable_recovery_input() -> None:
+    page = _runs_page((_saved_configuration(),))
+    groups = [
+        component.className
+        for component in page.children
+        if "workflow-group" in str(getattr(component, "className", ""))
+    ]
+    recovery_input = next(
+        component
+        for component in _walk_components(page)
+        if getattr(component, "id", None) == "stale-before-input"
+    )
+
+    assert groups == [
+        "backtest-detail-workspace workflow-group-results",
+        "workflow-group workflow-group-configuration",
+        "workflow-group workflow-group-analysis",
+        "workflow-group workflow-group-operations",
+    ]
+    assert recovery_input.className == "stale-before-input"
+    assert recovery_input.placeholder == "2026-07-13T12:00:00Z"
+
+
+def test_run_monitor_refreshes_from_service(tmp_path: Path, monkeypatch) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    refresh = _callback_function(app, "recent-runs-monitor")
+    service.run_queries = 0
+    service.event_queries = 0
+    runs_panel, events_panel = refresh(
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
+
+    assert service.run_queries == 1
+    assert service.event_queries == 1
+    assert "run_dashboard_fixture" in str(runs_panel)
+    assert "Run completed successfully." in str(events_panel)
+
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    options, selected = refresh_selectors(
+        0,
+        0,
+        0,
+        0,
+        "run_dashboard_fixture",
+        "run_dashboard_fixture",
+        [],
+    )
+    refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
+    comparison_options = refresh_comparison_options(0, 0)
+
+    assert options == [
+        {
+            "label": "Infrastructure Fixture · Fixture backtest · Succeeded",
+            "value": "run_dashboard_fixture",
+        }
+    ]
+    assert comparison_options == options
+    assert selected is no_update
+
+
+def test_run_history_grid_mounts_full_history_with_operator_columns(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(
+        initial_runs=tuple(
+            _DashboardRunService()._summary(
+                f"history_grid_run_{index:02d}",
+                configuration.configuration_id,
+                "succeeded",
+            )
+            for index in range(21)
+        )
+    )
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    grid = next(
+        component
+        for component in _walk_components(_resolved_layout(app))
+        if getattr(component, "id", None) == "run-history-grid"
+    )
+    columns = {column["field"]: column for column in grid.columnDefs}
+
+    assert len(grid.rowData) == 21
+    assert grid.rowData[-1]["run_id"] == "history_grid_run_20"
+    assert grid.rowData[0]["stage"] == "Fixture backtest"
+    assert grid.rowData[0]["status"] == "Succeeded"
+    assert columns["run_id"]["hide"] is True
+    assert columns["instrument"]["filter"] == "agTextColumnFilter"
+    assert columns["review"]["filter"] == "agTextColumnFilter"
+    assert columns["evidence"]["filter"] == "agTextColumnFilter"
+    assert columns["total_return"]["filter"] == "agNumberColumnFilter"
+    assert columns["annualized_return"]["type"] == "numericColumn"
+    assert "* 100" in columns["total_return"]["valueFormatter"]["function"]
+    assert "toFixed(2)" in columns["sharpe_ratio"]["valueFormatter"]["function"]
+    assert "Math.round" in columns["number_of_trades"]["valueFormatter"]["function"]
+    assert grid.getRowId == "params.data.run_id"
+    assert grid.selectedRows == []
+
+
+def test_manual_run_refresh_does_not_reset_stable_selection_or_detail(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "refresh-runs")
+
+    refresh = _callback_function(app, "recent-runs-monitor")
+    runs_panel, events_panel = refresh(
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
+
+    assert "run_dashboard_fixture" in str(runs_panel)
+    assert "Run completed successfully." in str(events_panel)
+    selector_output = (
+        "..selected-run-selector.options...selected-run-selector.value.."
+    )
+    selector_inputs = {
+        (item["id"], item["property"])
+        for item in app.callback_map[selector_output]["inputs"]
+    }
+    assert ("refresh-runs", "n_clicks") in selector_inputs
+    assert "run-monitor-interval" not in str(_resolved_layout(app))
+    assert service.run_detail_queries == []
+
+
+def test_selected_run_store_ignores_transient_empty_dropdown(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    preserve = _callback_function(app, "selected-run-state")
+
+    assert preserve(None, None, "run_dashboard_fixture") is no_update
+    assert preserve("run_dashboard_fixture", None, None) == "run_dashboard_fixture"
+
+
+def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    infrastructure_fixture = service._summary(
+        "run_dashboard_fixture",
+        "a" * 64,
+        "succeeded",
+    )
+    spym_run = replace(
+        service._summary("spym_persisted_run", "a" * 64, "succeeded"),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+    )
+    service = _DashboardRunService(
+        initial_runs=(
+            infrastructure_fixture,
+            spym_run,
+        ),
+    )
+    chart_detail = _selected_detail_view(
+        result_rows=(
+            (
+                DetailField("Rank", "1"),
+                DetailField("Metrics", "total_return: 0.1"),
+                DetailField("Parameters", "window: 14"),
+            ),
+        ),
+        evidence=RunEvidenceView(
+            notices=(),
+            metrics=(
+                DetailField("Total Return", "0.10"),
+                DetailField("Number Of Trades", "1"),
+            ),
+            trades=(
+                {
+                    "Entry Index": "2026-01-01T14:00:00Z",
+                    "Exit Index": "2026-01-01T15:00:00Z",
+                    "PnL": 12.5,
+                    "Status": "Closed",
+                },
+            ),
+            orders=(),
+            equity_curve=(
+                {"timestamp": "2026-01-01T14:00:00Z", "value": 10_000.0},
+                {"timestamp": "2026-01-01T15:00:00Z", "value": 10_012.5},
+            ),
+            drawdown_curve=(
+                {"timestamp": "2026-01-01T14:00:00Z", "drawdown": 0.0},
+                {"timestamp": "2026-01-01T15:00:00Z", "drawdown": -0.01},
+            ),
+            validation=(DetailField("Validation", "passed"),),
+            validation_outcome=(DetailField("Normalized status", "passed"),),
+            provenance=(),
+            warnings=(),
+        ),
+    )
+
+    class DetailByRun:
+        artifact_root = tmp_path
+
+        def __init__(self) -> None:
+            self.requests: list[str] = []
+
+        def selected_run_detail(self, run_id: str) -> SelectedRunDetailView:
+            self.requests.append(run_id)
+            if run_id == "spym_persisted_run":
+                return chart_detail
+            return _selected_detail_view()
+
+    detail_adapter = DetailByRun()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    preserve = _callback_function(app, "selected-run-state")
+    inspect = _callback_function(app, "selected-run-detail")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-run-selector",
+    )
+    stored = preserve("spym_persisted_run", None, "run_dashboard_fixture")
+
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: None)
+    options, selected = refresh_selectors(
+        0,
+        0,
+        0,
+        0,
+        stored,
+        "spym_persisted_run",
+        [],
+    )
+    refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
+    comparison_options = refresh_comparison_options(0, 0)
+    panel = inspect(stored, "spym_persisted_run", 0, 0, 0, 0)
+    rendered = str(panel)
+
+    assert [option["value"] for option in options] == [
+        "run_dashboard_fixture",
+        "spym_persisted_run",
+    ]
+    assert comparison_options == options
+    assert selected is no_update
+    assert stored == "spym_persisted_run"
+    assert service.run_detail_queries[-1] == "spym_persisted_run"
+    assert detail_adapter.requests[-1] == "spym_persisted_run"
+    assert "Portfolio value and buy-and-hold comparison" in rendered
+    assert "Cumulative trade P&amp;L" in rendered or "Cumulative trade P&L" in rendered
+    assert "Recent trades" in rendered
+
+
+def test_selected_run_store_recontrols_dropdown_after_detail_render_remount(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _DashboardRunService(
+        initial_runs=(
+            _DashboardRunService()._summary(
+                "default_run_a",
+                "a" * 64,
+                "succeeded",
+            ),
+            replace(
+                _DashboardRunService()._summary(
+                    "selected_run_b",
+                    "a" * 64,
+                    "succeeded",
+                ),
+                strategy_id="spym_rsi_mean_reversion_fixture",
+            ),
+        ),
+    )
+    detail_b = replace(
+        _selected_detail_view(),
+        evidence=RunEvidenceView(
+            notices=(),
+            metrics=(DetailField("Total Return", "0.01"),),
+            trades=({"PnL": 1.0},),
+            orders=(),
+            equity_curve=({"timestamp": "2026-01-01", "value": 10_000.0},),
+            drawdown_curve=({"timestamp": "2026-01-01", "drawdown": 0.0},),
+            validation=(DetailField("Outcome", "passed"),),
+            validation_outcome=(DetailField("Normalized status", "passed"),),
+            provenance=(),
+            warnings=(),
+        ),
+    )
+
+    class DetailByRun:
+        artifact_root = tmp_path
+
+        def selected_run_detail(self, run_id: str) -> SelectedRunDetailView:
+            if run_id == "selected_run_b":
+                return detail_b
+            return _selected_detail_view()
+
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=DetailByRun(),
+    )
+    layout = _resolved_layout(app)
+    mounted_selector = next(
+        component
+        for component in _walk_components(layout)
+        if getattr(component, "id", None) == "selected-run-selector"
+    )
+    mounted_store = next(
+        component
+        for component in _walk_components(layout)
+        if getattr(component, "id", None) == "selected-run-state"
+    )
+    assert mounted_selector.value == "default_run_a"
+    assert mounted_store.data == "default_run_a"
+    assert mounted_store.storage_type == "session"
+
+    preserve = _callback_function(app, "selected-run-state")
+    inspect = _callback_function(app, "selected-run-detail")
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-run-selector",
+    )
+    stored = preserve("selected_run_b", None, "default_run_a")
+    rendered = str(inspect(stored, "selected_run_b", 0, 0, 0, 0))
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-run-state",
+    )
+    options, selected = refresh_selectors(
+        0,
+        0,
+        0,
+        0,
+        stored,
+        None,
+        mounted_selector.options,
+    )
+
+    assert stored == "selected_run_b"
+    assert "SPYM RSI Mean Reversion Fixture" in rendered
+    assert options is no_update
+    assert selected == "selected_run_b"
+
+
+def test_initial_selector_hydration_does_not_rewrite_existing_dropdown(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _DashboardRunService(
+        initial_runs=(
+            _DashboardRunService()._summary(
+                "run_dashboard_fixture",
+                "a" * 64,
+                "succeeded",
+            ),
+            replace(
+                _DashboardRunService()._summary(
+                    "spym_persisted_run",
+                    "a" * 64,
+                    "succeeded",
+                ),
+                strategy_id="spym_rsi_mean_reversion_fixture",
+            ),
+        ),
+    )
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    existing_options = [
+        {
+            "label": "Infrastructure Fixture · Fixture backtest · Succeeded",
+            "value": "run_dashboard_fixture",
+        },
+        {
+            "label": (
+                "SPYM RSI Mean Reversion Fixture · SPYM · 1m · "
+                "Fixture backtest · Succeeded"
+            ),
+            "value": "spym_persisted_run",
+        },
+    ]
+
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: None)
+    options, selected = refresh_selectors(
+        0,
+        0,
+        0,
+        0,
+        "run_dashboard_fixture",
+        "run_dashboard_fixture",
+        existing_options,
+    )
+    refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
+    comparison_options = refresh_comparison_options(0, 0)
+
+    assert options is no_update
+    assert selected is no_update
+    assert comparison_options == existing_options
+
+
+def test_initial_session_selection_beats_layout_default_dropdown(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    recent_runs = tuple(
+        base_service._summary(f"recent_run_{index:02d}", "a" * 64, "succeeded")
+        for index in range(20)
+    )
+    historical_run = replace(
+        base_service._summary("spym_historical_run", "a" * 64, "succeeded"),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+    )
+    service = _DashboardRunService(initial_runs=recent_runs + (historical_run,))
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    preserve = _callback_function(app, "selected-run-state")
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    selected_options = [
+        {
+            "label": f"Infrastructure Fixture · Fixture backtest · Succeeded {index}",
+            "value": f"recent_run_{index:02d}",
+        }
+        for index in range(20)
+    ]
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: None,
+    )
+
+    stored = preserve(
+        "recent_run_00",
+        None,
+        "spym_historical_run",
+    )
+    options, selected = refresh_selectors(
+        0,
+        "Select an approved saved configuration to launch a new backtest.",
+        "Select a historical run to launch its saved configuration.",
+        "Select a run to reproduce it from its immutable configuration.",
+        "spym_historical_run",
+        "recent_run_00",
+        selected_options,
+    )
+
+    assert stored is no_update
+    assert selected == "spym_historical_run"
+    assert [option["value"] for option in options][-1] == "spym_historical_run"
+    assert "SPYM RSI Mean Reversion Fixture" in options[-1]["label"]
+
+
+def test_initial_empty_launch_message_does_not_prefer_latest_run(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    recent_runs = tuple(
+        base_service._summary(f"recent_run_{index:02d}", "a" * 64, "succeeded")
+        for index in range(20)
+    )
+    historical_run = replace(
+        base_service._summary("spym_historical_run", "a" * 64, "succeeded"),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+    )
+    service = _DashboardRunService(initial_runs=recent_runs + (historical_run,))
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "launch-message",
+    )
+    options, selected = refresh_selectors(
+        0,
+        "Select an approved saved configuration to launch a new backtest.",
+        0,
+        0,
+        "spym_historical_run",
+        "spym_historical_run",
+        [],
+    )
+
+    assert selected is no_update
+    assert [option["value"] for option in options][-1] == "spym_historical_run"
+
+
+def test_completed_launch_run_outside_recent_limit_still_gets_selector_option(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    recent_runs = tuple(
+        base_service._summary(f"recent_run_{index:02d}", "a" * 64, "succeeded")
+        for index in range(20)
+    )
+    completed_run = replace(
+        base_service._summary("completed_launch_run", "a" * 64, "succeeded"),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+    )
+    service = _DashboardRunService(initial_runs=recent_runs + (completed_run,))
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "launch-message",
+    )
+    options, selected = refresh_selectors(
+        0,
+        {"props": {"data-run-id": "completed_launch_run"}},
+        0,
+        0,
+        "recent_run_00",
+        "recent_run_00",
+        [],
+    )
+
+    assert selected == "completed_launch_run"
+    assert [option["value"] for option in options][-1] == "completed_launch_run"
+    assert "SPYM RSI Mean Reversion Fixture" in options[-1]["label"]
+
+
+def test_passive_refresh_preserves_selected_run_outside_recent_limit(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    recent_runs = tuple(
+        base_service._summary(f"recent_run_{index:02d}", "a" * 64, "succeeded")
+        for index in range(20)
+    )
+    historical_run = replace(
+        base_service._summary("spym_historical_run", "a" * 64, "succeeded"),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+    )
+    service = _DashboardRunService(initial_runs=recent_runs + (historical_run,))
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "refresh-runs",
+    )
+    def unexpected_portfolio_scan(*args, **kwargs):
+        raise AssertionError("A valid selected run needs no portfolio scan")
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._preferred_backtest_id", unexpected_portfolio_scan)
+    options, selected = refresh_selectors(
+        1,
+        0,
+        0,
+        0,
+        "spym_historical_run",
+        "spym_historical_run",
+        [],
+    )
+
+    assert selected is no_update
+    assert [option["value"] for option in options][-1] == "spym_historical_run"
+    assert "SPYM RSI Mean Reversion Fixture" in options[-1]["label"]
+
+
+def test_passive_refresh_restores_stored_run_outside_recent_limit(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    recent_runs = tuple(
+        base_service._summary(f"recent_run_{index:02d}", "a" * 64, "succeeded")
+        for index in range(20)
+    )
+    historical_run = replace(
+        base_service._summary("spym_historical_run", "a" * 64, "succeeded"),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+    )
+    service = _DashboardRunService(initial_runs=recent_runs + (historical_run,))
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "refresh-runs",
+    )
+    options, selected = refresh_selectors(
+        1,
+        0,
+        0,
+        0,
+        "spym_historical_run",
+        None,
+        [],
+    )
+
+    assert selected == "spym_historical_run"
+    assert [option["value"] for option in options][-1] == "spym_historical_run"
+
+
+def test_history_grid_selection_recontrols_stale_dropdown_value(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    recent_runs = tuple(
+        base_service._summary(f"recent_run_{index:02d}", "a" * 64, "succeeded")
+        for index in range(20)
+    )
+    historical_run = replace(
+        base_service._summary("spym_historical_run", "a" * 64, "succeeded"),
+        strategy_id="spym_rsi_mean_reversion_fixture",
+    )
+    service = _DashboardRunService(initial_runs=recent_runs + (historical_run,))
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    preserve = _callback_function(app, "selected-run-state")
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "run-history-grid",
+    )
+    stored = preserve(
+        "recent_run_00",
+        [{"run_id": "spym_historical_run"}],
+        "recent_run_00",
+    )
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-run-state",
+    )
+    options, selected = refresh_selectors(
+        1,
+        0,
+        0,
+        0,
+        stored,
+        "recent_run_00",
+        [],
+    )
+
+    assert stored == "spym_historical_run"
+    assert selected == "spym_historical_run"
+    assert [option["value"] for option in options][-1] == "spym_historical_run"
+
+
+def test_missing_selected_run_outside_recent_limit_falls_back_to_preferred(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    recent_runs = tuple(
+        base_service._summary(f"recent_run_{index:02d}", "a" * 64, "succeeded")
+        for index in range(20)
+    )
+    service = _DashboardRunService(initial_runs=recent_runs)
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "refresh-runs",
+    )
+    options, selected = refresh_selectors(
+        1,
+        0,
+        0,
+        0,
+        "missing-run",
+        "missing-run",
+        [],
+    )
+
+    assert selected == "recent_run_00"
+    assert "missing-run" not in [option["value"] for option in options]
+
+
+def test_run_monitor_refresh_selects_new_launch_and_preserves_terminal_history(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    old_run = RunSummary(
+        run_id="old_cancelled_run",
+        configuration_id=configuration.configuration_id,
+        strategy_id="prefect_fixture_strategy",
+        strategy_version="1.0.0",
+        stage="fixture",
+        status="cancelled",
+        created_at="2026-07-13T11:00:00Z",
+        started_at="2026-07-13T11:00:01Z",
+        completed_at="2026-07-13T11:00:02Z",
+        error_summary="Run cancelled after fixture acknowledgement.",
+        prefect_flow_run_id="prefect-old-cancelled-run",
+        prefect_api_url=None,
+        attempt_count=1,
+    )
+    service = _DashboardRunService(
+        initial_runs=(old_run,),
+        launch_run_ids=["new_run_from_history"],
+    )
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    launch = _callback_function(app, "historical-launch-message")
+    launch_message, _ = launch(1, "old_cancelled_run")
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "historical-launch-message")
+
+    refresh = _callback_function(app, "recent-runs-monitor")
+    runs_panel, _ = refresh(
+        1,
+        0,
+        launch_message,
+        0,
+        0,
+        0,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    options, selected = refresh_selectors(
+        0,
+        0,
+        launch_message,
+        0,
+        "old_cancelled_run",
+        "old_cancelled_run",
+        [],
+    )
+
+    assert selected == "new_run_from_history"
+    assert [option["value"] for option in options] == [
+        "new_run_from_history",
+        "old_cancelled_run",
+    ]
+    rendered = str(runs_panel)
+    assert "new_run_from_history" in rendered
+    assert "old_cancelled_run" in rendered
+    assert "cancelled" in rendered
+
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "cancel-selected-run")
+    refresh(
+        2,
+        0,
+        1,
+        0,
+        1,
+        0,
+    )
+    selector_output = (
+        "..selected-run-selector.options...selected-run-selector.value.."
+    )
+    selector_inputs = {
+        (item["id"], item["property"])
+        for item in app.callback_map[selector_output]["inputs"]
+    }
+    assert ("cancel-selected-run", "n_clicks") not in selector_inputs
+
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "recover-stale-runs")
+    refresh(
+        3,
+        0,
+        1,
+        0,
+        1,
+        1,
+    )
+    assert ("recover-stale-runs", "n_clicks") not in selector_inputs
+
+
+def test_run_monitor_refresh_selects_new_main_launch(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(launch_run_ids=["new_main_launch"])
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    launch = _callback_function(app, "launch-message")
+    launch_message, _ = launch(1, configuration.configuration_id)
+    monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "launch-message")
+
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+    options, selected = refresh_selectors(
+        0,
+        launch_message,
+        0,
+        0,
+        "run_dashboard_fixture",
+        "run_dashboard_fixture",
+        [],
+    )
+
+    assert selected == "new_main_launch"
+    assert [option["value"] for option in options][:2] == [
+        "new_main_launch",
+        "run_dashboard_fixture",
+    ]
+
+
+def test_run_detail_panel_renders_authoritative_summary_and_events() -> None:
+    service = _DashboardRunService()
+    run = service.recent_runs()[0]
+    events = service.recent_events()
+
+    panel = _run_detail_panel(run, events)
+    rendered = str(panel)
+
+    assert "run_dashboard_fixture" in rendered
+    assert "prefect-run_dashboard_fixture" in rendered
+    assert "2026-07-13T12:00:02Z" in rendered
+    assert "Run completed successfully." in rendered
+
+
+def test_run_detail_panel_renders_immutable_configuration_lineage_and_results() -> None:
+    service = _DashboardRunService()
+    detail = _selected_detail_view(
+        artifacts=(
+            ArtifactInventoryView(
+                artifact_id=1,
+                artifact_type="metrics",
+                logical_name="metrics",
+                schema_version="1",
+                format="json",
+                availability="available",
+                validation_state="valid",
+                checksum="sha256:abc",
+                reference="artifacts/metrics.json",
+                reason="validated",
+                severity="success",
+            ),
+        ),
+        result_rows=(
+            (
+                DetailField("Rank", "1"),
+                DetailField("Metrics", "total_return: 0.1; sharpe_ratio: 1.2"),
+                DetailField("Parameters", "window: 14"),
+            ),
+        ),
+    )
+
+    panel = _run_detail_panel(
+        service.recent_runs()[0],
+        service.recent_events(),
+        detail=detail,
+    )
+    rendered = str(panel)
+
+    assert "Strategy settings" in rendered
+    assert "Selected backtest" in rendered
+    assert "Validation outcome" in rendered
+    assert "Strategy Settings" in rendered
+    assert "Technical Details" in rendered
+    assert "slice_18a_fixture" in rendered
+    assert "Fixture" in rendered
+    assert "window: 14" in rendered
+    assert '{"' not in rendered
+    assert "Research history" in rendered
+    assert "abc123" in rendered
+    assert "VectorBT Pro" in rendered
+    assert "Not recorded" in rendered
+    assert "Artifacts and validation" in rendered
+    assert "artifacts/metrics.json" in rendered
+    assert "sha256:abc" in rendered
+    assert "Result summary" in rendered
+    assert "total_return: 0.1" in rendered
+    assert "does not imply profitability" in rendered
+
+
+def test_run_detail_panel_renders_spym_fixture_persisted_evidence() -> None:
+    service = _DashboardRunService()
+    detail = _selected_detail_view(
+        evidence=RunEvidenceView(
+            notices=(
+                "Infrastructure fixture only: this run proves factory plumbing and is not profitability evidence.",
+                "SPYM is an ingestion and execution fixture here; it is not selected as the final paper or micro-live instrument.",
+            ),
+            metrics=(
+                DetailField("Total Return", "0.000817"),
+                DetailField("Number Of Trades", "366"),
+            ),
+            trades=(
+                {
+                    "Entry Index": "2025-10-31T14:05:00+00:00",
+                    "Exit Index": "2025-10-31T14:39:00+00:00",
+                    "PnL": 0.13,
+                    "Status": "Closed",
+                },
+            ),
+            orders=(
+                {
+                    "Timestamp": "2025-10-31T14:05:00+00:00",
+                    "Side": "Buy",
+                    "Size": 1.0,
+                },
+            ),
+            equity_curve=(
+                {"timestamp": "2025-10-31T13:30:00+00:00", "value": 10_000.0},
+                {"timestamp": "2025-10-31T13:31:00+00:00", "value": 10_001.0},
+            ),
+            drawdown_curve=(
+                {"timestamp": "2025-10-31T13:30:00+00:00", "drawdown": 0.0},
+                {"timestamp": "2025-10-31T13:31:00+00:00", "drawdown": 0.0},
+            ),
+            validation=(
+                DetailField("Data Validation · Dataset", "EQUS.MINI"),
+                DetailField("Data Validation · Schema", "ohlcv-1m"),
+            ),
+            validation_outcome=(
+                DetailField("Normalized status", "passed"),
+                DetailField("Reasons", "Fixture acceptance evidence recorded."),
+            ),
+            provenance=(
+                DetailField("Provider", "Databento"),
+                DetailField("Dataset", "EQUS.MINI"),
+                DetailField("Symbol", "SPYM"),
+            ),
+            warnings=(),
+        )
+    )
+
+    panel = _run_detail_panel(
+        service.recent_runs()[0],
+        service.recent_events(),
+        detail=detail,
+    )
+    rendered = str(panel)
+
+    assert "Validation and evidence" in rendered
+    assert "Result metrics" in rendered
+    assert "Number Of Trades" in rendered
+    assert "366" in rendered
+    assert "passed" in rendered
+    assert "Trade summary" in rendered
+    assert "Recent trades" in rendered
+    assert "Closed trades" in rendered
+    assert "Cumulative trade P&L" in rendered
+    assert "Underlying price, entries, and exits" in rendered
+    assert "Evidence not recorded" in rendered
+    assert "This run does not include a persisted underlying price" in rendered
+    assert "Portfolio value and buy-and-hold comparison" in rendered
+    assert "Drawdown over time" in rendered
+    assert "Portfolio value" in rendered
+    assert "Validation evidence" in rendered
+    assert "EQUS.MINI" in rendered
+    assert "ohlcv-1m" in rendered
+    assert "SPYM is an ingestion and execution fixture" in rendered
+
+
+def test_recent_trades_grid_uses_responsive_column_profile() -> None:
+    detail = _selected_detail_view(
+        evidence=RunEvidenceView(
+            notices=(),
+            metrics=(),
+            trades=(
+                {
+                    "Entry Index": "2025-10-31T14:05:00+00:00",
+                    "Exit Index": "2025-10-31T14:39:00+00:00",
+                    "Side": "Buy",
+                    "PnL": 0.13,
+                    "Return": 0.001,
+                    "Size": 1.0,
+                },
+            ),
+            orders=(),
+            equity_curve=(),
+            drawdown_curve=(),
+            validation=(),
+            provenance=(),
+            warnings=(),
+        )
+    )
+    panel = _run_detail_panel(
+        _DashboardRunService().recent_runs()[0],
+        (),
+        detail=detail,
+    )
+    grids = [
+        component
+        for component in _walk_components(panel)
+        if getattr(component, "className", None)
+        == "ag-theme-alpine qf-data-grid qf-trades-grid"
+    ]
+
+    assert len(grids) == 1
+    columns = {column["field"]: column for column in grids[0].columnDefs}
+    assert columns["Entry Index"]["minWidth"] >= 160
+    assert columns["Side"]["width"] <= 110
+    assert columns["PnL"]["cellClass"] == (
+        "qf-table-cell qf-table-cell-center qf-table-cell-number"
+    )
+    assert columns["Return"]["headerClass"] == (
+        "qf-table-header qf-table-header-wrap qf-table-header-center"
+    )
+    assert grids[0].columnSize == "autoSize"
+    assert grids[0].defaultColDef["wrapHeaderText"]
+    assert grids[0].defaultColDef["autoHeaderHeight"]
+
+
+def test_trade_pnl_chart_marks_real_completed_trade_points() -> None:
+    chart = _trade_pnl_chart(
+        (
+            {"Exit Index": "2025-10-31T14:39:00+00:00", "PnL": 10.0, "Return": 0.01, "Status": "Closed"},
+            {"Exit Index": "2025-10-31T15:39:00+00:00", "PnL": -4.0, "Return": -0.004, "Status": "Closed"},
+        ),
+        mode="cumulative",
+    )
+    trace = chart.figure.data[0]
+
+    assert trace.mode == "lines+markers"
+    assert list(trace.marker.color) == ["#16a34a", "#ef4444"]
+    assert trace.marker.size == 7
+    assert "Trade %{customdata[0]}" in trace.hovertemplate
+    assert list(trace.y) == [10.0, 6.0]
+    assert chart.figure.layout.xaxis.title.text == "Completed trade number"
+    assert chart.figure.layout.xaxis.tickmode == "linear"
+    assert chart.figure.layout.xaxis.tick0 == 1
+    assert chart.figure.layout.xaxis.dtick == 1
+    assert chart.figure.layout.xaxis.tickformat == "d"
+    assert chart.figure.layout.margin.b == 62
+
+
+def test_trade_pnl_chart_uses_spaced_integer_ticks_for_longer_trade_sequences() -> None:
+    chart = _trade_pnl_chart(
+        tuple({"PnL": float(index), "Status": "Closed"} for index in range(25)),
+        mode="cumulative",
+    )
+
+    assert chart.figure.layout.xaxis.title.text == "Completed trade number"
+    assert chart.figure.layout.xaxis.tickformat == "d"
+    assert chart.figure.layout.xaxis.dtick == 3
+
+
+def test_drawdown_chart_marks_points_and_highlights_maximum_drawdown() -> None:
+    chart = _curve_graph(
+        (
+            {"timestamp": "2025-10-31T13:30:00+00:00", "drawdown": 0.0},
+            {"timestamp": "2025-10-31T13:31:00+00:00", "drawdown": -0.04},
+            {"timestamp": "2025-10-31T13:32:00+00:00", "drawdown": -0.02},
+        ),
+        y_field="drawdown",
+        title="Drawdown over time",
+        color="#ef4444",
+        empty="No drawdown.",
+        percent=True,
+        markers=True,
+        emphasize_min=True,
+    )
+
+    assert chart.figure.data[0].mode == "lines+markers"
+    assert chart.figure.data[1].name == "Maximum drawdown"
+    assert list(chart.figure.data[1].y) == [-0.04]
+    assert chart.figure.layout.yaxis.tickformat == ".2%"
+
+
+def test_drawdown_chart_uses_precise_percent_ticks_for_small_drawdowns() -> None:
+    chart = _curve_graph(
+        (
+            {"timestamp": "2025-10-31T13:30:00+00:00", "drawdown": 0.0},
+            {"timestamp": "2025-10-31T13:31:00+00:00", "drawdown": -0.0004},
+            {"timestamp": "2025-10-31T13:32:00+00:00", "drawdown": -0.0008},
+        ),
+        y_field="drawdown",
+        title="Drawdown over time",
+        color="#ef4444",
+        empty="No drawdown.",
+        percent=True,
+        markers=True,
+        emphasize_min=True,
+    )
+
+    assert chart.figure.layout.yaxis.tickformat == ".3%"
+    assert list(chart.figure.data[0].y) == [0.0, -0.0004, -0.0008]
+    assert list(chart.figure.data[1].y) == [-0.0008]
+
+
+def test_selected_backtest_hierarchy_keeps_trace_id_out_of_primary_heading() -> None:
+    service = _DashboardRunService()
+    run = service.recent_runs()[0]
+    panel = _run_detail_panel(run, service.recent_events(), detail=_selected_detail_view())
+    headings = [
+        component.children
+        for component in _walk_components(panel)
+        if component.__class__.__name__ == "H2"
+    ]
+    rendered = str(panel)
+
+    assert run.run_id not in headings
+    assert "Fixture-only" in rendered
+    assert "Test period" in rendered
+    assert "Traceability retained below" in rendered
+    assert "Backtest ID" in rendered
+
+
+def test_run_detail_panel_surfaces_artifact_warning_and_error_states() -> None:
+    service = _DashboardRunService()
+    detail = _selected_detail_view(
+        artifacts=(
+            ArtifactInventoryView(
+                artifact_id=1,
+                artifact_type="metrics",
+                logical_name="missing-metrics",
+                schema_version="1",
+                format="json",
+                availability="missing",
+                validation_state="missing",
+                checksum="sha256:missing",
+                reference="artifacts/missing.json",
+                reason="artifact_missing",
+                severity="warning",
+            ),
+            ArtifactInventoryView(
+                artifact_id=2,
+                artifact_type="equity_curve",
+                logical_name="corrupt-equity",
+                schema_version="1",
+                format="json",
+                availability="corrupt",
+                validation_state="corrupt",
+                checksum="sha256:expected",
+                reference="artifacts/equity.json",
+                reason="artifact_checksum_mismatch",
+                severity="error",
+            ),
+            ArtifactInventoryView(
+                artifact_id=3,
+                artifact_type="run_summary",
+                logical_name="invalid-summary",
+                schema_version="1",
+                format="json",
+                availability="available",
+                validation_state="invalid",
+                checksum="sha256:summary",
+                reference="artifacts/summary.json",
+                reason="stored run manifest artifacts do not match database records",
+                severity="error",
+            ),
+        ),
+    )
+
+    rendered = str(
+        _run_detail_panel(
+            service.recent_runs()[0],
+            service.recent_events(),
+            detail=detail,
+        )
+    )
+
+    assert "missing-metrics" in rendered
+    assert "artifact_missing" in rendered
+    assert "artifact-status-warning" in rendered
+    assert "corrupt-equity" in rendered
+    assert "artifact_checksum_mismatch" in rendered
+    assert "invalid-summary" in rendered
+    assert "stored run manifest artifacts do not match database records" in rendered
+    assert "artifact-status-error" in rendered
+
+
+def _spym_fixture_launcher(**kwargs):
+    kwargs.pop("attempt_marker_path", None)
+    return deterministic_fixture_body(
+        **kwargs,
+        prefect_flow_run_id=f"prefect-{kwargs['quant_factory_run_id']}",
+        prefect_api_url="http://127.0.0.1:4200/api",
+    )
+
+
+def test_run_detail_adapter_reads_validated_spym_artifacts_for_dashboard(
+    tmp_path: Path,
+) -> None:
+    from orchestration import FixtureRunService
+    from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+
+    database = tmp_path / "state" / "dashboard-21d.sqlite3"
+    persistence = PersistenceService(database)
+    try:
+        configuration_id = ensure_spym_21c_saved_configuration(persistence)
+    finally:
+        persistence.close()
+    FixtureRunService(
+        database=database,
+        fixture_launcher=_spym_fixture_launcher,
+    ).launch_fixture(
+        configuration_id=configuration_id,
+        run_id="qf-dashboard-21d",
+    )
+
+    detail = RunDetailDashboardAdapter(
+        database=database,
+        artifact_root=tmp_path,
+    ).selected_run_detail("qf-dashboard-21d")
+
+    assert not detail.warnings
+    assert any(field.label == "Number Of Trades" and field.value == "366" for field in detail.evidence.metrics)
+    assert len(detail.evidence.trades) == 366
+    assert len(detail.evidence.orders) == 732
+    assert len(detail.evidence.equity_curve) == 53528
+    assert detail.evidence.drawdown_curve
+    assert any(field.value == "Databento" for field in detail.evidence.provenance)
+    assert any(field.value == "EQUS.MINI" for field in detail.evidence.validation)
+    assert any("not profitability evidence" in notice for notice in detail.evidence.notices)
+    assert any("not selected as the final paper or micro-live instrument" in notice for notice in detail.evidence.notices)
+
+
+def test_run_detail_adapter_fails_closed_for_corrupt_spym_artifact(
+    tmp_path: Path,
+) -> None:
+    from orchestration import FixtureRunService
+    from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+
+    database = tmp_path / "state" / "dashboard-21d-corrupt.sqlite3"
+    persistence = PersistenceService(database)
+    try:
+        configuration_id = ensure_spym_21c_saved_configuration(persistence)
+    finally:
+        persistence.close()
+    FixtureRunService(
+        database=database,
+        fixture_launcher=_spym_fixture_launcher,
+    ).launch_fixture(
+        configuration_id=configuration_id,
+        run_id="qf-dashboard-21d-corrupt",
+    )
+    metrics_path = (
+        tmp_path
+        / "state"
+        / "artifacts"
+        / "qf-dashboard-21d-corrupt"
+        / "metrics.json"
+    )
+    metrics_path.write_text('{"metrics":{"number_of_trades":999}}', encoding="utf-8")
+
+    detail = RunDetailDashboardAdapter(
+        database=database,
+        artifact_root=tmp_path,
+    ).selected_run_detail("qf-dashboard-21d-corrupt")
+
+    assert any(
+        "metrics" in warning
+        and (
+            "artifact_checksum_mismatch" in warning
+            or "artifact_size_mismatch" in warning
+        )
+        for warning in detail.warnings
+    )
+    metrics_card = next(
+        artifact for artifact in detail.artifacts if artifact.logical_name == "metrics"
+    )
+    assert metrics_card.validation_state == "corrupt"
+    assert metrics_card.severity == "error"
+
+
+def test_run_detail_panel_handles_missing_manifest_config_and_empty_summary() -> None:
+    service = _DashboardRunService()
+    detail = SelectedRunDetailView(
+        configuration_fields=(DetailField("Configuration", "Missing"),),
+        parameters=(),
+        market_data=(),
+        execution=(),
+        ranking=(),
+        screening=(),
+        lineage_fields=(DetailField("Lineage", "Not recorded"),),
+        manifest_fields=(DetailField("Manifest", "Not persisted"),),
+        artifacts=(),
+        result_summary=ResultSummaryView(
+            status="empty",
+            message="No persisted parameter result summary is available for this run.",
+            rows=(),
+        ),
+        evidence=RunEvidenceView(
+            notices=(),
+            metrics=(),
+            trades=(),
+            orders=(),
+            equity_curve=(),
+            drawdown_curve=(),
+            validation=(),
+            provenance=(),
+            warnings=(),
+        ),
+        warnings=(
+            "The saved configuration for this run is missing.",
+            "No persisted run manifest is available.",
+        ),
+    )
+
+    rendered = str(
+        _run_detail_panel(
+            service.recent_runs()[0],
+            service.recent_events(),
+            detail=detail,
+        )
+    )
+
+    assert "The saved configuration for this run is missing." in rendered
+    assert "No persisted run manifest is available." in rendered
+    assert "Not recorded" in rendered
+    assert "No artifact inventory is available" in rendered
+    assert "No persisted parameter result summary is available" in rendered
+    assert "No persisted equity curve artifact is available for this run." in rendered
+    assert "No persisted drawdown artifact is available for this run." in rendered
+    assert "No persisted trades artifact is available." in rendered
+
+
+def test_run_detail_enables_historical_configuration_launch_when_launchable() -> None:
+    service = _DashboardRunService(run_status="failed")
+    launchable_controls = _run_action_controls(
+        service.recent_runs()[0],
+        launchable_configuration=True,
+    )
+    blocked_controls = _run_action_controls(
+        service.recent_runs()[0],
+        launchable_configuration=False,
+    )
+
+    launchable_launch_controls = launchable_controls.children[0]
+    blocked_launch_controls = blocked_controls.children[0]
+
+    assert launchable_launch_controls.children[0].id == "launch-selected-run-configuration"
+    assert launchable_launch_controls.children[0].disabled is False
+    assert blocked_launch_controls.children[0].disabled is True
+
+
+def test_dashboard_inspects_selected_run(tmp_path: Path, monkeypatch) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    detail_adapter = _DashboardRunDetailAdapter()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+
+    inspect = _callback_function(app, "selected-run-detail")
+    service.run_detail_queries.clear()
+    service.run_event_queries.clear()
+    detail_adapter.requests.clear()
+    panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
+
+    assert service.run_detail_queries == ["run_dashboard_fixture"]
+    assert service.run_event_queries == ["run_dashboard_fixture"]
+    assert detail_adapter.requests == ["run_dashboard_fixture"]
+    assert "prefect-run_dashboard_fixture" in str(panel)
+    assert "Run completed successfully." in str(panel)
+    assert "Strategy settings" in str(panel)
+    assert "Research history" in str(panel)
+
+
+def test_selected_run_detail_dash_endpoint_renders_with_absent_detail_controls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    detail_adapter = _DashboardRunDetailAdapter()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+
+    response = app.server.test_client().post(
+        "/_dash-update-component",
+        json={
+            "output": "selected-run-detail.children",
+            "outputs": {"id": "selected-run-detail", "property": "children"},
+            "changedPropIds": ["selected-run-state.data"],
+            "inputs": [
+                {
+                    "id": "selected-run-state",
+                    "property": "data",
+                    "value": "run_dashboard_fixture",
+                },
+                {
+                    "id": "selected-run-selector",
+                    "property": "value",
+                    "value": "run_dashboard_fixture",
+                },
+                {"id": "refresh-runs", "property": "n_clicks", "value": 0},
+                {"id": "launch-run", "property": "n_clicks", "value": 0},
+                {
+                    "id": "cancel-selected-run",
+                    "property": "n_clicks",
+                    "value": None,
+                },
+                {"id": "recover-stale-runs", "property": "n_clicks", "value": 0},
+            ],
+            "state": [],
+        },
+    )
+    rendered = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "run-detail-hero" in rendered
+    assert "Primary metrics" in rendered
+    assert "run-analysis-tabs" in rendered
+    assert "Select a recent run" not in rendered
+
+
+def test_selected_run_detail_initializes_from_visible_dropdown_when_store_is_empty(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    detail_adapter = _DashboardRunDetailAdapter()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+
+    inspect = _callback_function(app, "selected-run-detail")
+    service.run_detail_queries.clear()
+    detail_adapter.requests.clear()
+    panel = inspect(None, "run_dashboard_fixture", 0, 0, 0, 0)
+    rendered = str(panel)
+
+    assert service.run_detail_queries == ["run_dashboard_fixture"]
+    assert detail_adapter.requests == ["run_dashboard_fixture"]
+    assert "run-detail-hero" in rendered
+    assert "Select a recent run" not in rendered
+
+
+def test_selected_run_detail_callback_renders_charts_and_tables_for_persisted_run(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    detail_adapter = _DashboardRunDetailAdapter(
+        _selected_detail_view(
+            result_rows=(
+                (
+                    DetailField("Rank", "1"),
+                    DetailField("Metrics", "total_return: 0.1"),
+                    DetailField("Parameters", "window: 14"),
+                ),
+            ),
+            evidence=RunEvidenceView(
+                notices=(),
+                metrics=(
+                    DetailField("Total Return", "0.10"),
+                    DetailField("Number Of Trades", "1"),
+                ),
+                trades=(
+                    {
+                        "Entry Index": "2026-01-01T14:00:00Z",
+                        "Exit Index": "2026-01-01T15:00:00Z",
+                        "PnL": 12.5,
+                        "Status": "Closed",
+                    },
+                ),
+                orders=(),
+                equity_curve=(
+                    {"timestamp": "2026-01-01T14:00:00Z", "value": 10_000.0},
+                    {"timestamp": "2026-01-01T15:00:00Z", "value": 10_012.5},
+                ),
+                drawdown_curve=(
+                    {"timestamp": "2026-01-01T14:00:00Z", "drawdown": 0.0},
+                    {"timestamp": "2026-01-01T15:00:00Z", "drawdown": -0.01},
+                ),
+                validation=(DetailField("Validation", "passed"),),
+                validation_outcome=(DetailField("Normalized status", "passed"),),
+                provenance=(),
+                warnings=(),
+            ),
+        )
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+
+    inspect = _callback_function(app, "selected-run-detail")
+    panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
+    rendered = str(panel)
+
+    assert "Portfolio value and buy-and-hold comparison" in rendered
+    assert "Cumulative trade P&amp;L" in rendered or "Cumulative trade P&L" in rendered
+    assert "Drawdown over time" in rendered
+    assert "Trade return distribution" in rendered
+    assert "Recent trades" in rendered
+    assert "result-summary-card" in rendered
+    assert "window: 14" in rendered
+
+
+def test_dashboard_selected_run_detail_reports_adapter_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    detail_adapter = _DashboardRunDetailAdapter(RuntimeError("manifest missing"))
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+
+    inspect = _callback_function(app, "selected-run-detail")
+    panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
+
+    assert "Run detail retrieval failed: manifest missing" in str(panel)
+
+
+def test_dashboard_callbacks_do_not_query_sqlite_or_parse_artifact_files() -> None:
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "dashboard"
+        / "application.py"
+    ).read_text(encoding="utf-8")
+
+    assert "sqlite3" not in source
+    assert ".connection" not in source
+    assert "read_bytes(" not in source
+    assert "open(" not in source
+    assert "retrieve_run_artifacts(" not in source
+
+
+def test_dashboard_does_not_construct_lockbox_gate() -> None:
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "dashboard"
+        / "application.py"
+    ).read_text(encoding="utf-8")
+
+    assert "LockboxGateResult" not in source
+    assert "LockboxArtifactReference" not in source
+    assert "lockbox_gate_identity" not in source
+    assert "SourceLockEvidence" not in source
+    assert "RunDetailDashboardAdapter" in source
+
+
+def test_dashboard_reports_missing_selected_run(tmp_path: Path, monkeypatch) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    inspect = _callback_function(app, "selected-run-detail")
+    service.run_detail_queries.clear()
+    service.run_event_queries.clear()
+    panel = inspect("missing-run", "missing-run", 0, 0, 0, 0)
+
+    assert service.run_detail_queries == ["missing-run"]
+    assert service.run_event_queries == []
+    assert "Run not found" in str(panel)
+
+def test_run_detail_enables_cancellation_only_for_running_run() -> None:
+    running_service = _DashboardRunService(run_status="running")
+    running_controls = _run_action_controls(
+        running_service.recent_runs()[0],
+        launchable_configuration=True,
+    )
+    running_button = next(
+        component
+        for component in _walk_components(running_controls)
+        if getattr(component, "id", None) == "cancel-selected-run"
+    )
+
+    terminal_service = _DashboardRunService(run_status="succeeded")
+    terminal_controls = _run_action_controls(
+        terminal_service.recent_runs()[0],
+        launchable_configuration=True,
+    )
+    terminal_button = next(
+        component
+        for component in _walk_components(terminal_controls)
+        if getattr(component, "id", None) == "cancel-selected-run"
+    )
+
+    assert running_button.id == "cancel-selected-run"
+    assert running_button.disabled is False
+    assert terminal_button.disabled is True
+
+
+def test_dashboard_requests_cooperative_run_cancellation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(run_status="running")
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    cancel = _callback_function(app, "cancellation-message")
+    message, class_name = cancel(1, "run_dashboard_fixture")
+
+    assert service.cancellation_requests == ["run_dashboard_fixture"]
+    assert "waiting for fixture acknowledgement" in message
+    assert class_name == (
+        "cancellation-message cancellation-message-pending"
+    )
+
+
+def test_dashboard_reports_cancellation_request_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(
+        error=ValueError("run is not active and cannot be cancelled"),
+        run_status="running",
+    )
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    cancel = _callback_function(app, "cancellation-message")
+    message, class_name = cancel(1, "run_dashboard_fixture")
+
+    assert service.cancellation_requests == ["run_dashboard_fixture"]
+    assert message == (
+        "Cancellation request failed: "
+        "run is not active and cannot be cancelled"
+    )
+    assert class_name == "cancellation-message error-state"
+
+
+def test_dashboard_does_not_claim_terminal_run_was_cancelled(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(run_status="succeeded")
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    cancel = _callback_function(app, "cancellation-message")
+    message, class_name = cancel(1, "run_dashboard_fixture")
+
+    assert service.cancellation_requests == ["run_dashboard_fixture"]
+    assert message == (
+        "Run is already succeeded; no cancellation request was applied."
+    )
+    assert class_name == "cancellation-message"
+
+def test_dashboard_requires_explicit_stale_recovery_cutoff(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    recover = _callback_function(app, "stale-recovery-message")
+    message, class_name = recover(1, "   ")
+
+    assert service.stale_recovery_requests == []
+    assert message == (
+        "Enter an explicit UTC cutoff before requesting recovery."
+    )
+    assert class_name == "stale-recovery-message error-state"
+
+
+def test_dashboard_reports_no_matching_stale_runs(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    recover = _callback_function(app, "stale-recovery-message")
+    message, class_name = recover(1, "2026-07-13T12:00:00Z")
+
+    assert service.stale_recovery_requests == [
+        "2026-07-13T12:00:00Z"
+    ]
+    assert message == (
+        "No stale fixture runs matched the supplied cutoff."
+    )
+    assert class_name == "stale-recovery-message"
+
+
+def test_dashboard_reports_recovered_stale_runs(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    service.stale_recovery_result = (
+        RunSummary(
+            run_id="run_stale_fixture",
+            configuration_id=configuration.configuration_id,
+            strategy_id="prefect_fixture_strategy",
+            strategy_version="1.0.0",
+            stage="fixture",
+            status="failed",
+            created_at="2026-07-12T12:00:00Z",
+            started_at="2026-07-12T12:00:01Z",
+            completed_at="2026-07-13T12:00:00Z",
+            error_summary=(
+                "Fixture run remained running beyond the stale "
+                "recovery cutoff."
+            ),
+            prefect_flow_run_id="prefect-stale-fixture",
+            prefect_api_url="http://127.0.0.1:4200/api",
+            attempt_count=2,
+        ),
+    )
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    recover = _callback_function(app, "stale-recovery-message")
+    message, class_name = recover(1, "2026-07-13T12:00:00Z")
+
+    rendered = str(message)
+    assert service.stale_recovery_requests == [
+        "2026-07-13T12:00:00Z"
+    ]
+    assert "Recovered 1 stale fixture run." in rendered
+    assert "run_stale_fixture" in rendered
+    assert "remained running beyond the stale recovery cutoff" in rendered
+    assert class_name == (
+        "stale-recovery-message stale-recovery-message-success"
+    )
+
+
+def test_dashboard_reports_stale_recovery_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(
+        error=ValueError("stale_before must be an ISO-8601 UTC timestamp"),
+    )
+    data = _data()
+    context = DashboardContext(
+        pd.DataFrame([_ranked_row()]),
+        data,
+        _audit(data),
+    )
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+
+    recover = _callback_function(app, "stale-recovery-message")
+    message, class_name = recover(1, "not-a-timestamp")
+
+    assert service.stale_recovery_requests == ["not-a-timestamp"]
+    assert message == (
+        "Stale-run recovery failed: "
+        "stale_before must be an ISO-8601 UTC timestamp"
+    )
+    assert class_name == "stale-recovery-message error-state"

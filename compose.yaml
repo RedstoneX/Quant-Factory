@@ -1,0 +1,104 @@
+name: quant-factory-research
+
+services:
+  dashboard:
+    build:
+      context: .
+      args:
+        QF_REVISION: ${QF_REVISION:?set QF_REVISION}
+      additional_contexts:
+        vectorbt_private: ${QF_VECTORBT_WHEEL_DIR:?set QF_VECTORBT_WHEEL_DIR}
+    image: quant-factory-research:${QF_REVISION:?set QF_REVISION}
+    command:
+      - gunicorn
+      - --bind
+      - 0.0.0.0:8050
+      - --workers
+      - "1"
+      - --worker-class
+      - gthread
+      - --threads
+      - "2"
+      - --timeout
+      - "120"
+      - --graceful-timeout
+      - "30"
+      - --access-logfile
+      - "-"
+      - --error-logfile
+      - "-"
+      - deployment.research_wsgi:create_server()
+    environment:
+      QUANT_FACTORY_DB_PATH: /var/lib/quant-factory/state/quant_factory.sqlite3
+      QUANT_FACTORY_ARTIFACT_ROOT: /var/lib/quant-factory
+      QUANT_FACTORY_DATA_LOCATIONS: /app/config/data_locations.local.toml
+      PREFECT_API_URL: http://prefect:4200/api
+      QF_REVISION: ${QF_REVISION:?set QF_REVISION}
+    ports:
+      - "127.0.0.1:8050:8050"
+    depends_on:
+      prefect:
+        condition: service_healthy
+    volumes:
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/runtime:/var/lib/quant-factory
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/market-data:/var/lib/quant-factory/market-data:ro
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/config/data_locations.local.toml:/app/config/data_locations.local.toml:ro
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777
+      - /home/qf:uid=10001,gid=10001,mode=0700
+    cpus: "2.0"
+    mem_limit: 3g
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks: [research-internal, research-access]
+    healthcheck:
+      test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:8050/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  prefect:
+    image: quant-factory-research:${QF_REVISION:?set QF_REVISION}
+    entrypoint: [prefect]
+    command: [server, start, --host, 0.0.0.0, --port, "4200"]
+    environment:
+      PREFECT_HOME: /var/lib/quant-factory-prefect
+      PREFECT_SERVER_ANALYTICS_ENABLED: "false"
+      PREFECT_SERVER_UI_ENABLED: "false"
+      PREFECT_SERVER_MEMO_STORE_PATH: /var/lib/quant-factory-prefect/memo_store.toml
+      PREFECT_SERVER_EPHEMERAL_ENABLED: "false"
+    volumes:
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/prefect:/var/lib/quant-factory-prefect
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777
+      - /home/qf:uid=10001,gid=10001,mode=0700
+    cpus: "1.0"
+    mem_limit: 1g
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks: [research-internal]
+    healthcheck:
+      test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:4200/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  research-internal:
+    internal: true
+  research-access:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"

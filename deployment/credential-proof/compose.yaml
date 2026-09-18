@@ -1,0 +1,96 @@
+name: ${PROOF_PROJECT:?fresh proof project required}
+x-python: &python
+  image: python@sha256:b64631e04e4920160c50fbe8d8df828f7f35f06f425cb44aa09bca53e708a35a
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  mem_limit: 128m
+  cpus: 0.5
+  pids_limit: 64
+  tmpfs: [/tmp:size=8m]
+  volumes:
+    - ./probe.py:/harness/probe.py:ro
+services:
+  db:
+    image: sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+    environment:
+      POSTGRES_DB: proof
+      POSTGRES_USER: proof
+      POSTGRES_PASSWORD_FILE: /run/secrets/db-password
+    volumes:
+      - ${PROOF_RUNTIME:?}/db-password:/run/secrets/db-password:ro
+      - db-data:/var/lib/postgresql
+    networks: [backend]
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U proof -d proof]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+  onecli:
+    image: sha256:d0177458b1f9ecece4abbe9abb6c5f925475357c1734f50a675d83a2ef9c8687
+    env_file: ["${PROOF_RUNTIME:?}/onecli.env"]
+    environment:
+      APP_URL: http://onecli:10254
+      INTERNAL_API_URL: http://localhost:10254
+      PORT: '10254'
+      GATEWAY_PORT: '10255'
+      NODE_ENV: production
+    volumes: [onecli-data:/app/data]
+    networks: [backend]
+    mem_limit: 1536m
+    cpus: 1.0
+    pids_limit: 256
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      db: {condition: service_healthy}
+  gateway-relay:
+    image: haproxy@sha256:6343ce34a132a5dceaa24767d739df2bd519f8f7c1079ae39e4821334e8eb42e
+    user: '10002:10002'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 32
+    volumes: [./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro]
+    networks: [backend, actor]
+    depends_on: [onecli]
+  fixture:
+    <<: *python
+    command: [python, /harness/probe.py, fixture]
+    user: '10002:10002'
+    volumes:
+      - ./probe.py:/harness/probe.py:ro
+      - ${PROOF_RUNTIME:?}/fixture:/fixture:ro
+    networks:
+      backend:
+        aliases: [fixture.qf.test, wrong.qf.test]
+  controller:
+    <<: *python
+    profiles: [tools]
+    command: [python, /harness/probe.py, prepare]
+    volumes:
+      - ./probe.py:/harness/probe.py:ro
+      - ${PROOF_RUNTIME:?}/controller:/control
+      - ${PROOF_RUNTIME:?}/actor:/actor
+      - ${PROOF_RUNTIME:?}/fixture:/fixture:ro
+    networks: [backend]
+  actor:
+    <<: *python
+    profiles: [tools]
+    user: '10002:10002'
+    command: [python, /harness/probe.py, actor]
+    volumes:
+      - ./probe.py:/harness/probe.py:ro
+      - ${PROOF_RUNTIME:?}/actor:/actor:ro
+    networks: [actor]
+networks:
+  backend: {internal: true}
+  actor: {internal: true}
+volumes:
+  db-data:
+  onecli-data:

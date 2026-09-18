@@ -1,0 +1,138 @@
+{
+  "dataset_id": "equities_SPY_1m_alpaca_iex",
+  "status": "validated",
+  "provider": "alpaca",
+  "provider_display": "Alpaca",
+  "feed": "iex",
+  "symbol": "SPY",
+  "asset_class": "equity",
+  "asset_type": "ETF",
+  "timeframe": "1m",
+  "alpaca_timeframe": "1Min",
+  "format": "parquet",
+  "canonical_relative_path": "equities/SPY/1m/SPY_1m_alpaca_iex.parquet",
+  "source_archive": "",
+  "original_source_path": "https://data.alpaca.markets/v2/stocks/SPY/bars",
+  "sha256": "96cef375b2e7c3b29c9566cfc5016391a11f762ef744246a286b345f57fa79d3",
+  "size_bytes": 79585,
+  "row_count": 1950,
+  "earliest_timestamp": "2026-07-01T13:30:00+00:00",
+  "latest_timestamp": "2026-07-08T19:59:00+00:00",
+  "full_stored_coverage": {
+    "first_timestamp": "2026-07-01T13:30:00+00:00",
+    "last_timestamp": "2026-07-08T19:59:00+00:00",
+    "row_count": 1950
+  },
+  "timezone": "UTC",
+  "market_timezone": "America/New_York",
+  "exchange_calendar": "NYSE",
+  "session_policy": "regular_trading_hours_only",
+  "regular_session_policy": "include bars with timestamps >= market_open and < market_close",
+  "adjustment": "raw",
+  "requested_coverage": {
+    "completed_session_count": 5,
+    "sessions": [
+      "2026-07-01",
+      "2026-07-02",
+      "2026-07-06",
+      "2026-07-07",
+      "2026-07-08"
+    ],
+    "start": "2026-07-01T13:30:00+00:00",
+    "end": "2026-07-08T20:00:00+00:00",
+    "first_timestamp": "2026-07-01T13:30:00+00:00",
+    "last_timestamp": "2026-07-08T19:59:00+00:00",
+    "row_count": 1950
+  },
+  "current_acquisition_coverage": {
+    "requested_sessions": [
+      "2026-07-01",
+      "2026-07-02",
+      "2026-07-06",
+      "2026-07-07",
+      "2026-07-08"
+    ],
+    "already_present_sessions": [
+      "2026-07-01",
+      "2026-07-02",
+      "2026-07-06",
+      "2026-07-07",
+      "2026-07-08"
+    ],
+    "newly_downloaded_sessions": [],
+    "row_count_before_download": 1950,
+    "row_count_after_download": 1950
+  },
+  "newly_downloaded_coverage": {
+    "sessions": [],
+    "ranges": []
+  },
+  "actual_coverage": {
+    "first_timestamp": "2026-07-01T13:30:00+00:00",
+    "last_timestamp": "2026-07-08T19:59:00+00:00",
+    "row_count": 1950
+  },
+  "requested_sessions": [
+    "2026-07-01",
+    "2026-07-02",
+    "2026-07-06",
+    "2026-07-07",
+    "2026-07-08"
+  ],
+  "already_present_sessions": [
+    "2026-07-01",
+    "2026-07-02",
+    "2026-07-06",
+    "2026-07-07",
+    "2026-07-08"
+  ],
+  "newly_downloaded_sessions": [],
+  "cache_reused": true,
+  "cache_status": "full_reuse",
+  "previous_manifest_sha256": "96cef375b2e7c3b29c9566cfc5016391a11f762ef744246a286b345f57fa79d3",
+  "missing_sessions": [],
+  "missing_session_count": 0,
+  "missing_regular_session_bar_count": 0,
+  "missing_regular_session_bar_examples": [],
+  "duplicate_timestamp_count": 0,
+  "null_counts": {
+    "timestamp": 0,
+    "open": 0,
+    "high": 0,
+    "low": 0,
+    "close": 0,
+    "volume": 0,
+    "trade_count": 0,
+    "vwap": 0
+  },
+  "null_count": 0,
+  "ohlc_violation_count": 0,
+  "monotonic_increasing": true,
+  "columns": [
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "trade_count",
+    "vwap"
+  ],
+  "acquisition_timestamp": "2026-07-09T19:25:14.962234+00:00",
+  "imported_at_utc": "2026-07-09T19:25:14.962234+00:00",
+  "validated_by": "market_data.providers.alpaca.AlpacaHistoricalBarsProvider",
+  "source": {
+    "host": "https://data.alpaca.markets",
+    "endpoint_path": "/v2/stocks/SPY/bars"
+  },
+  "approved_uses": [
+    "controlled SPY one-minute IEX research after explicit feed review"
+  ],
+  "restrictions": [
+    "IEX feed only; do not treat as SIP consolidated tape",
+    "regular trading hours only",
+    "raw adjustment setting"
+  ],
+  "validation_notes": [],
+  "local_canonical_path": "equities/SPY/1m/SPY_1m_alpaca_iex.parquet"
+}

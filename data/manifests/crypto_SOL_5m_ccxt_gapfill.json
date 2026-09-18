@@ -1,0 +1,57 @@
+{
+  "format": "parquet",
+  "source_archive": "quant_factory_FULL_BACKUP_20260217.tar.gz",
+  "timeframe": "5m",
+  "duplicate_timestamp_count": 0,
+  "monotonic_increasing": true,
+  "apparent_bar_interval": "5 minutes (modal positive timestamp delta: 300 seconds)",
+  "imported_at_utc": "2026-07-07T17:09:09Z",
+  "validated_by": "Codex controlled legacy import",
+  "dataset_id": "crypto_SOL_5m_ccxt_gapfill",
+  "status": "quarantined",
+  "asset_class": "crypto",
+  "symbol": "SOL/USD",
+  "provider": "CCXT; exchange unresolved",
+  "canonical_relative_path": "quarantine/crypto/SOL/5m/ccxt_sol_gapfill.parquet",
+  "original_source_path": "data/SOLUSD/5m/ccxt_sol_gapfill.parquet",
+  "sha256": "c66952ec248e0dfc679a99528fb5897da17562360aa9f6be22174986c67a8a15",
+  "size_bytes": 2788404,
+  "row_count": 123264,
+  "earliest_timestamp": "2023-07-01T00:00:00+00:00",
+  "latest_timestamp": "2024-08-31T23:55:00+00:00",
+  "timezone": "UTC",
+  "timestamp_field": "timestamp",
+  "columns": [
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume"
+  ],
+  "schema": {
+    "timestamp": "timestamp[ms, tz=UTC]",
+    "open": "double",
+    "high": "double",
+    "low": "double",
+    "close": "double",
+    "volume": "double"
+  },
+  "null_counts": {
+    "timestamp": 0,
+    "open": 0,
+    "high": 0,
+    "low": 0,
+    "close": 0,
+    "volume": 0
+  },
+  "ohlc_violation_count": 0,
+  "validation_notes": [
+    "Readable, complete 5-minute sequence for the recorded interval, with no duplicates, nulls, or OHLC violations.",
+    "The CCXT exchange, market type, and acquisition provenance are unresolved."
+  ],
+  "approved_uses": [],
+  "restrictions": [
+    "Quarantined: do not merge across providers until venue identity and merge policy are approved."
+  ]
+}

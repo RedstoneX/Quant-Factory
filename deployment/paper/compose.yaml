@@ -1,0 +1,48 @@
+name: quant-factory-paper-observer
+services:
+  paper-observer:
+    build:
+      context: ../..
+      dockerfile: deployment/paper/Dockerfile
+    image: quant-factory-paper-observer:local
+    user: "10002:10002"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    stop_grace_period: 25s
+    ports:
+      - "127.0.0.1:8051:8051"
+    volumes:
+      - type: bind
+        source: ${QF_PAPER_CONFIG_FILE:?absolute public worker configuration path required}
+        target: /run/paper/config.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${QF_PAPER_IDENTITY_FILE:?absolute restricted gateway identity path required}
+        target: /run/paper/identity
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${QF_PAPER_CA_FILE:?absolute public gateway CA path required}
+        target: /run/paper/gateway-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [paper-read]
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "2"
+networks:
+  paper-read:
+    external: true
+    name: quant-factory-paper-read

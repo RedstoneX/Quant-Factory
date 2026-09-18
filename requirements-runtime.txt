@@ -1,0 +1,24 @@
+# Direct runtime dependencies.  Transitive dependencies are resolved by pip at image build.
+# VectorBT Pro is deliberately absent: the licensed 2026.4.7 wheel is supplied as a
+# private BuildKit context named vectorbt_private.
+dash==4.3.0
+dash-ag-grid==35.2.0
+blosc2==4.7.0
+databento==0.80.0
+dill==0.4.1
+exchange-calendars==4.13.2
+gunicorn==26.2.0
+numpy==2.4.6
+pandas==2.3.3
+pandas-market-calendars==5.4.0
+plotly==6.8.0
+prefect==3.7.8
+pyarrow==24.0.0
+requests==2.34.2
+sqlalchemy==2.0.51
+yfinance==1.5.1
+# Match the locally validated numerical engine when building on the target.
+numba==0.66.0
+llvmlite==0.48.0
+scipy==1.18.0
+scikit-learn==1.9.0

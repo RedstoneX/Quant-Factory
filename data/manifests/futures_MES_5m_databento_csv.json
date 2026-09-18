@@ -1,0 +1,57 @@
+{
+  "dataset_id": "futures_MES_5m_databento_csv",
+  "status": "quarantined",
+  "asset_class": "futures",
+  "symbol": "MES",
+  "provider": "Databento",
+  "timeframe": "5m",
+  "format": "csv",
+  "canonical_relative_path": "quarantine/futures/MES/5m/MES_5m_databento.csv",
+  "source_archive": "quant_factory_FULL_BACKUP_20260217.tar.gz",
+  "original_source_path": "data/MES/5m/MES_5m_databento.csv",
+  "sha256": "0da11307b100782ef81d4e811ab09ce3704a8794ff96000c60be77b60af7a4b7",
+  "size_bytes": 28791514,
+  "row_count": 476042,
+  "earliest_timestamp": "2019-05-05T22:00:00+00:00",
+  "latest_timestamp": "2026-02-13T21:55:00+00:00",
+  "timezone": "UTC",
+  "timestamp_field": "ts_event",
+  "columns": [
+    "ts_event",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume"
+  ],
+  "schema": {
+    "ts_event": "ISO-8601 UTC timestamp",
+    "open": "float",
+    "high": "float",
+    "low": "float",
+    "close": "float",
+    "volume": "integer"
+  },
+  "duplicate_timestamp_count": 0,
+  "null_counts": {
+    "ts_event": 0,
+    "open": 0,
+    "high": 0,
+    "low": 0,
+    "close": 0,
+    "volume": 0
+  },
+  "monotonic_increasing": true,
+  "apparent_bar_interval": "5 minutes (modal positive timestamp delta: 300 seconds)",
+  "ohlc_violation_count": 0,
+  "validation_notes": [
+    "Readable CSV with the same row count, range, schema, and observations as the preferred MES Parquet representation.",
+    "Retained in quarantine as a redundant alternate encoding; the validated Parquet file is canonical."
+  ],
+  "approved_uses": [],
+  "restrictions": [
+    "Quarantined to prevent duplicate ingestion; use futures_MES_5m_databento instead."
+  ],
+  "imported_at_utc": "2026-07-07T17:09:09Z",
+  "validated_by": "Codex controlled legacy import"
+}

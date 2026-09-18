@@ -1,0 +1,9 @@
+{
+  "expected_account_id": "00000000-0000-4000-8000-000000000001",
+  "deployment_id": "paper-account-observer",
+  "owner_attestation_reference": "owner-attestation:replace-with-external-operator-record",
+  "proxy_url": "http://gateway-relay:10255",
+  "identity_file": "/run/paper/identity",
+  "ca_file": "/run/paper/gateway-ca.pem",
+  "refresh_seconds": 60
+}

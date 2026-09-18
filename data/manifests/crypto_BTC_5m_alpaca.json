@@ -1,0 +1,68 @@
+{
+  "format": "parquet",
+  "source_archive": "quant_factory_FULL_BACKUP_20260217.tar.gz",
+  "timeframe": "5m",
+  "duplicate_timestamp_count": 0,
+  "monotonic_increasing": true,
+  "apparent_bar_interval": "5 minutes (modal positive timestamp delta: 300 seconds)",
+  "imported_at_utc": "2026-07-07T17:09:09Z",
+  "validated_by": "Codex controlled legacy import",
+  "dataset_id": "crypto_BTC_5m_alpaca",
+  "status": "validated",
+  "asset_class": "crypto",
+  "symbol": "BTC/USD",
+  "provider": "Alpaca",
+  "canonical_relative_path": "crypto/BTC/5m/alpaca_btc_recent.parquet",
+  "original_source_path": "data/BTCUSD/5m/alpaca_btc_recent.parquet",
+  "sha256": "346c88d763f0d429ebe75f129e243f675e04ccb0eac30e8c4b46c83bce370000",
+  "size_bytes": 10760613,
+  "row_count": 235654,
+  "earliest_timestamp": "2022-07-01T00:00:00+00:00",
+  "latest_timestamp": "2026-02-12T22:35:00+00:00",
+  "timezone": "UTC",
+  "timestamp_field": "timestamp",
+  "columns": [
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "trade_count",
+    "vwap"
+  ],
+  "schema": {
+    "timestamp": "timestamp[us, tz=UTC]",
+    "open": "double",
+    "high": "double",
+    "low": "double",
+    "close": "double",
+    "volume": "double",
+    "trade_count": "int64",
+    "vwap": "double"
+  },
+  "null_counts": {
+    "timestamp": 0,
+    "open": 0,
+    "high": 0,
+    "low": 0,
+    "close": 0,
+    "volume": 0,
+    "trade_count": 0,
+    "vwap": 0
+  },
+  "ohlc_violation_count": 0,
+  "validation_notes": [
+    "Readable Parquet and provider documented by data/download_report.md.",
+    "Chronologically ordered with no duplicate timestamps, nulls, or OHLC violations.",
+    "The source report records 306 gaps over 15 minutes and 48% zero-volume bars."
+  ],
+  "approved_uses": [
+    "Crypto bar research with explicit gap and liquidity handling",
+    "Opening-range research with an approved synthetic session anchor"
+  ],
+  "restrictions": [
+    "Coverage is not continuous 24/7.",
+    "Zero-volume bars and reported weekly gaps must be handled explicitly."
+  ]
+}

@@ -1,0 +1,52 @@
+# Quant Factory Chat Handoff
+
+This page is startup navigation only. It does not define current status,
+mandate, or acceptance.
+
+## Start here
+
+Read the closed Tier 1 authority set before acting:
+
+1. [`AGENTS.md`](../AGENTS.md) — working contract, safety, evidence, and Git rules.
+2. [`docs/MILESTONES.md`](MILESTONES.md) — product direction, current status,
+   ordered work, and acceptance.
+3. [`docs/DECISIONS.md`](DECISIONS.md) — accepted decisions and supersessions.
+
+Then read [`DOCUMENTATION_GOVERNANCE.md`](DOCUMENTATION_GOVERNANCE.md), the
+[agent policy](ai-programming-agent-policy.md), and the ADRs, specifications,
+or runbooks relevant to the task. `README.md` and this page are derived
+navigation, not competing authorities.
+
+## Current resume point
+
+Milestone 23 is the active gate. Dashboard implementation and browser/operator
+acceptance are pending. Decision 274 sets the order: complete Milestone 23,
+qualify a defensible equity edge under Milestone 25, then resume paper
+activation only after every execution gate passes. Live capital remains far
+future and requires separate explicit owner approval.
+
+Decision 275 authorizes the sanitized clean-history public repository. The
+public repository is the forward source of truth after its controlled cutover;
+the original private repository remains historical evidence only. Publication
+does not grant a source-code license: the project is all rights reserved.
+
+## Mechanism references
+
+- [ADR 0008](architecture/0008-dashboard-mounted-route-architecture.md) defines
+  the mounted-route Dash architecture and browser acceptance.
+- [Milestone 23 acceptance](milestones/milestone-23-acceptance.md) defines the
+  scenario matrix and readable incident history.
+- [ADR 0007](architecture/0007-portable-deployment-and-alpaca-first-roadmap.md)
+  defines portable deployment and environment separation.
+- [ADR 0010](architecture/0010-agent-credential-gateway.md) and the
+  [credential gateway runbook](operations/credential-gateway.md) define
+  credential isolation and fail-closed proof.
+- [Paper worker runbook](operations/paper-worker.md) defines the read-only
+  observer boundary.
+- [Data catalog](DATA_CATALOG.md) and committed manifests govern dataset
+  identity.
+
+Verify path, branch, HEAD, upstream, and dirty state before editing. Use a
+dedicated branch or isolated worktree, preserve unrelated changes, run the
+narrowest decisive validation first, and never infer acceptance from stale
+evidence.
