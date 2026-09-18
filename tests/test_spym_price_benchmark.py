@@ -136,14 +136,18 @@ def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> N
     price_graph = _graph(_price_marker_panel(detail))
     assert price_graph is not None
     assert price_graph.id == "price-marker-chart"
-    assert [trace.name for trace in price_graph.figure.data] == [
-        "SPYM close",
-        "Long entry markers",
-        "Long exit markers",
+    candlesticks = [
+        trace for trace in price_graph.figure.data if trace.type == "candlestick"
     ]
-    assert len(price_graph.figure.data[0].x) == 53528
-    assert len(price_graph.figure.data[1].x) == 366
-    assert len(price_graph.figure.data[2].x) == 366
+    assert [trace.name for trace in candlesticks] == [
+        "Observed SPYM (1m)",
+        "Observed SPYM (5m)",
+        "Observed SPYM (15m)",
+        "Observed SPYM (1D)",
+    ]
+    assert [len(trace.x) for trace in candlesticks] == [53528, 13340, 4474, 173]
+    assert len([trace for trace in price_graph.figure.data if trace.type == "scatter"]) == 8
+    assert price_graph.config["scrollZoom"] is True
 
     benchmark_panel = _portfolio_value_panel(detail)
     benchmark_graph = _graph(benchmark_panel)
