@@ -1,87 +1,117 @@
-"""Focused Slice 18C-1 tests for bounded fixture retry behavior."""
+"""ADR 0011 proofs that outer fixture-launch retry is disabled."""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from orchestration import FixtureRunService
 from orchestration.run_service import FixtureRetryPolicy
-from persistence import PersistenceService, RunStatus
-from prefect_spike.fixture_flow import deterministic_fixture_body
+from persistence import PersistenceService, RunEventType
+from prefect_spike.fixture_flow import (
+    PrefectRunReference,
+    _validated_claim_boundary,
+    deterministic_fixture_body,
+)
+import prefect_spike.fixture_flow as fixture_flow
 from tests.test_run_service import _configuration
 
 
-def _retry_launcher(**kwargs):
-    kwargs.pop("attempt_marker_path", None)
-    return deterministic_fixture_body(
-        **kwargs,
-        prefect_flow_run_id=f"prefect-{kwargs['quant_factory_run_id']}",
-        prefect_api_url="http://127.0.0.1:4200/api",
-    )
+def _assert_no_launch_mutation(database: Path) -> None:
+    service = PersistenceService(database)
+    try:
+        assert service.runs.list() == ()
+        assert service.connection.execute(
+            "SELECT COUNT(*) FROM research_run_submissions"
+        ).fetchone()[0] == 0
+    finally:
+        service.close()
 
 
-def test_transient_failure_retries_once_then_succeeds_with_authoritative_count(
+def test_outer_retry_policy_is_rejected_before_claim(tmp_path: Path) -> None:
+    database, configuration_id = _configuration(tmp_path)
+    with pytest.raises(ValueError, match="outer fixture-launch retries are disabled"):
+        FixtureRunService(database=database).launch_fixture(
+            configuration_id=configuration_id,
+            run_id="qf-retry-policy-disabled",
+            retry_policy=FixtureRetryPolicy(max_attempts=2),
+        )
+    _assert_no_launch_mutation(database)
+
+
+def test_outer_transient_failure_injection_is_rejected_before_claim(
     tmp_path: Path,
 ) -> None:
     database, configuration_id = _configuration(tmp_path)
-    service = FixtureRunService(database=database, fixture_launcher=_retry_launcher)
+    with pytest.raises(ValueError, match="outer fixture-launch retries are disabled"):
+        FixtureRunService(database=database).launch_fixture(
+            configuration_id=configuration_id,
+            run_id="qf-transient-retry-disabled",
+            controlled_transient_failures=1,
+        )
+    _assert_no_launch_mutation(database)
 
-    result = service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="qf-retry-success",
-        retry_policy=FixtureRetryPolicy(max_attempts=2),
-        controlled_transient_failures=1,
+
+def test_internal_task_retry_records_one_idempotent_event_on_one_invocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database, configuration_id = _configuration(tmp_path)
+    if fixture_flow.deterministic_retry_task is None:
+        pytest.skip("Prefect is unavailable")
+    monkeypatch.setattr(
+        fixture_flow,
+        "get_run_logger",
+        lambda: SimpleNamespace(warning=lambda *_args: None, info=lambda *_args: None),
     )
+    marker = tmp_path / "attempts" / "internal-retry.txt"
+    invocations: list[str] = []
 
-    assert result.run.status == RunStatus.SUCCEEDED.value
-    assert result.run.attempt_count == 2
-    assert result.prefect_result is not None
-    assert result.prefect_result.attempt_count == 2
-    assert result.prefect_result.prefect_flow_run_id != result.run.run_id
-    assert [event.event_type for event in service.events_for_run("qf-retry-success")] == [
-        "run_created",
-        "run_started",
-        "run_retry_scheduled",
-        "run_succeeded",
-    ]
+    def launcher(**kwargs):
+        invocations.append(kwargs["quant_factory_run_id"])
+        kwargs.pop("attempt_marker_path")
+        _validated_claim_boundary(
+            database_path=kwargs["database_path"],
+            idempotency_key=kwargs["idempotency_key"],
+            configuration_id=kwargs["configuration_id"],
+            quant_factory_run_id=kwargs["quant_factory_run_id"],
+            canonical_request_json=kwargs["canonical_request_json"],
+            request_fingerprint=kwargs["request_fingerprint"],
+            operation_kind=kwargs["operation_kind"],
+            source_run_id=kwargs["source_run_id"],
+            source_lineage=kwargs["source_lineage"],
+            prefect_reference=PrefectRunReference(flow_run_id="prefect-retry"),
+        )
+        task_body = fixture_flow.deterministic_retry_task.fn
+        with pytest.raises(RuntimeError, match="controlled first-attempt failure"):
+            task_body(str(database), kwargs["quant_factory_run_id"], str(marker))
+        assert task_body(str(database), kwargs["quant_factory_run_id"], str(marker)) == {
+            "deterministic_value": 1729
+        }
+        return deterministic_fixture_body(
+            **kwargs,
+            prefect_flow_run_id="prefect-retry",
+        )
+
+    result = FixtureRunService(database=database, fixture_launcher=launcher).launch_fixture(
+        idempotency_key="launch_internal_retry_001",
+        configuration_id=configuration_id,
+        run_id="qf-internal-retry",
+        attempt_marker_path=marker,
+    )
 
     persistence = PersistenceService(database)
     try:
-        persisted = persistence.runs.get("qf-retry-success")
-        assert persisted is not None
-        assert persisted.attempt_count == 2
-        result_row = persistence.results.list_parameter_results("qf-retry-success")[0]
-        assert json.loads(result_row.metrics_json)["attempt_count"] == 2
+        retry_events = [
+            event
+            for event in persistence.events.list_for_run(result.run.run_id)
+            if event.event_type == RunEventType.RUN_RETRY_SCHEDULED
+        ]
+        assert len(persistence.runs.list()) == 1
     finally:
         persistence.close()
-
-
-def test_retry_exhaustion_ends_failed_without_duplicate_lifecycle_events(
-    tmp_path: Path,
-) -> None:
-    database, configuration_id = _configuration(tmp_path)
-    service = FixtureRunService(database=database, fixture_launcher=_retry_launcher)
-
-    result = service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="qf-retry-exhausted",
-        retry_policy=FixtureRetryPolicy(max_attempts=2),
-        controlled_transient_failures=2,
-    )
-
-    assert result.prefect_result is None
-    assert result.run.status == RunStatus.FAILED.value
-    assert result.run.attempt_count == 2
-    assert [event.event_type for event in service.events_for_run("qf-retry-exhausted")] == [
-        "run_created",
-        "run_started",
-        "run_retry_scheduled",
-        "run_failed",
-    ]
-    assert [event.event_type for event in service.events_for_run("qf-retry-exhausted")].count(
-        "run_created"
-    ) == 1
-    assert [event.event_type for event in service.events_for_run("qf-retry-exhausted")].count(
-        "run_started"
-    ) == 1
+    assert invocations == ["qf-internal-retry"]
+    assert len(retry_events) == 1
+    assert retry_events[0].source == "prefect"

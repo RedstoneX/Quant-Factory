@@ -32,6 +32,7 @@ from prefect_spike.spym_vectorbt_fixture import (
 )
 
 FIXTURE_LABEL = "m23_browser_acceptance"
+TARGET_LAUNCH_KEY = "launch_m23_browser_spym_target"
 TARGET_RUN_ID = f"{FIXTURE_LABEL}_spym_target"
 SOURCE_LOCK_RUN_ID = f"{FIXTURE_LABEL}_spym_source_lock"
 WALK_FORWARD_RUN_ID = f"{FIXTURE_LABEL}_spym_walk_forward"
@@ -100,6 +101,7 @@ def prepare_milestone23_browser_fixture(
             database=database_path,
             **({"fixture_launcher": fixture_launcher} if fixture_launcher else {}),
         ).launch_fixture(
+            idempotency_key=TARGET_LAUNCH_KEY,
             configuration_id=configuration_id,
             run_id=TARGET_RUN_ID,
         )

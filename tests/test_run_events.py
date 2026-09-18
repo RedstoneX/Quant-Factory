@@ -8,14 +8,15 @@ from pathlib import Path
 
 import pytest
 
-from orchestration import FixtureRunService, RunServiceError
+from orchestration import FixtureRunService
+from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from persistence import LATEST_SCHEMA_VERSION, PersistenceService, initialize_database
 from persistence import database as database_module
 from prefect_spike.fixture_flow import (
     PrefectFixtureResult,
     PrefectRunReference,
-    _create_or_reference_run,
     _persist_fixture_result,
+    _validated_claim_boundary,
     reconcile_quant_factory_run_status,
 )
 from tests.test_run_service import _configuration, _launcher
@@ -71,20 +72,20 @@ def test_created_and_started_events_are_visible_before_launcher_completes(
     errors: list[BaseException] = []
 
     def blocking_launcher(**kwargs):
+        _validated_claim_boundary(
+            database_path=kwargs["database_path"],
+            idempotency_key=kwargs["idempotency_key"],
+            configuration_id=kwargs["configuration_id"],
+            quant_factory_run_id=kwargs["quant_factory_run_id"],
+            canonical_request_json=kwargs["canonical_request_json"],
+            request_fingerprint=kwargs["request_fingerprint"],
+            operation_kind=kwargs["operation_kind"],
+            source_run_id=kwargs["source_run_id"],
+            source_lineage=kwargs["source_lineage"],
+            prefect_reference=PrefectRunReference(flow_run_id="prefect-active-run"),
+        )
         persistence = PersistenceService(kwargs["database_path"])
         try:
-            _create_or_reference_run(
-                persistence,
-                configuration_id=kwargs["configuration_id"],
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_reference=PrefectRunReference(flow_run_id="prefect-active-run"),
-                reference_source="controlled_test",
-            )
-            reconcile_quant_factory_run_status(
-                persistence,
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_state="Running",
-            )
             started.set()
             assert release.wait(timeout=5)
             _persist_fixture_result(
@@ -145,11 +146,12 @@ def test_failed_run_records_failure_without_copying_prefect_logs(tmp_path: Path)
     database, configuration_id = _configuration(tmp_path)
     service = FixtureRunService(database=database, fixture_launcher=_launcher)
 
-    service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="qf-events-failed",
-        fail_after_run_start=True,
-    )
+    with pytest.raises(ResearchLaunchInvocationError):
+        service.launch_fixture(
+            configuration_id=configuration_id,
+            run_id="qf-events-failed",
+            fail_after_run_start=True,
+        )
 
     events = service.events_for_run("qf-events-failed")
     assert [event.event_type for event in events] == [
@@ -218,7 +220,7 @@ def test_mismatched_launcher_records_service_integrity_error(tmp_path: Path) -> 
         )
 
     service = FixtureRunService(database=database, fixture_launcher=mismatched_launcher)
-    with pytest.raises(RunServiceError, match="mismatched Quant Factory run ID"):
+    with pytest.raises(ResearchLaunchInvocationError):
         service.launch_fixture(configuration_id=configuration_id, run_id="qf-events-integrity")
 
     events = service.events_for_run("qf-events-integrity")

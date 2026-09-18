@@ -9,12 +9,20 @@ running a backtest.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import json
 import os
 from pathlib import Path
 import time
-from typing import Any
+from typing import Any, Mapping
 
-from persistence import EventSeverity, PersistenceService, RunEventType, RunStage, RunStatus
+from persistence import (
+    EventSeverity,
+    PersistenceService,
+    ResearchLaunchOperation,
+    RunEventType,
+    RunStatus,
+)
 from persistence.database import transaction
 from prefect_spike.spym_vectorbt_fixture import (
     execute_spym_21c_fixture_on_active_run,
@@ -106,65 +114,112 @@ def ensure_prefect_available() -> None:
         raise RuntimeError("Prefect is not available in this environment")
 
 
-def _configuration_identity(service: PersistenceService, configuration_id: str):
-    configuration = service.configurations.get(configuration_id)
-    if configuration is None:
-        raise KeyError(f"unknown Quant Factory configuration: {configuration_id}")
-    return configuration
+def _operator_safe_error_summary(exc: BaseException) -> str:
+    """Return bounded operator text without persisting exception-controlled data."""
+
+    if isinstance(exc, ControlledTransientFixtureError):
+        return "Controlled transient fixture failure."
+    if type(exc) is RuntimeError and str(exc) == "controlled Prefect fixture failure":
+        return "controlled Prefect fixture failure"
+    if isinstance(exc, TimeoutError):
+        return "Prefect fixture timed out."
+    return "Prefect fixture execution failed; inspect approved technical diagnostics."
 
 
-def _run_environment(
+_RETRY_EVENT_MESSAGE = "Prefect scheduled one internal technical retry."
+
+
+def _record_internal_retry_scheduled(
+    database_path: str | Path,
+    quant_factory_run_id: str,
+) -> None:
+    """Append the bounded retry event once for an acknowledged durable run."""
+
+    service = PersistenceService(database_path)
+    try:
+        with transaction(service.connection):
+            if any(
+                event.event_type == RunEventType.RUN_RETRY_SCHEDULED
+                and event.source == "prefect"
+                and event.message == _RETRY_EVENT_MESSAGE
+                for event in service.events.list_for_run(quant_factory_run_id)
+            ):
+                return
+            service.events.append(
+                run_id=quant_factory_run_id,
+                event_type=RunEventType.RUN_RETRY_SCHEDULED,
+                severity=EventSeverity.INFO,
+                source="prefect",
+                message=_RETRY_EVENT_MESSAGE,
+            )
+    finally:
+        service.close()
+
+
+def _validated_claim_boundary(
     *,
-    prefect_reference: PrefectRunReference,
-    source: str,
-    frozen_runtime_lineage: dict[str, Any] | None = None,
-    reproduction_metadata: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    environment = {
-        "prefect_spike": True,
-        "prefect_identity_storage": "technical_run_environment",
-        "prefect_flow_run_id": prefect_reference.flow_run_id,
-        "prefect_reference_source": source,
-    }
-    if frozen_runtime_lineage is not None:
-        environment["runtime_lineage"] = frozen_runtime_lineage
-    if reproduction_metadata is not None:
-        environment["reproduction"] = reproduction_metadata
-    if prefect_reference.api_url:
-        environment["prefect_api_url"] = prefect_reference.api_url
-    return environment
-
-
-def _create_or_reference_run(
-    service: PersistenceService,
-    *,
+    database_path: str | Path,
+    idempotency_key: str,
     configuration_id: str,
     quant_factory_run_id: str,
+    canonical_request_json: str,
+    request_fingerprint: str,
+    operation_kind: str,
+    source_run_id: str | None,
+    source_lineage: Mapping[str, str],
     prefect_reference: PrefectRunReference,
-    reference_source: str,
-    frozen_runtime_lineage: dict[str, Any] | None = None,
-    reproduction_metadata: dict[str, Any] | None = None,
-):
-    existing = service.runs.get(quant_factory_run_id)
-    if existing is not None:
-        return existing
-    configuration = _configuration_identity(service, configuration_id)
-    return service.create_run_with_operator_event(
-        configuration_id=configuration.configuration_id,
-        strategy_id=configuration.strategy_id,
-        strategy_version=configuration.strategy_version,
-        stage=RunStage.FIXTURE,
+) -> None:
+    """Validate the complete immutable tuple before the first database mutation."""
+
+    from orchestration.research_launch_claims import DurableResearchLaunchService
+
+    try:
+        operation = ResearchLaunchOperation(operation_kind)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("fixture flow received an invalid research operation") from exc
+    if not isinstance(source_lineage, Mapping) or any(
+        not isinstance(key, str) or not isinstance(value, str)
+        for key, value in source_lineage.items()
+    ):
+        raise ValueError("fixture flow received invalid source lineage")
+    try:
+        request = json.loads(canonical_request_json)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("fixture flow received an invalid canonical launch request") from exc
+    if not isinstance(request, dict):
+        raise ValueError("fixture flow canonical launch request must be an object")
+    calculated_fingerprint = hashlib.sha256(
+        canonical_request_json.encode("utf-8")
+    ).hexdigest()
+    if calculated_fingerprint != request_fingerprint:
+        raise ValueError("fixture flow launch fingerprint does not match its request")
+    if (
+        request.get("operation_kind") != operation.value
+        or request.get("configuration_id") != configuration_id
+        or request.get("source_run_id") != source_run_id
+        or request.get("source_lineage") != dict(source_lineage)
+    ):
+        raise ValueError("fixture flow launch tuple does not match its canonical request")
+
+    DurableResearchLaunchService(
+        database=database_path,
+        initialize_schema=False,
+    ).bind_prefect_identity(
+        idempotency_key=idempotency_key,
         run_id=quant_factory_run_id,
-        status=RunStatus.CREATED,
-        environment=_run_environment(
-            prefect_reference=prefect_reference,
-            source=reference_source,
-            frozen_runtime_lineage=frozen_runtime_lineage,
-            reproduction_metadata=reproduction_metadata,
-        ),
-        event_type=RunEventType.RUN_CREATED,
-        severity=EventSeverity.INFO,
-        message="Run created for deterministic Prefect fixture execution.",
+        configuration_id=configuration_id,
+        canonical_request_json=canonical_request_json,
+        request_fingerprint=request_fingerprint,
+        prefect_flow_run_id=prefect_reference.flow_run_id,
+        prefect_api_url=prefect_reference.api_url,
+    )
+
+
+def _create_or_reference_run(*_args: object, **_kwargs: object) -> None:
+    """Fail closed for callers that have not adopted the durable claim boundary."""
+
+    raise RuntimeError(
+        "legacy unclaimed fixture launch is disabled; bind a durable research claim first"
     )
 
 
@@ -271,8 +326,14 @@ def reconcile_quant_factory_run_status(
 def deterministic_fixture_body(
     *,
     database_path: str | Path,
+    idempotency_key: str,
     configuration_id: str,
     quant_factory_run_id: str,
+    canonical_request_json: str,
+    request_fingerprint: str,
+    operation_kind: str,
+    source_run_id: str | None,
+    source_lineage: Mapping[str, str],
     prefect_flow_run_id: str,
     deterministic_value: int = 1729,
     prefect_api_url: str | None = None,
@@ -286,26 +347,24 @@ def deterministic_fixture_body(
 ) -> PrefectFixtureResult:
     """Run the database side effects without requiring a Prefect server."""
 
+    _validated_claim_boundary(
+        database_path=database_path,
+        idempotency_key=idempotency_key,
+        configuration_id=configuration_id,
+        quant_factory_run_id=quant_factory_run_id,
+        canonical_request_json=canonical_request_json,
+        request_fingerprint=request_fingerprint,
+        operation_kind=operation_kind,
+        source_run_id=source_run_id,
+        source_lineage=source_lineage,
+        prefect_reference=PrefectRunReference(
+            flow_run_id=prefect_flow_run_id,
+            api_url=prefect_api_url,
+        ),
+    )
     service = PersistenceService(database_path)
     try:
-        run = _create_or_reference_run(
-            service,
-            configuration_id=configuration_id,
-            quant_factory_run_id=quant_factory_run_id,
-            prefect_reference=PrefectRunReference(
-                flow_run_id=prefect_flow_run_id,
-                api_url=prefect_api_url,
-            ),
-            reference_source="controlled_input",
-            frozen_runtime_lineage=frozen_runtime_lineage,
-            reproduction_metadata=reproduction_metadata,
-        )
-        run = service.increment_run_attempt(run.run_id)
-        reconcile_quant_factory_run_status(
-            service,
-            quant_factory_run_id=quant_factory_run_id,
-            prefect_state="Running",
-        )
+        run = service.increment_run_attempt(quant_factory_run_id)
         if run.attempt_count <= controlled_transient_failures:
             raise ControlledTransientFixtureError("controlled transient fixture failure")
         if fail_after_run_start:
@@ -381,7 +440,7 @@ def deterministic_fixture_body(
                 service,
                 quant_factory_run_id=quant_factory_run_id,
                 prefect_state="Failed",
-                error_summary=str(exc),
+                error_summary=_operator_safe_error_summary(exc),
             )
         raise
     finally:
@@ -391,13 +450,21 @@ def deterministic_fixture_body(
 if PREFECT_AVAILABLE:
 
     @task(retries=1, retry_delay_seconds=0, log_prints=True)
-    def deterministic_retry_task(attempt_marker_path: str | None = None) -> dict[str, int]:
+    def deterministic_retry_task(
+        database_path: str,
+        quant_factory_run_id: str,
+        attempt_marker_path: str | None = None,
+    ) -> dict[str, int]:
         logger = get_run_logger()
         if attempt_marker_path:
             marker = Path(attempt_marker_path)
             if not marker.exists():
                 marker.parent.mkdir(parents=True, exist_ok=True)
                 marker.write_text("first-attempt-failed\n", encoding="utf-8")
+                _record_internal_retry_scheduled(
+                    database_path,
+                    quant_factory_run_id,
+                )
                 logger.warning("controlled first-attempt failure for Prefect spike")
                 raise RuntimeError("controlled first-attempt failure")
         logger.info("deterministic Prefect spike task completed")
@@ -412,8 +479,14 @@ if PREFECT_AVAILABLE:
     def prefect_fixture_flow(
         *,
         database_path: str,
+        idempotency_key: str,
         configuration_id: str,
         quant_factory_run_id: str,
+        canonical_request_json: str,
+        request_fingerprint: str,
+        operation_kind: str,
+        source_run_id: str | None,
+        source_lineage: dict[str, str],
         attempt_marker_path: str | None = None,
         fail_after_run_start: bool = False,
         timeout_seconds: float | None = None,
@@ -426,20 +499,23 @@ if PREFECT_AVAILABLE:
         context = get_run_context()
         prefect_flow_run_id = str(context.flow_run.id)
         prefect_api_url = os.environ.get("PREFECT_API_URL")
+        _validated_claim_boundary(
+            database_path=database_path,
+            idempotency_key=idempotency_key,
+            configuration_id=configuration_id,
+            quant_factory_run_id=quant_factory_run_id,
+            canonical_request_json=canonical_request_json,
+            request_fingerprint=request_fingerprint,
+            operation_kind=operation_kind,
+            source_run_id=source_run_id,
+            source_lineage=source_lineage,
+            prefect_reference=PrefectRunReference(
+                flow_run_id=prefect_flow_run_id,
+                api_url=prefect_api_url,
+            ),
+        )
         service = PersistenceService(database_path)
         try:
-            _create_or_reference_run(
-                service,
-                configuration_id=configuration_id,
-                quant_factory_run_id=quant_factory_run_id,
-                prefect_reference=PrefectRunReference(
-                    flow_run_id=prefect_flow_run_id,
-                    api_url=prefect_api_url,
-                ),
-                reference_source="prefect_context",
-                frozen_runtime_lineage=frozen_runtime_lineage,
-                reproduction_metadata=reproduction_metadata,
-            )
             run = service.increment_run_attempt(quant_factory_run_id)
             logger.info(
                 "Quant Factory run linked to Prefect flow run",
@@ -447,11 +523,6 @@ if PREFECT_AVAILABLE:
                     "quant_factory_run_id": quant_factory_run_id,
                     "prefect_flow_run_id": prefect_flow_run_id,
                 },
-            )
-            reconcile_quant_factory_run_status(
-                service,
-                quant_factory_run_id=quant_factory_run_id,
-                prefect_state="Running",
             )
             if fail_after_run_start:
                 raise RuntimeError("controlled Prefect fixture failure")
@@ -491,7 +562,11 @@ if PREFECT_AVAILABLE:
                     "attempt_count": run.attempt_count,
                     "prefect_api_url": prefect_api_url,
                 }
-            task_result = deterministic_retry_task(attempt_marker_path)
+            task_result = deterministic_retry_task(
+                database_path,
+                quant_factory_run_id,
+                attempt_marker_path,
+            )
             _persist_fixture_result(
                 service,
                 quant_factory_run_id=quant_factory_run_id,
@@ -522,7 +597,7 @@ if PREFECT_AVAILABLE:
                 service,
                 quant_factory_run_id=quant_factory_run_id,
                 prefect_state=state_name,
-                error_summary=str(exc),
+                error_summary=_operator_safe_error_summary(exc),
             )
             raise
         finally:
@@ -532,8 +607,14 @@ if PREFECT_AVAILABLE:
 def run_prefect_fixture_flow(
     *,
     database_path: str | Path,
+    idempotency_key: str,
     configuration_id: str,
     quant_factory_run_id: str,
+    canonical_request_json: str,
+    request_fingerprint: str,
+    operation_kind: str,
+    source_run_id: str | None,
+    source_lineage: Mapping[str, str],
     attempt_marker_path: str | Path | None = None,
     fail_after_run_start: bool = False,
     timeout_seconds: float | None = None,
@@ -553,8 +634,14 @@ def run_prefect_fixture_flow(
     assert prefect_fixture_flow is not None
     result = prefect_fixture_flow(
         database_path=str(database_path),
+        idempotency_key=idempotency_key,
         configuration_id=configuration_id,
         quant_factory_run_id=quant_factory_run_id,
+        canonical_request_json=canonical_request_json,
+        request_fingerprint=request_fingerprint,
+        operation_kind=operation_kind,
+        source_run_id=source_run_id,
+        source_lineage=dict(source_lineage),
         attempt_marker_path=str(attempt_marker_path) if attempt_marker_path else None,
         fail_after_run_start=fail_after_run_start,
         timeout_seconds=timeout_seconds,

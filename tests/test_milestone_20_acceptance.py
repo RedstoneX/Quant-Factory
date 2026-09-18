@@ -32,11 +32,10 @@ from prefect_spike.fixture_flow import (
     ControlledFixtureCancellation,
     PrefectFixtureResult,
     PrefectRunReference,
-    _create_or_reference_run,
+    _validated_claim_boundary,
     _persist_fixture_result,
     acknowledge_fixture_cancellation,
     deterministic_fixture_body,
-    reconcile_quant_factory_run_status,
 )
 from tests.test_dashboard import _audit, _callback_function, _data, _ranked_row
 from tests.test_run_service import _configuration
@@ -394,22 +393,21 @@ def test_dashboard_cancellation_reconciliation_waits_for_fixture_acknowledgement
     finished = threading.Event()
 
     def blocking_launcher(**kwargs):
+        _validated_claim_boundary(
+            database_path=kwargs["database_path"],
+            idempotency_key=kwargs["idempotency_key"],
+            configuration_id=kwargs["configuration_id"],
+            quant_factory_run_id=kwargs["quant_factory_run_id"],
+            canonical_request_json=kwargs["canonical_request_json"],
+            request_fingerprint=kwargs["request_fingerprint"],
+            operation_kind=kwargs["operation_kind"],
+            source_run_id=kwargs["source_run_id"],
+            source_lineage=kwargs["source_lineage"],
+            prefect_reference=PrefectRunReference(flow_run_id="prefect-cancel"),
+        )
         persistence = PersistenceService(kwargs["database_path"])
         try:
-            _create_or_reference_run(
-                persistence,
-                configuration_id=kwargs["configuration_id"],
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_reference=PrefectRunReference(flow_run_id="prefect-cancel"),
-                reference_source="dashboard_acceptance",
-                frozen_runtime_lineage=kwargs["frozen_runtime_lineage"],
-            )
             persistence.increment_run_attempt(kwargs["quant_factory_run_id"])
-            reconcile_quant_factory_run_status(
-                persistence,
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_state="Running",
-            )
             started.set()
             assert release.wait(timeout=5)
             with pytest.raises(ControlledFixtureCancellation):
@@ -492,16 +490,13 @@ def test_dashboard_stale_recovery_reopens_reconciled_runs(
     )
     rendered_message = str(message)
 
-    assert class_name == "stale-recovery-message stale-recovery-message-success"
-    assert "Recovered 2 stale fixture runs" in rendered_message
-    assert "qf-stale-ui-created" in rendered_message
-    assert "qf-stale-ui-running" in rendered_message
+    assert class_name == "stale-recovery-message error-state"
+    assert "age-only fixture recovery is disabled" in rendered_message
 
     detail = _render_selected(app, "qf-stale-ui-running")
-    assert "failed" in detail
-    assert "Fixture run remained running beyond the stale recovery cutoff." in detail
-    assert "Stale running fixture run recovered to failed." in detail
-    assert "Run failed after stale recovery." in detail
+    assert "running" in detail
+    assert service.get_run("qf-stale-ui-created").status == RunStatus.CREATED.value
+    assert service.get_run("qf-stale-ui-running").status == RunStatus.RUNNING.value
 
 
 def test_dashboard_historical_relaunch_creates_new_run_and_preserves_old_run(

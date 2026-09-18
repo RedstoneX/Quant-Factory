@@ -14,6 +14,7 @@ import pytest
 from dashboard.app import DashboardContext, create_app
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService
+from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from persistence import (
     ArtifactType,
     PersistenceService,
@@ -27,7 +28,7 @@ from prefect_spike.fixture_flow import (
     ControlledFixtureCancellation,
     PrefectFixtureResult,
     PrefectRunReference,
-    _create_or_reference_run,
+    _validated_claim_boundary,
     _persist_fixture_result,
     acknowledge_fixture_cancellation,
     deterministic_fixture_body,
@@ -523,22 +524,21 @@ def test_milestone23_recovery_and_integrity_fail_closed_dashboard_paths(
     timeout_finished = threading.Event()
 
     def timeout_launcher(**kwargs):
+        _validated_claim_boundary(
+            database_path=kwargs["database_path"],
+            idempotency_key=kwargs["idempotency_key"],
+            configuration_id=kwargs["configuration_id"],
+            quant_factory_run_id=kwargs["quant_factory_run_id"],
+            canonical_request_json=kwargs["canonical_request_json"],
+            request_fingerprint=kwargs["request_fingerprint"],
+            operation_kind=kwargs["operation_kind"],
+            source_run_id=kwargs["source_run_id"],
+            source_lineage=kwargs["source_lineage"],
+            prefect_reference=PrefectRunReference(flow_run_id="prefect-timeout"),
+        )
         persistence = PersistenceService(kwargs["database_path"])
         try:
-            _create_or_reference_run(
-                persistence,
-                configuration_id=kwargs["configuration_id"],
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_reference=PrefectRunReference(flow_run_id="prefect-timeout"),
-                reference_source="milestone23_timeout",
-                frozen_runtime_lineage=kwargs["frozen_runtime_lineage"],
-            )
             persistence.increment_run_attempt(kwargs["quant_factory_run_id"])
-            reconcile_quant_factory_run_status(
-                persistence,
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_state="Running",
-            )
             time.sleep(0.1)
             _persist_fixture_result(
                 persistence,
@@ -568,40 +568,37 @@ def test_milestone23_recovery_and_integrity_fail_closed_dashboard_paths(
         database=database,
         fixture_launcher=timeout_launcher,
     )
-    timeout = timeout_service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="m23-timeout",
-        timeout_seconds=0.01,
-    )
-    assert timeout.run.status == RunStatus.FAILED.value
-    assert "timed out" in (timeout.run.error_summary or "")
+    with pytest.raises(ResearchLaunchInvocationError):
+        timeout_service.launch_fixture(
+            configuration_id=configuration_id,
+            run_id="m23-timeout",
+            timeout_seconds=0.01,
+        )
     assert timeout_finished.wait(timeout=5)
     timeout_render = _render_selected(_app(database, timeout_service, adapter), "m23-timeout")
-    assert "failed" in timeout_render
-    assert "timed out" in timeout_render
-    assert "artifact-status-success" not in timeout_render
+    assert timeout_service.get_run("m23-timeout").status == RunStatus.SUCCEEDED.value
+    assert "succeeded" in timeout_render
 
     started = threading.Event()
     release = threading.Event()
     finished = threading.Event()
 
     def cancellable_launcher(**kwargs):
+        _validated_claim_boundary(
+            database_path=kwargs["database_path"],
+            idempotency_key=kwargs["idempotency_key"],
+            configuration_id=kwargs["configuration_id"],
+            quant_factory_run_id=kwargs["quant_factory_run_id"],
+            canonical_request_json=kwargs["canonical_request_json"],
+            request_fingerprint=kwargs["request_fingerprint"],
+            operation_kind=kwargs["operation_kind"],
+            source_run_id=kwargs["source_run_id"],
+            source_lineage=kwargs["source_lineage"],
+            prefect_reference=PrefectRunReference(flow_run_id="prefect-cancel"),
+        )
         persistence = PersistenceService(kwargs["database_path"])
         try:
-            _create_or_reference_run(
-                persistence,
-                configuration_id=kwargs["configuration_id"],
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_reference=PrefectRunReference(flow_run_id="prefect-cancel"),
-                reference_source="milestone23_cancel",
-                frozen_runtime_lineage=kwargs["frozen_runtime_lineage"],
-            )
             persistence.increment_run_attempt(kwargs["quant_factory_run_id"])
-            reconcile_quant_factory_run_status(
-                persistence,
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_state="Running",
-            )
             started.set()
             assert release.wait(timeout=5)
             with pytest.raises(ControlledFixtureCancellation):
@@ -687,18 +684,16 @@ def test_milestone23_recovery_and_integrity_fail_closed_dashboard_paths(
         1,
         "2025-01-01T00:00:00Z",
     )
-    assert stale_class == "stale-recovery-message stale-recovery-message-success"
-    assert "Recovered 2 stale fixture runs" in str(stale_message)
-    assert "Fixture run remained running beyond the stale recovery cutoff." in _render_selected(
-        stale_app,
-        "m23-stale-running",
-    )
+    assert stale_class == "stale-recovery-message error-state"
+    assert "age-only fixture recovery is disabled" in str(stale_message)
+    assert service.get_run("m23-stale-created").status == RunStatus.CREATED.value
+    assert service.get_run("m23-stale-running").status == RunStatus.RUNNING.value
     no_recovery_message, no_recovery_class = _callback_function(
         stale_app,
         "stale-recovery-message",
     )(2, "2025-01-01T00:00:00Z")
-    assert no_recovery_class == "stale-recovery-message"
-    assert "No stale fixture runs" in str(no_recovery_message)
+    assert no_recovery_class == "stale-recovery-message error-state"
+    assert "age-only fixture recovery is disabled" in str(no_recovery_message)
 
     service.launch_fixture(configuration_id=configuration_id, run_id="m23-artifact")
     root = tmp_path / "artifact-root"
@@ -808,24 +803,21 @@ def test_milestone23_recovery_and_integrity_fail_closed_dashboard_paths(
     finally:
         persistence.close()
     assert statuses == {
-        "m23-timeout": RunStatus.FAILED,
+        "m23-timeout": RunStatus.SUCCEEDED,
         "m23-cancel": RunStatus.CANCELLED,
-        "m23-stale-created": RunStatus.FAILED,
-        "m23-stale-running": RunStatus.FAILED,
+        "m23-stale-created": RunStatus.CREATED,
+        "m23-stale-running": RunStatus.RUNNING,
         "m23-fresh-running": RunStatus.RUNNING,
         "m23-artifact": artifact_status,
         "m23-corrupt-lineage": corrupt_lineage_status,
     }
     assert set(identities.values()) == {configuration_id}
-    assert "timed out" in _render_selected(restarted_app, "m23-timeout")
+    assert "succeeded" in _render_selected(restarted_app, "m23-timeout")
     assert "Run cancelled after fixture acknowledgement." in _render_selected(
         restarted_app,
         "m23-cancel",
     )
-    assert "Fixture run remained running beyond the stale recovery cutoff." in _render_selected(
-        restarted_app,
-        "m23-stale-running",
-    )
+    assert "running" in _render_selected(restarted_app, "m23-stale-running")
     restarted_artifact = _render_selected(restarted_app, "m23-artifact")
     assert "artifact_missing" in restarted_artifact
     assert "artifact_checksum_mismatch" in restarted_artifact
@@ -840,5 +832,5 @@ def test_milestone23_recovery_and_integrity_fail_closed_dashboard_paths(
         restarted_app,
         "stale-recovery-message",
     )(3, "2025-01-01T00:00:00Z")
-    assert repeat_class == "stale-recovery-message"
-    assert "No stale fixture runs" in str(repeat_message)
+    assert repeat_class == "stale-recovery-message error-state"
+    assert "age-only fixture recovery is disabled" in str(repeat_message)
