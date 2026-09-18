@@ -16,14 +16,13 @@ Fixtures validate infrastructure and are not active profitability candidates.
 
 ## Current phase
 
-Milestones 1–22 are complete. Milestone 23 is pending dashboard implementation
-and objective technical acceptance evidence. Decision 277 records the owner's
-explicit acceptance of the current dashboard/operator direction, so the
-operator-acceptance criterion is satisfied for that experience and no repeat
-acceptance prompt is required after the remaining objective gates pass. This
-does not waive browser-lifecycle, end-to-end workflow, failure-handling, test,
-or documentation/status-synchronization evidence and does not close Milestone
-23. Decision 278 accepts ADR 0011's safer durable run-ticket architecture and
+Milestones 1–22 are complete. Milestone 23 is pending dashboard implementation,
+objective technical evidence, and renewed operator acceptance. Decision 279
+records the owner's rejection of the current Results-page comprehension and
+flow and supersedes Decision 277's acceptance for that experience. Correctness
+repairs remain authorized; broad redesign requires a concise research-grounded
+page specification or mockup and renewed owner acceptance. Decision 278 accepts
+ADR 0011's safer durable run-ticket architecture and
 authorizes implementation, but that implementation and its required evidence
 remain pending. Systematic discovery, optimization, protected-test evaluation,
 paper-order activation, and live work remain blocked except for the bounded
@@ -31,8 +30,8 @@ offline and deployment preparation already authorized and retained.
 
 Decision 274 sets the current order:
 
-1. Complete the remaining objective Milestone 23 dashboard gates; owner
-   acceptance for the current experience is recorded in Decision 277.
+1. Complete the remaining Milestone 23 dashboard gates, including the
+   Decision 279 Results-page design review and renewed owner acceptance.
 2. Conduct controlled strategy intake and research under Milestone 25 until a
    defensible edge qualifies.
 3. Resume remaining Milestone 24 paper activation only after the qualifying
@@ -55,7 +54,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Implement accepted ADR 0011 durable run tickets across every enabled fixture-launch path, then prove the remaining browser, workflow, failure-handling, licensed-target, test, and documentation/status gates; Decisions 277 and 278 record owner acceptance; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
+| R05 | 1 | in_progress | none | Repair selected-run persistence and Run History interaction, then complete a research-grounded Results-page specification/mockup and renewed owner review under Decision 279; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, and documentation/status gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 
@@ -118,7 +117,7 @@ is proposed or authorized here.
 | # | Milestone | Acceptance summary | Status |
 |---:|---|---|---|
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
-| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle and complete operator workflow pass; Decision 277 records operator approval for the current experience | **Pending — technical hard discovery gate** |
+| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results-page acceptance, and every objective gate pass | **Pending — technical hard discovery gate** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore plus bounded paper workflow after a qualified edge and every execution gate | Preparation retained; activation deferred |
 | 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments; survivors pass predeclared evidence gates | Pending — follows M23 |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection pass | Pending |
@@ -130,14 +129,15 @@ is proposed or authorized here.
 - **23A — Scenarios and fixtures:** frozen. **Complete.**
 - **23B — Automated full-system acceptance:** supporting evidence implemented;
   keep the complete scenario inventory green.
-- **23C-1 — Review/design:** approved direction and owner acceptance for the
-  current experience are recorded; implementation conformance remains pending.
+- **23C-1 — Review/design:** reopened for a concise research-grounded
+  Results-page specification or mockup and renewed owner acceptance under
+  Decision 279.
 - **23C-2 — Implementation:** authorized but not complete. Implement accepted
   ADR 0011's durable run-ticket contract while preserving ADR 0008, Plotly
   Dash, VectorBT Pro, and service boundaries.
-- **23C-3 — Browser/operator acceptance:** Decision 277 satisfies explicit owner
-  acceptance for the current experience; real-browser lifecycle and complete
-  end-to-end workflow evidence remain pending.
+- **23C-3 — Browser/operator acceptance:** renewed owner acceptance plus
+  real-browser lifecycle and complete end-to-end workflow evidence remain
+  pending.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
   cancellation, stale recovery, missing-artifact, and corrupt-lineage coverage.
 - **23E — Gate decision:** record explicit pass or fail. No discovery or order

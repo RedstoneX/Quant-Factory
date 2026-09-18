@@ -74,6 +74,6 @@ agent policy](ai-programming-agent-policy.md).
 ## Hard gate
 
 No systematic strategy discovery, optimization for profitability, or promotion
-search may resume until Milestone 23 passes. Decision 277 records owner
-acceptance for the current dashboard/operator experience; the remaining
-objective technical gates are not yet complete.
+search may resume until Milestone 23 passes. Decision 279 requires a
+research-grounded replacement Results-page specification and renewed owner
+acceptance; the remaining objective technical gates are also not yet complete.

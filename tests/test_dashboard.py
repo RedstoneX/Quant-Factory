@@ -1829,6 +1829,9 @@ def test_results_page_keeps_run_history_grid_beside_durable_review() -> None:
         "checkboxes": False,
         "enableClickSelection": True,
     }
+    assert grid.columnSize == "responsiveSizeToFit"
+    assert grid.columnSizeOptions == {"defaultMinWidth": 72}
+    assert grid.style == {"height": "360px", "width": "100%"}
     assert "review-status" in str(page)
     assert "review-history" in str(page)
 
@@ -5027,6 +5030,86 @@ def test_results_deep_link_wins_simultaneous_stale_selector_trigger(
     assert selected == "source_run"
 
 
+def test_explicit_selector_can_replace_deep_link_after_hydration(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    service = _DashboardRunService(
+        initial_runs=(
+            base_service._summary("source_run", "a" * 64, "succeeded"),
+            base_service._summary("layout_default", "a" * 64, "succeeded"),
+        ),
+    )
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    preserve = _callback_function(app, "selected-run-state")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-run-selector",
+    )
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_ids",
+        lambda: frozenset({"selected-run-selector"}),
+    )
+
+    selected = preserve(
+        "layout_default",
+        None,
+        "?run_id=source_run",
+        "source_run",
+        "/research/backtest-results",
+    )
+
+    assert selected == "layout_default"
+
+
+def test_location_hydration_keeps_valid_session_run_over_layout_default(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    service = _DashboardRunService(
+        initial_runs=(
+            base_service._summary("session_run", "a" * 64, "succeeded"),
+            base_service._summary("layout_default", "a" * 64, "succeeded"),
+        ),
+    )
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    preserve = _callback_function(app, "selected-run-state")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "url",
+    )
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_ids",
+        lambda: frozenset({"url"}),
+    )
+
+    selected = preserve(
+        "layout_default",
+        None,
+        "",
+        "session_run",
+        "/research/backtest-results",
+    )
+
+    assert selected is no_update
+
+
 def test_initial_selector_hydration_does_not_rewrite_existing_dropdown(
     tmp_path: Path,
     monkeypatch,
@@ -5151,6 +5234,55 @@ def test_initial_session_selection_beats_layout_default_dropdown(
     assert selected == "spym_historical_run"
     assert [option["value"] for option in options][-1] == "spym_historical_run"
     assert "SPYM RSI Mean Reversion Fixture" in options[-1]["label"]
+
+
+def test_initial_multi_input_hydration_recontrols_selector_from_session(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    service = _DashboardRunService(
+        initial_runs=(
+            base_service._summary("session_run", "a" * 64, "succeeded"),
+            base_service._summary("layout_default", "a" * 64, "succeeded"),
+        ),
+    )
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    refresh_selectors = _callback_function(app, "selected-run-selector.options")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "run-test-launch-state",
+    )
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_ids",
+        lambda: frozenset(
+            {
+                "run-test-launch-state",
+                "historical-launch-state",
+                "reproduction-launch-state",
+                "selected-run-state",
+            }
+        ),
+    )
+
+    _, selected = refresh_selectors(
+        0,
+        None,
+        None,
+        None,
+        "session_run",
+        "layout_default",
+        [],
+    )
+
+    assert selected == "session_run"
 
 
 def test_initial_empty_launch_message_does_not_prefer_latest_run(

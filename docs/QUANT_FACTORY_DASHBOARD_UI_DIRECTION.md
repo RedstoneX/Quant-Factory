@@ -18,10 +18,12 @@ The approved research flow is:
 **Home → Ideas → Set up → Run test → Results → Compare**
 
 The owner-authorized bounded 23C implementation follows this specification.
-Decision 277 records owner acceptance for the current experience; this document
-does not record Milestone 23 completion or waive implementation, browser,
-workflow, failure-handling or documentation evidence. It does not authorize
-strategy discovery, external-source retrieval, paper execution or live trading.
+Decision 279 supersedes Decision 277's acceptance for the current Results-page
+experience. This document is retained as prior design evidence, not an accepted
+replacement Results-page specification. It does not record Milestone 23
+completion or waive implementation, browser, workflow, failure-handling or
+documentation evidence. It does not authorize strategy discovery,
+external-source retrieval, paper execution or live trading.
 
 ## Product and visual contract
 
@@ -448,10 +450,8 @@ aliases or test-only presentation.
 23C-2 is complete only when focused and relevant full tests pass and all route
 containers/callback ownership comply with ADR 0008. 23C-3 additionally requires
 real-browser proof for every registered route at desktop, tablet and mobile
-sizes, the complete operator workflow and failure behavior. Decision 277 means
-no repeat owner-acceptance prompt is required for this accepted experience once
-those objective gates pass. A material redesign outside this specification
-must not claim that prior acceptance.
+sizes, the complete operator workflow and failure behavior, and renewed owner
+acceptance of the replacement Results-page specification under Decision 279.
 
 ## Explicit exclusions
 

@@ -14,29 +14,27 @@ review, failure handling, and recovery. These checks establish implemented
 behavior; they do not by themselves establish the remaining technical
 Milestone 23 pass.
 
-The project owner rejected the prior user experience, authorized the next
-improvement direction and implementation, and on 2026-09-18 explicitly
-accepted the current dashboard/operator direction under Decision 277. That
-records owner acceptance for the current experience and authorizes autonomous
-work through the remaining objective Milestone 23 gates; it does not waive
-implementation conformance, browser lifecycle, end-to-end workflow, tests,
-failure handling, or documentation/status synchronization. A material redesign
-must be recorded and cannot inherit this acceptance silently. Retain Plotly
-Dash and VectorBT Pro; use Dash AG Grid and Dash Bootstrap Components where
-appropriate. Use capable retail-trader language while remaining understandable
-to a novice operator without programming or finance expertise.
+The project owner initially accepted the dashboard/operator direction under
+Decision 277, then rejected the current Results-page comprehension and task
+flow after further use. Decision 279 supersedes that acceptance for this
+experience. Correctness repairs remain required, but broad Results-page
+redesign must wait for a concise research-grounded page specification or
+mockup and renewed owner acceptance. Retain Plotly Dash and VectorBT Pro; use
+Dash AG Grid and Dash Bootstrap Components where appropriate. Use capable
+retail-trader language while remaining understandable to a novice operator
+without programming or finance expertise.
 
 A separate September 17 local-only Ideas prototype browser-validated the
 extended flow on desktop and mobile. It is evidence for the approved direction,
-not a production deployment or substitute for the independent owner acceptance
-now recorded in Decision 277; production remains unchanged. See the retained
+not a production deployment or substitute for the renewed owner acceptance
+required by Decision 279; production remains unchanged. See the retained
 prototype and validation evidence referenced in [MILESTONES](MILESTONES.md#current-phase).
 
 ## Target operator information hierarchy
 
 Decision 274 extends the Decision 273 navigation direction to Home → Ideas →
-Set up → Run test → Results → Compare. Decision 277 records owner acceptance
-for the current experience; implementation conformance and M23 technical
+Set up → Run test → Results → Compare. Decision 279 reopens Results-page design
+and operator acceptance; implementation conformance and M23 technical
 completion remain unconfirmed. During 23C, the Ideas page may support safe
 draft and source-reference capture so the operator can review the complete
 research interface. An inactive Ideas route must not fetch
@@ -106,7 +104,8 @@ navigation and review flow:
 - persistent searchable and filterable history;
 - filters for date, instrument, strategy, stage, status, review state and evidence outcome;
 - sortable metrics;
-- links to full run details;
+- clicking a row selects and opens that exact run, and the selection survives refresh;
+- columns responsively use the available width without avoidable horizontal scrolling or large dead space, while retaining access to every field on narrow screens;
 - artifact availability and reproducibility status.
 
 ### Run overview
@@ -281,11 +280,10 @@ Visual polish alone is insufficient. The dashboard must operate the complete res
 ## Milestone 23C design and implementation gate
 
 23C-1 must produce an approved concise page specification or mockup before
-23C-2 begins broad implementation. The specification must cover the approved
+new broad Results-page implementation. The specification must cover the approved
 workflow, responsive desktop/tablet/mobile behavior, novice language, the four
 persistent selected-run fields, and labelled technical drill-downs. 23C-2
 retains the ADR 0008 mounted-route architecture and uses Dash AG Grid and Dash
-Bootstrap Components as approved implementation components. Decision 277
-satisfies explicit final owner approval for the current experience; 23C-3 still
-requires real-browser lifecycle and end-to-end workflow evidence. A material
-redesign must be recorded and cannot inherit the acceptance silently.
+Bootstrap Components as approved implementation components. Decision 279
+requires renewed owner approval for the replacement Results experience; 23C-3
+also requires real-browser lifecycle and end-to-end workflow evidence.

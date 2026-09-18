@@ -19,11 +19,13 @@ navigation, not competing authorities.
 
 ## Current resume point
 
-Milestone 23 is the active gate. Decision 277 records owner acceptance of the
-current dashboard/operator direction, so no repeat acceptance prompt is needed
-after the remaining implementation, browser-lifecycle, end-to-end workflow,
-failure-handling, test, and documentation/status gates pass. Those objective
-gates remain pending and strategy discovery remains blocked. Decision 278
+Milestone 23 is the active gate. Decision 279 records the owner's rejection of
+the current Results-page comprehension and flow, superseding Decision 277's
+acceptance for that experience. Correctness repairs remain authorized; broad
+redesign requires a concise research-grounded specification or mockup and
+renewed owner acceptance. The implementation, browser-lifecycle, end-to-end
+workflow, failure-handling, test, and documentation/status gates also remain
+pending, and strategy discovery remains blocked. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
 implementation, but does not claim it is implemented or close Milestone 23.
 Decision 274 then orders controlled Milestone 25 research until a defensible
