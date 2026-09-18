@@ -22,8 +22,18 @@ Repeatable procedures belong in `.claude/skills/`; specialist workers belong in
 
 - Resolve the active repository from `QF_REPO_ROOT`; public examples use
   `/srv/quant-factory/repo`. Isolated worktrees require explicit ownership.
-- Treat the canonical public GitHub repository as authoritative for committed state.
+- During Decision 275's migration, treat the existing private
+  `RedstoneX/Quant-Factory` as authoritative for committed state until the
+  controlled cutover. The public repository under the temporary candidate
+  name is validation-only; after cutover it assumes the canonical name and
+  becomes authoritative.
 - Use `main` as the integration baseline and a dedicated branch/PR for substantive changes. Do not push directly to main. Follow AGENTS for explicit staging, stash identity, concurrent writers, and rollback.
+- Follow Decision 276's permanent throughput policy: required checks and admin
+  enforcement stay on, `strict`/up-to-date stays off unless the owner changes
+  it, independent green PRs do not rebase, update, rebuild, or serialize merely
+  because another independent PR merged, CI concurrency stays per ref, and no
+  merge queue is used. Dependent or overlapping work still integrates
+  serially and is retested against the resulting `main`.
 - Preserve unrelated and uncommitted work.
 - Never force-push. Other destructive Git commands require explicit instruction.
 - Do not commit or push until the diff and required validation are reviewed.

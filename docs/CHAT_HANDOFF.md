@@ -26,9 +26,15 @@ activation only after every execution gate passes. Live capital remains far
 future and requires separate explicit owner approval.
 
 Decision 275 authorizes the sanitized clean-history public repository. The
-public repository is the forward source of truth after its controlled cutover;
-the original private repository remains historical evidence only. Publication
-does not grant a source-code license: the project is all rights reserved.
+candidate is currently public under a temporary name for validation; the
+existing private repository remains canonical until controlled cutover. After
+cutover, the public repository is the forward source of truth and the renamed
+private original is historical evidence only. Decision 276 keeps required
+checks and admin enforcement but permanently disables strict/up-to-date unless
+the owner changes it: independent green PRs need no refresh build after an
+unrelated merge, while dependent or overlapping work still integrates and
+retests serially. Publication does not grant a source-code license: the project
+is all rights reserved.
 
 ## Mechanism references
 
