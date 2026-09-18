@@ -303,6 +303,57 @@ def register_backtest_results_callbacks(
         )
 
     @app.callback(
+        Output("reproduction-message", "children"),
+        Output("reproduction-message", "className"),
+        Input("reproduce-selected-run", "n_clicks"),
+        State("selected-run-state", "data"),
+        State("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def reproduce_selected_run(
+        n_clicks: int | None,
+        run_id: str | None,
+        pathname: str | None = "/research/backtest-results",
+    ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
+        if not n_clicks:
+            return no_update, no_update
+        if not run_id:
+            return (
+                "No persisted run is selected for reproduction.",
+                "reproduction-message error-state",
+            )
+
+        try:
+            result = runs.reproduce_fixture_run(
+                run_id,
+                artifact_root=artifact_root,
+            )
+        except (KeyError, ValueError, RuntimeError, RunServiceError) as exc:
+            return (
+                f"Run reproduction failed: {exc}",
+                "reproduction-message error-state",
+            )
+
+        notes = html.Ul([html.Li(note) for note in result.notes])
+        return (
+            html.Div(
+                [
+                    html.Strong(
+                        (
+                            f"Reproduced {result.original.run_id} as "
+                            f"{result.reproduction.run_id}."
+                        )
+                    ),
+                    notes,
+                ],
+                **{"data-run-id": result.reproduction.run_id},
+            ),
+            "reproduction-message reproduction-message-success",
+        )
+
+    @app.callback(
         Output("selected-run-state", "data"),
         Input("selected-run-selector", "value"),
         Input("run-history-grid", "selectedRows", allow_optional=True),

@@ -395,23 +395,45 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
     app, runs = _callback_app(adapter)
     compare = _callback(app, "run-comparison-output", "compare-selected-runs")
     options = _callback(app, "comparison-run-selector.options", "refresh-comparisons")
+    option_inputs = {
+        (item["id"], item["property"])
+        for item in app.callback_map["comparison-run-selector.options"]["inputs"]
+    }
+    comparison_output = next(
+        value
+        for key, value in app.callback_map.items()
+        if "run-comparison-output.children" in key
+    )
+    comparison_inputs = {
+        (item["id"], item["property"])
+        for item in comparison_output["inputs"]
+    }
+
+    assert option_inputs == {
+        ("refresh-comparisons", "n_clicks"),
+        ("url", "pathname"),
+    }
+    assert comparison_inputs == {
+        ("compare-selected-runs", "n_clicks"),
+        ("refresh-comparisons", "n_clicks"),
+        ("url", "pathname"),
+    }
+    assert all("reproduction-message" not in key for key in app.callback_map)
 
     with pytest.raises(PreventUpdate):
-        compare(1, 0, "/research/setup", None, ["run-a", "run-b"])
+        compare(1, 0, "/research/setup", ["run-a", "run-b"])
     assert adapter.reads == []
 
     first, first_class = compare(
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["run-a", "run-b"],
     )
     refreshed, refreshed_class = compare(
         1,
         1,
         "/research/compare-backtests",
-        None,
         ["run-a", "run-b"],
     )
     assert first_class == refreshed_class == "run-comparison-output"
@@ -420,8 +442,8 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
     assert adapter.reads == [("run-a", "run-b"), ("run-a", "run-b")]
 
     with pytest.raises(PreventUpdate):
-        options(0, 0, "/")
-    assert options(1, 0, "/research/compare-backtests") == []
+        options(0, "/")
+    assert options(1, "/research/compare-backtests") == []
     assert runs.recent_reads == 1
 
 
@@ -434,7 +456,6 @@ def test_compare_callback_retains_identities_on_read_failure() -> None:
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["run-a", "run-b"],
     )
 

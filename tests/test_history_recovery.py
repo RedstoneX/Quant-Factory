@@ -164,6 +164,7 @@ def test_selected_run_actions_read_session_store_instead_of_stale_dropdown(
         runs=service,
         detail_adapter=_DetailAdapter(),
         configurations=(_configuration_view("config-a"),),
+        readiness_by_id={},
         dashboard_database=database,
         artifact_root=tmp_path,
     )
