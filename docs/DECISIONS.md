@@ -196,3 +196,19 @@ explicitly.
      Milestone 23, authorize the separate worker/deployment architecture,
      change production, or relax any research, credential, paper, execution or
      live-capital gate.
+
+279. **Results-page acceptance withdrawn; renewed design review required
+     (accepted 2026-09-18).** After using the current Results page, the owner
+     explicitly rejected its comprehension and task flow. This supersedes
+     Decision 277's acceptance and no-repeat-acceptance rule for that
+     experience; it does not erase that the earlier acceptance occurred.
+     Correctness repairs for selected-run persistence, row activation, and
+     truthful state remain authorized and required. Before broad Results-page
+     redesign, produce a concise research-grounded page specification or
+     mockup and obtain renewed owner acceptance. The proposed direction is a
+     top-to-bottom task flow, essential overview before detail, progressive
+     disclosure for diagnostics, compact keyboard-accessible selectable run
+     history with explicit date and time, and responsive columns without
+     avoidable horizontal scrolling or large dead space. This decision does
+     not accept a replacement design, change ADR 0008, close Milestone 23, or
+     relax any research, credential, execution, paper, or live-capital gate.

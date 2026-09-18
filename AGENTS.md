@@ -87,12 +87,13 @@ authorization forward within its approved scope and do not repeatedly ask.
 - The goal is to reject false edges, preserve reproducible evidence, paper trade qualified strategies, reconcile model and venue state, and deploy only tightly bounded capital under explicit human approval and independent risk controls.
 - The dashboard is the primary operator interface. Python, terminals, raw CSV/JSON, and backend logs are implementation details.
 - RSI, MES opening-range breakout, and SPY Donchian are infrastructure fixtures and historical evidence, not active profitability candidates.
-- Decision 277 records the owner's acceptance of the current dashboard/operator
-  direction. Strategy discovery remains blocked until Milestone 23 passes its
-  remaining implementation, browser-lifecycle, end-to-end workflow, failure-
-  handling, test, and documentation/status-synchronization gates. Do not ask
-  for another dashboard acceptance after those objective gates pass unless a
-  material redesign invalidates the accepted experience and is recorded.
+- Decision 279 supersedes Decision 277's acceptance of the current Results-page
+  comprehension and flow. Correctness repairs remain authorized, but broad
+  Results-page redesign requires a concise research-grounded page specification
+  or mockup and renewed owner acceptance. Strategy discovery remains blocked
+  until Milestone 23 passes its implementation, browser-lifecycle, end-to-end
+  workflow, failure-handling, test, documentation/status-synchronization, and
+  renewed operator-acceptance gates.
 - Under Decisions 259 and 262, research-only Docker/Compose packaging,
   deployment preparation, broker-neutral contracts, isolated paper-adapter
   implementation, tests, and target validation may proceed in parallel with
@@ -115,8 +116,8 @@ Decision 274 sets the current order. The milestone numbers remain unchanged;
 the remaining Milestone 24 paper activation follows strategy qualification even
 though its deployment and offline execution preparation is already retained.
 
-1. Complete the remaining objective Milestone 23 dashboard gates; Decision 277
-   already records operator acceptance for the current experience.
+1. Complete the remaining Milestone 23 dashboard gates, including the
+   Decision 279 Results-page design review and renewed owner acceptance.
 2. Conduct controlled equity strategy intake and research backtesting under
    Milestone 25 until a defensible edge qualifies.
 3. Resume and complete the remaining Milestone 24 paper activation only after

@@ -950,10 +950,11 @@ def register_backtest_results_callbacks(
 
         query_requested, requested_run_id = _requested_results_run_id(search)
         should_consider_query = triggered_id is None or "url" in triggered_ids
-        if should_consider_query and not _active_route(
+        results_route_is_active = _active_route(
             pathname,
             "/research/backtest-results",
-        ):
+        )
+        if should_consider_query and not results_route_is_active:
             return no_update
         if should_consider_query and query_requested:
             if requested_run_id:
@@ -971,7 +972,10 @@ def register_backtest_results_callbacks(
             return history_rows[0].get("run_id") or stored_run_id
         if triggered_id == "selected-run-selector" and selected_run_id:
             return selected_run_id
-        if triggered_id is None and stored_run_is_valid():
+        # On a full browser refresh Dash reports the mounted Location search
+        # as the trigger while the selector still carries its layout default.
+        # Keep the valid session selection until the store re-controls it.
+        if triggered_id in {None, "url"} and stored_run_is_valid():
             return no_update
         if selected_run_id:
             return selected_run_id
@@ -1098,6 +1102,7 @@ def register_backtest_results_callbacks(
         recent_run_records = runs.recent_runs(limit=20)
         recent_runs_by_id = {run.run_id: run for run in recent_run_records}
         triggered_id = _callback_triggered_id()
+        triggered_ids = _callback_triggered_ids()
 
         looked_up_runs: dict[str, RunSummary | None] = {}
 
@@ -1144,7 +1149,8 @@ def register_backtest_results_callbacks(
         completed_run = valid_run(completed_run_id)
         completed_run_id = completed_run.run_id if completed_run is not None else None
         stored_state_has_priority = (
-            triggered_id in {None, "selected-run-state"} and stored_run is not None
+            (triggered_id is None or "selected-run-state" in triggered_ids)
+            and stored_run is not None
         )
         stable_selected_run_id = (
             stored_run_id

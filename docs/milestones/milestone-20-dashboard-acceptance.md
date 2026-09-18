@@ -155,5 +155,6 @@ Inspect deterministic persisted fixture artifacts and verify:
 
 Strategy discovery, profitability search, candidate optimization, paper
 promotion, and live promotion remain blocked until Milestone 23 passes.
-Decision 277 records owner acceptance for the current dashboard/operator
-experience; the remaining objective technical gates are not yet complete.
+Decision 279 requires a research-grounded replacement Results-page
+specification and renewed owner acceptance; the objective technical gates are
+also not yet complete.
