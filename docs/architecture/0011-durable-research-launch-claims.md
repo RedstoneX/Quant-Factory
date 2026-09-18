@@ -32,7 +32,8 @@ show **Starting test...** while submission is unresolved, preserve the same
 run identity across refresh, distinguish an unknown submission outcome from
 run status and avoid a duplicate retry. The same specification explicitly
 excludes backend, persistence and orchestration redesign. The required
-server-side behavior therefore has no accepted implementation authority yet.
+server-side behavior is now authorized by this ADR but remains pending and is
+not yet implemented.
 
 At public repository revision
 `35496137f95067e4e622e690fec3ed319605f255`, the verified implementation has
