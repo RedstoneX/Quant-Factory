@@ -340,6 +340,7 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
         1,
         0,
         "/research/compare-backtests",
+        None,
         ["m23-spym-success", reproduced.run_id],
     )
     assert comparison_class == "run-comparison-output"
