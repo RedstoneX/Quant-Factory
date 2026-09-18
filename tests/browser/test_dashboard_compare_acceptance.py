@@ -316,7 +316,6 @@ def test_compare_browser_renders_three_persisted_runs_and_survives_refresh(
                 expected_outputs=(
                     "comparison-run-selector.options",
                     "..run-comparison-output.children...run-comparison-output.className..",
-                    "selected-trade-detail.children",
                     "..selected-trade-grid.rowData...trade-explorer-summary.children...selected-trade-grid.selectedRows..",
                 ),
             )
@@ -407,7 +406,6 @@ def test_compare_browser_renders_three_persisted_runs_and_survives_refresh(
                 events[refresh_phase_start:],
                 pathname=COMPARE_PATH,
                 expected_outputs=(
-                    "selected-trade-detail.children",
                     "..selected-trade-grid.rowData...trade-explorer-summary.children...selected-trade-grid.selectedRows..",
                 ),
             )
@@ -448,7 +446,6 @@ def test_compare_mobile_contains_quartets_charts_tables_and_actions(
                 expected_outputs=(
                     "comparison-run-selector.options",
                     "..run-comparison-output.children...run-comparison-output.className..",
-                    "selected-trade-detail.children",
                     "..selected-trade-grid.rowData...trade-explorer-summary.children...selected-trade-grid.selectedRows..",
                 ),
             )

@@ -550,7 +550,6 @@ def test_compare_renders_independent_persisted_context_for_each_selected_run(
         1,
         0,
         "/research/compare-backtests",
-        saved,
         ["review_context_target", "wf-run"],
     )
     contexts = [
@@ -625,8 +624,9 @@ def test_dashboard_callback_outputs_are_singly_owned(tmp_path: Path) -> None:
     assert output_keys.count("selected-run-selector.value") == 1
     assert output_keys.count("selected-run-selector.options") == 1
     assert output_keys.count("comparison-run-selector.options") == 1
-    assert output_keys.count("comparison-run-selector.value") == 1
-    assert output_keys.count("run-comparison-output.children") == 2
+    assert output_keys.count("comparison-run-selector.value") == 0
+    assert output_keys.count("run-comparison-output.children") == 1
+    assert output_keys.count("reproduction-message.children") == 1
     assert output_keys.count("selected-run-detail.children") == 1
     assert output_keys.count("historical-launch-message.children") == 1
     assert "page-content.children" not in output_keys
@@ -1138,8 +1138,25 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
         (item["id"], item["property"]): item
         for item in app.callback_map["comparison-run-selector.options"]["inputs"]
     }
-    assert ("refresh-comparisons", "n_clicks") in comparison_inputs
-    assert ("refresh-runs", "n_clicks") in comparison_inputs
+    assert set(comparison_inputs) == {
+        ("refresh-comparisons", "n_clicks"),
+        ("url", "pathname"),
+    }
+
+    compare_output = next(
+        value
+        for key, value in app.callback_map.items()
+        if "run-comparison-output.children" in key
+    )
+    compare_inputs = {
+        (item["id"], item["property"])
+        for item in compare_output["inputs"]
+    }
+    assert compare_inputs == {
+        ("compare-selected-runs", "n_clicks"),
+        ("refresh-comparisons", "n_clicks"),
+        ("url", "pathname"),
+    }
 
 
 def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
@@ -1153,7 +1170,7 @@ def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
         ("reproduction-message", (1, "missing-run", "/")),
         (
             "run-comparison-output",
-            (1, 0, "/research/backtest-results", None, ["a", "b"]),
+            (1, 0, "/research/backtest-results", ["a", "b"]),
         ),
         ("cancellation-message", (1, "missing-run", "/")),
         ("stale-recovery-message", (1, "2026-07-13T12:00:00Z", "/")),
@@ -3124,25 +3141,15 @@ def test_dashboard_reproduces_persisted_run_and_renders_comparison(
     )
     reproduce = _callback_function(app, "reproduction-message")
 
-    message, class_name, comparison, comparison_class, comparison_value = reproduce(
+    message, class_name = reproduce(
         1,
         "source_reproduction_run",
     )
     rendered_message = str(message)
-    rendered_comparison = str(comparison)
 
     assert class_name == "reproduction-message reproduction-message-success"
-    assert comparison_class == "run-comparison-output"
-    assert len(comparison_value) == 2
-    assert comparison_value[0] == "source_reproduction_run"
     assert "source_reproduction_run" in rendered_message
     assert "Allowed differences" in rendered_message
-    assert "Configuration hash" in rendered_comparison
-    assert "Dataset identity" in rendered_comparison
-    assert "Runtime identity" in rendered_comparison
-    assert "Key metrics" in rendered_comparison
-    assert "Deterministic value: 1729" in rendered_comparison
-    assert "comparison-state-equal" in rendered_comparison
 
     persistence = PersistenceService(database)
     try:
@@ -3155,7 +3162,7 @@ def test_dashboard_reproduces_persisted_run_and_renders_comparison(
         assert source is not None
         assert source.configuration_id == configuration_id
         assert reproduced.configuration_id == configuration_id
-        assert comparison_value[1] == reproduced.run_id
+        assert reproduced.run_id != source.run_id
         source_environment = json.loads(source.environment_json)
         reproduced_environment = json.loads(reproduced.environment_json)
         assert "reproduction" not in source_environment
@@ -3179,7 +3186,6 @@ def test_dashboard_reproduces_persisted_run_and_renders_comparison(
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["source_reproduction_run", reproduced.run_id],
     )
     restarted_rendered = str(restarted_panel)
@@ -3200,7 +3206,6 @@ def test_dashboard_reproduces_persisted_run_and_renders_comparison(
     )
     refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
     comparison_options = refresh_comparison_options(
-        0,
         0,
         "/research/compare-backtests",
     )
@@ -3234,15 +3239,12 @@ def test_dashboard_reproduction_fails_closed_for_invalid_lineage_or_artifacts(
         encoding="utf-8",
     )
 
-    message, class_name, comparison, comparison_class, comparison_value = reproduce(
+    message, class_name = reproduce(
         1,
         "source_reproduction_run",
     )
     assert class_name == "reproduction-message error-state"
-    assert comparison_class == "run-comparison-output"
-    assert comparison_value is no_update
     assert "invalid reproduction artifacts" in str(message)
-    assert "Run reproduction failed" in str(comparison)
 
     persistence = PersistenceService(database)
     try:
@@ -3255,7 +3257,7 @@ def test_dashboard_reproduction_fails_closed_for_invalid_lineage_or_artifacts(
     finally:
         persistence.close()
 
-    message, class_name, _, _, _ = reproduce(1, "source_reproduction_run")
+    message, class_name = reproduce(1, "source_reproduction_run")
     assert class_name == "reproduction-message error-state"
     assert "cannot be reproduced" in str(message)
 
@@ -3277,7 +3279,6 @@ def test_dashboard_run_comparison_renders_equal_changed_and_missing_fields(
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["compare_run_a", "compare_run_b"],
     )
     rendered = str(panel)
@@ -3332,7 +3333,6 @@ def test_dashboard_comparison_read_model_follows_selection_and_refresh(
             1,
             0,
             "/research/compare-backtests",
-            None,
             ["compare_run_a"],
         )[0]
     )
@@ -3341,7 +3341,6 @@ def test_dashboard_comparison_read_model_follows_selection_and_refresh(
             1,
             1,
             "/research/compare-backtests",
-            None,
             ["compare_run_b", "compare_run_c"],
         )[0]
     )
@@ -3366,7 +3365,6 @@ def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["compare_run_a"],
     )
     assert invalid_class == "run-comparison-output"
@@ -3375,7 +3373,6 @@ def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["compare_run_a", "missing-run"],
     )
     assert missing_class == "run-comparison-output"
@@ -3396,7 +3393,6 @@ def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["compare_run_a", "compare_run_b"],
     )
     assert failure_class == "run-comparison-output"
@@ -3417,14 +3413,12 @@ def test_dashboard_run_comparison_survives_dashboard_recreation(
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["compare_run_a", "compare_run_b"],
     )
     second_panel, second_class = _callback_function(second, "run-comparison-output")(
         1,
         0,
         "/research/compare-backtests",
-        None,
         ["compare_run_a", "compare_run_b"],
     )
     first_rendered = str(first_panel)
@@ -3456,7 +3450,6 @@ def test_dashboard_run_comparison_uses_callback_local_sqlite_connection(
                     1,
                     0,
                     "/research/compare-backtests",
-                    None,
                     ["compare_run_a", "compare_run_b"],
                 )
             )
@@ -3738,14 +3731,8 @@ def test_dynamic_detail_actions_ignore_initial_lifecycle_events(
     assert reproduce(None, "run_dashboard_fixture") == (
         no_update,
         no_update,
-        no_update,
-        no_update,
-        no_update,
     )
     assert reproduce(0, "run_dashboard_fixture") == (
-        no_update,
-        no_update,
-        no_update,
         no_update,
         no_update,
     )
@@ -3848,7 +3835,10 @@ def test_run_monitor_refreshes_from_service(tmp_path: Path, monkeypatch) -> None
         [],
     )
     refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
-    comparison_options = refresh_comparison_options(0, 0)
+    comparison_options = refresh_comparison_options(
+        0,
+        "/research/compare-backtests",
+    )
 
     assert options == [
         {
@@ -4124,7 +4114,10 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
         [],
     )
     refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
-    comparison_options = refresh_comparison_options(0, 0)
+    comparison_options = refresh_comparison_options(
+        0,
+        "/research/compare-backtests",
+    )
     panel = inspect(stored, "spym_persisted_run", 0, 0, 0, 0)
     rendered = str(panel)
 
@@ -4249,6 +4242,46 @@ def test_selected_run_store_recontrols_dropdown_after_detail_render_remount(
     assert selected == "selected_run_b"
 
 
+def test_results_deep_link_wins_simultaneous_stale_selector_trigger(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    base_service = _DashboardRunService()
+    service = _DashboardRunService(
+        initial_runs=(
+            base_service._summary("source_run", "a" * 64, "succeeded"),
+            base_service._summary("reproduced_run", "a" * 64, "succeeded"),
+        ),
+    )
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+    )
+    preserve = _callback_function(app, "selected-run-state")
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-run-selector",
+    )
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_ids",
+        lambda: frozenset({"selected-run-selector", "url"}),
+    )
+
+    selected = preserve(
+        "reproduced_run",
+        None,
+        "?run_id=source_run",
+        "reproduced_run",
+        "/research/backtest-results",
+    )
+
+    assert selected == "source_run"
+
+
 def test_initial_selector_hydration_does_not_rewrite_existing_dropdown(
     tmp_path: Path,
     monkeypatch,
@@ -4303,7 +4336,10 @@ def test_initial_selector_hydration_does_not_rewrite_existing_dropdown(
         existing_options,
     )
     refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
-    comparison_options = refresh_comparison_options(0, 0)
+    comparison_options = refresh_comparison_options(
+        0,
+        "/research/compare-backtests",
+    )
 
     assert options is no_update
     assert selected is no_update
