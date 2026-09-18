@@ -10,6 +10,8 @@ from dashboard.pages.common import page_heading
 def layout() -> html.Div:
     """Return an operator-authored draft surface with no research actions."""
 
+    from dashboard.application import _strategy_research_path
+
     return html.Div(
         [
             page_heading(
@@ -17,6 +19,7 @@ def layout() -> html.Div:
                 "Ideas",
                 "Capture a private draft for later review without retrieving or running anything.",
             ),
+            _strategy_research_path("/research/ideas"),
             dcc.Store(id="idea-draft-store", storage_type="session"),
             dcc.ConfirmDialog(
                 id="confirm-discard-idea-draft",

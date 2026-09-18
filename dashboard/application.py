@@ -33,6 +33,10 @@ from dashboard.components.trade_explorer import (  # noqa: E402
     layout as _trade_explorer_layout,
     normalize_trade_rows as _normalize_trade_rows,
 )
+from dashboard.components.operator_context import (  # noqa: E402
+    OperatorContextViewModel,
+    operator_context,
+)
 from dashboard.project_status import PROJECT_STATUS, DashboardProjectStatus  # noqa: E402
 from dashboard.health import inspect_catalog  # noqa: E402
 from dashboard.routing import (  # noqa: E402
@@ -977,7 +981,7 @@ def _home_next_action_card(title: str, description: str, href: str) -> dcc.Link:
     )
 
 
-def _strategy_research_path() -> html.Div:
+def _strategy_research_path(current_path: str = "/") -> html.Div:
     stages = (
         ("Home", "/"),
         ("Ideas", "/research/ideas"),
@@ -1007,8 +1011,13 @@ def _strategy_research_path() -> html.Div:
                     html.Strong(stage),
                 ],
                 href=href,
-                className="research-path-card",
+                className=(
+                    "research-path-card research-path-card-active"
+                    if href == current_path
+                    else "research-path-card"
+                ),
                 style=RESEARCH_PATH_CARD_STYLE,
+                title=(f"Current step: {stage}" if href == current_path else stage),
             )
         )
     return html.Div(
@@ -1101,8 +1110,8 @@ def _overview_page(
     return html.Div(
         [
             _page_heading(
-                "HOME",
-                "Quant Factory",
+                "RESEARCH / HOME",
+                "Home",
                 project_status.home_subtitle,
             ),
             html.Section(
@@ -1177,7 +1186,7 @@ def _overview_page(
             html.Section(
                 [
                     html.H2("Strategy research path"),
-                    _strategy_research_path(),
+                    _strategy_research_path("/"),
                 ],
                 className="panel",
             ),
@@ -1605,6 +1614,42 @@ def _validation_outcome_value(detail: SelectedRunDetailView | None) -> str:
             "Outcome",
         )
         or "Not recorded"
+    )
+
+
+def _results_operator_context(
+    run: RunSummary | None,
+    detail: SelectedRunDetailView | None = None,
+    *,
+    component_id: str = "results-operator-context",
+) -> html.Section:
+    """Build truthful context from the selected persisted run and evidence."""
+
+    if run is None:
+        return operator_context(component_id=component_id)
+    evidence_outcome = _validation_outcome_value(detail)
+    if evidence_outcome in {"", "Not recorded", "Not available"}:
+        evidence_outcome = None
+    run_status = run.status.replace("_", " ").title()
+    next_actions = {
+        "created": "Wait for completion",
+        "queued": "Wait for completion",
+        "running": "Wait for completion",
+        "retrying": "Wait for completion",
+        "failed": "Review failure",
+        "cancelled": "Review failure",
+        "timed_out": "Review failure",
+        "succeeded": "Inspect evidence",
+    }
+    return operator_context(
+        OperatorContextViewModel(
+            selected_run=True,
+            run_status=run_status,
+            evidence_outcome=evidence_outcome,
+            human_decision=None,
+            next_safe_action=next_actions.get(run.status),
+        ),
+        component_id=component_id,
     )
 
 
@@ -3565,6 +3610,8 @@ def _runs_page(
                 ],
                 className="page-heading page-heading-with-actions",
             ),
+            _strategy_research_path("/research/backtest-results"),
+            _results_operator_context(initial_selected_run),
             dcc.Store(
                 id="selected-run-state",
                 data=initial_selected_run_id,
@@ -3973,6 +4020,8 @@ def _comparisons_page(recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
                 ],
                 className="page-heading page-heading-with-actions",
             ),
+            _strategy_research_path("/research/compare-backtests"),
+            operator_context(component_id="compare-operator-context"),
             html.Section(
                 [
                     html.Div(

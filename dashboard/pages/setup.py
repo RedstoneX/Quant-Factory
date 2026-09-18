@@ -19,7 +19,7 @@ def layout(
         if configurations is None
         else configurations
     )
-    from dashboard.application import _configuration_preview
+    from dashboard.application import _configuration_preview, _strategy_research_path
 
     if available:
         first = available[0]
@@ -72,6 +72,12 @@ def layout(
                 "RESEARCH / SET UP",
                 "Set up a test",
                 "Choose and inspect an approved immutable fixture configuration before any work starts.",
+            ),
+            _strategy_research_path("/research/setup"),
+            dcc.Store(
+                id="selected-configuration-state",
+                data=available[0].configuration_id if available else None,
+                storage_type="session",
             ),
             html.Div(
                 [

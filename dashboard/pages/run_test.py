@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dash import dcc, html
 
+from dashboard.components.operator_context import operator_context
 from dashboard.pages.common import page_heading
 from dashboard.run_adapter import SavedConfigurationView, list_saved_configurations
 
@@ -19,7 +20,7 @@ def layout(
         if configurations is None
         else configurations
     )
-    from dashboard.application import _configuration_preview
+    from dashboard.application import _configuration_preview, _strategy_research_path
 
     selected = available[0] if available else None
     if selected is None:
@@ -58,6 +59,8 @@ def layout(
                 "Run test",
                 "Review the saved setup, launch exactly once, and observe the recorded outcome.",
             ),
+            _strategy_research_path("/research/run-test"),
+            operator_context(component_id="run-test-operator-context"),
             html.Div(
                 [
                     html.Span("Fixture-only test", className="pending-state-badge"),

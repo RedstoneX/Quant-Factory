@@ -2647,11 +2647,52 @@ input {
   gap: 16px;
 }
 
+.research-path-card-active {
+  outline: 3px solid rgba(35, 87, 217, 0.2);
+  outline-offset: 1px;
+}
+
+.operator-context {
+  background: #ffffff;
+  border: 1px solid #cbd7e6;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  padding: 14px;
+}
+
+.operator-context-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.operator-context-item {
+  display: grid;
+  gap: 4px;
+}
+
+.operator-context-label {
+  color: #526173;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.operator-context-value {
+  font-weight: 700;
+  margin: 0;
+}
+
 @media (max-width: 700px) {
   .idea-draft-actions > *,
   .run-test-page .launch-controls-panel > .primary-action,
   .run-test-page .launch-controls-panel > .secondary-action {
     box-sizing: border-box;
     width: 100%;
+  }
+
+  .operator-context-grid {
+    grid-template-columns: 1fr;
   }
 }

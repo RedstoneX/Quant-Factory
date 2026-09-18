@@ -60,7 +60,7 @@ def _idea_draft_transition(
 
     if triggered_id == "confirm-discard-idea-draft":
         return (
-            None,
+            {},
             "Draft discarded from this browser session.",
             "save-message",
             False,
@@ -174,6 +174,8 @@ def register_ideas_callbacks(app: Dash) -> None:
         Input("idea-draft-store", "data"),
     )
     def show_idea_draft(draft: dict[str, str] | None):
+        if draft is None:
+            return (no_update,) * 5
         values = draft or {}
         return (
             values.get("title", ""),

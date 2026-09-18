@@ -19,9 +19,10 @@ STATE_OWNERS = {
         "rule": "Ideas stores operator-authored text in the browser session only and never retrieves or executes it.",
     },
     "selected_configuration": {
-        "source": "configuration-selector.value",
+        "source": "selected-configuration-state.data",
+        "control": "configuration-selector.value",
         "owner": "dashboard.callbacks.backtest_results",
-        "rule": "The persisted session selection made in Set up is read by Run test without mutation or an automatic launch.",
+        "rule": "Set up writes the operator choice to one session store; Run test reads that identity without mutation or an automatic launch.",
     },
     "selected_backtest": {
         "source": "selected-run-selector.value",

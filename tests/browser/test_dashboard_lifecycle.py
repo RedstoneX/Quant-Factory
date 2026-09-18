@@ -367,6 +367,7 @@ def test_setup_selection_survives_run_route_and_refresh(
         try:
             page.goto(base_url + "/research/setup", wait_until="networkidle")
             _select(page, "configuration-selector", "workflow_second_operator_choice")
+            _wait_for_callbacks_to_settle(page, pending_requests)
             selected_identity = page.locator(
                 "#configuration-preview .configuration-identity"
             ).inner_text()
@@ -388,6 +389,18 @@ def test_setup_selection_survives_run_route_and_refresh(
             expect(
                 page.locator("#run-configuration-preview .configuration-identity")
             ).to_have_text(selected_identity)
+            action["name"] = "launch selected generic fixture"
+            page.locator("#launch-run").click()
+            expect(page.locator("#launch-message")).to_contain_text(
+                "Status: succeeded",
+                timeout=60000,
+            )
+            expect(page.locator("#run-test-operator-context")).to_contain_text(
+                "Succeeded"
+            )
+            expect(page.locator("#run-test-operator-context")).to_contain_text(
+                "Unavailable"
+            )
             page.go_back(wait_until="networkidle")
             _assert_route(page, base_url, "/research/setup", "route-research-setup")
             page.go_forward(wait_until="networkidle")
@@ -429,6 +442,7 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
         )
         try:
             page.goto(base_url + "/research/ideas", wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending_requests)
             page.locator("#idea-title").fill("Local-only idea")
             page.locator("#idea-source-url").fill(
                 "https://user:secret@example.invalid/private"
@@ -612,6 +626,12 @@ def test_launch_spym_and_diagnose_controlled_failure(dashboard_server, tmp_path)
             expect(page.locator("#launch-run")).to_be_enabled()
             page.locator("#launch-run").click()
             expect(page.locator("#launch-message")).to_contain_text("Status: succeeded", timeout=60000)
+            expect(page.locator("#run-test-operator-context")).to_contain_text(
+                "Succeeded"
+            )
+            expect(page.locator("#run-test-operator-context")).to_contain_text(
+                "Unavailable"
+            )
             _wait_for_callbacks_to_settle(page, pending)
             page.screenshot(path=tmp_path / "launched-spym.png", full_page=True)
 
