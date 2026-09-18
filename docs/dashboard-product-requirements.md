@@ -163,22 +163,23 @@ operator-visible outcome. A cache hit is recorded as reuse within that run; it
 does not silently reopen the source run, omit the new ticket, or count the same
 computation as an independent evidence observation.
 
-Reusable computed artifacts must be content-addressed, integrity-validated and
-traceable to every input that can affect the result. At minimum, the design must
-account for immutable configuration, dataset/manifest identity, execution and
-cost assumptions, strategy/code identity, runtime and engine versions, evidence
+Reusable computed artifacts must be integrity-validated and traceable to every
+input that can affect the result. At minimum, the design must account for
+immutable configuration, dataset/manifest identity, execution and cost
+assumptions, strategy/code identity, runtime and engine versions, evidence
 stage, and protected-data population or partition. Failed, partial, corrupt,
 mismatched, stale, or submission-unknown work is never reusable. A missing or
 unverifiable input fails closed to recomputation or an explicit unavailable
 state; it never produces an assumed cache hit.
 
 Decision 283 accepts this behavior requirement, not an implementation. A
-bounded design must determine storage, schema, atomic publication, concurrent
-access, invalidation, retention/eviction, target topology, observability and
-implementation sequencing. It must also decide whether explicit **Reproduce**
-always recomputes, uses cached work only to verify a fresh computation, or
-offers a clearly labelled separate mode. Until that decision is accepted,
-existing Reproduce semantics must not be changed.
+bounded design must evaluate the identity/keying mechanism (including whether
+content addressing is suitable), storage, schema, publication safety,
+concurrent access, invalidation, retention/eviction, target topology,
+observability and implementation sequencing. It must also decide whether
+explicit **Reproduce** always recomputes, uses cached work only to verify a
+fresh computation, or offers a clearly labelled separate mode. Until that
+decision is accepted, existing Reproduce semantics must not be changed.
 
 ### Run overview
 

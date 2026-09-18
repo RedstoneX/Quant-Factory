@@ -297,18 +297,19 @@ explicitly.
      faster through safe cache reuse rather than rebuilding all computation.
      Every explicit run request still creates and retains its own durable run
      ticket, lifecycle, identity, lineage and operator-visible outcome. A cache
-     hit may reuse only content-addressed computed artifacts that are validated,
-     traceable and isolated by every input that can change the result, including
-     code and runtime identity, immutable configuration, dataset identity,
-     execution assumptions, engine/version inputs, evidence stage and protected-
-     data partition. Failed, partial, corrupt, mismatched, stale, or unknown work
-     is never reusable. Reusing one computation does not create an independent
+     hit may reuse only computed artifacts that are validated, traceable and
+     isolated by every input that can change the result, including code and
+     runtime identity, immutable configuration, dataset identity, execution
+     assumptions, engine/version inputs, evidence stage and protected-data
+     partition. Failed, partial, corrupt, mismatched, stale, or unknown work is
+     never reusable. Reusing one computation does not create an independent
      evidence observation or increase sample count.
 
-     This accepts the product requirement, not a cache architecture. Storage,
-     schema, locking, concurrency, invalidation, retention/eviction, target
-     topology, implementation sequence and operator presentation require a
-     bounded design and validation before implementation. Whether the explicit
+     This accepts the product requirement, not a cache architecture. Identity
+     and keying mechanism, storage, schema, locking, concurrency, invalidation,
+     retention/eviction, target topology, implementation sequence and operator
+     presentation require a bounded design and validation before implementation.
+     Whether the explicit
      **Reproduce** action must force recomputation, may use a cache only as a
      verification aid, or may expose a separate choice remains undecided. The
      existing ADR 0011 durable claim and fail-closed submission behavior remain
