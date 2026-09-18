@@ -16,3 +16,5 @@ channel.
 Public issues and external contributions are not accepted at this time. Public
 visibility is provided for inspection only. No source-code license is granted;
 all rights are reserved.
+
+<!-- Disposable CI probe: independent branch for non-strict merge validation. -->
