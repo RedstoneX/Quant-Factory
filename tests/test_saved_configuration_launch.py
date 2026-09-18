@@ -7,7 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from orchestration import FixtureRunService, RunServiceError
+from orchestration import FixtureRunService
+from orchestration.research_launch_claims import (
+    ResearchLaunchError,
+    ResearchLaunchIntegrityError,
+)
 from persistence import PersistenceService, StrategyLifecycle
 from persistence.models import normalized_configuration_document
 from prefect_spike.fixture_flow import deterministic_fixture_body
@@ -106,7 +110,7 @@ def test_non_launchable_saved_configuration_fails_before_run_creation(
         raise AssertionError("must not launch")
 
     service = FixtureRunService(database=database, fixture_launcher=launcher)
-    with pytest.raises(RunServiceError, match="not launchable"):
+    with pytest.raises(ResearchLaunchError, match="not an approved"):
         service.launch_fixture(configuration_id=configuration.configuration_id, run_id="qf-not-launchable")
     assert not called
     assert service.get_run("qf-not-launchable") is None
@@ -132,7 +136,7 @@ def test_unknown_mismatched_and_duplicate_saved_configuration_launches_fail_safe
         persistence.connection.commit()
     finally:
         persistence.close()
-    with pytest.raises(RunServiceError, match="mismatched strategy identity"):
+    with pytest.raises(ResearchLaunchIntegrityError, match="mismatched strategy identity"):
         service.launch_fixture(configuration_id=configuration_id, run_id="qf-mismatched-config")
     assert service.get_run("qf-mismatched-config") is None
 
@@ -149,7 +153,7 @@ def test_unknown_mismatched_and_duplicate_saved_configuration_launches_fail_safe
         persistence.connection.commit()
     finally:
         persistence.close()
-    with pytest.raises(RunServiceError, match="unregistered strategy"):
+    with pytest.raises(ResearchLaunchIntegrityError, match="immutable hash"):
         service.launch_fixture(configuration_id=configuration_id, run_id="qf-missing-strategy")
     assert service.get_run("qf-missing-strategy") is None
 
@@ -163,7 +167,11 @@ def test_unknown_mismatched_and_duplicate_saved_configuration_launches_fail_safe
     service = FixtureRunService(database=database, fixture_launcher=launcher)
     first = service.launch_fixture(configuration_id=configuration_id, run_id="qf-duplicate-saved")
     before = service.get_run("qf-duplicate-saved")
-    with pytest.raises(ValueError, match="already exists"):
-        service.launch_fixture(configuration_id=configuration_id, run_id="qf-duplicate-saved")
+    replay = service.launch_fixture(
+        configuration_id=configuration_id,
+        run_id="qf-duplicate-saved",
+    )
     assert first.run == before
+    assert replay.invoked is False
+    assert replay.run == before
     assert launches == ["qf-duplicate-saved"]

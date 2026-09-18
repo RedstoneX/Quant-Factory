@@ -4,18 +4,28 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import threading
-from uuid import uuid4
 
+from orchestration.research_launch_claims import (
+    DurableResearchLaunchService,
+    ResearchLaunchIntegrityError,
+    ResearchLaunchRequest,
+    new_dispatcher_instance_id,
+)
 from persistence import (
     ArtifactAvailability,
     ArtifactType,
     EventSeverity,
     ExperimentRunRecord,
     PersistenceService,
+    ResearchLaunchOperation,
+    ResearchRunSubmissionRecord,
+    ResearchSubmissionState,
     RunEventRecord,
     RunEventType,
     RunStatus,
@@ -24,14 +34,25 @@ from persistence import (
 from persistence.database import database_path
 from persistence.evidence_service import ValidationEvidenceArtifactService
 from persistence.service import capture_runtime_lineage_document
-from prefect_spike.fixture_flow import (
-    ControlledTransientFixtureError,
-    PrefectFixtureResult,
-    run_prefect_fixture_flow,
-)
+from prefect_spike.fixture_flow import PrefectFixtureResult, run_prefect_fixture_flow
 
 FixtureLauncher = Callable[..., PrefectFixtureResult]
 MAX_FIXTURE_TIMEOUT_SECONDS = 3_600.0
+_DISPATCHER_ID_LOCK = threading.Lock()
+_DISPATCHER_ID_PID: int | None = None
+_DISPATCHER_ID: str | None = None
+
+
+def _boot_dispatcher_instance_id() -> str:
+    """Return one UUID per process, rotating safely after a pre-fork preload."""
+
+    global _DISPATCHER_ID_PID, _DISPATCHER_ID
+    current_pid = os.getpid()
+    with _DISPATCHER_ID_LOCK:
+        if _DISPATCHER_ID_PID != current_pid or _DISPATCHER_ID is None:
+            _DISPATCHER_ID_PID = current_pid
+            _DISPATCHER_ID = new_dispatcher_instance_id()
+        return _DISPATCHER_ID
 
 
 class RunServiceError(RuntimeError):
@@ -40,7 +61,7 @@ class RunServiceError(RuntimeError):
 
 @dataclass(frozen=True)
 class FixtureRetryPolicy:
-    """Bounded retry policy for controlled transient fixture failures."""
+    """Legacy-compatible policy shape; durable launch accepts one attempt only."""
 
     max_attempts: int = 1
 
@@ -87,6 +108,8 @@ class RunLaunchResult:
 
     run: RunSummary
     prefect_result: PrefectFixtureResult | None
+    submission: ResearchRunSubmissionRecord | None = None
+    invoked: bool = True
 
 
 @dataclass(frozen=True)
@@ -256,132 +279,216 @@ def _review_label(review: str | None) -> str:
 
 
 class FixtureRunService:
-    """Stable Slice 18A service for launching the deterministic fixture.
-
-    The service owns Quant Factory run identity and duplicate checks. The
-    existing Prefect fixture remains responsible for creating the run record
-    once the Prefect flow-run identity is known, and for reconciling Prefect
-    success/failure into Quant Factory run states.
-    """
+    """Replay-safe fixture launch service backed by ADR 0011 durable claims."""
 
     def __init__(
         self,
         *,
         database: str | Path | None = None,
         fixture_launcher: FixtureLauncher = run_prefect_fixture_flow,
+        dispatcher_instance_id: str | None = None,
     ) -> None:
         self.database_path = database_path(database)
         self._fixture_launcher = fixture_launcher
+        self._dispatcher_instance_id = (
+            dispatcher_instance_id or _boot_dispatcher_instance_id()
+        )
 
     def launch_fixture(
         self,
         *,
+        idempotency_key: str | None = None,
         configuration_id: str,
+        operation: ResearchLaunchOperation = ResearchLaunchOperation.RUN_TEST,
+        source_run_id: str | None = None,
+        source_lineage: dict[str, str] | None = None,
         run_id: str | None = None,
         attempt_marker_path: str | Path | None = None,
         fail_after_run_start: bool = False,
         retry_policy: FixtureRetryPolicy = FixtureRetryPolicy(),
         controlled_transient_failures: int = 0,
         timeout_seconds: float | None = None,
+        prefect_timeout_seconds: float | None = None,
         reproduction_metadata: dict[str, object] | None = None,
     ) -> RunLaunchResult:
-        if controlled_transient_failures < 0:
-            raise ValueError("controlled transient failures must not be negative")
+        if retry_policy.max_attempts != 1 or controlled_transient_failures:
+            raise ValueError(
+                "outer fixture-launch retries are disabled; Prefect owns retries "
+                "inside one acknowledged flow"
+            )
         self._validate_timeout(timeout_seconds)
-        quant_factory_run_id = run_id or f"run_{uuid4().hex}"
-        saved_parameters, saved_execution_assumptions = self._validate_launch_request(
-            configuration_id,
-            quant_factory_run_id,
-        )
-        frozen_runtime_lineage = capture_runtime_lineage_document()
+        self._validate_timeout(prefect_timeout_seconds)
+        try:
+            normalized_operation = ResearchLaunchOperation(operation)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("unsupported research launch operation") from exc
+        if (
+            reproduction_metadata is not None
+            and normalized_operation != ResearchLaunchOperation.REPRODUCTION
+        ):
+            raise ValueError("reproduction metadata is valid only for reproduction")
+        if idempotency_key is None:
+            if run_id is None:
+                raise ValueError(
+                    "a browser-prepared idempotency key is required when no deterministic "
+                    "fixture run ID is supplied"
+                )
+            digest = hashlib.sha256(
+                f"{normalized_operation.value}:{run_id}".encode("utf-8")
+            ).hexdigest()
+            idempotency_key = f"launch_fixture_{digest}"
 
-        for attempt in range(1, retry_policy.max_attempts + 1):
-            launch_kwargs = {
+        claim_service = DurableResearchLaunchService(
+            database=self.database_path,
+            run_id_factory=(lambda: run_id) if run_id is not None else None,
+        )
+        existing = claim_service.get(idempotency_key)
+        environment: dict[str, object] | None = None
+        if existing is None:
+            environment = {
+                "prefect_spike": True,
+                "runtime_lineage": capture_runtime_lineage_document(),
+            }
+            if reproduction_metadata is not None:
+                environment["reproduction"] = reproduction_metadata
+        claim = claim_service.claim(
+            idempotency_key=idempotency_key,
+            request=ResearchLaunchRequest(
+                operation=normalized_operation,
+                configuration_id=configuration_id,
+                source_run_id=source_run_id,
+                source_lineage=source_lineage,
+            ),
+            environment=environment,
+        )
+
+        if claim.submission.state != ResearchSubmissionState.CLAIMED:
+            return RunLaunchResult(
+                run=_summary(claim.run),
+                prefect_result=None,
+                submission=claim.submission,
+                invoked=False,
+            )
+
+        try:
+            saved_parameters, saved_execution_assumptions = self._launch_inputs(
+                claim.submission.configuration_id
+            )
+            request_document = json.loads(claim.submission.canonical_request_json)
+            persisted_source_lineage = request_document.get("source_lineage")
+            if not isinstance(persisted_source_lineage, dict) or any(
+                not isinstance(key, str) or not isinstance(value, str)
+                for key, value in persisted_source_lineage.items()
+            ):
+                raise ResearchLaunchIntegrityError(
+                    "durable research launch has invalid source lineage"
+                )
+            persisted_source_run_id = request_document.get("source_run_id")
+            if persisted_source_run_id is not None and not isinstance(
+                persisted_source_run_id, str
+            ):
+                raise ResearchLaunchIntegrityError(
+                    "durable research launch has invalid source-run identity"
+                )
+            operation_kind = request_document.get("operation_kind")
+            if not isinstance(operation_kind, str):
+                raise ResearchLaunchIntegrityError(
+                    "durable research launch has invalid operation identity"
+                )
+            run_environment = json.loads(claim.run.environment_json)
+            if not isinstance(run_environment, dict):
+                raise ResearchLaunchIntegrityError(
+                    "durable research launch has invalid run environment"
+                )
+            frozen_runtime_lineage = run_environment.get("runtime_lineage")
+            persisted_reproduction_metadata = run_environment.get("reproduction")
+        except Exception as exc:
+            raise RunServiceError("fixture launch preparation failed") from exc
+
+        def invoke(submission: ResearchRunSubmissionRecord) -> PrefectFixtureResult:
+            launch_kwargs: dict[str, object] = {
                 "database_path": self.database_path,
-                "configuration_id": configuration_id,
-                "quant_factory_run_id": quant_factory_run_id,
+                "idempotency_key": submission.idempotency_key,
+                "configuration_id": submission.configuration_id,
+                "quant_factory_run_id": submission.run_id,
+                "canonical_request_json": submission.canonical_request_json,
+                "request_fingerprint": submission.request_fingerprint,
+                "operation_kind": operation_kind,
+                "source_run_id": persisted_source_run_id,
+                "source_lineage": persisted_source_lineage,
                 "attempt_marker_path": attempt_marker_path,
                 "fail_after_run_start": fail_after_run_start,
                 "saved_parameters": saved_parameters,
                 "saved_execution_assumptions": saved_execution_assumptions,
                 "frozen_runtime_lineage": frozen_runtime_lineage,
             }
-            if reproduction_metadata is not None:
-                launch_kwargs["reproduction_metadata"] = reproduction_metadata
-            if controlled_transient_failures:
-                launch_kwargs.update(
-                    controlled_transient_failures=controlled_transient_failures,
-                    retry_pending=attempt < retry_policy.max_attempts,
-                )
-            try:
-                prefect_result = self._launch_with_timeout(launch_kwargs, timeout_seconds)
-            except _FixtureLaunchTimeout:
-                run = self._reconcile_timeout(quant_factory_run_id, timeout_seconds)
-                return RunLaunchResult(run=_summary(run), prefect_result=None)
-            except Exception as exc:
-                run = self._get_persisted_run(quant_factory_run_id)
-                if (
-                    isinstance(exc, ControlledTransientFixtureError)
-                    and controlled_transient_failures
-                    and attempt < retry_policy.max_attempts
-                    and run is not None
-                    and run.status == RunStatus.RUNNING
-                ):
-                    self._record_retry_event(
-                        run_id=quant_factory_run_id,
-                        attempt=attempt,
-                        max_attempts=retry_policy.max_attempts,
-                    )
-                    continue
-                if run is None or run.status not in {
-                    RunStatus.FAILED,
-                    RunStatus.CANCELLED,
-                    RunStatus.SUCCEEDED,
-                }:
-                    raise RunServiceError(
-                        f"fixture launch failed without terminal run {quant_factory_run_id}: {exc}"
-                    ) from exc
-                return RunLaunchResult(run=_summary(run), prefect_result=None)
-
-            if prefect_result.quant_factory_run_id != quant_factory_run_id:
+            if prefect_timeout_seconds is not None:
+                launch_kwargs["timeout_seconds"] = prefect_timeout_seconds
+            if persisted_reproduction_metadata is not None:
+                launch_kwargs["reproduction_metadata"] = persisted_reproduction_metadata
+            prefect_result = self._launch_with_timeout(launch_kwargs, timeout_seconds)
+            if prefect_result.quant_factory_run_id != submission.run_id:
                 self._record_integrity_error(
-                    quant_factory_run_id,
+                    submission.run_id,
                     "Fixture launcher returned a mismatched Quant Factory run ID.",
                 )
-                raise RunServiceError(
+                raise ResearchLaunchIntegrityError(
                     "fixture launch returned mismatched Quant Factory run ID: "
-                    f"expected {quant_factory_run_id}, got {prefect_result.quant_factory_run_id}"
+                    f"expected {submission.run_id}, got {prefect_result.quant_factory_run_id}"
                 )
-            run = self._get_persisted_run(prefect_result.quant_factory_run_id)
-            if run is None:
-                raise RunServiceError(
-                    f"fixture launch returned {prefect_result.quant_factory_run_id} "
-                    "but no Quant Factory run was persisted"
-                )
-            if prefect_result.attempt_count != run.attempt_count:
-                prefect_result = replace(
-                    prefect_result,
-                    attempt_count=run.attempt_count,
-                )
-            return RunLaunchResult(run=_summary(run), prefect_result=prefect_result)
+            return prefect_result
 
-        raise AssertionError("bounded retry loop ended without a result")
+        dispatch = claim_service.dispatch(
+            idempotency_key=idempotency_key,
+            dispatcher_instance_id=self._dispatcher_instance_id,
+            invoke=invoke,
+        )
+        run = self._get_persisted_run(dispatch.submission.run_id)
+        if run is None:
+            raise ResearchLaunchIntegrityError(
+                "durable research launch references a missing Quant Factory run"
+            )
+        prefect_result = dispatch.value if dispatch.invoked else None
+        if prefect_result is not None and prefect_result.attempt_count != run.attempt_count:
+            prefect_result = replace(prefect_result, attempt_count=run.attempt_count)
+        return RunLaunchResult(
+            run=_summary(run),
+            prefect_result=prefect_result,
+            submission=dispatch.submission,
+            invoked=dispatch.invoked,
+        )
 
     def reproduce_fixture_run(
         self,
         source_run_id: str,
         *,
+        idempotency_key: str,
         artifact_root: str | Path,
         run_id: str | None = None,
     ) -> RunReproductionResult:
         """Create a new fixture run from a validated persisted source run."""
 
-        metadata = self._reproduction_metadata(
-            source_run_id,
-            artifact_root=artifact_root,
+        existing = DurableResearchLaunchService(database=self.database_path).get(
+            idempotency_key
+        )
+        metadata = (
+            None
+            if existing is not None
+            else self._reproduction_metadata(
+                source_run_id,
+                artifact_root=artifact_root,
+            )
+        )
+        configuration_id = (
+            existing.configuration_id
+            if existing is not None
+            else str(metadata["configuration_id"])
         )
         launched = self.launch_fixture(
-            configuration_id=str(metadata["configuration_id"]),
+            idempotency_key=idempotency_key,
+            configuration_id=configuration_id,
+            operation=ResearchLaunchOperation.REPRODUCTION,
+            source_run_id=source_run_id,
             run_id=run_id,
             reproduction_metadata=metadata,
         )
@@ -391,14 +498,18 @@ class FixtureRunService:
             reproduction = service.runs.get(launched.run.run_id)
             if original is None or reproduction is None:
                 raise RunServiceError("reproduction result was not durably persisted")
-            try:
-                service.persist_run_manifest(
-                    service.build_run_manifest(reproduction.run_id)
-                )
-            except (KeyError, RuntimeError, ValueError) as exc:
-                raise RunServiceError(
-                    f"reproduced run lineage could not be persisted: {exc}"
-                ) from exc
+            if (
+                launched.invoked
+                or service.read_persisted_run_manifest(reproduction.run_id) is None
+            ):
+                try:
+                    service.persist_run_manifest(
+                        service.build_run_manifest(reproduction.run_id)
+                    )
+                except (KeyError, RuntimeError, ValueError) as exc:
+                    raise RunServiceError(
+                        f"reproduced run lineage could not be persisted: {exc}"
+                    ) from exc
             return RunReproductionResult(
                 original=_summary(original),
                 reproduction=_summary(reproduction),
@@ -569,6 +680,16 @@ class FixtureRunService:
 
     def request_fixture_cancellation(self, run_id: str) -> RunSummary:
         """Request cooperative cancellation; the fixture owns acknowledgement."""
+        submission = DurableResearchLaunchService(
+            database=self.database_path
+        ).get_for_run(run_id)
+        if (
+            submission is not None
+            and submission.state != ResearchSubmissionState.ACKNOWLEDGED
+        ):
+            raise RunServiceError(
+                "cancellation is unavailable until the Prefect submission is acknowledged"
+            )
         service = PersistenceService(self.database_path)
         try:
             return _summary(service.request_run_cancellation(run_id))
@@ -576,20 +697,33 @@ class FixtureRunService:
             service.close()
 
     def recover_stale_fixture_runs(self, *, stale_before: str) -> tuple[RunSummary, ...]:
-        """Reconcile stale fixture runs using an explicit caller-provided cutoff."""
-        service = PersistenceService(self.database_path)
-        try:
-            return tuple(
-                _summary(run)
-                for run in service.recover_stale_fixture_runs(stale_before=stale_before)
-            )
-        finally:
-            service.close()
+        """Reject age-only recovery; ADR 0011 requires claim-specific evidence."""
+        del stale_before
+        raise RunServiceError(
+            "age-only fixture recovery is disabled; use claim-aware Prefect "
+            "reconciliation or an evidenced process-exit barrier"
+        )
 
-    def _validate_launch_request(
+    def recover_invoking_after_process_exit(
+        self,
+        *,
+        idempotency_key: str,
+        departed_dispatcher_instance_id: str,
+        process_exit_evidence_reference: str,
+    ) -> ResearchRunSubmissionRecord:
+        """Apply explicit process-exit evidence without launching replacement work."""
+
+        return DurableResearchLaunchService(
+            database=self.database_path
+        ).recover_invoking_after_process_exit(
+            idempotency_key=idempotency_key,
+            departed_dispatcher_instance_id=departed_dispatcher_instance_id,
+            process_exit_evidence_reference=process_exit_evidence_reference,
+        )
+
+    def _launch_inputs(
         self,
         configuration_id: str,
-        run_id: str,
     ) -> tuple[object, object]:
         service = PersistenceService(self.database_path)
         try:
@@ -625,8 +759,6 @@ class FixtureRunService:
                 raise RunServiceError(
                     f"saved configuration {configuration_id} is not launchable"
                 )
-            if service.runs.get(run_id) is not None:
-                raise ValueError(f"Quant Factory run already exists: {run_id}")
             return document["parameters"], document["execution"]
         finally:
             service.close()
@@ -735,28 +867,6 @@ class FixtureRunService:
             raise RunServiceError("fixture launcher returned no Prefect fixture result")
         return result
 
-    def _reconcile_timeout(
-        self,
-        run_id: str,
-        timeout_seconds: float | None,
-    ) -> ExperimentRunRecord:
-        assert timeout_seconds is not None
-        seconds = f"{timeout_seconds:g}"
-        error_summary = f"Fixture execution timed out after {seconds} seconds."
-        service = PersistenceService(self.database_path)
-        try:
-            return service.fail_run_for_timeout(
-                run_id=run_id,
-                timeout_message=f"Fixture execution exceeded its {seconds}-second timeout.",
-                error_summary=error_summary,
-            )
-        except KeyError as exc:
-            raise RunServiceError(
-                f"fixture execution timed out without a persisted run {run_id}"
-            ) from exc
-        finally:
-            service.close()
-
     def _get_persisted_run(self, run_id: str) -> ExperimentRunRecord | None:
         service = PersistenceService(self.database_path)
         try:
@@ -777,22 +887,6 @@ class FixtureRunService:
             )
         finally:
             service.close()
-
-    def _record_retry_event(self, *, run_id: str, attempt: int, max_attempts: int) -> None:
-        service = PersistenceService(self.database_path)
-        try:
-            service.append_run_event(
-                run_id=run_id,
-                event_type=RunEventType.RUN_RETRY_SCHEDULED,
-                severity=EventSeverity.INFO,
-                message=(
-                    "Retry scheduled after controlled transient fixture failure "
-                    f"(attempt {attempt} of {max_attempts})."
-                ),
-            )
-        finally:
-            service.close()
-
 
 class _FixtureLaunchTimeout(Exception):
     """Private control signal for a bounded service-side fixture invocation."""

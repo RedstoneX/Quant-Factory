@@ -15,6 +15,9 @@ from prefect_spike.fixture_flow import (
     ControlledFixtureCancellation,
     deterministic_fixture_body,
 )
+from tests.test_prefect_spike import (
+    deterministic_fixture_body as claimed_deterministic_fixture_body,
+)
 import prefect_spike.spym_vectorbt_fixture as spym_fixture
 from prefect_spike.spym_vectorbt_fixture import (
     ensure_spym_21c_saved_configuration,
@@ -152,7 +155,7 @@ def test_spym_fixture_cancellation_safe_point_discards_computed_result(
     monkeypatch.setattr(spym_fixture, "execute_experiment", expensive_stub)
 
     with pytest.raises(ControlledFixtureCancellation):
-        deterministic_fixture_body(
+        claimed_deterministic_fixture_body(
             database_path=database,
             configuration_id=configuration_id,
             quant_factory_run_id=run_id,

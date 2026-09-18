@@ -14,11 +14,21 @@ from types import SimpleNamespace
 
 import pytest
 
-from persistence import PersistenceService, RunStatus, StrategyLifecycle
+from orchestration.research_launch_claims import (
+    DurableResearchLaunchService,
+    ResearchLaunchRequest,
+    new_dispatcher_instance_id,
+)
+from persistence import (
+    PersistenceService,
+    ResearchLaunchOperation,
+    RunStatus,
+    StrategyLifecycle,
+)
 from persistence.models import normalized_configuration_document
 from prefect_spike.fixture_flow import (
     PREFECT_AVAILABLE,
-    deterministic_fixture_body,
+    deterministic_fixture_body as _deterministic_fixture_body,
     ensure_prefect_available,
     map_prefect_state_to_quant_factory,
 )
@@ -60,6 +70,47 @@ def _registered_configuration(tmp_path: Path) -> tuple[Path, str]:
 
 def _service(path: Path) -> PersistenceService:
     return PersistenceService(path)
+
+
+def deterministic_fixture_body(
+    *,
+    database_path: str | Path,
+    configuration_id: str,
+    quant_factory_run_id: str,
+    prefect_flow_run_id: str,
+    **kwargs,
+):
+    """Exercise the body only after constructing its required durable claim."""
+
+    claims = DurableResearchLaunchService(
+        database=database_path,
+        run_id_factory=lambda: quant_factory_run_id,
+    )
+    claim = claims.claim(
+        idempotency_key=f"launch_prefect_{quant_factory_run_id}",
+        request=ResearchLaunchRequest(
+            operation=ResearchLaunchOperation.RUN_TEST,
+            configuration_id=configuration_id,
+        ),
+    )
+    claims.begin_dispatch(
+        idempotency_key=claim.submission.idempotency_key,
+        dispatcher_instance_id=new_dispatcher_instance_id(),
+    )
+    request = json.loads(claim.submission.canonical_request_json)
+    return _deterministic_fixture_body(
+        database_path=database_path,
+        idempotency_key=claim.submission.idempotency_key,
+        configuration_id=configuration_id,
+        quant_factory_run_id=quant_factory_run_id,
+        canonical_request_json=claim.submission.canonical_request_json,
+        request_fingerprint=claim.submission.request_fingerprint,
+        operation_kind=request["operation_kind"],
+        source_run_id=request["source_run_id"],
+        source_lineage=request["source_lineage"],
+        prefect_flow_run_id=prefect_flow_run_id,
+        **kwargs,
+    )
 
 
 def test_server_independent_state_mapping_from_names_and_objects() -> None:

@@ -9,15 +9,17 @@ from __future__ import annotations
 import argparse
 import asyncio
 from dataclasses import dataclass
+import hashlib
 import json
 import os
 from pathlib import Path
 import time
 from uuid import UUID
 
+from orchestration import FixtureRunService
+from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from persistence import PersistenceService, RunStatus, StrategyLifecycle
 from persistence.models import normalized_configuration_document
-from prefect_spike.fixture_flow import run_prefect_fixture_flow
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,11 @@ def _prepare_configuration(database_path: Path, configuration_id_seed: str) -> s
         return service.upsert_configuration(document).configuration_id
     finally:
         service.close()
+
+
+def _live_launch_key(kind: str, run_id: str) -> str:
+    digest = hashlib.sha256(f"{kind}:{run_id}".encode("utf-8")).hexdigest()
+    return f"launch_live_{digest}"
 
 
 async def _read_prefect_evidence_once(flow_run_id: str) -> tuple[str, bool]:
@@ -127,31 +134,33 @@ def run_live_verification(
         )
     database = Path(database_path)
     configuration_id = _prepare_configuration(database, configuration_id_seed=run_id)
-    fixture = run_prefect_fixture_flow(
-        database_path=database,
+    launched = FixtureRunService(database=database).launch_fixture(
+        idempotency_key=_live_launch_key("success", run_id),
         configuration_id=configuration_id,
-        quant_factory_run_id=run_id,
+        run_id=run_id,
         attempt_marker_path=attempt_marker_path,
     )
+    if launched.run.prefect_flow_run_id is None:
+        raise RuntimeError("durable live verification has no acknowledged Prefect identity")
     prefect_state_name, prefect_logs_found = _read_prefect_evidence_with_polling(
-        fixture.prefect_flow_run_id
+        launched.run.prefect_flow_run_id
     )
     service = PersistenceService(database)
     try:
-        run = service.runs.get(fixture.quant_factory_run_id)
+        run = service.runs.get(launched.run.run_id)
         if run is None:
-            raise RuntimeError(f"Quant Factory run was not persisted: {fixture.quant_factory_run_id}")
+            raise RuntimeError(f"Quant Factory run was not persisted: {launched.run.run_id}")
         if run.status != RunStatus.SUCCEEDED:
             raise RuntimeError(f"Quant Factory run did not succeed: {run.status.value}")
     finally:
         service.close()
     return LiveVerificationResult(
-        quant_factory_run_id=fixture.quant_factory_run_id,
-        prefect_flow_run_id=fixture.prefect_flow_run_id,
+        quant_factory_run_id=launched.run.run_id,
+        prefect_flow_run_id=launched.run.prefect_flow_run_id,
         quant_factory_status=RunStatus.SUCCEEDED.value,
         prefect_state_name=prefect_state_name,
         prefect_logs_found=prefect_logs_found,
-        attempt_count=fixture.attempt_count,
+        attempt_count=launched.run.attempt_count,
     )
 
 
@@ -168,41 +177,40 @@ def run_live_timeout_verification(
         )
     database = Path(database_path)
     configuration_id = _prepare_configuration(database, configuration_id_seed=run_id)
-    prefect_flow_run_id = ""
+    launch_service = FixtureRunService(database=database)
     try:
-        run_prefect_fixture_flow(
-            database_path=database,
+        launch_service.launch_fixture(
+            idempotency_key=_live_launch_key("timeout", run_id),
             configuration_id=configuration_id,
-            quant_factory_run_id=run_id,
-            timeout_seconds=timeout_seconds,
+            run_id=run_id,
+            prefect_timeout_seconds=timeout_seconds,
         )
-    except Exception:
-        service = PersistenceService(database)
-        try:
-            run = service.runs.get(run_id)
-            if run is None:
-                raise RuntimeError(f"Quant Factory run was not persisted: {run_id}")
-            environment = json.loads(run.environment_json)
-            prefect_flow_run_id = environment["prefect_flow_run_id"]
-            if run.status == RunStatus.RUNNING:
-                raise RuntimeError("Quant Factory timeout run was left running")
-            if run.status != RunStatus.FAILED:
-                raise RuntimeError(f"Quant Factory timeout run did not fail: {run.status.value}")
-            error_summary = run.error_summary
-        finally:
-            service.close()
-        prefect_state_name, _ = _read_prefect_evidence_with_polling(prefect_flow_run_id)
-        normalized = prefect_state_name.strip().lower()
-        if "failed" not in normalized and "timed" not in normalized and "crashed" not in normalized:
-            raise RuntimeError(f"Prefect timeout run did not report failure/timeout: {prefect_state_name}")
-        return LiveTimeoutResult(
-            quant_factory_run_id=run_id,
-            prefect_flow_run_id=prefect_flow_run_id,
-            quant_factory_status=RunStatus.FAILED.value,
-            prefect_state_name=prefect_state_name,
-            error_summary=error_summary,
+    except ResearchLaunchInvocationError:
+        pass
+    run = launch_service.get_run(run_id)
+    if run is None:
+        raise RuntimeError(f"Quant Factory run was not persisted: {run_id}")
+    if run.prefect_flow_run_id is None:
+        raise RuntimeError("durable timeout verification has no Prefect identity")
+    if run.status == RunStatus.RUNNING.value:
+        raise RuntimeError("Quant Factory timeout run was left running")
+    if run.status != RunStatus.FAILED.value:
+        raise RuntimeError(f"Quant Factory timeout run did not fail: {run.status}")
+    prefect_state_name, _ = _read_prefect_evidence_with_polling(
+        run.prefect_flow_run_id
+    )
+    normalized = prefect_state_name.strip().lower()
+    if not any(marker in normalized for marker in ("failed", "timed", "crashed")):
+        raise RuntimeError(
+            f"Prefect timeout run did not report failure/timeout: {prefect_state_name}"
         )
-    raise RuntimeError("Prefect timeout verification unexpectedly completed successfully")
+    return LiveTimeoutResult(
+        quant_factory_run_id=run_id,
+        prefect_flow_run_id=run.prefect_flow_run_id,
+        quant_factory_status=RunStatus.FAILED.value,
+        prefect_state_name=prefect_state_name,
+        error_summary=run.error_summary,
+    )
 
 
 def main() -> int:
