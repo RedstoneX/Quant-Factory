@@ -167,6 +167,11 @@ def create_dashboard_layout(
 ) -> html.Div:
     return html.Div(
         [
+            html.A(
+                "Skip to main content",
+                href="#page-content",
+                className="skip-link",
+            ),
             dcc.Location(
                 id="url",
                 pathname=initial_pathname,
@@ -244,6 +249,7 @@ def create_dashboard_layout(
                 ),
                 id="page-content",
                 className="application-content",
+                tabIndex=-1,
             ),
         ],
         id="application-shell",

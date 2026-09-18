@@ -150,6 +150,7 @@ from pathlib import Path
 import sys
 from dashboard.app import create_app
 from orchestration import FixtureRunService
+from tests.browser.dashboard_diagnostics import install_callback_status_recorder
 from tests.browser.test_backtest_results_spym_stability import _launcher
 
 database = Path(sys.argv[1])
@@ -158,6 +159,7 @@ app = create_app(
     review_database=database,
     run_service=FixtureRunService(database=database, fixture_launcher=_launcher),
 )
+install_callback_status_recorder(app.server)
 app.run(host="127.0.0.1", port=port, debug=False)
 """
     env = dict(os.environ)

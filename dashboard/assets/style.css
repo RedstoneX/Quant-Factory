@@ -577,6 +577,26 @@ li { margin: 8px 0; line-height: 1.45; }
   display: none;
 }
 
+.skip-link {
+  background: #ffffff;
+  border: 2px solid #2357d9;
+  border-radius: 6px;
+  color: #102b49;
+  font-weight: 800;
+  left: 12px;
+  padding: 10px 14px;
+  position: fixed;
+  top: 12px;
+  transform: translateY(-200%);
+  z-index: 2000;
+}
+
+.skip-link:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+  transform: translateY(0);
+}
+
 .navigation-drawer-panel {
   min-height: 100%;
 }
