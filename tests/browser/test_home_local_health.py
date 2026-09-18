@@ -33,15 +33,16 @@ def _write_catalog(tmp_path: Path) -> tuple[Path, Path]:
     data_root = tmp_path / "market-data"
     manifest_root = tmp_path / "manifests"
     manifest_root.mkdir()
-    target_directory = data_root / "equities"
-    target_directory.mkdir(parents=True)
     for dataset_id, status in (
         ("health-fixture", "validated"),
         ("health-fixture-quarantined", "quarantined"),
     ):
         content = f"portable local health fixture: {dataset_id}".encode()
-        relative_path = f"equities/{dataset_id}.parquet"
-        (data_root / relative_path).write_bytes(content)
+        relative_directory = "quarantine" if status == "quarantined" else "equities"
+        relative_path = f"{relative_directory}/{dataset_id}.parquet"
+        target = data_root / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
         (manifest_root / f"{dataset_id}.json").write_text(
             json.dumps(
                 {
