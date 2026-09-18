@@ -6,35 +6,40 @@ The dashboard is the primary Quant Factory product interface. The normal operato
 
 VectorBT Pro remains the portfolio analytics and Plotly-compatible chart engine. Plotly Dash remains the application framework. Quant Factory owns workflow, records, evidence, orchestration, lifecycle state, and the human decision interface.
 
-## Current owner review outcome — refreshed 2026-09-17
+## Current owner review outcome — refreshed 2026-09-18
 
 Private target checks cover mounted routes, refresh and selection behavior,
 fixture launch, charts, trade inspection, comparison, reproduction, durable
 review, failure handling, and recovery. These checks establish implemented
-behavior; they do not establish operator acceptance.
+behavior; they do not by themselves establish the remaining technical
+Milestone 23 pass.
 
-The project owner rejected the prior user experience and authorized the next
-improvement direction and implementation. A private Home → Set up → Run test →
-Results → Compare prototype was browser-checked at desktop and mobile sizes.
-Complete 23C-1 design-artifact approval, operator acceptance, and M23
-completion remain unconfirmed. Retain Plotly Dash and VectorBT Pro; use Dash AG
-Grid and Dash Bootstrap Components where appropriate. Use capable retail-
-trader language while remaining understandable to a novice operator without
-programming or finance expertise.
+The project owner rejected the prior user experience, authorized the next
+improvement direction and implementation, and on 2026-09-18 explicitly
+accepted the current dashboard/operator direction under Decision 277. That
+records owner acceptance for the current experience and authorizes autonomous
+work through the remaining objective Milestone 23 gates; it does not waive
+implementation conformance, browser lifecycle, end-to-end workflow, tests,
+failure handling, or documentation/status synchronization. A material redesign
+must be recorded and cannot inherit this acceptance silently. Retain Plotly
+Dash and VectorBT Pro; use Dash AG Grid and Dash Bootstrap Components where
+appropriate. Use capable retail-trader language while remaining understandable
+to a novice operator without programming or finance expertise.
 
 A separate September 17 local-only Ideas prototype browser-validated the
 extended flow on desktop and mobile. It is evidence for the approved direction,
-not a production deployment or operator acceptance; production remains
-unchanged. See the retained prototype and validation evidence referenced in
-[MILESTONES](MILESTONES.md#current-phase).
+not a production deployment or substitute for the independent owner acceptance
+now recorded in Decision 277; production remains unchanged. See the retained
+prototype and validation evidence referenced in [MILESTONES](MILESTONES.md#current-phase).
 
 ## Target operator information hierarchy
 
 Decision 274 extends the Decision 273 navigation direction to Home → Ideas →
-Set up → Run test → Results → Compare. Complete design-artifact approval,
-operator acceptance, and M23 completion remain unconfirmed. During 23C,
-the Ideas page may support safe draft and source-reference capture so the operator can
-review the complete research interface. An inactive Ideas route must not fetch
+Set up → Run test → Results → Compare. Decision 277 records owner acceptance
+for the current experience; implementation conformance and M23 technical
+completion remain unconfirmed. During 23C, the Ideas page may support safe
+draft and source-reference capture so the operator can review the complete
+research interface. An inactive Ideas route must not fetch
 external content, execute, or launch a run. Durable external-source retrieval,
 approval-to-configuration handoff, and backtesting remain M25 work after M23
 acceptance. Full Ideas design details remain pending the product specification
@@ -280,5 +285,7 @@ Visual polish alone is insufficient. The dashboard must operate the complete res
 workflow, responsive desktop/tablet/mobile behavior, novice language, the four
 persistent selected-run fields, and labelled technical drill-downs. 23C-2
 retains the ADR 0008 mounted-route architecture and uses Dash AG Grid and Dash
-Bootstrap Components as approved implementation components. 23C-3 requires
-real-browser operator acceptance and explicit final owner approval.
+Bootstrap Components as approved implementation components. Decision 277
+satisfies explicit final owner approval for the current experience; 23C-3 still
+requires real-browser lifecycle and end-to-end workflow evidence. A material
+redesign must be recorded and cannot inherit the acceptance silently.

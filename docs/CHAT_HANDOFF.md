@@ -19,11 +19,14 @@ navigation, not competing authorities.
 
 ## Current resume point
 
-Milestone 23 is the active gate. Dashboard implementation and browser/operator
-acceptance are pending. Decision 274 sets the order: complete Milestone 23,
-qualify a defensible equity edge under Milestone 25, then resume paper
-activation only after every execution gate passes. Live capital remains far
-future and requires separate explicit owner approval.
+Milestone 23 is the active gate. Decision 277 records owner acceptance of the
+current dashboard/operator direction, so no repeat acceptance prompt is needed
+after the remaining implementation, browser-lifecycle, end-to-end workflow,
+failure-handling, test, and documentation/status gates pass. Those objective
+gates remain pending and strategy discovery remains blocked. Decision 274 then
+orders controlled Milestone 25 research until a defensible equity edge
+qualifies, followed by paper activation only after every execution gate passes.
+Live capital remains far future and requires separate explicit owner approval.
 
 Decision 275 is implemented: this clean-history public repository is the sole
 forward source of truth, and the original remains a private, read-only

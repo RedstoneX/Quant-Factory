@@ -1,8 +1,9 @@
 # Milestone 23 Acceptance
 
 Milestone 23 proves the complete equity research workflow before strategy
-discovery. Automated evidence supports the decision; only explicit operator
-acceptance closes the gate.
+discovery. Decision 277 records explicit owner acceptance for the current
+dashboard/operator experience. That acceptance does not replace the remaining
+objective evidence or itself close the gate.
 
 ## Required scenario matrix
 
@@ -30,7 +31,10 @@ weaken protected-data boundaries.
       review without Python, terminal, raw JSON/CSV, or SQLite.
 - [ ] Failures explain impact and the next safe action.
 - [ ] Documentation and `dashboard/project_status.py` agree.
-- [ ] The project owner explicitly records pass or fail.
+- [x] The project owner explicitly accepts the current dashboard/operator
+      experience under Decision 277.
+- [ ] The Milestone 23 gate result is recorded after every remaining objective
+      criterion passes or fails.
 
 ## Incident history
 
