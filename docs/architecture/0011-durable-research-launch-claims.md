@@ -1,22 +1,27 @@
 # ADR 0011: Durable research-launch claims
 
-- **Status:** PROPOSED / NOT ACCEPTED / NOT AUTHORIZED FOR IMPLEMENTATION
+- **Status:** ACCEPTED / IMPLEMENTATION AUTHORIZED / NOT YET IMPLEMENTED
 - **Date proposed:** 2026-09-18
 - **Proposal revised:** 2026-09-18 after independent architecture review
+- **Date accepted:** 2026-09-18
 - **Decision owner:** Terry, the Quant Factory project owner
-- **Scope if accepted:** Milestone 23 research-fixture submission identity,
+- **Accepted scope:** Milestone 23 research-fixture submission identity,
   persistence, orchestration handoff, recovery and dashboard observation
-- **Would supplement:** [ADR 0004](0004-adopt-before-build.md),
+- **Supplements:** [ADR 0004](0004-adopt-before-build.md),
   [ADR 0007](0007-portable-deployment-and-alpaca-first-roadmap.md) and
   [ADR 0008](0008-dashboard-mounted-route-architecture.md)
-- **Implementation status:** None. This proposal changes no code, schema,
-  runtime, deployment or accepted authority.
+- **Implementation status:** Not implemented. Acceptance authorizes the bounded
+  implementation and validation described here; it does not claim any code,
+  schema, runtime or deployment change is complete.
 
-> **Proposal boundary:** Only Terry can accept, revise or reject this
-> architecture. A commit, pull request, review or merge of this document does
-> not accept it and does not authorize implementation. Decision 277 accepts the
-> current dashboard/operator experience; it does not authorize the persistence
-> and orchestration redesign described here.
+> **Acceptance boundary:** On 2026-09-18 Terry approved the safer run-ticket
+> design in plain language: Quant Factory must save an accepted run identity
+> before launch so refreshes and retries cannot silently duplicate or lose a
+> test, and it must report failure or uncertainty truthfully. That instruction
+> accepts the bounded in-request design in this ADR and authorizes its
+> implementation. It does not accept implementation as complete, close
+> Milestone 23, authorize a production deployment or relax any research,
+> credential, execution or capital boundary.
 
 ## Context
 
@@ -60,9 +65,9 @@ semantics. Research launch identity needs a research-specific record. Paper
 journal algorithms and tests may inform adversarial review, but the paper
 journal must not be imported, shared or repurposed.
 
-## Proposed decision
+## Accepted decision
 
-If Terry accepts this option, Quant Factory will add a bounded, research-only
+Quant Factory will add a bounded, research-only
 durable submission claim in front of the existing in-request Prefect fixture
 invocation. It will not add a worker, background thread, scheduler, broker
 connection or production deployment change.
@@ -86,7 +91,7 @@ This is not a claim that arbitrary external execution can be made
 mathematically exactly once across every process or network failure. The
 unknown state is the explicit fail-closed boundary.
 
-This proposal makes submission identity durable, not computation. It does not
+This decision makes submission identity durable, not computation. It does not
 promise that the in-request fixture survives dashboard timeout, termination,
 restart or replacement.
 
@@ -203,7 +208,7 @@ may reuse the same prepared key because no claim exists. Implementations must
 not spin, wait without a deadline or convert `SQLITE_BUSY`/`SQLITE_LOCKED` into
 an unbounded automatic retry.
 
-This proposal does not authorize WAL mode; changing SQLite journal mode
+This decision does not authorize WAL mode; changing SQLite journal mode
 requires separate target-filesystem evidence.
 
 ### 4. Make replay and conflict behavior deterministic
@@ -401,11 +406,11 @@ This option must not be described as a durable execution worker. Existing
 request timeout, process lifetime and cooperative-cancellation limits remain
 visible constraints. If later requirements demand computation that survives
 dashboard loss, a separate Prefect deployment/worker architecture is required;
-accepting this proposal would not accept or implement that larger topology.
+this decision does not accept or implement that larger topology.
 
 ## Migration, backup and rollback
 
-If this proposal is accepted and later implemented:
+When this decision is implemented:
 
 1. schema version 5 is additive; existing runs remain valid and are not
    fabricated into submission records;
@@ -441,7 +446,7 @@ authorize that rollout.
 
 ### Fault and recovery
 
-- deterministic faults at every crash window in this proposal;
+- deterministic faults at every crash window in this ADR;
 - an exception in the dispatch winner converts unresolved Invoking to Unknown;
 - a foreign dispatcher identity during graceful worker overlap does not
   convert Invoking;
@@ -484,7 +489,7 @@ Pro fixture in the licensed target environment. Deterministic fixtures remain
 appropriate for concurrency and failure injection. Portable CI does not
 replace licensed-target or browser evidence.
 
-## Consequences if accepted
+## Consequences
 
 - Run test, historical relaunch and reproduction gain one durable identity per
   explicit operation before external invocation; an unconverted action remains
@@ -500,9 +505,10 @@ replace licensed-target or browser evidence.
 
 ## Explicit exclusions
 
-This proposal does not authorize:
+This decision does not authorize:
 
-- implementation before Terry accepts an architecture choice;
+- a claim that implementation or validation is complete before its evidence
+  passes and is merged;
 - reuse of the paper-order journal or paper execution state;
 - a Prefect deployment, runner, worker, background thread or custom scheduler;
 - a production or OVH runtime change;
@@ -512,40 +518,33 @@ This proposal does not authorize:
 - automatic retry of an unresolved submission; or
 - any paper or live activation.
 
-## Owner decision required
+## Owner acceptance
 
-Terry must choose one of these paths before implementation:
+On 2026-09-18 Terry selected the bounded in-request design after it was
+explained as the safer operator behavior: persist the accepted run ticket
+before launch, make duplicate delivery and refresh reopen that same test, and
+show an honest unknown state when the external outcome cannot be proved.
+Implement and validate the research-specific durable claim exactly within the
+boundaries above for every enabled fixture-launch entry point. Keep any
+unconverted entry point disabled.
 
-1. **Accept the bounded in-request design.** Implement and validate the
-   research-specific durable claim exactly within the boundaries above for
-   every enabled fixture-launch entry point. Keep any unconverted entry point
-   disabled.
-2. **Revise the proposal.** Record the required changes and keep implementation
-   blocked until the revised architecture is explicitly accepted.
-3. **Choose a separate worker/deployment architecture.** Design a larger
-   follow-up in which submission creates an idempotent Prefect deployment run
-   and an independently managed research worker executes it. That option
-   changes deployment topology, worker lifecycle, database concurrency,
-   packaging, recovery and target acceptance. It is not silently included in
-   this proposal and requires its own architecture and deployment evidence.
+The separately described worker/deployment architecture remains unaccepted.
+It would change deployment topology, worker lifecycle, database concurrency,
+packaging, recovery and target acceptance and would require its own owner
+decision and evidence.
 
-No default is inferred from silence. Decision 277 is not acceptance of any of
-these persistence/orchestration choices.
+## Documentation-impact assessment for acceptance
 
-## Documentation-impact assessment for this proposal
-
-- `AGENTS.md`: not applicable — no permanent behavior or allocation is
-  accepted by a proposal.
-- `docs/MILESTONES.md`: not applicable — scope, order, status and acceptance do
-  not change.
-- `docs/DECISIONS.md`: not applicable — Terry has not accepted a decision.
-- ADR: updated — this file records the non-authoritative architecture proposal.
-- `docs/CHAT_HANDOFF.md`: not applicable — no accepted fact requires startup
-  visibility.
+- `AGENTS.md`: not applicable — owner acceptance does not change permanent
+  agent behavior or allocation.
+- `docs/MILESTONES.md`: updated — ADR 0011 implementation is authorized but
+  remains incomplete within pending Milestone 23.
+- `docs/DECISIONS.md`: updated — Decision 278 records the owner acceptance and
+  its boundaries.
+- ADR: updated — this file now records the accepted architecture and its
+  not-yet-implemented status.
+- `docs/CHAT_HANDOFF.md`: updated — the accepted implementation authority is
+  part of the current resume point.
 - `README.md`: not applicable — public orientation is unchanged.
-- Runbook/specification: not applicable — no operating or implementation
-  procedure is authorized.
-
-If Terry later accepts or revises the design, documentation governance requires
-the accepted decision, authoritative milestone status, affected specification
-and any operational procedure to be synchronized in that later change.
+- Runbook/specification: not applicable — implementation has not yet changed an
+  operating procedure or product specification.

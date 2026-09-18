@@ -182,3 +182,17 @@ explicitly.
      Milestone 23 gate passes. If a material redesign invalidates the accepted
      experience, record that change and do not represent this acceptance as
      covering the redesigned experience.
+
+278. **Durable research run tickets accepted (accepted 2026-09-18).** The
+     owner approved the safer operator design in ADR 0011: Quant Factory must
+     persist an accepted research-run identity before launching the fixture so
+     refreshes, duplicate delivery and retries reopen the same test rather
+     than silently losing or duplicating it. If external submission cannot be
+     proved, the dashboard must show a truthful unknown state and must not
+     automatically launch again. This accepts the bounded in-request design
+     and authorizes its implementation and validation across every enabled
+     fixture-launch entry point. It does not claim implementation is complete,
+     make research computation survive dashboard-process loss, close
+     Milestone 23, authorize the separate worker/deployment architecture,
+     change production, or relax any research, credential, paper, execution or
+     live-capital gate.
