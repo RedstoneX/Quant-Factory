@@ -442,6 +442,16 @@ def group_trade_rows(rows: Iterable[Mapping[str, Any]]) -> TradeGrouping:
             valuation_timestamp, valuation_price = _valuation(
                 row, trade_id=trade_id, reasons=reasons
             )
+            if (
+                entry is not None
+                and valuation_timestamp is not None
+                and valuation_timestamp < entry.timestamp
+            ):
+                valuation_timestamp = None
+                valuation_price = None
+                reasons.append(
+                    "Open-trade valuation timestamp precedes its persisted entry timestamp."
+                )
 
         pnl = None
         return_value = None

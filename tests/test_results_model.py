@@ -306,6 +306,48 @@ def test_open_trade_partial_or_invalid_vectorbt_valuation_is_unavailable(
     assert reason_fragment in " ".join(trade.unavailable_reasons)
 
 
+@pytest.mark.parametrize(
+    ("valuation_timestamp", "available"),
+    (
+        ("2026-01-01T14:39:59Z", False),
+        ("2026-01-01T14:40:00Z", True),
+        ("2026-01-01T14:40:01Z", True),
+    ),
+)
+def test_open_trade_valuation_cannot_precede_entry(
+    valuation_timestamp: str, available: bool
+) -> None:
+    grouped = group_trade_rows(
+        (
+            {
+                "Exit Trade Id": 7,
+                "Status": "Open",
+                "Entry Index": "2026-01-01T14:40:00Z",
+                "Avg Entry Price": 12.0,
+                "Exit Index": valuation_timestamp,
+                "Avg Exit Price": 12.5,
+            },
+        )
+    )
+
+    trade = grouped.groups[0]
+    assert trade.status == "open"
+    assert trade.entry is not None
+    assert trade.exit is None
+    assert trade.outcome is None
+    assert trade.pnl is None
+    assert (trade.valuation_timestamp is not None) is available
+    assert (trade.valuation_price is not None) is available
+    if available:
+        assert "precedes its persisted entry" not in " ".join(
+            trade.unavailable_reasons
+        )
+    else:
+        assert "precedes its persisted entry" in " ".join(
+            trade.unavailable_reasons
+        )
+
+
 def test_adapter_price_validation_uses_strict_results_contract() -> None:
     warnings: list[str] = []
     rows = _validated_series_rows(
