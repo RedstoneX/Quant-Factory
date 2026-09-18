@@ -166,6 +166,31 @@ does not authorize copying or adding a dependency without a compatible
 license. Distinguish prototype/reference behavior from integrated, tested,
 deployed, and operator-accepted product behavior.
 
+For the temporary Decision 286 selected-run Results beta boundary, also state:
+
+- which of the three authorized slices is active: approved-page
+  reuse/integration, focused browser fixes, or backed-up validated OVH
+  deployment;
+- the honestly measured effort already used and the remaining portion of the
+  six-development-hour planning ceiling, without treating the estimate as a
+  completion guarantee or inventing precision;
+- the one bounded implementer and independent reviewer for the slice, with the
+  reviewer limited to the owned diff, decisive evidence, and boundary
+  compliance rather than reimplementation, a broad audit, discretionary
+  redesign, or duplicate testing;
+- that no new framework, chart/grid/panel system or architecture, paid
+  dependency, or replacement of approved behavior is proposed;
+- that caching, scalable multi-run design or Explorer work, aesthetic polish,
+  and broad refactoring are excluded unless recorded evidence demonstrates a
+  beta blocker.
+
+Stop and reassess reuse and the remaining budget if thin integration expands.
+Do not silently widen a slice or exceed the planning ceiling.
+While the work is active, provide at least hourly progress reports naming the
+current slice, selected reuse, boundary compliance, scope pressure, and next
+action. Treat the dashboard as the essential single-user interface without
+turning beta MVP delivery into a perfection gate.
+
 ## 5. Apply Quant Factory acceptance rules
 
 - Use the real SPYM VectorBT Pro fixture in the successful integrated Milestone

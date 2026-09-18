@@ -50,7 +50,9 @@ layout and controls and Dash AG Grid Community for interactive tables.
 
 MLflow already provides runs, parameters, metrics, tags, artifacts, SQL-compatible storage, search, comparison, parent/child runs and a tracking UI. It is mature, but its model lifecycle does not replace protected holdouts, immutable parameter locks, insufficient-evidence status, trading lifecycle decisions or paper/live reconciliation. Adding it now would create a second run store or require replacing Milestone 17 while the custom trading dashboard would still be required.
 
-Decision: do not add MLflow now. Reconsider for multi-user or remote tracking later.
+Decision: do not add MLflow now. Multi-user reconsideration requires separate
+owner approval under Decision 284; remote tracking alone does not make it a
+selected dependency.
 
 ### Aim
 
@@ -104,6 +106,12 @@ The owner-approved interactive Results prototype is implementation input and
 must be reused or adapted where it remains technically and legally suitable.
 It is not by itself integrated, tested, deployed, or renewed operator-accepted
 application behavior.
+
+Decision 286 settles the current beta path: preserve and integrate the
+approved chart/page behavior rather than evaluate or build a replacement. The
+three bounded slices add no framework, chart/grid/panel system or architecture,
+or paid dependency. If the integration stops being thin, work stops for a
+reuse and budget reassessment.
 
 The earlier Milestone 20 component recommendation was:
 

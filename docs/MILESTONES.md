@@ -57,6 +57,18 @@ Failed, partial, corrupt, or unknown work is never reusable. Cache architecture,
 storage, schema, eviction, implementation sequence, and explicit **Reproduce**
 recomputation policy remain a bounded design task rather than an approved
 solution or claimed implementation.
+Decision 286 temporarily narrows the remaining selected-run Results beta to a
+six-development-hour planning ceiling and exactly three slices: reuse/integrate
+the approved page, make focused browser fixes, then perform a backed-up
+validated OVH deployment. The ceiling is measured and reported honestly as a
+stop-control, not a completion guarantee or fabricated precision. No new
+framework, chart/grid/panel system or architecture, paid dependency, or
+replacement behavior is in scope. Caching, scalable multi-run design or
+Explorer work, aesthetic polish, and broad refactoring are deferred outside
+these slices unless demonstrated to block the beta. This sequencing does not
+cancel the later accepted multi-run or safe-cache requirements. The dashboard
+is the essential single-operator interface, but beta MVP delivery does not
+require perfection beyond the stated truthfulness and safety gates.
 Implementation, deployment, tests, licensed-target proof, and renewed owner
 acceptance of the eventual implemented experience remain pending. Decision 278
 accepts ADR 0011's
@@ -105,7 +117,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Apply Decision 285's reuse-before-build assessment to the existing dashboard, VectorBT Pro, owner-approved Results prototype and mature maintained legally usable components before further custom implementation; implement and validate only the verified gaps in the owner-approved Decisions 280–282 selected-run Results specification; design the separately required scalable multi-run aggregation, slicing, ranking, filtering and selection surface without treating its UI or architecture as pre-approved; produce only a bounded design and sequencing recommendation for Decision 283's safe exact-repeat computation caching, without adding cache implementation as a Milestone 23 acceptance criterion or changing explicit Reproduce semantics; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, documentation/status, and renewed implemented-experience acceptance gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
+| R05 | 1 | in_progress | none | Under Decision 286's honestly reported six-development-hour planning ceiling, complete exactly three remaining selected-run Results beta slices: (1) reuse/integrate the approved page and working chart behavior with existing persisted results, (2) make only focused browser fixes demonstrated by that integration, and (3) perform a backed-up validated OVH deployment; use one bounded implementer and one independent reviewer per slice, with review limited to the owned diff, decisive evidence and boundary compliance rather than reimplementation, broad audit, redesign or duplicate tests; report active progress at least hourly with current slice, reuse, boundary compliance, scope pressure and next action; add no framework, chart/grid/panel system or architecture, paid dependency, or replacement behavior; stop and reassess reuse and remaining budget if thin integration expands; defer caching, scalable multi-run design or Explorer work, aesthetic polish, and broad refactoring unless evidence demonstrates a beta blocker; preserve ADR 0011 durable run tickets and the required truthfulness, licensed-target, browser, workflow, failure-handling, test, documentation/status, backup and rollback gates; later accepted multi-run and safe-cache requirements remain pending rather than cancelled |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 
@@ -188,12 +200,13 @@ is proposed or authorized here.
 - **23C-2 — Implementation:** ADR 0011 durable run tickets are implemented,
   tested, and merged in the canonical source for Run test, historical relaunch,
   and reproduction. Preserve that implementation and its fail-closed tests.
-  Implement the approved selected-run Results specification while preserving
-  ADR 0008, Plotly Dash, VectorBT Pro, and service boundaries. Do not infer a
-  multi-run implementation from the requirement before its bounded design is
-  reviewed. Decision 283's exact-repeat computation caching also requires a
-  bounded design before implementation; its milestone sequencing and explicit
-  Reproduce policy are not inferred here.
+  Decision 286 limits the immediate beta implementation to the three R05
+  slices and six-development-hour planning ceiling above while preserving ADR
+  0008, Plotly Dash, VectorBT Pro, and service boundaries. Do not replace the
+  approved chart/page behavior, add another UI architecture or paid dependency,
+  or infer multi-run or caching implementation. Their accepted requirements
+  remain pending after this temporary beta boundary unless evidence proves a
+  beta blocker.
 - **23C-3 — Browser/operator acceptance:** renewed owner acceptance of the
   implemented replacement plus real-browser lifecycle and complete end-to-end
   workflow evidence remain pending.

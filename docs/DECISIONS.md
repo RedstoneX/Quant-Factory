@@ -374,3 +374,48 @@ explicitly.
      applies because no architecture or dependency is selected, and no
      deployment or operating runbook changes because this decision changes
      implementation selection behavior only.
+
+286. **Selected-run Results beta cost and sequencing boundary (accepted
+     2026-09-18).** The owner sets a temporary six-development-hour planning
+     ceiling for the remaining selected-run Results beta work. Agents must
+     measure and report effort honestly; the figure is a stop-control, not a
+     completion guarantee or permission to invent stopwatch precision. If the
+     work cannot reach the beta within the ceiling, agents stop and report the
+     evidence instead of silently expanding time or scope.
+
+     The remaining beta path contains exactly three bounded slices, in order:
+     (1) reuse and integrate the approved selected-run page and working chart
+     behavior with the existing application and persisted results; (2) make
+     only focused browser fixes demonstrated by that integration; and (3)
+     perform a backed-up, validated deployment to the existing private OVH
+     research target. Each slice uses one bounded implementer and one
+     independent reviewer while the lead orchestrates and independently
+     validates. The reviewer is limited to the owned diff, decisive evidence,
+     and boundary compliance; review is not a second implementation, broad
+     audit, discretionary redesign, or duplicate-test exercise.
+
+     These slices add no new framework, chart/grid/panel system or
+     architecture, or paid dependency, and they do not replace the approved
+     behavior. Computation caching, scalable multi-run design or Explorer
+     work, aesthetic polish, and broad refactoring are excluded unless
+     recorded evidence demonstrates that an item blocks the selected-run beta.
+     If the intended thin integration expands, work stops for a reuse and
+     remaining-budget reassessment. This decision sequences rather than
+     cancels Decisions 282–283: the accepted multi-run analysis and safe-cache
+     requirements remain later work, outside these three slices unless they
+     become demonstrated beta blockers. It does not weaken evidence
+     truthfulness, licensed-target proof, backup, rollback, browser validation,
+     credential isolation, execution safety, or Milestone 23 acceptance.
+     The dashboard remains the essential interface for its single operator,
+     but the beta MVP need not be perfect. While work is active, agents provide
+     at least hourly progress reports stating the current slice, selected
+     reuse, boundary compliance, scope pressure, and next action.
+
+     Documentation-impact assessment: `AGENTS.md`, `docs/MILESTONES.md`, the
+     agent policy, implementation-preflight skill, dashboard product
+     requirements, component-reuse audit, and `docs/CHAT_HANDOFF.md` are
+     updated. `README.md` is not applicable because its public product
+     orientation and reuse-first rule remain accurate. No ADR applies because
+     this selects no new architecture or dependency. No runbook change applies
+     because the existing backed-up OVH deployment procedure remains
+     authoritative and no deployment occurs in this documentation change.

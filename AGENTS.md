@@ -159,6 +159,25 @@ authorization forward within its approved scope and do not repeatedly ask.
   deployed, and operator-accepted product behavior. Preserve an
   owner-approved prototype as implementation input; do not discard it and
   independently greenfield the same experience without a documented reason.
+- Decision 286 sets a temporary cost and sequencing boundary for the remaining
+  selected-run Results beta. Preserve and integrate the approved chart/page
+  behavior through exactly three bounded slices: reuse/integration, focused
+  browser fixes, then backed-up validated OVH deployment. The remaining work
+  has a six-development-hour planning ceiling, measured and reported honestly;
+  this is a stop-control, not a promise or fabricated precision. Do not add a
+  framework, chart/grid/panel system or architecture, or paid dependency, and
+  do not replace the approved behavior. Caching, scalable multi-run design or
+  Explorer work, aesthetic polish, and broad refactoring remain outside these
+  slices unless evidence demonstrates that an item blocks the beta. Each slice
+  has one bounded implementer and one independent reviewer while the lead
+  orchestrates and validates. The reviewer checks only the owned diff, decisive
+  evidence, and boundary compliance; review is not a second implementation,
+  broad audit, discretionary redesign, or duplicate-test exercise. While beta
+  work is active, report progress at least hourly with the current slice,
+  selected reuse, boundary compliance, scope pressure, and next action. If thin
+  integration expands, stop and reassess reuse rather than silently exceeding
+  the ceiling or widening the slice. The dashboard remains the essential
+  single-user interface, but this beta MVP need not be perfect.
 
 ## Accepted execution sequence
 
