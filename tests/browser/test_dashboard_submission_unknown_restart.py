@@ -112,20 +112,28 @@ app.run(host="127.0.0.1", port=port, debug=False)
         stderr=subprocess.STDOUT,
         text=True,
     )
-    _wait_for_server(f"http://127.0.0.1:{port}{RUN_TEST_PATH}")
+    try:
+        _wait_for_server(f"http://127.0.0.1:{port}{RUN_TEST_PATH}")
+    except BaseException:
+        try:
+            _stop_dashboard(process, log_handle)
+        finally:
+            raise
     return process, log_handle
 
 
 def _stop_dashboard(process: subprocess.Popen[str], log_handle: TextIO) -> None:
-    if process.poll() is None:
-        process.terminate()
-        try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=5)
-    if not log_handle.closed:
-        log_handle.close()
+    try:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+    finally:
+        if not log_handle.closed:
+            log_handle.close()
 
 
 def _invocations(path: Path) -> tuple[dict[str, str], ...]:
@@ -213,6 +221,56 @@ def _assert_unknown_results(page: Page, run_id: str) -> None:
         "Submission outcome is unknown. Reconcile it before cancellation.",
     )
     _assert_document_contained(page)
+
+
+def test_dashboard_startup_failure_reaps_process_and_closes_log(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database, _ = _configuration(tmp_path)
+    invocation_log = tmp_path / "startup-failure-invocations.jsonl"
+    server_log = tmp_path / "startup-failure-dashboard.log"
+    processes: list[subprocess.Popen[str]] = []
+    log_handles: list[TextIO] = []
+    real_popen = subprocess.Popen
+    real_path_open = Path.open
+
+    def tracked_popen(*args, **kwargs):
+        process = real_popen(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    def tracked_path_open(path: Path, *args, **kwargs):
+        handle = real_path_open(path, *args, **kwargs)
+        if path == server_log:
+            log_handles.append(handle)
+        return handle
+
+    def fail_readiness(_url: str) -> None:
+        raise RuntimeError("controlled readiness failure")
+
+    monkeypatch.setattr(subprocess, "Popen", tracked_popen)
+    monkeypatch.setattr(Path, "open", tracked_path_open)
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_wait_for_server",
+        fail_readiness,
+    )
+
+    with pytest.raises(RuntimeError, match="controlled readiness failure"):
+        _start_dashboard(
+            database=database,
+            invocation_log=invocation_log,
+            port=_free_port(),
+            server_log=server_log,
+            block_launcher=True,
+        )
+
+    assert len(processes) == 1
+    assert processes[0].poll() is not None
+    assert len(log_handles) == 1
+    assert log_handles[0].closed
+    assert _invocations(invocation_log) == ()
 
 
 def test_killed_invoking_ticket_reopens_unknown_without_duplicate_mutation(
