@@ -33,6 +33,10 @@ from dashboard.components.trade_explorer import (  # noqa: E402
     layout as _trade_explorer_layout,
     normalize_trade_rows as _normalize_trade_rows,
 )
+from dashboard.components.operator_context import (  # noqa: E402
+    OperatorContextViewModel,
+    operator_context,
+)
 from dashboard.project_status import PROJECT_STATUS, DashboardProjectStatus  # noqa: E402
 from dashboard.health import inspect_catalog  # noqa: E402
 from dashboard.routing import (  # noqa: E402
@@ -977,10 +981,17 @@ def _home_next_action_card(title: str, description: str, href: str) -> dcc.Link:
     )
 
 
-def _strategy_research_path() -> html.Div:
-    stages = ("Market Data", "Backtest Results", "Strategy Review", "Compare Backtests")
+def _strategy_research_path(current_path: str = "/") -> html.Div:
+    stages = (
+        ("Home", "/"),
+        ("Ideas", "/research/ideas"),
+        ("Set up", "/research/setup"),
+        ("Run test", "/research/run-test"),
+        ("Results", "/research/backtest-results"),
+        ("Compare", "/research/compare-backtests"),
+    )
     children: list[Any] = []
-    for index, stage in enumerate(stages):
+    for index, (stage, href) in enumerate(stages):
         if index:
             children.append(
                 html.Span(
@@ -990,7 +1001,7 @@ def _strategy_research_path() -> html.Div:
                 )
             )
         children.append(
-            html.Div(
+            dcc.Link(
                 [
                     html.Span(
                         str(index + 1),
@@ -999,8 +1010,14 @@ def _strategy_research_path() -> html.Div:
                     ),
                     html.Strong(stage),
                 ],
-                className="research-path-card",
+                href=href,
+                className=(
+                    "research-path-card research-path-card-active"
+                    if href == current_path
+                    else "research-path-card"
+                ),
                 style=RESEARCH_PATH_CARD_STYLE,
+                title=(f"Current step: {stage}" if href == current_path else stage),
             )
         )
     return html.Div(
@@ -1093,8 +1110,8 @@ def _overview_page(
     return html.Div(
         [
             _page_heading(
-                "HOME",
-                "Quant Factory",
+                "RESEARCH / HOME",
+                "Home",
                 project_status.home_subtitle,
             ),
             html.Section(
@@ -1146,22 +1163,19 @@ def _overview_page(
                     html.Div(
                         [
                             _home_next_action_card(
-                                "Strategy Review",
-                                "Review a strategy's results, checks, and decision.",
-                                "/research/strategy-review",
+                                "Capture an idea",
+                                "Record a safe browser-session draft. Nothing will run.",
+                                "/research/ideas",
                             ),
                             _home_next_action_card(
-                                "Backtest Results",
-                                (
-                                    "Inspect the selected backtest, trades, returns, "
-                                    "and research checks."
-                                ),
+                                "Set up a test",
+                                "Choose an approved immutable fixture setup.",
+                                "/research/setup",
+                            ),
+                            _home_next_action_card(
+                                "Inspect results",
+                                "Review persisted evidence from completed tests.",
                                 "/research/backtest-results",
-                            ),
-                            _home_next_action_card(
-                                "Compare Backtests",
-                                "Compare selected backtests side by side.",
-                                "/research/compare-backtests",
                             ),
                         ],
                         className="summary-grid",
@@ -1172,7 +1186,7 @@ def _overview_page(
             html.Section(
                 [
                     html.H2("Strategy research path"),
-                    _strategy_research_path(),
+                    _strategy_research_path("/"),
                 ],
                 className="panel",
             ),
@@ -1600,6 +1614,42 @@ def _validation_outcome_value(detail: SelectedRunDetailView | None) -> str:
             "Outcome",
         )
         or "Not recorded"
+    )
+
+
+def _results_operator_context(
+    run: RunSummary | None,
+    detail: SelectedRunDetailView | None = None,
+    *,
+    component_id: str = "results-operator-context",
+) -> html.Section:
+    """Build truthful context from the selected persisted run and evidence."""
+
+    if run is None:
+        return operator_context(component_id=component_id)
+    evidence_outcome = _validation_outcome_value(detail)
+    if evidence_outcome in {"", "Not recorded", "Not available"}:
+        evidence_outcome = None
+    run_status = run.status.replace("_", " ").title()
+    next_actions = {
+        "created": "Wait for completion",
+        "queued": "Wait for completion",
+        "running": "Wait for completion",
+        "retrying": "Wait for completion",
+        "failed": "Review failure",
+        "cancelled": "Review failure",
+        "timed_out": "Review failure",
+        "succeeded": "Inspect evidence",
+    }
+    return operator_context(
+        OperatorContextViewModel(
+            selected_run=True,
+            run_status=run_status,
+            evidence_outcome=evidence_outcome,
+            human_decision=None,
+            next_safe_action=next_actions.get(run.status),
+        ),
+        component_id=component_id,
     )
 
 
@@ -3513,111 +3563,6 @@ def _runs_page(
         None,
     )
 
-    if not configurations:
-        body = html.Section(
-            [
-                html.H2("No saved configurations"),
-                html.Label("Saved configuration", htmlFor="configuration-selector"),
-                dcc.Dropdown(
-                    id="configuration-selector",
-                    options=[],
-                    value=None,
-                    disabled=True,
-                    placeholder="No approved configuration is available",
-                ),
-                html.P(
-                    (
-                        "Create an approved saved configuration before "
-                        "launching a research run."
-                    ),
-                    id="configuration-preview",
-                ),
-                html.Button(
-                    "Launch infrastructure run",
-                    id="launch-run",
-                    n_clicks=0,
-                    disabled=True,
-                    title="No approved saved configuration is available.",
-                    className="primary-action",
-                ),
-                html.Div("No run has been launched.", id="launch-message"),
-            ],
-            className="panel empty-state",
-        )
-    else:
-        first = configurations[0]
-        body = html.Div(
-            [
-                html.Div(
-                    [
-                        html.Section(
-                            [
-                                html.Label(
-                                    "Saved configuration",
-                                    htmlFor="configuration-selector",
-                                    className="field-label",
-                                ),
-                                dcc.Dropdown(
-                                    id="configuration-selector",
-                                    options=[
-                                        {
-                                            "label": configuration.label,
-                                            "value": configuration.configuration_id,
-                                            "disabled": not configuration.launchable,
-                                        }
-                                        for configuration in configurations
-                                    ],
-                                    value=first.configuration_id,
-                                    clearable=False,
-                                ),
-                                html.P(
-                                    (
-                                        "Only active infrastructure fixtures are "
-                                        "launchable during the current acceptance phase."
-                                    ),
-                                    className="field-help",
-                                ),
-                            ],
-                            className="panel configuration-selector-panel",
-                        ),
-                        html.Section(
-                            [
-                                html.H2("Launch"),
-                                html.P(
-                                    (
-                                        "Start a new research fixture run from the "
-                                        "immutable saved configuration."
-                                    ),
-                                    className="field-help",
-                                ),
-                                html.Button(
-                                    "Launch infrastructure run",
-                                    id="launch-run",
-                                    n_clicks=0,
-                                    disabled=not first.launchable,
-                                    className="primary-action",
-                                    title=(
-                                        "Launch this immutable saved configuration."
-                                        if first.launchable
-                                        else "This saved configuration is not launchable."
-                                    ),
-                                ),
-                                html.Div(
-                                    "Select an approved saved configuration, then launch it.",
-                                    id="launch-message",
-                                    className="save-message",
-                                ),
-                            ],
-                            className="panel launch-controls-panel",
-                        ),
-                    ],
-                    className="run-launch-row",
-                ),
-                _configuration_preview(first),
-            ],
-            className="run-configuration-workspace",
-        )
-
     return html.Div(
         [
             html.Header(
@@ -3625,15 +3570,15 @@ def _runs_page(
                     html.Div(
                         [
                             html.P(
-                                "RESEARCH",
+                                "RESEARCH / RESULTS",
                                 className="page-eyebrow",
                             ),
                             html.H1(
-                                "Backtest Results",
+                                "Results",
                                 className="page-title",
                             ),
                             html.P(
-                                "Inspect the selected backtest, trades, returns, and research checks.",
+                                "Understand what happened, whether the evidence is usable, and what decision is required.",
                                 className="page-description",
                             ),
                         ],
@@ -3665,6 +3610,8 @@ def _runs_page(
                 ],
                 className="page-heading page-heading-with-actions",
             ),
+            _strategy_research_path("/research/backtest-results"),
+            _results_operator_context(initial_selected_run),
             dcc.Store(
                 id="selected-run-state",
                 data=initial_selected_run_id,
@@ -3772,19 +3719,6 @@ def _runs_page(
                     _trade_explorer_layout(),
                 ],
                 className="backtest-detail-workspace workflow-group-results",
-            ),
-            html.Section(
-                [
-                    html.Details(
-                        [
-                            html.Summary("Strategy settings and launch"),
-                            body,
-                        ],
-                        open=False,
-                        className="operator-details mockup-secondary-details",
-                    ),
-                ],
-                className="workflow-group workflow-group-configuration",
             ),
             html.Section(
                 [
@@ -4049,15 +3983,15 @@ def _comparisons_page(recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
                     html.Div(
                         [
                             html.P(
-                                "RESEARCH",
+                                "RESEARCH / COMPARE",
                                 className="page-eyebrow",
                             ),
                             html.H1(
-                                "Compare Backtests",
+                                "Compare results",
                                 className="page-title",
                             ),
                             html.P(
-                                "Compare selected backtests side by side.",
+                                "Compare persisted tests without hiding evidence or assumption differences.",
                                 className="page-description",
                             ),
                         ],
@@ -4086,6 +4020,8 @@ def _comparisons_page(recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
                 ],
                 className="page-heading page-heading-with-actions",
             ),
+            _strategy_research_path("/research/compare-backtests"),
+            operator_context(component_id="compare-operator-context"),
             html.Section(
                 [
                     html.Div(
@@ -4326,6 +4262,18 @@ def page_for_path(
             recent_runs=recent_runs,
             recent_events=recent_events,
         )
+    if route == "/research/ideas":
+        from dashboard.pages.ideas import layout as ideas_layout
+
+        return ideas_layout()
+    if route == "/research/setup":
+        from dashboard.pages.setup import layout as setup_layout
+
+        return setup_layout(configurations=configurations)
+    if route == "/research/run-test":
+        from dashboard.pages.run_test import layout as run_test_layout
+
+        return run_test_layout(configurations=configurations)
     if route == "/research/market-data":
         from dashboard.pages.market_data import layout as market_data_layout
 
@@ -4622,6 +4570,7 @@ def create_app(
     from dashboard.callbacks.compare_backtests import (
         register_compare_backtests_callbacks,
     )
+    from dashboard.callbacks.ideas import register_ideas_callbacks
     from dashboard.callbacks.routing import register_routing_callbacks
     from dashboard.callbacks.strategy_review import (
         register_strategy_review_callbacks,
@@ -4629,6 +4578,7 @@ def create_app(
     from dashboard.callbacks.trade_explorer import register_trade_explorer_callbacks
 
     register_routing_callbacks(app)
+    register_ideas_callbacks(app)
     register_backtest_results_callbacks(
         app,
         runs=runs,

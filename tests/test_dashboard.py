@@ -432,7 +432,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 24
+    assert len(app.callback_map) == 28
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -489,6 +489,25 @@ def test_all_callback_components_exist_in_full_mounted_layout(tmp_path: Path) ->
     assert missing == []
 
 
+def test_full_mounted_layout_has_globally_unique_component_ids(tmp_path: Path) -> None:
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(context, tmp_path / "reviews.json")
+    component_ids = [
+        component_id
+        for component in _walk_components(_resolved_layout(app))
+        if (component_id := getattr(component, "id", None)) is not None
+    ]
+
+    duplicates = sorted(
+        component_id
+        for component_id in set(component_ids)
+        if component_ids.count(component_id) > 1
+    )
+
+    assert duplicates == []
+
+
 def test_page_specific_callbacks_do_not_control_routes_or_navigation(
     tmp_path: Path,
 ) -> None:
@@ -501,7 +520,7 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
         next(
             key
             for key in app.callback_map
-            if key.startswith("..navigation-link-research-market-data.className")
+            if key.startswith("..navigation-link-research-ideas.className")
         ),
     }
     # ADR 0008 permits passive page-owned refresh when entering a mounted page.
@@ -524,10 +543,10 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
             assert "page-content" not in output_text
             assert "navigation-container" not in output_text
             assert "navigation-link" not in output_text
-            assert "url." not in output_text
+            assert "url.pathname" not in output_text
 
 
-def test_dash_route_callback_endpoint_keeps_backtest_results_and_strategy_review_separate(
+def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     tmp_path: Path,
 ) -> None:
     data = _data()
@@ -544,7 +563,7 @@ def test_dash_route_callback_endpoint_keeps_backtest_results_and_strategy_review
     navigation_output = next(
         key
         for key in app.callback_map
-        if key.startswith("..navigation-link-research-market-data.className")
+        if key.startswith("..navigation-link-research-ideas.className")
     )
     navigation_outputs = [
         {"id": f"navigation-link-{path.strip('/').replace('/', '-')}", "property": "className"}
@@ -634,8 +653,8 @@ def test_dash_route_callback_endpoint_keeps_backtest_results_and_strategy_review
     backtest_visible = visible_routes(invoke_route("/research/backtest-results"))
     backtest_text = mounted_pages["/research/backtest-results"]
     backtest_active = active_hrefs(invoke_navigation("/research/backtest-results"))
-    assert "Backtest Results" in backtest_text
-    assert "Inspect the selected backtest, trades, returns, and research checks." in backtest_text
+    assert "Results" in backtest_text
+    assert "Understand what happened, whether the evidence is usable, and what decision is required." in backtest_text
     assert "Strategy Review" not in backtest_text
     assert backtest_visible == ["/research/backtest-results"]
     assert backtest_active == ["/research/backtest-results"]
@@ -645,7 +664,7 @@ def test_dash_route_callback_endpoint_keeps_backtest_results_and_strategy_review
     review_active = active_hrefs(invoke_navigation("/research/strategy-review"))
     assert "Strategy Review" in review_text
     assert "Review a strategy's results, checks, and decision." in review_text
-    assert "Backtest Results" not in review_text
+    assert "Run test" not in review_text
     assert review_visible == ["/research/strategy-review"]
     assert review_active == ["/research/strategy-review"]
 
@@ -657,11 +676,14 @@ def test_dash_route_callback_endpoint_keeps_backtest_results_and_strategy_review
     assert missing_active == []
 
     expected_titles = {
-        "/": "Quant Factory",
+        "/": "Home",
+        "/research/ideas": "Ideas",
+        "/research/setup": "Set up a test",
+        "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
-        "/research/backtest-results": "Backtest Results",
+        "/research/backtest-results": "Results",
         "/research/strategy-review": "Strategy Review",
-        "/research/compare-backtests": "Compare Backtests",
+        "/research/compare-backtests": "Compare results",
         "/paper/fleet": "Paper Trading Overview",
         "/paper/strategy": "Strategy Monitor",
         "/system": "System Status",
@@ -1016,8 +1038,8 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     home = page_for_path("/", context)
     home_text = _component_text(home)
     assert home.className == "page-container"
-    assert "HOME" in home_text
-    assert "Quant Factory" in home_text
+    assert "RESEARCH / HOME" in home_text
+    assert "Home" in home_text
     assert PROJECT_STATUS.home_subtitle in home_text
     assert str(PROJECT_STATUS.current_milestone_number) in home_text
     assert PROJECT_STATUS.current_milestone_title in home_text
@@ -1030,6 +1052,9 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         page_for_path("/research/market-data", context).className
         == "page-container"
     )
+    assert page_for_path("/research/ideas", context).className == "page-container ideas-page"
+    assert page_for_path("/research/setup", context).className == "page-container setup-page"
+    assert page_for_path("/research/run-test", context).className == "page-container run-test-page"
     assert page_for_path("/research/backtest-results", context).className == "page-container"
     assert (
         page_for_path("/research/strategy-review", context).className
@@ -1038,7 +1063,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     comparisons = page_for_path("/research/compare-backtests", context)
     assert comparisons.className == "page-container comparison-page"
     rendered_comparisons = str(comparisons)
-    assert "Compare Backtests" in rendered_comparisons
+    assert "Compare results" in rendered_comparisons
     assert "comparison-run-selector" in rendered_comparisons
     assert "comparison-selected-cards" in rendered_comparisons
     assert "compare-selected-runs" in rendered_comparisons
@@ -1068,6 +1093,9 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
 def test_pathname_selects_one_visible_mounted_route() -> None:
     expected_visible = {
         "/": "route-home",
+        "/research/ideas": "route-research-ideas",
+        "/research/setup": "route-research-setup",
+        "/research/run-test": "route-research-run-test",
         "/research/market-data": "route-research-market-data",
         "/research/backtest-results": "route-research-backtest-results",
         "/research/strategy-review": "route-research-strategy-review",
@@ -1101,11 +1129,14 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
     )
 
     expected = {
-        "/": "HOME",
+        "/": "Home",
+        "/research/ideas": "Ideas",
+        "/research/setup": "Set up a test",
+        "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
         "/research/strategy-review": "Strategy Review",
-        "/research/backtest-results": "Backtest Results",
-        "/research/compare-backtests": "Compare Backtests",
+        "/research/backtest-results": "Results",
+        "/research/compare-backtests": "Compare results",
     }
 
     for pathname, title in expected.items():
@@ -1117,13 +1148,13 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         assert getattr(page, "className", "").startswith("page-container")
         if pathname == "/research/backtest-results":
             assert "Strategy Review" not in rendered_page
-            assert "Inspect the selected backtest, trades, returns, and research checks." in rendered_page
+            assert "Understand what happened, whether the evidence is usable, and what decision is required." in rendered_page
         if pathname == "/research/strategy-review":
             assert "Review a strategy's results, checks, and decision." in rendered_page
         if pathname == "/research/market-data":
             assert "View the price history used in strategy research." in rendered_page
         if pathname == "/research/compare-backtests":
-            assert "Compare selected backtests side by side." in rendered_page
+            assert "Compare persisted tests without hiding evidence or assumption differences." in rendered_page
 
         links = [
             component
@@ -1142,6 +1173,202 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         else:
             assert len(active) == 1
             assert active[0].href == pathname
+
+
+def test_ideas_page_is_browser_session_text_only() -> None:
+    from dashboard.callbacks.ideas import (
+        _idea_draft_transition,
+        _valid_source_url,
+    )
+
+    page = page_for_path("/research/ideas", None)
+    rendered = _component_text(page)
+    ids = {
+        getattr(component, "id", None)
+        for component in _walk_components(page)
+    }
+
+    assert "Draft only — nothing will run" in rendered
+    assert "will not open, preview, download, summarize, approve, or execute" in rendered
+    assert {
+        "idea-draft-store",
+        "idea-title",
+        "idea-description",
+        "idea-source-url",
+        "idea-attribution",
+        "idea-notes",
+        "save-idea-draft",
+        "discard-idea-draft",
+        "confirm-discard-idea-draft",
+    }.issubset(ids)
+    assert _valid_source_url("")
+    assert _valid_source_url("https://example.com/research")
+    assert not _valid_source_url("javascript:alert(1)")
+    assert not _valid_source_url("https://user:secret@example.com/private")
+
+    saved = {
+        "title": "Saved title",
+        "description": "",
+        "source_url": "https://example.com/source",
+        "attribution": "Owner",
+        "notes": "",
+        "saved_at": "2026-09-18T04:00:00Z",
+    }
+    edited = {key: saved[key] for key in saved if key != "saved_at"}
+    edited["notes"] = "Unsaved question"
+    unchanged_store, unsaved_status, _, confirm = _idea_draft_transition(
+        "idea-notes",
+        edited,
+        saved,
+    )
+    assert unchanged_store is no_update
+    assert "Unsaved local changes" in unsaved_status
+    assert confirm is False
+
+    invalid = {**edited, "source_url": "javascript:do-not-run()"}
+    unchanged_store, invalid_status, _, confirm = _idea_draft_transition(
+        "save-idea-draft",
+        invalid,
+        saved,
+    )
+    assert unchanged_store is no_update
+    assert "Your text is unchanged" in invalid_status
+    assert confirm is False
+
+    draft, saved_status, _, confirm = _idea_draft_transition(
+        "save-idea-draft",
+        {**edited, "source_url": "https://example.com/new"},
+        saved,
+        saved_at="2026-09-18T04:05:00Z",
+    )
+    assert draft["saved_at"] == "2026-09-18T04:05:00Z"
+    assert "2026-09-18T04:05:00Z" in saved_status
+    assert confirm is False
+
+    unchanged_store, discard_status, _, confirm = _idea_draft_transition(
+        "discard-idea-draft",
+        edited,
+        saved,
+    )
+    assert unchanged_store is no_update
+    assert "Confirm before removing" in discard_status
+    assert confirm is True
+
+
+def test_every_workflow_page_has_same_active_six_step_progress() -> None:
+    paths = (
+        "/",
+        "/research/ideas",
+        "/research/setup",
+        "/research/run-test",
+        "/research/backtest-results",
+        "/research/compare-backtests",
+    )
+    expected_labels = ["Home", "Ideas", "Set up", "Run test", "Results", "Compare"]
+    expected_identities = [
+        "Home",
+        "Ideas",
+        "Set up a test",
+        "Run test",
+        "Results",
+        "Compare results",
+    ]
+
+    for pathname, identity in zip(paths, expected_identities, strict=True):
+        page = page_for_path(pathname, None, ())
+        heading = next(
+            component
+            for component in _walk_components(page)
+            if isinstance(component, html.H1)
+        )
+        progress = next(
+            component
+            for component in _walk_components(page)
+            if getattr(component, "className", None) == "strategy-research-path"
+        )
+        cards = [
+            component
+            for component in _walk_components(progress)
+            if "research-path-card" in str(getattr(component, "className", ""))
+        ]
+        active = [
+            card
+            for card in cards
+            if "research-path-card-active" in card.className
+        ]
+
+        assert heading.children == identity
+        assert [card.children[1].children for card in cards] == expected_labels
+        assert [card.href for card in active] == [pathname]
+        assert active[0].title == f"Current step: {active[0].children[1].children}"
+
+
+def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> None:
+    from dashboard.app import _results_operator_context
+
+    run = _DashboardRunService()._summary(
+        "operator_context_run",
+        "a" * 64,
+        "succeeded",
+    )
+    evidence = RunEvidenceView(
+        notices=(),
+        metrics=(),
+        trades=(),
+        orders=(),
+        equity_curve=(),
+        drawdown_curve=(),
+        validation=(),
+        provenance=(),
+        warnings=(),
+        validation_outcome=(
+            DetailField("Normalized status", "Insufficient evidence"),
+        ),
+    )
+    selected_context = _results_operator_context(
+        run,
+        _selected_detail_view(evidence=evidence),
+    )
+    selected_text = _component_text(selected_context)
+
+    assert "Succeeded" in selected_text
+    assert "Insufficient evidence" in selected_text
+    assert "Unavailable" in selected_text
+    assert "Inspect evidence" in selected_text
+
+    run_page = page_for_path("/research/run-test", None, ())
+    results_page = page_for_path(
+        "/research/backtest-results",
+        None,
+        (),
+        recent_runs=(run,),
+        selected_run_id=run.run_id,
+    )
+    compare_page = page_for_path(
+        "/research/compare-backtests",
+        None,
+        recent_runs=(run,),
+    )
+    context_ids = {
+        getattr(component, "id", None)
+        for page in (run_page, results_page, compare_page)
+        for component in _walk_components(page)
+        if getattr(component, "id", None)
+        in {
+            "run-test-operator-context",
+            "results-operator-context",
+            "compare-operator-context",
+        }
+    }
+
+    assert context_ids == {
+        "run-test-operator-context",
+        "results-operator-context",
+        "compare-operator-context",
+    }
+    assert "No run selected" in _component_text(run_page)
+    assert "Succeeded" in _component_text(results_page)
+    assert "No run selected" in _component_text(compare_page)
 
 
 def test_home_activity_visual_uses_honest_empty_state() -> None:
@@ -1217,7 +1444,7 @@ def test_home_visual_path_and_activity_timeline_have_inline_styles() -> None:
     path_cards = [
         component
         for component in _walk_components(path)
-        if getattr(component, "className", None) == "research-path-card"
+        if "research-path-card" in str(getattr(component, "className", ""))
     ]
     step_circles = [
         component
@@ -1248,10 +1475,11 @@ def test_home_visual_path_and_activity_timeline_have_inline_styles() -> None:
 
     assert path.style["display"] == "flex"
     assert path.style["flexWrap"] == "wrap"
-    assert len(path_cards) == 4
+    assert len(path_cards) == 6
+    assert len(step_circles) == 6
     assert {card.style["border"] for card in path_cards} == {"1px solid #bfdbfe"}
     assert {step.style["backgroundColor"] for step in step_circles} == {"#2357d9"}
-    assert len(connectors) == 3
+    assert len(connectors) == 5
     assert {connector.style["color"] for connector in connectors} == {"#2357d9"}
     assert timeline.style["borderLeft"] == "2px solid #bfdbfe"
     assert len(activity_items) == 2
@@ -1298,7 +1526,12 @@ def test_navigation_marks_current_page_active() -> None:
         if "navigation-link-active" in link.className
     ]
 
-    assert labels == ["Strategy Research", "Paper Trading", "System"]
+    assert labels == [
+        "Research workflow",
+        "Research support",
+        "Paper Trading",
+        "System",
+    ]
     assert brand.href == "/"
     assert brand.title == "Quant Factory Home"
     assert "QF" in _component_text(brand)
@@ -1306,6 +1539,9 @@ def test_navigation_marks_current_page_active() -> None:
     assert "FACTORY" in _component_text(brand)
     assert "/" not in [link.href for link in links]
     assert {
+        "/research/ideas",
+        "/research/setup",
+        "/research/run-test",
         "/research/market-data",
         "/research/strategy-review",
         "/research/backtest-results",
@@ -1313,11 +1549,12 @@ def test_navigation_marks_current_page_active() -> None:
     }.issubset({link.href for link in links})
     assert len(active) == 1
     assert active[0].href == "/research/backtest-results"
-    assert [link.children for link in links[:4]] == [
-        "Market Data",
-        "Strategy Review",
-        "Backtest Results",
-        "Compare Backtests",
+    assert [link.children for link in links[:5]] == [
+        "Ideas",
+        "Set up",
+        "Run test",
+        "Results",
+        "Compare",
     ]
 
 
@@ -1485,41 +1722,40 @@ def test_saved_configuration_view_is_launchable_and_labeled() -> None:
     assert configuration.configuration_id[:10] in configuration.label
 
 
-def test_runs_page_renders_saved_configuration_preview() -> None:
-    from dashboard.app import _runs_page
-
-    page = _runs_page((_saved_configuration(),))
-    configuration_group = next(
+def test_setup_and_run_test_split_configuration_from_launch() -> None:
+    configuration = _saved_configuration()
+    setup_page = page_for_path("/research/setup", None, (configuration,))
+    run_page = page_for_path("/research/run-test", None, (configuration,))
+    results_page = page_for_path("/research/backtest-results", None, (configuration,))
+    selector = next(
         component
-        for component in _walk_components(page)
-        if getattr(component, "className", None)
-        == "workflow-group workflow-group-configuration"
+        for component in _walk_components(setup_page)
+        if getattr(component, "id", None) == "configuration-selector"
     )
-    workspace = next(
+    preview = next(
         component
-        for component in _walk_components(configuration_group)
-        if getattr(component, "className", None) == "run-configuration-workspace"
+        for component in _walk_components(setup_page)
+        if getattr(component, "id", None) == "configuration-preview"
     )
-
-    launch_row = workspace.children[0]
-    selector_panel = launch_row.children[0]
-    selector = selector_panel.children[1]
-    preview = workspace.children[1]
-    launch_panel = launch_row.children[1]
     launch_button = next(
         component
-        for component in _walk_components(launch_panel)
+        for component in _walk_components(run_page)
         if getattr(component, "id", None) == "launch-run"
     )
 
     assert selector.id == "configuration-selector"
     assert selector.value == "a" * 64
     assert selector.options[0]["disabled"] is False
+    assert selector.persistence is True
+    assert selector.persistence_type == "session"
     assert preview.id == "configuration-preview"
-    assert launch_panel.className == "panel launch-controls-panel"
     assert launch_button.id == "launch-run"
     assert launch_button.disabled is False
-    assert launch_button.title == "Launch this immutable saved configuration."
+    assert launch_button.title == "Run this immutable saved fixture configuration."
+    assert not any(
+        getattr(component, "id", None) in {"configuration-selector", "launch-run"}
+        for component in _walk_components(results_page)
+    )
     rendered = _component_text(preview)
     classes = [
         getattr(component, "className", "")
@@ -1535,18 +1771,18 @@ def test_runs_page_renders_saved_configuration_preview() -> None:
     assert "configuration-document" not in classes
 
 
-def test_runs_page_handles_empty_configuration_list() -> None:
-    from dashboard.app import _runs_page
+def test_setup_and_run_test_handle_empty_configuration_list() -> None:
+    setup_page = page_for_path("/research/setup", None, ())
+    run_page = page_for_path("/research/run-test", None, ())
 
-    page = _runs_page(())
-    empty_state = next(
+    assert "No approved choices" in _component_text(setup_page)
+    assert "No saved setup selected" in _component_text(run_page)
+    launch_button = next(
         component
-        for component in _walk_components(page)
-        if getattr(component, "className", None) == "panel empty-state"
+        for component in _walk_components(run_page)
+        if getattr(component, "id", None) == "launch-run"
     )
-
-    assert empty_state.className == "panel empty-state"
-    assert empty_state.children[0].children == "No saved configurations"
+    assert launch_button.disabled is True
 
 
 def test_review_page_renders_experiment_overview_controls() -> None:
@@ -1814,6 +2050,23 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
                 "no callback writes the URL."
             ),
         },
+        "idea_draft": {
+            "source": "idea-draft-store.data",
+            "owner": "dashboard.callbacks.ideas",
+            "rule": (
+                "Ideas stores operator-authored text in the browser session only "
+                "and never retrieves or executes it."
+            ),
+        },
+        "selected_configuration": {
+            "source": "selected-configuration-state.data",
+            "control": "configuration-selector.value",
+            "owner": "dashboard.callbacks.backtest_results",
+            "rule": (
+                "Set up writes the operator choice to one session store; Run test "
+                "reads that identity without mutation or an automatic launch."
+            ),
+        },
         "selected_backtest": {
             "source": "selected-run-selector.value",
             "store": "selected-run-state.data",
@@ -1836,7 +2089,7 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             "source": "comparison-run-selector.value",
             "owner": "dashboard.callbacks.compare_backtests",
             "rule": (
-                "Compare Backtests owns comparison selector options, selected "
+                "Compare owns comparison selector options, selected "
                 "cards, and comparison output."
             ),
         },
@@ -2176,6 +2429,46 @@ def _callback_function(app, output_fragment: str):
         entry = entries[0]
     callback = entry["callback"]
     return getattr(callback, "__wrapped__", callback)
+
+
+def test_selected_setup_identity_updates_run_test_preview(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first = _saved_configuration()
+    second = replace(
+        first,
+        configuration_id="b" * 64,
+        config_hash="c" * 64,
+        experiment_id="second_operator_choice",
+    )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (first, second),
+    )
+    app = create_app(review_database=tmp_path / "selected-setup.sqlite3")
+    preserve = _callback_function(app, "selected-configuration-state.data")
+    preview = _callback_function(app, "configuration-preview")
+
+    assert preserve(second.configuration_id) == second.configuration_id
+    setup_children, run_children, disabled, _title = preview(
+        second.configuration_id
+    )
+
+    assert "second_operator_choice" in _component_text(html.Div(setup_children))
+    assert "second_operator_choice" in _component_text(html.Div(run_children))
+    assert disabled is False
+
+
+def test_initial_idea_hydration_cannot_overwrite_first_keystroke(
+    tmp_path: Path,
+) -> None:
+    app = create_app(review_database=tmp_path / "idea-hydration.sqlite3")
+    hydrate = _callback_function(app, "idea-title.value")
+
+    values = hydrate(None)
+
+    assert values == (no_update,) * 5
 
 
 def _comparison_run_summaries() -> tuple[RunSummary, RunSummary]:
@@ -2937,7 +3230,10 @@ def test_dashboard_launches_selected_saved_configuration(tmp_path: Path, monkeyp
     )
 
     launch = _callback_function(app, "launch-message")
-    content, class_name = launch(1, configuration.configuration_id)
+    content, class_name, context_children, context_class = launch(
+        1,
+        configuration.configuration_id,
+    )
 
     assert service.configuration_ids == [configuration.configuration_id]
     assert class_name == "save-message"
@@ -2945,6 +3241,9 @@ def test_dashboard_launches_selected_saved_configuration(tmp_path: Path, monkeyp
     assert "run_dashboard_fixture" in rendered
     assert "succeeded" in rendered
     assert "prefect-run_dashboard_fixture" in rendered
+    assert "Succeeded" in _component_text(html.Div(context_children))
+    assert "Unavailable" in _component_text(html.Div(context_children))
+    assert context_class == "operator-context"
 
 
 def test_dashboard_reports_launch_failure_without_creating_ui_state(
@@ -2970,12 +3269,17 @@ def test_dashboard_reports_launch_failure_without_creating_ui_state(
     )
 
     launch = _callback_function(app, "launch-message")
-    content, class_name = launch(1, configuration.configuration_id)
+    content, class_name, context_children, context_class = launch(
+        1,
+        configuration.configuration_id,
+    )
 
     rendered = _component_text(content)
     assert "Run launch did not start." in rendered
     assert "duplicate run" in rendered
     assert class_name == "save-message error-state"
+    assert "No run selected" in _component_text(html.Div(context_children))
+    assert context_class == "operator-context operator-context-empty"
 
 
 def test_dashboard_launches_new_run_from_selected_historical_configuration(
@@ -3222,7 +3526,6 @@ def test_runs_page_groups_workflows_and_exposes_readable_recovery_input() -> Non
 
     assert groups == [
         "backtest-detail-workspace workflow-group-results",
-        "workflow-group workflow-group-configuration",
         "workflow-group workflow-group-analysis",
         "workflow-group workflow-group-operations",
     ]
@@ -4143,7 +4446,7 @@ def test_run_monitor_refresh_selects_new_main_launch(
         run_service=service,
     )
     launch = _callback_function(app, "launch-message")
-    launch_message, _ = launch(1, configuration.configuration_id)
+    launch_message, _, _, _ = launch(1, configuration.configuration_id)
     monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: "launch-message")
 
     refresh_selectors = _callback_function(app, "selected-run-selector.options")

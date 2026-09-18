@@ -2617,3 +2617,82 @@ input {
 .catalog-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .catalog-table th, .catalog-table td { padding: 10px; text-align: left; vertical-align: top; border-bottom: 1px solid #cbd7e6; overflow-wrap: anywhere; }
 .table-panel:has(.catalog-table) { overflow-x: auto; }
+
+/* Milestone 23 safe idea draft and split setup/run surfaces. */
+.idea-draft-panel {
+  display: grid;
+  gap: 10px;
+  max-width: 900px;
+}
+
+.idea-draft-input,
+.idea-draft-textarea {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.idea-draft-input {
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
+.idea-draft-textarea {
+  min-height: 120px;
+  padding: 12px;
+  resize: vertical;
+}
+
+.run-configuration-preview {
+  display: grid;
+  gap: 16px;
+}
+
+.research-path-card-active {
+  outline: 3px solid rgba(35, 87, 217, 0.2);
+  outline-offset: 1px;
+}
+
+.operator-context {
+  background: #ffffff;
+  border: 1px solid #cbd7e6;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  padding: 14px;
+}
+
+.operator-context-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.operator-context-item {
+  display: grid;
+  gap: 4px;
+}
+
+.operator-context-label {
+  color: #526173;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.operator-context-value {
+  font-weight: 700;
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .idea-draft-actions > *,
+  .run-test-page .launch-controls-panel > .primary-action,
+  .run-test-page .launch-controls-panel > .secondary-action {
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .operator-context-grid {
+    grid-template-columns: 1fr;
+  }
+}

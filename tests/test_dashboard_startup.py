@@ -20,7 +20,7 @@ def test_dashboard_starts_without_loading_or_running_legacy_research(tmp_path, m
     assert client.get("/research/backtest-results").status_code == 200
     layout = client.get("/_dash-layout")
     assert layout.status_code == 200
-    assert "Backtest Results" in layout.get_data(as_text=True)
+    assert "Results" in layout.get_data(as_text=True)
     persistence = PersistenceService(database)
     try:
         assert persistence.runs.list() == ()

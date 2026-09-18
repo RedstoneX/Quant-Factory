@@ -307,7 +307,7 @@ def test_backtest_results_spym_selection_remains_stable(
             final = states[-1]
             assert final["url"] == BACKTEST_PATH
             assert final["visible_routes"] == ["route-research-backtest-results"]
-            assert "Backtest Results" in final["h1"]
+            assert "Results" in final["h1"]
             assert SPYM_OPTION_TEXT in str(final["selected_run"])
             assert int(final["plotly_charts"]) > 0
             assert final["has_portfolio_panel"] is True

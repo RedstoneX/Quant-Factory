@@ -1,4 +1,4 @@
-"""Backtest Results page callback ownership."""
+"""Mounted setup, run-test, and results callback ownership."""
 
 from __future__ import annotations
 
@@ -8,6 +8,10 @@ from typing import Any
 from dash import Dash, Input, Output, State, html, no_update
 from dash.exceptions import PreventUpdate
 
+from dashboard.components.operator_context import (
+    OperatorContextViewModel,
+    operator_context,
+)
 from dashboard.application import (
     _active_route,
     _backtest_selector_label,
@@ -22,6 +26,7 @@ from dashboard.application import (
     _run_action_availability,
     _run_detail_panel,
     _run_launch_summary,
+    _results_operator_context,
     _selector_options,
 )
 from dashboard.run_adapter import SavedConfigurationView
@@ -46,16 +51,26 @@ def register_backtest_results_callbacks(
     detail_adapter: RunDetailDashboardAdapter,
     configurations: tuple[SavedConfigurationView, ...],
 ) -> None:
-    """Register callbacks owned by the Backtest Results route."""
+    """Register callbacks shared across the mounted research workflow."""
 
     @app.callback(
-        Output("configuration-preview", "children"),
-        Output("launch-run", "disabled"),
-        Output("launch-run", "title"),
+        Output("selected-configuration-state", "data"),
         Input("configuration-selector", "value"),
         prevent_initial_call=True,
     )
-    def preview_configuration(configuration_id: str):
+    def preserve_selected_configuration(configuration_id: str | None):
+        if not configuration_id:
+            raise PreventUpdate
+        return configuration_id
+
+    @app.callback(
+        Output("configuration-preview", "children"),
+        Output("run-configuration-preview", "children"),
+        Output("launch-run", "disabled"),
+        Output("launch-run", "title"),
+        Input("selected-configuration-state", "data"),
+    )
+    def preview_configuration(configuration_id: str | None):
         selected = next(
             (
                 configuration
@@ -65,16 +80,20 @@ def register_backtest_results_callbacks(
             None,
         )
         if selected is None:
+            missing = html.Div(
+                "Saved configuration could not be found.",
+                className="error-state",
+            )
             return (
-                html.Div(
-                    "Saved configuration could not be found.",
-                    className="error-state",
-                ),
+                missing,
+                missing,
                 True,
                 "The selected saved configuration could not be found.",
             )
+        preview = _configuration_preview(selected).children
         return (
-            _configuration_preview(selected).children,
+            preview,
+            preview,
             not selected.launchable,
             (
                 "Launch this immutable saved configuration."
@@ -86,17 +105,19 @@ def register_backtest_results_callbacks(
     @app.callback(
         Output("launch-message", "children"),
         Output("launch-message", "className"),
+        Output("run-test-operator-context", "children"),
+        Output("run-test-operator-context", "className"),
         Input("launch-run", "n_clicks"),
-        State("configuration-selector", "value"),
+        State("selected-configuration-state", "data"),
         State("url", "pathname"),
         prevent_initial_call=True,
     )
     def launch_saved_configuration(
         _: int,
         configuration_id: str | None,
-        pathname: str | None = "/research/backtest-results",
+        pathname: str | None = "/research/run-test",
     ):
-        if not _active_route(pathname, "/research/backtest-results"):
+        if not _active_route(pathname, "/research/run-test"):
             raise PreventUpdate
         selected = next(
             (
@@ -107,6 +128,7 @@ def register_backtest_results_callbacks(
             None,
         )
         if selected is None:
+            empty_context = operator_context(component_id="run-test-operator-context")
             return (
                 _operator_message(
                     "Run launch did not start.",
@@ -114,8 +136,11 @@ def register_backtest_results_callbacks(
                     tone="error",
                 ),
                 "save-message error-state",
+                empty_context.children,
+                empty_context.className,
             )
         if not selected.launchable:
+            empty_context = operator_context(component_id="run-test-operator-context")
             return (
                 _operator_message(
                     "Run launch did not start.",
@@ -123,6 +148,8 @@ def register_backtest_results_callbacks(
                     tone="error",
                 ),
                 "save-message error-state",
+                empty_context.children,
+                empty_context.className,
             )
 
         try:
@@ -130,6 +157,7 @@ def register_backtest_results_callbacks(
                 configuration_id=selected.configuration_id,
             )
         except (KeyError, ValueError, RunServiceError) as exc:
+            empty_context = operator_context(component_id="run-test-operator-context")
             return (
                 _operator_message(
                     "Run launch did not start.",
@@ -137,11 +165,35 @@ def register_backtest_results_callbacks(
                     tone="error",
                 ),
                 "save-message error-state",
+                empty_context.children,
+                empty_context.className,
             )
 
+        status = result.run.status.replace("_", " ").title()
+        next_action = (
+            "Inspect evidence"
+            if result.run.status == "succeeded"
+            else "Wait for completion"
+            if result.run.status in {"created", "queued", "running", "retrying"}
+            else "Review failure"
+            if result.run.status in {"failed", "cancelled", "timed_out"}
+            else "No action available"
+        )
+        run_context = operator_context(
+            OperatorContextViewModel(
+                selected_run=True,
+                run_status=status,
+                evidence_outcome="Unavailable",
+                human_decision="Unavailable",
+                next_safe_action=next_action,
+            ),
+            component_id="run-test-operator-context",
+        )
         return (
             _run_launch_summary(result.run),
             "save-message",
+            run_context.children,
+            run_context.className,
         )
 
     @app.callback(
@@ -545,6 +597,33 @@ def register_backtest_results_callbacks(
             runs.events_for_run(run_id),
             detail=detail_view,
         )
+
+    @app.callback(
+        Output("results-operator-context", "children"),
+        Output("results-operator-context", "className"),
+        Input("selected-run-state", "data"),
+        Input("refresh-runs", "n_clicks"),
+    )
+    def update_results_operator_context(
+        run_id: str | None,
+        _refresh_clicks: int,
+    ):
+        if not run_id:
+            context = _results_operator_context(None)
+            return context.children, context.className
+        try:
+            run = runs.get_run(run_id)
+        except (KeyError, ValueError, RunServiceError):
+            run = None
+        if run is None:
+            context = _results_operator_context(None)
+            return context.children, context.className
+        try:
+            detail = detail_adapter.selected_run_detail(run_id)
+        except (KeyError, RuntimeError, ValueError):
+            detail = None
+        context = _results_operator_context(run, detail)
+        return context.children, context.className
 
     @app.callback(
         Output("cancellation-message", "children"),
