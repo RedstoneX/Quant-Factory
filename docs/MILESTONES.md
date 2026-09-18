@@ -24,7 +24,12 @@ flow and supersedes Decision 277's acceptance for that experience. Decision
 chart with persisted entry/exit markers is primary and links to a grouped trade
 ledger. TradingView's backtesting Strategy Report is the primary UX reference;
 QAMC informs panel, resizing, and link mechanics only, not information density.
-The detailed specification or mockup, implementation, deployment, tests, and
+Decision 281 accepts the validated preview's separate Bars and View controls,
+truthful interval aggregation, exact trade-event preservation, resettable
+desktop resizing, normal-flow report content, responsive stacking, and trade
+typography approximately two CSS pixels above the earlier preview while
+deferring final palette selection. The remaining
+detailed specification or mockup, implementation, deployment, tests, and
 renewed operator acceptance remain pending. Decision 278 accepts ADR 0011's
 safer durable run-ticket architecture and
 authorizes implementation, but that implementation and its required evidence
@@ -35,8 +40,8 @@ offline and deployment preparation already authorized and retained.
 Decision 274 sets the current order:
 
 1. Complete the remaining Milestone 23 dashboard gates, including the detailed
-   Decision 280 chart-first Results specification, implementation, evidence,
-   and renewed owner acceptance.
+   Decisions 280–281 chart-first Results specification, implementation,
+   evidence, and renewed owner acceptance.
 2. Conduct controlled strategy intake and research under Milestone 25 until a
    defensible edge qualifies.
 3. Resume remaining Milestone 24 paper activation only after the qualifying
@@ -59,7 +64,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Complete and obtain owner approval for the detailed Decision 280 chart-first Results specification/mockup, then implement and validate it; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, documentation/status, and renewed operator-acceptance gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
+| R05 | 1 | in_progress | none | Complete and obtain owner approval for the detailed Decisions 280–281 chart-first Results specification/mockup, then implement and validate it; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, documentation/status, and renewed operator-acceptance gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 
@@ -134,13 +139,14 @@ is proposed or authorized here.
 - **23A — Scenarios and fixtures:** frozen. **Complete.**
 - **23B — Automated full-system acceptance:** supporting evidence implemented;
   keep the complete scenario inventory green.
-- **23C-1 — Review/design:** Decision 280 accepts the chart-first Results
-  direction. The detailed responsive specification or mockup and its owner
-  approval remain pending before broad implementation.
+- **23C-1 — Review/design:** Decisions 280–281 accept the chart-first Results
+  direction and the validated preview controls and layout constraints. The
+  remaining detailed responsive specification or mockup and its owner approval
+  remain pending before broad implementation.
 - **23C-2 — Implementation:** accepted ADR 0011 durable run-ticket work remains
   authorized but not complete. Broad Results redesign waits for the detailed
-  Decision 280 specification approval and must preserve ADR 0008, Plotly Dash,
-  VectorBT Pro, and service boundaries.
+  Decisions 280–281 specification approval and must preserve ADR 0008, Plotly
+  Dash, VectorBT Pro, and service boundaries.
 - **23C-3 — Browser/operator acceptance:** renewed owner acceptance of the
   implemented replacement plus real-browser lifecycle and complete end-to-end
   workflow evidence remain pending.

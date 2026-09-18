@@ -29,20 +29,29 @@ Pro; use Dash AG Grid and Dash Bootstrap Components where appropriate. Use
 capable retail-trader language while remaining understandable to a novice
 operator without programming or finance expertise.
 
+Decision 281 accepts the validated preview's separate Bars and View controls,
+truthful interval aggregation, exact trade-event preservation, resettable
+desktop resizing, normal-flow Metrics and Trades, responsive stacking, and
+trade typography approximately two CSS pixels above the earlier preview.
+Palette revision remains deferred and the preview does not establish a final
+palette. These constraints do not accept the remaining detailed design or
+implemented experience.
+
 A separate September 17 local-only Ideas prototype browser-validated the
 extended flow on desktop and mobile. It is evidence for the approved direction,
 not a production deployment or substitute for the detailed Results design and
-renewed owner acceptance required by Decisions 279 and 280; production remains
+renewed owner acceptance required by Decisions 279–281; production remains
 unchanged. See the retained
 prototype and validation evidence referenced in [MILESTONES](MILESTONES.md#current-phase).
 
 ## Target operator information hierarchy
 
 Decision 274 extends the Decision 273 navigation direction to Home → Ideas →
-Set up → Run test → Results → Compare. Decision 280 accepts the chart-first
-Results direction while leaving the detailed specification, implementation and
-operator acceptance open; implementation conformance and M23 technical
-completion remain unconfirmed. During 23C, the Ideas page may support safe
+Set up → Run test → Results → Compare. Decisions 280–281 accept the chart-first
+Results direction and validated preview constraints while leaving the remaining
+detailed specification, implementation and operator acceptance open;
+implementation conformance and M23 technical completion remain unconfirmed.
+During 23C, the Ideas page may support safe
 draft and source-reference capture so the operator can review the complete
 research interface. An inactive Ideas route must not fetch
 external content, execute, or launch a run. Durable external-source retrieval,
@@ -150,9 +159,36 @@ a report-first block that pushes the price/trade workspace below a long page.
 - selecting a trade brings its entry/exit interval into view and identifies
   the corresponding markers, with an explicit keyboard-accessible **Show on
   chart** action;
+- separate, always-visible chart-local **Bars:** controls for `1m`, `5m`,
+  `15m`, `1D` and **View:** controls for `Full run`, `1D`, `1W`, `1M`;
+- bar interval, visible range, and immutable persisted backtest period remain
+  distinct; bar changes are visualization-only and use persisted OHLC or
+  truthful aggregation from persisted finer-grained OHLC;
+- the validated preview renders 53,528 one-minute bars, 13,340 five-minute
+  bars, 4,474 fifteen-minute bars, and 173 daily bars;
+- an interval remains visible but unavailable with a plain-language reason when
+  persisted evidence cannot support a truthful rendering;
+- exact persisted trade timestamps and prices remain unchanged while markers
+  map to their containing aggregated bars and the chart retains useful context;
 - trade drill-down with timestamps, prices, size, fees, slippage assumptions and P&L;
 - filters for winning, losing, long, short and date range;
 - clear distinction between theoretical/backtest execution and future actual fills.
+
+### Results layout and resizing
+
+- desktop provides three subtle resize edges for vertical resizing from the
+  chart top, shared chart/report boundary, and report bottom;
+- **Reset layout** restores approved default dimensions without changing the
+  selected run, report tab, trade, or persisted evidence;
+- Metrics and Trades grow with the page, never use a fixed-height nested
+  vertical scrollbar or slider, and retain 52 pixels of bottom breathing room;
+- tablet and mobile stack chart then report at auto height without desktop
+  resize affordances or nested vertical report scrolling;
+- trade-ledger and trade-detail typography is approximately two CSS pixels
+  larger than in the earlier preview without clipping, truncating required
+  evidence, or forcing page-level horizontal scrolling; and
+- palette revision is deferred; preview acceptance does not select a final
+  palette.
 
 ### Evidence
 
@@ -303,8 +339,9 @@ Visual polish alone is insufficient. The dashboard must operate the complete res
 ## Milestone 23C design and implementation gate
 
 23C-1 must produce an approved concise page specification or mockup before
-new broad Results-page implementation. Decision 280 accepts the chart-first
-direction but not the detailed replacement. The specification must cover the
+new broad Results-page implementation. Decisions 280–281 accept the chart-first
+direction and validated preview constraints but not the complete detailed
+replacement. The specification must cover the
 approved workflow, responsive desktop/tablet/mobile behavior, novice language,
 the four persistent selected-run fields, truthful chart/ledger linkage,
 progressive disclosure, and labelled technical drill-downs. 23C-2 retains the

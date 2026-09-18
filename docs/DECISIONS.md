@@ -234,3 +234,32 @@ explicitly.
      accept Milestone 23, authorize production changes, begin strategy
      discovery, or relax any research, credential, execution, paper, or
      live-capital gate.
+
+281. **Validated Results preview controls accepted; full replacement still
+     pending (accepted 2026-09-18).** The owner accepts these additional
+     Results requirements from the validated chart-first preview. The chart
+     has separate, always-visible controls labelled **Bars:** `1m`, `5m`,
+     `15m`, `1D` and **View:** `Full run`, `1D`, `1W`, `1M`; bar interval,
+     visible range, and the immutable persisted backtest period are distinct
+     concepts. Bar changes are visualization-only and use persisted OHLC or
+     truthful aggregation from persisted finer-grained OHLC. The validated
+     preview renders 53,528 one-minute bars, 13,340 five-minute bars, 4,474
+     fifteen-minute bars, and 173 daily bars. A trade retains its exact
+     persisted event timestamp and price while its visual marker maps to the
+     containing aggregated bar; an interval that cannot be rendered truthfully
+     remains visible but unavailable with a plain-language reason. On desktop,
+     three subtle resize edges support vertical resizing from the chart top,
+     shared chart/report boundary, and report bottom; **Reset layout** restores
+     the approved default without losing selected run, tab, trade, or evidence.
+     Metrics and Trades grow in normal page flow, have no nested vertical
+     scrolling, and retain 52 pixels of bottom breathing room.
+     Smaller layouts stack chart then report responsively, and trade-ledger
+     typography is approximately two CSS pixels larger than in the earlier
+     preview. Palette revision is deferred; temporary acceptance of the preview
+     palette does not establish a final palette. These are owner-specific
+     requirements even where another reference product behaves differently.
+     This supplements Decision 280 but
+     does not approve the remaining detailed design, claim application
+     implementation or deployment, accept Milestone 23, authorize production
+     changes, or relax any research, credential, execution, paper, or
+     live-capital gate.

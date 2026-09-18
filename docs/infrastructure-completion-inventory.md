@@ -51,8 +51,8 @@ agent policy](ai-programming-agent-policy.md).
 | Dashboard navigation | Single-page minimal dashboard | Multi-page product navigation with consistent run context | Required | Database adapters | Operator reaches launch, history, results, evidence, compare and system status | Entire product | Claude Code local implementation |
 | Dashboard experiment launch | Not implemented | Approved dropdowns/forms, validation and job submission | Required | Orchestration | Fixture run launches without Python or terminal | Launch page | Claude Code local implementation |
 | Dashboard history | Not durable | Searchable/filterable persistent run history | Required | Database | Runs remain after restart and can be reopened | History page | Claude Code local implementation |
-| Dashboard charts | Equity and drawdown for selected RSI row | Selected-run truthful price chart as the primary Results workspace, with supporting VectorBT-backed equity, drawdown and benchmark analysis | Required | Artifact adapters | Persisted charts render for a stored fixture run without rerunning the grid or reconstructing missing evidence | Results page | Claude Code local implementation |
-| Dashboard trades | Not complete | Persisted entries/exits on the price chart linked to a ledger grouped by completed trade and an accessible trade drill-down | Required | Portfolio/trade artifact | Selecting a fixture trade focuses its entry/exit context and exposes timestamps, prices, size, costs and P&L | Results chart and trade ledger | Claude Code local implementation |
+| Dashboard charts | Equity and drawdown for selected RSI row | Selected-run truthful price chart as the primary Results workspace; separate Bars and View controls; truthful persisted-OHLC aggregation; resettable desktop chart/report resizing; supporting VectorBT-backed equity, drawdown and benchmark analysis | Required | Artifact adapters | Persisted charts render for a stored fixture run without rerunning the grid or reconstructing missing evidence; validated counts are 53,528/13,340/4,474/173 for 1m/5m/15m/1D; resize/reset and responsive stacking preserve selected state | Results page | Claude Code local implementation |
+| Dashboard trades | Not complete | Persisted entries/exits on the price chart linked to a ledger grouped by completed trade; exact events map to containing bars; accessible drill-down uses typography approximately two CSS pixels larger than the reviewed preview and normal page flow without nested vertical scrolling | Required | Portfolio/trade artifact | Selecting a fixture trade focuses useful entry/exit context and exposes exact timestamps, prices, size, costs and P&L at every supported bar interval; page retains 52 pixels of bottom space | Results chart and trade ledger | Claude Code local implementation |
 | Dashboard evidence explanations | Minimal review status | Unified pass/fail/insufficient evidence, rule details and stage progression | Required | Evidence model | Operator understands why progression stopped | Evidence page | Claude Code local implementation |
 | Dashboard run comparison | Not implemented | Side-by-side metrics, curves, assumptions and evidence differences | Required | Database | Two stored runs compare without manual files | Compare page | Claude Code local implementation |
 | Dashboard data provenance | Basic selected-row display | Complete source, coverage, adjustment, manifest and cache status | Required | Provenance persistence | Operator can verify exactly what data a run used | Provenance panel | Claude Code local implementation |
@@ -74,7 +74,8 @@ agent policy](ai-programming-agent-policy.md).
 ## Hard gate
 
 No systematic strategy discovery, optimization for profitability, or promotion
-search may resume until Milestone 23 passes. Decision 280 accepts the
-chart-first Results direction, but detailed specification approval,
+search may resume until Milestone 23 passes. Decisions 280–281 accept the
+chart-first Results direction and validated preview constraints, but remaining
+detailed specification approval,
 implementation, deployment, testing, renewed operator acceptance, and the
 remaining objective technical gates are not yet complete.
