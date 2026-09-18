@@ -46,6 +46,7 @@ NAVIGATION_LINKS = tuple(
     for _, links in NAVIGATION_GROUPS
     for path, label in links
 )
+NAVIGATION_ITEMS = (("/", "Home"), *NAVIGATION_LINKS)
 
 ROUTE_REGISTRY = (
     ("/", "route-home"),
@@ -98,7 +99,7 @@ def navigation_current_states_for_path(
     pathname: str | None,
 ) -> tuple[str | None, ...]:
     route = pathname or "/"
-    return tuple("page" if path == route else None for path, _ in NAVIGATION_LINKS)
+    return tuple("page" if path == route else None for path, _ in NAVIGATION_ITEMS)
 
 
 def route_container_styles_for_path(pathname: str | None) -> tuple[dict[str, str], ...]:

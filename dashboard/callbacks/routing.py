@@ -6,6 +6,7 @@ from dash import Dash, Input, Output, State, ctx
 from dash.exceptions import PreventUpdate
 
 from dashboard.routing import (
+    NAVIGATION_ITEMS,
     NAVIGATION_LINKS,
     ROUTE_CONTAINER_IDS,
     navigation_classes_for_path,
@@ -63,7 +64,7 @@ def register_routing_callbacks(app: Dash) -> None:
         ],
         *[
             Output(navigation_item_id(path), "aria-current")
-            for path, _ in NAVIGATION_LINKS
+            for path, _ in NAVIGATION_ITEMS
         ],
         Input("url", "pathname"),
     )

@@ -44,7 +44,7 @@ from dashboard.app import (
 )
 from dashboard.formatting import format_assumption, format_metric
 from dashboard.project_status import PROJECT_STATUS
-from dashboard.routing import navigation_item_id
+from dashboard.routing import NAVIGATION_ITEMS, navigation_item_id
 from dashboard.state_ownership import STATE_OWNERS
 from dashboard.run_adapter import SavedConfigurationView
 from dashboard.run_detail_adapter import (
@@ -656,6 +656,7 @@ def test_dashboard_callback_outputs_are_singly_owned(tmp_path: Path) -> None:
     for path, _ in NAVIGATION_LINKS:
         link_output = f"navigation-link-{path.strip('/').replace('/', '-')}.className"
         assert output_keys.count(link_output) == 1
+    for path, _ in NAVIGATION_ITEMS:
         assert output_keys.count(f"{navigation_item_id(path)}.aria-current") == 1
 
 
@@ -762,7 +763,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         for path, _ in NAVIGATION_LINKS
     ] + [
         {"id": navigation_item_id(path), "property": "aria-current"}
-        for path, _ in NAVIGATION_LINKS
+        for path, _ in NAVIGATION_ITEMS
     ]
 
     def invoke_route(pathname: str) -> dict[str, object]:
@@ -850,7 +851,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         assert isinstance(response, dict)
         return [
             path
-            for path, _ in NAVIGATION_LINKS
+            for path, _ in NAVIGATION_ITEMS
             if response[navigation_item_id(path)]["aria-current"] == "page"
         ]
 
@@ -911,13 +912,9 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     for pathname, title in expected_titles.items():
         assert visible_routes(invoke_route(pathname)) == [pathname]
         assert title in mounted_pages[pathname]
-        expected_active = (
-            []
-            if pathname == "/"
-            else [pathname]
-        )
+        expected_active = [] if pathname == "/" else [pathname]
         assert active_hrefs(invoke_navigation(pathname)) == expected_active
-        assert current_hrefs(invoke_navigation(pathname)) == expected_active
+        assert current_hrefs(invoke_navigation(pathname)) == [pathname]
 
 
 def test_route_visibility_callback_is_not_initial_call_suppressed(
@@ -1745,9 +1742,9 @@ def test_navigation_marks_current_page_active() -> None:
 
     navigation = _navigation("/research/backtest-results")
     brand = next(
-        child
+        child.children
         for child in navigation.children
-        if getattr(child, "className", None) == "sidebar-brand"
+        if getattr(child, "className", None) == "sidebar-brand-item navigation-item"
     )
     groups_container = next(
         child
@@ -1795,7 +1792,7 @@ def test_navigation_marks_current_page_active() -> None:
     assert "/research/strategy-review" not in {link.href for link in links}
     assert len(active) == 1
     assert active[0].href == "/research/backtest-results"
-    assert [link.children for link in links[:5]] == [
+    assert [link.children[0].children for link in links[:5]] == [
         "Ideas",
         "Set up",
         "Run test",

@@ -52,7 +52,13 @@ def navigation(pathname: str = "/") -> html.Nav:
                 [
                     html.Div(
                         dcc.Link(
-                            label,
+                            [
+                                html.Span(label),
+                                html.Span(
+                                    "Current page",
+                                    className="navigation-current-label",
+                                ),
+                            ],
                             id=navigation_link_id(path),
                             href=path,
                             className=(
@@ -82,20 +88,33 @@ def navigation(pathname: str = "/") -> html.Nav:
         )
     return html.Nav(
         [
-            dcc.Link(
-                [
-                    html.Span("QF", className="sidebar-logo"),
-                    html.Div(
-                        [
-                            html.P("QUANT", className="sidebar-title-line"),
-                            html.P("FACTORY", className="sidebar-title-line"),
-                        ],
-                        className="sidebar-title-lockup",
-                    ),
-                ],
-                href="/",
-                title="Quant Factory Home",
-                className="sidebar-brand",
+            html.Div(
+                dcc.Link(
+                    [
+                        html.Span("QF", className="sidebar-logo"),
+                        html.Div(
+                            [
+                                html.P("QUANT", className="sidebar-title-line"),
+                                html.P("FACTORY", className="sidebar-title-line"),
+                            ],
+                            className="sidebar-title-lockup",
+                        ),
+                        html.Span(
+                            "Current page",
+                            className="navigation-current-label",
+                        ),
+                    ],
+                    href="/",
+                    title="Quant Factory Home",
+                    className="sidebar-brand",
+                ),
+                id=navigation_item_id("/"),
+                className="sidebar-brand-item navigation-item",
+                **(
+                    {"aria-current": "page"}
+                    if active_path == "/"
+                    else {}
+                ),
             ),
             html.Div(groups, className="sidebar-navigation-groups"),
             html.Div(
