@@ -12,6 +12,7 @@ from typing import Any
 from persistence import ArtifactAvailability, PersistenceService
 from persistence.database import database_path
 from dashboard.formatting import format_metric
+from dashboard.results_model import ResultsDataError, validate_ohlc_rows
 
 
 MISSING = "Not recorded"
@@ -366,17 +367,13 @@ def _validated_series_rows(
                     f"Artifact equity_curve field {key} row {index} has invalid {field}."
                 )
                 return ()
-        if {"open", "high", "low", "close"}.issubset(numeric_fields):
-            high = float(row["high"])
-            low = float(row["low"])
-            open_value = float(row["open"])
-            close = float(row["close"])
-            if high < max(open_value, close, low) or low > min(open_value, close, high):
-                warnings.append(
-                    f"Artifact equity_curve field {key} row {index} has inconsistent OHLC values."
-                )
-                return ()
         valid_rows.append(row)
+    if {"open", "high", "low", "close"}.issubset(numeric_fields):
+        try:
+            validate_ohlc_rows(valid_rows)
+        except ResultsDataError as exc:
+            warnings.append(f"Artifact equity_curve field {key} is invalid: {exc.reason}")
+            return ()
     return tuple(valid_rows)
 
 
