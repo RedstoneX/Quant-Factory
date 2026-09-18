@@ -352,14 +352,14 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
     )
     assert review_context.context_identity
 
-    select_row = _callback_function(app, "selected-review-identity")
     load_review = _callback_function(app, "review-status")
     refresh_review_context = _callback_function(app, "save-review")
     save_review = _callback_function(app, "review-message")
-    *_, review_target, parameters = select_row("m23-spym-success")
-    status, note = load_review(review_target)
+    review_target = "m23-spym-success"
+    status, note, history = load_review(review_target)
     assert status == ReviewState.UNREVIEWED.value
     assert note == ""
+    assert "No durable decision" in str(history)
     save_disabled, save_title, availability = refresh_review_context(review_target)
     assert save_disabled is False
     assert "durable evidence decision" in save_title
@@ -369,15 +369,14 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
         review_history_before = persistence.reviews.history("run", review_target)
     finally:
         persistence.close()
-    review_message = save_review(
+    review_message, review_history = save_review(
         1,
         review_target,
-        parameters,
         ReviewState.WATCHLIST.value,
         "Milestone 23 durable review",
     )
     assert "Evidence decision artifact validated." in str(review_message)
-    assert "dashboard-operator" in str(review_message)
+    assert "dashboard-operator" in str(review_history)
     persistence = PersistenceService(database)
     try:
         current_review = persistence.reviews.get_current("run", review_target)
@@ -494,7 +493,9 @@ def test_milestone23_controlled_failure_is_diagnosable_without_false_success(
     )
     app = _app(database, service, adapter)
 
-    content, class_name = _callback_function(app, "launch-message")(
+    content, class_name, context, context_class = _callback_function(
+        app, "launch-message"
+    )(
         1,
         configuration_id,
     )
@@ -503,6 +504,8 @@ def test_milestone23_controlled_failure_is_diagnosable_without_false_success(
 
     assert class_name == "save-message"
     assert "failed" in str(content)
+    assert context_class == "operator-context"
+    assert "Review failure" in str(context)
     assert "controlled Prefect fixture failure" in rendered
     assert "No artifact inventory is available" in rendered
     assert "No persisted parameter result summary is available" in rendered

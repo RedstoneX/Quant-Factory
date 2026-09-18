@@ -827,6 +827,13 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     assert backtest_visible == ["/research/backtest-results"]
     assert backtest_active == ["/research/backtest-results"]
 
+    home_visible = visible_routes(invoke_route("/"))
+    home_text = mounted_pages["/"]
+    assert "Research readiness" in home_text
+    assert "Not checked" in home_text
+    assert "Discovery blocked" in home_text
+    assert home_visible == ["/"]
+
     review_visible = visible_routes(invoke_route("/research/strategy-review"))
     review_text = mounted_pages["/research/strategy-review"]
     review_active = active_hrefs(invoke_navigation("/research/strategy-review"))
@@ -1220,15 +1227,16 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
 
     home = page_for_path("/", context)
     home_text = _component_text(home)
-    assert home.className == "page-container"
+    assert home.className == "page-container home-page"
     assert "RESEARCH / HOME" in home_text
     assert "Home" in home_text
     assert PROJECT_STATUS.home_subtitle in home_text
     assert str(PROJECT_STATUS.current_milestone_number) in home_text
     assert PROJECT_STATUS.current_milestone_title in home_text
     assert PROJECT_STATUS.current_milestone_status in home_text
-    assert PROJECT_STATUS.strategy_status in home_text
-    assert PROJECT_STATUS.workspace_status in home_text
+    assert "Discovery blocked" in home_text
+    assert "strategy discovery remains unavailable" in home_text
+    assert "Not checked" in home_text
     assert "Milestone 20" not in home_text
     assert "Operator Home" not in home_text
     assert (
@@ -1553,7 +1561,7 @@ def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> No
     assert "Loading persisted context" in _component_text(compare_page)
 
 
-def test_home_activity_visual_uses_honest_empty_state() -> None:
+def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> None:
     data = _data()
     context = DashboardContext(
         pd.DataFrame([_ranked_row()]),
@@ -1564,22 +1572,38 @@ def test_home_activity_visual_uses_honest_empty_state() -> None:
     page = route_content_for_path("/", context, recent_runs=(), recent_events=())
     rendered = _component_text(page)
 
-    assert "Recent research activity" in rendered
-    assert "No recent research activity is available yet." in rendered
+    assert page.className == "page-container home-page"
+    assert "Research readiness" in rendered
+    assert "No selected, active, or persisted run is available yet." in rendered
+    assert "No recent failures require attention." in rendered
+    assert rendered.count("Not checked") >= 12
+    assert "Discovery blocked" in rendered
     assert "P&L" not in rendered
     assert "profit" not in rendered.lower()
-    empty = next(
+    action = next(
         component
         for component in _walk_components(page)
-        if getattr(component, "className", None) == "empty-state-copy"
-        and "No recent research activity is available yet."
-        in _component_text(component)
+        if getattr(component, "id", None) == "home-primary-action"
     )
-    assert empty.style["border"] == "1px dashed #94a3b8"
-    assert empty.style["backgroundColor"] == "#f8fafc"
+    assert action.children == "Capture an idea"
+    assert action.href == "/research/ideas"
+    health_ids = {
+        getattr(component, "id", None)
+        for component in _walk_components(page)
+        if str(getattr(component, "id", "")).startswith("home-health-")
+    }
+    assert health_ids == {
+        "home-health-summary",
+        "home-health-database",
+        "home-health-worker",
+        "home-health-provider",
+        "home-health-cache",
+        "home-health-artifact",
+        "home-health-credential",
+    }
 
 
-def test_home_visual_path_and_activity_timeline_have_inline_styles() -> None:
+def test_home_registered_page_uses_selected_run_and_recent_events() -> None:
     data = _data()
     context = DashboardContext(
         pd.DataFrame([_ranked_row()]),
@@ -1601,79 +1625,54 @@ def test_home_visual_path_and_activity_timeline_have_inline_styles() -> None:
         prefect_api_url=None,
         attempt_count=1,
     )
+    active = replace(
+        run,
+        run_id="active_run",
+        strategy_id="another_fixture_strategy",
+        status="running",
+        completed_at=None,
+    )
     event = RunEvent(
         event_id=1,
-        run_id="visual_run",
-        event_type="run_completed",
+        run_id="event_failure",
+        event_type="run_failed",
         timestamp="2026-07-13T12:00:03Z",
-        severity="info",
-        message="Run completed successfully.",
+        severity="error",
+        message="Recorded fixture failure requires attention.",
         source="fixture",
     )
 
-    page = route_content_for_path(
+    page = page_for_path(
         "/",
         context,
-        recent_runs=(run,),
+        recent_runs=(active, run),
         recent_events=(event,),
+        selected_run_id=run.run_id,
     )
     rendered = _component_text(page)
-    path = next(
+    current_run = next(
         component
         for component in _walk_components(page)
-        if getattr(component, "className", None) == "strategy-research-path"
+        if getattr(component, "id", None) == "home-current-run"
     )
-    path_cards = [
-        component
-        for component in _walk_components(path)
-        if "research-path-card" in str(getattr(component, "className", ""))
-    ]
-    step_circles = [
-        component
-        for component in _walk_components(path)
-        if getattr(component, "className", None) == "research-path-step"
-    ]
-    connectors = [
-        component
-        for component in _walk_components(path)
-        if getattr(component, "className", None) == "research-path-connector"
-    ]
-    timeline = next(
+    failures = next(
         component
         for component in _walk_components(page)
-        if getattr(component, "className", None) == "recent-activity-timeline"
+        if getattr(component, "id", None) == "home-attention-failures"
     )
-    activity_items = [
+    action = next(
         component
-        for component in _walk_components(timeline)
-        if getattr(component, "className", None) == "recent-activity-item"
-    ]
-    dots = [
-        component
-        for component in _walk_components(timeline)
-        if getattr(component, "className", "")
-        and "activity-dot" in component.className
-    ]
+        for component in _walk_components(page)
+        if getattr(component, "id", None) == "home-primary-action"
+    )
 
-    assert path.style["display"] == "flex"
-    assert path.style["flexWrap"] == "wrap"
-    assert len(path_cards) == 6
-    assert len(step_circles) == 6
-    assert {card.style["border"] for card in path_cards} == {"1px solid #bfdbfe"}
-    assert {step.style["backgroundColor"] for step in step_circles} == {"#2357d9"}
-    assert len(connectors) == 5
-    assert {connector.style["color"] for connector in connectors} == {"#2357d9"}
-    assert timeline.style["borderLeft"] == "2px solid #bfdbfe"
-    assert len(activity_items) == 2
-    assert {item.style["position"] for item in activity_items} == {"relative"}
-    assert any(dot.style["backgroundColor"] == "#16a34a" for dot in dots)
-    assert any(dot.style["backgroundColor"] == "#2357d9" for dot in dots)
-    assert "visual_run" not in rendered
-    assert "Fixture backtest" in rendered
+    assert "Prefect Fixture Strategy · Succeeded" in _component_text(current_run)
     assert "2026-07-13T12:00:02Z" in rendered
-    assert "Run completed successfully." in rendered
+    assert "Another Fixture Strategy" not in _component_text(current_run)
+    assert "Recorded fixture failure requires attention." in _component_text(failures)
     assert "2026-07-13T12:00:03Z" in rendered
-    assert "P&L" not in rendered
+    assert action.children == "Inspect failure"
+    assert action.href == "/research/backtest-results"
 
 
 def test_navigation_marks_current_page_active() -> None:
@@ -2258,12 +2257,11 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             ),
         },
         "review_selection": {
-            "source": "review-run-selector.value",
-            "store": "selected-review-identity.data",
+            "source": "selected-run-state.data",
             "owner": "dashboard.callbacks.strategy_review",
             "rule": (
-                "Strategy Review owns durable-review identity, form state, and "
-                "review messages."
+                "Results binds durable-review form state and messages to the shared "
+                "selected persisted run; no separate review identity is written."
             ),
         },
         "comparison_selection": {

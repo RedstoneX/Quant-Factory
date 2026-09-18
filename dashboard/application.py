@@ -123,44 +123,6 @@ RESEARCH_PATH_CONNECTOR_STYLE = {
     "fontWeight": 800,
     "padding": "0 2px",
 }
-RECENT_ACTIVITY_TIMELINE_STYLE = {
-    "borderLeft": "2px solid #bfdbfe",
-    "display": "grid",
-    "gap": "12px",
-    "listStyle": "none",
-    "margin": "0",
-    "padding": "2px 0 2px 18px",
-}
-RECENT_ACTIVITY_ITEM_STYLE = {
-    "backgroundColor": "#ffffff",
-    "border": "1px solid #e2e8f0",
-    "borderRadius": "8px",
-    "display": "grid",
-    "gap": "4px",
-    "padding": "10px 12px",
-    "position": "relative",
-}
-RECENT_ACTIVITY_DOT_STYLE = {
-    "border": "2px solid #ffffff",
-    "borderRadius": "999px",
-    "height": "12px",
-    "left": "-25px",
-    "position": "absolute",
-    "top": "14px",
-    "width": "12px",
-}
-RECENT_ACTIVITY_TIMESTAMP_STYLE = {
-    "color": "#64748b",
-    "fontSize": "0.82rem",
-}
-RECENT_ACTIVITY_EMPTY_STYLE = {
-    "backgroundColor": "#f8fafc",
-    "border": "1px dashed #94a3b8",
-    "borderRadius": "8px",
-    "color": "#475569",
-    "padding": "14px",
-}
-
 OPERATOR_LABEL_OVERRIDES = {
     "config_hash": "Configuration checksum",
     "configuration_id": "Configuration ID",
@@ -667,17 +629,6 @@ def create_review_page(
     )
 
 
-def _home_next_action_card(title: str, description: str, href: str) -> dcc.Link:
-    return dcc.Link(
-        [
-            html.Strong(title),
-            html.P(description),
-        ],
-        href=href,
-        className="summary-card home-action-card",
-    )
-
-
 def _strategy_research_path(current_path: str = "/") -> html.Div:
     stages = (
         ("Home", "/"),
@@ -724,178 +675,21 @@ def _strategy_research_path(current_path: str = "/") -> html.Div:
     )
 
 
-def _activity_dot_style(status: str) -> dict[str, str]:
-    colors = {
-        "succeeded": "#16a34a",
-        "success": "#16a34a",
-        "failed": "#dc2626",
-        "error": "#dc2626",
-        "cancelled": "#f97316",
-        "warning": "#f97316",
-        "running": "#2357d9",
-        "info": "#2357d9",
-    }
-    return {
-        **RECENT_ACTIVITY_DOT_STYLE,
-        "backgroundColor": colors.get(status, "#64748b"),
-    }
-
-
-def _recent_research_activity(
-    recent_runs: tuple[RunSummary, ...],
-    recent_events: tuple[RunEvent, ...],
-) -> html.Div:
-    activity_items: list[Any] = []
-    for run in recent_runs[:3]:
-        activity_items.append(
-            html.Li(
-                [
-                    html.Span(
-                        "",
-                        className=f"activity-dot activity-dot-{run.status}",
-                        style=_activity_dot_style(run.status),
-                    ),
-                    html.Strong(_backtest_selector_label(run)),
-                    html.Span(
-                        run.completed_at or run.started_at or run.created_at,
-                        style=RECENT_ACTIVITY_TIMESTAMP_STYLE,
-                    ),
-                ],
-                className="recent-activity-item",
-                style=RECENT_ACTIVITY_ITEM_STYLE,
-            )
-        )
-    for event in recent_events[:2]:
-        activity_items.append(
-            html.Li(
-                [
-                    html.Span(
-                        "",
-                        className=f"activity-dot activity-dot-{event.severity}",
-                        style=_activity_dot_style(event.severity),
-                    ),
-                    html.Strong(event.event_type.replace("_", " ").title()),
-                    html.Span(event.message),
-                    html.Span(
-                        event.timestamp,
-                        style=RECENT_ACTIVITY_TIMESTAMP_STYLE,
-                    ),
-                ],
-                className="recent-activity-item",
-                style=RECENT_ACTIVITY_ITEM_STYLE,
-            )
-        )
-
-    if not activity_items:
-        return html.Div(
-            "No recent research activity is available yet.",
-            className="empty-state-copy",
-            style=RECENT_ACTIVITY_EMPTY_STYLE,
-        )
-    return html.Ul(
-        activity_items,
-        className="recent-activity-timeline",
-        style=RECENT_ACTIVITY_TIMELINE_STYLE,
-    )
-
-
 def _overview_page(
     recent_runs: tuple[RunSummary, ...] = (),
     recent_events: tuple[RunEvent, ...] = (),
+    selected_run_id: str | None = None,
     project_status: DashboardProjectStatus = PROJECT_STATUS,
 ) -> html.Div:
-    return html.Div(
-        [
-            _page_heading(
-                "RESEARCH / HOME",
-                "Home",
-                project_status.home_subtitle,
-            ),
-            html.Section(
-                [
-                    html.Div(
-                        [
-                            html.Span("Current milestone", className="summary-label"),
-                            html.Strong(
-                                (
-                                    f"{project_status.current_milestone_number} - "
-                                    f"{project_status.current_milestone_title}"
-                                )
-                            ),
-                            html.P(
-                                project_status.current_milestone_status,
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                    html.Div(
-                        [
-                            html.Span("Strategy status", className="summary-label"),
-                            html.Strong("Research only"),
-                            html.P(
-                                project_status.strategy_status,
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                    html.Div(
-                        [
-                            html.Span("Workspace status", className="summary-label"),
-                            html.Strong("Research workspace"),
-                            html.P(
-                                project_status.workspace_status,
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                ],
-                className="summary-grid",
-            ),
-            html.Section(
-                [
-                    html.H2("Next actions"),
-                    html.Div(
-                        [
-                            _home_next_action_card(
-                                "Capture an idea",
-                                "Record a safe browser-session draft. Nothing will run.",
-                                "/research/ideas",
-                            ),
-                            _home_next_action_card(
-                                "Set up a test",
-                                "Choose an approved immutable fixture setup.",
-                                "/research/setup",
-                            ),
-                            _home_next_action_card(
-                                "Inspect results",
-                                "Review persisted evidence from completed tests.",
-                                "/research/backtest-results",
-                            ),
-                        ],
-                        className="summary-grid",
-                    ),
-                ],
-                className="panel",
-            ),
-            html.Section(
-                [
-                    html.H2("Strategy research path"),
-                    _strategy_research_path("/"),
-                ],
-                className="panel",
-            ),
-            html.Section(
-                [
-                    html.H2("Recent research activity"),
-                    _recent_research_activity(recent_runs, recent_events),
-                ],
-                className="panel",
-            ),
-        ],
-        className="page-container",
+    from dashboard.pages.home import build_home_view_model, layout as home_layout
+
+    return home_layout(
+        build_home_view_model(
+            recent_runs=recent_runs,
+            recent_events=recent_events,
+            selected_run_id=selected_run_id,
+            project_status=project_status,
+        )
     )
 
 
@@ -4038,6 +3832,7 @@ def page_for_path(
         return _overview_page(
             recent_runs=recent_runs,
             recent_events=recent_events,
+            selected_run_id=selected_run_id,
         )
     if route == "/research/ideas":
         from dashboard.pages.ideas import layout as ideas_layout

@@ -81,9 +81,17 @@ def test_home_no_data_has_honest_empty_states_and_one_capture_action() -> None:
     workflow_steps = [
         item
         for item in _walk(page)
-        if str(getattr(item, "id", "")).startswith("home-workflow-")
+        if "research-path-card" in str(getattr(item, "className", ""))
     ]
     assert len(workflow_steps) == 6
+    assert [item.children[1].children for item in workflow_steps] == [
+        "Home",
+        "Ideas",
+        "Set up",
+        "Run test",
+        "Results",
+        "Compare",
+    ]
 
 
 def test_home_timestamp_less_health_is_not_presented_as_healthy() -> None:
