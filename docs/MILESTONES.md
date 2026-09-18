@@ -16,16 +16,21 @@ Fixtures validate infrastructure and are not active profitability candidates.
 
 ## Current phase
 
-Milestones 1–22 are complete. Milestone 23 is pending dashboard implementation,
-browser acceptance, and explicit operator acceptance. Automated research and
-recovery evidence exists, but tests and reachability do not complete the gate.
-Systematic discovery, optimization, protected-test evaluation, paper-order
+Milestones 1–22 are complete. Milestone 23 is pending dashboard implementation
+and objective technical acceptance evidence. Decision 277 records the owner's
+explicit acceptance of the current dashboard/operator direction, so the
+operator-acceptance criterion is satisfied for that experience and no repeat
+acceptance prompt is required after the remaining objective gates pass. This
+does not waive browser-lifecycle, end-to-end workflow, failure-handling, test,
+or documentation/status-synchronization evidence and does not close Milestone
+23. Systematic discovery, optimization, protected-test evaluation, paper-order
 activation, and live work remain blocked except for the bounded offline and
 deployment preparation already authorized and retained.
 
 Decision 274 sets the current order:
 
-1. Complete Milestone 23 dashboard and operator acceptance.
+1. Complete the remaining objective Milestone 23 dashboard gates; owner
+   acceptance for the current experience is recorded in Decision 277.
 2. Conduct controlled strategy intake and research under Milestone 25 until a
    defensible edge qualifies.
 3. Resume remaining Milestone 24 paper activation only after the qualifying
@@ -48,7 +53,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Implement the approved Milestone 23C dashboard direction, then obtain browser and operator acceptance |
+| R05 | 1 | in_progress | none | Implement the accepted Milestone 23C dashboard direction and prove the remaining browser, workflow, failure-handling, test, and documentation/status gates; Decision 277 records owner acceptance |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 
@@ -88,7 +93,7 @@ content, execute code, launch a backtest, approve a strategy, or place an order.
 | # | Milestone | Acceptance summary | Status |
 |---:|---|---|---|
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
-| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle and complete operator workflow pass; explicit operator approval recorded | **Pending — hard discovery gate** |
+| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle and complete operator workflow pass; Decision 277 records operator approval for the current experience | **Pending — technical hard discovery gate** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore plus bounded paper workflow after a qualified edge and every execution gate | Preparation retained; activation deferred |
 | 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments; survivors pass predeclared evidence gates | Pending — follows M23 |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection pass | Pending |
@@ -100,12 +105,13 @@ content, execute code, launch a backtest, approve a strategy, or place an order.
 - **23A — Scenarios and fixtures:** frozen. **Complete.**
 - **23B — Automated full-system acceptance:** supporting evidence implemented;
   keep the complete scenario inventory green.
-- **23C-1 — Review/design:** approved direction exists; complete artifact
-  approval remains pending.
+- **23C-1 — Review/design:** approved direction and owner acceptance for the
+  current experience are recorded; implementation conformance remains pending.
 - **23C-2 — Implementation:** authorized but not complete. Preserve ADR 0008,
   Plotly Dash, VectorBT Pro, and service boundaries.
-- **23C-3 — Browser/operator acceptance:** pending implementation and explicit
-  operator approval.
+- **23C-3 — Browser/operator acceptance:** Decision 277 satisfies explicit owner
+  acceptance for the current experience; real-browser lifecycle and complete
+  end-to-end workflow evidence remain pending.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
   cancellation, stale recovery, missing-artifact, and corrupt-lineage coverage.
 - **23E — Gate decision:** record explicit pass or fail. No discovery or order

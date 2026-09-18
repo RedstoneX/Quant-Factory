@@ -22,7 +22,10 @@ micro-live work, and other venues follow only at the later gates in
 
 Existing RSI, MES opening-range breakout, and SPY Donchian work is retained as historical evidence and fixture coverage. None is an active profitability candidate.
 
-No systematic strategy discovery or profitability search may resume until Milestone 23 passes and the user explicitly approves the full dashboard and end-to-end equity workflow.
+No systematic strategy discovery or profitability search may resume until
+Milestone 23 passes. Decision 277 records owner acceptance for the current
+dashboard/operator experience; the remaining objective technical gates are not
+yet complete.
 
 Decision 275 is implemented: this sanitized clean-history public repository is
 the canonical source of truth, and the original repository is retained as a

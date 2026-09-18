@@ -167,3 +167,18 @@ explicitly.
      throughput: both were green; after #3 merged, #2 remained `CLEAN` and
      `MERGEABLE` with its original Test run `35301119002` and Dependency Review
      run `35301119008`, received no refresh run, and was closed unmerged.
+
+277. **Current dashboard/operator experience accepted (accepted 2026-09-18).**
+     The owner explicitly accepts the current dashboard/operator direction and
+     authorizes autonomous work through the remaining Milestone 23 objective
+     gates. Once those gates pass, no additional dashboard-acceptance prompt is
+     required before proceeding under Decision 274 to controlled Milestone 25
+     strategy intake and research. This acceptance does not close Milestone 23
+     or waive implementation conformance, ADR 0008 browser lifecycle, the
+     complete end-to-end operator workflow, automated tests, failure handling,
+     documentation and `dashboard/project_status.py` synchronization, or any
+     research, protected-data, credential, paper, execution, and live-capital
+     safety boundary. Strategy discovery remains blocked until the objective
+     Milestone 23 gate passes. If a material redesign invalidates the accepted
+     experience, record that change and do not represent this acceptance as
+     covering the redesigned experience.

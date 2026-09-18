@@ -73,4 +73,7 @@ agent policy](ai-programming-agent-policy.md).
 
 ## Hard gate
 
-No systematic strategy discovery, optimization for profitability, or promotion search may resume until Milestone 23 passes and the user explicitly approves the dashboard and end-to-end equity workflow.
+No systematic strategy discovery, optimization for profitability, or promotion
+search may resume until Milestone 23 passes. Decision 277 records owner
+acceptance for the current dashboard/operator experience; the remaining
+objective technical gates are not yet complete.
