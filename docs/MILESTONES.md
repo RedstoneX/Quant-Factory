@@ -27,8 +27,8 @@ QAMC informs panel, resizing, and link mechanics only, not information density.
 Decision 281 accepts the validated preview's separate Bars and View controls,
 truthful interval aggregation, exact trade-event preservation, resettable
 desktop resizing, normal-flow report content, responsive stacking, and trade
-typography approximately two CSS pixels above the earlier preview while
-deferring final palette selection. The remaining
+typography that is visibly larger and more readable while deferring final
+palette selection. The remaining
 detailed specification or mockup, implementation, deployment, tests, and
 renewed operator acceptance remain pending. Decision 278 accepts ADR 0011's
 safer durable run-ticket architecture and

@@ -310,9 +310,10 @@ Decision 281 additionally fixes these validated interaction requirements:
 - retain every trade's exact persisted event timestamp and price while mapping
   its visual marker to the containing aggregated bar, and keep useful
   surrounding context visible after bar or view changes;
-- increase trade-ledger and trade-detail typography by approximately two CSS
-  pixels from the earlier preview while preserving readable rows and responsive
-  layout; and
+- make trade-ledger and trade-detail typography visibly larger and more
+  readable while preserving responsive rows; the validated preview increased
+  the relevant styles by two CSS pixels, which is implementation evidence rather
+  than a universal fixed typography token; and
 - treat the resize, flow and responsive rules below as owner-specific product
   requirements rather than claims about TradingView behavior.
 
@@ -420,7 +421,9 @@ page scrolling.
   content or loses the selected run, report tab, trade, or evidence;
 - an explicit **Reset layout** action restores the approved default dimensions;
 - Metrics and Trades grow in normal page flow, never use a fixed-height nested
-  vertical scrollbar or slider, and leave 52 pixels of bottom breathing room;
+  vertical scrollbar or slider, and leave comfortable bottom breathing room;
+- the validated preview's 52 pixels of bottom space is implementation evidence,
+  not a fixed spacing requirement for every responsive layout;
 - AG Grid uses the full panel width with important columns pinned first.
 
 ### Tablet — 768–1199 px

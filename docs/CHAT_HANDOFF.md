@@ -28,8 +28,8 @@ backtesting Strategy Report as the primary UX reference and QAMC only for panel
 and linking mechanics. Decision 281 accepts the validated preview's separate
 Bars and View controls, truthful interval aggregation, exact trade-event
 preservation, resettable desktop panel resizing, normal-flow report content,
-responsive stacking, and trade typography approximately two CSS pixels above
-the earlier preview while deferring final palette selection. The remaining
+responsive stacking, and visibly larger, more readable trade typography while
+deferring final palette selection. The remaining
 detailed specification or mockup, its owner approval,
 implementation, deployment, testing, renewed operator acceptance,
 and the remaining browser-lifecycle, end-to-end workflow, failure-handling,

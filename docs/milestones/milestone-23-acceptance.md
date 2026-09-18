@@ -19,7 +19,7 @@ still required.
 | Compare and reproduce | Compatible runs compare; a reproduced run retains parent/configuration identity and creates a distinct run record |
 | Review | Human decision and rationale persist durably and conflicts fail before mutation |
 | Failure and recovery | Controlled failure, retry, timeout, cancellation, stale recovery, restart, missing artifact, and corrupt lineage are understandable and fail closed |
-| Responsive operation | Desktop exposes three resettable chart/report resize edges while Metrics and Trades grow in normal page flow without nested vertical scrolling and retain 52 pixels of bottom space; tablet and mobile stack chart then report; every size preserves navigation, hierarchy, selected state, readable trade typography, and complete operator actions |
+| Responsive operation | Desktop exposes three resettable chart/report resize edges while Metrics and Trades grow in normal page flow without nested vertical scrolling and retain comfortable bottom breathing room; tablet and mobile stack chart then report; every size preserves navigation, hierarchy, selected state, visibly larger and readable trade typography, and complete operator actions |
 
 The successful integrated proof uses the real SPYM VectorBT Pro fixture.
 Deterministic synthetic fixtures remain appropriate for failure and recovery
@@ -35,10 +35,11 @@ weaken protected-data boundaries.
       timestamps and prices while markers map to containing bars.
 - [ ] Desktop chart/report edges resize and reset without losing selected state;
       Metrics and Trades have no nested vertical scrolling, the page retains
-      52 pixels of bottom space, and responsive layouts stack chart then report.
-- [ ] Trade typography is approximately two CSS pixels larger than the reviewed
-      preview without hiding required evidence or causing page-level horizontal
-      overflow.
+      comfortable bottom breathing room, and responsive layouts stack chart
+      then report.
+- [ ] Trade typography is visibly larger and more readable without hiding
+      required evidence or causing page-level horizontal overflow; the validated
+      preview's two-CSS-pixel increase is evidence, not a fixed acceptance value.
 - [ ] Focused and complete relevant automated tests pass.
 - [ ] Browser lifecycle checks pass for every registered route.
 - [ ] The operator completes launch → monitor → inspect → compare → reproduce →

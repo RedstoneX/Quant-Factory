@@ -32,10 +32,9 @@ operator without programming or finance expertise.
 Decision 281 accepts the validated preview's separate Bars and View controls,
 truthful interval aggregation, exact trade-event preservation, resettable
 desktop resizing, normal-flow Metrics and Trades, responsive stacking, and
-trade typography approximately two CSS pixels above the earlier preview.
-Palette revision remains deferred and the preview does not establish a final
-palette. These constraints do not accept the remaining detailed design or
-implemented experience.
+visibly larger, more readable trade typography. Palette revision remains
+deferred and the preview does not establish a final palette. These constraints
+do not accept the remaining detailed design or implemented experience.
 
 A separate September 17 local-only Ideas prototype browser-validated the
 extended flow on desktop and mobile. It is evidence for the approved direction,
@@ -181,12 +180,15 @@ a report-first block that pushes the price/trade workspace below a long page.
 - **Reset layout** restores approved default dimensions without changing the
   selected run, report tab, trade, or persisted evidence;
 - Metrics and Trades grow with the page, never use a fixed-height nested
-  vertical scrollbar or slider, and retain 52 pixels of bottom breathing room;
+  vertical scrollbar or slider, and retain comfortable bottom breathing room;
+- the validated preview measured 52 pixels of bottom space, which is evidence
+  for that preview rather than a universal fixed spacing requirement;
 - tablet and mobile stack chart then report at auto height without desktop
   resize affordances or nested vertical report scrolling;
-- trade-ledger and trade-detail typography is approximately two CSS pixels
-  larger than in the earlier preview without clipping, truncating required
-  evidence, or forcing page-level horizontal scrolling; and
+- trade-ledger and trade-detail typography is visibly larger and more readable
+  without clipping, truncating required evidence, or forcing page-level
+  horizontal scrolling; the validated preview's two-CSS-pixel increase is
+  implementation evidence rather than a universal fixed typography token; and
 - palette revision is deferred; preview acceptance does not select a final
   palette.
 

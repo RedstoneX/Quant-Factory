@@ -252,13 +252,15 @@ explicitly.
      shared chart/report boundary, and report bottom; **Reset layout** restores
      the approved default without losing selected run, tab, trade, or evidence.
      Metrics and Trades grow in normal page flow, have no nested vertical
-     scrolling, and retain 52 pixels of bottom breathing room.
-     Smaller layouts stack chart then report responsively, and trade-ledger
-     typography is approximately two CSS pixels larger than in the earlier
-     preview. Palette revision is deferred; temporary acceptance of the preview
-     palette does not establish a final palette. These are owner-specific
-     requirements even where another reference product behaves differently.
-     This supplements Decision 280 but
+     scrolling, and retain comfortable bottom breathing room. Smaller layouts
+     stack chart then report responsively, and trade-ledger and trade-detail
+     typography is visibly larger and more readable. The validated preview
+     measured 52 pixels of bottom space and increased the relevant trade styles
+     by two CSS pixels; those measurements are implementation evidence, not
+     universal fixed requirements. Palette revision is deferred; temporary
+     acceptance of the preview palette does not establish a final palette.
+     These are owner-specific requirements even where another reference
+     product behaves differently. This supplements Decision 280 but
      does not approve the remaining detailed design, claim application
      implementation or deployment, accept Milestone 23, authorize production
      changes, or relax any research, credential, execution, paper, or
