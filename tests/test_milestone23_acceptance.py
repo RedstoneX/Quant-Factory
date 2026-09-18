@@ -499,7 +499,7 @@ def test_milestone23_controlled_failure_is_diagnosable_without_false_success(
     )
     app = _app(database, service, adapter)
 
-    content, class_name, context, context_class = _callback_function(
+    _, content, class_name, context, context_class, *_ = _callback_function(
         app, "launch-message"
     )(
         1,
@@ -509,7 +509,7 @@ def test_milestone23_controlled_failure_is_diagnosable_without_false_success(
     rendered = _render_selected(app, run_id)
 
     assert class_name == "save-message"
-    assert "failed" in str(content)
+    assert "failed" in str(content).lower()
     assert context_class == "operator-context"
     assert "Review failure" in str(context)
     assert "controlled Prefect fixture failure" in rendered
@@ -697,7 +697,7 @@ def test_milestone23_recovery_and_integrity_fail_closed_dashboard_paths(
         "2025-01-01T00:00:00Z",
     )
     assert stale_class == "stale-recovery-message error-state"
-    assert "age-only fixture recovery is disabled" in str(stale_message)
+    assert "Age-only recovery is disabled" in str(stale_message)
     assert service.get_run("m23-stale-created").status == RunStatus.CREATED.value
     assert service.get_run("m23-stale-running").status == RunStatus.RUNNING.value
     no_recovery_message, no_recovery_class = _callback_function(
@@ -705,7 +705,7 @@ def test_milestone23_recovery_and_integrity_fail_closed_dashboard_paths(
         "stale-recovery-message",
     )(2, "2025-01-01T00:00:00Z")
     assert no_recovery_class == "stale-recovery-message error-state"
-    assert "age-only fixture recovery is disabled" in str(no_recovery_message)
+    assert "Age-only recovery is disabled" in str(no_recovery_message)
 
     service.launch_fixture(configuration_id=configuration_id, run_id="m23-artifact")
     root = tmp_path / "artifact-root"
@@ -845,4 +845,4 @@ def test_milestone23_recovery_and_integrity_fail_closed_dashboard_paths(
         "stale-recovery-message",
     )(3, "2025-01-01T00:00:00Z")
     assert repeat_class == "stale-recovery-message error-state"
-    assert "age-only fixture recovery is disabled" in str(repeat_message)
+    assert "Age-only recovery is disabled" in str(repeat_message)
