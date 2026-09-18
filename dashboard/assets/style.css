@@ -2710,7 +2710,10 @@ input {
 
 .results-report-region {
   min-height: var(--qf-results-report-min-height);
-  padding: 14px 0 48px;
+  padding: 14px 0 max(
+    24px,
+    calc(var(--qf-results-report-min-height) - 272px)
+  );
 }
 
 .results-report-panel {
