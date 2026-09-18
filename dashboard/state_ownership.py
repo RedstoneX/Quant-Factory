@@ -37,7 +37,7 @@ STATE_OWNERS = {
     },
     "review_selection": {
         "source": "selected-run-state.data",
-        "owner": "dashboard.callbacks.strategy_review",
+        "owner": "dashboard.callbacks.results_review",
         "rule": "Results binds durable-review form state and messages to the shared selected persisted run; no separate review identity is written.",
     },
     "comparison_selection": {

@@ -600,42 +600,6 @@ def _fields_to_map(fields: tuple[DetailField, ...]) -> dict[str, str]:
     return {field.label: field.value for field in fields}
 
 
-def create_review_page(
-    context: DashboardContext | None,
-    *,
-    recent_runs: tuple[RunSummary, ...] = (),
-) -> html.Div:
-    _ = context, recent_runs
-    return html.Div(
-        [
-            _page_heading(
-                "RESEARCH / RESULTS",
-                "Review moved to Results",
-                "Durable human decisions now belong to the selected persisted run on Results.",
-            ),
-            html.Section(
-                [
-                    html.H2("Use the Results review area"),
-                    html.P(
-                        (
-                            "This transitional address remains available for old bookmarks, "
-                            "but it no longer owns a separate review form or selection."
-                        ),
-                        className="section-description",
-                    ),
-                    dcc.Link(
-                        "Open Results",
-                        href="/research/backtest-results",
-                        className="primary-action",
-                    ),
-                ],
-                className="panel review-moved-panel",
-            ),
-        ],
-        className="page-container review-page",
-    )
-
-
 def _strategy_research_path(current_path: str = "/") -> html.Div:
     stages = (
         ("Home", "/"),
@@ -3772,10 +3736,6 @@ def page_for_path(
             all_runs=all_runs,
             history_rows=history_rows,
         )
-    if route == "/research/strategy-review":
-        from dashboard.pages.strategy_review import layout as strategy_review_layout
-
-        return strategy_review_layout(context, recent_runs=recent_runs)
     if route == "/research/compare-backtests":
         from dashboard.pages.compare_backtests import layout as compare_backtests_layout
 
@@ -4107,8 +4067,8 @@ def create_app(
     from dashboard.callbacks.ideas import register_ideas_callbacks
     from dashboard.callbacks.routing import register_routing_callbacks
     from dashboard.callbacks.setup import register_setup_callbacks
-    from dashboard.callbacks.strategy_review import (
-        register_strategy_review_callbacks,
+    from dashboard.callbacks.results_review import (
+        register_results_review_callbacks,
     )
     from dashboard.callbacks.trade_explorer import register_trade_explorer_callbacks
 
@@ -4133,7 +4093,7 @@ def create_app(
         artifact_root=artifact_root,
         compare_adapter=compare_adapter,
     )
-    register_strategy_review_callbacks(
+    register_results_review_callbacks(
         app,
         runs=runs,
         detail_adapter=detail_adapter,
