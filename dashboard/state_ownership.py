@@ -29,11 +29,26 @@ STATE_OWNERS = {
         "owner": "dashboard.callbacks.setup",
         "rule": "Set up writes the operator choice to one session store; Run test reads that identity without mutation or an automatic launch.",
     },
+    "run_test_launch": {
+        "source": "run-test-launch-state.data",
+        "owner": "dashboard.callbacks.backtest_results",
+        "rule": "Run test owns one session launch key bound to its immutable configuration; submitted keys are never rebound and persisted submission state is authoritative.",
+    },
     "selected_backtest": {
         "source": "selected-run-selector.value",
         "store": "selected-run-state.data",
         "owner": "dashboard.callbacks.backtest_results",
         "rule": "Explicit selector changes win over passive refresh and hydration callbacks.",
+    },
+    "historical_relaunch": {
+        "source": "historical-launch-state.data",
+        "owner": "dashboard.callbacks.backtest_results",
+        "rule": "Results owns a distinct historical-relaunch key bound to the selected source run; it never shares reproduction or Run test state.",
+    },
+    "reproduction_launch": {
+        "source": "reproduction-launch-state.data",
+        "owner": "dashboard.callbacks.backtest_results",
+        "rule": "Results owns a distinct reproduction key bound to the selected source run; submitted keys remain immutable across refresh and retry delivery.",
     },
     "review_selection": {
         "source": "selected-run-state.data",

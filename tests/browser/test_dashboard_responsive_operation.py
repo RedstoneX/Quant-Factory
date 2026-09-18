@@ -159,9 +159,17 @@ def test_launch_action_preserves_selected_setup_at_each_viewport(
             action["name"] = f"{viewport_name} launch exactly once"
             page.locator("#launch-run").click()
             expect(page.locator("#launch-message")).to_contain_text(
-                "Status: succeeded",
+                "Submission: Acknowledged",
                 timeout=60_000,
             )
+            expect(page.locator("#launch-message")).to_contain_text(
+                "Run status: Succeeded",
+                timeout=60_000,
+            )
+            launched_id = page.locator(
+                "#launch-message [data-run-id]"
+            ).get_attribute("data-run-id")
+            assert launched_id
             _wait_for_callbacks_to_settle(page, pending)
             _assert_quartet_rows(
                 page,
@@ -173,9 +181,6 @@ def test_launch_action_preserves_selected_setup_at_each_viewport(
             after_launch_ids = _persisted_run_ids(database)
             assert len(after_launch_ids) == len(before_run_ids) + 1
 
-            # This refresh proves the selected pre-launch configuration only.
-            # It intentionally makes no durable submission or launched-run identity
-            # claim; that post-ADR evidence remains required.
             action["name"] = f"{viewport_name} refresh after launch"
             page.reload(wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
@@ -184,6 +189,10 @@ def test_launch_action_preserves_selected_setup_at_each_viewport(
                     "#run-configuration-preview .configuration-identity"
                 )
             ).to_have_text(selected_identity)
+            expect(page.locator("#launch-message [data-run-id]")).to_have_attribute(
+                "data-run-id",
+                launched_id,
+            )
             assert _persisted_run_ids(database) == after_launch_ids
             _assert_document_contained(page)
             _assert_visible_surfaces_contained(page)
@@ -342,7 +351,11 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
             ):
                 page.locator("#reproduce-selected-run").click()
             expect(page.locator("#reproduction-message")).to_contain_text(
-                f"Reproduced {source_run_id} as",
+                "Submission: Acknowledged",
+                timeout=60_000,
+            )
+            expect(page.locator("#reproduction-message")).to_contain_text(
+                "Run status: Succeeded",
                 timeout=60_000,
             )
             reproduced_id = page.locator(
@@ -382,6 +395,9 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
                 reproduced_id,
                 timeout=10_000,
             )
+            expect(
+                page.locator("#reproduction-message [data-run-id]")
+            ).to_have_attribute("data-run-id", reproduced_id)
             assert _persisted_run_ids(database) == after_run_ids
             _assert_document_contained(page)
             _assert_visible_surfaces_contained(page)

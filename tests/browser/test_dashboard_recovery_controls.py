@@ -1,4 +1,4 @@
-"""Portable browser evidence for cancellation and stale-run recovery controls."""
+"""Portable browser evidence for cancellation and claim-aware recovery controls."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ from tests.browser.test_dashboard_responsive_acceptance import (
     _assert_document_contained,
 )
 from tests.test_run_service import _configuration, _launcher
-from tests.test_run_stale_recovery import STALE_BEFORE, _create_run
+from tests.test_run_stale_recovery import _create_run
 
 
 CANCEL_RUN_ID = "browser-cancellation-active-run"
@@ -314,7 +314,7 @@ def test_mobile_operator_cancels_active_run_and_late_completion_stays_blocked(
     assert "run_succeeded" not in event_types
 
 
-def test_tablet_operator_recovers_stale_run_and_repeat_is_safe(
+def test_tablet_age_only_stale_recovery_is_visibly_disabled(
     tmp_path: Path,
 ) -> None:
     database, configuration_id = _configuration(tmp_path)
@@ -349,36 +349,24 @@ def test_tablet_operator_recovers_stale_run_and_repeat_is_safe(
                 cutoff = page.locator("#stale-before-input")
                 recover = page.locator("#recover-stale-runs")
                 expect(cutoff).to_be_visible()
+                expect(cutoff).to_be_disabled()
                 expect(recover).to_be_visible()
-
-                action["name"] = "recover stale running run on tablet"
-                cutoff.fill(STALE_BEFORE)
-                cutoff.press("Tab")
-                recover.click()
-                _wait_for_callbacks_to_settle(page, pending)
-                message = page.locator("#stale-recovery-message")
-                expect(message).to_contain_text("Recovered 1 stale fixture run.")
-                expect(message).to_contain_text(STALE_RUN_ID)
-                expect(message).to_contain_text(
-                    "remained running beyond the stale recovery cutoff"
+                expect(recover).to_be_disabled()
+                expect(page.locator("#stale-recovery-message")).to_contain_text(
+                    "Age-only stale-run recovery is unavailable"
+                )
+                expect(page.locator("#stale-recovery-message")).to_contain_text(
+                    "claim-aware reconciliation"
                 )
                 expect(page.locator("#results-operator-context")).to_contain_text(
-                    "Run statusFailed"
+                    "Run statusRunning"
                 )
-                expect(page.locator("#results-operator-context")).to_contain_text(
-                    "Next safe actionReview failure"
+                assert all(
+                    event.event_type != "run_stale_recovered"
+                    for event in service.events_for_run(STALE_RUN_ID)
                 )
-                expect(page.locator("#selected-run-detail")).to_contain_text(
-                    "Fixture run remained running beyond the stale recovery cutoff."
-                )
-                _assert_document_contained(page)
 
-                recovered_events = service.events_for_run(STALE_RUN_ID)
-                assert [event.event_type for event in recovered_events].count(
-                    "run_stale_recovered"
-                ) == 1
-
-                action["name"] = "reload recovered stale run on tablet"
+                action["name"] = "reload disabled recovery on tablet"
                 page.reload(wait_until="networkidle")
                 _wait_for_callbacks_to_settle(page, pending)
                 _assert_results_identity(page, base_url)
@@ -386,28 +374,20 @@ def test_tablet_operator_recovers_stale_run_and_repeat_is_safe(
                     STALE_RUN_ID
                 )
                 expect(page.locator("#results-operator-context")).to_contain_text(
-                    "Run statusFailed"
+                    "Run statusRunning"
                 )
                 _assert_document_contained(page)
 
                 page.get_by_text("Recovery and operator events", exact=True).click()
                 cutoff = page.locator("#stale-before-input")
                 recover = page.locator("#recover-stale-runs")
-                action["name"] = "repeat stale recovery on tablet"
-                cutoff.fill(STALE_BEFORE)
-                cutoff.press("Tab")
-                recover.click()
-                _wait_for_callbacks_to_settle(page, pending)
-                expect(page.locator("#stale-recovery-message")).to_have_text(
-                    "No stale fixture runs matched the supplied cutoff."
-                )
+                expect(cutoff).to_be_disabled()
+                expect(recover).to_be_disabled()
                 repeated_events = service.events_for_run(STALE_RUN_ID)
-                assert [event.event_type for event in repeated_events].count(
-                    "run_stale_recovered"
-                ) == 1
-                assert [event.event_type for event in repeated_events].count(
-                    "run_failed"
-                ) == 1
+                assert all(
+                    event.event_type not in {"run_stale_recovered", "run_failed"}
+                    for event in repeated_events
+                )
                 _assert_document_contained(page)
                 assert_browser_diagnostics_clean(
                     page, events, (server_log,)

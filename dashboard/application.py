@@ -74,6 +74,7 @@ from market_data.equity_contract import (  # noqa: E402
     spym_dashboard_health,
 )
 from orchestration import (  # noqa: E402
+    DurableResearchLaunchService,
     FixtureRunService,
     RunEvent,
     RunServiceError,
@@ -2628,6 +2629,7 @@ def _run_action_controls(
     run: RunSummary | None,
     *,
     launchable_configuration: bool,
+    durable_launch_ready: bool = True,
 ) -> html.Div:
     (
         launch_disabled,
@@ -2637,6 +2639,11 @@ def _run_action_controls(
         cancellation_disabled,
         cancellation_title,
     ) = _run_action_availability(run, launchable_configuration)
+    if not durable_launch_ready:
+        launch_disabled = True
+        launch_title = "Preparing a durable browser-session run ticket."
+        reproduction_disabled = True
+        reproduction_title = "Preparing a durable browser-session reproduction ticket."
     run_succeeded = not reproduction_disabled
     run_running = not cancellation_disabled
     return html.Div(
@@ -3045,6 +3052,16 @@ def _runs_page(
                 data=initial_selected_run_id,
                 storage_type="session",
             ),
+            dcc.Store(
+                id="historical-launch-state",
+                data=None,
+                storage_type="session",
+            ),
+            dcc.Store(
+                id="reproduction-launch-state",
+                data=None,
+                storage_type="session",
+            ),
             html.Section(
                 [
                     html.H2("Run history"),
@@ -3177,6 +3194,7 @@ def _runs_page(
                                                 configurations,
                                             )
                                         ),
+                                        durable_launch_ready=False,
                                     ),
                                 ],
                                 className="panel selected-run-actions-panel",
@@ -3201,8 +3219,9 @@ def _runs_page(
                                             html.H3("Stale-run recovery"),
                                             html.P(
                                                 (
-                                                    "Fail fixture runs that remained created or running "
-                                                    "before an explicit UTC cutoff."
+                                                    "Age alone cannot prove that a durable submission is safe "
+                                                    "to fail. Recovery is disabled until claim-aware evidence "
+                                                    "is available."
                                                 ),
                                                 className="field-help",
                                             ),
@@ -3216,22 +3235,23 @@ def _runs_page(
                                                 type="text",
                                                 placeholder="2026-07-13T12:00:00Z",
                                                 debounce=True,
+                                                disabled=True,
                                                 className="stale-before-input",
                                             ),
                                             html.Button(
                                                 "Recover stale fixture runs",
                                                 id="recover-stale-runs",
                                                 n_clicks=0,
+                                                disabled=True,
                                                 className="secondary-action",
                                                 title=(
-                                                    "Fail created or running fixture runs older than "
-                                                    "the explicit UTC cutoff."
+                                                    "Disabled: a timestamp alone is not sufficient recovery evidence."
                                                 ),
                                             ),
                                             html.Div(
                                                 (
-                                                    "No recovery has been requested. The cutoff must be "
-                                                    "an explicit UTC timestamp."
+                                                    "Age-only stale-run recovery is unavailable. Use claim-aware "
+                                                    "reconciliation after durable evidence exists."
                                                 ),
                                                 id="stale-recovery-message",
                                                 className="stale-recovery-message",
@@ -3879,6 +3899,7 @@ def create_app(
     run_service: FixtureRunService | None = None,
     run_detail_adapter: RunDetailDashboardAdapter | None = None,
     compare_dashboard_adapter: CompareDashboardAdapter | None = None,
+    research_launch_service: DurableResearchLaunchService | None = None,
     catalog_snapshot: CatalogSnapshot | None = None,
     catalog_checked_at: datetime | None = None,
 ) -> Dash:
@@ -3897,6 +3918,11 @@ def create_app(
         resolved_catalog_snapshot,
     )
     runs = run_service or FixtureRunService(database=dashboard_database)
+    research_launches = (
+        research_launch_service
+        or getattr(runs, "research_launch_service", None)
+        or DurableResearchLaunchService(database=dashboard_database)
+    )
     detail_adapter = run_detail_adapter or RunDetailDashboardAdapter(
         database=dashboard_database
     )
@@ -4089,6 +4115,7 @@ def create_app(
         readiness_by_id=readiness_by_id,
         dashboard_database=dashboard_database,
         artifact_root=artifact_root,
+        research_launches=research_launches,
     )
     register_trade_explorer_callbacks(app, detail_adapter=detail_adapter)
     register_compare_backtests_callbacks(
