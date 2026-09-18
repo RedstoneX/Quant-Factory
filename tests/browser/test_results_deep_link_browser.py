@@ -9,9 +9,12 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import expect, sync_playwright
 
+from tests.browser.dashboard_diagnostics import (
+    assert_browser_diagnostics_clean,
+    attach_browser_diagnostics,
+)
 from tests.browser.test_backtest_results_spym_stability import BACKTEST_PATH
 from tests.browser.test_dashboard_lifecycle import (
-    _attach_diagnostics,
     _wait_for_callbacks_to_settle,
     review_compare_server,
 )
@@ -31,14 +34,14 @@ def _expect_selected_run(page, run_id: str) -> None:
 def test_results_deep_link_refresh_history_and_rejection_are_deterministic(
     review_compare_server,
 ) -> None:
-    base_url, _server_log, target_run_id, peer_run_id = review_compare_server
+    base_url, server_log, target_run_id, peer_run_id = review_compare_server
     events: list[dict[str, object]] = []
     action = {"name": "open persisted Results deep link"}
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1280, "height": 900})
-        pending_requests = _attach_diagnostics(page, events, action)
+        pending_requests = attach_browser_diagnostics(page, events, action)
         try:
             target_url = _results_url(base_url, target_run_id)
             peer_url = _results_url(base_url, peer_run_id)
@@ -78,6 +81,8 @@ def test_results_deep_link_refresh_history_and_rejection_are_deterministic(
             )
 
             assert pending_requests == set()
-            assert events == []
+            assert (
+                assert_browser_diagnostics_clean(page, events, (server_log,)) > 0
+            )
         finally:
             browser.close()

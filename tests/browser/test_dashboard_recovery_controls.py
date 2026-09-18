@@ -35,11 +35,11 @@ from tests.browser.test_backtest_results_spym_stability import (
     _visible_routes,
     _wait_for_server,
 )
-from tests.browser.test_dashboard_lifecycle import (
-    _assert_no_browser_errors,
-    _attach_diagnostics,
-    _wait_for_callbacks_to_settle,
+from tests.browser.dashboard_diagnostics import (
+    assert_browser_diagnostics_clean,
+    attach_browser_diagnostics,
 )
+from tests.browser.test_dashboard_lifecycle import _wait_for_callbacks_to_settle
 from tests.browser.test_dashboard_responsive_acceptance import (
     _assert_document_contained,
 )
@@ -59,6 +59,7 @@ def _dashboard_server(database: Path, tmp_path: Path) -> Iterator[tuple[str, Pat
 from pathlib import Path
 import sys
 from dashboard.app import create_app
+from tests.browser.dashboard_diagnostics import install_callback_status_recorder
 from orchestration import FixtureRunService
 from tests.test_run_service import _launcher
 
@@ -68,6 +69,7 @@ app = create_app(
     review_database=database,
     run_service=FixtureRunService(database=database, fixture_launcher=_launcher),
 )
+install_callback_status_recorder(app.server)
 app.run(host="127.0.0.1", port=port, debug=False)
 """
     env = dict(os.environ)
@@ -99,11 +101,6 @@ def _assert_results_identity(page: Page, base_url: str) -> None:
     expect(page.locator("#route-research-backtest-results")).to_be_visible()
     assert _visible_routes(page) == ["route-research-backtest-results"]
     expect(page.locator("#responsive-active-page")).to_have_text("Results")
-
-
-def _assert_diagnostics_clean(events: list[dict[str, Any]]) -> None:
-    _assert_no_browser_errors(events)
-    assert [event for event in events if event["kind"] == "requestfailed"] == []
 
 
 def _write_failure_evidence(
@@ -220,7 +217,7 @@ def test_mobile_operator_cancels_active_run_and_late_completion_stays_blocked(
                 context = browser.new_context(viewport={"width": 390, "height": 844})
                 page = context.new_page()
                 action = {"name": "open active cancellation run on mobile"}
-                pending = _attach_diagnostics(page, events, action)
+                pending = attach_browser_diagnostics(page, events, action)
                 try:
                     page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
                     _wait_for_callbacks_to_settle(page, pending)
@@ -291,7 +288,12 @@ def test_mobile_operator_cancels_active_run_and_late_completion_stays_blocked(
                         "Run statusCancelled"
                     )
                     _assert_document_contained(page)
-                    _assert_diagnostics_clean(events)
+                    assert (
+                        assert_browser_diagnostics_clean(
+                            page, events, (server_log,)
+                        )
+                        > 0
+                    )
                 except Exception:
                     _write_failure_evidence(
                         page, tmp_path, "mobile-cancellation", events, server_log
@@ -336,7 +338,7 @@ def test_tablet_operator_recovers_stale_run_and_repeat_is_safe(
             context = browser.new_context(viewport={"width": 1024, "height": 900})
             page = context.new_page()
             action = {"name": "open stale running run on tablet"}
-            pending = _attach_diagnostics(page, events, action)
+            pending = attach_browser_diagnostics(page, events, action)
             try:
                 page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
                 _wait_for_callbacks_to_settle(page, pending)
@@ -410,7 +412,10 @@ def test_tablet_operator_recovers_stale_run_and_repeat_is_safe(
                     "run_failed"
                 ) == 1
                 _assert_document_contained(page)
-                _assert_diagnostics_clean(events)
+                assert (
+                    assert_browser_diagnostics_clean(page, events, (server_log,))
+                    > 0
+                )
             except Exception:
                 _write_failure_evidence(
                     page, tmp_path, "tablet-stale-recovery", events, server_log
