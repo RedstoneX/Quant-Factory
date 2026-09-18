@@ -1,13 +1,15 @@
 # Milestone 23 Acceptance
 
 Milestone 23 proves the complete equity research workflow before strategy
-discovery. Decision 279 supersedes Decision 277's acceptance for the current
-Results-page experience. Decision 280 accepts a chart-first replacement
-direction, and Decision 281 accepts validated preview controls and layout
-constraints, but neither accepts a complete detailed design or implemented
-experience. Detailed specification approval, implementation, deployment,
-testing, renewed owner acceptance, and the remaining objective evidence are
-still required.
+discovery. Decision 279 supersedes Decision 277's acceptance for the former
+Results-page experience. Decisions 280–281 establish the chart-first direction
+and validated preview constraints. Decision 282 records hands-on owner
+approval of the detailed selected-run Results specification and authorizes
+implementation; it also requires a separate scalable multi-run analysis
+surface whose precise design is still pending. Implementation, deployment,
+testing, licensed-target proof, renewed owner acceptance of the eventual
+implemented experience, and the remaining objective evidence are still
+required.
 
 ## Required scenario matrix
 
@@ -16,7 +18,7 @@ still required.
 | Shell and routing | Direct links, refresh, back/forward, sidebar and home navigation, active state, unknown route, and no renderer errors |
 | Launch and monitoring | Approved saved configuration launches once, status is visible, refresh preserves identity, and inactive pages cannot mutate state |
 | Results | The selected-run truthful price chart is primary; separate Bars (`1m`/`5m`/`15m`/`1D`) and View (`Full run`/`1D`/`1W`/`1M`) controls preserve the immutable backtest period and exact trade events; persisted entry/exit markers map to containing bars and link to the grouped trade ledger; equity, drawdown, benchmark, assumptions, lineage, review, and validation outcomes remain reachable and render only from persisted evidence |
-| Compare and reproduce | Compatible runs compare; a reproduced run retains parent/configuration identity and creates a distinct run record |
+| Run analysis, compare and reproduce | Hundreds or thousands of persisted runs can be aggregated, sliced, ranked, filtered and selected by maximum drawdown, total return, profitable-trade measures and other useful evidence dimensions; one run opens in Results, multiple selected runs can feed Compare; compatible runs compare; a reproduced run retains parent/configuration identity and creates a distinct run record |
 | Review | Human decision and rationale persist durably and conflicts fail before mutation |
 | Failure and recovery | Controlled failure, retry, timeout, cancellation, stale recovery, restart, missing artifact, and corrupt lineage are understandable and fail closed |
 | Responsive operation | Desktop exposes three resettable chart/report resize edges while Metrics and Trades grow in normal page flow without nested vertical scrolling and retain comfortable bottom breathing room; tablet and mobile stack chart then report; every size preserves navigation, hierarchy, selected state, visibly larger and readable trade typography, and complete operator actions |
@@ -28,8 +30,13 @@ weaken protected-data boundaries.
 
 ## Acceptance checklist
 
-- [ ] A detailed responsive chart-first Results specification or mockup is
-      explicitly approved, then implemented within ADR 0008.
+- [x] The detailed responsive chart-first selected-run Results specification
+      is explicitly approved under Decision 282.
+- [ ] The approved selected-run Results specification is implemented within
+      ADR 0008.
+- [ ] A bounded design is reviewed for the required scalable multi-run
+      aggregation, slicing, ranking, filtering and selection surface; one run
+      opens in Results and multiple selected runs can feed Compare.
 - [ ] Bars and View controls remain distinct; truthful aggregation produces the
       expected persisted-fixture counts and preserves exact trade-event
       timestamps and prices while markers map to containing bars.

@@ -1,8 +1,7 @@
 # Quant Factory Dashboard UI Direction
 
-- **Status:** Accepted non-Results 23C-1 specification; Results direction and
-  validated preview constraints accepted under Decisions 280–281 with the
-  remaining detailed replacement specification pending
+- **Status:** Accepted 23C-1 selected-run Results and non-Results specification;
+  scalable multi-run analysis design pending under Decision 282
 - **Owner direction accepted:** 2026-09-18
 - **Objective implementation and browser evidence:** Pending
 
@@ -19,16 +18,16 @@ The approved research flow is:
 
 **Home → Ideas → Set up → Run test → Results → Compare**
 
-The owner-authorized bounded 23C implementation follows this specification
-outside the reopened Results experience. Decision 279 supersedes Decision
-277's acceptance for the current Results page. Decisions 280–281 accept the
-chart-first replacement direction and validated preview constraints recorded
-below but do not approve this document as the complete detailed replacement
-Results specification. The remaining responsive specification or mockup and
-its owner approval remain pending before broad
-implementation. This document does not record Milestone 23 completion or waive
+The owner-authorized bounded 23C implementation follows this specification.
+Decision 279 supersedes Decision 277's acceptance for the former Results page;
+Decisions 280–281 establish the chart-first direction and validated preview
+constraints; and Decision 282 approves the detailed selected-run Results
+specification and authorizes implementation. The separate scalable multi-run
+analysis requirement still needs a bounded design. This document does not
+record Milestone 23 completion or waive
 implementation, deployment, browser, workflow, failure-handling, testing,
-renewed operator acceptance, or documentation evidence. It does not authorize
+licensed-target proof, renewed operator acceptance, or documentation evidence.
+It does not authorize
 strategy discovery, external-source retrieval, paper execution or live
 trading.
 
@@ -273,9 +272,8 @@ States:
 **Purpose:** understand what happened, whether the evidence is usable, and what
 human decision is required.
 
-Decisions 280–281 accept this direction and the validated controls and layout
-constraints below; remaining layout, labels, dimensions and responsive details
-still require a complete mockup or concise specification and owner approval:
+Decisions 280–282 accept this direction, the validated controls and layout
+constraints below, and the detailed selected-run Results specification:
 
 - keep selected-run identity and the persistent quartet in a compact context
   strip that does not crowd out the primary workspace;
@@ -321,9 +319,8 @@ The default selection remains a persisted evidence-backed fixture run, never a
 fabricated example. Saving a review records the prior state, new state, time,
 note and responsible operator through the existing durable service.
 **Reproduce** creates a distinct run from the immutable saved configuration and
-preserves parent identity. The detailed replacement specification must decide
-the remaining analysis labels and information grouping not fixed by Decisions
-280–281 before implementation.
+preserves parent identity. Decision 282 authorizes implementation of this
+selected-run specification; it does not accept implementation evidence.
 
 States:
 
@@ -357,6 +354,15 @@ Show:
 Comparison selection is independent of the Results selection and never changes
 the selected run on another page. Adding or removing a run does not execute or
 reproduce it.
+
+Decision 282 separately requires a scalable multi-run analysis surface for
+hundreds or thousands of persisted runs. It must aggregate, slice, rank, filter
+and select by maximum drawdown, total return, profitable-trade measures and
+other useful evidence dimensions. A single selection opens Results; multiple
+selections can feed Compare. This accepted requirement does not preselect a
+route name, table or chart design, information architecture, storage/query
+architecture, or implementation component. Those details require a bounded
+design before implementation.
 
 States:
 
@@ -532,10 +538,11 @@ aliases or test-only presentation.
 containers/callback ownership comply with ADR 0008. 23C-3 additionally requires
 real-browser proof for every registered route at desktop, tablet and mobile
 sizes, the complete operator workflow and failure behavior, and renewed owner
-acceptance of the implemented replacement Results experience. Decisions
-280–281 accept the chart-first direction and validated preview constraints
-only: remaining detailed specification approval, implementation, deployment,
-tests and renewed operator acceptance remain pending.
+acceptance of the implemented replacement Results experience. Decision 282
+completes selected-run specification approval only: implementation, deployment,
+tests, licensed-target proof and renewed operator acceptance remain pending.
+The separately required scalable multi-run surface still needs a bounded
+design before implementation.
 
 ## Explicit exclusions
 

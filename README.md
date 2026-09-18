@@ -23,12 +23,15 @@ micro-live work, and other venues follow only at the later gates in
 Existing RSI, MES opening-range breakout, and SPY Donchian work is retained as historical evidence and fixture coverage. None is an active profitability candidate.
 
 No systematic strategy discovery or profitability search may resume until
-Milestone 23 passes. Decision 279 records the owner's rejection of the current
+Milestone 23 passes. Decision 279 records the owner's rejection of the former
 Results-page comprehension and flow. Decision 280 accepts a chart-first
 replacement direction built around a truthful selected-run price chart,
-persisted trade markers, and a linked grouped trade ledger. The detailed
-specification, implementation, tests, deployment decision, renewed owner
-acceptance, and remaining objective technical gates are not yet complete.
+persisted trade markers, and a linked grouped trade ledger. Decision 282
+records the owner's approval of the detailed selected-run specification and
+requires a separate scalable multi-run analysis surface. Implementation,
+tests, deployment, licensed-target proof, renewed owner acceptance of the
+implemented experience, and remaining objective technical gates are not yet
+complete.
 
 Decision 275 is implemented: this sanitized clean-history public repository is
 the canonical source of truth, and the original repository is retained as a

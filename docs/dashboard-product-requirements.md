@@ -15,16 +15,17 @@ behavior; they do not by themselves establish the remaining technical
 Milestone 23 pass.
 
 The project owner initially accepted the dashboard/operator direction under
-Decision 277, then rejected the current Results-page comprehension and task
-flow after further use. Decision 279 supersedes that acceptance for this
+Decision 277, then rejected the former Results-page comprehension and task
+flow after further use. Decision 279 supersedes that acceptance for the former
 experience. Decision 280 accepts the replacement direction: the selected-run
 truthful OHLC/price chart is primary, persisted entry/exit markers link to a
 ledger grouped by completed trade, TradingView's backtesting Strategy Report
 is the primary UX reference, and QAMC informs only docking, resizing and linked
-panel mechanics rather than information density. The proposed detailed
-responsive specification below is conceptual and remains pending owner
-approval, which must precede broad implementation. Implementation, deployment,
-tests and renewed acceptance of the implemented experience remain pending.
+panel mechanics rather than information density. After hands-on use of the
+private interactive preview, Decision 282 approves the detailed selected-run
+specification below as intuitive and authorizes implementation. Implementation,
+deployment, tests, licensed-target proof and renewed acceptance of the eventual
+implemented experience remain pending.
 Retain Plotly Dash and VectorBT
 Pro; use Dash AG Grid and Dash Bootstrap Components where appropriate. Use
 capable retail-trader language while remaining understandable to a novice
@@ -35,22 +36,24 @@ truthful interval aggregation, exact trade-event preservation, resettable
 desktop resizing, normal-flow Metrics and Trades, responsive stacking, and
 visibly larger, more readable trade typography. Palette revision remains
 deferred and the preview does not establish a final palette. These constraints
-do not accept the remaining detailed design or implemented experience.
+did not by themselves accept the detailed design or implemented experience;
+Decision 282 supplies the subsequent detailed selected-run design approval.
 
 A separate September 17 local-only Ideas prototype browser-validated the
 extended flow on desktop and mobile. It is evidence for the approved direction,
-not a production deployment or substitute for the detailed Results design and
-renewed owner acceptance required by Decisions 279–281; production remains
+not a production deployment or substitute for Results implementation,
+licensed-target proof and renewed acceptance required by Decision 282;
+production remains
 unchanged. See the retained
 prototype and validation evidence referenced in [MILESTONES](MILESTONES.md#current-phase).
 
 ## Target operator information hierarchy
 
 Decision 274 extends the Decision 273 navigation direction to Home → Ideas →
-Set up → Run test → Results → Compare. Decisions 280–281 accept the chart-first
-Results direction and validated preview constraints while leaving the remaining
-detailed specification, implementation and operator acceptance open;
-implementation conformance and M23 technical completion remain unconfirmed.
+Set up → Run test → Results → Compare. Decisions 280–282 accept the chart-first
+Results direction, validated preview constraints and detailed selected-run
+specification while leaving implementation and eventual operator acceptance
+open; implementation conformance and M23 technical completion remain unconfirmed.
 During 23C, the Ideas page may support safe
 draft and source-reference capture so the operator can review the complete
 research interface. An inactive Ideas route must not fetch
@@ -131,6 +134,22 @@ navigation and review flow:
 On Results, run history is a secondary **Change run** surface. It must not
 precede or displace the selected-run chart workspace.
 
+### Scalable multi-run analysis
+
+At VectorBT scale, hundreds or thousands of persisted runs require a separate
+analysis surface rather than loading their aggregate exploration into the
+selected-run Results workspace. It must support aggregation, slicing, ranking,
+filtering and selection by maximum drawdown, total return, profitable-trade
+measures and other useful evidence dimensions. Metric names and populations
+must remain explicit so a profitable-trade count is not silently confused with
+a percentage or another basis. Selecting one run opens that exact run in
+Results; selecting multiple runs can feed Compare.
+
+Decision 282 accepts this product requirement, not a particular route name,
+information architecture, control set, storage/query design or implementation.
+A bounded design must establish those details before implementation and must
+remain truthful and usable at the stated scale.
+
 ### Run overview
 
 - run identity and timestamps;
@@ -193,15 +212,14 @@ a report-first block that pushes the price/trade workspace below a long page.
 - palette revision is deferred; preview acceptance does not select a final
   palette.
 
-## Proposed detailed Results specification — pending owner approval
+## Approved detailed selected-run Results specification
 
-**Status: CONCEPTUAL / NOT AUTHORIZED FOR IMPLEMENTATION.** This section is
-the review draft required by Decisions 279–281. It translates the already
-accepted chart-first direction and validated-preview constraints into testable
-behavior; it does not approve the remaining design, claim implementation or
-deployment, or change Milestone 23 status. If the owner accepts it, record that
-decision through the documentation-governance procedure before broad Results
-implementation begins.
+**Status: ACCEPTED DESIGN / IMPLEMENTATION AUTHORIZED.** Decision 282 records
+the owner's hands-on approval of this selected-run specification. It translates
+the chart-first direction and validated-preview constraints into testable
+behavior and may now be implemented. This status does not claim implementation,
+deployment, testing, licensed-target proof, acceptance of the eventual
+implemented experience, or Milestone 23 completion.
 
 ### Operator task and page order
 
@@ -470,26 +488,29 @@ The eventual implementation is conformant only when all applicable checks pass:
    owner review then covers comprehension, visual hierarchy and trader-facing
    language; automated checks do not substitute for renewed acceptance.
 
-### Owner-visible choices still unresolved
+### Owner-visible implementation boundary
 
-The owner review should decide only the visible choices that materially change
-how the page feels or opens. Decisions 279–281 did not ratify them merely
-because the private preview used one option:
+The owner approved the preview's overall selected-run interaction and visual
+hierarchy, including the discoverable **Change run** control, direct chart pan
+and mouse-wheel zoom, resizable panels, Metrics and Trades. A momentary request
+to change mouse-wheel/Control-key behavior was withdrawn after the owner
+confirmed the existing zoom interaction already worked. The following details
+remain implementation or later-review choices rather than new product gates:
 
 1. the final visual direction: palette, chart rendering style, typography and
    overall density (including whether to return to the earlier blue/white
    treatment);
-2. how **Change run** appears: anchored panel, drawer or dialog; and
+2. the exact implementation form of **Change run** (anchored panel, drawer or
+   dialog), provided it preserves the approved discoverability and behavior; and
 3. the opening chart behavior: independently selected initial Bars and View
    values, and what the chart focuses on when no trade is selected. After the
    page opens, Bars and View remain independent as required by Decision 281.
 
-### Proposed engineering defaults — unratified
+### Engineering defaults
 
-The following are evidence-based implementation defaults, not questions the
-owner must answer and not accepted decisions. An implementation review may
-change them without changing product mandate, provided the contract above and
-owner-visible choices remain intact:
+The following are evidence-based implementation defaults rather than separate
+owner decisions. An implementation review may change them without changing
+product mandate, provided the accepted contract above remains intact:
 
 - Use the validated preview's headline metric quartet (total return, maximum
   drawdown, profitable closed trades, and closed-trade count) before the other
@@ -676,16 +697,15 @@ Visual polish alone is insufficient. The dashboard must operate the complete res
 
 ## Milestone 23C design and implementation gate
 
-23C-1 must produce an approved concise page specification or mockup before
-new broad Results-page implementation. The detailed draft above is conceptual
-and not yet approved. Decisions 280–281 accept the chart-first direction and
-validated preview constraints but not the complete detailed replacement. The
-approved specification must cover the
+23C-1 is complete for the selected-run Results experience under Decision 282.
+The approved specification covers the
 approved workflow, responsive desktop/tablet/mobile behavior, novice language,
 the four persistent selected-run fields, truthful chart/ledger linkage,
-progressive disclosure, and labelled technical drill-downs. 23C-2 retains the
-ADR 0008 mounted-route architecture and uses Dash AG Grid and Dash Bootstrap
-Components as approved implementation components. Detailed design approval,
-implementation, deployment, automated and browser testing, and renewed owner
-acceptance of the implemented Results experience remain pending; 23C-3 also
-requires real-browser lifecycle and end-to-end workflow evidence.
+progressive disclosure, and labelled technical drill-downs. The separate
+Decision 282 scalable multi-run requirement still needs a bounded design; its
+exact UI and architecture are not pre-approved. 23C-2 retains the ADR 0008
+mounted-route architecture and uses Dash AG Grid and Dash Bootstrap Components
+as approved implementation components. Implementation, deployment, automated
+and browser testing, licensed-target proof, and renewed owner acceptance of the
+implemented Results experience remain pending; 23C-3 also requires real-browser
+lifecycle and end-to-end workflow evidence.
