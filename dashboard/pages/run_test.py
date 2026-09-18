@@ -4,14 +4,22 @@ from __future__ import annotations
 
 from dash import dcc, html
 
+from dashboard.components.configuration_summary import configuration_summary
 from dashboard.components.operator_context import operator_context
 from dashboard.pages.common import page_heading
-from dashboard.run_adapter import SavedConfigurationView, list_saved_configurations
+from dashboard.run_adapter import (
+    CatalogSnapshot,
+    SavedConfigurationView,
+    configuration_readiness_by_id,
+    list_saved_configurations,
+)
 
 
 def layout(
     *,
     configurations: tuple[SavedConfigurationView, ...] | None = None,
+    catalog_snapshot: CatalogSnapshot | None = None,
+    loading: bool = False,
 ) -> html.Div:
     """Render one explicit, route-gated fixture launch control."""
 
@@ -20,36 +28,32 @@ def layout(
         if configurations is None
         else configurations
     )
-    from dashboard.application import _configuration_preview, _strategy_research_path
+    from dashboard.application import _strategy_research_path
 
-    selected = available[0] if available else None
-    if selected is None:
-        preview = html.Div(
-            [
-                html.H2("No saved setup selected"),
-                html.P(
-                    "Return to Set up and choose an approved saved fixture configuration.",
-                    className="empty-state-copy",
-                ),
-                dcc.Link("Return to Set up", href="/research/setup", className="secondary-action"),
-            ],
-            id="run-configuration-preview",
-            className="panel empty-state",
-        )
+    readiness_by_id = configuration_readiness_by_id(available, catalog_snapshot)
+    selected = next(
+        (
+            configuration
+            for configuration in available
+            if readiness_by_id[configuration.configuration_id].ready
+        ),
+        available[0] if available else None,
+    )
+    readiness = readiness_by_id.get(selected.configuration_id) if selected else None
+    preview = configuration_summary(
+        readiness,
+        component_id="run-configuration-preview",
+        loading=loading,
+    )
+    if readiness is None:
         launch_disabled = True
         launch_title = "No approved saved configuration is available."
     else:
-        preview_component = _configuration_preview(selected)
-        preview = html.Div(
-            preview_component.children,
-            id="run-configuration-preview",
-            className="run-configuration-preview",
-        )
-        launch_disabled = not selected.launchable
+        launch_disabled = loading or not readiness.ready
         launch_title = (
             "Run this immutable saved fixture configuration."
-            if selected.launchable
-            else "This saved configuration is not launchable."
+            if readiness.ready and not loading
+            else "Resolve every preflight blocker before running this test."
         )
 
     return html.Div(

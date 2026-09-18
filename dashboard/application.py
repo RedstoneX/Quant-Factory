@@ -50,7 +50,9 @@ from dashboard.routing import (  # noqa: E402
     route_container_id as _route_container_id,
 )
 from dashboard.run_adapter import (  # noqa: E402
+    CatalogSnapshot,
     SavedConfigurationView,
+    configuration_readiness_by_id,
     list_saved_configurations,
 )
 from dashboard.run_detail_adapter import (  # noqa: E402
@@ -690,113 +692,6 @@ def _overview_page(
             selected_run_id=selected_run_id,
             project_status=project_status,
         )
-    )
-
-
-def _configuration_preview(
-    configuration: SavedConfigurationView,
-) -> html.Div:
-    readiness_class = (
-        "configuration-status configuration-status-ready"
-        if configuration.launchable
-        else "configuration-status configuration-status-blocked"
-    )
-    readiness_text = (
-        "Approved for infrastructure launch"
-        if configuration.launchable
-        else "Not approved for launch"
-    )
-
-    return html.Div(
-        [
-            html.Div(
-                [
-                    html.Span(readiness_text, className=readiness_class),
-                    html.Code(
-                        configuration.configuration_id,
-                        className="configuration-identity",
-                    ),
-                ],
-                className="configuration-preview-header",
-            ),
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            html.Span("Strategy", className="summary-label"),
-                            html.Strong(configuration.strategy_name),
-                            html.P(
-                                (
-                                    f"{configuration.strategy_id}@"
-                                    f"{configuration.strategy_version}"
-                                ),
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                    html.Div(
-                        [
-                            html.Span("Experiment", className="summary-label"),
-                            html.Strong(configuration.experiment_id),
-                            html.P(
-                                configuration.lifecycle.replace("_", " ").title(),
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                    html.Div(
-                        [
-                            html.Span("Execution", className="summary-label"),
-                            html.Strong(
-                                str(
-                                    configuration.execution.get(
-                                        "kind",
-                                        configuration.execution.get(
-                                            "mode",
-                                            "Not specified",
-                                        ),
-                                    )
-                                ).replace("_", " ").title()
-                            ),
-                            html.P(
-                                f"Config hash {configuration.config_hash[:12]}…",
-                                className="summary-detail",
-                            ),
-                        ],
-                        className="summary-card",
-                    ),
-                ],
-                className="summary-grid configuration-summary-grid",
-            ),
-            html.Div(
-                [
-                    html.Section(
-                        [
-                            html.H3("Parameters"),
-                            _operator_mapping_fields(
-                                configuration.parameters,
-                                empty="No parameters recorded.",
-                            ),
-                        ],
-                        className="panel configuration-detail-panel",
-                    ),
-                    html.Section(
-                        [
-                            html.H3("Execution assumptions"),
-                            _operator_mapping_fields(
-                                configuration.execution,
-                                empty="No execution assumptions recorded.",
-                            ),
-                        ],
-                        className="panel configuration-detail-panel",
-                    ),
-                ],
-                className="two-column configuration-detail-grid",
-            ),
-        ],
-        id="configuration-preview",
     )
 
 
@@ -3841,11 +3736,17 @@ def page_for_path(
     if route == "/research/setup":
         from dashboard.pages.setup import layout as setup_layout
 
-        return setup_layout(configurations=configurations)
+        return setup_layout(
+            configurations=configurations,
+            catalog_snapshot=catalog_snapshot,
+        )
     if route == "/research/run-test":
         from dashboard.pages.run_test import layout as run_test_layout
 
-        return run_test_layout(configurations=configurations)
+        return run_test_layout(
+            configurations=configurations,
+            catalog_snapshot=catalog_snapshot,
+        )
     if route == "/research/market-data":
         from dashboard.pages.market_data import layout as market_data_layout
 
@@ -3945,7 +3846,11 @@ def create_layout(
     artifact_root: Path | None = None,
     all_runs: tuple[RunSummary, ...] = (),
     history_rows: tuple[dict[str, object], ...] = (),
+    catalog_snapshot: CatalogSnapshot | None = None,
 ) -> html.Div:
+    resolved_catalog_snapshot = (
+        inspect_catalog() if catalog_snapshot is None else catalog_snapshot
+    )
     return create_dashboard_layout(
         context,
         configurations,
@@ -3953,7 +3858,7 @@ def create_layout(
             page_for_path,
             dashboard_database=dashboard_database,
             artifact_root=artifact_root,
-            catalog_snapshot=inspect_catalog(),
+            catalog_snapshot=resolved_catalog_snapshot,
         ),
         initial_pathname=initial_pathname,
         recent_runs=recent_runs,
@@ -3975,6 +3880,11 @@ def create_app(
     # download prices or run the legacy RSI parameter grid as a side effect.
     dashboard_database = database_path(review_database)
     configurations = list_saved_configurations(dashboard_database)
+    catalog_snapshot = inspect_catalog()
+    readiness_by_id = configuration_readiness_by_id(
+        configurations,
+        catalog_snapshot,
+    )
     runs = run_service or FixtureRunService(database=dashboard_database)
     detail_adapter = run_detail_adapter or RunDetailDashboardAdapter(
         database=dashboard_database
@@ -4103,6 +4013,7 @@ def create_app(
         "selected_run_id": selected_run_id,
         "all_runs": all_run_records,
         "history_rows": history_records,
+        "catalog_snapshot": catalog_snapshot,
     }
 
     def serve_layout() -> html.Div:
@@ -4144,6 +4055,7 @@ def create_app(
     )
     from dashboard.callbacks.ideas import register_ideas_callbacks
     from dashboard.callbacks.routing import register_routing_callbacks
+    from dashboard.callbacks.setup import register_setup_callbacks
     from dashboard.callbacks.strategy_review import (
         register_strategy_review_callbacks,
     )
@@ -4151,11 +4063,13 @@ def create_app(
 
     register_routing_callbacks(app)
     register_ideas_callbacks(app)
+    register_setup_callbacks(app, readiness_by_id=readiness_by_id)
     register_backtest_results_callbacks(
         app,
         runs=runs,
         detail_adapter=detail_adapter,
         configurations=configurations,
+        readiness_by_id=readiness_by_id,
         dashboard_database=dashboard_database,
         artifact_root=artifact_root,
     )
