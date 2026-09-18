@@ -87,14 +87,15 @@ authorization forward within its approved scope and do not repeatedly ask.
 - The goal is to reject false edges, preserve reproducible evidence, paper trade qualified strategies, reconcile model and venue state, and deploy only tightly bounded capital under explicit human approval and independent risk controls.
 - The dashboard is the primary operator interface. Python, terminals, raw CSV/JSON, and backend logs are implementation details.
 - RSI, MES opening-range breakout, and SPY Donchian are infrastructure fixtures and historical evidence, not active profitability candidates.
-- Decision 279 supersedes Decision 277's acceptance of the current Results-page
-  comprehension and flow. Decision 280 accepts the replacement direction: the
-  selected-run truthful price chart is the primary workspace, persisted
-  entry/exit markers link to a grouped trade ledger, TradingView's backtesting
-  Strategy Report is the primary UX reference, and QAMC is a reference only
-  for panel, resizing, and chart/ledger-link mechanics rather than information
-  density. A detailed mockup or concise specification, implementation,
-  deployment, tests, and renewed operator acceptance remain pending. Strategy
+- Decision 279 supersedes Decision 277's acceptance of the former Results-page
+  comprehension and flow. Decisions 280–281 establish the chart-first and
+  validated-preview requirements. Decision 282 records the owner's hands-on
+  approval of the detailed selected-run Results specification and authorizes
+  its implementation. A separate scalable multi-run analysis surface must
+  aggregate, slice, rank, filter and select hundreds or thousands of persisted
+  runs; its exact design remains pending. Selected-run implementation,
+  deployment, tests, licensed-target proof, and renewed acceptance of the
+  eventual implemented page remain pending. Strategy
   discovery remains blocked until Milestone 23 passes those gates and its
   remaining browser-lifecycle, end-to-end workflow, failure-handling, and
   documentation/status-synchronization gates.
@@ -120,9 +121,10 @@ Decision 274 sets the current order. The milestone numbers remain unchanged;
 the remaining Milestone 24 paper activation follows strategy qualification even
 though its deployment and offline execution preparation is already retained.
 
-1. Complete the remaining Milestone 23 dashboard gates, including the detailed
-   Decision 280 chart-first Results specification, implementation, evidence,
-   and renewed owner acceptance.
+1. Complete the remaining Milestone 23 dashboard gates, including implementation
+   of the owner-approved chart-first Results specification, design of the
+   required scalable multi-run analysis surface, evidence, and renewed owner
+   acceptance of the implemented experience.
 2. Conduct controlled equity strategy intake and research backtesting under
    Milestone 25 until a defensible edge qualifies.
 3. Resume and complete the remaining Milestone 24 paper activation only after

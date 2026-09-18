@@ -265,3 +265,29 @@ explicitly.
      implementation or deployment, accept Milestone 23, authorize production
      changes, or relax any research, credential, execution, paper, or
      live-capital gate.
+
+282. **Selected-run Results specification approved; scalable multi-run
+     analysis required (accepted 2026-09-18).** After hands-on use of the
+     private interactive Results preview, the owner explicitly approved the
+     detailed selected-run design as intuitive and authorized its application
+     implementation. The approval includes the primary price chart, direct
+     chart pan and mouse-wheel zoom, resizable chart/report panels, the
+     Metrics summary and supporting chart, the grouped Trades view, and the
+     secondary **Change run** interaction. The owner withdrew the momentary
+     suggestion that zoom should require a Control-key modifier after
+     confirming that the existing interaction already worked. This completes
+     the 23C-1 selected-run design approval gate; it does not claim that the
+     application is implemented, deployed, tested, licensed-target validated,
+     or accepted in its eventual implemented form.
+
+     At VectorBT scale, the product must also provide a separate scalable
+     multi-run analysis surface for hundreds or thousands of persisted runs.
+     It must support aggregation, slicing, ranking, filtering and selection by
+     maximum drawdown, total return, profitable-trade measures and other useful
+     evidence dimensions. One selected run continues to open in Results;
+     selecting multiple runs can feed Compare. The surface's name, precise
+     information architecture, controls and implementation remain to be
+     designed and are not approved merely by this requirement. This decision
+     does not change ADR 0008, deploy production, accept Milestone 23, begin
+     strategy discovery, authorize protected-data evaluation or credentials,
+     activate paper execution, or permit live capital.

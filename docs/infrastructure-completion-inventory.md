@@ -51,6 +51,7 @@ agent policy](ai-programming-agent-policy.md).
 | Dashboard navigation | Single-page minimal dashboard | Multi-page product navigation with consistent run context | Required | Database adapters | Operator reaches launch, history, results, evidence, compare and system status | Entire product | Claude Code local implementation |
 | Dashboard experiment launch | Not implemented | Approved dropdowns/forms, validation and job submission | Required | Orchestration | Fixture run launches without Python or terminal | Launch page | Claude Code local implementation |
 | Dashboard history | Not durable | Searchable/filterable persistent run history | Required | Database | Runs remain after restart and can be reopened | History page | Claude Code local implementation |
+| Dashboard multi-run analysis | No dedicated large-run analysis surface in the historical baseline | Design a separate scalable surface that aggregates, slices, ranks, filters and selects hundreds or thousands of persisted runs by maximum drawdown, total return, profitable-trade measures and other useful evidence dimensions; one selected run opens in Results and multiple selected runs can feed Compare | Required | Database, validated metric definitions, Results and Compare selection contracts | The bounded design is approved before implementation; large persisted-run sets remain truthful and usable without overloading selected-run Results | Separate analysis surface; exact name and design pending | ChatGPT product design; Claude Code local implementation |
 | Dashboard charts | Equity and drawdown for selected RSI row | Selected-run truthful price chart as the primary Results workspace; separate Bars and View controls; truthful persisted-OHLC aggregation; resettable desktop chart/report resizing; supporting VectorBT-backed equity, drawdown and benchmark analysis | Required | Artifact adapters | Persisted charts render for a stored fixture run without rerunning the grid or reconstructing missing evidence; the validated preview fixture produced 53,528/13,340/4,474/173 bars for 1m/5m/15m/1D, which is evidence rather than a universal count target; resize/reset and responsive stacking preserve selected state | Results page | Claude Code local implementation |
 | Dashboard trades | Not complete | Persisted entries/exits on the price chart linked to a ledger grouped by completed trade; exact events map to containing bars; accessible drill-down uses visibly larger, more readable typography and normal page flow without nested vertical scrolling | Required | Portfolio/trade artifact | Selecting a fixture trade focuses useful entry/exit context and exposes exact timestamps, prices, size, costs and P&L at every supported bar interval; page retains comfortable bottom breathing room; the validated preview's 52-pixel spacing and two-CSS-pixel typography increase are evidence rather than fixed targets | Results chart and trade ledger | Claude Code local implementation |
 | Dashboard evidence explanations | Minimal review status | Unified pass/fail/insufficient evidence, rule details and stage progression | Required | Evidence model | Operator understands why progression stopped | Evidence page | Claude Code local implementation |
@@ -74,8 +75,9 @@ agent policy](ai-programming-agent-policy.md).
 ## Hard gate
 
 No systematic strategy discovery, optimization for profitability, or promotion
-search may resume until Milestone 23 passes. Decisions 280–281 accept the
-chart-first Results direction and validated preview constraints, but remaining
-detailed specification approval,
-implementation, deployment, testing, renewed operator acceptance, and the
-remaining objective technical gates are not yet complete.
+search may resume until Milestone 23 passes. Decisions 280–282 accept the
+chart-first direction, validated preview constraints and detailed selected-run
+Results specification. Selected-run implementation, deployment, automated and
+browser testing, licensed-target proof, final owner acceptance of the eventual
+implemented page, the bounded scalable multi-run design, and the remaining
+objective technical gates are not yet complete.

@@ -20,20 +20,18 @@ navigation, not competing authorities.
 ## Current resume point
 
 Milestone 23 is the active gate. Decision 279 records the owner's rejection of
-the current Results-page comprehension and flow, superseding Decision 277's
-acceptance for that experience. Decision 280 accepts the chart-first
-replacement direction: a truthful selected-run price chart with persisted
-entry/exit markers and a linked grouped trade ledger, using TradingView's
-backtesting Strategy Report as the primary UX reference and QAMC only for panel
-and linking mechanics. Decision 281 accepts the validated preview's separate
-Bars and View controls, truthful interval aggregation, exact trade-event
-preservation, resettable desktop panel resizing, normal-flow report content,
-responsive stacking, and visibly larger, more readable trade typography while
-deferring final palette selection. The remaining
-detailed specification or mockup, its owner approval,
-implementation, deployment, testing, renewed operator acceptance,
-and the remaining browser-lifecycle, end-to-end workflow, failure-handling,
-and documentation/status gates remain pending. Strategy discovery remains
+the former Results-page comprehension and flow. Decisions 280–281 establish
+the chart-first direction and validated preview constraints. Decision 282
+records the owner's hands-on approval of the detailed selected-run Results
+specification as intuitive, including chart pan/zoom, panel resizing, Metrics,
+Trades and Change run, and authorizes implementation. Decision 282 also
+requires a separate scalable multi-run surface to aggregate, slice, rank,
+filter and select hundreds or thousands of persisted runs; its exact UI,
+architecture and name remain to be designed. Selected-run implementation,
+deployment, testing, licensed-target proof, renewed acceptance of the eventual
+implemented experience, and the remaining browser-lifecycle, end-to-end
+workflow, failure-handling, and documentation/status gates remain pending.
+Strategy discovery remains
 blocked. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
 implementation. That bounded implementation is merged in canonical source for
