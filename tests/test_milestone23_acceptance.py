@@ -304,9 +304,20 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
 
     app = _app(database, service, adapter)
     reproduce = _callback_function(app, "reproduction-message")
-    message, class_name = reproduce(1, "m23-spym-success")
-    assert class_name == "reproduction-message reproduction-message-success"
-    assert "Allowed differences" in str(message)
+    store, message, class_name, disabled, title, label = reproduce(
+        1,
+        "m23-spym-success",
+    )
+    assert store["submitted"]["operation"] == "reproduction"
+    assert store["submitted"]["source_run_id"] == "m23-spym-success"
+    assert class_name == "reproduction-message"
+    rendered_message = str(message)
+    assert "Fixture acknowledged" in rendered_message
+    assert "Submission: Acknowledged" in rendered_message
+    assert "Run status: Succeeded" in rendered_message
+    assert disabled is False
+    assert title == "Start a new durable run ticket."
+    assert label == "Reproduce selected run again"
 
     persistence = PersistenceService(database)
     try:
