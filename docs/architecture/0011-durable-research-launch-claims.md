@@ -15,13 +15,15 @@
   test, historical-relaunch, and reproduction integrations were implemented,
   tested, and merged through PRs #35–#38. PR #42 added the claim-core suite to
   required Portable CI and separately merged focused claim-aware stale-recovery
-  tests. The required Portable CI selection now includes both the claim-core
-  and stale-recovery files after the latter passed in a clean Python 3.12
-  environment containing only `requirements-ci.txt`. This is canonical-source
-  implementation status at revision
-  `5462c796809e83634959cbd3e7fa75b81ec2e309`, not production deployment,
-  current licensed-target SPYM proof, complete Milestone 23 workflow evidence,
-  renewed Results acceptance, or milestone completion.
+  tests. At revision
+  `5462c796809e83634959cbd3e7fa75b81ec2e309`, that is canonical-source
+  implementation with focused/browser-fixture stale-recovery evidence. PR #50
+  separately adds the stale-recovery file to required Portable CI after it
+  passed in a clean Python 3.12 environment containing only
+  `requirements-ci.txt`. Neither the anchored source evidence nor this CI
+  enforcement establishes production deployment, current licensed-target SPYM
+  proof, complete Milestone 23 workflow evidence, renewed Results acceptance,
+  or milestone completion.
 
 > **Acceptance boundary:** On 2026-09-18 Terry approved the safer run-ticket
 > design in plain language: Quant Factory must save an accepted run identity
@@ -453,11 +455,11 @@ PRs #35–#38 merged the schema, service, fixture-launch and dashboard integrati
 after focused persistence, concurrency, fault, callback and browser-lifecycle
 validation. PR #42 placed the claim-aware core and stale-recovery coverage in
 the merged source and added the claim-core suite to the required Portable CI
-selection. The required selection now also runs the focused stale-recovery
-suite after a clean-environment portability proof. Later PRs #45 and
-#47 retained the fail-closed recovery contract and controlled-failure browser
-evidence. Each pull request passed the repository's three required checks. The
-criteria below remain the acceptance contract and must stay green.
+selection. PR #50 separately adds the focused stale-recovery suite to the
+required selection after a clean-environment portability proof. Later PRs #45
+and #47 retained the fail-closed recovery contract and controlled-failure
+browser evidence. Each pull request passed the repository's three required
+checks. The criteria below remain the acceptance contract and must stay green.
 
 The successful current-revision integrated SPYM proof in a licensed target,
 the complete end-to-end operator workflow, production deployment and Milestone

@@ -37,9 +37,10 @@ and documentation/status gates remain pending. Strategy discovery remains
 blocked. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
 implementation. That bounded implementation is merged in canonical source for
-Run test, historical relaunch, and reproduction, with claim-core and focused
-stale-recovery coverage in required Portable CI plus separate browser-fixture
-recovery evidence. Production deployment, current licensed-target SPYM proof,
+Run test, historical relaunch, and reproduction. PR #50 adds focused
+stale-recovery coverage beside the claim-core suite in required Portable CI;
+separate browser-fixture recovery evidence remains retained. Production
+deployment, current licensed-target SPYM proof,
 the complete operator workflow, and Milestone 23 acceptance remain unproven;
 the source implementation does not close Milestone 23.
 Decision 274 then orders controlled Milestone 25 research until a defensible
