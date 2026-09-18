@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
-import vectorbtpro as vbt
 
 from market_data import DataAudit, format_audit, load_market_data
 from strategies import get_strategy
@@ -27,6 +26,7 @@ from backtesting.validation import (
     validate_signals,
 )
 from backtesting.screening import ScreeningResult, screen_metrics
+from backtesting.vectorbt_runtime import require_vectorbtpro
 
 METRIC_COLUMNS = (
     "total_return",
@@ -108,8 +108,9 @@ def _construct_portfolio(
     data: pd.DataFrame,
     aligned: SignalResult,
     config: ExperimentConfig,
-) -> vbt.Portfolio:
+) -> Any:
     """Call VectorBT only after the caller has passed every blocking gate."""
+    vbt = require_vectorbtpro()
     execution = config.execution
     close = data["Close"] * execution.price_multiplier
     signal_args: dict[str, Any]
@@ -198,13 +199,13 @@ def build_portfolio(
     data: pd.DataFrame,
     signals: SignalResult,
     config: ExperimentConfig,
-) -> vbt.Portfolio:
+) -> Any:
     """Validate, align, and construct one portfolio."""
     aligned, _ = validate_for_simulation(data, signals, config)
     return _construct_portfolio(data, aligned, config)
 
 
-def extract_metrics(portfolio: vbt.Portfolio) -> dict[str, float | int]:
+def extract_metrics(portfolio: Any) -> dict[str, float | int]:
     """Extract the stable metric set shared by experiment outputs."""
     return {
         "total_return": _as_float(portfolio.total_return),

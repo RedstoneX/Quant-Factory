@@ -3,8 +3,8 @@
 import warnings
 
 import pandas as pd
-import vectorbtpro as vbt
 
+from backtesting.vectorbt_runtime import require_vectorbtpro
 from market_data.models import MarketDataConfig, OHLCV_COLUMNS
 
 
@@ -12,6 +12,7 @@ def download_yahoo_data(
     config: MarketDataConfig,
     completed_through: pd.Timestamp,
 ) -> tuple[pd.DataFrame, list[str]]:
+    vbt = require_vectorbtpro()
     end_exclusive = (
         pd.Timestamp(completed_through) + pd.Timedelta(days=1)
     ).date().isoformat()

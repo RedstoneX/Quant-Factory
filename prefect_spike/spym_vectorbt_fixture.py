@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 import pandas as pd
-import vectorbtpro as vbt
 
 from backtesting.experiments import (
     ExecutionConfig,
@@ -17,6 +16,7 @@ from backtesting.experiments import (
     execute_experiment,
 )
 from backtesting.screening.models import ScreeningConfig
+from backtesting.vectorbt_runtime import require_vectorbtpro
 from market_data import DataAudit, MarketDataConfig
 from market_data.catalog import (
     DatasetManifest,
@@ -547,6 +547,7 @@ def _benchmark_document(
     fixture: SPYMFixtureExecution,
     portfolio,
 ) -> dict[str, Any]:
+    vbt = require_vectorbtpro()
     execution = fixture.config.execution
     close = fixture.data["Close"].astype(float) * execution.price_multiplier
     benchmark_portfolio = vbt.Portfolio.from_holding(

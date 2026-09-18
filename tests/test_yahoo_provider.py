@@ -1,6 +1,7 @@
 """Yahoo provider and audit metadata."""
 
 import warnings
+from types import SimpleNamespace
 
 import pandas as pd
 
@@ -32,7 +33,11 @@ def test_yahoo_adjustment_and_warning_capture(
         warnings.warn("provider test warning")
         return FakeYFData(frame)
 
-    monkeypatch.setattr(yahoo.vbt.YFData, "pull", fake_pull)
+    monkeypatch.setattr(
+        yahoo,
+        "require_vectorbtpro",
+        lambda: SimpleNamespace(YFData=SimpleNamespace(pull=fake_pull)),
+    )
     downloaded, provider_warnings = yahoo.download_yahoo_data(
         market_config,
         pd.Timestamp("2016-01-08"),
