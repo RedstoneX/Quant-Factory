@@ -126,7 +126,10 @@ def test_endpoint_allowlist_rejects_before_network(tmp_path, certificate, monkey
 
 
 @pytest.mark.parametrize("url", [
-    "".join(("http", "://", "qf", ":", "token", "@", "gateway-relay", ":10255")),
+    pytest.param(
+        "".join(("http", "://", "qf", ":", "token", "@", "gateway-relay", ":10255")),
+        id="embedded-userinfo",
+    ),
     "https://gateway-relay:10255", "http://gateway-relay:8080",
     "http://gateway-relay:10255/", "http://gateway-relay:10255?x=1", "http://gateway-relay:10255#x",
     "http://example.com:10255", "http://169.254.169.254:80", "http://127.0.0.1:0", "http://127.0.0.1:65536", None,
