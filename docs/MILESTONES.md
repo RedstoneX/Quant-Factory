@@ -23,9 +23,11 @@ operator-acceptance criterion is satisfied for that experience and no repeat
 acceptance prompt is required after the remaining objective gates pass. This
 does not waive browser-lifecycle, end-to-end workflow, failure-handling, test,
 or documentation/status-synchronization evidence and does not close Milestone
-23. Systematic discovery, optimization, protected-test evaluation, paper-order
-activation, and live work remain blocked except for the bounded offline and
-deployment preparation already authorized and retained.
+23. Decision 278 accepts ADR 0011's safer durable run-ticket architecture and
+authorizes implementation, but that implementation and its required evidence
+remain pending. Systematic discovery, optimization, protected-test evaluation,
+paper-order activation, and live work remain blocked except for the bounded
+offline and deployment preparation already authorized and retained.
 
 Decision 274 sets the current order:
 
@@ -53,7 +55,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Implement the accepted Milestone 23C dashboard direction and prove the remaining browser, workflow, failure-handling, test, and documentation/status gates; Decision 277 records owner acceptance; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
+| R05 | 1 | in_progress | none | Implement accepted ADR 0011 durable run tickets across every enabled fixture-launch path, then prove the remaining browser, workflow, failure-handling, licensed-target, test, and documentation/status gates; Decisions 277 and 278 record owner acceptance; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 
@@ -130,8 +132,9 @@ is proposed or authorized here.
   keep the complete scenario inventory green.
 - **23C-1 — Review/design:** approved direction and owner acceptance for the
   current experience are recorded; implementation conformance remains pending.
-- **23C-2 — Implementation:** authorized but not complete. Preserve ADR 0008,
-  Plotly Dash, VectorBT Pro, and service boundaries.
+- **23C-2 — Implementation:** authorized but not complete. Implement accepted
+  ADR 0011's durable run-ticket contract while preserving ADR 0008, Plotly
+  Dash, VectorBT Pro, and service boundaries.
 - **23C-3 — Browser/operator acceptance:** Decision 277 satisfies explicit owner
   acceptance for the current experience; real-browser lifecycle and complete
   end-to-end workflow evidence remain pending.
