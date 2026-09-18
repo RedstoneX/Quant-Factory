@@ -103,6 +103,7 @@ def layout(
                         [
                             html.Label(
                                 "Saved setup",
+                                id="configuration-selector-label",
                                 htmlFor="configuration-selector",
                                 className="field-label",
                             ),
@@ -113,6 +114,8 @@ def layout(
                             ),
                         ],
                         className="panel configuration-selector-panel",
+                        role="group",
+                        **{"aria-labelledby": "configuration-selector-label"},
                     ),
                     html.Section(
                         [
