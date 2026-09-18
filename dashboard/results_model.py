@@ -82,6 +82,7 @@ class TradeGroup:
     return_value: float | None
     outcome: str | None
     unavailable_reasons: tuple[str, ...]
+    valuation_timestamp: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -123,11 +124,21 @@ def _finite_number(value: Any, *, field: str) -> float:
     return number
 
 
-def validate_ohlc_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[OhlcBar, ...]:
-    """Validate persisted OHLC rows without sorting, filling, or repairing them."""
+def validate_ohlc_rows(
+    rows: Iterable[Mapping[str, Any]], *, source_interval: str = "1m"
+) -> tuple[OhlcBar, ...]:
+    """Validate persisted source OHLC without sorting, filling, or repairing it."""
+
+    source_width = SUPPORTED_INTERVALS.get(source_interval)
+    if source_width is None:
+        raise ResultsDataError(
+            "unsupported_source_interval",
+            f"Source bars interval {source_interval!r} is not supported.",
+        )
 
     validated: list[OhlcBar] = []
     previous: datetime | None = None
+    previous_bucket: datetime | None = None
     for index, row in enumerate(rows):
         if not isinstance(row, Mapping):
             raise ResultsDataError(
@@ -141,6 +152,17 @@ def validate_ohlc_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[OhlcBar, ...]
             raise ResultsDataError(
                 "unordered_timestamp",
                 f"OHLC row {index} {relationship}; timestamps must be unique and increasing.",
+            )
+        source_bucket = _bucket_start(timestamp, source_width)
+        if previous_bucket is not None and source_bucket == previous_bucket:
+            raise ResultsDataError(
+                "duplicate_source_bucket",
+                f"OHLC row {index} duplicates the preceding {source_interval} UTC epoch-left bucket.",
+            )
+        if timestamp != source_bucket:
+            raise ResultsDataError(
+                "misaligned_source_bar",
+                f"OHLC row {index} is not aligned to its {source_interval} UTC epoch-left bucket.",
             )
         values = {
             name: _finite_number(row.get(name), field=f"OHLC row {index} {name}")
@@ -158,6 +180,7 @@ def validate_ohlc_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[OhlcBar, ...]
             )
         validated.append(OhlcBar(timestamp=timestamp, **values))
         previous = timestamp
+        previous_bucket = source_bucket
     return tuple(validated)
 
 
@@ -194,7 +217,7 @@ def prepare_interval(
                 f"currently requires persisted 1m OHLC, not {source_interval}."
             ),
         )
-    source = validate_ohlc_rows(rows)
+    source = validate_ohlc_rows(rows, source_interval=source_interval)
     if not source:
         return IntervalBars(
             interval=interval,
@@ -318,6 +341,47 @@ def _event(
     return TradeEvent(trade_id=trade_id, leg=leg, timestamp=timestamp, price=price)
 
 
+def _valuation(
+    row: Mapping[str, Any], *, trade_id: str, reasons: list[str]
+) -> tuple[datetime | None, float | None]:
+    raw_timestamp = _first(
+        row,
+        (
+            "valuation_timestamp",
+            "Valuation Timestamp",
+            "Current Timestamp",
+            "Exit Index",
+        ),
+    )
+    raw_price = _first(
+        row,
+        (
+            "valuation_price",
+            "Valuation Price",
+            "Current Price",
+            "Avg Exit Price",
+            "Exit Price",
+        ),
+    )
+    if raw_timestamp is None and raw_price is None:
+        reasons.append("Open-trade valuation timestamp and price are not recorded.")
+        return None, None
+    if raw_timestamp is None or raw_price is None:
+        reasons.append(
+            "Open-trade valuation timestamp and price are not both recorded."
+        )
+        return None, None
+    try:
+        timestamp = _aware_timestamp(
+            raw_timestamp, field=f"Trade {trade_id} valuation timestamp"
+        )
+        price = _finite_number(raw_price, field=f"Trade {trade_id} valuation price")
+    except ResultsDataError as exc:
+        reasons.append(exc.reason)
+        return None, None
+    return timestamp, price
+
+
 def group_trade_rows(rows: Iterable[Mapping[str, Any]]) -> TradeGrouping:
     """Build truthful closed/open trade groups from persisted trade records."""
 
@@ -363,28 +427,35 @@ def group_trade_rows(rows: Iterable[Mapping[str, Any]]) -> TradeGrouping:
             if entry is None or exit_event is None:
                 status = "unconfirmed"
                 reasons.append("Closed status lacks complete persisted entry and exit events.")
+            elif exit_event.timestamp < entry.timestamp:
+                status = "unconfirmed"
+                reasons.append(
+                    "Closed trade exit timestamp precedes its persisted entry timestamp."
+                )
         elif status == "open" and entry is None:
             status = "unconfirmed"
             reasons.append("Open status lacks a complete persisted entry event.")
 
+        valuation_timestamp = None
         valuation_price = None
         if status == "open":
-            valuation_price = _optional_number(
-                _first(row, ("valuation_price", "Valuation Price", "Current Price")),
-                field=f"Trade {trade_id} valuation price",
-                reasons=reasons,
+            valuation_timestamp, valuation_price = _valuation(
+                row, trade_id=trade_id, reasons=reasons
             )
 
-        pnl = _optional_number(
-            _first(row, ("pnl", "PnL", "Profit", "Net PnL")),
-            field=f"Trade {trade_id} P&L",
-            reasons=reasons,
-        )
-        return_value = _optional_number(
-            _first(row, ("return", "Return", "Trade Return")),
-            field=f"Trade {trade_id} return",
-            reasons=reasons,
-        )
+        pnl = None
+        return_value = None
+        if status == "closed":
+            pnl = _optional_number(
+                _first(row, ("pnl", "PnL", "Profit", "Net PnL")),
+                field=f"Trade {trade_id} P&L",
+                reasons=reasons,
+            )
+            return_value = _optional_number(
+                _first(row, ("return", "Return", "Trade Return")),
+                field=f"Trade {trade_id} return",
+                reasons=reasons,
+            )
         outcome = None
         if status == "closed" and pnl is not None:
             outcome = "win" if pnl > 0 else "loss" if pnl < 0 else "flat"
@@ -403,6 +474,7 @@ def group_trade_rows(rows: Iterable[Mapping[str, Any]]) -> TradeGrouping:
                 return_value=return_value if status == "closed" else None,
                 outcome=outcome,
                 unavailable_reasons=tuple(dict.fromkeys(reasons)),
+                valuation_timestamp=valuation_timestamp,
             )
         )
 

@@ -57,6 +57,17 @@ def test_ohlc_validation_requires_ordered_unique_timezone_aware_finite_rows() ->
         ),
         (_row("2026-01-01T14:30:00Z", 10, float("inf"), 9, 11), "nonfinite_number"),
         (_row("2026-01-01T14:30:00Z", 10, 10.5, 9, 11), "inconsistent_ohlc"),
+        (
+            _row("2026-01-01T14:30:00.001Z", 10, 12, 9, 11),
+            "misaligned_source_bar",
+        ),
+        (
+            (
+                _row("2026-01-01T14:30:00Z", 10, 12, 9, 11),
+                _row("2026-01-01T14:30:30Z", 11, 13, 10, 12),
+            ),
+            "duplicate_source_bucket",
+        ),
     )
     for source, code in invalid_cases:
         rows = source if isinstance(source, tuple) else (source,)
@@ -88,6 +99,17 @@ def test_aggregation_uses_epoch_left_ohlc_rules_and_does_not_fill_gaps() -> None
     fifteen_minute = prepare_interval(rows, "15m")
     assert len(fifteen_minute.bars) == 1
     assert fifteen_minute.bars[0].source_count == 3
+
+
+def test_source_minute_boundary_accepts_adjacent_epoch_left_bars() -> None:
+    bars = validate_ohlc_rows(
+        (
+            _row("2026-01-01T09:30:00-05:00", 10, 12, 9, 11),
+            _row("2026-01-01T14:31:00Z", 11, 13, 10, 12),
+        )
+    )
+
+    assert [bar.timestamp.minute for bar in bars] == [30, 31]
 
 
 def test_daily_aggregation_uses_utc_epoch_buckets() -> None:
@@ -181,9 +203,9 @@ def test_trade_groups_keep_closed_open_and_unconfirmed_evidence_truthful() -> No
                 "Direction": "Long",
                 "Entry Index": "2026-01-01T14:40:00Z",
                 "Avg Entry Price": 12.0,
+                "Exit Index": "2026-01-01T14:45:00Z",
                 "Avg Exit Price": 12.5,
                 "PnL": 0.5,
-                "Current Price": 12.5,
             },
             {
                 "Exit Trade Id": 3,
@@ -201,24 +223,87 @@ def test_trade_groups_keep_closed_open_and_unconfirmed_evidence_truthful() -> No
                 "Avg Exit Price": 13.5,
                 "PnL": -0.5,
             },
+            {
+                "Exit Trade Id": 5,
+                "Status": "Closed",
+                "Entry Index": "2026-01-01T15:10:00Z",
+                "Avg Entry Price": 14.0,
+                "Exit Index": "2026-01-01T15:09:59Z",
+                "Avg Exit Price": 15.0,
+                "PnL": 1.0,
+            },
         )
     )
 
     assert grouped.closed_count == 2
     assert grouped.open_count == 1
-    assert grouped.unconfirmed_count == 1
+    assert grouped.unconfirmed_count == 2
     assert grouped.profitable_closed_count == 1
     assert grouped.groups[0].outcome == "win"
     assert grouped.groups[1].exit is None
     assert grouped.groups[1].outcome is None
     assert grouped.groups[1].pnl is None
     assert grouped.groups[1].valuation_price == 12.5
+    assert grouped.groups[1].valuation_timestamp is not None
+    assert grouped.groups[1].valuation_timestamp.isoformat() == "2026-01-01T14:45:00+00:00"
     assert grouped.groups[2].exit is None
     assert grouped.groups[2].outcome is None
     assert "lacks complete persisted entry and exit" in " ".join(
         grouped.groups[2].unavailable_reasons
     )
     assert grouped.groups[3].outcome == "loss"
+    assert grouped.groups[4].status == "unconfirmed"
+    assert grouped.groups[4].exit is None
+    assert grouped.groups[4].outcome is None
+    assert "exit timestamp precedes" in " ".join(
+        grouped.groups[4].unavailable_reasons
+    )
+
+
+@pytest.mark.parametrize(
+    ("valuation_fields", "reason_fragment"),
+    (
+        ({"Exit Index": "2026-01-01T14:45:00Z"}, "not both recorded"),
+        ({"Avg Exit Price": 12.5}, "not both recorded"),
+        (
+            {
+                "Exit Index": "not-a-timestamp",
+                "Avg Exit Price": 12.5,
+            },
+            "not a valid ISO-8601 timestamp",
+        ),
+        (
+            {
+                "Exit Index": "2026-01-01T14:45:00Z",
+                "Avg Exit Price": float("inf"),
+            },
+            "must be finite",
+        ),
+    ),
+)
+def test_open_trade_partial_or_invalid_vectorbt_valuation_is_unavailable(
+    valuation_fields, reason_fragment: str
+) -> None:
+    grouped = group_trade_rows(
+        (
+            {
+                "Exit Trade Id": 6,
+                "Status": "Open",
+                "Entry Index": "2026-01-01T14:40:00Z",
+                "Avg Entry Price": 12.0,
+                **valuation_fields,
+            },
+        )
+    )
+
+    trade = grouped.groups[0]
+    assert trade.status == "open"
+    assert trade.exit is None
+    assert trade.outcome is None
+    assert trade.pnl is None
+    assert trade.valuation_timestamp is None
+    assert trade.valuation_price is None
+    assert reason_fragment in " ".join(trade.unavailable_reasons)
 
 
 def test_adapter_price_validation_uses_strict_results_contract() -> None:
