@@ -53,3 +53,7 @@ def test_junit_report_rejects_invalid_or_non_passing_counts(tmp_path, monkeypatc
     report.write_text(xml)
 
     assert assert_junit_report.main() == 1
+
+
+def test_controlled_failure_proves_required_ci_gate() -> None:
+    assert False, "intentional disposable failure for required-check proof"
