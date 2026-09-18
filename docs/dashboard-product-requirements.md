@@ -150,6 +150,36 @@ information architecture, control set, storage/query design or implementation.
 A bounded design must establish those details before implementation and must
 remain truthful and usable at the stated scale.
 
+### Exact-repeat computation caching
+
+Exact repeat research computations must be materially faster through safe
+reuse of validated computed artifacts rather than rebuilding all computation.
+This is distinct from the existing CI dependency cache and market-data cache:
+it concerns reusable research computation outputs.
+
+Every explicit operator request still creates a distinct durable run ticket
+and lifecycle under ADR 0011, including its own identity, lineage, status and
+operator-visible outcome. A cache hit is recorded as reuse within that run; it
+does not silently reopen the source run, omit the new ticket, or count the same
+computation as an independent evidence observation.
+
+Reusable computed artifacts must be content-addressed, integrity-validated and
+traceable to every input that can affect the result. At minimum, the design must
+account for immutable configuration, dataset/manifest identity, execution and
+cost assumptions, strategy/code identity, runtime and engine versions, evidence
+stage, and protected-data population or partition. Failed, partial, corrupt,
+mismatched, stale, or submission-unknown work is never reusable. A missing or
+unverifiable input fails closed to recomputation or an explicit unavailable
+state; it never produces an assumed cache hit.
+
+Decision 283 accepts this behavior requirement, not an implementation. A
+bounded design must determine storage, schema, atomic publication, concurrent
+access, invalidation, retention/eviction, target topology, observability and
+implementation sequencing. It must also decide whether explicit **Reproduce**
+always recomputes, uses cached work only to verify a fresh computation, or
+offers a clearly labelled separate mode. Until that decision is accepted,
+existing Reproduce semantics must not be changed.
+
 ### Run overview
 
 - run identity and timestamps;
@@ -586,6 +616,9 @@ A unified stage timeline must show:
 - futures roll methodology when applicable;
 - manifest/checksum identity;
 - cache action and validation status;
+- research-computation cache action, source computation identity and validation
+  status when Decision 283 is implemented, without treating reuse as
+  independent evidence;
 - missing/duplicate/gap results.
 
 ### Strategies and configurations

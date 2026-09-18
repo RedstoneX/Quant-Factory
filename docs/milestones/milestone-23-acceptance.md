@@ -11,6 +11,13 @@ testing, licensed-target proof, renewed owner acceptance of the eventual
 implemented experience, and the remaining objective evidence are still
 required.
 
+Decision 283 separately requires safe caching for exact repeat research
+computations while preserving distinct durable run tickets and preventing
+cache reuse from masquerading as independent evidence. Its architecture,
+storage, eviction, implementation sequence and explicit Reproduce policy still
+require a bounded design. This record does not infer that caching is implemented
+or add an unreviewed cache design as a Milestone 23 acceptance criterion.
+
 ## Required scenario matrix
 
 | Area | Required evidence |
@@ -27,6 +34,13 @@ The successful integrated proof uses the real SPYM VectorBT Pro fixture.
 Deterministic synthetic fixtures remain appropriate for failure and recovery
 scenarios. No scenario may fabricate metrics, reconstruct missing evidence, or
 weaken protected-data boundaries.
+
+If computation-cache work is sequenced into Milestone 23 after bounded design,
+its evidence must prove exact input isolation, protected-data partitioning,
+artifact integrity, fail-closed rejection of failed/partial/corrupt/unknown
+work, durable lifecycle preservation for each explicit request, and no
+inflation of independent evidence counts. Until then, the existing no-cache
+research-computation behavior is not misrepresented as a completed cache.
 
 ## Acceptance checklist
 

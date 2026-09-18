@@ -33,6 +33,13 @@ tests, deployment, licensed-target proof, renewed owner acceptance of the
 implemented experience, and remaining objective technical gates are not yet
 complete.
 
+Decision 283 requires safe caching for exact repeat research computations so
+repeats can reuse validated work instead of rebuilding everything. Each
+explicit request still has its own durable run record, lineage and lifecycle;
+cache reuse must remain traceable, input-complete and protected-data safe, and
+it cannot be counted as independent evidence. The cache architecture and
+explicit Reproduce policy are not yet selected or implemented.
+
 Decision 275 is implemented: this sanitized clean-history public repository is
 the canonical source of truth, and the original repository is retained as a
 private, read-only historical archive. The cutover did not modify the

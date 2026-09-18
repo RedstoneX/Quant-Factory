@@ -31,6 +31,11 @@ architecture and name remain to be designed. Selected-run implementation,
 deployment, testing, licensed-target proof, renewed acceptance of the eventual
 implemented experience, and the remaining browser-lifecycle, end-to-end
 workflow, failure-handling, and documentation/status gates remain pending.
+Decision 283 requires safe, validated reuse for exact repeat research
+computations while preserving a distinct durable run ticket and lifecycle for
+every explicit request. Its cache architecture, storage, eviction,
+implementation sequence and explicit Reproduce recomputation policy remain to
+be designed; no computation-cache implementation is claimed.
 Strategy discovery remains
 blocked. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
