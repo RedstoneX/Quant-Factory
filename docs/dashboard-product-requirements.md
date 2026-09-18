@@ -252,17 +252,17 @@ surface. Its header always exposes:
 - instrument, evidence timezone, source interval and immutable backtest period;
 - **Bars:** `1m`, `5m`, `15m`, `1D`;
 - **View:** `Full run`, `1D`, `1W`, `1M`;
-- a proposed **Reset range** action for chart pan/zoom only (this is a
-  usability proposal, not Decision 281's accepted **Reset layout** requirement);
 - an entry/exit marker legend and plain-language visible bar/marker counts; and
 - any interval-unavailable reason next to the disabled but still visible
   interval control.
 
 Bars changes only the visual aggregation. View changes only the visible time
-window. Neither changes the selected run, persisted backtest period, metrics,
+window. Selecting Bars never changes View, and selecting View never changes
+Bars. Neither changes the selected run, persisted backtest period, metrics,
 trades, evidence, or review. Pan and zoom may temporarily refine the visible
-window; **Reset range** returns to the active Bars/View window rather than
-altering either control.
+window. If the proposed **Reset range** engineering default is retained, it
+returns to the independently selected Bars/View window without altering either
+control; it is not Decision 281's accepted **Reset layout** requirement.
 
 Entry and exit markers use the persisted event price and exact timestamp.
 Hover or focus text states the exact event time and, when aggregated, the
@@ -280,30 +280,35 @@ vertical scrollbar. Pagination or incremental page rendering may bound the
 number of trade groups in the DOM, but the browser page remains the vertical
 scroll owner.
 
-Metrics begins with the validated preview's compact quartet: total return,
-maximum drawdown, profitable closed trades, and closed-trade count. It then
-shows the required persisted performance evidence in normal flow: portfolio
-equity against the stated benchmark, drawdown, and closed-trade P&L. Every
-figure names its evidence basis and reports unavailable data rather than
-substituting a different calculation silently.
+Metrics begins with a compact headline summary, followed in normal flow by the
+required persisted performance evidence: portfolio equity against the stated
+benchmark, drawdown, and closed-trade P&L. The exact headline quartet used by
+the preview remains a proposed engineering default below, not unconditional
+accepted conformance. Every figure names its evidence basis and reports
+unavailable data rather than substituting a different calculation silently.
 
-Trades is grouped by completed trade rather than presented as unrelated order
-rows. Each group shows direction, outcome/status, P&L and return, plus paired
-entry and exit rows with exact timestamp, price, size and recorded fees. Open or
-unconfirmed positions are labelled and must not be counted as closed wins or
-losses. The required winning/losing, long/short and exit-date filters apply to
-the persisted groups and state the count shown versus total.
+Closed trades are grouped by completed trade rather than presented as unrelated
+order rows. Each closed group shows direction, outcome/status, P&L and return,
+plus paired entry and exit rows with exact timestamp, price, size and recorded
+fees. An open or unconfirmed position is labelled separately, shows only
+recorded entry and current/valuation information, and has no fabricated exit
+row, exit marker, exit action, realized P&L, or win/loss outcome. Winning/losing
+filters apply only to closed trades; long/short filters apply to every group;
+and an exit-date filter excludes open, unconfirmed or undated groups with an
+explicit excluded-count explanation. Every filter states the count shown
+versus total.
 
-Every entry and exit row has a keyboard-accessible **Show entry on chart** or
-**Show exit on chart** action. Activating it:
+Every persisted entry row has a keyboard-accessible **Show entry on chart**
+action. A **Show exit on chart** action appears only for a recorded closed-trade
+exit. Activating either available action:
 
 1. preserves the selected run and exact persisted event data;
 2. selects the trade and leg in the ledger;
 3. brings the containing interval into the current chart view, adding useful
    context while keeping the requested View duration when possible;
 4. identifies the corresponding marker without fabricating a new event; and
-5. announces the focused trade leg without forcing keyboard focus into the
-   Plotly canvas.
+5. if the proposed text-equivalent status region is retained, announces the
+   focused trade leg without forcing keyboard focus into the Plotly canvas.
 
 #### 4. Evidence, review and technical detail
 
@@ -334,14 +339,20 @@ disclosed and retain their existing route and explicit-action safety gates.
   timezone/session basis must come from recorded evidence; if that basis is
   insufficient for truthful aggregation, keep the interval visible but
   unavailable with a reason.
-- Exact persisted entry/exit timestamps and prices never change. At a coarser
-  interval, the marker x-position maps to the bar containing the event while
-  its accessible text and hover detail retain both the exact event timestamp
-  and containing-bar timestamp.
-- The accepted SPYM fixture regression must reproduce 53,528 `1m`, 13,340
-  `5m`, 4,474 `15m`, and 173 `1D` bars, plus 366 closed-trade entry/exit pairs,
-  from the same validated evidence. These counts are fixture evidence, not
-  universal dataset expectations.
+- Exact persisted entry timestamps and prices, and any recorded closed-trade
+  exit timestamps and prices, never change. At a coarser interval, each real
+  marker maps to the bar containing the event while its accessible text and
+  hover detail retain both the exact event timestamp and containing-bar
+  timestamp. Missing exits remain missing.
+- The owner-accepted SPYM fixture counts are 53,528 `1m`, 13,340 `5m`, 4,474
+  `15m`, and 173 `1D` bars from the same validated private evidence. The same
+  preview also contained 366 closed trades; that trade count is validated
+  preview evidence and a proposed engineering regression, not an owner-accepted
+  universal requirement.
+- Portable synthetic data-contract tests prove aggregation and marker mapping
+  without licensed inputs. They do not prove the four private-fixture bar
+  counts or the preview's 366-trade evidence; those require separate validation
+  against the authorized private fixture source.
 - Metrics, trade counts and performance figures name their population and
   calculation basis. Closed-trade metrics exclude open/unconfirmed positions.
   Backtest execution remains explicitly theoretical; no field implies actual
@@ -357,12 +368,14 @@ disclosed and retain their existing route and explicit-action safety gates.
   status/evidence, but cannot launch work, change route, or adopt another run
   without an explicit operator action.
 - Bars, View, report tab, selected trade/leg and desktop panel dimensions are
-  presentation state, not persisted research evidence. Their exact
-  cross-refresh persistence scope remains an owner-review choice below.
+  presentation state, not persisted research evidence. The unratified
+  engineering default below proposes browser-session persistence; this is not
+  a hidden owner choice or a research-record change.
 - The proposed **Reset range** affects only chart pan/zoom. Decision 281's
   accepted **Reset layout** restores the approved default chart/report
-  dimensions and expanded state without changing selected run, report tab,
-  selected trade/leg, evidence, review or route.
+  dimensions without changing selected run, report tab, selected trade/leg,
+  evidence, review or route. Whether any panel is expanded or collapsed is not
+  part of the accepted Reset layout requirement.
 - Changing run clears any trade selection that does not belong to the new run.
   It must never display one run's chart with another run's ledger or review.
 
@@ -403,9 +416,12 @@ overflow, nested vertical report scrollbar, or reliance on hover alone.
   selected run.
 - The proposed accessibility default keeps focus on an activated Show-on-chart
   control and announces the chart change through the text-equivalent status
-  region. Reset controls return focus to themselves. No interaction moves focus
-  unexpectedly merely because a callback refreshes display content. This focus/
-  announcement mechanism is not itself an owner-ratified product decision.
+  region. It also returns focus to the activated Reset layout control and, if
+  retained, the proposed Reset range control. No interaction moves focus
+  unexpectedly merely because a callback refreshes display content. These
+  focus/live-announcement mechanics are proposed accessibility details, not
+  owner-ratified product decisions; the underlying Reset layout behavior
+  remains accepted.
 
 ### Loading, empty and failure states
 
@@ -426,21 +442,27 @@ overflow, nested vertical report scrollbar, or reliance on hover alone.
 
 The eventual implementation is conformant only when all applicable checks pass:
 
-1. Unit/data-contract tests prove OHLC aggregation, supported/unavailable
-   intervals, exact event preservation, containing-bar mapping, closed/open
-   trade counting, and the accepted SPYM counts.
+1. Portable synthetic unit/data-contract tests prove OHLC aggregation,
+   supported/unavailable intervals, exact event preservation, containing-bar
+   mapping, missing-exit behavior, and closed/open trade and filter semantics.
+   Separate authorized private-fixture validation proves the four accepted SPYM
+   bar counts; the 366-trade count is an engineering regression only.
 2. Registered Dash callback tests prove selected-run isolation, Bars/View
-   independence, Show-on-chart linkage, Reset range/layout boundaries, review
-   isolation, route gating, and truthful missing/corrupt states.
+   independence, Show-on-chart linkage, accepted Reset layout boundaries,
+   review isolation, route gating, and truthful missing/corrupt states. If the
+   proposed Reset range control is retained, test its narrower boundary too.
 3. Real-browser tests prove direct deep link, refresh, back/forward, Change run
    selection, route identity after callback hydration, and absence of missing-
    component or unexpected-route errors under ADR 0008.
 4. Desktop, tablet and mobile tests prove the responsive/overflow contract,
    normal-flow Metrics and Trades, readable typography, report-tab switching,
-   chart resize/reset on desktop, and no resize affordances on smaller layouts.
-5. Keyboard-only tests prove Change run selection, tabs, filters, trade
-   selection, both Show actions, all three desktop resize edges and both reset
-   controls, including focus return and live announcements.
+   desktop resizing and accepted Reset layout behavior, and no resize
+   affordances on smaller layouts.
+5. Keyboard-only tests prove Change run selection, tabs, filters, closed/open
+   trade selection, every available Show action, all three desktop resize
+   edges, and pointer-independent Reset layout activation. If retained, the
+   proposed focus-return, Reset range and live-status defaults receive their
+   own conditional keyboard and announcement tests.
 6. Failure fixtures prove loading, no-run, active, failed, missing-price,
    no-trades, unsupported-interval, corrupt-artifact and unknown-run behavior.
 7. Browser diagnostics show no Dash renderer error, uncaught page error,
@@ -458,9 +480,9 @@ because the private preview used one option:
    overall density (including whether to return to the earlier blue/white
    treatment);
 2. how **Change run** appears: anchored panel, drawer or dialog; and
-3. the opening chart behavior: initial Bars/View values, whether changing Bars
-   also selects a suggested View, and what the chart focuses on when no trade is
-   selected.
+3. the opening chart behavior: independently selected initial Bars and View
+   values, and what the chart focuses on when no trade is selected. After the
+   page opens, Bars and View remain independent as required by Decision 281.
 
 ### Proposed engineering defaults — unratified
 
@@ -485,8 +507,9 @@ owner-visible choices remain intact:
   that behavior at the three required viewports.
 - Persist Bars, View, report tab, selected trade/leg and panel dimensions for
   the current browser session only, scoped by selected run. Keep the run ID in
-  the deep link. **Reset layout** clears only layout dimensions/expanded state;
-  changing run discards incompatible trade state.
+  the deep link. **Reset layout** clears only stored layout dimensions and
+  leaves expanded/collapsed state unchanged; changing run discards incompatible
+  trade state.
 - Use a separate **Reset range** action and a polite text-equivalent chart
   status region as the proposed usability/accessibility implementation for
   pan/zoom recovery and Show-on-chart feedback. These supplement, and must not
