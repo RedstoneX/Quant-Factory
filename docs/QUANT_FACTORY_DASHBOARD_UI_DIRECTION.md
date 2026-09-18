@@ -1,7 +1,8 @@
 # Quant Factory Dashboard UI Direction
 
-- **Status:** Accepted non-Results 23C-1 specification; Results direction
-  accepted under Decision 280 with detailed replacement specification pending
+- **Status:** Accepted non-Results 23C-1 specification; Results direction and
+  validated preview constraints accepted under Decisions 280–281 with the
+  remaining detailed replacement specification pending
 - **Owner direction accepted:** 2026-09-18
 - **Objective implementation and browser evidence:** Pending
 
@@ -20,10 +21,11 @@ The approved research flow is:
 
 The owner-authorized bounded 23C implementation follows this specification
 outside the reopened Results experience. Decision 279 supersedes Decision
-277's acceptance for the current Results page. Decision 280 accepts the
-chart-first replacement direction recorded below but does not approve this
-document as the detailed replacement Results specification. That responsive
-specification or mockup and its owner approval remain pending before broad
+277's acceptance for the current Results page. Decisions 280–281 accept the
+chart-first replacement direction and validated preview constraints recorded
+below but do not approve this document as the complete detailed replacement
+Results specification. The remaining responsive specification or mockup and
+its owner approval remain pending before broad
 implementation. This document does not record Milestone 23 completion or waive
 implementation, deployment, browser, workflow, failure-handling, testing,
 renewed operator acceptance, or documentation evidence. It does not authorize
@@ -53,6 +55,10 @@ report section in a long page:
 - cards, charts and grids share consistent spacing, borders and type hierarchy;
 - technical identifiers, hashes, storage references and diagnostics appear only
   in labelled drill-downs.
+
+Palette revision is deferred. Temporary acceptance of the validated preview's
+palette does not establish a final palette or turn a recolour into current
+implementation scope.
 
 TradingView's current Strategy Report and backtesting-results interaction in
 its chart-first Supercharts context is the primary Results UX reference. This
@@ -267,9 +273,9 @@ States:
 **Purpose:** understand what happened, whether the evidence is usable, and what
 human decision is required.
 
-Decision 280 accepts this direction; exact layout, labels, dimensions and
-responsive behavior still require a detailed mockup or concise specification
-and owner approval:
+Decisions 280–281 accept this direction and the validated controls and layout
+constraints below; remaining layout, labels, dimensions and responsive details
+still require a complete mockup or concise specification and owner approval:
 
 - keep selected-run identity and the persistent quartet in a compact context
   strip that does not crowd out the primary workspace;
@@ -289,12 +295,35 @@ and owner approval:
 - use TradingView's backtesting Strategy Report for interaction hierarchy and
   QAMC only for panel, resizing and linked-selection mechanics.
 
+Decision 281 additionally fixes these validated interaction requirements:
+
+- show separate chart-local **Bars:** controls for `1m`, `5m`, `15m`, `1D` and
+  **View:** controls for `Full run`, `1D`, `1W`, `1M`;
+- keep bar interval, visible range, and the immutable persisted backtest period
+  distinct in behavior and operator language;
+- make bar changes visualization-only and use only persisted OHLC or truthful
+  aggregation from persisted finer-grained OHLC; the validated preview renders
+  53,528 one-minute bars, 13,340 five-minute bars, 4,474 fifteen-minute bars,
+  and 173 daily bars;
+- leave an interval visible but unavailable with a plain-language reason when
+  the persisted source cannot support a truthful rendering;
+- retain every trade's exact persisted event timestamp and price while mapping
+  its visual marker to the containing aggregated bar, and keep useful
+  surrounding context visible after bar or view changes;
+- make trade-ledger and trade-detail typography visibly larger and more
+  readable while preserving responsive rows; the validated preview increased
+  the relevant styles by two CSS pixels, which is implementation evidence rather
+  than a universal fixed typography token; and
+- treat the resize, flow and responsive rules below as owner-specific product
+  requirements rather than claims about TradingView behavior.
+
 The default selection remains a persisted evidence-backed fixture run, never a
 fabricated example. Saving a review records the prior state, new state, time,
 note and responsible operator through the existing durable service.
 **Reproduce** creates a distinct run from the immutable saved configuration and
 preserves parent identity. The detailed replacement specification must decide
-the final analysis labels and information grouping before implementation.
+the remaining analysis labels and information grouping not fixed by Decisions
+280–281 before implementation.
 
 States:
 
@@ -386,8 +415,15 @@ page scrolling.
 - persistent left navigation and full page heading/actions;
 - 12-column content grid;
 - quartet in one four-card row;
-- the Results price chart uses the dominant width and height; its supporting
-  analysis dock may resize or collapse without unmounting or losing selection;
+- the Results price chart uses the dominant width and height;
+- three subtle resize edges support vertical resizing from the chart top, the
+  shared chart/report boundary, and the report bottom; resizing never unmounts
+  content or loses the selected run, report tab, trade, or evidence;
+- an explicit **Reset layout** action restores the approved default dimensions;
+- Metrics and Trades grow in normal page flow, never use a fixed-height nested
+  vertical scrollbar or slider, and leave comfortable bottom breathing room;
+- the validated preview's 52 pixels of bottom space is implementation evidence,
+  not a fixed spacing requirement for every responsive layout;
 - AG Grid uses the full panel width with important columns pinned first.
 
 ### Tablet — 768–1199 px
@@ -396,6 +432,9 @@ page scrolling.
 - content uses six columns; quartet becomes a two-by-two grid;
 - the Results price chart remains first and the analysis surface moves below
   it when side-by-side layout would compress either surface;
+- desktop resize affordances give way to an auto-height chart-then-report stack;
+- Metrics and Trades remain in normal page flow without nested vertical
+  scrolling;
 - grids retain a useful minimum column width and scroll inside their panel.
 
 ### Mobile — below 768 px
@@ -407,6 +446,8 @@ page scrolling.
 - the Results price chart remains ahead of its analysis sheet; chart-linked
   trade records use an essential-column or stacked-card profile with an
   accessible row-detail view for omitted fields;
+- chart and report use an auto-height stack with Metrics and Trades in normal
+  page flow and no nested vertical scrolling;
 - grids may scroll only inside their own bounded panel when an accessible
   alternative cannot preserve all required values; the page itself does not
   scroll horizontally;
@@ -491,10 +532,10 @@ aliases or test-only presentation.
 containers/callback ownership comply with ADR 0008. 23C-3 additionally requires
 real-browser proof for every registered route at desktop, tablet and mobile
 sizes, the complete operator workflow and failure behavior, and renewed owner
-acceptance of the implemented replacement Results experience. Decision 280
-accepts the chart-first direction only: detailed specification approval,
-implementation, deployment, tests and renewed operator acceptance remain
-pending.
+acceptance of the implemented replacement Results experience. Decisions
+280–281 accept the chart-first direction and validated preview constraints
+only: remaining detailed specification approval, implementation, deployment,
+tests and renewed operator acceptance remain pending.
 
 ## Explicit exclusions
 

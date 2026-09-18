@@ -25,8 +25,13 @@ acceptance for that experience. Decision 280 accepts the chart-first
 replacement direction: a truthful selected-run price chart with persisted
 entry/exit markers and a linked grouped trade ledger, using TradingView's
 backtesting Strategy Report as the primary UX reference and QAMC only for panel
-and linking mechanics. The detailed specification or mockup, its owner
-approval, implementation, deployment, testing, renewed operator acceptance,
+and linking mechanics. Decision 281 accepts the validated preview's separate
+Bars and View controls, truthful interval aggregation, exact trade-event
+preservation, resettable desktop panel resizing, normal-flow report content,
+responsive stacking, and visibly larger, more readable trade typography while
+deferring final palette selection. The remaining
+detailed specification or mockup, its owner approval,
+implementation, deployment, testing, renewed operator acceptance,
 and the remaining browser-lifecycle, end-to-end workflow, failure-handling,
 and documentation/status gates remain pending. Strategy discovery remains
 blocked. Decision 278
