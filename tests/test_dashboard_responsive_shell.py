@@ -64,17 +64,17 @@ def test_responsive_shell_mounts_one_location_and_accessible_drawer_controls() -
     ).children == "Set up"
 
 
-def test_responsive_page_labels_cover_registered_transitional_route() -> None:
+def test_responsive_page_labels_cover_registered_routes_and_unknowns() -> None:
     labels = {path: responsive_page_label(path) for path, _ in ROUTE_REGISTRY}
 
     assert labels["/"] == "Home"
-    assert labels["/research/strategy-review"] == "Strategy review"
     assert all(label != "Page not found" for label in labels.values())
     assert responsive_page_label("/genuinely-unknown") == "Page not found"
+    assert responsive_page_label("/research/strategy-review") == "Page not found"
 
 
-def test_strategy_review_remains_registered_but_is_not_duplicate_navigation() -> None:
-    assert "/research/strategy-review" in dict(ROUTE_REGISTRY)
+def test_strategy_review_route_is_retired_without_duplicate_navigation() -> None:
+    assert "/research/strategy-review" not in dict(ROUTE_REGISTRY)
     assert "/research/strategy-review" not in dict(NAVIGATION_LINKS)
 
 

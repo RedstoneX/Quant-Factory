@@ -20,7 +20,6 @@ from dashboard.routing import (
 RESPONSIVE_PAGE_LABELS = {
     "/": "Home",
     **dict(NAVIGATION_LINKS),
-    "/research/strategy-review": "Strategy review",
 }
 
 

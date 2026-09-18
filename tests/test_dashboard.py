@@ -36,7 +36,6 @@ from dashboard.app import (
     _runs_page,
     create_app,
     create_layout,
-    create_review_page,
     page_for_path,
     parameters_from_row,
     route_content_for_path,
@@ -851,14 +850,14 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     assert "Discovery blocked" in home_text
     assert home_visible == ["/"]
 
-    review_visible = visible_routes(invoke_route("/research/strategy-review"))
-    review_text = mounted_pages["/research/strategy-review"]
-    review_active = active_hrefs(invoke_navigation("/research/strategy-review"))
-    assert "Review moved to Results" in review_text
-    assert "transitional address" in review_text
-    assert "Run test" not in review_text
-    assert review_visible == ["/research/strategy-review"]
-    assert review_active == []
+    retired_review_visible = visible_routes(
+        invoke_route("/research/strategy-review")
+    )
+    retired_review_active = active_hrefs(
+        invoke_navigation("/research/strategy-review")
+    )
+    assert retired_review_visible == ["__not_found__"]
+    assert retired_review_active == []
 
     missing_visible = visible_routes(invoke_route("/not-a-route"))
     missing_text = mounted_pages["__not_found__"]
@@ -874,7 +873,6 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
         "/research/backtest-results": "Results",
-        "/research/strategy-review": "Review moved to Results",
         "/research/compare-backtests": "Compare results",
         "/paper/fleet": "Paper Trading Overview",
         "/paper/strategy": "Strategy Monitor",
@@ -887,7 +885,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         assert title in mounted_pages[pathname]
         expected_active = (
             []
-            if pathname in {"/", "/research/strategy-review"}
+            if pathname == "/"
             else [pathname]
         )
         assert active_hrefs(invoke_navigation(pathname)) == expected_active
@@ -1187,7 +1185,7 @@ def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
                 "missing-run",
                 ReviewState.WATCHLIST.value,
                 "Review note",
-                "/research/strategy-review",
+                "/research/compare-backtests",
             ),
         ),
     )
@@ -1286,10 +1284,6 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     assert page_for_path("/research/setup", context).className == "page-container setup-page"
     assert page_for_path("/research/run-test", context).className == "page-container run-test-page"
     assert page_for_path("/research/backtest-results", context).className == "page-container"
-    assert (
-        page_for_path("/research/strategy-review", context).className
-        == "page-container review-page"
-    )
     comparisons = page_for_path("/research/compare-backtests", context)
     assert comparisons.className == "page-container comparison-page"
     rendered_comparisons = str(comparisons)
@@ -1310,6 +1304,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         "/research/experiments",
         "/research/backtest-detail",
         "/research/comparisons",
+        "/research/strategy-review",
     ):
         assert "Page not found" in _component_text(page_for_path(legacy_path, context))
     assert page_for_path("/paper/fleet", context).className == "page-container pending-page"
@@ -1328,7 +1323,7 @@ def test_pathname_selects_one_visible_mounted_route() -> None:
         "/research/run-test": "route-research-run-test",
         "/research/market-data": "route-research-market-data",
         "/research/backtest-results": "route-research-backtest-results",
-        "/research/strategy-review": "route-research-strategy-review",
+        "/research/strategy-review": "route-not-found",
         "/research/compare-backtests": "route-research-compare-backtests",
         "/not-a-route": "route-not-found",
     }
@@ -1364,7 +1359,6 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         "/research/setup": "Set up a test",
         "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
-        "/research/strategy-review": "Review moved to Results",
         "/research/backtest-results": "Results",
         "/research/compare-backtests": "Compare results",
     }
@@ -1379,8 +1373,6 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         if pathname == "/research/backtest-results":
             assert "Review decision" in rendered_page
             assert "Understand what happened, whether the evidence is usable, and what decision is required." in rendered_page
-        if pathname == "/research/strategy-review":
-            assert "transitional address" in rendered_page
         if pathname == "/research/market-data":
             assert "View the price history used in strategy research." in rendered_page
         if pathname == "/research/compare-backtests":
@@ -1401,7 +1393,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
             if "navigation-link-active" in link.className
         ]
 
-        if pathname in {"/", "/research/strategy-review"}:
+        if pathname == "/":
             assert active == []
         else:
             assert len(active) == 1
@@ -1999,25 +1991,6 @@ def test_setup_and_run_test_handle_empty_configuration_list() -> None:
     assert launch_button.disabled is True
 
 
-def test_legacy_review_page_points_to_results_without_duplicate_controls() -> None:
-    data = _data()
-    context = DashboardContext(
-        pd.DataFrame([_ranked_row()]),
-        data,
-        _audit(data),
-    )
-
-    page = create_review_page(context)
-    rendered = str(page)
-
-    assert "Review moved to Results" in rendered
-    assert "transitional address" in rendered
-    assert "href='/research/backtest-results'" in rendered
-    assert "review-run-selector" not in rendered
-    assert "selected-review-identity" not in rendered
-    assert "review-status" not in rendered
-
-
 def test_backtest_selector_labels_distinguish_persisted_stages() -> None:
     service = _DashboardRunService()
     target = replace(
@@ -2300,7 +2273,7 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
         },
         "review_selection": {
             "source": "selected-run-state.data",
-            "owner": "dashboard.callbacks.strategy_review",
+            "owner": "dashboard.callbacks.results_review",
             "rule": (
                 "Results binds durable-review form state and messages to the shared "
                 "selected persisted run; no separate review identity is written."

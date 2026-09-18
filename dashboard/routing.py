@@ -54,7 +54,6 @@ ROUTE_REGISTRY = (
     ("/research/run-test", "route-research-run-test"),
     ("/research/market-data", "route-research-market-data"),
     ("/research/backtest-results", "route-research-backtest-results"),
-    ("/research/strategy-review", "route-research-strategy-review"),
     ("/research/compare-backtests", "route-research-compare-backtests"),
     ("/paper/fleet", "route-paper-fleet"),
     ("/paper/strategy", "route-paper-strategy"),

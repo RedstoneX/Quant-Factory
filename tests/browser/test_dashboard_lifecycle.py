@@ -532,7 +532,11 @@ def test_every_route_deep_link_refresh_and_navigation(mounted_workflow_server, t
         browser = playwright.chromium.launch()
         context = browser.new_context(viewport={"width": 1440, "height": 1000})
         try:
-            for path, container in (*ROUTE_REGISTRY, ("/unknown-route", "route-not-found")):
+            for path, container in (
+                *ROUTE_REGISTRY,
+                ("/research/strategy-review", "route-not-found"),
+                ("/unknown-route", "route-not-found"),
+            ):
                 page = context.new_page()
                 action = {"name": f"open {path}"}
                 pending_requests = _attach_diagnostics(page, events, action)

@@ -71,7 +71,7 @@ def _review_history(snapshot: DurableReviewSnapshot) -> html.Div | html.Ol:
     )
 
 
-def register_strategy_review_callbacks(
+def register_results_review_callbacks(
     app: Dash,
     *,
     runs: FixtureRunService,
