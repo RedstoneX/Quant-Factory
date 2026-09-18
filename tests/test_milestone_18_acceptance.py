@@ -9,6 +9,10 @@ from pathlib import Path
 import pytest
 
 from orchestration import FixtureRunService, RunServiceError
+from orchestration.research_launch_claims import (
+    ResearchLaunchError,
+    ResearchLaunchInvocationError,
+)
 from orchestration.run_service import FixtureRetryPolicy
 from persistence import (
     EventSeverity,
@@ -24,8 +28,8 @@ from prefect_spike.fixture_flow import (
     ControlledFixtureCancellation,
     PrefectFixtureResult,
     PrefectRunReference,
-    _create_or_reference_run,
     _persist_fixture_result,
+    _validated_claim_boundary,
     acknowledge_fixture_cancellation,
     deterministic_fixture_body,
     reconcile_quant_factory_run_status,
@@ -66,22 +70,21 @@ def _blocking_launcher(
     after_release,
 ):
     def launch(**kwargs):
+        _validated_claim_boundary(
+            database_path=kwargs["database_path"],
+            idempotency_key=kwargs["idempotency_key"],
+            configuration_id=kwargs["configuration_id"],
+            quant_factory_run_id=kwargs["quant_factory_run_id"],
+            canonical_request_json=kwargs["canonical_request_json"],
+            request_fingerprint=kwargs["request_fingerprint"],
+            operation_kind=kwargs["operation_kind"],
+            source_run_id=kwargs["source_run_id"],
+            source_lineage=kwargs["source_lineage"],
+            prefect_reference=PrefectRunReference(flow_run_id=prefect_flow_run_id),
+        )
         persistence = PersistenceService(kwargs["database_path"])
         try:
-            _create_or_reference_run(
-                persistence,
-                configuration_id=kwargs["configuration_id"],
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_reference=PrefectRunReference(flow_run_id=prefect_flow_run_id),
-                reference_source="milestone_18_acceptance",
-                frozen_runtime_lineage=kwargs["frozen_runtime_lineage"],
-            )
             run = persistence.increment_run_attempt(kwargs["quant_factory_run_id"])
-            reconcile_quant_factory_run_status(
-                persistence,
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_state="Running",
-            )
             started.set()
             assert release.wait(timeout=5)
             after_release(persistence, kwargs, run.attempt_count)
@@ -115,7 +118,7 @@ def _attempt_late_completion(persistence, kwargs, attempt_count: int, prefect_fl
     )
 
 
-def test_saved_launch_failure_retry_and_restart_acceptance(tmp_path: Path) -> None:
+def test_saved_launch_failure_replay_and_restart_acceptance(tmp_path: Path) -> None:
     database, configuration_id = _configuration(tmp_path)
     captured: dict[str, object] = {}
     service = FixtureRunService(database=database, fixture_launcher=_saved_launcher(captured))
@@ -142,39 +145,39 @@ def test_saved_launch_failure_retry_and_restart_acceptance(tmp_path: Path) -> No
         "run_succeeded",
     ]
 
-    failed = service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="qf-accept-failure",
-        fail_after_run_start=True,
-    )
-    assert failed.run.status == RunStatus.FAILED.value
-    assert failed.run.error_summary == "controlled Prefect fixture failure"
-    assert failed.run.attempt_count == 1
+    with pytest.raises(ResearchLaunchInvocationError):
+        service.launch_fixture(
+            configuration_id=configuration_id,
+            run_id="qf-accept-failure",
+            fail_after_run_start=True,
+        )
+    failed = service.get_run("qf-accept-failure")
+    assert failed is not None and failed.status == RunStatus.FAILED.value
+    assert failed.error_summary == "controlled Prefect fixture failure"
+    assert failed.attempt_count == 1
     assert [event.event_type for event in service.events_for_run("qf-accept-failure")].count(
         "run_failed"
     ) == 1
 
     retry_service = FixtureRunService(database=database, fixture_launcher=_retry_launcher)
-    retried = retry_service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="qf-accept-retry",
-        retry_policy=FixtureRetryPolicy(max_attempts=2),
-        controlled_transient_failures=1,
-    )
-    assert retried.run.status == RunStatus.SUCCEEDED.value
-    assert retried.run.attempt_count == 2
-    assert [event.event_type for event in retry_service.events_for_run("qf-accept-retry")] == [
-        "run_created",
-        "run_started",
-        "run_retry_scheduled",
-        "run_succeeded",
-    ]
+    with pytest.raises(ValueError, match="outer fixture-launch retries are disabled"):
+        retry_service.launch_fixture(
+            configuration_id=configuration_id,
+            run_id="qf-accept-retry",
+            retry_policy=FixtureRetryPolicy(max_attempts=2),
+            controlled_transient_failures=1,
+        )
+    assert retry_service.get_run("qf-accept-retry") is None
 
     del service
     restarted = FixtureRunService(database=database)
     persisted_success = restarted.get_run("qf-accept-success")
     assert persisted_success == successful.run
-    assert restarted.events_for_run("qf-accept-retry")[-1].event_type == "run_succeeded"
+    replay = restarted.launch_fixture(
+        configuration_id=configuration_id,
+        run_id="qf-accept-success",
+    )
+    assert replay.invoked is False
     persistence = PersistenceService(database)
     try:
         assert persistence.results.list_parameter_results("qf-accept-success")
@@ -206,22 +209,23 @@ def test_timeout_and_cancellation_acceptance_prevent_late_completion(tmp_path: P
         ),
     )
     try:
-        timeout = timeout_service.launch_fixture(
-            configuration_id=configuration_id,
-            run_id="qf-accept-timeout",
-            timeout_seconds=0.01,
-        )
+        with pytest.raises(ResearchLaunchInvocationError):
+            timeout_service.launch_fixture(
+                configuration_id=configuration_id,
+                run_id="qf-accept-timeout",
+                timeout_seconds=0.01,
+            )
     finally:
         timeout_release.set()
     assert timeout_started.is_set()
     assert timeout_finished.wait(timeout=5)
-    assert timeout.run.status == RunStatus.FAILED.value
-    assert timeout.run.error_summary == "Fixture execution timed out after 0.01 seconds."
+    timeout = timeout_service.get_run("qf-accept-timeout")
+    assert timeout is not None and timeout.status == RunStatus.SUCCEEDED.value
+    assert timeout.error_summary is None
     assert [event.event_type for event in timeout_service.events_for_run("qf-accept-timeout")] == [
         "run_created",
         "run_started",
-        "run_timed_out",
-        "run_failed",
+        "run_succeeded",
     ]
 
     cancel_started = threading.Event()
@@ -281,8 +285,9 @@ def test_timeout_and_cancellation_acceptance_prevent_late_completion(tmp_path: P
 
     persistence = PersistenceService(database)
     try:
+        assert persistence.results.list_parameter_results("qf-accept-timeout")
+        assert persistence.results.list_parameter_results("qf-accept-cancel") == ()
         for run_id in ("qf-accept-timeout", "qf-accept-cancel"):
-            assert persistence.results.list_parameter_results(run_id) == ()
             assert persistence.results.list_artifacts(run_id) == ()
     finally:
         persistence.close()
@@ -304,20 +309,11 @@ def test_stale_recovery_invalid_launch_and_cross_scenario_integrity(tmp_path: Pa
         persistence.close()
     service = FixtureRunService(database=database, fixture_launcher=_saved_launcher({}))
 
-    recovered = service.recover_stale_fixture_runs(stale_before=STALE_BEFORE)
-    assert {run.run_id for run in recovered} == {
-        "qf-accept-stale-created",
-        "qf-accept-stale-running",
-    }
-    for run_id in ("qf-accept-stale-created", "qf-accept-stale-running"):
-        events = service.events_for_run(run_id)
-        assert [event.event_type for event in events][-2:] == [
-            "run_stale_recovered",
-            "run_failed",
-        ]
-        assert [event.event_type for event in events].count("run_failed") == 1
+    with pytest.raises(RunServiceError, match="age-only fixture recovery is disabled"):
+        service.recover_stale_fixture_runs(stale_before=STALE_BEFORE)
+    assert service.get_run("qf-accept-stale-created").status == RunStatus.CREATED.value
+    assert service.get_run("qf-accept-stale-running").status == RunStatus.RUNNING.value
     assert service.get_run("qf-accept-fresh").status == RunStatus.RUNNING.value
-    assert service.recover_stale_fixture_runs(stale_before=STALE_BEFORE) == ()
 
     with pytest.raises(KeyError, match="unknown Quant Factory configuration"):
         service.launch_fixture(configuration_id="missing", run_id="qf-accept-missing")
@@ -346,11 +342,14 @@ def test_stale_recovery_invalid_launch_and_cross_scenario_integrity(tmp_path: Pa
         )
     finally:
         persistence.close()
-    with pytest.raises(RunServiceError, match="not launchable"):
+    with pytest.raises(ResearchLaunchError, match="not an approved"):
         service.launch_fixture(configuration_id=rejected.configuration_id, run_id="qf-accept-rejected")
     assert service.get_run("qf-accept-rejected") is None
 
     initial = service.launch_fixture(configuration_id=configuration_id, run_id="qf-accept-duplicate")
-    with pytest.raises(ValueError, match="already exists"):
-        service.launch_fixture(configuration_id=configuration_id, run_id="qf-accept-duplicate")
+    duplicate = service.launch_fixture(
+        configuration_id=configuration_id,
+        run_id="qf-accept-duplicate",
+    )
+    assert duplicate.invoked is False
     assert service.get_run("qf-accept-duplicate") == initial.run

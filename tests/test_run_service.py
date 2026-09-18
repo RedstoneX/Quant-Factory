@@ -7,8 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from orchestration import FixtureRunService, RunServiceError
-from persistence import PersistenceService, RunStage, RunStatus, StrategyLifecycle
+from orchestration import FixtureRunService
+from orchestration.research_launch_claims import (
+    ResearchLaunchInvocationError,
+    ResearchLaunchInvocationUnknownError,
+)
+from persistence import PersistenceService, RunStatus, StrategyLifecycle
 from persistence.models import normalized_configuration_document
 from prefect_spike.fixture_flow import PrefectFixtureResult, deterministic_fixture_body
 
@@ -75,19 +79,20 @@ def test_failed_launch_reconciles_to_failed_run(tmp_path: Path) -> None:
     database, configuration_id = _configuration(tmp_path)
     service = FixtureRunService(database=database, fixture_launcher=_launcher)
 
-    result = service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="qf-run-failed",
-        fail_after_run_start=True,
-    )
+    with pytest.raises(ResearchLaunchInvocationError):
+        service.launch_fixture(
+            configuration_id=configuration_id,
+            run_id="qf-run-failed",
+            fail_after_run_start=True,
+        )
+    result = service.get_run("qf-run-failed")
+    assert result is not None
+    assert result.status == RunStatus.FAILED.value
+    assert result.error_summary == "controlled Prefect fixture failure"
+    assert result.prefect_flow_run_id == "prefect-qf-run-failed"
 
-    assert result.prefect_result is None
-    assert result.run.status == RunStatus.FAILED.value
-    assert result.run.error_summary == "controlled Prefect fixture failure"
-    assert result.run.prefect_flow_run_id == "prefect-qf-run-failed"
 
-
-def test_duplicate_run_launch_is_rejected_without_relaunch(tmp_path: Path) -> None:
+def test_duplicate_run_launch_replays_without_relaunch(tmp_path: Path) -> None:
     database, configuration_id = _configuration(tmp_path)
     launches: list[str] = []
 
@@ -96,12 +101,13 @@ def test_duplicate_run_launch_is_rejected_without_relaunch(tmp_path: Path) -> No
         return _launcher(**kwargs)
 
     service = FixtureRunService(database=database, fixture_launcher=launcher)
-    service.launch_fixture(configuration_id=configuration_id, run_id="qf-run-once")
-
-    with pytest.raises(ValueError, match="Quant Factory run already exists"):
-        service.launch_fixture(configuration_id=configuration_id, run_id="qf-run-once")
+    first = service.launch_fixture(configuration_id=configuration_id, run_id="qf-run-once")
+    replay = service.launch_fixture(configuration_id=configuration_id, run_id="qf-run-once")
 
     assert launches == ["qf-run-once"]
+    assert first.invoked is True
+    assert replay.invoked is False
+    assert replay.run.run_id == first.run.run_id
 
 
 def test_missing_configuration_fails_before_launch(tmp_path: Path) -> None:
@@ -184,8 +190,10 @@ def test_launcher_failure_before_persistence_is_reported(tmp_path: Path) -> None
 
     service = FixtureRunService(database=database, fixture_launcher=broken_launcher)
 
-    with pytest.raises(RunServiceError, match="failed without terminal run"):
+    with pytest.raises(ResearchLaunchInvocationUnknownError):
         service.launch_fixture(configuration_id=configuration_id, run_id="qf-run-no-record")
+    run = service.get_run("qf-run-no-record")
+    assert run is not None and run.status == RunStatus.CREATED.value
 
 
 def test_launcher_failure_with_nonterminal_run_is_rejected(tmp_path: Path) -> None:
@@ -194,24 +202,15 @@ def test_launcher_failure_with_nonterminal_run_is_rejected(tmp_path: Path) -> No
     def broken_after_created(**kwargs):
         persistence = PersistenceService(database)
         try:
-            configuration = persistence.configurations.get(kwargs["configuration_id"])
-            assert configuration is not None
-            persistence.create_run(
-                configuration_id=configuration.configuration_id,
-                strategy_id=configuration.strategy_id,
-                strategy_version=configuration.strategy_version,
-                stage=RunStage.FIXTURE,
-                run_id=kwargs["quant_factory_run_id"],
-                status=RunStatus.CREATED,
-                environment={"prefect_flow_run_id": "prefect-started"},
-            )
+            run = persistence.runs.get(kwargs["quant_factory_run_id"])
+            assert run is not None and run.status == RunStatus.CREATED
         finally:
             persistence.close()
         raise RuntimeError("fixture stopped before terminal state")
 
     service = FixtureRunService(database=database, fixture_launcher=broken_after_created)
 
-    with pytest.raises(RunServiceError, match="failed without terminal run"):
+    with pytest.raises(ResearchLaunchInvocationUnknownError):
         service.launch_fixture(configuration_id=configuration_id, run_id="qf-run-created")
 
     persisted = service.get_run("qf-run-created")
@@ -235,5 +234,5 @@ def test_successful_launcher_must_return_requested_quant_factory_run_id(tmp_path
 
     service = FixtureRunService(database=database, fixture_launcher=mismatched_launcher)
 
-    with pytest.raises(RunServiceError, match="mismatched Quant Factory run ID"):
+    with pytest.raises(ResearchLaunchInvocationError):
         service.launch_fixture(configuration_id=configuration_id, run_id="qf-run-requested")
