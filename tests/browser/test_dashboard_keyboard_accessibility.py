@@ -7,9 +7,11 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import expect, sync_playwright
 
+from tests.browser.dashboard_diagnostics import (
+    assert_browser_diagnostics_clean,
+    attach_browser_diagnostics,
+)
 from tests.browser.test_dashboard_lifecycle import (
-    _assert_no_browser_errors,
-    _attach_diagnostics,
     _wait_for_callbacks_to_settle,
     mounted_workflow_server,
 )
@@ -26,14 +28,14 @@ def test_setup_has_keyboard_bypass_and_named_selector_group(
     mounted_workflow_server,
     viewport: dict[str, int],
 ) -> None:
-    base_url, _server_log, _run_id = mounted_workflow_server
+    base_url, server_log, _run_id = mounted_workflow_server
     events: list[dict[str, object]] = []
     action = {"name": "open Setup with keyboard"}
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport=viewport)
-        pending = _attach_diagnostics(page, events, action)
+        pending = attach_browser_diagnostics(page, events, action)
         try:
             page.goto(base_url + "/research/setup", wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
@@ -60,6 +62,6 @@ def test_setup_has_keyboard_bypass_and_named_selector_group(
             page.keyboard.press("Escape")
             expect(selector).to_have_attribute("aria-expanded", "false")
 
-            _assert_no_browser_errors(events)
+            assert_browser_diagnostics_clean(page, events, (server_log,))
         finally:
             browser.close()
