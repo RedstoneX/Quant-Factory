@@ -565,6 +565,259 @@ li { margin: 8px 0; line-height: 1.45; }
   }
 }
 
+/* Milestone 23 responsive shell and evidence containment contract. */
+.responsive-navigation-header {
+  display: none;
+}
+
+.navigation-drawer-panel {
+  min-height: 100%;
+}
+
+.application-content,
+.route-container,
+.page-container,
+.page-heading,
+.page-heading-with-actions,
+.page-actions,
+.panel,
+.run-chart-trade-focus,
+.run-analysis-tabs,
+.qf-data-grid,
+.table-panel,
+.run-comparison-result {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.page-actions > *,
+.page-heading-with-actions > *,
+.run-chart-trade-focus > * {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.run-analysis-tabs {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.run-analysis-tabs .tab-container {
+  min-width: max-content;
+}
+
+.qf-data-grid,
+.table-panel,
+.run-comparison-result {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dash-graph,
+.js-plotly-plot,
+.plot-container,
+.svg-container {
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 1200px) {
+  .application-shell {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  #navigation-container,
+  .navigation-drawer-panel {
+    min-height: 100vh;
+  }
+
+  .navigation-drawer-panel {
+    visibility: visible;
+  }
+
+  .operator-context-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .application-shell {
+    display: block;
+  }
+
+  #navigation-container {
+    height: 64px;
+    min-height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .responsive-navigation-header {
+    align-items: center;
+    background: #071a2f;
+    color: #ffffff;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 64px;
+    padding: 8px 18px;
+  }
+
+  .navigation-drawer-toggle {
+    align-items: center;
+    background: #102b49;
+    border: 1px solid #365472;
+    border-radius: 8px;
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    font-weight: 800;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+
+  .navigation-drawer-toggle:focus-visible,
+  .responsive-home-link:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 2px;
+  }
+
+  .navigation-menu-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .responsive-page-identity {
+    display: grid;
+    line-height: 1.15;
+    min-width: 0;
+  }
+
+  .responsive-page-label {
+    color: #91a6be;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #responsive-active-page {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .responsive-home-link {
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .navigation-drawer-panel {
+    bottom: 0;
+    left: 0;
+    max-width: calc(100vw - 32px);
+    pointer-events: none;
+    position: fixed;
+    top: 64px;
+    transform: translateX(-105%);
+    transition: transform 160ms ease, visibility 160ms ease;
+    visibility: hidden;
+    width: 360px;
+    z-index: 1001;
+  }
+
+  .navigation-drawer-panel-open {
+    box-shadow: 14px 0 36px rgba(7, 26, 47, 0.34);
+    pointer-events: auto;
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .navigation-drawer-panel .sidebar {
+    height: 100%;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    position: static;
+  }
+
+  .navigation-drawer-panel .sidebar-navigation-groups .navigation-links {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+
+  .navigation-drawer-panel .sidebar-status {
+    display: flex;
+  }
+
+  .page-container {
+    width: 100%;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .operator-context-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .responsive-navigation-header {
+    gap: 10px;
+    padding-inline: 12px;
+  }
+
+  .page-heading-with-actions,
+  .page-actions,
+  .summary-grid,
+  .metric-grid,
+  .run-primary-metric-grid,
+  .trade-summary-grid,
+  .comparison-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-actions > *,
+  .primary-action,
+  .secondary-action {
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .operator-context-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .run-analysis-tabs .tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-home-link {
+    display: none;
+  }
+
+  .responsive-navigation-header {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigation-drawer-panel {
+    transition: none;
+  }
+}
+
 @media (max-width: 390px) {
   .page-container {
     padding: 16px 10px;
@@ -2694,5 +2947,49 @@ input {
 
   .operator-context-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* These terminal rules must follow the legacy .page-container,
+   .page-heading-with-actions, .page-actions, and .operator-context-grid
+   declarations above so their wider-layout defaults cannot win the cascade. */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .operator-context-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .page-container {
+    padding: 20px 16px 40px;
+  }
+
+  .page-heading-with-actions,
+  .page-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page-actions > *,
+  .idea-draft-actions > *,
+  .run-test-page .launch-controls-panel > .primary-action,
+  .run-test-page .launch-controls-panel > .secondary-action {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .comparison-action-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .operator-context-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 390px) {
+  .page-container {
+    padding-inline: 12px;
   }
 }

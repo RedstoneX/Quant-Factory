@@ -432,7 +432,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 28
+    assert len(app.callback_map) == 29
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -521,6 +521,11 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
             key
             for key in app.callback_map
             if key.startswith("..navigation-link-research-ideas.className")
+        ),
+        next(
+            key
+            for key in app.callback_map
+            if key.startswith("..responsive-active-page.children")
         ),
     }
     # ADR 0008 permits passive page-owned refresh when entering a mounted page.
@@ -666,7 +671,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     assert "Review a strategy's results, checks, and decision." in review_text
     assert "Run test" not in review_text
     assert review_visible == ["/research/strategy-review"]
-    assert review_active == ["/research/strategy-review"]
+    assert review_active == []
 
     missing_visible = visible_routes(invoke_route("/not-a-route"))
     missing_text = mounted_pages["__not_found__"]
@@ -693,7 +698,11 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     for pathname, title in expected_titles.items():
         assert visible_routes(invoke_route(pathname)) == [pathname]
         assert title in mounted_pages[pathname]
-        expected_active = [] if pathname == "/" else [pathname]
+        expected_active = (
+            []
+            if pathname in {"/", "/research/strategy-review"}
+            else [pathname]
+        )
         assert active_hrefs(invoke_navigation(pathname)) == expected_active
 
 
@@ -1016,8 +1025,20 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         for component in _walk_components(layout)
         if getattr(component, "id", None) == "navigation-container"
     )
-    navigation = navigation_container.children
+    navigation = next(
+        component
+        for component in _walk_components(navigation_container)
+        if getattr(component, "className", None) == "sidebar"
+    )
     assert getattr(navigation, "className", None) == "sidebar"
+    assert {
+        getattr(component, "id", None)
+        for component in _walk_components(navigation_container)
+    } >= {
+        "navigation-drawer-toggle",
+        "responsive-active-page",
+        "navigation-drawer-panel",
+    }
     assert {
         getattr(component, "id", None)
         for component in _walk_components(navigation)
@@ -1168,7 +1189,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
             if "navigation-link-active" in link.className
         ]
 
-        if pathname == "/":
+        if pathname in {"/", "/research/strategy-review"}:
             assert active == []
         else:
             assert len(active) == 1
@@ -1543,10 +1564,10 @@ def test_navigation_marks_current_page_active() -> None:
         "/research/setup",
         "/research/run-test",
         "/research/market-data",
-        "/research/strategy-review",
         "/research/backtest-results",
         "/research/compare-backtests",
     }.issubset({link.href for link in links})
+    assert "/research/strategy-review" not in {link.href for link in links}
     assert len(active) == 1
     assert active[0].href == "/research/backtest-results"
     assert [link.children for link in links[:5]] == [
@@ -2048,6 +2069,15 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             "rule": (
                 "Route callbacks only derive visibility and navigation classes; "
                 "no callback writes the URL."
+            ),
+        },
+        "navigation_drawer": {
+            "source": "navigation-drawer-state.data",
+            "owner": "dashboard.callbacks.routing",
+            "rule": (
+                "An explicit menu-button click toggles the responsive drawer; "
+                "every primary-navigation selection or pathname change closes "
+                "it without rebuilding navigation or writing the URL."
             ),
         },
         "idea_draft": {

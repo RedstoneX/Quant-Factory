@@ -10,10 +10,35 @@ from dash import dcc, html
 from dashboard.pages.common import not_found_page
 from dashboard.routing import (
     NAVIGATION_GROUPS,
+    NAVIGATION_LINKS,
     ROUTE_REGISTRY,
     navigation_link_id,
     route_container_styles_for_path,
 )
+
+
+RESPONSIVE_PAGE_LABELS = {
+    "/": "Home",
+    **dict(NAVIGATION_LINKS),
+    "/research/strategy-review": "Strategy review",
+}
+
+
+def responsive_page_label(pathname: str | None) -> str:
+    """Return the operator-facing active-page name for the responsive header."""
+
+    route = pathname or "/"
+    return RESPONSIVE_PAGE_LABELS.get(route, "Page not found")
+
+
+def responsive_drawer_class(is_open: bool) -> str:
+    """Return the drawer class without changing the persistent navigation tree."""
+
+    return (
+        "navigation-drawer-panel navigation-drawer-panel-open"
+        if is_open
+        else "navigation-drawer-panel"
+    )
 
 
 def navigation(pathname: str = "/") -> html.Nav:
@@ -76,6 +101,8 @@ def navigation(pathname: str = "/") -> html.Nav:
                 className="sidebar-status",
             ),
         ],
+        id="primary-navigation",
+        n_clicks=0,
         className="sidebar",
         **{"aria-label": "Primary navigation"},
     )
@@ -146,8 +173,61 @@ def create_dashboard_layout(
                 pathname=initial_pathname,
                 refresh="callback-nav",
             ),
+            dcc.Store(
+                id="navigation-drawer-state",
+                data=False,
+                storage_type="memory",
+            ),
             html.Div(
-                navigation(initial_pathname),
+                [
+                    html.Header(
+                        [
+                            html.Button(
+                                [
+                                    html.Span(
+                                        "☰",
+                                        className="navigation-menu-icon",
+                                        **{"aria-hidden": "true"},
+                                    ),
+                                    html.Span("Menu"),
+                                ],
+                                id="navigation-drawer-toggle",
+                                n_clicks=0,
+                                type="button",
+                                className="navigation-drawer-toggle",
+                                **{
+                                    "aria-controls": "navigation-drawer-panel",
+                                    "aria-expanded": "false",
+                                    "aria-label": "Toggle navigation menu",
+                                },
+                            ),
+                            html.Div(
+                                [
+                                    html.Span(
+                                        "Current page",
+                                        className="responsive-page-label",
+                                    ),
+                                    html.Strong(
+                                        responsive_page_label(initial_pathname),
+                                        id="responsive-active-page",
+                                    ),
+                                ],
+                                className="responsive-page-identity",
+                            ),
+                            dcc.Link(
+                                "Quant Factory",
+                                href="/",
+                                className="responsive-home-link",
+                            ),
+                        ],
+                        className="responsive-navigation-header",
+                    ),
+                    html.Div(
+                        navigation(initial_pathname),
+                        id="navigation-drawer-panel",
+                        className=responsive_drawer_class(False),
+                    ),
+                ],
                 id="navigation-container",
             ),
             html.Main(

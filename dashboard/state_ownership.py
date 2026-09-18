@@ -13,6 +13,11 @@ STATE_OWNERS = {
         "owner": "dashboard.callbacks.routing",
         "rule": "Route callbacks only derive visibility and navigation classes; no callback writes the URL.",
     },
+    "navigation_drawer": {
+        "source": "navigation-drawer-state.data",
+        "owner": "dashboard.callbacks.routing",
+        "rule": "An explicit menu-button click toggles the responsive drawer; every primary-navigation selection or pathname change closes it without rebuilding navigation or writing the URL.",
+    },
     "idea_draft": {
         "source": "idea-draft-store.data",
         "owner": "dashboard.callbacks.ideas",

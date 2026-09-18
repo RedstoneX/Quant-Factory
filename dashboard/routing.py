@@ -17,7 +17,6 @@ NAVIGATION_GROUPS = (
         "Research support",
         (
             ("/research/market-data", "Market data"),
-            ("/research/strategy-review", "Strategy review"),
         ),
     ),
     (
