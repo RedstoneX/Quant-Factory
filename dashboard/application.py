@@ -37,6 +37,7 @@ from dashboard.components.operator_context import (  # noqa: E402
     OperatorContextViewModel,
     operator_context,
 )
+from dashboard.compare_adapter import CompareDashboardAdapter  # noqa: E402
 from dashboard.project_status import PROJECT_STATUS, DashboardProjectStatus  # noqa: E402
 from dashboard.health import inspect_catalog  # noqa: E402
 from dashboard.routing import (  # noqa: E402
@@ -3875,6 +3876,7 @@ def create_app(
     review_database: str | Path | None = None,
     run_service: FixtureRunService | None = None,
     run_detail_adapter: RunDetailDashboardAdapter | None = None,
+    compare_dashboard_adapter: CompareDashboardAdapter | None = None,
 ) -> Dash:
     # Mounted pages read persisted runs. Opening the dashboard must never
     # download prices or run the legacy RSI parameter grid as a side effect.
@@ -3890,6 +3892,11 @@ def create_app(
         database=dashboard_database
     )
     artifact_root = getattr(detail_adapter, "artifact_root", Path.cwd())
+    compare_adapter = compare_dashboard_adapter or CompareDashboardAdapter(
+        database=dashboard_database,
+        artifact_root=artifact_root,
+        detail_adapter=detail_adapter,
+    )
     recent_run_records = runs.recent_runs(limit=20)
     all_run_records = (
         runs.all_runs() if hasattr(runs, "all_runs") else recent_run_records
@@ -4080,6 +4087,7 @@ def create_app(
         detail_adapter=detail_adapter,
         dashboard_database=dashboard_database,
         artifact_root=artifact_root,
+        compare_adapter=compare_adapter,
     )
     register_strategy_review_callbacks(
         app,

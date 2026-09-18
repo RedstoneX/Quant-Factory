@@ -2232,6 +2232,257 @@ input {
   margin-top: 16px;
 }
 
+.comparison-operator-contexts,
+.comparison-operator-contexts > *,
+.compare-read-model,
+.compare-section,
+.compare-run-card,
+.compare-chart-card,
+.compare-difference-group,
+.compare-table-scroll {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.compare-read-model {
+  display: grid;
+  gap: 22px;
+}
+
+.compare-section,
+.comparison-state-panel {
+  background: #ffffff;
+  border: 1px solid #d7e0ea;
+  border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
+  padding: 20px;
+}
+
+.comparison-state-panel h2,
+.compare-section > h2,
+.compare-chart-card h3,
+.compare-difference-group h3,
+.compare-run-card h3 {
+  color: #0f172a;
+  margin-top: 0;
+}
+
+.comparison-requested-identities,
+.compare-finding-list,
+.compare-series-omissions {
+  margin-bottom: 0;
+}
+
+.comparison-failure-state,
+.compare-findings-blocked {
+  border-left: 5px solid #b91c1c;
+}
+
+.comparison-loading-state {
+  border-left: 5px solid #2357d9;
+}
+
+.compare-run-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.compare-run-card {
+  background: #f8fafc;
+  border: 1px solid #d7e0ea;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.compare-run-card-problem {
+  border-left: 5px solid #b91c1c;
+}
+
+.compare-run-card header {
+  display: grid;
+  gap: 4px;
+}
+
+.compare-run-card h3 {
+  font-size: 1.08rem;
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+.compare-identity-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.compare-identity-grid > div {
+  min-width: 0;
+}
+
+.compare-identity-grid dt {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.compare-identity-grid dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.compare-run-impact {
+  color: #7f1d1d;
+  font-weight: 700;
+  margin: 0;
+}
+
+.compare-run-details summary {
+  color: #276089;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.compare-results-link {
+  justify-self: start;
+}
+
+.compare-comparability-status {
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.compare-finding {
+  margin: 8px 0;
+}
+
+.compare-finding-blocking {
+  color: #7f1d1d;
+}
+
+.compare-finding-warning {
+  color: #7c4a03;
+}
+
+.compare-chart-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.compare-chart-card,
+.compare-difference-group {
+  border: 1px solid #dfe7f1;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.compare-chart,
+.compare-chart .js-plotly-plot,
+.compare-chart .plot-container,
+.compare-chart .svg-container {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.compare-chart {
+  min-height: 360px;
+}
+
+.compare-chart-empty {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  padding: 18px;
+}
+
+.compare-table-scroll {
+  margin-top: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.compare-table {
+  border-collapse: collapse;
+  min-width: 760px;
+  width: 100%;
+}
+
+.compare-table caption {
+  color: #475569;
+  font-weight: 700;
+  padding: 0 0 10px;
+  text-align: left;
+}
+
+.compare-table th,
+.compare-table td {
+  border-bottom: 1px solid #dfe7f1;
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.compare-table th code,
+.compare-table td small,
+.comparison-omission {
+  color: #64748b;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.compare-difference-section {
+  display: grid;
+  gap: 16px;
+}
+
+.compare-difference-group h3 {
+  margin-bottom: 0;
+}
+
+@media (max-width: 1199px) {
+  .compare-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .comparison-setup-panel,
+  .compare-section,
+  .comparison-state-panel,
+  .compare-run-card,
+  .compare-chart-card,
+  .compare-difference-group {
+    padding: 14px;
+  }
+
+  .compare-identity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-results-link,
+  #compare-selected-runs {
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .compare-chart {
+    min-height: 320px;
+  }
+}
+
 .run-comparison-result {
   overflow-x: auto;
   width: 100%;
