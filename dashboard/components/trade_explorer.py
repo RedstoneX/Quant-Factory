@@ -129,7 +129,11 @@ def layout() -> html.Section:
                     "animateRows": False,
                     "pagination": True,
                     "paginationPageSize": 12,
-                    "rowSelection": "single",
+                    "rowSelection": {
+                        "mode": "singleRow",
+                        "checkboxes": False,
+                        "enableClickSelection": True,
+                    },
                     "suppressColumnVirtualisation": False,
                 },
                 getRowId="params.data.__trade_key",

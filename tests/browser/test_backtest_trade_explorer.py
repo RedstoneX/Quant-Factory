@@ -98,6 +98,89 @@ def test_trade_explorer_mounts_with_empty_database(empty_dashboard_server) -> No
             browser.close()
 
 
+def test_trade_grid_supports_single_click_selection_without_checkboxes(
+    empty_dashboard_server,
+) -> None:
+    base_url, _ = empty_dashboard_server
+    events: list[dict[str, object]] = []
+    action = {"name": "select portable trade explorer rows"}
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": 1360, "height": 900})
+        pending = _attach_diagnostics(page, events, action)
+        try:
+            page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            page.evaluate(
+                """
+                async () => {
+                  const api = await window.dash_ag_grid.getApiAsync(
+                    "selected-trade-grid"
+                  );
+                  api.setGridOption("rowData", [
+                    {
+                      __trade_key: "portable-run:1",
+                      __run_id: "portable-run",
+                      Trade: "Trade 1",
+                      Outcome: "Win",
+                      Direction: "Long"
+                    },
+                    {
+                      __trade_key: "portable-run:2",
+                      __run_id: "portable-run",
+                      Trade: "Trade 2",
+                      Outcome: "Loss",
+                      Direction: "Long"
+                    }
+                  ]);
+                }
+                """
+            )
+
+            rows = page.locator(
+                "#selected-trade-grid .ag-center-cols-container .ag-row"
+            )
+            expect(rows).to_have_count(2)
+            expect(
+                page.locator("#selected-trade-grid .ag-selection-checkbox")
+            ).to_have_count(0)
+
+            rows.nth(0).click()
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(
+                page.locator("#selected-trade-grid .ag-row-selected")
+            ).to_have_count(1)
+            assert page.evaluate(
+                """
+                async () => {
+                  const api = await window.dash_ag_grid.getApiAsync(
+                    "selected-trade-grid"
+                  );
+                  return api.getSelectedRows().map((row) => row.__trade_key);
+                }
+                """
+            ) == ["portable-run:1"]
+
+            rows.nth(1).click()
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(
+                page.locator("#selected-trade-grid .ag-row-selected")
+            ).to_have_count(1)
+            assert page.evaluate(
+                """
+                async () => {
+                  const api = await window.dash_ag_grid.getApiAsync(
+                    "selected-trade-grid"
+                  );
+                  return api.getSelectedRows().map((row) => row.__trade_key);
+                }
+                """
+            ) == ["portable-run:2"]
+            _assert_no_errors(events)
+        finally:
+            browser.close()
+
+
 def test_spym_trade_explorer_filters_and_opens_row_detail(dashboard_server) -> None:
     base_url, _, _ = dashboard_server
     events: list[dict[str, object]] = []
