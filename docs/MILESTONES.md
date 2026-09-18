@@ -5,9 +5,23 @@ status, ordered work, milestone scope, and acceptance.
 
 ## Product direction
 
+Quant Factory is a private, single-operator system for Terry to find and
+validate a trading edge and pursue consistent market income. It is not an
+enterprise, SaaS, software-sales, multitenant, billing, or team-platform
+project; capabilities needed only for hypothetical external customers require
+separate owner approval.
+
 Quant Factory is infrastructure first, evidence first, dashboard first, and
 operating-proof first. Plotly Dash is the normal operator interface; Python,
 terminal output, SQLite, CSV, JSON, and logs are implementation details.
+
+Decision 285 requires reuse before custom implementation. Existing Quant
+Factory code, VectorBT Pro and other licensed dependencies, owner-approved
+prototypes, and mature maintained legally usable components are evaluated
+before new code. Custom work is limited to verified gaps or cases where reuse
+is materially worse; the approved Results prototype remains implementation
+input without being misrepresented as integrated, tested, deployed, or finally
+accepted product behavior.
 
 The factory must reject false edges, preserve reproducible evidence, paper
 trade only qualified strategies, reconcile model and venue state, and expose
@@ -91,7 +105,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R05 | 1 | in_progress | none | Implement and validate the owner-approved Decisions 280–282 selected-run Results specification; design the separately required scalable multi-run aggregation, slicing, ranking, filtering and selection surface without treating its UI or architecture as pre-approved; produce only a bounded design and sequencing recommendation for Decision 283's safe exact-repeat computation caching, without adding cache implementation as a Milestone 23 acceptance criterion or changing explicit Reproduce semantics; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, documentation/status, and renewed implemented-experience acceptance gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
+| R05 | 1 | in_progress | none | Apply Decision 285's reuse-before-build assessment to the existing dashboard, VectorBT Pro, owner-approved Results prototype and mature maintained legally usable components before further custom implementation; implement and validate only the verified gaps in the owner-approved Decisions 280–282 selected-run Results specification; design the separately required scalable multi-run aggregation, slicing, ranking, filtering and selection surface without treating its UI or architecture as pre-approved; produce only a bounded design and sequencing recommendation for Decision 283's safe exact-repeat computation caching, without adding cache implementation as a Milestone 23 acceptance criterion or changing explicit Reproduce semantics; preserve accepted ADR 0011 durable run tickets and prove the remaining browser, workflow, failure-handling, licensed-target, test, documentation/status, and renewed implemented-experience acceptance gates; editable/new Setup authoring remains unclaimed because no approved current fixture exposes a runner-consumed editable field |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 

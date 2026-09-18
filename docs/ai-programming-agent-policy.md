@@ -30,6 +30,18 @@ Before executable implementation, run the project implementation preflight,
 inspect current code/tests/ADRs, bound the smallest safe change, and state the
 validation and exclusions.
 
+The preflight must also inventory reusable project code and tests, licensed
+dependencies, owner-approved prototypes, and mature maintained components or
+reference implementations. Compare functional fit, license, security,
+maintenance, integration cost, and data/evidence truthfulness. Prefer reuse or
+adaptation. Custom implementation requires a verified gap or evidence that
+reuse is materially worse, with the rationale recorded before coding. Do not
+rebuild mature commercial-grade behavior for architectural neatness or
+speculative flexibility. Small domain adapters and safety or evidence controls
+remain allowed where necessary; incompatible or unverified licensing remains
+a stop condition. Prototype approval is design input, not proof of application
+integration, testing, deployment, or final operator acceptance.
+
 Preserve unrelated work. Use dedicated branches and pull requests; do not
 force-push, push directly to `main`, stage the entire tree, or use anonymous
 stashes. Never weaken a test or acceptance criterion to obtain a pass.

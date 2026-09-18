@@ -19,6 +19,15 @@ navigation, not competing authorities.
 
 ## Current resume point
 
+Decisions 284–285 fix the product and implementation boundary. Quant Factory
+is Terry's private single-operator trading-research system, not an enterprise,
+SaaS, sales, multitenant, billing, or team product. Before custom work, agents
+must evaluate existing project code, licensed dependencies, approved
+prototypes, and mature maintained legally usable components; custom code is
+only for a verified gap or when reuse is materially worse. The approved
+Results prototype remains implementation input, not a claim of integration,
+testing, deployment, or final acceptance.
+
 Milestone 23 is the active gate. Decision 279 records the owner's rejection of
 the former Results-page comprehension and flow. Decisions 280–281 establish
 the chart-first direction and validated preview constraints. Decision 282

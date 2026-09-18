@@ -4,7 +4,22 @@
 
 The dashboard is the primary Quant Factory product interface. The normal operator must not need to edit Python, inspect CSV or JSON files, read backend logs, or use terminal commands to understand and operate the research system.
 
+The product serves Terry as one private owner/operator seeking to find and
+validate a trading edge and pursue consistent market income. It is not a
+commercial, enterprise, SaaS, multitenant, billing, customer-onboarding, or
+team dashboard. Capabilities needed only for hypothetical external users are
+out of scope without separate owner approval.
+
 VectorBT Pro remains the portfolio analytics and Plotly-compatible chart engine. Plotly Dash remains the application framework. Quant Factory owns workflow, records, evidence, orchestration, lifecycle state, and the human decision interface.
+
+Apply Decision 285 before custom dashboard work: inventory and evaluate the
+existing dashboard, VectorBT Pro and other licensed dependencies,
+owner-approved prototypes, and mature maintained legally usable components.
+Reuse or adapt suitable proven behavior; add custom code only for verified
+Quant Factory gaps or when reuse is materially worse. The approved interactive
+Results prototype remains implementation input and may be used for the beta,
+but remains distinct from integrated, tested, deployed, and renewed
+operator-accepted application behavior.
 
 ## Current owner review outcome — refreshed 2026-09-18
 

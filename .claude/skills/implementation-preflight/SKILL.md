@@ -135,6 +135,37 @@ migration after documented backup, reconciliation, private-access, restart,
 restore, and rollback checks; it does not authorize M23 acceptance, paper
 orders, discovery, optimization, or live capital.
 
+## 4a. Complete the reuse-before-build assessment
+
+Before proposing custom executable code, inventory the relevant:
+
+- existing Quant Factory implementation, tests, adapters, and assets;
+- licensed dependencies and their supported capabilities, including VectorBT
+  Pro where applicable;
+- owner-approved prototypes that must remain implementation input;
+- mature maintained external components or reference projects that may solve
+  the need legally and safely.
+
+Use `docs/component-reuse-audit.md` as the existing inventory starting point
+where relevant. Its individual evaluations are historical until revalidated
+for the current task; do not repeat settled research without a changed
+requirement, dependency, license, or material new candidate.
+
+For each plausible candidate, compare functional fit, license and legal use,
+security, maintenance health, integration cost, and truthful handling of
+Quant Factory data and evidence. Prefer adapting or integrating a suitable
+proven component. Do not recreate mature commercial-grade dashboard,
+charting, grid, panel, or research-engine behavior for architectural neatness,
+local control, or speculative future flexibility.
+
+Custom code is allowed only for a verified project-specific gap or when the
+comparison shows reuse is materially worse. State the selected reuse, the
+remaining gap, and why each custom portion is necessary. The rule does not bar
+the smallest domain adapter, evidence-integrity check, or safety control, and
+does not authorize copying or adding a dependency without a compatible
+license. Distinguish prototype/reference behavior from integrated, tested,
+deployed, and operator-accepted product behavior.
+
 ## 5. Apply Quant Factory acceptance rules
 
 - Use the real SPYM VectorBT Pro fixture in the successful integrated Milestone
@@ -159,6 +190,7 @@ Routing
 Repository
 Active scope
 Factual gap
+Reuse assessment
 Smallest safe change
 Files and systems in scope
 Validation

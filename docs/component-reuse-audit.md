@@ -1,8 +1,24 @@
 # Quant Factory Component Reuse Audit
 
+- **Status:** Supporting inventory; Decision 285 and `AGENTS.md` are
+  authoritative.
+- **Current-use rule:** Revalidate candidate fit, license, security,
+  maintenance, integration cost, and evidence truthfulness for the bounded
+  task. Individual evaluations below are historical until that current
+  preflight occurs.
+
 ## Rule
 
-Quant Factory must adopt maintained components when adaptation is cheaper and safer than building the same capability. Custom code is limited to trading-specific evidence, governance, lifecycle, and reconciliation.
+Decision 285 requires Quant Factory to adapt or integrate suitable maintained
+components instead of recreating them. Custom code is limited to verified
+project-specific gaps or cases where reuse is materially worse, with the
+rationale recorded in implementation preflight. Small domain adapters,
+evidence-integrity checks, and safety controls remain allowed where necessary;
+unlicensed or incompatibly licensed copying is never allowed.
+
+Quant Factory is Terry's private single-operator trading-research system under
+Decision 284. Enterprise, SaaS, sales, multitenant, billing, customer, and team
+features are not selection criteria unless separately approved.
 
 ## Decisions
 
@@ -83,6 +99,11 @@ QuantConnect LEAN, Freqtrade, NautilusTrader, FinRL and related platforms provid
 Decision: retain VectorBT Pro. Reuse only design ideas for brokerage adapters, dry-run controls, protections and operational status.
 
 ## Dashboard reuse plan
+
+The owner-approved interactive Results prototype is implementation input and
+must be reused or adapted where it remains technically and legally suitable.
+It is not by itself integrated, tested, deployed, or renewed operator-accepted
+application behavior.
 
 The earlier Milestone 20 component recommendation was:
 
