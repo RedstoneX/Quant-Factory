@@ -1,354 +1,468 @@
 # Quant Factory Dashboard UI Direction
 
-## Purpose
-
-Preserve the agreed visual and usability direction for the Quant Factory dashboard so future implementation does not depend on chat history.
-
-This document governs the Milestone 23C dashboard presentation direction. ADR
-0008 governs the permanent dashboard architecture. This document does not
-authorize backend changes, framework migration, deployment, paper execution,
-promotion, or Milestone 24 work.
-
-## Framework Decision
-
-Quant Factory remains a Plotly Dash application.
-
-The polished examples shown on Plotly's public Dash site demonstrate that Dash can support a substantially stronger interface, but they are not untreated default styling. Their quality comes from deliberate layout, component selection, CSS, charts, controls, and information architecture.
-
-Reference:
-
-- https://plotly.com/dash/
-
-The project should improve the existing Dash application rather than replace it.
-
-## Product Direction
-
-Quant Factory should read as a trading research and validation product, not as a stack of administrative forms.
-
-Operator-facing screens use product concepts first:
-
-- strategy;
-- experiment;
-- backtest;
-- configuration;
-- validation result.
-
-Internal run IDs, artifact IDs, configuration hashes, recovery controls, and diagnostics remain available only as secondary traceability and maintenance metadata.
-
-Research and forward-testing interfaces are visualization-led. Their primary information hierarchy is:
-
-1. strategy, instrument, timeframe, test period, and validation result
-2. Key performance metrics
-3. equity and portfolio value
-4. drawdown
-5. completed trades, trade P&L, wins, and losses
-6. validation evidence
-7. configuration and execution assumptions
-8. raw technical metadata, recovery tools, and operator events
-
-Technical detail must remain available, but should be visually secondary.
-
-## Approved Dashboard Information Architecture
-
-The approved visible navigation is:
-
-- **Strategy Research:** Market Data, Strategy Review, Backtest Results, Compare Backtests.
-- **Paper Trading:** Paper Trading Overview, Strategy Monitor.
-- **System:** System Status, Data Sources.
-- **Settings:** bottom utility link.
-
-The Home route remains available through the Quant Factory brand link and is the
-workspace entry point.
-
-## Public concept mockups
-
-The public-safe concept mockups are under `docs/assets/dashboard/approved/`.
-Every image is labelled **CONCEPT MOCKUP — SYNTHETIC DATA** and uses the
-fictional **Demo Operator** identity:
-
-1. `01_research_data_catalog.png` — Research Data Catalog.
-2. `02_research_experiment_overview.png` — Research Experiment Overview.
-3. `03_research_backtest_detail.png` — Research Backtest Detail.
-4. `04_research_compare_experiments.png` — Research Comparisons.
-5. `05_paper_strategy_fleet_overview.png` — Paper Strategy Fleet Overview.
-6. `06_paper_strategy_detail.png` — Paper Strategy Detail.
-7. `07_system_infrastructure_overview.png` — System Infrastructure Overview.
-
-The mockups define visual direction and information architecture. Their
-synthetic values are not implemented functionality, operational evidence, or
-account data.
-
-## Visual References
-
-### Traders Casa
-
-Reference:
-
-- https://traderscasa.com/
-
-Use for:
-
-- unified light visual system
-- restrained colors
-- clean modern cards
-- portfolio-value presentation
-- compact summary metrics
-- visible wins and losses
-- readable entry and exit markers
-- consistent spacing and hierarchy
-
-### TradeZella
-
-Reference:
-
-- https://www.tradezella.com/
-
-Use for:
-
-- results-first analytical hierarchy
-- trading metrics and summary cards
-- chart prominence
-- strategy and performance reporting
-- drawdown and risk visibility
-- trade review presentation
-- progressive disclosure of deeper analysis
-
-### Plotly Dash examples
-
-Reference:
-
-- https://plotly.com/dash/
-
-Use for:
-
-- compact application layout
-- readable controls
-- sliders and range sliders
-- tabs
-- charts
-- data grids
-- responsive information density
-- clear separation between controls and results
-
-Do not copy branding or proprietary layouts exactly.
-
-## Control Guidelines
-
-Use sliders only for bounded numeric controls where visual adjustment is useful, such as:
-
-- entry threshold
-- exit threshold
-- rolling window
-- stop-loss percentage
-- take-profit percentage
-- risk allocation
-- slippage assumptions
-- commission sensitivity
-- bounded parameter ranges
-
-Do not use sliders for:
-
-- configuration IDs
-- hashes
-- timestamps
-- exact identifiers
-- categorical execution policies
-- raw technical metadata
-- values requiring precise free-form entry
-
-Use dropdowns, toggles, text inputs, read-only fields, or tables where those controls are more appropriate.
-
-## 23C Baseline Reset
-
-Milestone 23C is re-baselined around the controlled ADR 0008 dashboard
-architecture refactor before additional feature implementation. Prior partial
-visual work remains useful implementation evidence, but it is not a current
-browser-acceptance pass.
-
-Required architecture baseline:
-
-- modular Plotly Dash application;
-- one persistent `dcc.Location`;
-- permanent application shell and sidebar;
-- permanent mounted route containers containing the real page components needed
-  by registered callbacks;
-- pathname-driven route-container visibility and active navigation state;
-- page-owned callbacks;
-- reusable components;
-- no dynamic `page-content.children` routing as the active routing mechanism.
-
-Browser-lifecycle acceptance remains pending and must cover direct deep links,
-manual refresh, back/forward navigation, sidebar navigation, brand/Home
-navigation, unknown routes, selected/active navigation state, page identity
-after page-local callbacks mount, and absence of Dash renderer
-missing-component errors.
-
-The target Backtest Results presentation remains:
-
-- evidence-backed default selected backtest;
-- trader-facing terminology centered on strategy, backtest, configuration and
-  strategy checks;
-- chart-led backtest presentation;
-- compact KPI strip;
-- equity curve;
-- cumulative trade P&L with completed-trade markers;
-- drawdown with visible points and maximum-drawdown emphasis;
-- trade-return distribution and win/loss summary;
-- responsive Recent Trades grid;
-- responsive Ranked Parameter Combinations grid;
-- Selected backtest summary with technical IDs visually secondary;
-- Strategy Checks, Trading Assumptions, Research History, Strategy Settings and
-  Technical Details tabs.
-
-Dedicated implementations remain pending for:
-
-- Market Data/Data Catalog;
-- Strategy Review/Experiment Overview;
-- Backtest Results/Backtest Detail;
-- Compare Backtests/Comparisons;
-- Paper Trading Overview;
-- Strategy Monitor;
-- System Status;
-- Data Sources;
-- Settings.
-
-Strategy Review is the approved research review concept. Legacy review routes
-are not acceptance targets under the re-baselined Milestone 23 gate.
-
-## Pending Dedicated Page Implementations
-
-Pending pages should follow the approved mockup direction without copying sample data:
-
-- Market Data/Data Catalog;
-- Strategy Review/Experiment Overview;
-- Compare Backtests/Comparisons;
-- Paper Trading Overview;
-- Strategy Monitor;
-- System Status;
-- Data Sources.
-
-Paper Trading pages remain dependent on real strategy deployment, capital allocation, positions, orders, fills, P&L, reconciliation, and health data. Milestone 23C does not implement Paper Trading execution or broker integration.
-
-## Data Integrity and Empty States
-
-Dashboard visuals use persisted Quant Factory evidence exposed through existing service and adapter boundaries.
-
-Rules:
-
-- fixture-only evidence remains clearly identified;
-- unsupported metrics and series are not fabricated;
-- missing artifacts produce intentional empty states;
-- unavailable KPI fields keep the compact metric layout and show an unavailable value;
-- raw files, JSON, CSV, SQLite, and terminal output are implementation details rather than operator workflow.
-
-## Architecture Preservation
-
-ADR 0008 requires:
-
-- route containers mounted once with real callback-owned components present;
-- pathname-driven route visibility;
-- no dynamic `page-content.children` replacement;
-- direct deep links, manual Refresh and back/forward navigation to preserve
-  route identity;
-- page-owned callbacks that do not write URL or navigation state;
-- expensive or mutating inactive-page callbacks gated against unintended work;
-- existing service, persistence, evidence, orchestration, provider, and security boundaries.
-
-## Responsive Data Presentation
-
-Target grid behavior:
-
-- centered grid headers and cells;
-- responsive column profiles;
-- wrapped headers;
-- sensible minimum widths;
-- horizontal scrolling at narrow widths rather than crushed columns;
-- readable Recent Trades and Ranked Parameter Combinations grids.
-
-## Recovery UX Finding
-
-The stale-run recovery control is functional.
-
-The visible timestamp was a placeholder, not an entered value. After an explicit ISO-8601 UTC timestamp was entered, the callback accepted it and returned:
-
-`No stale fixture runs matched the supplied cutoff.`
-
-Recovery is an advanced maintenance function. It should:
-
-- remain available
-- explain that it only affects stale `created` or `running` fixture runs
-- require an explicit UTC cutoff
-- avoid making placeholder text look like an entered value
-- be collapsed or placed under Operations/Diagnostics
-
-## Implementation Boundary
-
-Preserve:
-
-- existing workflows
-- component IDs wherever practical
-- callbacks
-- services
-- persistence
-- orchestration
-- acceptance evidence
-- light mode only
-- current functional behavior
-
-Allowed:
-
-- bounded Runs-page Python layout changes
-- CSS refinement
-- section reordering
-- tabs or progressive disclosure
-- moving existing charts and metrics
-- compacting history and comparison
-- improving control selection
-- improving visual hierarchy
-
-Not allowed:
-
-- backend behavior changes
-- service changes
-- persistence changes
-- orchestration changes
-- framework migration
-- dashboard rewrite
-- unrelated page redesign
-- deployment work
-- paper or live execution
-- Milestone 24 work
-- commit or push before browser acceptance
-
-## Resource Policy
-
-Use resources in this order:
-
-1. ChatGPT for planning, review, documentation, Git inspection, and bounded repository work
-2. Direct WSL commands for inspection, documentation, tests, and small safe edits
-3. Codex only for irreducible local implementation, coordinated dashboard layout changes, runtime debugging, or other work too complex for a safe bounded WSL patch
-
-## Next Step
-
-Use the ADR 0008 controlled dashboard architecture refactor as the foundation.
-
-The immediate implementation scope is the dashboard shell and routing
-architecture, not additional feature pages.
-Traders Casa, TradeZella, and Plotly Dash examples remain the current visual
-inspiration.
-
-The goal is a clean, restrained, results-first interface with:
-
-- primary decisions and metrics first;
-- prominent equity and drawdown charts;
-- progressive disclosure for evidence, assumptions, lineage, and diagnostics;
-- no Paper or Live operational controls; and
-- no commercial-grade polish before paper-trading work.
-
-## Obsolete visual target
-
-`docs/assets/dashboard/quant-factory-runs-visual-target.png`
-
-This image is obsolete and non-authoritative. It mixed Research analysis with
-Paper and Live operational information and no longer reflects the accepted
-product separation.
+- **Status:** Accepted Milestone 23C-1 implementation specification
+- **Owner direction accepted:** 2026-09-18
+- **Objective implementation and browser evidence:** Pending
+
+## Purpose and authority
+
+This document is the implementation-ready page specification for the
+Milestone 23C operator experience. It supports, but does not replace,
+[`docs/MILESTONES.md`](MILESTONES.md),
+[`docs/dashboard-product-requirements.md`](dashboard-product-requirements.md),
+[`docs/milestones/milestone-23-acceptance.md`](milestones/milestone-23-acceptance.md),
+and [ADR 0008](architecture/0008-dashboard-mounted-route-architecture.md).
+
+The approved research flow is:
+
+**Home → Ideas → Set up → Run test → Results → Compare**
+
+The owner-authorized bounded 23C implementation follows this specification.
+Decision 277 records owner acceptance for the current experience; this document
+does not record Milestone 23 completion or waive implementation, browser,
+workflow, failure-handling or documentation evidence. It does not authorize
+strategy discovery, external-source retrieval, paper execution or live trading.
+
+## Product and visual contract
+
+Quant Factory remains a Plotly Dash application. VectorBT Pro remains the
+portfolio analytics and Plotly-compatible chart engine. Dash Bootstrap
+Components may provide responsive layout and controls; Dash AG Grid is the
+approved component for dense interactive tables. No framework migration or
+research-logic rewrite is part of this work.
+
+The product should look like a restrained, light-mode trading research
+workspace rather than a stack of administrative forms:
+
+- decisions, outcome, risk and next action appear before implementation detail;
+- equity, benchmark, drawdown, price/signals and trades are visually primary;
+- one accent colour identifies selection and navigation; green, red and amber
+  never carry meaning without a text label;
+- cards, charts and grids share consistent spacing, borders and type hierarchy;
+- technical identifiers, hashes, storage references and diagnostics appear only
+  in labelled drill-downs.
+
+The public-safe concept images in
+[`docs/assets/dashboard/approved/`](assets/dashboard/approved/) define this
+visual density and hierarchy. They contain synthetic data and do not establish
+implemented behavior or operating evidence:
+
+1. `01_research_data_catalog.png` — data catalog and coverage inspection.
+2. `02_research_experiment_overview.png` — experiment and outcome overview.
+3. `03_research_backtest_detail.png` — chart-led selected result.
+4. `04_research_compare_experiments.png` — aligned run comparison.
+5. `05_paper_strategy_fleet_overview.png` — later paper direction only.
+6. `06_paper_strategy_detail.png` — later paper direction only.
+7. `07_system_infrastructure_overview.png` — system-health direction.
+
+Paper mockups are not part of Milestone 23 and must not be used to introduce
+deployment, broker, order, position, capital-allocation or live controls.
+
+## Route and navigation contract
+
+The permanent shell contains the brand/Home link, the primary research steps,
+the support links, the active-route state and all registered route containers.
+The primary labels and URLs are exact:
+
+| Order | Navigation label | URL | Page identity |
+|---:|---|---|---|
+| 0 | Quant Factory brand / Home | `/` | `Home` |
+| 1 | Ideas | `/research/ideas` | `Ideas` |
+| 2 | Set up | `/research/setup` | `Set up a test` |
+| 3 | Run test | `/research/run-test` | `Run test` |
+| 4 | Results | `/research/backtest-results` | `Results` |
+| 5 | Compare | `/research/compare-backtests` | `Compare results` |
+
+Support navigation remains visually separate from the numbered flow:
+
+| Navigation label | URL | Page identity |
+|---|---|---|
+| Market data | `/research/market-data` | `Market data` |
+| System status | `/system` | `System status` |
+| Data sources | `/system/providers` | `Data sources` |
+| Settings | `/settings` | `Settings` |
+
+The brand always returns to `/`. The current `Strategy Review` page is folded
+into the Results review area; it is not a seventh workflow step. During a
+staged implementation, `/research/strategy-review` may remain registered only
+until the Results page has equivalent durable-review behavior and route tests.
+It must not remain as a duplicate primary-navigation destination or hidden
+compatibility surface. Existing Paper Trading routes may remain read-only
+pending pages during the transition, but are not primary Milestone 23
+navigation and expose no operational controls.
+
+Every final registered route has one real, permanently mounted container. Route
+changes alter container visibility and active-link styling only. There is one
+persistent `dcc.Location`; `pathname` remains the route source of truth. No
+page callback writes the URL, rebuilds navigation, renders another page, or
+uses dynamic `page-content.children` replacement as routing.
+
+## Shared operator shell
+
+Every workflow page uses the same shell and page-heading pattern:
+
+1. eyebrow showing **RESEARCH / [STEP]**;
+2. one unambiguous page identity heading;
+3. one sentence explaining what the operator can decide here;
+4. a compact workflow progress indicator with the current step labelled;
+5. page-local primary action at the right on wide screens and below the heading
+   on narrow screens;
+6. user-readable loading, empty, blocked and failed states in the content area.
+
+When a run is selected, the persistent run-context quartet defined below sits
+directly below the heading on Run test, Results and Compare. It remains visible
+while the operator changes tabs, filters, trade selection or chart range. On a
+page with no selected run, the quartet is replaced by a plain-language empty
+state; placeholder values must not resemble evidence.
+
+## Page specifications
+
+### Home — `/`
+
+**Purpose:** orient the operator and identify the next safe action.
+
+Show:
+
+- research-system and local data readiness in plain language;
+- current milestone and the discovery gate;
+- the most recent selected or active run, if one exists;
+- recent failures that require attention;
+- the six-step research path with completed, current and unavailable labels;
+- one primary **Continue research** action that opens the next valid step.
+
+Home is an overview, not an execution surface. It never launches, retries,
+cancels, reviews or reproduces a run. If health is not checked, say **Not
+checked** rather than implying healthy. If there is no work yet, the primary
+action is **Capture an idea**.
+
+### Ideas — `/research/ideas`
+
+**Purpose:** safely capture what might be tested later without retrieving or
+executing anything.
+
+The page may show and accept:
+
+- a short owner-authored title and description;
+- an optional source URL stored as text only;
+- source type and attribution supplied by the operator;
+- assumptions, questions and uncertainty notes;
+- local draft state with **Save draft** and **Discard draft**;
+- a clear **Draft only — nothing will run** status.
+
+During Milestone 23, Ideas must not:
+
+- fetch, preview, download or summarize a URL;
+- execute submitted text, code or instructions;
+- create or approve a strategy hypothesis;
+- create a launchable configuration;
+- launch, queue or reproduce a backtest;
+- promote a strategy or place an order.
+
+The forward action is **Continue to Set up**. It carries only operator-authored
+draft text or a safe draft identity. It does not imply approval. External
+retrieval, untrusted-content handling and approval-to-configuration handoff are
+Milestone 25 work.
+
+States:
+
+- **Empty:** explain what an idea draft is and offer **Start a draft**.
+- **Unsaved:** label local changes and require confirmation before discard.
+- **Saved:** show saved time and the next safe action.
+- **Invalid URL:** retain the text, explain the format problem and do not fetch.
+- **Save failed:** keep the editable draft, explain that it was not saved and
+  offer retry without duplicate creation.
+
+### Set up — `/research/setup`
+
+**Purpose:** inspect and choose an approved immutable fixture configuration
+before any work starts.
+
+Show:
+
+- approved instrument, strategy/fixture and saved-configuration selectors;
+- bounded parameter controls defined by the approved specification;
+- requested data period, provider, timeframe and local availability;
+- sizing, timing, fee and slippage assumptions;
+- configuration readiness and every blocking reason;
+- a persistent warning that fixture results prove infrastructure, not profit;
+- a read-only summary of the exact configuration that will be used.
+
+The operator may edit a page-local setup draft. **Save configuration** creates
+or selects an immutable persisted configuration through existing service
+boundaries. The forward action is **Review test**, linking to Run test with the
+persisted configuration identity. Set up does not launch a run.
+
+States:
+
+- **No approved choices:** say which prerequisite is missing and link to the
+  relevant support page.
+- **Loading:** preserve labels and layout while controls are disabled.
+- **Invalid or unsupported:** list field-level corrections before the summary;
+  no launch path is enabled.
+- **Data unavailable:** show the affected period/provider and safe remedy; never
+  silently substitute data.
+- **Save conflict/failure:** preserve the draft, make no partial configuration
+  appear saved, and offer a safe retry.
+
+### Run test — `/research/run-test`
+
+**Purpose:** perform the final human review, launch exactly once, and observe
+run state without mixing launch controls into analysis.
+
+Before launch, show a read-only configuration summary, data/provenance summary,
+execution assumptions, preflight checks and fixture warning. The single primary
+action is **Run test**. It remains disabled until the configuration is persisted,
+launchable and passes preflight.
+
+Launch requires an explicit click. While submission is unresolved, disable the
+button and show **Starting test…**. A successful response displays the run
+identity, the persistent quartet, an event/status timeline, **View results** and
+only the safe actions valid for the current state. Refresh must reopen the same
+persisted run; an inactive mounted page must not submit, retry, cancel or
+recover anything.
+
+States:
+
+- **No configuration selected:** link back to Set up.
+- **Preflight blocked:** list every blocking reason and the page where it can be
+  corrected.
+- **Queued/running/retrying:** show explicit text status and last update; do not
+  fabricate progress percentages.
+- **Submission unknown:** state that a retry could duplicate work, reconcile
+  first, and keep launch disabled.
+- **Failed/cancelled/timed out:** keep the run visible, explain impact and show
+  only a valid retry/reproduce or return-to-setup action.
+- **Succeeded:** show **View results**; success means the run completed, not
+  that its evidence passed.
+
+### Results — `/research/backtest-results`
+
+**Purpose:** understand what happened, whether the evidence is usable, and what
+human decision is required.
+
+Show, in order:
+
+1. selected-run identity, configuration summary and persistent quartet;
+2. compact KPI strip with explicit metric basis;
+3. equity/portfolio value and benchmark;
+4. drawdown with maximum-drawdown emphasis;
+5. price with entry/exit markers and completed-trade P&L;
+6. trade-return distribution and win/loss summary;
+7. searchable/filterable run history and recent-trades AG Grids;
+8. validation-stage evidence and every stop reason;
+9. review decision, rationale and audit history;
+10. reproduction and comparison actions.
+
+The default selection is a persisted evidence-backed fixture run, never a
+fabricated example. Tabs are **Evidence**, **Assumptions**, **Lineage**,
+**Configuration** and **Technical details**. Saving a review records the prior
+state, new state, time, note and responsible operator through the existing
+durable service. **Reproduce** creates a distinct run from the immutable saved
+configuration and preserves parent identity.
+
+States:
+
+- **No runs:** explain that a test must be launched and link to Set up.
+- **Loading selection:** keep run identity visible and mark evidence as loading.
+- **Missing or corrupt artifact:** identify unavailable sections, mark the
+  evidence invalid/unavailable, and never reconstruct values.
+- **Failed run:** show the failure before empty charts and provide the next safe
+  action.
+- **Review conflict:** preserve the operator's entered note, show that no change
+  was saved and require refresh/review before retry.
+- **Metric unavailable:** retain the KPI position and use **Unavailable** with a
+  reason, not zero.
+
+### Compare — `/research/compare-backtests`
+
+**Purpose:** compare two or more persisted runs without hiding differences that
+make a comparison unsafe.
+
+Show:
+
+- selected-run cards with strategy, instrument, timeframe, period and outcome;
+- the quartet for each selected run, not one blended status;
+- normalized equity and drawdown charts with labelled series;
+- aligned metrics with metric-basis warnings;
+- parameter, data/provider/date, cost and execution-assumption differences;
+- validation-stage and human-review differences;
+- explicit comparability warnings before the charts;
+- links back to each full Results page.
+
+Comparison selection is independent of the Results selection and never changes
+the selected run on another page. Adding or removing a run does not execute or
+reproduce it.
+
+States:
+
+- **Fewer than two runs:** explain how to add another persisted run.
+- **No comparable runs:** retain selections, list the incompatibilities and do
+  not imply that aligned charts are meaningful.
+- **Partial evidence:** render only supported sections and label every omission.
+- **Loading/failure:** keep selected identities visible so the operator knows
+  what was requested; retry only the read.
+
+## Persistent selected-run quartet
+
+Every selected-run context presents these exact labels and meanings:
+
+| Label | Meaning | Examples |
+|---|---|---|
+| Run status | Orchestration state only | `Queued`, `Running`, `Succeeded`, `Failed`, `Cancelled`, `Retrying` |
+| Evidence outcome | Research-evidence conclusion | `Passed`, `Failed`, `Insufficient evidence`, `Invalid`, `Not run` |
+| Human decision | Latest durable operator review | `Unreviewed`, `Revise`, `Reject`, `Infrastructure fixture`, `Watchlist`, `Approved for next evidence stage` |
+| Next safe action | One plain-language action allowed by current evidence and gates | `Wait for completion`, `Review failure`, `Inspect evidence`, `Record decision`, `No action available` |
+
+Run status must never be presented as evidence outcome. Evidence outcome must
+never be presented as human approval. A successful fixture run must not imply a
+profitable or deployable strategy. The quartet uses text and, secondarily,
+icons/colour. Its values come from persisted orchestration, evidence and review
+records; missing values are **Unavailable** or **Not run**, never inferred.
+
+## State ownership
+
+Each browser-visible state has one owner:
+
+| State | Owner and persistence rule |
+|---|---|
+| Active route | `dcc.Location.pathname`; routing callbacks derive visibility and active navigation only. |
+| Idea draft | Ideas page; browser/session draft until a safe draft record is explicitly saved. It is never executable. |
+| Setup draft | Set up page; page-local/session state. It is not launchable until explicitly saved as an immutable configuration. |
+| Selected configuration | Persisted configuration identity chosen by Set up; Run test reads it and cannot mutate it. |
+| Launch submission | Run test page; explicit click plus server-side idempotency owns exactly-once submission behavior. |
+| Selected result | Results page and its session store; explicit operator selection wins over refresh/hydration. |
+| Review form | Results review area; its selection, note, conflict and save message are page-owned. |
+| Comparison selection | Compare page; independent of Results selection and preserved only for the comparison workflow. |
+
+Cross-page movement uses ordinary operator links and persisted identities. Page
+callbacks may update controls and links inside their own route container, but
+must not write the URL or mutate another page's selection. Passive refreshes
+must never overwrite an explicit choice. Expensive or mutating callbacks check
+that their route is active and that the initiating operator action occurred.
+
+## Responsive contract
+
+All workflow actions and decision fields remain available without horizontal
+page scrolling.
+
+### Desktop — 1200 px and wider
+
+- persistent left navigation and full page heading/actions;
+- 12-column content grid;
+- quartet in one four-card row;
+- primary charts use two-thirds or full width; related summaries sit beside
+  them;
+- AG Grid uses the full panel width with important columns pinned first.
+
+### Tablet — 768–1199 px
+
+- collapsible navigation drawer with the active page named in the header;
+- content uses six columns; quartet becomes a two-by-two grid;
+- chart/summary pairs stack when labels or legends would be compressed;
+- grids retain a useful minimum column width and scroll inside their panel.
+
+### Mobile — below 768 px
+
+- navigation opens from a labelled menu button and closes after selection;
+- page heading, actions, cards and charts form one column;
+- quartet remains near the top as four full-width labelled rows;
+- the primary action is full width and remains after explanatory text;
+- grids use a small essential-column profile, horizontal scrolling inside the
+  grid and an accessible row-detail view for omitted columns;
+- tabs may scroll horizontally, but tab labels and active state remain visible;
+- charts keep readable axis/legend text and never replace evidence with a
+  simplified invented value.
+
+At every size, direct links, refresh, back/forward, selected state, active
+navigation, focus order and all required operator actions must work in a real
+browser. Responsive acceptance covers content and interaction, not screenshots
+alone.
+
+## Trader-facing vocabulary
+
+Use the first term in normal operator copy; reserve the second for labelled
+technical details:
+
+| Operator term | Technical term |
+|---|---|
+| Test / backtest | experiment run / run ID |
+| Saved setup | configuration record / configuration hash |
+| Strategy checks | evidence stages / artifact schema |
+| Data used | manifest / checksum / cache action |
+| Related tests | parent/child lineage |
+| Problem details | exception / diagnostic reference |
+| Review decision | review-state event |
+
+Use **Set up**, not “parameterization”; **Run test**, not “invoke
+orchestration”; **Results**, not “artifact output”. Established finance terms
+such as drawdown, benchmark, slippage and profit factor include short help text
+where a novice could misread them.
+
+Bounded numeric values may use sliders when visual adjustment is useful, with
+the exact value also visible and keyboard-operable. Identifiers, timestamps,
+categorical policies and values requiring exact entry use dropdowns, toggles,
+text inputs or read-only fields instead.
+
+## Loading, empty and failure behavior
+
+Every page has explicit loading, empty, blocked, failed and ready behavior:
+
+- loading preserves page identity and current selection and disables mutations;
+- empty states explain why the page is empty and provide one safe next action;
+- blocked states name every unmet prerequisite;
+- failures lead with operator impact and next safe action, with diagnostics in
+  an expandable technical section;
+- stale data displays its observation time and never claims current health;
+- failed and cancelled runs remain discoverable in history;
+- partial artifacts never render as successful results;
+- retry and cancellation are explicit, state-valid and idempotent;
+- placeholder text is visually distinct from an entered value.
+
+## Technical drill-down boundary
+
+The primary workflow may show strategy, instrument, timeframe, dates, cost
+assumptions and human-readable provenance. These belong under **Technical
+details**, **Lineage**, **Diagnostics** or **Data verification** unless required
+to resolve a visible failure:
+
+- internal run, artifact and configuration identifiers;
+- hashes and schema versions;
+- file paths, storage locations and raw manifest references;
+- callback, process, worker and database implementation names;
+- exception text, stack traces and structured logs;
+- raw JSON, CSV or SQLite content;
+- recovery tools and stale-run cutoffs.
+
+Technical drill-downs are read-only by default. Advanced recovery actions stay
+under a separately labelled **Operations / diagnostics** area, require explicit
+inputs and remain governed by current recovery rules. A technical panel may
+explain a failure but can never be the only explanation.
+
+## Implementation and acceptance boundary
+
+Implementation should preserve existing services, persistence, evidence,
+orchestration and accepted fixture behavior while separating the older mixed
+launch/results page into the defined workflow. Reuse existing component IDs
+where their meaning still matches; do not keep misleading names through hidden
+aliases or test-only presentation.
+
+23C-2 is complete only when focused and relevant full tests pass and all route
+containers/callback ownership comply with ADR 0008. 23C-3 additionally requires
+real-browser proof for every registered route at desktop, tablet and mobile
+sizes, the complete operator workflow and failure behavior. Decision 277 means
+no repeat owner-acceptance prompt is required for this accepted experience once
+those objective gates pass. A material redesign outside this specification
+must not claim that prior acceptance.
+
+## Explicit exclusions
+
+This specification does not authorize:
+
+- Milestone 25 source fetching, hypothesis extraction, discovery,
+  optimization or protected-test evaluation;
+- automatic approval or launch from an Idea;
+- backend, evidence, persistence or orchestration redesign;
+- paper-account, broker, order, position, allocation or reconciliation work;
+- live trading, capital changes or credential access;
+- a new dashboard framework, commercial-grade polish or dark mode;
+- production deployment or changes to a production runtime.
