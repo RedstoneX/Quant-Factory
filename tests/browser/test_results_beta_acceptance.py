@@ -334,6 +334,26 @@ def _assert_no_horizontal_overflow(page: Page) -> None:
     assert widths["bodyScroll"] <= widths["bodyClient"] + 1, widths
 
 
+def _assert_report_normal_flow(page: Page, *, expect_grid: bool) -> None:
+    flow = page.locator(".results-report-region").evaluate(
+        """
+        report => {
+          const viewport = report.querySelector(".ag-body-viewport");
+          return {
+            overflowY: getComputedStyle(report).overflowY,
+            clientHeight: report.clientHeight,
+            scrollHeight: report.scrollHeight,
+            gridOverflowY: viewport ? getComputedStyle(viewport).overflowY : null
+          };
+        }
+        """
+    )
+    assert flow["overflowY"] not in {"auto", "scroll"}
+    assert flow["scrollHeight"] <= flow["clientHeight"] + 1
+    if expect_grid:
+        assert flow["gridOverflowY"] not in {"auto", "scroll"}
+
+
 def test_selected_run_results_beta_browser_contract(results_beta_server) -> None:
     base_url, server_log = results_beta_server
     url = f"{base_url}{BACKTEST_PATH}?{urlencode({'run_id': RUN_ID})}"
@@ -392,6 +412,7 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
             after_wheel = _graph_state(page)["range"]
             assert after_wheel != after_pan
 
+            _assert_report_normal_flow(page, expect_grid=False)
             page.locator("#results-report-tabs .tab", has_text="Trades").click()
             _wait_for_callbacks_to_settle(page, pending)
             row = page.locator("#selected-trade-grid .ag-center-cols-container .ag-row").first
@@ -411,23 +432,7 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
                 (1, "exit", EXIT_TIME),
             }
 
-            report_flow = page.locator(".results-report-region").evaluate(
-                """
-                report => {
-                  const style = getComputedStyle(report);
-                  const viewport = report.querySelector(".ag-body-viewport");
-                  return {
-                    overflowY: style.overflowY,
-                    clientHeight: report.clientHeight,
-                    scrollHeight: report.scrollHeight,
-                    gridOverflowY: viewport ? getComputedStyle(viewport).overflowY : "missing"
-                  };
-                }
-                """
-            )
-            assert report_flow["overflowY"] not in {"auto", "scroll"}
-            assert report_flow["scrollHeight"] <= report_flow["clientHeight"] + 1
-            assert report_flow["gridOverflowY"] not in {"auto", "scroll"}
+            _assert_report_normal_flow(page, expect_grid=True)
 
             initial_dimensions = _dimensions(page)
             handles = page.locator("[data-results-resizer]")
