@@ -36,6 +36,53 @@ weaken protected-data boundaries.
 - [ ] The Milestone 23 gate result is recorded after every remaining objective
       criterion passes or fails.
 
+## Target-evidence audit — 2026-09-18
+
+This read-only audit distinguishes historical licensed-target evidence from
+proof of the current public source. It does not accept Milestone 23 or replace
+the unchecked criteria above.
+
+- Both running research services on the documented OVH target were healthy and
+  exposed VectorBT Pro 2026.4.7 on CPython 3.12.14. The public CI and local
+  portable environments do not contain VectorBT Pro; their green results prove
+  portability only, not licensed-engine behavior.
+- The target SPYM parquet contained 53,528 rows and 944,659 bytes. Its SHA-256,
+  `0fac9de8cb97568c7ee5ae00532277d960c316989ccd65296c394f0dfa44a5ab`,
+  matched the committed SPYM manifest exactly.
+- The latest inspected successful SPYM record was created on 2026-09-03 from
+  historical source revision
+  `79721a67f712c2b440aaeabcb57e7738f1c9fe08`. It recorded VectorBT Pro
+  2026.4.7, and all seven expected persisted artifacts were present and passed
+  checksum validation: dataset manifest, equity curve, metrics, parameter
+  results, run summary, trades and orders, and validation evidence.
+- At the audit, canonical public `main` was
+  `fc36677a456e408c8d85e1c06a551118db5028f2`. The historical target revision
+  is not an object in the sanitized public repository, so the historical run
+  cannot establish behavior for current `main` or for later workflow merges.
+- Target health and the Backtest Results route both returned HTTP 200. This
+  establishes reachability only. It does not prove current-source SPYM
+  execution, persisted dashboard behavior, browser lifecycle, or the complete
+  operator workflow.
+- The deployed runtime and host did not provide a current licensed pytest and
+  Playwright/browser runner, and no current-revision browser evidence was
+  found. The existing integrated SPYM test proves real VectorBT execution,
+  persisted artifacts, reproduction, review, and dashboard service callbacks
+  when run in a licensed environment; the browser suite adds the required
+  real-browser evidence. Neither was rerun during this read-only audit.
+
+The smallest future target proof is to wait for the applicable workflow pull
+requests to merge, freeze the resulting public revision, and build a disposable
+OVH candidate/test runner from that revision using the existing authorized
+private VectorBT Pro build input. Mount the hash-matched SPYM data read-only and
+use fresh isolated state. First run
+`tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage`
+and
+`tests/test_milestone23_acceptance.py::test_milestone23_successful_spym_workflow_compare_reproduce_and_review`.
+Then run the complete `tests/browser/` selection with Playwright and a browser
+installed, require zero skips, and retain JUnit and browser diagnostics. This
+disposable proof must not mutate the production runtime; any later production
+update remains a separate backed-up, validated deployment slice.
+
 ## Incident history
 
 This section is append-only in the public repository. Private coordinates,
