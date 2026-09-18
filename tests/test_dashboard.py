@@ -3898,8 +3898,26 @@ def test_selected_run_store_ignores_transient_empty_dropdown(
 
     preserve = _callback_function(app, "selected-run-state")
 
-    assert preserve(None, None, "run_dashboard_fixture") is no_update
-    assert preserve("run_dashboard_fixture", None, None) == "run_dashboard_fixture"
+    assert (
+        preserve(
+            None,
+            None,
+            "",
+            "run_dashboard_fixture",
+            "/research/backtest-results",
+        )
+        is no_update
+    )
+    assert (
+        preserve(
+            "run_dashboard_fixture",
+            None,
+            "",
+            None,
+            "/research/backtest-results",
+        )
+        == "run_dashboard_fixture"
+    )
 
 
 def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
@@ -3998,7 +4016,13 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
         lambda: "selected-run-selector",
     )
-    stored = preserve("spym_persisted_run", None, "run_dashboard_fixture")
+    stored = preserve(
+        "spym_persisted_run",
+        None,
+        "",
+        "run_dashboard_fixture",
+        "/research/backtest-results",
+    )
 
     monkeypatch.setattr("dashboard.callbacks.backtest_results._callback_triggered_id", lambda: None)
     options, selected = refresh_selectors(
@@ -4104,7 +4128,13 @@ def test_selected_run_store_recontrols_dropdown_after_detail_render_remount(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
         lambda: "selected-run-selector",
     )
-    stored = preserve("selected_run_b", None, "default_run_a")
+    stored = preserve(
+        "selected_run_b",
+        None,
+        "",
+        "default_run_a",
+        "/research/backtest-results",
+    )
     rendered = str(inspect(stored, "selected_run_b", 0, 0, 0, 0))
 
     monkeypatch.setattr(
@@ -4227,7 +4257,9 @@ def test_initial_session_selection_beats_layout_default_dropdown(
     stored = preserve(
         "recent_run_00",
         None,
+        "",
         "spym_historical_run",
+        "/research/backtest-results",
     )
     options, selected = refresh_selectors(
         0,
@@ -4445,7 +4477,9 @@ def test_history_grid_selection_recontrols_stale_dropdown_value(
     stored = preserve(
         "recent_run_00",
         [{"run_id": "spym_historical_run"}],
+        "",
         "recent_run_00",
+        "/research/backtest-results",
     )
 
     monkeypatch.setattr(

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl
 
 from dash import Dash, Input, Output, State, html, no_update
 from dash.exceptions import PreventUpdate
@@ -43,6 +45,45 @@ from orchestration import FixtureRunService, RunServiceError, RunSummary
 OWNED_STATE = {
     "selected_backtest": ("selected-run-selector.value", "selected-run-state.data"),
 }
+
+
+_INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
+_MAX_RESULTS_QUERY_LENGTH = 2_048
+_MAX_RUN_ID_LENGTH = 256
+
+
+def _requested_results_run_id(search: str | None) -> tuple[bool, str | None]:
+    """Return whether Results was asked to adopt one syntactically safe run ID."""
+
+    if not search:
+        return False, None
+    query = search[1:] if search.startswith("?") else search
+    if len(query) > _MAX_RESULTS_QUERY_LENGTH or _INVALID_PERCENT_ESCAPE.search(query):
+        return True, None
+    try:
+        pairs = parse_qsl(
+            query,
+            keep_blank_values=True,
+            strict_parsing=True,
+            encoding="utf-8",
+            errors="strict",
+            max_num_fields=20,
+        )
+    except (UnicodeDecodeError, ValueError):
+        return True, None
+    values = [value for key, value in pairs if key == "run_id"]
+    if not values:
+        return False, None
+    if len(values) != 1:
+        return True, None
+    run_id = values[0]
+    if (
+        not run_id.strip()
+        or len(run_id) > _MAX_RUN_ID_LENGTH
+        or any(ord(character) < 32 or ord(character) == 127 for character in run_id)
+    ):
+        return True, None
+    return True, run_id
 
 
 def register_backtest_results_callbacks(
@@ -265,12 +306,16 @@ def register_backtest_results_callbacks(
         Output("selected-run-state", "data"),
         Input("selected-run-selector", "value"),
         Input("run-history-grid", "selectedRows", allow_optional=True),
+        Input("url", "search"),
         State("selected-run-state", "data"),
+        State("url", "pathname"),
     )
     def preserve_selected_run(
         selected_run_id: str | None,
         history_rows: list[dict[str, Any]] | None = None,
+        search: str | None = None,
         stored_run_id: str | None = None,
+        pathname: str | None = "/research/backtest-results",
     ):
         triggered_id = _callback_triggered_id()
 
@@ -284,6 +329,28 @@ def register_backtest_results_callbacks(
 
         if triggered_id == "run-history-grid" and history_rows:
             return history_rows[0].get("run_id") or stored_run_id
+        if triggered_id == "selected-run-selector" and selected_run_id:
+            return selected_run_id
+
+        query_requested, requested_run_id = _requested_results_run_id(search)
+        should_consider_query = triggered_id in {None, "url"}
+        if should_consider_query and not _active_route(
+            pathname,
+            "/research/backtest-results",
+        ):
+            return no_update
+        if should_consider_query and query_requested:
+            if requested_run_id:
+                try:
+                    requested_run = runs.get_run(requested_run_id)
+                except (KeyError, ValueError, RunServiceError):
+                    requested_run = None
+                if (
+                    requested_run is not None
+                    and requested_run.run_id == requested_run_id
+                ):
+                    return requested_run_id
+            return no_update if stored_run_id else None
         if triggered_id is None and stored_run_is_valid():
             return no_update
         if selected_run_id:
