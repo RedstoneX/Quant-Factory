@@ -9,7 +9,9 @@ import pytest
 
 from tests.browser.dashboard_diagnostics import (
     CALLBACK_STATUS_MARKER,
+    PendingCallbackRequests,
     assert_browser_diagnostics_clean,
+    parse_callback_statuses,
 )
 
 
@@ -27,6 +29,19 @@ class _Page:
 
     def locator(self, _selector: str) -> _Locator:
         return _Locator(self.renderer_errors)
+
+
+class _Request:
+    def __init__(
+        self,
+        *,
+        method: str = "POST",
+        url: str = "http://127.0.0.1:8050/_dash-update-component",
+        post_data: str | None = '{"output":"result.children"}',
+    ) -> None:
+        self.method = method
+        self.url = url
+        self.post_data = post_data
 
 
 def _request_body(
@@ -94,6 +109,40 @@ def test_callback_body_without_state_is_matched(tmp_path: Path) -> None:
     event["request_body"] = _request_body(search_in_state=False)
 
     assert assert_browser_diagnostics_clean(_Page(), [event], (log,)) == 1
+
+
+def test_pending_callback_settles_with_a_distinct_event_wrapper() -> None:
+    pending = PendingCallbackRequests()
+
+    pending.add(_Request())
+    pending.discard(_Request())
+
+    assert not pending
+    assert len(pending) == 0
+
+
+def test_pending_callback_tracker_preserves_duplicate_request_count() -> None:
+    pending = PendingCallbackRequests()
+
+    pending.add(_Request())
+    pending.add(_Request())
+    pending.discard(_Request())
+
+    assert pending
+    assert len(pending) == 1
+
+
+def test_callback_status_parser_handles_adjacent_markers(tmp_path: Path) -> None:
+    log = tmp_path / "server.log"
+    first = {"output": "first.children", "status": 200}
+    second = {"output": "second.children", "status": 204}
+    marker = "COMPARE_CALLBACK_STATUS "
+    log.write_text(
+        marker + json.dumps(first) + marker + json.dumps(second) + "\n",
+        encoding="utf-8",
+    )
+
+    assert parse_callback_statuses((log,), marker=marker) == [first, second]
 
 
 @pytest.mark.parametrize(

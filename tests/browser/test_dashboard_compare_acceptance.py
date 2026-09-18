@@ -6,7 +6,6 @@ from collections import Counter
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
 import time
@@ -20,6 +19,10 @@ from tests.browser.test_backtest_results_spym_stability import (
     REPOSITORY_ROOT,
     _free_port,
     _wait_for_server,
+)
+from tests.browser.dashboard_diagnostics import (
+    PendingCallbackRequests,
+    parse_callback_statuses,
 )
 from tests.browser.test_dashboard_lifecycle import (
     _assert_no_browser_errors,
@@ -38,7 +41,7 @@ QUERY_HYDRATION_OUTPUT = (
 
 
 def _attach_compare_diagnostics(page, events, action):
-    pending_requests: set[int] = set()
+    pending_requests = PendingCallbackRequests()
 
     def record(kind: str, **details) -> None:
         events.append(
@@ -60,20 +63,20 @@ def _attach_compare_diagnostics(page, events, action):
     )
     page.on(
         "request",
-        lambda request: pending_requests.add(id(request))
+        lambda request: pending_requests.add(request)
         if "/_dash-update-component" in request.url
         else None,
     )
     page.on(
         "requestfinished",
-        lambda request: pending_requests.discard(id(request))
+        lambda request: pending_requests.discard(request)
         if "/_dash-update-component" in request.url
         else None,
     )
     page.on(
         "requestfailed",
         lambda request: (
-            pending_requests.discard(id(request)),
+            pending_requests.discard(request),
             record(
                 "requestfailed",
                 url=request.url,
@@ -263,11 +266,10 @@ def _assert_route_inactive_navigation_cancellations(
 
 
 def _callback_statuses(server_log: Path) -> list[dict[str, object]]:
-    text = server_log.read_text(encoding="utf-8", errors="replace")
-    return [
-        json.loads(match.group(1))
-        for match in re.finditer(r"COMPARE_CALLBACK_STATUS (\{.*\})", text)
-    ]
+    return parse_callback_statuses(
+        (server_log,),
+        marker="COMPARE_CALLBACK_STATUS ",
+    )
 
 
 def _assert_status_evidence(

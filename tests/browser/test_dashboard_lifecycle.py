@@ -38,6 +38,7 @@ from tests.browser.test_backtest_results_spym_stability import (
     _launcher,
     dashboard_server,
 )
+from tests.browser.dashboard_diagnostics import PendingCallbackRequests
 from tests.test_review_context_artifacts import (
     REVIEW_PARAMETERS,
     _persist_review_prerequisites,
@@ -346,7 +347,7 @@ def _assert_route(page, base_url, path, container):
 
 
 def _attach_diagnostics(page, events, action):
-    pending_requests = set()
+    pending_requests = PendingCallbackRequests()
 
     def record(kind, **details):
         events.append(
@@ -368,20 +369,20 @@ def _attach_diagnostics(page, events, action):
     )
     page.on(
         "request",
-        lambda request: pending_requests.add(id(request))
+        lambda request: pending_requests.add(request)
         if "/_dash-update-component" in request.url
         else None,
     )
     page.on(
         "requestfinished",
-        lambda request: pending_requests.discard(id(request))
+        lambda request: pending_requests.discard(request)
         if "/_dash-update-component" in request.url
         else None,
     )
     page.on(
         "requestfailed",
         lambda request: (
-            pending_requests.discard(id(request)),
+            pending_requests.discard(request),
             record(
                 "requestfailed",
                 url=request.url,

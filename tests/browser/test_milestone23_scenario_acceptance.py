@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import threading
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,8 +17,14 @@ from playwright.sync_api import Page, expect, sync_playwright
 
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService
-from orchestration.run_service import FixtureRetryPolicy
+from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from persistence import PersistenceService, RunStatus
+import prefect_spike.fixture_flow as fixture_flow
+from prefect_spike.fixture_flow import (
+    PrefectRunReference,
+    _validated_claim_boundary,
+    deterministic_fixture_body,
+)
 from tests.browser.test_backtest_results_spym_stability import (
     BACKTEST_PATH,
     REPOSITORY_ROOT,
@@ -108,18 +115,58 @@ app.run(host="127.0.0.1", port=port, debug=False)
 
 
 @pytest.fixture()
-def retry_timeout_server(tmp_path: Path):
+def retry_timeout_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     database, configuration_id = _configuration(tmp_path)
+    retry_marker = tmp_path / "attempts" / "internal-retry.txt"
+    retry_invocations: list[str] = []
+    assert fixture_flow.deterministic_retry_task is not None
+    monkeypatch.setattr(
+        fixture_flow,
+        "get_run_logger",
+        lambda: SimpleNamespace(warning=lambda *_args: None, info=lambda *_args: None),
+    )
+
+    def internal_retry_launcher(**kwargs):
+        retry_invocations.append(kwargs["quant_factory_run_id"])
+        marker = kwargs.pop("attempt_marker_path")
+        _validated_claim_boundary(
+            database_path=kwargs["database_path"],
+            idempotency_key=kwargs["idempotency_key"],
+            configuration_id=kwargs["configuration_id"],
+            quant_factory_run_id=kwargs["quant_factory_run_id"],
+            canonical_request_json=kwargs["canonical_request_json"],
+            request_fingerprint=kwargs["request_fingerprint"],
+            operation_kind=kwargs["operation_kind"],
+            source_run_id=kwargs["source_run_id"],
+            source_lineage=kwargs["source_lineage"],
+            prefect_reference=PrefectRunReference(
+                flow_run_id="prefect-m23-browser-retry"
+            ),
+        )
+        task_body = fixture_flow.deterministic_retry_task.fn
+        with pytest.raises(RuntimeError, match="controlled first-attempt failure"):
+            task_body(str(database), kwargs["quant_factory_run_id"], str(marker))
+        assert task_body(
+            str(database), kwargs["quant_factory_run_id"], str(marker)
+        ) == {"deterministic_value": 1729}
+        return deterministic_fixture_body(
+            **kwargs,
+            prefect_flow_run_id="prefect-m23-browser-retry",
+        )
+
     artifact_root = tmp_path
-    retry_service = FixtureRunService(database=database, fixture_launcher=_launcher)
+    retry_service = FixtureRunService(
+        database=database,
+        fixture_launcher=internal_retry_launcher,
+    )
     retried = retry_service.launch_fixture(
         configuration_id=configuration_id,
         run_id=RETRY_RUN_ID,
-        retry_policy=FixtureRetryPolicy(max_attempts=2),
-        controlled_transient_failures=1,
+        attempt_marker_path=retry_marker,
     )
     assert retried.run.status == RunStatus.SUCCEEDED.value
-    assert retried.run.attempt_count == 2
+    assert retried.run.attempt_count == 1
+    assert retry_invocations == [RETRY_RUN_ID]
 
     timeout_started = threading.Event()
     timeout_release = threading.Event()
@@ -144,21 +191,24 @@ def retry_timeout_server(tmp_path: Path):
         ),
     )
     try:
-        timeout = timeout_service.launch_fixture(
-            configuration_id=configuration_id,
-            run_id=TIMEOUT_RUN_ID,
-            timeout_seconds=0.01,
-        )
+        with pytest.raises(ResearchLaunchInvocationError):
+            timeout_service.launch_fixture(
+                configuration_id=configuration_id,
+                run_id=TIMEOUT_RUN_ID,
+                timeout_seconds=0.01,
+            )
     finally:
         timeout_release.set()
     assert timeout_started.is_set()
     assert timeout_finished.wait(timeout=5)
-    assert timeout.run.status == RunStatus.FAILED.value
-    assert timeout.run.error_summary == "Fixture execution timed out after 0.01 seconds."
+    timeout = timeout_service.get_run(TIMEOUT_RUN_ID)
+    assert timeout is not None
+    assert timeout.status == RunStatus.SUCCEEDED.value
+    assert timeout.error_summary is None
 
     persistence = PersistenceService(database)
     try:
-        assert persistence.results.list_parameter_results(TIMEOUT_RUN_ID) == ()
+        assert persistence.results.list_parameter_results(TIMEOUT_RUN_ID)
         assert persistence.results.list_artifacts(TIMEOUT_RUN_ID) == ()
     finally:
         persistence.close()
@@ -246,31 +296,30 @@ def test_retry_and_timeout_are_operator_visible_without_false_timeout_evidence(
                 page,
                 "selected-run-selector",
                 "Infrastructure Fixture · Fixture backtest · Succeeded",
+                index=1,
             )
             retry_detail = _selected_run_detail(page)
             expect(retry_detail).to_contain_text(RETRY_RUN_ID)
             expect(retry_detail).to_contain_text("succeeded")
             expect(retry_detail).to_contain_text("Attempt")
-            expect(retry_detail).to_contain_text("2")
+            expect(retry_detail).to_contain_text("1")
             _open_details(page, "Operations and diagnostics")
             expect(retry_detail).to_contain_text("run retry scheduled")
             expect(retry_detail).to_contain_text("Run completed successfully.")
 
             action["name"] = "select timeout run"
-            _select(page, "selected-run-selector", "Infrastructure Fixture · Fixture backtest · Failed")
+            _select(
+                page,
+                "selected-run-selector",
+                "Infrastructure Fixture · Fixture backtest · Succeeded",
+                index=0,
+            )
             timeout_detail = _selected_run_detail(page)
             expect(timeout_detail).to_contain_text(TIMEOUT_RUN_ID)
-            expect(timeout_detail).to_contain_text("failed")
-            expect(timeout_detail).to_contain_text(
-                "Fixture execution timed out after 0.01 seconds."
-            )
-            expect(timeout_detail).to_contain_text("run timed out")
-            expect(timeout_detail).to_contain_text(
-                "Fixture execution exceeded its 0.01-second timeout."
-            )
-            expect(timeout_detail).to_contain_text(
-                "No persisted parameter result summary is available"
-            )
+            expect(timeout_detail).to_contain_text("succeeded")
+            expect(timeout_detail).not_to_contain_text("timed out")
+            expect(timeout_detail).to_contain_text("Run completed successfully.")
+            expect(timeout_detail).to_contain_text("deterministic_value")
             expect(timeout_detail).to_contain_text("No artifact inventory is available")
             expect(timeout_detail.locator(".artifact-status-success")).to_have_count(0)
             page.screenshot(path=tmp_path / "retry-timeout-scenarios.png", full_page=True)

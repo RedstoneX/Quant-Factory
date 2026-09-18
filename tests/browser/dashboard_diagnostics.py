@@ -13,6 +13,33 @@ CALLBACK_STATUS_MARKER = "DASH_CALLBACK_STATUS "
 _CALLBACK_PATH = "/_dash-update-component"
 
 
+class PendingCallbackRequests:
+    """Track callbacks across distinct Playwright wrappers for one request."""
+
+    def __init__(self) -> None:
+        self._counts: Counter[tuple[str, str, str | None]] = Counter()
+
+    @staticmethod
+    def _signature(request: Any) -> tuple[str, str, str | None]:
+        return (request.method, request.url, request.post_data)
+
+    def add(self, request: Any) -> None:
+        self._counts[self._signature(request)] += 1
+
+    def discard(self, request: Any) -> None:
+        signature = self._signature(request)
+        if self._counts[signature] <= 1:
+            self._counts.pop(signature, None)
+        else:
+            self._counts[signature] -= 1
+
+    def __bool__(self) -> bool:
+        return bool(self._counts)
+
+    def __len__(self) -> int:
+        return sum(self._counts.values())
+
+
 def install_callback_status_recorder(server: Any) -> None:
     """Record enough server evidence to classify browser-side Dash aborts."""
 
@@ -56,10 +83,10 @@ def attach_browser_diagnostics(
     page: Any,
     events: list[dict[str, object]],
     action: Mapping[str, str],
-) -> set[int]:
+) -> PendingCallbackRequests:
     """Capture browser failures while tracking in-flight Dash callbacks."""
 
-    pending_requests: set[int] = set()
+    pending_requests = PendingCallbackRequests()
 
     def record(kind: str, **details: object) -> None:
         events.append(
@@ -88,20 +115,20 @@ def attach_browser_diagnostics(
     )
     page.on(
         "request",
-        lambda request: pending_requests.add(id(request))
+        lambda request: pending_requests.add(request)
         if urlsplit(request.url).path == _CALLBACK_PATH
         else None,
     )
     page.on(
         "requestfinished",
-        lambda request: pending_requests.discard(id(request))
+        lambda request: pending_requests.discard(request)
         if urlsplit(request.url).path == _CALLBACK_PATH
         else None,
     )
 
     def request_failed(request: Any) -> None:
         if urlsplit(request.url).path == _CALLBACK_PATH:
-            pending_requests.discard(id(request))
+            pending_requests.discard(request)
         record(
             "requestfailed",
             url=request.url,
@@ -113,12 +140,18 @@ def attach_browser_diagnostics(
     return pending_requests
 
 
-def _callback_statuses(server_logs: Sequence[Path]) -> list[dict[str, object]]:
+def parse_callback_statuses(
+    server_logs: Sequence[Path],
+    *,
+    marker: str = CALLBACK_STATUS_MARKER,
+) -> list[dict[str, object]]:
+    """Parse every callback JSON document, including adjacent log writes."""
+
     statuses: list[dict[str, object]] = []
     decoder = json.JSONDecoder()
     for server_log in server_logs:
         text = server_log.read_text(encoding="utf-8", errors="replace")
-        for fragment in text.split(CALLBACK_STATUS_MARKER)[1:]:
+        for fragment in text.split(marker)[1:]:
             status, _ = decoder.raw_decode(fragment.lstrip())
             statuses.append(status)
     return statuses
@@ -153,7 +186,7 @@ def assert_browser_diagnostics_clean(
     assert page.locator("._dash-error-card").count() == 0
     assert page.locator("#_dash-error-container .dash-error-card").count() == 0
 
-    statuses = _callback_statuses(server_logs)
+    statuses = parse_callback_statuses(server_logs)
     server_204s = Counter(
         _signature(status)
         for status in statuses
