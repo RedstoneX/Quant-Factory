@@ -13,7 +13,11 @@ from typing import Iterable
 
 from dash import dcc, html
 
-from dashboard.health import HomeHealthReading
+from dashboard.health import (
+    HomeHealthReading,
+    normalize_health_reading,
+    redact_credential_health_reading,
+)
 from dashboard.pages.common import page_heading
 from dashboard.project_status import DashboardProjectStatus, PROJECT_STATUS
 from orchestration import RunEvent, RunSummary
@@ -240,14 +244,10 @@ def _health_view(
     as_of: datetime,
     stale_after: timedelta,
 ) -> HomeHealthView:
-    safe_detail = (
-        "Availability only. Credential values are never displayed."
-        if area == "credential"
-        else reading.detail
-        if reading is not None
-        else ""
-    )
-    if reading is None or reading.checked_at is None:
+    if reading is not None and area == "credential":
+        reading = redact_credential_health_reading(reading)
+    safe_detail = reading.detail if reading is not None else ""
+    if reading is None:
         detail = (
             safe_detail
             if safe_detail
@@ -261,53 +261,25 @@ def _health_view(
             checked_at="Not checked",
             stale=False,
         )
-    checked_at = _parse_timestamp(reading.checked_at)
-    if checked_at is None:
-        return HomeHealthView(
-            area=area,
-            label=label,
-            status="Not checked",
-            detail="The recorded check time is invalid; current health is not assumed.",
-            checked_at="Not checked",
-            stale=False,
-        )
-    if checked_at > as_of.astimezone(timezone.utc):
-        return HomeHealthView(
-            area=area,
-            label=label,
-            status="Not checked",
-            detail="The recorded check time is in the future; current health is not assumed.",
-            checked_at="Not checked",
-            stale=False,
-        )
-    stale = as_of.astimezone(timezone.utc) - checked_at > stale_after
     status = reading.status.strip() or "Not checked"
-    if area == "credential":
-        credential_states = {
-            "available": "Available",
-            "unavailable": "Unavailable",
-            "degraded": "Degraded",
-            "not checked": "Not checked",
-        }
-        status = credential_states.get(status.lower(), "Not checked")
+    normalized, stale = normalize_health_reading(
+        HomeHealthReading(
+            area=reading.area,
+            status=status,
+            detail=safe_detail,
+            checked_at=reading.checked_at,
+        ),
+        observed_at=as_of,
+        stale_after=stale_after,
+    )
     return HomeHealthView(
         area=area,
         label=label,
-        status=f"Stale — {status}" if stale else status,
-        detail=safe_detail,
-        checked_at=reading.checked_at,
+        status=normalized.status,
+        detail=normalized.detail,
+        checked_at=normalized.checked_at or "Not checked",
         stale=stale,
     )
-
-
-def _parse_timestamp(value: str) -> datetime | None:
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        return None
-    return parsed.astimezone(timezone.utc)
 
 
 def _selected_active_or_latest_run(

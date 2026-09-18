@@ -220,6 +220,22 @@ def test_home_and_system_render_local_health_without_claiming_remote_checks(
             for area in ("worker", "provider", "credential"):
                 _expect_health_card(page, area, "Not checked", timestamped=False)
 
+            for viewport in (
+                {"width": 1280, "height": 900},
+                {"width": 1024, "height": 768},
+                {"width": 390, "height": 844},
+            ):
+                page.set_viewport_size(viewport)
+                expect(page.locator("#route-home h1")).to_have_text("Home")
+                assert (
+                    page.evaluate("document.documentElement.scrollWidth")
+                    <= viewport["width"] + 1
+                )
+                assert (
+                    page.evaluate("document.body.scrollWidth")
+                    <= viewport["width"] + 1
+                )
+
             action["name"] = "open System Status local health"
             page.goto(base_url + "/system", wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
@@ -233,7 +249,7 @@ def test_home_and_system_render_local_health_without_claiming_remote_checks(
                 expect(card.locator("strong")).to_have_text("Not checked")
                 expect(card).to_contain_text("Last checked: Not checked")
 
-            assert pending == set()
+            assert not pending
             _assert_no_browser_errors(events)
         finally:
             browser.close()

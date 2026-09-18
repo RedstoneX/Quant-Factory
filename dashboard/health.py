@@ -7,7 +7,7 @@ create databases, download data, contact providers, or change dataset status.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 import sqlite3
@@ -59,6 +59,80 @@ class HomeHealthReading:
     status: str
     detail: str
     checked_at: str | None = None
+
+
+def normalize_health_reading(
+    reading: HomeHealthReading,
+    *,
+    observed_at: datetime,
+    stale_after: timedelta,
+) -> tuple[HomeHealthReading, bool]:
+    """Fail closed when an observation is missing, invalid, future, or stale."""
+
+    status = reading.status.strip() or "Not checked"
+    if reading.checked_at is None:
+        return (
+            HomeHealthReading(
+                reading.area,
+                "Not checked",
+                reading.detail,
+            ),
+            False,
+        )
+    try:
+        checked_at = datetime.fromisoformat(reading.checked_at.replace("Z", "+00:00"))
+    except ValueError:
+        checked_at = None
+    if checked_at is None or checked_at.tzinfo is None:
+        return (
+            HomeHealthReading(
+                reading.area,
+                "Not checked",
+                "The recorded check time is invalid; current health is not assumed.",
+            ),
+            False,
+        )
+    checked_at = checked_at.astimezone(timezone.utc)
+    as_of = observed_at.astimezone(timezone.utc)
+    if checked_at > as_of:
+        return (
+            HomeHealthReading(
+                reading.area,
+                "Not checked",
+                "The recorded check time is in the future; current health is not assumed.",
+            ),
+            False,
+        )
+    stale = as_of - checked_at > stale_after
+    return (
+        HomeHealthReading(
+            reading.area,
+            f"Stale — {status}" if stale else status,
+            reading.detail,
+            reading.checked_at,
+        ),
+        stale,
+    )
+
+
+def redact_credential_health_reading(
+    reading: HomeHealthReading,
+) -> HomeHealthReading:
+    """Keep only an allow-listed availability state and its observation time."""
+
+    credential_states = {
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "degraded": "Degraded",
+        "not checked": "Not checked",
+    }
+    status = credential_states.get(reading.status.strip().lower(), "Not checked")
+    return HomeHealthReading(
+        reading.area,
+        status,
+        "Availability only. Credential values are never displayed.",
+        reading.checked_at,
+    )
 
 
 def inspect_catalog(

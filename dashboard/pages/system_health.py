@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -13,6 +13,8 @@ from dashboard.health import (
     inspect_artifact_storage,
     inspect_catalog,
     inspect_database,
+    normalize_health_reading,
+    redact_credential_health_reading,
 )
 from dashboard.pages.common import page_heading
 from dashboard.project_status import PROJECT_STATUS
@@ -27,6 +29,8 @@ def layout(
     manifest_dir: Path = DEFAULT_MANIFEST_DIR,
     catalog_snapshot: tuple | None = None,
     health_readings: Iterable[HomeHealthReading] | None = None,
+    observed_at: datetime | None = None,
+    stale_after: timedelta = timedelta(minutes=15),
 ) -> html.Div:
     locations, datasets, configuration_error = (
         catalog_snapshot
@@ -97,6 +101,8 @@ def layout(
             "Credential values are never displayed.",
         ),
     )
+    credential_reading = redact_credential_health_reading(credential_reading)
+    resolved_observed_at = observed_at or datetime.now(timezone.utc)
     return html.Div(
         [
             page_heading(
@@ -111,11 +117,36 @@ def layout(
             ),
             html.Section(
                 [
-                    _metric("Research database", database_reading),
-                    _metric("Artifact storage", artifact_reading),
-                    _metric("Local data", cache_reading),
-                    _metric("Orchestrator", worker_reading),
-                    _metric("Credentials", credential_reading),
+                    _metric(
+                        "Research database",
+                        _truthful_reading(
+                            database_reading, resolved_observed_at, stale_after
+                        ),
+                    ),
+                    _metric(
+                        "Artifact storage",
+                        _truthful_reading(
+                            artifact_reading, resolved_observed_at, stale_after
+                        ),
+                    ),
+                    _metric(
+                        "Local data",
+                        _truthful_reading(
+                            cache_reading, resolved_observed_at, stale_after
+                        ),
+                    ),
+                    _metric(
+                        "Orchestrator",
+                        _truthful_reading(
+                            worker_reading, resolved_observed_at, stale_after
+                        ),
+                    ),
+                    _metric(
+                        "Credentials",
+                        _truthful_reading(
+                            credential_reading, resolved_observed_at, stale_after
+                        ),
+                    ),
                 ],
                 className="summary-grid",
             ),
@@ -218,3 +249,15 @@ def _metric(label: str, reading: HomeHealthReading) -> html.Div:
         ],
         className="metric-card",
     )
+
+
+def _truthful_reading(
+    reading: HomeHealthReading,
+    observed_at: datetime,
+    stale_after: timedelta,
+) -> HomeHealthReading:
+    return normalize_health_reading(
+        reading,
+        observed_at=observed_at,
+        stale_after=stale_after,
+    )[0]
