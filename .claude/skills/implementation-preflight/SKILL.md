@@ -135,6 +135,68 @@ migration after documented backup, reconciliation, private-access, restart,
 restore, and rollback checks; it does not authorize M23 acceptance, paper
 orders, discovery, optimization, or live capital.
 
+## 4a. Complete the reuse-before-build assessment
+
+The controlling priority is the shortest safe, evidence-truthful path to an
+operator-usable MVP that can validate or reject a trading edge. Treat reuse as
+a means to that outcome, not an end or a reason to continue component research
+after a suitable path is established.
+
+Before proposing custom executable code, inventory the relevant:
+
+- existing Quant Factory implementation, tests, adapters, and assets;
+- licensed dependencies and their supported capabilities, including VectorBT
+  Pro where applicable;
+- owner-approved prototypes that must remain implementation input;
+- mature maintained external components or reference projects that may solve
+  the need legally and safely.
+
+Use `docs/component-reuse-audit.md` as the existing inventory starting point
+where relevant. Its individual evaluations are historical until revalidated
+for the current task; do not repeat settled research without a changed
+requirement, dependency, license, or material new candidate.
+
+For each plausible candidate, compare functional fit, license and legal use,
+security, maintenance health, integration cost, and truthful handling of
+Quant Factory data and evidence. Prefer adapting or integrating a suitable
+proven component. Do not recreate mature commercial-grade dashboard,
+charting, grid, panel, or research-engine behavior for architectural neatness,
+local control, or speculative future flexibility.
+
+Custom code is allowed only for a verified project-specific gap or when the
+comparison shows reuse is materially worse. State the selected reuse, the
+remaining gap, and why each custom portion is necessary. The rule does not bar
+the smallest domain adapter, evidence-integrity check, or safety control, and
+does not authorize copying or adding a dependency without a compatible
+license. Distinguish prototype/reference behavior from integrated, tested,
+deployed, and operator-accepted product behavior.
+
+For the temporary Decision 286 selected-run Results beta boundary, also state:
+
+- which of the three authorized slices is active: approved-page
+  reuse/integration, focused browser fixes, or backed-up validated OVH
+  deployment;
+- the honestly measured effort already used and the remaining portion of the
+  six-development-hour planning ceiling, without treating the estimate as a
+  completion guarantee or inventing precision;
+- the one bounded implementer and cheapest capable independent reviewer for the
+  slice, confirming that all reviewer effort counts inside the same
+  six-development-hour ceiling, with review limited to the owned diff,
+  decisive evidence, and boundary compliance rather than reimplementation, a broad audit, discretionary
+  redesign, or duplicate testing;
+- that no new framework, chart/grid/panel system or architecture, paid
+  dependency, or replacement of approved behavior is proposed;
+- that caching, scalable multi-run design or Explorer work, aesthetic polish,
+  and broad refactoring are excluded unless recorded evidence demonstrates a
+  beta blocker.
+
+Stop and reassess reuse and the remaining budget if thin integration expands.
+Do not silently widen a slice or exceed the planning ceiling.
+While the work is active, provide at least hourly progress reports naming the
+current slice, selected reuse, boundary compliance, scope pressure, and next
+action. Treat the dashboard as the essential single-user interface without
+turning beta MVP delivery into a perfection gate.
+
 ## 5. Apply Quant Factory acceptance rules
 
 - Use the real SPYM VectorBT Pro fixture in the successful integrated Milestone
@@ -159,6 +221,7 @@ Routing
 Repository
 Active scope
 Factual gap
+Reuse assessment
 Smallest safe change
 Files and systems in scope
 Validation

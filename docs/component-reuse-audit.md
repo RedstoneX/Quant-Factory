@@ -1,8 +1,24 @@
 # Quant Factory Component Reuse Audit
 
+- **Status:** Supporting inventory; Decision 285 and `AGENTS.md` are
+  authoritative.
+- **Current-use rule:** Revalidate candidate fit, license, security,
+  maintenance, integration cost, and evidence truthfulness for the bounded
+  task. Individual evaluations below are historical until that current
+  preflight occurs.
+
 ## Rule
 
-Quant Factory must adopt maintained components when adaptation is cheaper and safer than building the same capability. Custom code is limited to trading-specific evidence, governance, lifecycle, and reconciliation.
+Decision 285 requires Quant Factory to adapt or integrate suitable maintained
+components instead of recreating them. Custom code is limited to verified
+project-specific gaps or cases where reuse is materially worse, with the
+rationale recorded in implementation preflight. Small domain adapters,
+evidence-integrity checks, and safety controls remain allowed where necessary;
+unlicensed or incompatibly licensed copying is never allowed.
+
+Quant Factory is Terry's private single-operator trading-research system under
+Decision 284. Enterprise, SaaS, sales, multitenant, billing, customer, and team
+features are not selection criteria unless separately approved.
 
 ## Decisions
 
@@ -34,7 +50,9 @@ layout and controls and Dash AG Grid Community for interactive tables.
 
 MLflow already provides runs, parameters, metrics, tags, artifacts, SQL-compatible storage, search, comparison, parent/child runs and a tracking UI. It is mature, but its model lifecycle does not replace protected holdouts, immutable parameter locks, insufficient-evidence status, trading lifecycle decisions or paper/live reconciliation. Adding it now would create a second run store or require replacing Milestone 17 while the custom trading dashboard would still be required.
 
-Decision: do not add MLflow now. Reconsider for multi-user or remote tracking later.
+Decision: do not add MLflow now. Multi-user reconsideration requires separate
+owner approval under Decision 284; remote tracking alone does not make it a
+selected dependency.
 
 ### Aim
 
@@ -84,6 +102,17 @@ Decision: retain VectorBT Pro. Reuse only design ideas for brokerage adapters, d
 
 ## Dashboard reuse plan
 
+The owner-approved interactive Results prototype is implementation input and
+must be reused or adapted where it remains technically and legally suitable.
+It is not by itself integrated, tested, deployed, or renewed operator-accepted
+application behavior.
+
+Decision 286 settles the current beta path: preserve and integrate the
+approved chart/page behavior rather than evaluate or build a replacement. The
+three bounded slices add no framework, chart/grid/panel system or architecture,
+or paid dependency. If the integration stops being thin, work stops for a
+reuse and budget reassessment.
+
 The earlier Milestone 20 component recommendation was:
 
 - Plotly Dash pages and callbacks;
@@ -115,7 +144,12 @@ After the identified correctness fixes, the package remains justified because it
 
 Replacing it now with a generic tracker would require migration and adapters while still needing this trading-specific layer. It must not expand into a custom workflow engine, artifact store or visualization framework.
 
-## Revised path
+## Historical pre-Milestone-18 path — non-actionable
+
+The sequence below is retained only as historical context from the earlier
+Milestone 17/18 planning period. Those milestones have passed. Do not execute,
+resume, or use this list to order current work. `docs/MILESTONES.md` is the
+only current work queue and sequencing authority.
 
 1. Apply the small Milestone 17 correctness fixes.
 2. Do not add MLflow, Aim or Trackio.

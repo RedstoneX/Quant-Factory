@@ -323,3 +323,107 @@ explicitly.
      this decision log is appended. An ADR is not yet applicable because no
      architecture has been selected. No operating runbook changes because no
      cache has been implemented or deployed.
+
+284. **Private single-operator product boundary (accepted 2026-09-18).** The
+     owner clarifies that Quant Factory is built privately for Terry as its
+     single owner/operator, solely to find and validate a trading edge and
+     pursue consistent income in the markets. It is not an enterprise product,
+     SaaS offering, software-sales project, multitenant service, billing
+     system, customer-onboarding product, or team platform. Features whose
+     purpose is only hypothetical external customers, organizations, roles,
+     subscriptions, or commercial distribution are out of scope unless the
+     owner separately approves them. This boundary does not weaken the
+     evidence, reproducibility, credential isolation, execution safety, or
+     capital-approval controls that protect the owner's research and money.
+     The controlling delivery priority is the shortest safe, evidence-truthful
+     path to an operator-usable MVP that can validate or reject a trading edge.
+
+285. **Reuse before custom implementation (accepted 2026-09-18).** Before
+     writing custom executable code, agents must inventory and evaluate the
+     relevant existing Quant Factory code and tests, licensed dependencies
+     including VectorBT Pro, owner-approved prototypes, and mature maintained
+     external components or reference projects that may already solve the
+     need. The comparison covers functional fit, compatible licensing and
+     legal use, security, maintenance health, integration cost, and truthful
+     handling of Quant Factory data and evidence. A suitable proven component
+     is adapted or integrated instead of recreated. Custom code is limited to
+     a verified product-specific gap or a case where reuse is materially worse
+     under that comparison, and the implementation preflight records the
+     inventory, selected reuse, remaining gap, and rationale.
+
+     Reuse is a means to Decision 284's controlling operator-usable MVP
+     outcome, not an independent product goal. Once a suitable safe and
+     evidence-truthful path is established, the rule does not authorize more
+     component research or integration work that delays operator value.
+
+     Agents must not recreate mature commercial-grade dashboard, charting,
+     grid, panel, or research-engine behavior merely for architectural
+     neatness, local control, or speculative future flexibility. This is not
+     an absolute ban on the smallest necessary domain adapter,
+     evidence-integrity check, or safety control, and it does not authorize
+     copying or depending on code without a compatible license. An
+     owner-approved prototype is preserved as implementation input rather than
+     independently greenfielded without a documented reason. Prototype
+     approval remains distinct from application integration, automated and
+     browser testing, licensed-target proof, deployment, and renewed operator
+     acceptance. For the current Results work, the approved interactive
+     prototype remains available to the beta path; it is not itself the
+     deployed beta.
+
+     Documentation-impact assessment: `AGENTS.md` and the agent policy are
+     updated for permanent behavior; `docs/MILESTONES.md` is updated for the
+     single-operator direction and active Results work; `docs/CHAT_HANDOFF.md`
+     and `README.md` are updated so future work and public orientation inherit
+     the boundary; the implementation-preflight skill and dashboard product
+     requirements are updated as the relevant procedure and specification;
+     the existing component-reuse audit is retained as the supporting
+     inventory and aligned to this rule; this decision log is appended. No ADR
+     applies because no architecture or dependency is selected, and no
+     deployment or operating runbook changes because this decision changes
+     implementation selection behavior only.
+
+286. **Selected-run Results beta cost and sequencing boundary (accepted
+     2026-09-18).** The owner sets a temporary six-development-hour planning
+     ceiling for the remaining selected-run Results beta work. Agents must
+     measure and report effort honestly; the figure is a stop-control, not a
+     completion guarantee or permission to invent stopwatch precision. If the
+     work cannot reach the beta within the ceiling, agents stop and report the
+     evidence instead of silently expanding time or scope.
+
+     The remaining beta path contains exactly three bounded slices, in order:
+     (1) reuse and integrate the approved selected-run page and working chart
+     behavior with the existing application and persisted results; (2) make
+     only focused browser fixes demonstrated by that integration; and (3)
+     perform a backed-up, validated deployment to the existing private OVH
+     research target. Each slice uses one bounded implementer and the cheapest
+     capable independent reviewer while the lead orchestrates and independently
+     validates. All reviewer effort counts inside the same
+     six-development-hour ceiling. The reviewer is limited to the owned diff,
+     decisive evidence, and boundary compliance; review is not a second implementation, broad
+     audit, discretionary redesign, or duplicate-test exercise.
+
+     These slices add no new framework, chart/grid/panel system or
+     architecture, or paid dependency, and they do not replace the approved
+     behavior. Computation caching, scalable multi-run design or Explorer
+     work, aesthetic polish, and broad refactoring are excluded unless
+     recorded evidence demonstrates that an item blocks the selected-run beta.
+     If the intended thin integration expands, work stops for a reuse and
+     remaining-budget reassessment. This decision sequences rather than
+     cancels Decisions 282–283: the accepted multi-run analysis and safe-cache
+     requirements remain later work, outside these three slices unless they
+     become demonstrated beta blockers. It does not weaken evidence
+     truthfulness, licensed-target proof, backup, rollback, browser validation,
+     credential isolation, execution safety, or Milestone 23 acceptance.
+     The dashboard remains the essential interface for its single operator,
+     but the beta MVP need not be perfect. While work is active, agents provide
+     at least hourly progress reports stating the current slice, selected
+     reuse, boundary compliance, scope pressure, and next action.
+
+     Documentation-impact assessment: `AGENTS.md`, `docs/MILESTONES.md`, the
+     agent policy, implementation-preflight skill, dashboard product
+     requirements, component-reuse audit, and `docs/CHAT_HANDOFF.md` are
+     updated. `README.md` is not applicable because its public product
+     orientation and reuse-first rule remain accurate. No ADR applies because
+     this selects no new architecture or dependency. No runbook change applies
+     because the existing backed-up OVH deployment procedure remains
+     authoritative and no deployment occurs in this documentation change.

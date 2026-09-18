@@ -1,12 +1,24 @@
 # Quant Factory
 
-An AI-assisted quantitative research platform built around VectorBT Pro and Plotly Dash, with a controlled path from historical research toward evidence-qualified paper operation and far-future, tightly bounded live deployment.
+A private, single-operator AI-assisted quantitative research system built for
+its owner to find and validate a trading edge. It uses VectorBT Pro and Plotly
+Dash, with a controlled path from historical research toward evidence-qualified
+paper operation and far-future, tightly bounded live deployment. It is not an
+enterprise, SaaS, software-sales, multitenant, billing, or team-platform
+project.
 
 ## Current direction
 
 Quant Factory is explicitly **infrastructure first, evidence first, and operating-proof first**.
 
 The dashboard is the primary user product and normal operating interface. Python modules, terminal commands, CSV files, JSON artifacts, and backend logs are implementation details.
+
+Decision 285 requires reuse before custom implementation: evaluate the
+existing project, licensed dependencies, owner-approved prototypes, and mature
+maintained legally usable components before writing new code. Custom code is
+reserved for verified gaps or cases where reuse is materially worse. Prototype
+approval is implementation input, not proof that behavior is integrated,
+tested, deployed, or finally accepted.
 
 The product objective is a complete, validated equity research factory that can launch, persist, explain, reproduce, compare, review, and fail closed. Read [MILESTONES](docs/MILESTONES.md) for current acceptance status, the restart findings, and the next action. One simple equity strategy and a small approved instrument set are deterministic infrastructure fixtures, not active profitability candidates.
 

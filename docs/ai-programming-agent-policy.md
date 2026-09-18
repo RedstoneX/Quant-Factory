@@ -30,6 +30,44 @@ Before executable implementation, run the project implementation preflight,
 inspect current code/tests/ADRs, bound the smallest safe change, and state the
 validation and exclusions.
 
+The preflight must also inventory reusable project code and tests, licensed
+dependencies, owner-approved prototypes, and mature maintained components or
+reference implementations. Compare functional fit, license, security,
+maintenance, integration cost, and data/evidence truthfulness. Prefer reuse or
+adaptation. Custom implementation requires a verified gap or evidence that
+reuse is materially worse, with the rationale recorded before coding. Do not
+rebuild mature commercial-grade behavior for architectural neatness or
+speculative flexibility. Small domain adapters and safety or evidence controls
+remain allowed where necessary; incompatible or unverified licensing remains
+a stop condition. Prototype approval is design input, not proof of application
+integration, testing, deployment, or final operator acceptance.
+
+The controlling priority is the shortest safe, evidence-truthful path to an
+operator-usable MVP that can validate or reject a trading edge. Reuse is a
+means to that result, not an end or a mandate to prolong evaluation after a
+suitable path is established.
+
+For Decision 286's temporary selected-run Results beta boundary, use exactly
+three slices: reuse/integrate the approved page, make focused browser fixes,
+then perform the backed-up validated OVH deployment. Each slice has one bounded
+implementer and the cheapest capable independent reviewer; the lead remains
+the orchestrator and independently validates the result. All reviewer effort
+counts inside the same six-development-hour ceiling. The reviewer is limited
+to the owned diff, decisive evidence, and boundary compliance; it does not reimplement,
+conduct a broad audit, redesign at discretion, or duplicate already decisive
+tests. The remaining work has a six-development-hour planning ceiling that
+must be measured and reported
+honestly rather than presented as false precision or a completion guarantee.
+No new framework, chart/grid/panel system or architecture, paid dependency, or
+replacement of approved behavior is allowed in these slices. Caching,
+scalable multi-run design or Explorer work, aesthetic polish, and broad
+refactoring stay out unless evidence demonstrates a beta blocker. If thin
+integration expands, stop and reassess reuse and remaining budget before more
+implementation. While work is active, provide at least hourly progress reports
+covering the current slice, selected reuse, boundary compliance, scope pressure,
+and next action. The dashboard remains essential for the single operator; the
+beta MVP need not be perfect.
+
 Preserve unrelated work. Use dedicated branches and pull requests; do not
 force-push, push directly to `main`, stage the entire tree, or use anonymous
 stashes. Never weaken a test or acceptance criterion to obtain a pass.

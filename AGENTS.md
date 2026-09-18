@@ -83,6 +83,17 @@ authorization forward within its approved scope and do not repeatedly ask.
 
 ## Mission and current direction
 
+- Quant Factory is a private system for Terry, its single owner/operator, to
+  find and validate a trading edge and pursue consistent market income. It is
+  not an enterprise product, SaaS offering, software-sales project, or
+  multi-user/team platform. Multitenancy, customer onboarding, billing,
+  organization administration, and features that exist only for hypothetical
+  external customers are out of scope unless the owner separately approves
+  them.
+- The controlling delivery priority is the shortest safe, evidence-truthful
+  path to an operator-usable MVP that can validate or reject a trading edge.
+  Reuse, architecture, testing, and documentation serve that outcome; they are
+  not independent product goals.
 - Quant Factory is infrastructure first, evidence first, dashboard first, and operating-proof first.
 - The goal is to reject false edges, preserve reproducible evidence, paper trade qualified strategies, reconcile model and venue state, and deploy only tightly bounded capital under explicit human approval and independent risk controls.
 - The dashboard is the primary operator interface. Python, terminals, raw CSV/JSON, and backend logs are implementation details.
@@ -124,6 +135,55 @@ authorization forward within its approved scope and do not repeatedly ask.
 - Private dashboard availability requires owner authorization, authenticated
   private networking, and target-environment proof. Provider-specific private
   coordinates remain external to the public repository.
+
+## Reuse before custom implementation
+
+- Reuse is a means to the controlling operator-usable MVP outcome, not an end
+  in itself. Before custom implementation, inventory the existing Quant Factory code and
+  tests, licensed dependencies including VectorBT Pro, owner-approved
+  prototypes, and mature maintained external components or reference projects
+  that may already solve the need. Start with
+  [`docs/component-reuse-audit.md`](docs/component-reuse-audit.md) where
+  relevant, but revalidate its candidate fit and licensing for the current
+  task rather than treating historical evaluation as current proof.
+- Compare candidates for functional fit, license and legal use, security,
+  maintenance health, integration cost, and truthful handling of Quant
+  Factory data and evidence. Prefer adapting or integrating a suitable proven
+  component over recreating it.
+- Custom code is permitted only for a verified product-specific gap or when
+  reuse is materially worse under that comparison. Record the inventory,
+  selected reuse, remaining gap, and custom-code rationale in implementation
+  preflight before writing executable code.
+- Do not recreate mature commercial-grade dashboard, charting, grid, panel,
+  or research-engine behavior merely for architectural neatness, local
+  control, or speculative future flexibility. This rule does not prohibit the
+  smallest necessary domain adapter, evidence-integrity check, or safety
+  control, and it never authorizes copying or depending on code without a
+  compatible license.
+- Clearly distinguish a prototype or reference from integrated, tested,
+  deployed, and operator-accepted product behavior. Preserve an
+  owner-approved prototype as implementation input; do not discard it and
+  independently greenfield the same experience without a documented reason.
+- Decision 286 sets a temporary cost and sequencing boundary for the remaining
+  selected-run Results beta. Preserve and integrate the approved chart/page
+  behavior through exactly three bounded slices: reuse/integration, focused
+  browser fixes, then backed-up validated OVH deployment. The remaining work
+  has a six-development-hour planning ceiling, measured and reported honestly;
+  this is a stop-control, not a promise or fabricated precision. Do not add a
+  framework, chart/grid/panel system or architecture, or paid dependency, and
+  do not replace the approved behavior. Caching, scalable multi-run design or
+  Explorer work, aesthetic polish, and broad refactoring remain outside these
+  slices unless evidence demonstrates that an item blocks the beta. Each slice
+  has one bounded implementer and the cheapest capable independent reviewer
+  while the lead orchestrates and validates. All reviewer effort counts inside
+  the same six-development-hour ceiling. The reviewer checks only the owned
+  diff, decisive evidence, and boundary compliance; review is not a second implementation,
+  broad audit, discretionary redesign, or duplicate-test exercise. While beta
+  work is active, report progress at least hourly with the current slice,
+  selected reuse, boundary compliance, scope pressure, and next action. If thin
+  integration expands, stop and reassess reuse rather than silently exceeding
+  the ceiling or widening the slice. The dashboard remains the essential
+  single-user interface, but this beta MVP need not be perfect.
 
 ## Accepted execution sequence
 

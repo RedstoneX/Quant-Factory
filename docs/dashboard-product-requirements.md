@@ -4,7 +4,39 @@
 
 The dashboard is the primary Quant Factory product interface. The normal operator must not need to edit Python, inspect CSV or JSON files, read backend logs, or use terminal commands to understand and operate the research system.
 
+The product serves Terry as one private owner/operator seeking to find and
+validate a trading edge and pursue consistent market income. It is not a
+commercial, enterprise, SaaS, multitenant, billing, customer-onboarding, or
+team dashboard. Capabilities needed only for hypothetical external users are
+out of scope without separate owner approval.
+
 VectorBT Pro remains the portfolio analytics and Plotly-compatible chart engine. Plotly Dash remains the application framework. Quant Factory owns workflow, records, evidence, orchestration, lifecycle state, and the human decision interface.
+
+Apply Decision 285 before custom dashboard work: inventory and evaluate the
+existing dashboard, VectorBT Pro and other licensed dependencies,
+owner-approved prototypes, and mature maintained legally usable components.
+Reuse or adapt suitable proven behavior; add custom code only for verified
+Quant Factory gaps or when reuse is materially worse. The approved interactive
+Results prototype and its working chart/page behavior must be preserved and
+reused or adapted for the selected-run beta, but remain distinct from
+integrated, tested, deployed, and renewed operator-accepted application
+behavior.
+
+Decision 286 limits the remaining selected-run beta to exactly three bounded
+slices: reuse/integrate the approved page, make focused browser fixes, and
+perform a backed-up validated OVH deployment. The remaining effort has a
+six-development-hour planning ceiling that is measured and reported honestly,
+not represented as a completion guarantee or fabricated precision. These
+slices add no new framework, chart/grid/panel system or architecture, or paid
+dependency, and do not replace approved behavior. Caching, scalable multi-run
+design or Explorer work, aesthetic polish, and broad refactoring are excluded
+unless evidence demonstrates that an item blocks the beta. If thin integration
+expands, work stops for reuse and budget reassessment. Each slice has one
+bounded implementer and the cheapest capable independent reviewer, whose full
+effort counts inside the same six-development-hour ceiling. Review covers the
+owned diff, decisive evidence, and boundary compliance without reimplementation,
+broad audit, discretionary redesign, or duplicate testing. The dashboard remains
+essential for its single operator, but this beta MVP need not be perfect.
 
 ## Current owner review outcome — refreshed 2026-09-18
 
@@ -76,9 +108,10 @@ tablet, and mobile screens. TradingView's Strategy Report/backtesting
 interaction in its chart-first Supercharts context is the primary Results UX
 reference; its live-trading, brokerage, order-entry, position and account
 surfaces are out of scope. This reference does not require the TradingView
-Lightweight Charts library, which remains an optional later implementation
-evaluation, and does not change the Plotly Dash/VectorBT Pro framework
-direction.
+Lightweight Charts library. It is not a candidate for the selected-run beta;
+the approved working chart behavior and Plotly Dash/VectorBT Pro direction are
+settled for these slices. Any later reconsideration requires a separate
+owner-approved scope.
 
 ## Primary operator workflow
 

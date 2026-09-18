@@ -19,6 +19,33 @@ navigation, not competing authorities.
 
 ## Current resume point
 
+Decisions 284–285 fix the product and implementation boundary. Quant Factory
+is Terry's private single-operator trading-research system, not an enterprise,
+SaaS, sales, multitenant, billing, or team product. Before custom work, agents
+must evaluate existing project code, licensed dependencies, approved
+prototypes, and mature maintained legally usable components; custom code is
+only for a verified gap or when reuse is materially worse. The approved
+Results prototype remains implementation input, not a claim of integration,
+testing, deployment, or final acceptance.
+
+Decision 286 temporarily narrows the remaining selected-run Results beta to a
+six-development-hour planning ceiling and exactly three slices: reuse/integrate
+the approved page and working chart behavior; make only focused browser fixes;
+then perform a backed-up validated OVH deployment. Use one bounded implementer
+and the cheapest capable independent reviewer per slice; all reviewer effort
+counts inside the same six-development-hour ceiling. Review only the owned diff,
+decisive evidence, and boundary compliance, without reimplementation, broad audit,
+discretionary redesign, or duplicate testing. Add no new framework,
+chart/grid/panel system or architecture, paid dependency, or replacement
+behavior. Caching, scalable multi-run design or Explorer work, aesthetic
+polish, and broad refactoring remain outside these slices unless demonstrated
+beta blockers. Stop for reuse and budget reassessment if thin integration
+expands. Report active progress at least hourly with the current slice, reuse,
+boundary compliance, scope pressure, and next action. This is a measured
+stop-control, not a completion guarantee; the essential single-user dashboard
+beta need not be perfect. Later accepted multi-run and caching requirements are
+sequenced after this beta boundary, not cancelled.
+
 Milestone 23 is the active gate. Decision 279 records the owner's rejection of
 the former Results-page comprehension and flow. Decisions 280–281 establish
 the chart-first direction and validated preview constraints. Decision 282
