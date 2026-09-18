@@ -187,7 +187,12 @@ def _is_contention(exc: sqlite3.OperationalError) -> bool:
 
 
 class DurableResearchLaunchService:
-    """Schema-5 claim, dispatch, binding, and explicit recovery primitives."""
+    """Schema-5 claim, dispatch, binding, and explicit recovery primitives.
+
+    ``initialize_schema=False`` is reserved for in-flow binding after startup
+    has already proved schema 5. It keeps construction side-effect free so
+    ``bind_prefect_identity`` can be the flow's first database operation.
+    """
 
     def __init__(
         self,
@@ -196,6 +201,7 @@ class DurableResearchLaunchService:
         busy_timeout_seconds: float = DEFAULT_BUSY_TIMEOUT_SECONDS,
         run_id_factory: Callable[[], str] | None = None,
         claim_failure_injector: Callable[[str], None] | None = None,
+        initialize_schema: bool = True,
     ) -> None:
         if (
             isinstance(busy_timeout_seconds, bool)
@@ -206,13 +212,16 @@ class DurableResearchLaunchService:
             <= MAX_BUSY_TIMEOUT_SECONDS
         ):
             raise ValueError("busy timeout must be a finite value between 0.01 and 30 seconds")
+        if not isinstance(initialize_schema, bool):
+            raise ValueError("initialize_schema must be a boolean")
         self.database_path = database_path(database)
         self.busy_timeout_seconds = float(busy_timeout_seconds)
         self._busy_timeout_ms = max(1, round(self.busy_timeout_seconds * 1000))
         self._run_id_factory = run_id_factory or (lambda: f"run_{uuid4().hex}")
         self._claim_failure_injector = claim_failure_injector
-        initialized = initialize_database(self.database_path)
-        initialized.close()
+        if initialize_schema:
+            initialized = initialize_database(self.database_path)
+            initialized.close()
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:

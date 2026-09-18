@@ -11,6 +11,7 @@ import time
 
 import pytest
 
+import orchestration.research_launch_claims as claims_module
 from orchestration.research_launch_claims import (
     DurableResearchLaunchService,
     ResearchLaunchConflictError,
@@ -126,6 +127,70 @@ def _reproduction_source(tmp_path: Path) -> tuple[Path, str, str]:
     finally:
         service.close()
     return path, configuration_id, run_id
+
+
+def test_default_constructor_initializes_schema(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    default_calls: list[str] = []
+
+    class InitializedConnection:
+        def close(self) -> None:
+            default_calls.append("close")
+
+    def record_initialize(_path):
+        default_calls.append("initialize")
+        return InitializedConnection()
+
+    monkeypatch.setattr(claims_module, "initialize_database", record_initialize)
+    DurableResearchLaunchService(database=_database(tmp_path, "default.sqlite3"))
+    assert default_calls == ["initialize", "close"]
+
+
+def test_no_init_mode_defers_all_database_access_until_atomic_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _database(tmp_path, "bind-first.sqlite3")
+    configuration_id = _configuration(path)
+    setup = DurableResearchLaunchService(database=path)
+    claim = setup.claim(
+        idempotency_key=_key("bind-first-operation"),
+        request=_request(configuration_id),
+    )
+    setup.begin_dispatch(
+        idempotency_key=claim.submission.idempotency_key,
+        dispatcher_instance_id=new_dispatcher_instance_id(),
+    )
+
+    access: list[str] = []
+    real_connect = claims_module.connect
+
+    def forbidden_initialize(_path):
+        access.append("initialize")
+        raise AssertionError("schema initialization must not run inside the flow")
+
+    def tracked_connect(path_arg):
+        access.append("bind_connection")
+        return real_connect(path_arg)
+
+    monkeypatch.setattr(claims_module, "initialize_database", forbidden_initialize)
+    monkeypatch.setattr(claims_module, "connect", tracked_connect)
+    binder = DurableResearchLaunchService(database=path, initialize_schema=False)
+    assert access == []
+
+    acknowledged = _bind(binder, claim.submission)
+    assert access == ["bind_connection"]
+    assert acknowledged.state == ResearchSubmissionState.ACKNOWLEDGED
+
+
+def test_initialize_schema_requires_an_explicit_boolean(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="must be a boolean"):
+        DurableResearchLaunchService(
+            database=_database(tmp_path),
+            initialize_schema=1,  # type: ignore[arg-type]
+        )
 
 
 def test_fresh_schema_five_and_v4_to_v5_migration_preserve_existing_rows(tmp_path: Path) -> None:
