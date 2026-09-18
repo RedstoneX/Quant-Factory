@@ -36,7 +36,9 @@ authorizes implementation. Its schema-5 core, shared launch service, and Run
 test, historical-relaunch, and reproduction integrations are implemented,
 tested, and merged in the canonical source through PRs #35–#38; PR #42 adds
 the claim-core suite to required Portable CI and separately merges focused
-claim-aware stale-recovery evidence. At revision
+claim-aware stale-recovery evidence. The required Portable CI selection now
+also runs that focused stale-recovery suite after its portability was proved
+in a clean Python 3.12 environment. At revision
 `5462c796809e83634959cbd3e7fa75b81ec2e309`, this establishes source and
 portable/browser-fixture evidence only. It does not establish production
 deployment, current licensed-target SPYM proof, the complete end-to-end

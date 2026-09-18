@@ -64,6 +64,7 @@ jobs:
           --junitxml=portable-test-results.xml
           tests/test_ci_portable_imports.py
           tests/test_research_launch_claims.py
+          tests/test_run_stale_recovery.py
           tests/test_execution_contracts.py
           tests/test_paper_binding.py
           tests/test_alpaca_snapshots.py
