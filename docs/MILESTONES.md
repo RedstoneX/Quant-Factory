@@ -34,9 +34,14 @@ Decision 274 sets the current order:
 5. Treat Milestone 27 micro-live testing as far-future work requiring separate
    explicit owner approval.
 
-Decision 275 established the sanitized clean-history public repository without
-changing this product sequence. The private archive is historical evidence;
-the public repository is the forward source of truth.
+Decision 275 authorizes the sanitized clean-history public repository without
+changing this product sequence. The candidate is public under a temporary name
+and its required-check gate is proven; the existing private repository remains
+canonical until controlled cutover. Decision 276 permanently keeps required
+checks and admin enforcement while setting `strict`/up-to-date to false unless
+the owner changes it, so independent green pull requests do not queue behind
+refresh builds. Dependent or overlapping work still integrates serially and is
+retested against the resulting `main`.
 
 ## Active work
 
@@ -44,7 +49,7 @@ the public repository is the forward source of truth.
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
 | R05 | 1 | in_progress | none | Implement the approved Milestone 23C dashboard direction, then obtain browser and operator acceptance |
-| R01 | 2 | in_progress | none | Complete public-repository required-check enforcement proof with strict/up-to-date disabled |
+| R01 | 2 | in_progress | none | Required-check enforcement proof passed on temporary public candidate; complete controlled canonical cutover with Decision 276 settings preserved |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
 

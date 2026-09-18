@@ -24,11 +24,16 @@ Existing RSI, MES opening-range breakout, and SPY Donchian work is retained as h
 
 No systematic strategy discovery or profitability search may resume until Milestone 23 passes and the user explicitly approves the full dashboard and end-to-end equity workflow.
 
-Decision 275 established this sanitized clean-history public repository as the
-sole forward source of truth. The original private repository is retained as a
-read-only historical archive. This repository operation does not change the
-product sequence above. Public visibility grants no source-code license; all
-rights are reserved.
+Decision 275 authorizes this sanitized clean-history repository to become the
+canonical public source of truth after controlled cutover. It is currently
+public under a temporary candidate name for validation; the existing private
+`RedstoneX/Quant-Factory` remains canonical until cutover and will then be
+retained as a read-only historical archive. Decision 276 keeps required checks
+and admin enforcement while disabling GitHub's strict/up-to-date requirement,
+so independent green pull requests can merge without refresh builds. Dependent
+or overlapping work still integrates serially and is retested. This repository
+operation does not change the product sequence above. Public visibility grants
+no source-code license; all rights are reserved.
 
 ## Start here
 

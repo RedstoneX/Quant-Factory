@@ -42,15 +42,23 @@ authorization forward within its approved scope and do not repeatedly ask.
 - Resolve the active checkout from `QF_REPO_ROOT`; public examples use
   `/srv/quant-factory/repo`. Isolated task worktrees must have explicit
   ownership. Never treat an unrelated clone as authoritative.
-- The canonical public GitHub repository is the sole forward source of truth.
-  The pre-publication repository remains a private, read-only historical
-  archive. Never rewrite or delete the archive's history.
+- During Decision 275's controlled migration, the public repository under the
+  temporary candidate name is validation-only. The existing private
+  `RedstoneX/Quant-Factory` remains canonical and authoritative until cutover.
+  At cutover, the validated public candidate assumes the canonical name and
+  becomes the sole forward source of truth; the renamed original remains a
+  private, read-only historical archive. Never rewrite or delete its history.
 - Use `main` as the accepted integration baseline. Use dedicated branches and PRs for substantive work; never push changes directly to `main` or force-push. Review and preserve any existing branch/worktree state before changing it.
 - On the public canonical repository, require the applicable CI checks for
-  pull requests but leave GitHub's strict/up-to-date requirement disabled for
-  independent changes. Overlapping or dependent changes must still be
-  integrated serially and retested against the resulting `main`; non-strict
-  checks are a throughput rule, not permission to merge incompatible work.
+  pull requests. Decision 276 permanently sets GitHub's strict/up-to-date
+  requirement to `false` unless the owner changes that decision. Independent
+  green pull requests may merge without rebasing, updating, or rebuilding
+  solely because another independent pull request merged first. CI concurrency
+  is per ref and no merge queue is used. Keep required checks and admin
+  enforcement enabled; keep repository auto-merge and merged-branch deletion
+  enabled. Overlapping or dependent changes must still be integrated serially
+  and retested against the resulting `main`; this throughput rule is not
+  permission to merge incompatible work.
 - Never use the retired Windows clone for development.
 - GitHub remains authoritative for committed state and the owned worktree for
   live local state. External recovery snapshots are temporary evidence only.

@@ -12,6 +12,14 @@ private, and archived read-only as historical evidence. The validated
 clean-history repository then assumes the canonical name and becomes the sole
 forward source of truth.
 
+As verified through the GitHub API on 2026-09-18, the clean-history candidate
+is public under its temporary name, while the existing private repository is
+still canonical and is not yet archived. Candidate branch protection requires
+`Documentation contracts`, `Portable tests`, and `Dependency review` with
+GitHub Actions app ID 15368, `strict: false`, and `enforce_admins: true`.
+Repository auto-merge and merged-branch deletion are enabled, Test workflow
+concurrency is per ref, and no merge queue is configured.
+
 This work is bounded R01 remediation. It does not change Decision 274's
 dashboard-first product order, modify the production runtime, use credentials,
 or authorize strategy discovery, backtesting before its gate, paper orders, or
@@ -109,10 +117,13 @@ failed.
    license or license grant.
 2. On that temporary public candidate, configure pull-request protection and
    require every applicable observed CI check. Set GitHub's
-   required-status-check `strict`/up-to-date option to **false** so independent
-   pull requests do not each wait for another full refresh build after an
-   unrelated merge. Do not use that setting for overlapping or dependent
-   changes; serialize and retest those changes against the resulting `main`.
+   required-status-check `strict`/up-to-date option to **false** permanently
+   unless the owner changes Decision 276. Independent green pull requests may
+   merge without rebasing, updating, rebuilding, or serializing after an
+   unrelated merge. Keep CI concurrency per ref and do not configure a merge
+   queue. Keep required checks, admin enforcement, repository auto-merge, and
+   merged-branch deletion enabled. Overlapping or dependent changes still
+   integrate serially and are retested against the resulting `main`.
 3. Block ordinary candidate merges until required-check enforcement is proven
    using the controlled-failure procedure in
    [CI test gate](ci-test-gate.md#required-gate-proof). Capture the candidate
@@ -120,6 +131,9 @@ failed.
    restored green revision, and protection configuration. Never merge the
    deliberate failure or use an override. If proof fails, return the candidate
    to private visibility; the original remains untouched and authoritative.
+   This proof passed on 2026-09-18 in controlled PR #1: the first revision
+   failed required `Portable tests` and was blocked, the corrected revision
+   passed all three required checks, and the PR was closed without merging.
 4. Only after the anonymous-publication and enforcement proofs pass, freeze
    every writer, automation token, deploy key, and approved clone. Record final
    private `main`, candidate commit, and the original repository's immutable

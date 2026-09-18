@@ -15,6 +15,10 @@ dependencies, produces a JUnit report, verifies that report, and uploads it as
 a bounded artifact. Dependency review runs only for pull requests with no
 comment or write permission.
 
+The Test workflow concurrency group includes `github.ref`; cancellation is
+therefore limited to a newer run on the same ref. Independent pull-request refs
+can run concurrently. The repository uses no merge queue.
+
 For a push whose `github.event.before` value is all zeroes, run the
 documentation validator without `--base-ref`; otherwise preserve the append-
 only incident check against the supplied base revision.
@@ -31,9 +35,30 @@ only incident check against the supplied base revision.
 6. Verify the restored revision passes and the merge requirement is satisfied.
 
 Never override the gate or merge deliberate failure code. Configure required
-checks with strict/up-to-date disabled so independent work is not forced
-through repeated refresh builds. Overlapping or dependent changes still merge
-serially and are retested against the resulting `main`.
+checks with `strict`/up-to-date set to `false` permanently unless the owner
+changes Decision 276. Keep `Documentation contracts`, `Portable tests`, and
+`Dependency review` required, keep `enforce_admins` enabled, and keep repository
+auto-merge and merged-branch deletion enabled. An independent green pull
+request may merge without rebasing, updating, rebuilding, or serializing merely
+because another independent pull request merged first. Overlapping or
+dependent changes still merge serially and are retested against the resulting
+`main`.
+
+## Verified temporary-candidate proof — 2026-09-18
+
+GitHub API inspection of the temporary public candidate confirmed
+`required_status_checks.strict: false`; required checks `Documentation
+contracts`, `Portable tests`, and `Dependency review` from GitHub Actions app
+ID 15368; `enforce_admins: true`; force-push and branch deletion disabled by
+protection; repository auto-merge and merged-branch deletion enabled; and no
+repository ruleset or merge queue.
+
+Controlled PR #1 supplied the enforcement proof. Revision
+`61e64bc17debf557d742d94dc498caba039aab2f` failed the required `Portable tests`
+check and GitHub blocked merging. Corrected revision
+`1031911391f10c063c746149fc1c5f1b56c642b3` passed all three required checks.
+The PR was closed without merging on 2026-09-18. This is CI-enforcement
+evidence only, not target-environment proof.
 
 CI proves only its own environment. Runtime configuration, dependencies,
 secret injection, startup, and target behavior require separate target-

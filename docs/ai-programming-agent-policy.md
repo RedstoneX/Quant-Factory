@@ -34,12 +34,28 @@ Preserve unrelated work. Use dedicated branches and pull requests; do not
 force-push, push directly to `main`, stage the entire tree, or use anonymous
 stashes. Never weaken a test or acceptance criterion to obtain a pass.
 
+Decision 276 keeps required checks and admin enforcement enabled while setting
+GitHub's strict/up-to-date requirement to `false` unless the owner changes the
+decision. Independent green pull requests do not rebase, update, rebuild, or
+serialize solely because another independent pull request merged first. CI
+concurrency is per ref and no merge queue is used. Dependent or overlapping
+changes still integrate serially and are retested against the resulting
+`main`.
+
 ## Evidence and CI
 
 CI execution is not merge enforcement and CI is not target-environment proof.
 A required gate is proven only by a disposable controlled failure that causes
 GitHub to block merging, followed by a restored green path. Never merge the
 deliberate failure or use an override.
+
+On 2026-09-18 GitHub API evidence for the temporary public candidate confirmed
+`strict: false`, the three required checks (`Documentation contracts`,
+`Portable tests`, and `Dependency review`), `enforce_admins: true`, repository
+auto-merge and merged-branch deletion enabled, per-ref workflow concurrency,
+and no merge queue. Controlled PR #1 failed the required `Portable tests`
+check and was blocked, then passed every required check after correction and
+was closed without merging.
 
 After dependency, secret-injection, runtime configuration, or equivalent
 environment-input changes, separately verify loading, startup, and relevant
