@@ -3102,7 +3102,13 @@ def _runs_page(
                             {"field": "reproducibility", "headerName": "Reproducibility"},
                         ],
                         defaultColDef={"sortable": True, "filter": True, "resizable": True},
-                        dashGridOptions={"rowSelection": "single"},
+                        dashGridOptions={
+                            "rowSelection": {
+                                "mode": "singleRow",
+                                "checkboxes": False,
+                                "enableClickSelection": True,
+                            }
+                        },
                         getRowId="params.data.run_id",
                         selectedRows=[],
                         style={"height": "360px"},

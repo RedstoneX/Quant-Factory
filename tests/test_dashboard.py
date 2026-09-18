@@ -1814,7 +1814,11 @@ def test_results_page_keeps_run_history_grid_beside_durable_review() -> None:
     assert grid.id == "run-history-grid"
     assert grid.rowData == []
     assert grid.selectedRows == []
-    assert grid.dashGridOptions["rowSelection"] == "single"
+    assert grid.dashGridOptions["rowSelection"] == {
+        "mode": "singleRow",
+        "checkboxes": False,
+        "enableClickSelection": True,
+    }
     assert "review-status" in str(page)
     assert "review-history" in str(page)
 
