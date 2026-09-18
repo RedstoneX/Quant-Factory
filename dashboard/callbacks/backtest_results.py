@@ -65,6 +65,36 @@ _INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _MAX_RESULTS_QUERY_LENGTH = 2_048
 _MAX_RUN_ID_LENGTH = 256
 _LAUNCH_KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
+# A NUL cannot occur in a syntactically valid Results run ID. Keeping the
+# malformed-request state distinct from ``None`` prevents the mounted page
+# from falling back to a previously selected, unrelated run while retaining a
+# compact string contract for the shared session store.
+_INVALID_REQUESTED_RUN_STATE = "\x00invalid-results-run-id"
+_UNKNOWN_REQUESTED_RUN_PREFIX = "\x00unknown-results-run-id:"
+
+
+def _unknown_requested_run_state(run_id: str) -> str:
+    return f"{_UNKNOWN_REQUESTED_RUN_PREFIX}{run_id}"
+
+
+def _unknown_requested_run_id(state: str | None) -> str | None:
+    if not isinstance(state, str) or not state.startswith(
+        _UNKNOWN_REQUESTED_RUN_PREFIX
+    ):
+        return None
+    return state.removeprefix(_UNKNOWN_REQUESTED_RUN_PREFIX)
+
+
+def _persisted_selected_run_id(state: str | None) -> str | None:
+    """Return only identities that are safe to pass to persistence services."""
+
+    if (
+        not isinstance(state, str)
+        or state == _INVALID_REQUESTED_RUN_STATE
+        or _unknown_requested_run_id(state)
+    ):
+        return None
+    return state
 
 
 def _accepts_keywords(callable_object: Any, required: frozenset[str]) -> bool:
@@ -668,6 +698,7 @@ def register_backtest_results_callbacks(
         launch_state: object = None,
         pathname: str | None = "/research/backtest-results",
     ):
+        run_id = _persisted_selected_run_id(run_id)
         triggered_id = _callback_triggered_id()
         explicit_action = triggered_id == "launch-selected-run-configuration" and bool(n_clicks)
         if triggered_id is None and n_clicks:
@@ -811,6 +842,7 @@ def register_backtest_results_callbacks(
         launch_state: object = None,
         pathname: str | None = "/research/backtest-results",
     ):
+        run_id = _persisted_selected_run_id(run_id)
         triggered_id = _callback_triggered_id()
         explicit_action = triggered_id == "reproduce-selected-run" and bool(n_clicks)
         if triggered_id is None and n_clicks:
@@ -941,10 +973,11 @@ def register_backtest_results_callbacks(
         triggered_id = _callback_triggered_id()
 
         def stored_run_is_valid() -> bool:
-            if not stored_run_id:
+            persisted_run_id = _persisted_selected_run_id(stored_run_id)
+            if not persisted_run_id:
                 return False
             try:
-                return runs.get_run(stored_run_id) is not None
+                return runs.get_run(persisted_run_id) is not None
             except (KeyError, ValueError, RunServiceError):
                 return False
 
@@ -967,7 +1000,10 @@ def register_backtest_results_callbacks(
                     and requested_run.run_id == requested_run_id
                 ):
                     return requested_run_id
-            return no_update if stored_run_id else None
+                # Preserve the requested identity so every Results-owned
+                # display can fail truthfully instead of retaining stale data.
+                return _unknown_requested_run_state(requested_run_id)
+            return _INVALID_REQUESTED_RUN_STATE
         if triggered_id == "run-history-grid" and history_rows:
             return history_rows[0].get("run_id") or stored_run_id
         if triggered_id == "selected-run-selector" and selected_run_id:
@@ -995,6 +1031,7 @@ def register_backtest_results_callbacks(
         __: int,
         ___: int,
     ):
+        run_id = _persisted_selected_run_id(run_id)
         run = runs.get_run(run_id) if run_id else None
         availability = _run_action_availability(
             run,
@@ -1118,8 +1155,22 @@ def register_backtest_results_callbacks(
                     looked_up_runs[run_id] = None
             return looked_up_runs[run_id]
 
-        selected_run = valid_run(selected_run_id)
-        stored_run = valid_run(stored_run_id)
+        selected_request_is_unknown = _unknown_requested_run_id(selected_run_id)
+        stored_unknown_run_id = _unknown_requested_run_id(stored_run_id)
+        selected_run = (
+            None
+            if selected_request_is_unknown
+            or selected_run_id == _INVALID_REQUESTED_RUN_STATE
+            else valid_run(selected_run_id)
+        )
+        stored_run = (
+            None
+            if stored_unknown_run_id
+            or stored_run_id == _INVALID_REQUESTED_RUN_STATE
+            else valid_run(stored_run_id)
+        )
+        stored_request_is_invalid = stored_run_id == _INVALID_REQUESTED_RUN_STATE
+        stored_request_is_unknown = stored_unknown_run_id is not None
         completion_stores = {
             "run-test-launch-state": run_test_launch_state,
             "historical-launch-state": historical_launch_state,
@@ -1169,15 +1220,16 @@ def register_backtest_results_callbacks(
             if stable_selected_run_id is None and completed_run_id is None
             else None
         )
-        selected_value = (
-            completed_run_id
-            if completed_run_id is not None
-            else stable_selected_run_id
-            if stable_selected_run_id is not None
-            else preferred_backtest_id
-            if preferred_backtest_id is not None
-            else None
-        )
+        if completed_run_id is not None:
+            selected_value = completed_run_id
+        elif stored_request_is_invalid:
+            selected_value = None
+        elif stored_request_is_unknown:
+            selected_value = stored_run_id
+        elif stable_selected_run_id is not None:
+            selected_value = stable_selected_run_id
+        else:
+            selected_value = preferred_backtest_id
         initial_selector_hydration = triggered_id is None and bool(selected_options)
         options = _selector_options(recent_run_records)
         option_values = {option["value"] for option in options}
@@ -1190,6 +1242,14 @@ def register_backtest_results_callbacks(
                     }
                 )
                 option_values.add(run.run_id)
+        if stored_request_is_unknown and stored_run_id not in option_values:
+            options.append(
+                {
+                    "label": f"Requested run not found — {stored_unknown_run_id}",
+                    "value": stored_run_id,
+                    "disabled": True,
+                }
+            )
         selector_options: Any = (
             no_update
             if (initial_selector_hydration and not stored_state_has_priority)
@@ -1220,17 +1280,43 @@ def register_backtest_results_callbacks(
         if not run_id:
             return _run_detail_panel(None)
 
-        run = runs.get_run(run_id)
+        if run_id == _INVALID_REQUESTED_RUN_STATE:
+            return html.Section(
+                [
+                    html.H2("Invalid Results link"),
+                    html.P(
+                        (
+                            "The requested run identity is missing or malformed. "
+                            "No previously selected run is being shown for this link."
+                        ),
+                        className="error-state",
+                    ),
+                ],
+                className="panel run-detail-panel",
+            )
+
+        unknown_requested_run_id = _unknown_requested_run_id(run_id)
+        if unknown_requested_run_id is not None:
+            run_id = unknown_requested_run_id
+
+        try:
+            run = runs.get_run(run_id)
+        except (KeyError, ValueError, RunServiceError):
+            run = None
         if run is None:
             return html.Section(
                 [
                     html.H2("Run not found"),
                     html.P(
                         (
-                            "The selected run no longer exists in the "
-                            "Quant Factory state database."
+                            "Requested run not found: no persisted run matches "
+                            "the identity in this Results link."
                         ),
                         className="error-state",
+                    ),
+                    html.P(["Requested run: ", html.Code(run_id)]),
+                    html.P(
+                        "The Results route has been preserved and no other run is being shown in its place."
                     ),
                 ],
                 className="panel run-detail-panel",
@@ -1289,6 +1375,7 @@ def register_backtest_results_callbacks(
         _review_message: object,
         _stale_recovery_message: object = None,
     ):
+        run_id = _persisted_selected_run_id(run_id)
         if not run_id:
             context = _results_operator_context(None)
             return context.children, context.className
@@ -1336,6 +1423,7 @@ def register_backtest_results_callbacks(
             raise PreventUpdate
         if not n_clicks:
             return no_update, no_update
+        run_id = _persisted_selected_run_id(run_id)
         if not run_id:
             return (
                 "No run is selected for cancellation.",

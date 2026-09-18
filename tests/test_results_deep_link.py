@@ -6,8 +6,12 @@ from pathlib import Path
 
 from dash import Dash, no_update
 
-from dashboard.callbacks.backtest_results import register_backtest_results_callbacks
-from orchestration import RunSummary
+from dashboard.callbacks.backtest_results import (
+    _INVALID_REQUESTED_RUN_STATE,
+    _unknown_requested_run_state,
+    register_backtest_results_callbacks,
+)
+from orchestration import DurableResearchLaunchService, RunSummary
 
 
 def _run(run_id: str) -> RunSummary:
@@ -82,6 +86,9 @@ def _app(tmp_path: Path) -> tuple[Dash, _Runs]:
         readiness_by_id={},
         dashboard_database=tmp_path / "state.sqlite3",
         artifact_root=tmp_path,
+        research_launches=DurableResearchLaunchService(
+            database=tmp_path / "state.sqlite3"
+        ),
     )
     return app, runs
 
@@ -121,36 +128,128 @@ def test_registered_results_callback_adopts_one_encoded_persisted_identity(
     assert runs.lookups[-1] == "run:target one"
 
 
-def test_results_deep_link_rejects_unknown_malformed_and_duplicate_values(
+def test_results_deep_link_preserves_unknown_identity_and_renders_failure(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     app, runs = _app(tmp_path)
     preserve = _callback(app, "selected-run-state")
+    refresh_selector = _callback(app, "selected-run-selector.options")
+    inspect = _callback(app, "selected-run-detail")
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "url",
+    )
+
+    requested = preserve(
+        "default-run",
+        None,
+        "?run_id=unknown-run",
+        "operator-choice",
+        "/research/backtest-results",
+    )
+
+    assert requested == _unknown_requested_run_state("unknown-run")
+    assert runs.lookups == ["unknown-run"]
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-run-state",
+    )
+    options, selected = refresh_selector(
+        0,
+        None,
+        None,
+        None,
+        requested,
+        "operator-choice",
+        [{"label": "Operator choice", "value": "operator-choice"}],
+    )
+    rendered = str(inspect(requested, "operator-choice", 0, 0, 0, 0))
+
+    assert selected == requested
+    assert {
+        option["value"]: option["label"] for option in options
+    }[requested] == "Requested run not found — unknown-run"
+    assert "Requested run not found" in rendered
+    assert "unknown-run" in rendered
+    assert "operator-choice" not in rendered
+
+
+def test_results_deep_link_preserves_malformed_request_as_invalid_state(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    app, runs = _app(tmp_path)
+    preserve = _callback(app, "selected-run-state")
+    inspect = _callback(app, "selected-run-detail")
     monkeypatch.setattr(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
         lambda: "url",
     )
 
     for search in (
-        "?run_id=unknown-run",
         "?run_id=default-run&run_id=second-run",
         "?run_id=%GG",
         "?run_id=",
         "?run_id=bad%0Aidentity",
     ):
-        assert (
-            preserve(
-                "default-run",
-                None,
-                search,
-                "operator-choice",
-                "/research/backtest-results",
-            )
-            is no_update
+        requested = preserve(
+            "default-run",
+            None,
+            search,
+            "operator-choice",
+            "/research/backtest-results",
+        )
+        rendered = str(inspect(requested, "operator-choice", 0, 0, 0, 0))
+
+        assert requested == _INVALID_REQUESTED_RUN_STATE
+        assert "Invalid Results link" in rendered
+        assert "operator-choice" not in rendered
+
+    assert runs.lookups == []
+
+
+def test_requested_run_failure_states_are_inert_for_results_actions(
+    tmp_path: Path,
+) -> None:
+    app, runs = _app(tmp_path)
+    update_actions = _callback(app, "cancel-selected-run.disabled")
+    historical = _callback(app, "historical-launch-message")
+    reproduce = _callback(app, "reproduction-message")
+    cancel = _callback(app, "cancellation-message.children")
+
+    for state in (
+        _unknown_requested_run_state("unknown-run"),
+        _INVALID_REQUESTED_RUN_STATE,
+    ):
+        cancel_disabled, cancel_title = update_actions(state, 0, None, None)
+        historical_result = historical(
+            0,
+            state,
+            None,
+            "/research/backtest-results",
+        )
+        reproduction_result = reproduce(
+            0,
+            state,
+            None,
+            "/research/backtest-results",
+        )
+        cancellation_message, cancellation_class = cancel(
+            1,
+            state,
+            "/research/backtest-results",
         )
 
-    assert runs.lookups == ["unknown-run"]
+        assert cancel_disabled is True
+        assert "select a persisted run" in cancel_title.lower()
+        assert historical_result[3] is True
+        assert reproduction_result[3] is True
+        assert cancellation_message == "No run is selected for cancellation."
+        assert cancellation_class == "cancellation-message error-state"
+
+    assert runs.lookups == []
 
 
 def test_no_query_retains_default_and_explicit_selector_wins(

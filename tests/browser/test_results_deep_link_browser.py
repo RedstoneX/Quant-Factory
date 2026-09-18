@@ -70,17 +70,40 @@ def test_results_deep_link_refresh_history_and_rejection_are_deterministic(
             expect(page).to_have_url(peer_url)
             _expect_selected_run(page, peer_run_id)
 
-            action["name"] = "reject unknown persisted Results deep link"
+            action["name"] = "show unknown persisted Results deep link"
             unknown_url = _results_url(base_url, "unknown-browser-run")
             page.goto(unknown_url, wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending_requests)
             expect(page).to_have_url(unknown_url)
-            _expect_selected_run(page, peer_run_id)
-            expect(page.locator("#selected-run-detail")).not_to_contain_text(
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "Requested run not found"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
                 "unknown-browser-run"
             )
+            expect(page.locator("#selected-run-detail")).not_to_contain_text(
+                peer_run_id
+            )
 
-            assert pending_requests == set()
+            action["name"] = "show malformed persisted Results deep link"
+            malformed_url = (
+                f"{base_url}{BACKTEST_PATH}?run_id={target_run_id}"
+                f"&run_id={peer_run_id}"
+            )
+            page.goto(malformed_url, wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            expect(page).to_have_url(malformed_url)
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "Invalid Results link"
+            )
+            expect(page.locator("#selected-run-detail")).not_to_contain_text(
+                target_run_id
+            )
+            expect(page.locator("#selected-run-detail")).not_to_contain_text(
+                peer_run_id
+            )
+
+            assert not pending_requests
             assert_browser_diagnostics_clean(
                 page, events, (server_log,)
             )
