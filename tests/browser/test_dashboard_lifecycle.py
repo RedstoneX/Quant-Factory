@@ -431,6 +431,23 @@ def _wait_for_callbacks_to_settle(page, pending_requests):
     raise AssertionError(f"Dash callbacks did not settle before navigation: pending={len(pending_requests)}, loading={loading_ids}")
 
 
+def _research_submission_snapshots(database: Path) -> dict[str, tuple[object, ...]]:
+    service = PersistenceService(database)
+    try:
+        rows = service.connection.execute(
+            """
+            SELECT idempotency_key, run_id, configuration_id,
+                   canonical_request_json, request_fingerprint, state,
+                   prefect_flow_run_id, claimed_at, updated_at
+            FROM research_run_submissions
+            ORDER BY idempotency_key
+            """
+        ).fetchall()
+        return {str(row[0]): tuple(row) for row in rows}
+    finally:
+        service.close()
+
+
 def _create_history_run(
     service: PersistenceService,
     *,
@@ -584,19 +601,51 @@ def test_setup_selection_survives_run_route_and_refresh(
     tmp_path,
 ):
     base_url, server_log, _ = mounted_workflow_server
+    database = server_log.parent / "state" / "mounted-workflow.sqlite3"
+    baseline_submissions = _research_submission_snapshots(database)
     events = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
-        action = {"name": "select second saved setup"}
+        action = {"name": "launch first saved setup"}
         pending_requests = _attach_diagnostics(page, events, action)
         try:
             page.goto(base_url + "/research/setup", wait_until="networkidle")
+            first_identity = page.locator(
+                "#configuration-preview .configuration-identity"
+            ).inner_text()
+            page.get_by_text("Review test", exact=True).click()
+            _assert_route(
+                page,
+                base_url,
+                "/research/run-test",
+                "route-research-run-test",
+            )
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            expect(page.locator("#launch-run")).to_be_enabled()
+            page.locator("#launch-run").click()
+            expect(page.locator("#launch-message")).to_contain_text(
+                "Run status: Succeeded",
+                timeout=60000,
+            )
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            first_submissions = _research_submission_snapshots(database)
+            first_keys = set(first_submissions) - set(baseline_submissions)
+            assert len(first_keys) == 1
+            first_key = first_keys.pop()
+            first_snapshot = first_submissions[first_key]
+
+            action["name"] = "select second saved setup after first terminal launch"
+            page.locator(
+                f"#{navigation_link_id('/research/setup')}"
+            ).click()
+            _assert_route(page, base_url, "/research/setup", "route-research-setup")
             _select(page, "configuration-selector", "workflow_second_operator_choice")
             _wait_for_callbacks_to_settle(page, pending_requests)
             selected_identity = page.locator(
                 "#configuration-preview .configuration-identity"
             ).inner_text()
+            assert selected_identity != first_identity
             action["name"] = "continue to Run test"
             page.get_by_text("Review test", exact=True).click()
             _assert_route(
@@ -615,10 +664,14 @@ def test_setup_selection_survives_run_route_and_refresh(
             expect(
                 page.locator("#run-configuration-preview .configuration-identity")
             ).to_have_text(selected_identity)
-            action["name"] = "launch selected generic fixture"
+            expect(page.locator("#launch-message")).not_to_contain_text(
+                "Run ticket conflict"
+            )
+            expect(page.locator("#launch-run")).to_be_enabled()
+            action["name"] = "launch second selected generic fixture"
             page.locator("#launch-run").click()
             expect(page.locator("#launch-message")).to_contain_text(
-                "Status: succeeded",
+                "Run status: Succeeded",
                 timeout=60000,
             )
             expect(page.locator("#run-test-operator-context")).to_contain_text(
@@ -627,6 +680,15 @@ def test_setup_selection_survives_run_route_and_refresh(
             expect(page.locator("#run-test-operator-context")).to_contain_text(
                 "Unavailable"
             )
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            final_submissions = _research_submission_snapshots(database)
+            second_keys = set(final_submissions) - set(first_submissions)
+            assert len(second_keys) == 1
+            second_key = second_keys.pop()
+            assert second_key != first_key
+            assert final_submissions[first_key] == first_snapshot
+            assert final_submissions[second_key][1] != first_snapshot[1]
+            assert final_submissions[second_key][2] != first_snapshot[2]
             page.go_back(wait_until="networkidle")
             _assert_route(page, base_url, "/research/setup", "route-research-setup")
             page.go_forward(wait_until="networkidle")

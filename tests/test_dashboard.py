@@ -3736,6 +3736,97 @@ def test_durable_run_test_replays_rapid_duplicate_and_refresh_without_relaunch(
     assert "run_dashboard_fixture" in str(refreshed[1])
 
 
+def test_submitted_run_remains_bound_while_new_selection_gets_new_ticket(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first_configuration = _saved_configuration()
+    second_configuration = replace(
+        first_configuration,
+        configuration_id="b" * 64,
+        config_hash="b" * 64,
+        experiment_id="second_fixture_selection",
+    )
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (first_configuration, second_configuration),
+    )
+    service = _DashboardRunService(
+        initial_runs=(),
+        launch_run_ids=["run_config_a", "run_config_b"],
+    )
+    launch = _callback_function(
+        create_app(
+            review_database=tmp_path / "selection-change.sqlite3",
+            run_service=service,
+        ),
+        "launch-message",
+    )
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "launch-run",
+    )
+    first = launch(
+        1,
+        first_configuration.configuration_id,
+        None,
+        "/research/run-test",
+    )
+    first_submitted = dict(first[0]["submitted"])
+    first_submission = service.research_launch_service.get(
+        first_submitted["idempotency_key"]
+    )
+    assert first_submission is not None
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "selected-configuration-state",
+    )
+    changed = launch(
+        1,
+        second_configuration.configuration_id,
+        first[0],
+        "/research/run-test",
+    )
+
+    assert changed[0]["submitted"] == first_submitted
+    assert changed[0]["prepared"]["configuration_id"] == (
+        second_configuration.configuration_id
+    )
+    assert changed[0]["prepared"]["idempotency_key"] != (
+        first_submitted["idempotency_key"]
+    )
+    assert changed[5] is False
+    assert "Ready to create one durable run ticket" in str(changed[1])
+    assert len(service.durable_requests) == 1
+
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: "launch-run",
+    )
+    second = launch(
+        2,
+        second_configuration.configuration_id,
+        changed[0],
+        "/research/run-test",
+    )
+
+    assert len(service.durable_requests) == 2
+    assert second[0]["submitted"]["configuration_id"] == (
+        second_configuration.configuration_id
+    )
+    assert second[0]["submitted"]["idempotency_key"] != (
+        first_submitted["idempotency_key"]
+    )
+    assert service.research_launch_service.get(
+        first_submitted["idempotency_key"]
+    ) == first_submission
+    assert service.get_run(first_submission.run_id).configuration_id == (
+        first_configuration.configuration_id
+    )
+
+
 def test_passive_browser_session_hydration_prepares_distinct_keys_before_enable(
     tmp_path: Path,
     monkeypatch,

@@ -150,11 +150,10 @@ def _launch_store(
                 {"prepared": None, "submitted": submitted},
                 "The saved submitted launch key is malformed and cannot be trusted.",
             )
-        if not _intent_matches(submitted, binding):
-            return (
-                {"prepared": None, "submitted": submitted},
-                "The saved submitted launch belongs to a different operation or selection.",
-            )
+        # A submitted identity is immutable evidence for its original request.
+        # A later selection changes only the unused prepared identity; the
+        # persisted submitted request is verified below but is not rebound to
+        # (or allowed to block) the new selection.
 
     prepared = prepared_raw if isinstance(prepared_raw, dict) else None
     if prepared is None or not _valid_launch_key(prepared.get("idempotency_key")):
@@ -218,11 +217,14 @@ def _submission_for_intent(
 def _resolve_launch_store(
     research_launches: DurableResearchLaunchService,
     store: dict[str, Any],
+    *,
+    binding: tuple[str, str | None, str | None],
 ) -> tuple[dict[str, Any], Any, bool]:
     """Adopt a committed prepared key after lost response or another tab's claim."""
 
-    submitted = _submission_for_intent(research_launches, store.get("submitted"))
-    if submitted is not None:
+    submitted_intent = store.get("submitted")
+    submitted = _submission_for_intent(research_launches, submitted_intent)
+    if submitted is not None and _intent_matches(submitted_intent, binding):
         return store, submitted, False
     prepared_intent = store.get("prepared")
     prepared_submission = _submission_for_intent(research_launches, prepared_intent)
@@ -512,7 +514,13 @@ def register_backtest_results_callbacks(
         if store_error is None:
             try:
                 store, submission, adopted_prepared = _resolve_launch_store(
-                    research_launches, store
+                    research_launches,
+                    store,
+                    binding=(
+                        ResearchLaunchOperation.RUN_TEST.value,
+                        configuration_id,
+                        None,
+                    ),
                 )
             except ResearchLaunchConflictError as exc:
                 store_error = str(exc)
@@ -693,7 +701,13 @@ def register_backtest_results_callbacks(
         if store_error is None:
             try:
                 store, submission, adopted_prepared = _resolve_launch_store(
-                    research_launches, store
+                    research_launches,
+                    store,
+                    binding=(
+                        ResearchLaunchOperation.HISTORICAL_RELAUNCH.value,
+                        configuration_id,
+                        run_id,
+                    ),
                 )
             except ResearchLaunchConflictError as exc:
                 store_error = str(exc)
@@ -824,7 +838,13 @@ def register_backtest_results_callbacks(
         if store_error is None:
             try:
                 store, submission, adopted_prepared = _resolve_launch_store(
-                    research_launches, store
+                    research_launches,
+                    store,
+                    binding=(
+                        ResearchLaunchOperation.REPRODUCTION.value,
+                        configuration_id,
+                        run_id,
+                    ),
                 )
             except ResearchLaunchConflictError as exc:
                 store_error = str(exc)
