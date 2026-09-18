@@ -277,12 +277,10 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
     app = create_app(review_database=tmp_path / "dashboard.sqlite3")
 
     run_preview = _callback(app, "run-configuration-preview.children")
-    children, disabled, title = run_preview(configuration.configuration_id)
-    assert disabled is True
+    children = run_preview(configuration.configuration_id)
     assert "Local dataset availability and checksum were not verified" in _text(
         html.Div(children)
     )
-    assert "Resolve every preflight blocker" in title
 
     setup_preview = _callback(app, "configuration-preview.children")
     _, href, class_name, setup_title = setup_preview(
@@ -293,10 +291,14 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
     assert "Resolve every preflight blocker" in setup_title
 
     launch = _callback(app, "launch-message.children")
-    message, class_name, _, _ = launch(
+    _, message, class_name, _, _, disabled, title, label = launch(
         1,
         configuration.configuration_id,
+        None,
         "/research/run-test",
     )
     assert "did not pass preflight" in _text(message)
     assert class_name == "save-message error-state"
+    assert disabled is True
+    assert title == "This persisted selection is not launchable."
+    assert label == "Run test"

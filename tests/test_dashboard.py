@@ -1638,6 +1638,7 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
     }
     assert health_ids == {
         "home-health-summary",
+        "home-health-cards",
         "home-health-database",
         "home-health-worker",
         "home-health-provider",
