@@ -42,12 +42,11 @@ authorization forward within its approved scope and do not repeatedly ask.
 - Resolve the active checkout from `QF_REPO_ROOT`; public examples use
   `/srv/quant-factory/repo`. Isolated task worktrees must have explicit
   ownership. Never treat an unrelated clone as authoritative.
-- During Decision 275's controlled migration, the public repository under the
-  temporary candidate name is validation-only. The existing private
-  `RedstoneX/Quant-Factory` remains canonical and authoritative until cutover.
-  At cutover, the validated public candidate assumes the canonical name and
-  becomes the sole forward source of truth; the renamed original remains a
-  private, read-only historical archive. Never rewrite or delete its history.
+- Decision 275's controlled migration is complete. The clean-history public
+  `RedstoneX/Quant-Factory` repository is canonical and is the sole forward
+  source of truth. The original repository remains private, read-only
+  historical evidence; never rewrite or delete its history or treat it as a
+  development remote.
 - Use `main` as the accepted integration baseline. Use dedicated branches and PRs for substantive work; never push changes directly to `main` or force-push. Review and preserve any existing branch/worktree state before changing it.
 - On the public canonical repository, require the applicable CI checks for
   pull requests. Decision 276 permanently sets GitHub's strict/up-to-date

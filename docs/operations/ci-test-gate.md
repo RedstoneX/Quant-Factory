@@ -44,9 +44,9 @@ because another independent pull request merged first. Overlapping or
 dependent changes still merge serially and are retested against the resulting
 `main`.
 
-## Verified temporary-candidate proof — 2026-09-18
+## Verified canonical proof — 2026-09-18
 
-GitHub API inspection of the temporary public candidate confirmed
+GitHub API inspection after canonical cutover confirmed
 `required_status_checks.strict: false`; required checks `Documentation
 contracts`, `Portable tests`, and `Dependency review` from GitHub Actions app
 ID 15368; `enforce_admins: true`; force-push and branch deletion disabled by
@@ -59,6 +59,14 @@ check and GitHub blocked merging. Corrected revision
 `1031911391f10c063c746149fc1c5f1b56c642b3` passed all three required checks.
 The PR was closed without merging on 2026-09-18. This is CI-enforcement
 evidence only, not target-environment proof.
+
+Independent same-base PRs #2 and #3 supplied the throughput proof. Both passed
+all three required checks. PR #3 merged while PR #2 remained open; afterward,
+GitHub still reported PR #2 as `CLEAN` and `MERGEABLE` with the same Test run
+`35301119002` and Dependency Review run `35301119008`. No refresh run occurred,
+and PR #2 was then closed without merging. The proof establishes that an
+unrelated merge does not serialize independent green work; it does not remove
+the retest requirement for dependent or overlapping changes.
 
 CI proves only its own environment. Runtime configuration, dependencies,
 secret injection, startup, and target behavior require separate target-

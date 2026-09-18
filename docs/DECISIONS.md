@@ -7,11 +7,10 @@ explicitly.
 
 ## Foundation and product direction
 
-1. The canonical public Quant Factory repository becomes the sole forward
-   source of truth after Decision 275's controlled cutover. Until then, the
-   existing private repository remains canonical and the temporary public
-   candidate is validation-only. Repository documentation is durable project
-   memory.
+1. The clean-history public Quant Factory repository is canonical and is the
+   sole forward source of truth after Decision 275's completed controlled
+   cutover. The original repository is retained privately as read-only
+   historical evidence. Repository documentation is durable project memory.
 2. The closed Tier 1 authority set is `AGENTS.md`, `docs/MILESTONES.md`, and
    `docs/DECISIONS.md`. Supporting documents cannot create competing mandate,
    status, or roadmap authority.
@@ -139,21 +138,19 @@ explicitly.
      gate pass. Automated paper evidence follows under Milestone 26. Micro-live
      work is far future and requires separate explicit owner approval.
 
-275. **Clean-history public repository migration (accepted 2026-09-18).** The
-     project will use a sanitized clean-history public repository at the
-     canonical name after controlled cutover. Until then, the public candidate
-     retains its temporary name and the original private repository remains
-     canonical. At cutover, the original is retained privately as a read-only
-     archive and is not rewritten or deleted. The public repository contains
-     no credentials, private infrastructure, machine-specific state, licensed
-     packages, downloaded data, generated results, or private operational
-     evidence. Publication grants no source-code license; all rights are
-     reserved. This decision remediates repository enforcement only and does
-     not authorize strategy discovery, paper activation, live capital, or a
-     production deployment.
+275. **Clean-history public repository migration (accepted and implemented
+     2026-09-18).** The sanitized clean-history public repository now holds the
+     canonical name and is the sole forward source of truth. The original is
+     retained privately as a read-only archive and was neither rewritten nor
+     deleted. The public repository contains no credentials, private
+     infrastructure, machine-specific state, licensed packages, downloaded
+     data, generated results, or private operational evidence. Publication
+     grants no source-code license; all rights are reserved. The cutover did
+     not modify the production runtime and does not authorize strategy
+     discovery, paper activation, live capital, or a production deployment.
 
-276. **Parallel pull-request throughput policy (accepted and implemented on
-     the temporary public candidate 2026-09-18).** The owner permanently sets
+276. **Parallel pull-request throughput policy (accepted and implemented
+     2026-09-18).** The owner permanently sets
      `required_status_checks.strict` to `false` unless the owner later changes
      this decision. Required checks remain `Documentation contracts`,
      `Portable tests`, and `Dependency review`; `enforce_admins` remains true;
@@ -163,8 +160,10 @@ explicitly.
      serializing merely because another independent pull request merged first.
      Overlapping or dependent changes still integrate serially and are retested
      against the resulting `main`. GitHub API verification on 2026-09-18
-     confirmed these settings on the temporary public candidate. Controlled PR
-     #1 proved enforcement: its first revision failed `Portable tests` and was
+     re-confirmed these settings after the canonical cutover. Controlled PR #1
+     proved enforcement: its first revision failed `Portable tests` and was
      blocked, its corrected revision passed all three required checks, and the
-     PR was closed without merging. These settings must survive the controlled
-     canonical cutover required by Decision 275.
+     PR was closed without merging. Independent same-base PRs #2 and #3 proved
+     throughput: both were green; after #3 merged, #2 remained `CLEAN` and
+     `MERGEABLE` with its original Test run `35301119002` and Dependency Review
+     run `35301119008`, received no refresh run, and was closed unmerged.

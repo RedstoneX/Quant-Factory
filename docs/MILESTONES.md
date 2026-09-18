@@ -34,14 +34,14 @@ Decision 274 sets the current order:
 5. Treat Milestone 27 micro-live testing as far-future work requiring separate
    explicit owner approval.
 
-Decision 275 authorizes the sanitized clean-history public repository without
-changing this product sequence. The candidate is public under a temporary name
-and its required-check gate is proven; the existing private repository remains
-canonical until controlled cutover. Decision 276 permanently keeps required
-checks and admin enforcement while setting `strict`/up-to-date to false unless
-the owner changes it, so independent green pull requests do not queue behind
-refresh builds. Dependent or overlapping work still integrates serially and is
-retested against the resulting `main`.
+Decision 275 is implemented without changing this product sequence. The
+sanitized clean-history public repository is canonical; the original remains a
+private, read-only historical archive, and the production runtime was not
+modified. Decision 276 permanently keeps required checks and admin enforcement
+while setting `strict`/up-to-date to false unless the owner changes it, so
+independent green pull requests do not queue behind refresh builds. Dependent
+or overlapping work still integrates serially and is retested against the
+resulting `main`.
 
 ## Active work
 
@@ -49,9 +49,17 @@ retested against the resulting `main`.
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
 | R05 | 1 | in_progress | none | Implement the approved Milestone 23C dashboard direction, then obtain browser and operator acceptance |
-| R01 | 2 | in_progress | none | Required-check enforcement proof passed on temporary public candidate; complete controlled canonical cutover with Decision 276 settings preserved |
 | R06 | 9 | pending | none | Preserve completed paper-observer preparation; authenticated runtime work remains deferred under Decision 274 |
 <!-- active-work:end -->
+
+## Completed repository remediation
+
+- **R01 — completed 2026-09-18:** published the reviewed clean-history
+  repository at the canonical public name; retained the original as a private,
+  read-only historical archive; preserved the all-rights-reserved/no-license
+  posture; proved required-check enforcement with controlled PR #1; and proved
+  non-strict independent-PR throughput with PRs #2 and #3. The cutover did not
+  modify the production runtime or change the Milestone 23 gate.
 
 Readable completed incident history is retained in
 [`docs/milestones/milestone-23-acceptance.md`](milestones/milestone-23-acceptance.md#incident-history).

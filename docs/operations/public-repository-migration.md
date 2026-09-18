@@ -2,28 +2,25 @@
 
 ## Status and authority
 
-Decision 275 authorizes a sanitized clean-history public repository. This
-runbook is retained as the operating procedure and publication checklist.
+Decision 275 is implemented. The reviewed clean-history public repository now
+holds the canonical name and is the sole forward source of truth. The original
+repository is retained privately as a read-only historical archive; its history
+was not rewritten or deleted. Sections 1–5 below preserve the completed
+procedure and rollback boundary rather than describing current work.
 
-Until every pre-publication check passes and the controlled cutover completes,
-the existing repository remains private, canonical, and authoritative. Its Git
-history must not be rewritten or deleted. At cutover it is renamed, kept
-private, and archived read-only as historical evidence. The validated
-clean-history repository then assumes the canonical name and becomes the sole
-forward source of truth.
+GitHub API verification on 2026-09-18 after cutover confirmed branch protection
+requires `Documentation contracts`, `Portable tests`, and `Dependency review`
+with GitHub Actions app ID 15368, `strict: false`, and `enforce_admins: true`.
+Force pushes and branch deletion are prohibited; repository auto-merge and
+merged-branch deletion are enabled; Test workflow concurrency is per ref; and
+no merge queue is configured. Controlled PR #1 proved the required gate.
+Independent same-base PRs #2 and #3 proved that an unrelated merge does not
+force a refresh: after #3 merged, #2 remained `CLEAN` and `MERGEABLE` on its
+unchanged runs and was closed unmerged.
 
-As verified through the GitHub API on 2026-09-18, the clean-history candidate
-is public under its temporary name, while the existing private repository is
-still canonical and is not yet archived. Candidate branch protection requires
-`Documentation contracts`, `Portable tests`, and `Dependency review` with
-GitHub Actions app ID 15368, `strict: false`, and `enforce_admins: true`.
-Repository auto-merge and merged-branch deletion are enabled, Test workflow
-concurrency is per ref, and no merge queue is configured.
-
-This work is bounded R01 remediation. It does not change Decision 274's
-dashboard-first product order, modify the production runtime, use credentials,
-or authorize strategy discovery, backtesting before its gate, paper orders, or
-live capital.
+R01 remediation is complete. It did not change Decision 274's dashboard-first
+product order, modify the production runtime, use credentials, or authorize
+strategy discovery, backtesting before its gate, paper orders, or live capital.
 
 Public visibility does not grant a source-code license. Unless the owner separately
 approves a specific license, do not add a `LICENSE` file or license grant; the
@@ -105,8 +102,8 @@ CI selection:
    complete candidate log/object inventory. A scanner pass alone is not a
    publication decision.
 
-The candidate remains private if any check is incomplete, inconclusive, or
-failed.
+During the completed migration, the candidate remained private whenever a
+check was incomplete, inconclusive, or failed.
 
 ## 4. Prove the temporary public candidate, then cut over
 
@@ -158,9 +155,9 @@ failed.
    repository only after every post-rename check passes. Production runtime
    changes are a separate authorized, backed-up, validated deployment slice.
 
-## 5. Verification and rollback
+## 5. Completed verification and rollback boundary
 
-Verify all of the following before closing R01:
+The following checks passed before R01 was closed:
 
 - the canonical repository is public and exposes only the reviewed clean
   history;
@@ -178,10 +175,9 @@ Verify all of the following before closing R01:
 - authoritative documentation names the public canonical repository and the
   private archive's historical-only role without changing product gates.
 
-If temporary-candidate publication or protection verification fails, stop
-merges and return the candidate to private visibility; the original remains
-private and authoritative. If a post-cutover check fails, stop merges, return
-the replacement to private visibility when safe, and restore the original
-repository name/authority from the untouched private archive. Record the exact
-failure before retrying. Rollback never deletes either repository or rewrites
+The migration's rollback rule was to stop merges and return the candidate to
+private visibility if temporary-publication or protection verification failed.
+After cutover, a material integrity failure still requires stopping merges and
+using the untouched private archive as recovery evidence under a separately
+reviewed recovery plan. Recovery never deletes either repository or rewrites
 history.
