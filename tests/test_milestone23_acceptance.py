@@ -303,18 +303,9 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
 
     app = _app(database, service, adapter)
     reproduce = _callback_function(app, "reproduction-message")
-    (
-        message,
-        class_name,
-        reproduction_comparison,
-        comparison_class,
-        comparison_value,
-    ) = reproduce(1, "m23-spym-success")
+    message, class_name = reproduce(1, "m23-spym-success")
     assert class_name == "reproduction-message reproduction-message-success"
-    assert comparison_class == "run-comparison-output"
-    assert comparison_value[0] == "m23-spym-success"
     assert "Allowed differences" in str(message)
-    assert "m23-spym-success" in str(reproduction_comparison)
 
     persistence = PersistenceService(database)
     try:
@@ -324,7 +315,7 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
         source = persistence.runs.get("m23-spym-success")
         assert source is not None
         assert source.configuration_id == reproduced.configuration_id == configuration_id
-        assert comparison_value[1] == reproduced.run_id
+        assert reproduced.run_id != source.run_id
         compare = persistence.compare_runs(("m23-spym-success", reproduced.run_id))
         source_environment = compare[0]["run"]["environment_json"]
         reproduced_environment = compare[1]["run"]["environment_json"]
@@ -335,6 +326,8 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
 
     comparison_panel, comparison_class = _callback_function(app, "run-comparison-output")(
         1,
+        0,
+        "/research/compare-backtests",
         ["m23-spym-success", reproduced.run_id],
     )
     assert comparison_class == "run-comparison-output"

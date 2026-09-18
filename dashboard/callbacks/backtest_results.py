@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl
 
-from dash import Dash, Input, Output, State, html, no_update
+from dash import Dash, Input, Output, State, ctx, html, no_update
 from dash.exceptions import PreventUpdate
 
 from dashboard.components.operator_context import (
@@ -43,6 +45,62 @@ from orchestration import FixtureRunService, RunServiceError, RunSummary
 OWNED_STATE = {
     "selected_backtest": ("selected-run-selector.value", "selected-run-state.data"),
 }
+
+
+_INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
+_MAX_RESULTS_QUERY_LENGTH = 2_048
+_MAX_RUN_ID_LENGTH = 256
+
+
+def _requested_results_run_id(search: str | None) -> tuple[bool, str | None]:
+    """Return whether Results was asked to adopt one syntactically safe run ID."""
+
+    if not search:
+        return False, None
+    query = search[1:] if search.startswith("?") else search
+    if len(query) > _MAX_RESULTS_QUERY_LENGTH or _INVALID_PERCENT_ESCAPE.search(query):
+        return True, None
+    try:
+        pairs = parse_qsl(
+            query,
+            keep_blank_values=True,
+            strict_parsing=True,
+            encoding="utf-8",
+            errors="strict",
+            max_num_fields=20,
+        )
+    except (UnicodeDecodeError, ValueError):
+        return True, None
+    values = [value for key, value in pairs if key == "run_id"]
+    if not values:
+        return False, None
+    if len(values) != 1:
+        return True, None
+    run_id = values[0]
+    if (
+        not run_id.strip()
+        or len(run_id) > _MAX_RUN_ID_LENGTH
+        or any(ord(character) < 32 or ord(character) == 127 for character in run_id)
+    ):
+        return True, None
+    return True, run_id
+
+
+def _callback_triggered_ids() -> frozenset[str]:
+    """Return every component that triggered the current Dash callback."""
+
+    try:
+        component_ids = {
+            component_id
+            for component_id in ctx.triggered_prop_ids.values()
+            if isinstance(component_id, str)
+        }
+    except Exception:
+        component_ids = set()
+    primary = _callback_triggered_id()
+    if primary:
+        component_ids.add(primary)
+    return frozenset(component_ids)
 
 
 def register_backtest_results_callbacks(
@@ -262,16 +320,72 @@ def register_backtest_results_callbacks(
         )
 
     @app.callback(
+        Output("reproduction-message", "children"),
+        Output("reproduction-message", "className"),
+        Input("reproduce-selected-run", "n_clicks"),
+        State("selected-run-state", "data"),
+        State("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def reproduce_selected_run(
+        n_clicks: int | None,
+        run_id: str | None,
+        pathname: str | None = "/research/backtest-results",
+    ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
+        if not n_clicks:
+            return no_update, no_update
+        if not run_id:
+            return (
+                "No persisted run is selected for reproduction.",
+                "reproduction-message error-state",
+            )
+
+        try:
+            result = runs.reproduce_fixture_run(
+                run_id,
+                artifact_root=artifact_root,
+            )
+        except (KeyError, ValueError, RuntimeError, RunServiceError) as exc:
+            return (
+                f"Run reproduction failed: {exc}",
+                "reproduction-message error-state",
+            )
+
+        notes = html.Ul([html.Li(note) for note in result.notes])
+        return (
+            html.Div(
+                [
+                    html.Strong(
+                        (
+                            f"Reproduced {result.original.run_id} as "
+                            f"{result.reproduction.run_id}."
+                        )
+                    ),
+                    notes,
+                ],
+                **{"data-run-id": result.reproduction.run_id},
+            ),
+            "reproduction-message reproduction-message-success",
+        )
+
+    @app.callback(
         Output("selected-run-state", "data"),
         Input("selected-run-selector", "value"),
         Input("run-history-grid", "selectedRows", allow_optional=True),
+        Input("url", "search"),
         State("selected-run-state", "data"),
+        State("url", "pathname"),
     )
     def preserve_selected_run(
         selected_run_id: str | None,
         history_rows: list[dict[str, Any]] | None = None,
+        search: str | None = None,
         stored_run_id: str | None = None,
+        pathname: str | None = "/research/backtest-results",
     ):
+        triggered_ids = _callback_triggered_ids()
         triggered_id = _callback_triggered_id()
 
         def stored_run_is_valid() -> bool:
@@ -282,8 +396,29 @@ def register_backtest_results_callbacks(
             except (KeyError, ValueError, RunServiceError):
                 return False
 
+        query_requested, requested_run_id = _requested_results_run_id(search)
+        should_consider_query = triggered_id is None or "url" in triggered_ids
+        if should_consider_query and not _active_route(
+            pathname,
+            "/research/backtest-results",
+        ):
+            return no_update
+        if should_consider_query and query_requested:
+            if requested_run_id:
+                try:
+                    requested_run = runs.get_run(requested_run_id)
+                except (KeyError, ValueError, RunServiceError):
+                    requested_run = None
+                if (
+                    requested_run is not None
+                    and requested_run.run_id == requested_run_id
+                ):
+                    return requested_run_id
+            return no_update if stored_run_id else None
         if triggered_id == "run-history-grid" and history_rows:
             return history_rows[0].get("run_id") or stored_run_id
+        if triggered_id == "selected-run-selector" and selected_run_id:
+            return selected_run_id
         if triggered_id is None and stored_run_is_valid():
             return no_update
         if selected_run_id:

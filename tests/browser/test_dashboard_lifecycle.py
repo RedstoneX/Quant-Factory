@@ -44,6 +44,76 @@ from tests.test_review_context_artifacts import (
     _review_service,
     _source_lock_artifact,
 )
+from tests.test_dashboard import _reproduction_service
+
+
+@pytest.fixture()
+def reproduction_browser_server(tmp_path: Path):
+    """Start a licensed-engine-free dashboard with reproducible persisted runs."""
+
+    database, artifact_root, service, configuration_id = _reproduction_service(
+        tmp_path
+    )
+    service.launch_fixture(
+        configuration_id=configuration_id,
+        run_id="browser_comparison_peer",
+    )
+
+    port = _free_port()
+    server_log = tmp_path / "reproduction-browser-server.log"
+    code = """
+from pathlib import Path
+import sys
+from dashboard.app import create_app
+from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from orchestration import FixtureRunService
+from tests.test_dashboard import _reproduction_launcher
+
+database = Path(sys.argv[1])
+artifact_root = Path(sys.argv[2])
+port = int(sys.argv[3])
+app = create_app(
+    review_database=database,
+    run_service=FixtureRunService(
+        database=database,
+        fixture_launcher=_reproduction_launcher(artifact_root),
+    ),
+    run_detail_adapter=RunDetailDashboardAdapter(
+        database=database,
+        artifact_root=artifact_root,
+    ),
+)
+app.run(host="127.0.0.1", port=port, debug=False)
+"""
+    env = dict(os.environ)
+    env["QUANT_FACTORY_DB_PATH"] = str(database)
+    with server_log.open("w", encoding="utf-8") as log:
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                code,
+                str(database),
+                str(artifact_root),
+                str(port),
+            ],
+            cwd=REPOSITORY_ROOT,
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        _wait_for_server(base_url + BACKTEST_PATH)
+        yield base_url, server_log, "source_reproduction_run", database
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
 
 
 @pytest.fixture()
@@ -462,7 +532,11 @@ def test_every_route_deep_link_refresh_and_navigation(mounted_workflow_server, t
         browser = playwright.chromium.launch()
         context = browser.new_context(viewport={"width": 1440, "height": 1000})
         try:
-            for path, container in (*ROUTE_REGISTRY, ("/unknown-route", "route-not-found")):
+            for path, container in (
+                *ROUTE_REGISTRY,
+                ("/research/strategy-review", "route-not-found"),
+                ("/unknown-route", "route-not-found"),
+            ):
                 page = context.new_page()
                 action = {"name": f"open {path}"}
                 pending_requests = _attach_diagnostics(page, events, action)
@@ -768,6 +842,140 @@ def test_compare_renders_independent_quartets_in_browser(
             ).to_have_count(2)
             _wait_for_callbacks_to_settle(page, pending_requests)
             page.screenshot(path=tmp_path / "independent-quartets.png", full_page=True)
+            _assert_no_browser_errors(events)
+        except Exception:
+            _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)
+            raise
+        finally:
+            browser.close()
+
+
+def test_results_owns_reproduction_without_mutating_compare_selection(
+    reproduction_browser_server,
+    tmp_path,
+):
+    base_url, server_log, source_run_id, database = reproduction_browser_server
+    events = []
+
+    def persisted_runs():
+        persistence = PersistenceService(database)
+        try:
+            return tuple(persistence.runs.list())
+        finally:
+            persistence.close()
+
+    def is_results_selector_refresh(response) -> bool:
+        if "/_dash-update-component" not in response.url:
+            return False
+        try:
+            body = json.loads(response.request.post_data or "{}")
+        except json.JSONDecodeError:
+            return False
+        return body.get("output") == (
+            "..selected-run-selector.options...selected-run-selector.value.."
+        )
+
+    before_runs = persisted_runs()
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        action = {"name": "open Compare before Results reproduction"}
+        pending = _attach_diagnostics(page, events, action)
+        try:
+            page.goto(
+                base_url + "/research/compare-backtests",
+                wait_until="networkidle",
+            )
+            expect(page.locator(".compare-run-card")).to_have_count(2, timeout=10000)
+            original_compare_ids = page.locator(".compare-run-card").evaluate_all(
+                "cards => cards.map((card) => card.dataset.runId)"
+            )
+
+            action["name"] = "dispatch stale reproduction event while Results is inactive"
+            page.locator("#reproduce-selected-run").evaluate(
+                "button => { button.disabled = false; button.click(); }"
+            )
+            _wait_for_callbacks_to_settle(page, pending)
+            assert [run.run_id for run in persisted_runs()] == [
+                run.run_id for run in before_runs
+            ]
+
+            action["name"] = "reproduce source from active Results"
+            page.goto(
+                f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}",
+                wait_until="networkidle",
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                source_run_id,
+                timeout=10000,
+            )
+            page.get_by_text(
+                "Comparison and selected-backtest actions",
+                exact=True,
+            ).click()
+            expect(page.locator("#reproduce-selected-run")).to_be_enabled()
+            with page.expect_response(
+                is_results_selector_refresh,
+                timeout=60000,
+            ) as selector_refresh:
+                page.locator("#reproduce-selected-run").click()
+            expect(page.locator("#reproduction-message")).to_contain_text(
+                f"Reproduced {source_run_id} as",
+                timeout=60000,
+            )
+            reproduced_id = page.locator(
+                "#reproduction-message [data-run-id]"
+            ).get_attribute("data-run-id")
+            assert reproduced_id
+            assert reproduced_id != source_run_id
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                reproduced_id,
+                timeout=10000,
+            )
+            selector_payload = selector_refresh.value.json()
+            assert selector_payload["response"]["selected-run-selector"][
+                "value"
+            ] == reproduced_id
+            expect(page.locator("#selected-run-selector")).to_contain_text(
+                "Reproduction Strategy · Fixture backtest · Succeeded",
+            )
+            _wait_for_callbacks_to_settle(page, pending)
+
+            after_runs = persisted_runs()
+            assert len(after_runs) == len(before_runs) + 1
+            source = next(run for run in after_runs if run.run_id == source_run_id)
+            reproduction = next(run for run in after_runs if run.run_id == reproduced_id)
+            assert reproduction.configuration_id == source.configuration_id
+            reproduction_environment = json.loads(reproduction.environment_json)
+            assert reproduction_environment["reproduction"]["source_run_id"] == (
+                source_run_id
+            )
+
+            action["name"] = "return to independently selected Compare runs"
+            page.locator("#navigation-link-research-compare-backtests").click()
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page.locator(".compare-run-card")).to_have_count(2, timeout=10000)
+            assert page.locator(".compare-run-card").evaluate_all(
+                "cards => cards.map((card) => card.dataset.runId)"
+            ) == original_compare_ids
+
+            action["name"] = "reopen source Results deep link"
+            page.goto(
+                f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}",
+                wait_until="networkidle",
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                source_run_id,
+                timeout=10000,
+            )
+            expect(page.locator("#selected-run-detail")).not_to_contain_text(
+                reproduced_id,
+            )
+            _wait_for_callbacks_to_settle(page, pending)
+            page.screenshot(
+                path=tmp_path / "results-owned-reproduction.png",
+                full_page=True,
+            )
             _assert_no_browser_errors(events)
         except Exception:
             _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)
