@@ -1,4 +1,4 @@
-"""Mobile containment regression for long local market-data paths."""
+"""Responsive containment regression for long local market-data paths."""
 
 from __future__ import annotations
 
@@ -22,6 +22,13 @@ from tests.browser.test_dashboard_lifecycle import (
     _assert_no_browser_errors,
     _attach_diagnostics,
     _wait_for_callbacks_to_settle,
+)
+
+
+VIEWPORTS = (
+    pytest.param({"width": 1280, "height": 900}, id="desktop"),
+    pytest.param({"width": 1024, "height": 768}, id="tablet"),
+    pytest.param({"width": 390, "height": 844}, id="mobile"),
 )
 
 
@@ -124,15 +131,16 @@ def _horizontal_overflow_nodes(
     )
 
 
-def test_long_market_data_path_stays_contained_at_mobile_width(
-    long_path_market_data_server,
+@pytest.mark.parametrize("viewport", VIEWPORTS)
+def test_long_market_data_path_stays_contained(
+    long_path_market_data_server, viewport: dict[str, int]
 ) -> None:
     base_url, _server_log, config_path = long_path_market_data_server
     events: list[dict[str, object]] = []
     action = {"name": "open Market Data with a long local configuration path"}
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page = browser.new_page(viewport=viewport)
         pending = _attach_diagnostics(page, events, action)
         try:
             page.goto(base_url + "/research/market-data", wait_until="networkidle")
@@ -153,8 +161,13 @@ def test_long_market_data_path_stays_contained_at_mobile_width(
                 page, route_selector="#route-research-market-data"
             )
             assert overflow_nodes == [], json.dumps(overflow_nodes, indent=2)
-            assert page.evaluate("document.documentElement.scrollWidth") <= 391
-            assert page.evaluate("document.body.scrollWidth") <= 391
+            assert (
+                page.evaluate("document.documentElement.scrollWidth")
+                <= viewport["width"] + 1
+            )
+            assert (
+                page.evaluate("document.body.scrollWidth") <= viewport["width"] + 1
+            )
             _assert_no_browser_errors(events)
 
             action["name"] = "refresh Market Data with a long local configuration path"
@@ -167,8 +180,13 @@ def test_long_market_data_path_stays_contained_at_mobile_width(
                 page, route_selector="#route-research-market-data"
             )
             assert overflow_nodes == [], json.dumps(overflow_nodes, indent=2)
-            assert page.evaluate("document.documentElement.scrollWidth") <= 391
-            assert page.evaluate("document.body.scrollWidth") <= 391
+            assert (
+                page.evaluate("document.documentElement.scrollWidth")
+                <= viewport["width"] + 1
+            )
+            assert (
+                page.evaluate("document.body.scrollWidth") <= viewport["width"] + 1
+            )
             _assert_no_browser_errors(events)
         finally:
             browser.close()
@@ -182,15 +200,20 @@ def test_long_market_data_path_stays_contained_at_mobile_width(
     ),
     ids=("system-status", "data-sources"),
 )
+@pytest.mark.parametrize("viewport", VIEWPORTS)
 def test_long_missing_data_config_path_stays_contained_on_system_routes(
-    long_path_market_data_server, path: str, container_id: str, heading: str
+    long_path_market_data_server,
+    path: str,
+    container_id: str,
+    heading: str,
+    viewport: dict[str, int],
 ) -> None:
     base_url, _server_log, config_path = long_path_market_data_server
     events: list[dict[str, object]] = []
     action = {"name": f"open {heading} with a long local configuration path"}
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page = browser.new_page(viewport=viewport)
         pending = _attach_diagnostics(page, events, action)
         try:
             page.goto(base_url + path, wait_until="networkidle")
@@ -202,8 +225,13 @@ def test_long_missing_data_config_path_stays_contained_on_system_routes(
                 page, route_selector=f"#{container_id}"
             )
             assert overflow_nodes == [], json.dumps(overflow_nodes, indent=2)
-            assert page.evaluate("document.documentElement.scrollWidth") <= 391
-            assert page.evaluate("document.body.scrollWidth") <= 391
+            assert (
+                page.evaluate("document.documentElement.scrollWidth")
+                <= viewport["width"] + 1
+            )
+            assert (
+                page.evaluate("document.body.scrollWidth") <= viewport["width"] + 1
+            )
             _assert_no_browser_errors(events)
 
             action["name"] = (
@@ -216,8 +244,13 @@ def test_long_missing_data_config_path_stays_contained_on_system_routes(
                 page, route_selector=f"#{container_id}"
             )
             assert overflow_nodes == [], json.dumps(overflow_nodes, indent=2)
-            assert page.evaluate("document.documentElement.scrollWidth") <= 391
-            assert page.evaluate("document.body.scrollWidth") <= 391
+            assert (
+                page.evaluate("document.documentElement.scrollWidth")
+                <= viewport["width"] + 1
+            )
+            assert (
+                page.evaluate("document.body.scrollWidth") <= viewport["width"] + 1
+            )
             _assert_no_browser_errors(events)
         finally:
             browser.close()

@@ -124,7 +124,7 @@ def home_health_server(tmp_path: Path):
     port = _free_port()
     server_log = tmp_path / "home-health-server.log"
     code = """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
 from dashboard.app import create_app
@@ -147,6 +147,8 @@ app = create_app(
     ),
     catalog_snapshot=catalog_snapshot,
     catalog_checked_at=datetime.now(timezone.utc),
+    health_stale_after=timedelta(seconds=8),
+    health_refresh_interval_ms=1000,
 )
 app.run(host="127.0.0.1", port=port, debug=False)
 """
@@ -220,20 +222,62 @@ def test_home_and_system_render_local_health_without_claiming_remote_checks(
             for area in ("worker", "provider", "credential"):
                 _expect_health_card(page, area, "Not checked", timestamped=False)
 
+            home_route = page.locator("#route-home").element_handle()
+            system_route = page.locator("#route-system").element_handle()
+            expect(
+                page.locator("#home-health-database strong")
+            ).to_have_text("Stale — Available", timeout=12_000)
+            expect(page).to_have_url(base_url + "/")
+            assert page.evaluate(
+                "node => node === document.querySelector('#route-home')",
+                home_route,
+            )
+            assert page.evaluate(
+                "node => node === document.querySelector('#route-system')",
+                system_route,
+            )
+
+            for viewport in (
+                {"width": 1280, "height": 900},
+                {"width": 1024, "height": 768},
+                {"width": 390, "height": 844},
+            ):
+                page.set_viewport_size(viewport)
+                expect(page.locator("#route-home h1")).to_have_text("Home")
+                assert (
+                    page.evaluate("document.documentElement.scrollWidth")
+                    <= viewport["width"] + 1
+                )
+                assert (
+                    page.evaluate("document.body.scrollWidth")
+                    <= viewport["width"] + 1
+                )
+
             action["name"] = "open System Status local health"
-            page.goto(base_url + "/system", wait_until="networkidle")
+            page.set_viewport_size({"width": 1280, "height": 900})
+            page.locator("#navigation-link-system").click()
             _wait_for_callbacks_to_settle(page, pending)
+            expect(page).to_have_url(base_url + "/system")
             expect(page.locator("#route-system h1")).to_have_text("System Status")
             system = page.locator("#route-system")
             for label in ("Research database", "Artifact storage", "Local data"):
                 card = system.locator(".metric-card", has_text=label)
-                expect(card.locator("strong")).to_have_text("Available")
+                expect(card.locator("strong")).to_have_text("Stale — Available")
             for label in ("Orchestrator", "Credentials"):
                 card = system.locator(".metric-card", has_text=label)
                 expect(card.locator("strong")).to_have_text("Not checked")
                 expect(card).to_contain_text("Last checked: Not checked")
 
-            assert pending == set()
+            assert page.evaluate(
+                "node => node === document.querySelector('#route-home')",
+                home_route,
+            )
+            assert page.evaluate(
+                "node => node === document.querySelector('#route-system')",
+                system_route,
+            )
+
+            assert not pending
             _assert_no_browser_errors(events)
         finally:
             browser.close()

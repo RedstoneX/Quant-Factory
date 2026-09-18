@@ -13,7 +13,11 @@ from typing import Iterable
 
 from dash import dcc, html
 
-from dashboard.health import HomeHealthReading
+from dashboard.health import (
+    HomeHealthReading,
+    normalize_health_reading,
+    redact_credential_health_reading,
+)
 from dashboard.pages.common import page_heading
 from dashboard.project_status import DashboardProjectStatus, PROJECT_STATUS
 from orchestration import RunEvent, RunSummary
@@ -71,6 +75,9 @@ class HomeViewModel:
     workflow: tuple[HomeWorkflowStep, ...]
     action: HomeAction
     subtitle: str
+    health_readings: tuple[HomeHealthReading, ...]
+    health_stale_after_seconds: float
+    health_refresh_interval_ms: int
 
 
 _HEALTH_AREAS = (
@@ -107,17 +114,26 @@ def build_home_view_model(
     configuration_selected: bool = False,
     as_of: datetime | None = None,
     stale_after: timedelta = timedelta(minutes=15),
+    health_refresh_interval_ms: int = 30_000,
     project_status: DashboardProjectStatus = PROJECT_STATUS,
 ) -> HomeViewModel:
     """Derive one truthful Home snapshot from already-read application state."""
 
     if stale_after <= timedelta(0):
         raise ValueError("stale_after must be positive")
+    if health_refresh_interval_ms <= 0:
+        raise ValueError("health_refresh_interval_ms must be positive")
     resolved_as_of = as_of or datetime.now(timezone.utc)
     if resolved_as_of.tzinfo is None:
         raise ValueError("as_of must include a timezone")
 
-    health = _health_views(health_readings, resolved_as_of, stale_after)
+    safe_health_readings = tuple(
+        redact_credential_health_reading(reading)
+        if reading.area == "credential"
+        else reading
+        for reading in health_readings
+    )
+    health = _health_views(safe_health_readings, resolved_as_of, stale_after)
     run = _selected_active_or_latest_run(recent_runs, selected_run_id)
     failures = _recent_failures(recent_runs, recent_events)
     workflow_index, action = _workflow_and_action(
@@ -156,6 +172,9 @@ def build_home_view_model(
         workflow=workflow,
         action=action,
         subtitle=project_status.home_subtitle,
+        health_readings=safe_health_readings,
+        health_stale_after_seconds=stale_after.total_seconds(),
+        health_refresh_interval_ms=health_refresh_interval_ms,
     )
 
 
@@ -194,7 +213,32 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
             html.Section(
                 [
                     html.H2("Research readiness"),
-                    html.Div(_health_cards(model.health), className="summary-grid"),
+                    dcc.Store(
+                        id="health-observation-snapshot",
+                        data={
+                            "readings": [
+                                {
+                                    "area": reading.area,
+                                    "status": reading.status,
+                                    "detail": reading.detail,
+                                    "checked_at": reading.checked_at,
+                                }
+                                for reading in model.health_readings
+                            ],
+                            "stale_after_seconds": model.health_stale_after_seconds,
+                        },
+                        storage_type="memory",
+                    ),
+                    dcc.Interval(
+                        id="health-freshness-interval",
+                        interval=model.health_refresh_interval_ms,
+                        n_intervals=0,
+                    ),
+                    html.Div(
+                        _health_cards(model.health),
+                        id="home-health-cards",
+                        className="summary-grid",
+                    ),
                 ],
                 id="home-health-summary",
                 className="panel",
@@ -240,14 +284,10 @@ def _health_view(
     as_of: datetime,
     stale_after: timedelta,
 ) -> HomeHealthView:
-    safe_detail = (
-        "Availability only. Credential values are never displayed."
-        if area == "credential"
-        else reading.detail
-        if reading is not None
-        else ""
-    )
-    if reading is None or reading.checked_at is None:
+    if reading is not None and area == "credential":
+        reading = redact_credential_health_reading(reading)
+    safe_detail = reading.detail if reading is not None else ""
+    if reading is None:
         detail = (
             safe_detail
             if safe_detail
@@ -261,53 +301,25 @@ def _health_view(
             checked_at="Not checked",
             stale=False,
         )
-    checked_at = _parse_timestamp(reading.checked_at)
-    if checked_at is None:
-        return HomeHealthView(
-            area=area,
-            label=label,
-            status="Not checked",
-            detail="The recorded check time is invalid; current health is not assumed.",
-            checked_at="Not checked",
-            stale=False,
-        )
-    if checked_at > as_of.astimezone(timezone.utc):
-        return HomeHealthView(
-            area=area,
-            label=label,
-            status="Not checked",
-            detail="The recorded check time is in the future; current health is not assumed.",
-            checked_at="Not checked",
-            stale=False,
-        )
-    stale = as_of.astimezone(timezone.utc) - checked_at > stale_after
     status = reading.status.strip() or "Not checked"
-    if area == "credential":
-        credential_states = {
-            "available": "Available",
-            "unavailable": "Unavailable",
-            "degraded": "Degraded",
-            "not checked": "Not checked",
-        }
-        status = credential_states.get(status.lower(), "Not checked")
+    normalized, stale = normalize_health_reading(
+        HomeHealthReading(
+            area=reading.area,
+            status=status,
+            detail=safe_detail,
+            checked_at=reading.checked_at,
+        ),
+        observed_at=as_of,
+        stale_after=stale_after,
+    )
     return HomeHealthView(
         area=area,
         label=label,
-        status=f"Stale — {status}" if stale else status,
-        detail=safe_detail,
-        checked_at=reading.checked_at,
+        status=normalized.status,
+        detail=normalized.detail,
+        checked_at=normalized.checked_at or "Not checked",
         stale=stale,
     )
-
-
-def _parse_timestamp(value: str) -> datetime | None:
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        return None
-    return parsed.astimezone(timezone.utc)
 
 
 def _selected_active_or_latest_run(
@@ -442,6 +454,17 @@ def _health_cards(health: tuple[HomeHealthView, ...]) -> list[html.Div]:
         )
         for item in health
     ]
+
+
+def health_cards_for_readings(
+    readings: Iterable[HomeHealthReading],
+    *,
+    observed_at: datetime,
+    stale_after: timedelta,
+) -> list[html.Div]:
+    """Render current cards from a previously captured read-only snapshot."""
+
+    return _health_cards(_health_views(readings, observed_at, stale_after))
 
 
 def _run_section(run: HomeRunView | None) -> html.Section:

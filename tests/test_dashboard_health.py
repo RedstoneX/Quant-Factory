@@ -11,12 +11,15 @@ import sqlite3
 import pytest
 
 from dashboard.health import (
+    HomeHealthReading,
     inspect_artifact_storage,
     inspect_catalog,
     inspect_database,
     inspect_research_cache,
     local_home_health_readings,
+    normalize_health_reading,
 )
+from dashboard.callbacks.health import health_presentations
 from dashboard.application import create_layout
 from dashboard.pages.market_data import layout as market_data_layout
 from dashboard.pages.system_health import layout as system_health_layout
@@ -91,6 +94,132 @@ def _component_text(component) -> str:
         for item in _walk_components(component)
         if isinstance(item, (str, int, float))
     )
+
+
+@pytest.mark.parametrize(
+    ("checked_at", "expected_status", "expected_checked_at", "expected_stale"),
+    (
+        (None, "Not checked", None, False),
+        ("not-a-timestamp", "Not checked", None, False),
+        ("2026-09-18T12:00:01Z", "Not checked", None, False),
+        ("2026-09-18T11:59:00Z", "Available", "2026-09-18T11:59:00Z", False),
+        (
+            "2026-09-18T10:00:00Z",
+            "Stale — Available",
+            "2026-09-18T10:00:00Z",
+            True,
+        ),
+    ),
+    ids=("missing", "invalid", "future", "fresh", "stale"),
+)
+def test_normalize_health_reading_fails_closed_by_observation_time(
+    checked_at: str | None,
+    expected_status: str,
+    expected_checked_at: str | None,
+    expected_stale: bool,
+) -> None:
+    normalized, stale = normalize_health_reading(
+        HomeHealthReading(
+            "database",
+            "Available",
+            "A bounded local observation.",
+            checked_at,
+        ),
+        observed_at=datetime(2026, 9, 18, 12, 0, tzinfo=timezone.utc),
+        stale_after=timedelta(minutes=30),
+    )
+
+    assert normalized.status == expected_status
+    assert normalized.checked_at == expected_checked_at
+    assert stale is expected_stale
+
+
+@pytest.mark.parametrize(
+    ("observed_at", "stale_after"),
+    (
+        (datetime(2026, 9, 18, 12, 0), timedelta(minutes=15)),
+        (datetime(2026, 9, 18, 12, 0, tzinfo=timezone.utc), timedelta(0)),
+    ),
+    ids=("timezoneless-clock", "non-positive-threshold"),
+)
+def test_normalize_health_reading_rejects_ambiguous_freshness_contract(
+    observed_at: datetime,
+    stale_after: timedelta,
+) -> None:
+    with pytest.raises(ValueError):
+        normalize_health_reading(
+            HomeHealthReading(
+                "database",
+                "Available",
+                "A bounded local observation.",
+                "2026-09-18T11:59:00Z",
+            ),
+            observed_at=observed_at,
+            stale_after=stale_after,
+        )
+
+
+def test_health_presentations_transition_fresh_snapshot_to_stale_without_probe() -> None:
+    snapshot = {
+        "readings": [
+            {
+                "area": "database",
+                "status": "Available",
+                "detail": "A read-only integrity check passed.",
+                "checked_at": "2026-09-18T12:00:00Z",
+            },
+            {
+                "area": "credential",
+                "status": "Available: SENSITIVE_SENTINEL",
+                "detail": "SENSITIVE_SENTINEL",
+                "checked_at": "2026-09-18T12:00:00Z",
+            },
+        ],
+        "stale_after_seconds": 60,
+    }
+
+    fresh_home, fresh_system = health_presentations(
+        snapshot,
+        observed_at=datetime(2026, 9, 18, 12, 0, 30, tzinfo=timezone.utc),
+    )
+    stale_home, stale_system = health_presentations(
+        snapshot,
+        observed_at=datetime(2026, 9, 18, 12, 1, 1, tzinfo=timezone.utc),
+    )
+
+    fresh_text = " ".join(
+        _component_text(card) for card in (*fresh_home, *fresh_system)
+    )
+    stale_text = " ".join(
+        _component_text(card) for card in (*stale_home, *stale_system)
+    )
+    assert "Research database Available" in fresh_text
+    assert "Research database Stale — Available" in stale_text
+    assert "SENSITIVE_SENTINEL" not in fresh_text
+    assert "SENSITIVE_SENTINEL" not in stale_text
+
+
+def test_health_presentations_fail_closed_for_non_positive_snapshot_threshold() -> None:
+    home_cards, system_cards = health_presentations(
+        {
+            "readings": [
+                {
+                    "area": "database",
+                    "status": "Available",
+                    "detail": "Untrusted snapshot.",
+                    "checked_at": "2026-09-18T12:00:00Z",
+                }
+            ],
+            "stale_after_seconds": 0,
+        },
+        observed_at=datetime(2026, 9, 18, 12, 0, 1, tzinfo=timezone.utc),
+    )
+
+    rendered = " ".join(
+        _component_text(card) for card in (*home_cards, *system_cards)
+    )
+    assert "Available" not in rendered
+    assert "Not checked" in rendered
 
 
 def test_catalog_inspection_verifies_matching_file_and_keeps_quarantine_visible(
@@ -207,6 +336,52 @@ def test_system_health_uses_read_only_database_and_artifact_checks(tmp_path: Pat
     assert "configured artifact location does not exist" in rendered
     assert "Orchestrator" in rendered and "Not checked" in rendered
     assert "paper execution, and live trading are blocked" in rendered
+
+
+def test_system_health_marks_old_supplied_observation_stale(tmp_path: Path) -> None:
+    observed = "2026-09-18T10:00:00Z"
+
+    rendered = _component_text(
+        system_health_layout(
+            tmp_path / "unused.sqlite3",
+            tmp_path / "unused-artifacts",
+            health_readings=(
+                HomeHealthReading(
+                    "database",
+                    "Available",
+                    "A read-only integrity check passed at the recorded time.",
+                    observed,
+                ),
+            ),
+            observed_at=datetime(2026, 9, 18, 12, 0, tzinfo=timezone.utc),
+            stale_after=timedelta(minutes=30),
+        )
+    )
+
+    assert "Stale — Available" in rendered
+    assert f"Last checked: {observed}" in rendered
+
+
+def test_system_health_never_renders_supplied_credential_values(tmp_path: Path) -> None:
+    rendered = _component_text(
+        system_health_layout(
+            tmp_path / "unused.sqlite3",
+            tmp_path / "unused-artifacts",
+            health_readings=(
+                HomeHealthReading(
+                    "credential",
+                    "Available: SENSITIVE_SENTINEL",
+                    "SENSITIVE_SENTINEL",
+                    "2026-09-18T11:59:00Z",
+                ),
+            ),
+            observed_at=datetime(2026, 9, 18, 12, 0, tzinfo=timezone.utc),
+        )
+    )
+
+    assert "SENSITIVE_SENTINEL" not in rendered
+    assert "Credential values are never displayed." in rendered
+    assert "Not checked" in rendered
 
 
 def test_system_health_reports_unreadable_database_as_unavailable(tmp_path: Path) -> None:
@@ -428,6 +603,11 @@ def test_registered_layout_mounts_one_truthful_local_snapshot_on_home_and_system
     home_database = by_id["home-health-database"]
     home_cache = by_id["home-health-cache"]
     home_artifact = by_id["home-health-artifact"]
+    assert by_id["health-freshness-interval"].interval == 30_000
+    snapshot = by_id["health-observation-snapshot"].data
+    assert snapshot["stale_after_seconds"] == 900.0
+    assert "SENSITIVE_SENTINEL" not in str(snapshot)
+    assert "system-health-summary" in by_id
     assert "Available" in _component_text(home_database)
     assert "Available" in _component_text(home_cache)
     assert "Available" in _component_text(home_artifact)

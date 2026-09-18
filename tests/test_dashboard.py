@@ -611,7 +611,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 28
+    assert len(app.callback_map) == 29
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -2260,6 +2260,15 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
                 "An explicit menu-button click toggles the responsive drawer; "
                 "every primary-navigation selection or pathname change closes "
                 "it without rebuilding navigation or writing the URL."
+            ),
+        },
+        "health_snapshot": {
+            "source": "health-observation-snapshot.data",
+            "owner": "dashboard.callbacks.health",
+            "rule": (
+                "A redacted read-only observation is fixed for the browser layout; "
+                "the passive interval re-evaluates only its freshness presentation "
+                "without probing services or replacing routes."
             ),
         },
         "idea_draft": {
