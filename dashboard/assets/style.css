@@ -3134,6 +3134,12 @@ input {
   overflow-wrap: anywhere;
 }
 
+#route-system .panel p,
+#route-system-providers .panel .error-state {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Milestone 23 safe idea draft and split setup/run surfaces. */
 .idea-draft-panel {
   display: grid;
