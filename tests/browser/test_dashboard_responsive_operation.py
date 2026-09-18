@@ -372,6 +372,37 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
             after_run_ids = _persisted_run_ids(database)
             assert len(after_run_ids) == len(before_run_ids) + 1
 
+            action["name"] = f"{viewport_name} reopen reproduction source"
+            page.goto(
+                f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}",
+                wait_until="networkidle",
+            )
+            expect(page).to_have_url(
+                f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                source_run_id,
+                timeout=10_000,
+            )
+            expect(
+                page.locator("#reproduction-message [data-run-id]")
+            ).to_have_attribute("data-run-id", reproduced_id)
+
+            action["name"] = f"{viewport_name} refresh reproduction source"
+            page.reload(wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page).to_have_url(
+                f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                source_run_id,
+                timeout=10_000,
+            )
+            expect(
+                page.locator("#reproduction-message [data-run-id]")
+            ).to_have_attribute("data-run-id", reproduced_id)
+            assert _persisted_run_ids(database) == after_run_ids
+
             action["name"] = f"{viewport_name} open reproduced Results identity"
             page.goto(
                 f"{base_url}{BACKTEST_PATH}?run_id={reproduced_id}",
@@ -384,21 +415,6 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
                 reproduced_id,
                 timeout=10_000,
             )
-
-            action["name"] = f"{viewport_name} refresh reproduced Results"
-            page.reload(wait_until="networkidle")
-            _wait_for_callbacks_to_settle(page, pending)
-            expect(page).to_have_url(
-                f"{base_url}{BACKTEST_PATH}?run_id={reproduced_id}"
-            )
-            expect(page.locator("#selected-run-detail")).to_contain_text(
-                reproduced_id,
-                timeout=10_000,
-            )
-            expect(
-                page.locator("#reproduction-message [data-run-id]")
-            ).to_have_attribute("data-run-id", reproduced_id)
-            assert _persisted_run_ids(database) == after_run_ids
             _assert_document_contained(page)
             _assert_visible_surfaces_contained(page)
             _assert_runtime_clean(page, events, server_log)

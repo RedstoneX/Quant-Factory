@@ -473,8 +473,8 @@ def register_backtest_results_callbacks(
         State("run-test-launch-state", "data"),
         State("url", "pathname"),
         running=[
-            (Output("launch-run", "disabled"), True, no_update),
-            (Output("launch-run", "children"), "Starting test...", no_update),
+            (Output("launch-run", "disabled"), True, True),
+            (Output("launch-run", "children"), "Starting test...", "Run test"),
         ],
     )
     def launch_saved_configuration(
@@ -646,8 +646,12 @@ def register_backtest_results_callbacks(
         State("historical-launch-state", "data"),
         State("url", "pathname"),
         running=[
-            (Output("launch-selected-run-configuration", "disabled"), True, no_update),
-            (Output("launch-selected-run-configuration", "children"), "Starting test...", no_update),
+            (Output("launch-selected-run-configuration", "disabled"), True, True),
+            (
+                Output("launch-selected-run-configuration", "children"),
+                "Starting test...",
+                "Launch new run from this configuration",
+            ),
         ],
     )
     def launch_selected_run_configuration(
@@ -779,8 +783,12 @@ def register_backtest_results_callbacks(
         State("reproduction-launch-state", "data"),
         State("url", "pathname"),
         running=[
-            (Output("reproduce-selected-run", "disabled"), True, no_update),
-            (Output("reproduce-selected-run", "children"), "Starting test...", no_update),
+            (Output("reproduce-selected-run", "disabled"), True, True),
+            (
+                Output("reproduce-selected-run", "children"),
+                "Starting test...",
+                "Reproduce selected run",
+            ),
         ],
     )
     def reproduce_selected_run(

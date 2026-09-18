@@ -3349,7 +3349,7 @@ def _reproduction_service(tmp_path: Path) -> tuple[Path, Path, FixtureRunService
     return database, artifact_root, service, configuration_id
 
 
-def test_dashboard_disables_legacy_reproduction_without_durable_service_seam(
+def test_dashboard_uses_frozen_durable_reproduction_service_seam(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -3373,9 +3373,9 @@ def test_dashboard_disables_legacy_reproduction_without_durable_service_seam(
     )
     rendered_message = str(message)
 
-    assert class_name == "reproduction-message error-state"
-    assert "Durable reproduction is unavailable" in rendered_message
-    assert "legacy launcher is disabled" in rendered_message
+    assert class_name == "reproduction-message"
+    assert "Submission: Acknowledged" in rendered_message
+    assert "Run status: Succeeded" in rendered_message
 
     persistence = PersistenceService(database)
     try:
@@ -3387,7 +3387,8 @@ def test_dashboard_disables_legacy_reproduction_without_durable_service_seam(
         ]
         assert source is not None
         assert source.configuration_id == configuration_id
-        assert reproduced == []
+        assert len(reproduced) == 1
+        assert reproduced[0].configuration_id == configuration_id
     finally:
         persistence.close()
 
@@ -3418,8 +3419,8 @@ def test_dashboard_reproduction_fails_closed_for_invalid_lineage_or_artifacts(
         "source_reproduction_run",
     )
     assert class_name == "reproduction-message error-state"
-    assert "Durable reproduction is unavailable" in str(message)
-    assert "legacy launcher is disabled" in str(message)
+    assert "Run reproduction did not start" in str(message)
+    assert "invalid reproduction artifacts" in str(message)
 
     persistence = PersistenceService(database)
     try:
@@ -3434,7 +3435,7 @@ def test_dashboard_reproduction_fails_closed_for_invalid_lineage_or_artifacts(
 
     _, message, class_name, *_ = reproduce(1, "source_reproduction_run")
     assert class_name == "reproduction-message error-state"
-    assert "Durable reproduction is unavailable" in str(message)
+    assert "Run reproduction did not start" in str(message)
 
 
 def test_dashboard_run_comparison_renders_equal_changed_and_missing_fields(

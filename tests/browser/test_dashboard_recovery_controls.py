@@ -23,8 +23,8 @@ from prefect_spike.fixture_flow import (
     ControlledFixtureCancellation,
     PrefectFixtureResult,
     PrefectRunReference,
-    _create_or_reference_run,
     _persist_fixture_result,
+    _validated_claim_boundary,
     acknowledge_fixture_cancellation,
     reconcile_quant_factory_run_status,
 )
@@ -136,23 +136,23 @@ def test_mobile_operator_cancels_active_run_and_late_completion_stays_blocked(
     launch_errors: list[BaseException] = []
 
     def blocking_launcher(**kwargs: Any) -> PrefectFixtureResult:
+        _validated_claim_boundary(
+            database_path=kwargs["database_path"],
+            idempotency_key=kwargs["idempotency_key"],
+            configuration_id=kwargs["configuration_id"],
+            quant_factory_run_id=kwargs["quant_factory_run_id"],
+            canonical_request_json=kwargs["canonical_request_json"],
+            request_fingerprint=kwargs["request_fingerprint"],
+            operation_kind=kwargs["operation_kind"],
+            source_run_id=kwargs["source_run_id"],
+            source_lineage=kwargs["source_lineage"],
+            prefect_reference=PrefectRunReference(
+                flow_run_id="prefect-browser-cancellation"
+            ),
+        )
         persistence = PersistenceService(kwargs["database_path"])
         try:
-            _create_or_reference_run(
-                persistence,
-                configuration_id=kwargs["configuration_id"],
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_reference=PrefectRunReference(
-                    flow_run_id="prefect-browser-cancellation"
-                ),
-                reference_source="browser_cancellation_test",
-            )
             persistence.increment_run_attempt(kwargs["quant_factory_run_id"])
-            reconcile_quant_factory_run_status(
-                persistence,
-                quant_factory_run_id=kwargs["quant_factory_run_id"],
-                prefect_state="Running",
-            )
             started.set()
             if not release.wait(timeout=30):
                 raise AssertionError("Browser did not release the blocking fixture")

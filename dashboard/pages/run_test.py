@@ -60,7 +60,6 @@ def layout(
             operator_context(component_id="run-test-operator-context"),
             dcc.Store(
                 id="run-test-launch-state",
-                data=None,
                 storage_type="session",
             ),
             html.Div(

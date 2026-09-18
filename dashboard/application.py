@@ -3054,12 +3054,10 @@ def _runs_page(
             ),
             dcc.Store(
                 id="historical-launch-state",
-                data=None,
                 storage_type="session",
             ),
             dcc.Store(
                 id="reproduction-launch-state",
-                data=None,
                 storage_type="session",
             ),
             html.Section(
