@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from dash import Dash, Input, Output, State, html
+from dash import ClientsideFunction, Dash, Input, Output, State, html
 from dash.exceptions import PreventUpdate
 
 from dashboard.application import _active_route
@@ -23,6 +23,14 @@ def register_trade_explorer_callbacks(
     detail_adapter: RunDetailDashboardAdapter,
 ) -> None:
     """Register callbacks owned by the Backtest Results trade explorer."""
+
+    app.clientside_callback(
+        ClientsideFunction(namespace="qfResults", function_name="focusTrade"),
+        Output("results-chart-focus-status", "children"),
+        Input("selected-trade-grid", "selectedRows"),
+        State("selected-run-state", "data"),
+        prevent_initial_call=True,
+    )
 
     @app.callback(
         Output("selected-trade-grid", "rowData"),

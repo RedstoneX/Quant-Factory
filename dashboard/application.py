@@ -1920,6 +1920,7 @@ def _trade_marker_rows(
                         trade.get("Trade Id", trade.get("Position Id", index)),
                     )
                 ),
+                "trade_index": index,
                 "event": event,
                 "timestamp": str(timestamp),
                 "price": price,
@@ -2052,6 +2053,7 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
                     },
                     customdata=[
                         [
+                            row["trade_index"],
                             row["timestamp"],
                             bar_timestamp.isoformat(),
                             row["size"],
@@ -2063,10 +2065,11 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
                     name=_marker_trace_name(rows, event),
                     visible=visible,
                     hovertemplate=(
-                        f"{event.title()} %{{customdata[0]}}<br>"
-                        "Containing bar %{customdata[1]}<br>Price %{y:$,.2f}<br>"
-                        "Size %{customdata[2]}<br>Fees %{customdata[3]}<br>"
-                        "Direction %{customdata[4]}<extra></extra>"
+                        f"{event.title()} · Trade %{{customdata[0]}}<br>"
+                        "Exact event %{customdata[1]}<br>"
+                        "Containing bar %{customdata[2]}<br>Price %{y:$,.2f}<br>"
+                        "Size %{customdata[3]}<br>Fees %{customdata[4]}<br>"
+                        "Direction %{customdata[5]}<extra></extra>"
                     ),
                 )
             )

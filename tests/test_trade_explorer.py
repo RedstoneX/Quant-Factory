@@ -417,11 +417,13 @@ def test_trade_explorer_outputs_exist_in_empty_database_layout(tmp_path: Path) -
         "trade-direction-filter",
         "trade-date-range",
         "trade-explorer-summary",
+        "results-chart-focus-status",
         "selected-trade-grid",
         "selected-trade-detail",
     }.issubset(ids)
     assert any("selected-trade-grid" in key for key in app.callback_map)
     assert any("selected-trade-detail" in key for key in app.callback_map)
+    assert any("results-chart-focus-status" in key for key in app.callback_map)
 
 
 def test_trade_callback_filters_rows_and_clears_selection_on_run_change(

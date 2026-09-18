@@ -110,6 +110,83 @@
     resizePlots(workspace);
   });
 
+  window.dash_clientside = window.dash_clientside || {};
+  window.dash_clientside.qfResults = window.dash_clientside.qfResults || {};
+  window.dash_clientside.qfResults.focusTrade = function (selectedRows, runId) {
+    const graph = document.querySelector("#price-marker-chart .js-plotly-plot");
+    const row = selectedRows && selectedRows.length ? selectedRows[0] : null;
+    const selectedIndex = row && row.__run_id === runId
+      ? Number(row.__trade_index)
+      : null;
+    if (!graph || !window.Plotly || !Array.isArray(graph.data)) {
+      return row
+        ? "The selected trade could not be shown because the price chart is unavailable."
+        : "Select a trade to identify its entry and exit on the price chart.";
+    }
+
+    const selectedBarTimes = [];
+    graph.data.forEach(function (trace, traceIndex) {
+      if (trace.type !== "scatter" || trace.mode !== "markers" || !Array.isArray(trace.customdata)) return;
+      const entry = String(trace.name || "").toLowerCase().includes("entry");
+      const selected = trace.customdata.map(function (item) {
+        return selectedIndex !== null && Number(item && item[0]) === selectedIndex;
+      });
+      const sizes = selected.map(function (active) { return active ? 17 : 9; });
+      const colors = selected.map(function (active) {
+        return active ? "#facc15" : (entry ? "#16a34a" : "#dc2626");
+      });
+      const lineColors = selected.map(function (active) {
+        return active ? "#172033" : (entry ? "#064e3b" : "#7f1d1d");
+      });
+      const lineWidths = selected.map(function (active) { return active ? 2.5 : 1; });
+      window.Plotly.restyle(
+        graph,
+        {
+          "marker.size": [sizes],
+          "marker.color": [colors],
+          "marker.line.color": [lineColors],
+          "marker.line.width": [lineWidths],
+        },
+        [traceIndex]
+      );
+      if (trace.visible !== false) {
+        selected.forEach(function (active, pointIndex) {
+          if (active) selectedBarTimes.push(new Date(trace.x[pointIndex]).getTime());
+        });
+      }
+    });
+
+    if (selectedIndex === null) {
+      return "Select a trade to identify its entry and exit on the price chart.";
+    }
+
+    const finiteTimes = selectedBarTimes.filter(Number.isFinite);
+    const axis = graph._fullLayout && graph._fullLayout.xaxis;
+    if (finiteTimes.length && axis && Array.isArray(axis.range)) {
+      const currentStart = new Date(axis.range[0]).getTime();
+      const currentEnd = new Date(axis.range[1]).getTime();
+      const selectedStart = Math.min.apply(null, finiteTimes);
+      const selectedEnd = Math.max.apply(null, finiteTimes);
+      if (
+        Number.isFinite(currentStart) && Number.isFinite(currentEnd) &&
+        (selectedStart < currentStart || selectedEnd > currentEnd)
+      ) {
+        const currentDuration = currentEnd - currentStart;
+        const selectedDuration = Math.max(selectedEnd - selectedStart, 60 * 1000);
+        const duration = Math.max(currentDuration, Math.ceil(selectedDuration * 1.25));
+        const center = selectedStart + ((selectedEnd - selectedStart) / 2);
+        window.Plotly.relayout(graph, {
+          "xaxis.range": [new Date(center - duration / 2), new Date(center + duration / 2)],
+        });
+      }
+    }
+
+    const entryTime = row["Entry timestamp"] || "entry time not recorded";
+    const exitTime = row["Exit/valuation timestamp"] || "exit not recorded";
+    return row.Trade + " identified on chart. Entry " + entryTime +
+      "; exit/valuation " + exitTime + ". Bars and View are unchanged.";
+  };
+
   new MutationObserver(bindAll).observe(document.documentElement, { childList: true, subtree: true });
   document.addEventListener("DOMContentLoaded", bindAll);
   bindAll();

@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from dashboard.application import (
     _price_marker_figure,
     _price_marker_panel,
     _results_report_tabs,
+)
+from dashboard.components.trade_explorer import (
+    layout as trade_explorer_layout,
+    normalize_trade_rows,
 )
 from dashboard.run_detail_adapter import (
     DetailField,
@@ -66,6 +71,17 @@ def _detail() -> SelectedRunDetailView:
     )
 
 
+def _walk(component: Any):
+    yield component
+    children = getattr(component, "children", None)
+    if children is None:
+        return
+    if not isinstance(children, (list, tuple)):
+        children = (children,)
+    for child in children:
+        yield from _walk(child)
+
+
 def test_price_workspace_reuses_plotly_with_independent_bars_and_view_controls() -> None:
     figure, availability = _price_marker_figure(_detail())
 
@@ -87,6 +103,9 @@ def test_price_workspace_reuses_plotly_with_independent_bars_and_view_controls()
     assert {button.method for button in view_menu.buttons} == {"relayout"}
     assert all("xaxis" not in str(button.args) for button in bars_menu.buttons)
     assert all("visible" not in str(button.args) for button in view_menu.buttons)
+    marker_traces = [trace for trace in figure.data if trace.type == "scatter"]
+    assert marker_traces
+    assert all(trace.customdata[0][0] == 1 for trace in marker_traces)
 
     graph = _price_marker_panel(_detail()).children[0]
     assert graph.config["scrollZoom"] is True
@@ -101,6 +120,22 @@ def test_results_report_reuses_existing_metrics_and_trade_explorer() -> None:
     assert rendered.count("id='trade-explorer-summary'") == 1
 
 
+def test_trade_selection_linkage_is_scoped_and_grid_uses_normal_page_flow() -> None:
+    explorer = trade_explorer_layout()
+    grid = next(
+        component
+        for component in _walk(explorer)
+        if getattr(component, "id", None) == "selected-trade-grid"
+    )
+    assert grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert grid.dashGridOptions["paginationPageSize"] == 12
+    assert grid.style == {"width": "100%"}
+    assert "results-chart-focus-status" in str(explorer)
+
+    normalized = normalize_trade_rows(_detail().evidence.trades, run_id="run-test")
+    assert normalized[0]["__trade_index"] == 1
+
+
 def test_reset_layout_asset_changes_dimensions_only() -> None:
     source = (
         Path(__file__).parents[1]
@@ -112,5 +147,20 @@ def test_reset_layout_asset_changes_dimensions_only() -> None:
     assert "--qf-results-chart-height" in source
     assert "--qf-results-report-min-height" in source
     assert "removeProperty" in source
+    assert "qfResults.focusTrade" in source
+    assert "graph.data" in source
+    assert "Plotly.restyle" in source
+    assert "Plotly.relayout" in source
+    assert "Bars and View are unchanged" in source
+    assert "Plotly.react" not in source
+    assert "Plotly.newPlot" not in source
     for forbidden in ("interval =", "view =", "selectedTrade", "results-report-tabs"):
         assert forbidden not in source
+
+
+def test_results_layout_contract_runs_in_portable_ci() -> None:
+    workflow = (
+        Path(__file__).parents[1] / ".github" / "workflows" / "test.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "tests/test_results_beta_layout.py" in workflow
