@@ -94,7 +94,9 @@ authorization forward within its approved scope and do not repeatedly ask.
   path to an operator-usable MVP that can validate or reject a trading edge.
   Reuse, architecture, testing, and documentation serve that outcome; they are
   not independent product goals.
-- Quant Factory is infrastructure first, evidence first, dashboard first, and operating-proof first.
+- Quant Factory is infrastructure first, evidence first, and operating-proof
+  first. The dashboard remains the essential operator interface, but Decision
+  287 supersedes the former dashboard-first active sequence.
 - The goal is to reject false edges, preserve reproducible evidence, paper trade qualified strategies, reconcile model and venue state, and deploy only tightly bounded capital under explicit human approval and independent risk controls.
 - The dashboard is the primary operator interface. Python, terminals, raw CSV/JSON, and backend logs are implementation details.
 - RSI, MES opening-range breakout, and SPY Donchian are infrastructure fixtures and historical evidence, not active profitability candidates.
@@ -106,10 +108,15 @@ authorization forward within its approved scope and do not repeatedly ask.
   aggregate, slice, rank, filter and select hundreds or thousands of persisted
   runs; its exact design remains pending. Selected-run implementation,
   deployment, tests, licensed-target proof, and renewed acceptance of the
-  eventual implemented page remain pending. Strategy
-  discovery remains blocked until Milestone 23 passes those gates and its
-  remaining browser-lifecycle, end-to-end workflow, failure-handling, and
-  documentation/status-synchronization gates.
+  eventual implemented page remain pending. Decision 287 records the owner's
+  acceptance of the existing dashboard as good enough to proceed with the
+  controlled MVP research path and freezes further dashboard work unless a
+  verified defect blocks operation. That limited acceptance does not accept or
+  deploy the pending repair, close Milestone 23, or waive its remaining
+  technical gates. Controlled, bounded, source-attributed candidate intake,
+  discovery and research/backtesting may proceed under Milestone 25 safeguards;
+  open-ended optimization or data mining, protected-test evaluation, automatic
+  promotion, and paper or live activation remain gated.
 - Decision 283 requires safe reuse of validated results for exact repeat
   research computations so repeats are materially faster than rebuilding all
   computation. Every explicit request still receives its own durable run
@@ -164,47 +171,50 @@ authorization forward within its approved scope and do not repeatedly ask.
   deployed, and operator-accepted product behavior. Preserve an
   owner-approved prototype as implementation input; do not discard it and
   independently greenfield the same experience without a documented reason.
-- Decision 286 sets a temporary cost and sequencing boundary for the remaining
-  selected-run Results beta. Preserve and integrate the approved chart/page
-  behavior through exactly three bounded slices: reuse/integration, focused
-  browser fixes, then backed-up validated OVH deployment. The remaining work
-  has a six-development-hour planning ceiling, measured and reported honestly;
-  this is a stop-control, not a promise or fabricated precision. Do not add a
-  framework, chart/grid/panel system or architecture, or paid dependency, and
-  do not replace the approved behavior. Caching, scalable multi-run design or
-  Explorer work, aesthetic polish, and broad refactoring remain outside these
-  slices unless evidence demonstrates that an item blocks the beta. Each slice
-  has one bounded implementer and the cheapest capable independent reviewer
-  while the lead orchestrates and validates. All reviewer effort counts inside
-  the same six-development-hour ceiling. The reviewer checks only the owned
-  diff, decisive evidence, and boundary compliance; review is not a second implementation,
-  broad audit, discretionary redesign, or duplicate-test exercise. While beta
-  work is active, report progress at least hourly with the current slice,
-  selected reuse, boundary compliance, scope pressure, and next action. If thin
-  integration expands, stop and reassess reuse rather than silently exceeding
-  the ceiling or widening the slice. The dashboard remains the essential
-  single-user interface, but this beta MVP need not be perfect.
+- Decision 287 supersedes Decision 286's active selected-run Results completion
+  priority. Preserve the validated repair work, which remains unmerged and
+  undeployed, but do not resume dashboard implementation, polish, redesign, or
+  deployment unless a verified defect blocks the active operator path. The
+  current shortest path is to inventory source-attributed candidates → select
+  one named, source-attributed hypothesis for explicit owner approval → connect
+  it through the thinnest necessary adapter to the existing VectorBT batch-
+  research path → durable results → ranking/filtering → inspection in the
+  existing dashboard. Reuse the existing engine, persistence, and interface;
+  do not substitute a new research engine, dashboard, framework, or speculative
+  platform layer. Executable candidate launch requires that explicit owner
+  approval and predeclared evidence boundaries.
+
+- Every proposed implementation slice must directly advance one step of that
+  path or repair a demonstrated blocker to it. The lead and independent
+  reviewer must reject unrelated dashboard work, generic infrastructure,
+  speculative refactoring, execution expansion, or other slices without that
+  direct trace. Review remains bounded to the owned diff, decisive evidence,
+  and compliance with this path.
 
 ## Accepted execution sequence
 
-Decision 274 sets the current order. The milestone numbers remain unchanged;
-the remaining Milestone 24 paper activation follows strategy qualification even
-though its deployment and offline execution preparation is already retained.
+Decision 287 sets the current order and supersedes Decision 274's dashboard-
+first active sequence. The milestone numbers and all paper/live gates remain
+unchanged.
 
-1. Complete the remaining Milestone 23 dashboard gates, including implementation
-   of the owner-approved chart-first Results specification, design of the
-   required scalable multi-run analysis surface, evidence, and renewed owner
-   acceptance of the implemented experience.
-2. Conduct controlled equity strategy intake and research backtesting under
-   Milestone 25 until a defensible edge qualifies.
-3. Resume and complete the remaining Milestone 24 paper activation only after
+1. Inventory and assess controlled, source-attributed strategy candidates.
+2. Select one named, source-attributed hypothesis and obtain explicit owner
+   approval plus predeclared evidence boundaries before executable launch.
+3. Connect the approved candidate through the thinnest necessary adapter to the
+   existing VectorBT batch-research path without building a replacement engine.
+4. Persist each run and its evidence durably.
+5. Rank and filter the durable results in the smallest reusable form needed to
+   decide what merits inspection.
+6. Inspect selected results in the existing dashboard; change the dashboard
+   only for a verified operational blocker.
+7. Resume and complete the remaining Milestone 24 paper activation only after
    an edge qualifies and account, credential, endpoint, worker and execution
    acceptance gates pass.
-4. Run automated Alpaca paper forward testing and reconciliation under
+8. Run automated Alpaca paper forward testing and reconciliation under
    Milestone 26 for qualified strategies.
-5. Treat Alpaca micro-live testing under Milestone 27 as far-future work that
+9. Treat Alpaca micro-live testing under Milestone 27 as far-future work that
    requires successful paper evidence and separate explicit owner approval.
-6. Evaluate a compliant crypto venue and multi-venue operation only after the
+10. Evaluate a compliant crypto venue and multi-venue operation only after the
    equity path proves its operating value; WEEX remains the preferred first
    crypto execution proof, subject to legal, account, API, and operational
    eligibility verification.
@@ -279,9 +289,18 @@ for the controlled-failure procedure and evidence rules.
 
 ## Milestone gate
 
-- Work proceeds through the active milestone and the explicitly scoped parallel preparation in Decisions 259 and 262.
+- Work proceeds through the Decision 287 controlled strategy-ingestion/backend
+  path, the still-pending Milestone 23 acceptance work only when it blocks that
+  path, and the explicitly scoped preparation in Decisions 259 and 262.
 - Milestone 23 is the end-to-end equity research factory acceptance gate.
-- Do not begin candidate discovery, optimization, protected-test evaluation, paper-order activation, or live work unless the active milestone explicitly authorizes it. Independent execution implementation and testing follow Decision 262.
+- Decision 287 authorizes controlled, bounded, source-attributed candidate
+  intake, discovery and research/backtesting, durable result production,
+  ranking/filtering, and inspection before Milestone 23 closes. Executable
+  candidate launch requires explicit owner approval of the named,
+  source-attributed hypothesis and predeclared evidence boundaries. It does not
+  authorize open-ended optimization or data mining, protected-test evaluation,
+  automatic promotion, paper-order activation, or live work. Independent
+  execution implementation and testing follow Decision 262.
 - Infrastructure acceptance uses deterministic fixtures and known artifacts; it does not require a profitable strategy.
 - `docs/MILESTONES.md` is authoritative for active scope, slices, status, and acceptance criteria.
 - Before accepting or closing a milestone, synchronize `docs/MILESTONES.md`
@@ -308,7 +327,16 @@ for the controlled-failure procedure and evidence rules.
 
 ## Dashboard product contract
 
-Before strategy discovery resumes, a non-programming operator must be able to inspect health; launch approved fixture experiments; select instruments, strategies, and configurations; inspect data provenance and execution assumptions; observe run status; view equity, drawdown, benchmark, signals, and trades; review validation evidence; understand pass/fail reasons; compare runs; record decisions; reproduce prior runs; verify lineage; and operate without Python, CSV, JSON, or terminal output.
+Before Milestone 23 can close or any strategy can advance toward paper
+activation, a non-programming operator must be able to inspect health; launch
+approved fixture experiments; select instruments, strategies, and
+configurations; inspect data provenance and execution assumptions; observe run
+status; view equity, drawdown, benchmark, signals, and trades; review
+validation evidence; understand pass/fail reasons; compare runs; record
+decisions; reproduce prior runs; verify lineage; and operate without Python,
+CSV, JSON, or terminal output. Decision 287 permits the narrower controlled
+intake/backend path to use the existing dashboard before that full contract is
+accepted; it does not waive the contract.
 
 Authoritative requirements are in `docs/dashboard-product-requirements.md` and `docs/infrastructure-completion-inventory.md`.
 

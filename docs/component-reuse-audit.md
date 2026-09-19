@@ -107,11 +107,12 @@ must be reused or adapted where it remains technically and legally suitable.
 It is not by itself integrated, tested, deployed, or renewed operator-accepted
 application behavior.
 
-Decision 286 settles the current beta path: preserve and integrate the
-approved chart/page behavior rather than evaluate or build a replacement. The
-three bounded slices add no framework, chart/grid/panel system or architecture,
-or paid dependency. If the integration stops being thin, work stops for a
-reuse and budget reassessment.
+Decision 287 supersedes Decision 286's active Results-beta priority and freezes
+further Results work unless a verified defect blocks operation. Preserve the
+approved prototype and validated unmerged repair as future implementation
+input; the reuse choices below remain valid. The active path reuses the existing
+VectorBT engine, persistence, evidence and dashboard without restarting a
+dashboard replacement evaluation or redesign.
 
 The earlier Milestone 20 component recommendation was:
 

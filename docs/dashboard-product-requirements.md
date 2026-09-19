@@ -22,21 +22,14 @@ reused or adapted for the selected-run beta, but remain distinct from
 integrated, tested, deployed, and renewed operator-accepted application
 behavior.
 
-Decision 286 limits the remaining selected-run beta to exactly three bounded
-slices: reuse/integrate the approved page, make focused browser fixes, and
-perform a backed-up validated OVH deployment. The remaining effort has a
-six-development-hour planning ceiling that is measured and reported honestly,
-not represented as a completion guarantee or fabricated precision. These
-slices add no new framework, chart/grid/panel system or architecture, or paid
-dependency, and do not replace approved behavior. Caching, scalable multi-run
-design or Explorer work, aesthetic polish, and broad refactoring are excluded
-unless evidence demonstrates that an item blocks the beta. If thin integration
-expands, work stops for reuse and budget reassessment. Each slice has one
-bounded implementer and the cheapest capable independent reviewer, whose full
-effort counts inside the same six-development-hour ceiling. Review covers the
-owned diff, decisive evidence, and boundary compliance without reimplementation,
-broad audit, discretionary redesign, or duplicate testing. The dashboard remains
-essential for its single operator, but this beta MVP need not be perfect.
+Decision 287 supersedes Decision 286's active three-slice Results-beta
+priority. Further Results implementation, polish, redesign and deployment are
+frozen unless a verified defect blocks operation. Preserve the approved
+prototype and validated unmerged, undeployed repair as future implementation
+input; the product requirements below remain accepted and pending rather than
+cancelled. The active path reuses the existing VectorBT engine, persistence,
+evidence and dashboard without starting another dashboard evaluation or
+redesign.
 
 ## Current owner review outcome — refreshed 2026-09-18
 

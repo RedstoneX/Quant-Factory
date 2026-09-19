@@ -47,26 +47,34 @@ operator-usable MVP that can validate or reject a trading edge. Reuse is a
 means to that result, not an end or a mandate to prolong evaluation after a
 suitable path is established.
 
-For Decision 286's temporary selected-run Results beta boundary, use exactly
-three slices: reuse/integrate the approved page, make focused browser fixes,
-then perform the backed-up validated OVH deployment. Each slice has one bounded
-implementer and the cheapest capable independent reviewer; the lead remains
-the orchestrator and independently validates the result. All reviewer effort
-counts inside the same six-development-hour ceiling. The reviewer is limited
-to the owned diff, decisive evidence, and boundary compliance; it does not reimplement,
-conduct a broad audit, redesign at discretion, or duplicate already decisive
-tests. The remaining work has a six-development-hour planning ceiling that
-must be measured and reported
-honestly rather than presented as false precision or a completion guarantee.
-No new framework, chart/grid/panel system or architecture, paid dependency, or
-replacement of approved behavior is allowed in these slices. Caching,
-scalable multi-run design or Explorer work, aesthetic polish, and broad
-refactoring stay out unless evidence demonstrates a beta blocker. If thin
-integration expands, stop and reassess reuse and remaining budget before more
-implementation. While work is active, provide at least hourly progress reports
-covering the current slice, selected reuse, boundary compliance, scope pressure,
-and next action. The dashboard remains essential for the single operator; the
-beta MVP need not be perfect.
+Decision 287 supersedes Decision 286's active selected-run Results completion
+priority. Preserve the validated Results repair as unmerged and undeployed
+work, and freeze further dashboard implementation, polish, redesign and
+deployment unless a verified defect blocks operation. The owner accepts the
+existing dashboard as good enough to proceed with the controlled MVP research
+path; that limited acceptance does not accept or deploy the pending repair,
+close Milestone 23, or waive its remaining technical gates.
+
+The active shortest path is inventory of source-attributed candidates → one
+named, source-attributed hypothesis selected for explicit owner approval → the
+thinnest necessary adapter into the existing VectorBT batch-research path →
+durable results and evidence → ranking/filtering → inspection in the existing
+dashboard. Executable candidate launch requires that owner approval and
+predeclared evidence boundaries. Use the existing engine, persistence, evidence
+and interface. Do not substitute a new research engine, dashboard, framework,
+generic platform layer or speculative architecture. Before assigning or
+accepting a slice, the lead records which exact path step it advances and the
+smallest decisive proof. An independent reviewer verifies that trace as a hard
+boundary and rejects a slice that does not directly advance the path or remove
+a demonstrated blocker. Unrelated dashboard work, generic infrastructure,
+speculative refactoring and execution expansion are rejected, not deferred
+inside the active slice.
+
+Controlled, bounded, source-attributed candidate intake, discovery and
+research/backtesting may proceed under Milestone 25 safeguards while Milestone
+23 remains pending. Open-ended optimization or data mining, protected-test
+evaluation, automatic promotion, paper orders and live work remain outside
+this authority.
 
 Preserve unrelated work. Use dedicated branches and pull requests; do not
 force-push, push directly to `main`, stage the entire tree, or use anonymous
