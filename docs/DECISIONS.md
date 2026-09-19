@@ -14,9 +14,9 @@ explicitly.
 2. The closed Tier 1 authority set is `AGENTS.md`, `docs/MILESTONES.md`, and
    `docs/DECISIONS.md`. Supporting documents cannot create competing mandate,
    status, or roadmap authority.
-3. Quant Factory is infrastructure first, evidence first, dashboard first, and
-   operating-proof first. Plotly Dash is the operator interface and VectorBT
-   Pro is the licensed research engine.
+3. Quant Factory is infrastructure first, evidence first, and operating-proof
+   first. Plotly Dash is the operator interface and VectorBT Pro is the licensed
+   research engine. Decision 287 supersedes dashboard-first active sequencing.
 4. Research, validation, evidence, and strategy logic remain venue-neutral.
    Research cannot submit venue orders directly.
 5. Deterministic fixtures prove infrastructure; their results are not
@@ -427,3 +427,65 @@ explicitly.
      this selects no new architecture or dependency. No runbook change applies
      because the existing backed-up OVH deployment procedure remains
      authoritative and no deployment occurs in this documentation change.
+
+287. **MVP strategy-ingestion and backend priority (accepted 2026-09-19).**
+     The owner reprioritizes the shortest path to a usable trading-research MVP.
+     This decision explicitly supersedes Decision 274's dashboard-first active
+     order and Decision 286's active priority to finish and deploy the
+     selected-run Results beta. It does not erase those decisions or their
+     evidence. The dashboard remains the essential single-operator interface.
+     The owner explicitly accepts the existing dashboard as good enough to
+     proceed with the controlled MVP research path, and further dashboard work
+     is frozen unless a verified defect blocks operation. This acceptance is
+     limited to proceeding with that path: it does not accept or deploy the
+     pending repair, close Milestone 23, or waive its remaining technical gates.
+     The validated Results repair produced under Decision 286 remains preserved
+     outside canonical `main`; it is unmerged and undeployed and must not be
+     represented as current product behavior.
+
+     The active shortest path is: inventory and assess source-attributed
+     strategy candidates → select one named, source-attributed hypothesis for
+     explicit owner approval → connect it through the thinnest necessary
+     adapter to the existing VectorBT batch-research path → durable results and
+     evidence → ranking/filtering → inspection of selected results in the
+     existing dashboard. Reuse the existing research engine, persistence,
+     evidence and dashboard capabilities. Do not create a replacement engine,
+     dashboard, framework or speculative platform layer. Every implementation
+     slice must directly advance one step in this path or remove a demonstrated
+     blocker to it. The lead and independent reviewer must reject unrelated
+     dashboard work, generic infrastructure, speculative refactoring,
+     execution expansion or any other slice without that direct trace.
+
+     This authorizes controlled, bounded, source-attributed candidate intake,
+     discovery and research/backtesting under Milestone 25 safeguards before
+     Milestone 23 closes. Executable launch of a candidate requires the owner's
+     explicit approval of its named, source-attributed hypothesis and the
+     applicable predeclared evidence boundaries. This does not claim that
+     ingestion, ranking/filtering or the complete backend path is implemented.
+     To the extent Decisions 277 and 279–283 state that all strategy discovery
+     remains blocked until Milestone 23 passes, this decision supersedes only
+     that sequencing restriction for this controlled path.
+     It does not authorize open-ended optimization or data mining, protected-
+     test evaluation, automatic strategy promotion, paper orders or live work.
+     Milestone 23 remains pending; its remaining technical gates and the
+     accepted later multi-run and safe-cache requirements are not cancelled.
+
+     Paper and live gates are unchanged. Paper activation still requires a
+     qualified edge and every account, credential, endpoint, worker,
+     reconciliation, recovery, capacity, audit and fail-closed gate. Live work
+     remains far future and additionally requires successful paper evidence,
+     separate explicit owner approval, isolated live credentials/state/
+     deployment, authenticated private networking and an independent Risk
+     Sentinel.
+
+     Documentation-impact assessment: `AGENTS.md` and the agent policy are
+     updated for permanent slice-selection and review behavior;
+     `docs/MILESTONES.md` is updated for direction, current phase, active work
+     and milestone status; `docs/CHAT_HANDOFF.md` and `README.md` are updated
+     because their dashboard-first resume guidance would otherwise be
+     misleading; the dashboard product requirements, infrastructure completion
+     inventory and component-reuse audit are aligned; ADR 0003 is annotated to
+     record its limited sequencing supersession while preserving its product
+     architecture and paper/live gates; this decision log is appended. No new
+     ADR or runbook applies because no architecture, dependency, deployment or
+     operating procedure is introduced.

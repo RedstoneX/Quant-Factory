@@ -3,7 +3,10 @@
 - Status: Accepted
 - Date: 2026-07-09
 - Superseded in part: ADR 0009 replaces the Codex-first work-allocation
-  consequence; all product and infrastructure-first decisions remain accepted.
+  consequence.
+- Superseded in part: Decision 287 replaces dashboard-first active sequencing
+  and the blanket prohibition on controlled pre-Milestone-23 research. The
+  dashboard/product architecture and all paper/live gates remain accepted.
 
 ## Context
 
@@ -16,8 +19,15 @@ The owner does not intend to operate Quant Factory by editing Python, reading ra
 1. Quant Factory is infrastructure first until the end-to-end equity research factory passes acceptance.
 2. Plotly Dash is the primary operator interface. VectorBT Pro remains the portfolio analytics and Plotly-compatible chart engine.
 3. Existing RSI, MES ORB, and SPY Donchian implementations are reclassified as deterministic infrastructure fixtures and historical evidence, not active profitability candidates.
-4. No systematic strategy discovery or profitability search may resume before Milestone 23 passes and the owner explicitly approves the dashboard and complete equity workflow.
-5. The infrastructure sequence is persistence/registry, orchestration/logging, schemas/lineage/reproducibility, full dashboard, operational equity fixture, unified evidence integration, and end-to-end acceptance.
+4. Decision 287 authorizes controlled, bounded, source-attributed candidate
+   intake, discovery and research/backtesting before Milestone 23 passes;
+   open-ended optimization or data mining, protected-test evaluation, automatic
+   promotion, paper orders and live work remain blocked.
+5. The infrastructure dependency order remains persistence/registry,
+   orchestration/logging, schemas/lineage/reproducibility, full dashboard,
+   operational equity fixture, unified evidence integration, and end-to-end
+   acceptance. Decision 287 supersedes that order only as the active work
+   sequence; it does not replace the architecture.
 6. Futures, crypto, and FX operational work follows the accepted equity factory.
 7. Infrastructure acceptance uses fixtures and known artifacts; it does not require a profitable strategy.
 8. No strategy-specific result may create a new infrastructure subsystem or policy without a separate general architecture decision.

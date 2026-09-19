@@ -22,20 +22,32 @@ tested, deployed, or finally accepted.
 
 The product objective is a complete, validated equity research factory that can launch, persist, explain, reproduce, compare, review, and fail closed. Read [MILESTONES](docs/MILESTONES.md) for current acceptance status, the restart findings, and the next action. One simple equity strategy and a small approved instrument set are deterministic infrastructure fixtures, not active profitability candidates.
 
-Decision 274 sets the current order: complete dashboard and operator
-acceptance; then use controlled equity strategy intake and research/backtesting
-to seek a defensible edge. Completed preparation within Milestone 24A–24D is
-retained, while remaining R06 authenticated observer work is deferred. Resume
-paper activation only after an edge qualifies
-and all execution gates pass. Paper trading may take significant time to become
-viable; live trading is far-future work. Automated paper forward testing,
-micro-live work, and other venues follow only at the later gates in
+Decision 287 sets the current order: inventory source-attributed candidates →
+select one named, source-attributed hypothesis for explicit owner approval →
+use the thinnest necessary adapter into the existing VectorBT batch-research
+path → durable results and evidence → ranking/filtering → inspection in the
+existing dashboard. The owner accepts the existing dashboard as good enough to
+proceed with this controlled path, and it is frozen unless a verified defect
+blocks operation. That limited acceptance does not close Milestone 23 or accept
+or deploy the pending repair. The validated Results repair remains preserved
+outside canonical `main`, unmerged and undeployed; it is not current product
+behavior. Completed preparation within
+Milestone 24A–24D is retained, while remaining authenticated observer work is
+deferred. Resume paper activation only after an edge qualifies and all
+unchanged execution gates pass. Paper trading may take significant time to
+become viable; live trading is far-future work. Automated paper forward
+testing, micro-live work, and other venues follow only at the later gates in
 [MILESTONES](docs/MILESTONES.md).
 
 Existing RSI, MES opening-range breakout, and SPY Donchian work is retained as historical evidence and fixture coverage. None is an active profitability candidate.
 
-No systematic strategy discovery or profitability search may resume until
-Milestone 23 passes. Decision 279 records the owner's rejection of the former
+Decision 287 permits controlled, bounded, source-attributed candidate intake,
+discovery and research/backtesting under Milestone 25 safeguards before
+Milestone 23 passes. Executable candidate launch requires explicit owner
+approval of the named, source-attributed hypothesis and predeclared evidence
+boundaries. Open-ended optimization or data mining, protected-test evaluation
+and automatic promotion remain unauthorized. Decision 279 records the owner's
+rejection of the former
 Results-page comprehension and flow. Decision 280 accepts a chart-first
 replacement direction built around a truthful selected-run price chart,
 persisted trade markers, and a linked grouped trade ledger. Decision 282
@@ -43,7 +55,8 @@ records the owner's approval of the detailed selected-run specification and
 requires a separate scalable multi-run analysis surface. Implementation,
 tests, deployment, licensed-target proof, renewed owner acceptance of the
 implemented experience, and remaining objective technical gates are not yet
-complete.
+complete. These pending dashboard requirements remain preserved rather than
+active unless they block the current MVP path.
 
 Decision 283 requires safe caching for exact repeat research computations so
 repeats can reuse validated work instead of rebuilding everything. Each
@@ -87,7 +100,8 @@ Detailed milestone sequencing lives in MILESTONES. Historical evidence and conce
 
 ## Dashboard product standard
 
-Before strategy discovery resumes, a non-programming operator must be able to use the dashboard to:
+Before Milestone 23 closes or any strategy advances toward paper activation, a
+non-programming operator must be able to use the dashboard to:
 
 - inspect system and data-source health;
 - launch an approved fixture experiment;

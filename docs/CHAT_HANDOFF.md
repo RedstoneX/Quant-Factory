@@ -28,25 +28,25 @@ only for a verified gap or when reuse is materially worse. The approved
 Results prototype remains implementation input, not a claim of integration,
 testing, deployment, or final acceptance.
 
-Decision 286 temporarily narrows the remaining selected-run Results beta to a
-six-development-hour planning ceiling and exactly three slices: reuse/integrate
-the approved page and working chart behavior; make only focused browser fixes;
-then perform a backed-up validated OVH deployment. Use one bounded implementer
-and the cheapest capable independent reviewer per slice; all reviewer effort
-counts inside the same six-development-hour ceiling. Review only the owned diff,
-decisive evidence, and boundary compliance, without reimplementation, broad audit,
-discretionary redesign, or duplicate testing. Add no new framework,
-chart/grid/panel system or architecture, paid dependency, or replacement
-behavior. Caching, scalable multi-run design or Explorer work, aesthetic
-polish, and broad refactoring remain outside these slices unless demonstrated
-beta blockers. Stop for reuse and budget reassessment if thin integration
-expands. Report active progress at least hourly with the current slice, reuse,
-boundary compliance, scope pressure, and next action. This is a measured
-stop-control, not a completion guarantee; the essential single-user dashboard
-beta need not be perfect. Later accepted multi-run and caching requirements are
-sequenced after this beta boundary, not cancelled.
+Decision 287 supersedes Decision 274's dashboard-first active order and
+Decision 286's active Results-completion priority. The current shortest path is
+inventory of source-attributed candidates → one named, source-attributed
+hypothesis selected for explicit owner approval → the thinnest necessary
+adapter into the existing VectorBT batch-research path → durable results and
+evidence → ranking/filtering → inspection in the existing dashboard. Every
+implementation slice must directly advance one path step or remove a
+demonstrated blocker; the lead and independent reviewer reject slices without
+that trace. Reuse the existing engine, persistence and interface. Do not build
+a replacement engine, dashboard, framework or speculative platform.
 
-Milestone 23 is the active gate. Decision 279 records the owner's rejection of
+The dashboard remains essential, and the owner accepts the existing dashboard
+as good enough to proceed with the controlled path. It is frozen unless a
+verified defect blocks operation. That limited acceptance does not close
+Milestone 23 or accept or deploy the pending repair. The validated Results
+repair remains preserved outside canonical `main`, unmerged and undeployed;
+the accepted later multi-run and safe-cache requirements remain pending.
+
+Milestone 23 remains pending. Decision 279 records the owner's rejection of
 the former Results-page comprehension and flow. Decisions 280–281 establish
 the chart-first direction and validated preview constraints. Decision 282
 records the owner's hands-on approval of the detailed selected-run Results
@@ -63,8 +63,12 @@ computations while preserving a distinct durable run ticket and lifecycle for
 every explicit request. Its cache architecture, storage, eviction,
 implementation sequence and explicit Reproduce recomputation policy remain to
 be designed; no computation-cache implementation is claimed.
-Strategy discovery remains
-blocked. Decision 278
+Decision 287 permits controlled, bounded, source-attributed candidate intake,
+discovery and research/backtesting under Milestone 25 safeguards before
+Milestone 23 closes. Executable candidate launch requires explicit owner
+approval of its named, source-attributed hypothesis and predeclared evidence
+boundaries. Open-ended optimization or data mining, protected-test evaluation
+and automatic promotion remain blocked. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
 implementation. That bounded implementation is merged in canonical source for
 Run test, historical relaunch, and reproduction. PR #50 adds focused
@@ -72,11 +76,9 @@ stale-recovery coverage beside the claim-core suite in required Portable CI;
 separate browser-fixture recovery evidence remains retained. Production
 deployment, current licensed-target SPYM proof,
 the complete operator workflow, and Milestone 23 acceptance remain unproven;
-the source implementation does not close Milestone 23.
-Decision 274 then orders controlled Milestone 25 research until a defensible
-equity edge qualifies, followed by paper activation only after every execution
-gate passes. Live capital remains far future and requires separate explicit
-owner approval.
+the source implementation does not close Milestone 23. Paper activation still
+requires a defensible edge and every unchanged execution gate. Live capital
+remains far future and requires separate explicit owner approval.
 
 Decision 275 is implemented: this clean-history public repository is the sole
 forward source of truth, and the original remains a private, read-only

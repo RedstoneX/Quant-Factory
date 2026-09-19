@@ -74,10 +74,12 @@ agent policy](ai-programming-agent-policy.md).
 
 ## Hard gate
 
-No systematic strategy discovery, optimization for profitability, or promotion
-search may resume until Milestone 23 passes. Decisions 280–282 accept the
-chart-first direction, validated preview constraints and detailed selected-run
-Results specification. Selected-run implementation, deployment, automated and
-browser testing, licensed-target proof, final owner acceptance of the eventual
-implemented page, the bounded scalable multi-run design, and the remaining
-objective technical gates are not yet complete.
+Decision 287 authorizes controlled, bounded, source-attributed candidate
+intake, discovery and research/backtesting under Milestone 25 safeguards before
+Milestone 23 passes. Executable candidate launch requires explicit owner
+approval of its named, source-attributed hypothesis and predeclared evidence
+boundaries. Open-ended optimization or data mining, protected-test evaluation,
+automatic promotion, paper orders and live work remain blocked. Decisions
+280–282's accepted Results requirements and the remaining objective technical
+gates remain pending; the dashboard work is frozen unless a verified defect
+blocks operation.
