@@ -72,9 +72,17 @@ and automatic promotion remain blocked. Decision 288 supplies that first
 selection and approval: the existing MES five-minute, 09:30 New York ORB
 specification, reference-first and then limited to its existing 30-variant
 matrix. Reuse its verified dataset/manifest, strategy code, VectorBT engine,
-durable evidence path and current dashboard. The already inspected catalog
-extent is development/reference evidence only; earlier results do not prove a
-current edge. Futures order execution, paper and live remain blocked. Decision 278
+durable evidence path and current dashboard. At executable validation revision
+`0f7701fd6d3823b9603576777df441dd92df45a8`, four successful isolated runs
+persisted 32 ranked rows (2 reference plus 30 matrix), exact 30-minute/zero-
+offset parity passed in both directions, and all 30 matrix variants screened
+out. Each run persisted seven registered artifacts plus its integrity manifest.
+An initial disk-full attempt was partial invalid evidence and was excluded; a
+fresh isolated retry succeeded. This remains development/reference evidence
+only and does not establish an edge, promotion, deployment, paper activation,
+or live authority. R07 and Milestone 25 remain in progress. The next action is
+repository integration, followed by inspection in the existing dashboard and
+only narrow repairs for verified operational blockers. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
 implementation. That bounded implementation is merged in canonical source for
 Run test, historical relaunch, and reproduction. PR #50 adds focused
