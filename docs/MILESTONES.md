@@ -85,8 +85,15 @@ Decision 288 selects and approves the existing MES five-minute, 09:30 New York
 opening-range breakout specification for that first controlled path. Its
 cataloged 2019–2026 extent was already inspected, so it is development/reference
 evidence rather than an untouched protected test; its earlier baseline failure
-and optimistic sensitivity are not a qualified edge. Implementation of the
-complete durable path remains pending. Decision 287 authorizes
+and optimistic sensitivity are not a qualified edge. At executable validation
+revision `0f7701fd6d3823b9603576777df441dd92df45a8`, the thin durable adapter
+completed four successful isolated screening runs: two reference runs and two
+matrix runs persisted 32 ranked rows (2 reference plus 30 matrix), and the
+30-minute/zero-offset reference matched the corresponding matrix rows exactly
+in both directions. Every matrix variant remained screened out. Each run
+persisted seven registered artifacts plus its integrity manifest. This is
+development/reference integration evidence only; it establishes no edge,
+promotion, deployment, paper activation, or live authority. Decision 287 authorizes
 controlled, bounded, source-attributed candidate intake, discovery and
 research/backtesting under Milestone 25 safeguards before Milestone 23 closes.
 Executable launch requires the owner's explicit approval of the named,
@@ -120,11 +127,14 @@ Decision 287 sets the current order:
    specification and its fixed reference-first plan.**
 3. Connect that approved candidate through the thinnest necessary adapter to
    the existing VectorBT batch-research path without building a replacement
-   engine, and produce durable runs and evidence. **Current step.**
+   engine, and produce durable runs and evidence. **Implemented and validated
+   in the isolated branch at revision `0f7701fd6d3823b9603576777df441dd92df45a8`;
+   repository integration remains pending.**
 4. Rank and filter durable results in the smallest reusable form needed for
-   decision-making.
+   decision-making. **The bounded matrix persisted all 30 ranked rows; no
+   variant survived screening.**
 5. Inspect selected results in the existing dashboard; change it only for a
-   verified operational blocker.
+   verified operational blocker. **Next after repository integration.**
 6. Continue controlled, bounded research under Milestone 25 safeguards until a
    defensible edge qualifies.
 7. Resume remaining Milestone 24 paper activation only after the qualifying
@@ -148,10 +158,23 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R07 | 1 | in_progress | none | Decision 288 selects and approves the existing MES five-minute 09:30 New York ORB specification as the first controlled candidate: reproduce the approved 30-minute/zero-offset reference in each direction, then only after parity run the existing 5×3×2 matrix (exactly 30 variants) with its fixed session, fill, exit, one-unit and baseline cost rules; reuse the verified MES dataset/manifest, current strategy code, VectorBT engine, durable run/evidence persistence, ranking/filtering and dashboard; reconcile the legacy runner's stale unresolved-roll metadata before launch; the already inspected catalog extent is development/reference evidence only and cannot qualify or promote an edge; build only the thinnest necessary durable-path adapter, and reject unrelated dashboard work, generic infrastructure, speculative refactoring, execution expansion or replacement architecture; open-ended optimization/data mining, protected tests, automatic promotion, paper orders and live work remain unauthorized |
+| R07 | 1 | in_progress | none | Decision 288's thin durable MES ORB adapter is implemented and isolated-runtime validated at executable revision `0f7701fd6d3823b9603576777df441dd92df45a8`: four successful runs persisted 32 ranked rows (2 reference plus 30 matrix), exact 30-minute/zero-offset parity passed in both directions, and every matrix variant screened out; best long was 15 minutes/2 ticks with 5.42477% return, 0.458798 Sharpe, 4.19045% maximum drawdown and 1,227 trades; best short was 30 minutes/0 ticks with -5.52201% return, -0.453648 Sharpe, 7.55715% maximum drawdown and 1,049 trades; each run persisted seven registered artifacts plus its integrity manifest; an initial disk-full attempt was partial invalid evidence and was excluded, then a fresh isolated retry succeeded; all evidence remains development/reference only and establishes no edge, promotion, deployment, paper or live authority; next integrate the reviewed branch, then inspect the runs in the existing dashboard and repair only verified operational blockers |
 | R05 | 8 | pending | none | Preserve the validated selected-run Results repair outside canonical main; it remains unmerged and undeployed; freeze further dashboard implementation, polish, redesign and deployment unless R07 exposes a verified operational blocker; the owner accepts the existing dashboard as good enough for the controlled path, but Milestone 23 and the accepted later multi-run/cache requirements remain pending |
 | R06 | 9 | pending | R07 | Preserve completed paper-observer preparation; authenticated runtime work remains deferred until a defensible edge qualifies and every unchanged execution gate passes |
 <!-- active-work:end -->
+
+### Decision 288 validation record — 2026-09-19
+
+This change is classified as implementation and validation evidence for the
+already accepted Decision 288, not as a new owner decision or milestone
+acceptance. `docs/MILESTONES.md` is updated for the verified status and next
+action; `docs/CHAT_HANDOFF.md` is updated because future chats need the resume
+point; and the MES ORB strategy specification is updated with the durable-run
+commands and result boundary. `AGENTS.md`, the agent policy, `docs/DECISIONS.md`,
+ADRs, `README.md`, runbooks, and `dashboard/project_status.py` are not applicable
+because this record changes no mandate, architecture, deployment, operating
+procedure, public orientation, or accepted dashboard status. R07 and Milestone
+25 remain in progress.
 
 ## Completed repository remediation
 
@@ -219,7 +242,7 @@ is proposed or authorized here.
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
 | 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results-page acceptance, and every objective gate pass | **Pending — dashboard work frozen unless it blocks R07** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore plus bounded paper workflow after a qualified edge and every execution gate | Preparation retained; activation deferred |
-| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments; survivors pass predeclared evidence gates | **In progress under Decision 287 safeguards, with Decision 288's narrow MES ORB research exception active; its existing data is development/reference evidence only, and open-ended optimization/data mining remains gated** |
+| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments; survivors pass predeclared evidence gates | **In progress under Decision 287 safeguards; Decision 288's MES ORB reference parity passed, but all 30 bounded matrix variants screened out on development/reference evidence, so no edge qualified and open-ended optimization/data mining remains gated** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection pass | Pending |
 | 27 | Alpaca Micro-Live Proof and Independent Risk Sentinel | Separate approval, isolated live domain, independent supervision, and failure acceptance pass | Pending — far future |
 | 28–30 | Compliant crypto proof and multi-venue V1 | Legal/operational eligibility, isolated adapters, evidence, reconciliation, and recovery pass | Deferred |

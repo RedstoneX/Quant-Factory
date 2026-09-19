@@ -9,12 +9,12 @@ York cash-session opening range. Reuse the existing implementation and
 evidence path; the legacy experiment remains historical fixture and cheap-
 screening evidence, not current profitability or production evidence.
 
-The first controlled durable-path launch is reference-first: reproduce the
-30-minute range and zero-tick offset for each separate direction, then proceed
-only after parity to the existing 5 × 3 × 2 matrix below. Do not add a
-parameter, filter, indicator, exit, stop or target. The baseline cost case only
-is in the first launch; optimistic and stress sensitivities require an
-explicitly bounded follow-up.
+The first controlled durable-path launch followed the required reference-first
+sequence: reproduce the 30-minute range and zero-tick offset for each separate
+direction, then proceed only after parity to the existing 5 × 3 × 2 matrix
+below. Do not add a parameter, filter, indicator, exit, stop or target. That
+launch used the baseline cost case only; optimistic and stress sensitivities
+require an explicitly bounded follow-up.
 
 ## Exact rules
 
@@ -69,9 +69,9 @@ stress scenarios apply 0.5 and 2 ticks. The account assumptions and official
 sources are recorded in `docs/mes-execution-and-roll-investigation.md`.
 
 Margin, financing, spread beyond modeled slippage, queue position, and fill
-probability are not modeled. The experiment output predates the forensic
-resolution and still records its former unresolved status; it was not rerun
-because no canonical bar values or strategy inputs changed.
+probability are not modeled. The legacy CSV output predates the forensic
+resolution and retains its former unresolved status. The controlled durable
+validation uses the confirmed contract-series and roll metadata below.
 
 ## Provenance and contract-series limitation
 
@@ -102,6 +102,24 @@ row remained long-only with a 15-minute range and two-tick breakout offset, but
 returned 5.4248% with a 0.4588 Sharpe, 4.1905% maximum drawdown magnitude, and
 1,227 trades. It fails the provisional 0.5 Sharpe threshold.
 
+The controlled durable-path validation at executable revision
+`0f7701fd6d3823b9603576777df441dd92df45a8` produced four successful isolated
+screening runs and persisted 32 ranked rows: one reference row per direction
+and 15 matrix rows per direction. The 30-minute/zero-offset reference matched
+the corresponding matrix row exactly for both long and short. All 30 matrix
+variants screened out. The best long row was 15 minutes/2 ticks with 5.42477%
+return, 0.458798 Sharpe, 4.19045% maximum drawdown and 1,227 trades. The best
+short row was 30 minutes/0 ticks with -5.52201% return, -0.453648 Sharpe,
+7.55715% maximum drawdown and 1,049 trades. Each of the four runs persisted
+seven registered artifacts plus its integrity manifest. An initial disk-full
+attempt was partial invalid evidence and was excluded; a fresh isolated retry
+succeeded.
+
+This validation reproduced development/reference evidence over the already
+inspected catalog extent. It is not an independent observation, untouched
+out-of-sample or protected evidence, a qualified edge, or authority for
+promotion, deployment, paper activation, futures orders, or live trading.
+
 The optimistic half-tick scenario produced three provisional passes; its top
 row returned 6.9585% with a 0.5855 Sharpe. The two-tick stress scenario produced
 no passes; its top row returned 2.3573% with a 0.2064 Sharpe. These sensitivity
@@ -109,7 +127,20 @@ results do not override baseline rejection. The contract-series construction
 is now confirmed, but no baseline candidate survived screening and no deep
 validation was run.
 
-Generated CSV output is local at `results/mes_orb_5m_exploratory.csv` and is
+Run the controlled durable reference pair first:
+
+```bash
+$QF_REPO_ROOT/.venv/bin/python backtesting/run_mes_orb_durable.py --plan reference
+```
+
+Verify exact reference parity before explicitly running the bounded matrix:
+
+```bash
+$QF_REPO_ROOT/.venv/bin/python backtesting/run_mes_orb_durable.py --plan matrix
+```
+
+The historical CSV-only experiment remains available for forensic comparison;
+its generated output is local at `results/mes_orb_5m_exploratory.csv` and is
 Git-ignored. Run it with:
 
 ```bash
