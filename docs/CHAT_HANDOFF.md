@@ -68,7 +68,13 @@ discovery and research/backtesting under Milestone 25 safeguards before
 Milestone 23 closes. Executable candidate launch requires explicit owner
 approval of its named, source-attributed hypothesis and predeclared evidence
 boundaries. Open-ended optimization or data mining, protected-test evaluation
-and automatic promotion remain blocked. Decision 278
+and automatic promotion remain blocked. Decision 288 supplies that first
+selection and approval: the existing MES five-minute, 09:30 New York ORB
+specification, reference-first and then limited to its existing 30-variant
+matrix. Reuse its verified dataset/manifest, strategy code, VectorBT engine,
+durable evidence path and current dashboard. The already inspected catalog
+extent is development/reference evidence only; earlier results do not prove a
+current edge. Futures order execution, paper and live remain blocked. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
 implementation. That bounded implementation is merged in canonical source for
 Run test, historical relaunch, and reproduction. PR #50 adds focused

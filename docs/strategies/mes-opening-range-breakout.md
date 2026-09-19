@@ -2,10 +2,19 @@
 
 ## Status and hypothesis
 
-This is an approved, exploratory second strategy archetype. The hypothesis is
-that MES may continue after a completed five-minute close breaks the high or
-low of its New York cash-session opening range. The experiment validates
-infrastructure and performs cheap screening; it is not production evidence.
+Decision 288 selects and approves this existing specification as the first
+controlled candidate under Decision 287. The hypothesis is that MES may
+continue after a completed five-minute close breaks the high or low of its New
+York cash-session opening range. Reuse the existing implementation and
+evidence path; the legacy experiment remains historical fixture and cheap-
+screening evidence, not current profitability or production evidence.
+
+The first controlled durable-path launch is reference-first: reproduce the
+30-minute range and zero-tick offset for each separate direction, then proceed
+only after parity to the existing 5 × 3 × 2 matrix below. Do not add a
+parameter, filter, indicator, exit, stop or target. The baseline cost case only
+is in the first launch; optimistic and stress sensitivities require an
+explicitly bounded follow-up.
 
 ## Exact rules
 
@@ -78,6 +87,14 @@ sampled `MES.c.0` OHLCV bars matched exactly. Roll discontinuities remain
 unadjusted and can bias ranges, fills, returns, and screening outcomes.
 
 ## Exploratory result and interpretation limits
+
+The full catalog extent through 2026-02-13 was already inspected by these
+legacy runs. It is development/reference evidence, not an untouched protected
+test, and rerunning it through the durable path is not an independent
+observation. Any survivor claim requires a separately predeclared
+chronological out-of-sample, walk-forward and protected-data plan using
+evidence not already consumed by selection. Calendar-roll discontinuities
+remain explicit limitations and must not be treated as market returns.
 
 The earlier zero-cost run is superseded. With the documented $0.62 fee and one
 tick of slippage per side, all 30 baseline variants were screened out. The top

@@ -99,7 +99,11 @@ authorization forward within its approved scope and do not repeatedly ask.
   287 supersedes the former dashboard-first active sequence.
 - The goal is to reject false edges, preserve reproducible evidence, paper trade qualified strategies, reconcile model and venue state, and deploy only tightly bounded capital under explicit human approval and independent risk controls.
 - The dashboard is the primary operator interface. Python, terminals, raw CSV/JSON, and backend logs are implementation details.
-- RSI, MES opening-range breakout, and SPY Donchian are infrastructure fixtures and historical evidence, not active profitability candidates.
+- RSI and SPY Donchian remain infrastructure fixtures and historical evidence,
+  not active profitability candidates. Decision 288 selects the existing MES
+  five-minute opening-range breakout specification as the first controlled
+  candidate under Decision 287. Its earlier runs remain historical fixture
+  evidence, not current profitability proof.
 - Decision 279 supersedes Decision 277's acceptance of the former Results-page
   comprehension and flow. Decisions 280–281 establish the chart-first and
   validated-preview requirements. Decision 282 records the owner's hands-on
@@ -219,7 +223,11 @@ unchanged.
    crypto execution proof, subject to legal, account, API, and operational
    eligibility verification.
 
-Hyperliquid and MEXC are later evaluation targets. Futures, FX, listed options, and Interactive Brokers remain deferred backlog items. Networking, containers, VPNs, or proxies must not be used to bypass eligibility restrictions.
+Hyperliquid and MEXC are later evaluation targets. Decision 288's bounded MES
+ORB research is a narrow exception; futures order execution and all other futures,
+FX, listed-options, and Interactive Brokers work remain deferred backlog
+items. Networking, containers, VPNs, or proxies must not be used to bypass
+eligibility restrictions.
 
 ## Architecture
 

@@ -39,7 +39,11 @@ become viable; live trading is far-future work. Automated paper forward
 testing, micro-live work, and other venues follow only at the later gates in
 [MILESTONES](docs/MILESTONES.md).
 
-Existing RSI, MES opening-range breakout, and SPY Donchian work is retained as historical evidence and fixture coverage. None is an active profitability candidate.
+Existing RSI and SPY Donchian work remains historical fixture evidence, not an
+active profitability candidate. Decision 288 selects the existing MES
+five-minute opening-range breakout specification for the first controlled
+Decision 287 candidate path. Its prior runs remain historical/reference
+evidence and do not prove a current edge.
 
 Decision 287 permits controlled, bounded, source-attributed candidate intake,
 discovery and research/backtesting under Milestone 25 safeguards before

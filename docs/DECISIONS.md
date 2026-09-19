@@ -489,3 +489,65 @@ explicitly.
      architecture and paper/live gates; this decision log is appended. No new
      ADR or runbook applies because no architecture, dependency, deployment or
      operating procedure is introduced.
+
+288. **MES opening-range breakout selected for the first controlled candidate
+     path (accepted 2026-09-19).** The owner explicitly prefers opening-range
+     breakout (ORB) as the first strategy to test. The repository's existing
+     named ORB implementation is the MES five-minute, 09:30 New York
+     cash-session specification, so that strategy is selected and approved for
+     Decision 287's bounded intake and backend path. This is a narrow research
+     exception to the standing classification of MES ORB as a fixture; it does
+     not authorize futures order execution or make the earlier results current
+     profitability evidence.
+
+     Reuse the registered long-only and short-only MES ORB strategies, the
+     verified `futures_MES_5m_databento` dataset and manifest, the existing
+     VectorBT experiment engine, durable run/evidence persistence, ranking and
+     filtering, and the existing dashboard. The first controlled research plan
+     begins with exact reference reproduction at the approved 30-minute range
+     and zero-tick offset for each direction. Only after reference parity may
+     it run the already approved bounded matrix of five range lengths (5, 15,
+     30, 45 and 60 minutes) by three breakout offsets (0, 1 and 2 MES ticks)
+     for the two separate directions: exactly 30 variants, with no added
+     parameter, filter, indicator, exit, stop or target. Preserve the existing
+     rules: one entry per session, next contiguous five-minute-bar-open fills,
+     same-session exit, no overnight carry, one MES unit, the documented
+     $0.62 fee per contract per side and baseline one-tick adverse slippage per
+     side. Alternative optimistic or stress cost scenarios are not part of the
+     first launch and require an explicitly bounded follow-up.
+
+     The catalog extent through 2026-02-13 was already inspected by the legacy
+     exploratory matrix and is therefore development/reference evidence, not
+     an untouched protected test. The earlier baseline screened out all 30
+     variants; optimistic sensitivity produced three provisional passes, but
+     neither result qualifies an edge. The first durable-path run may verify
+     interpretation, integration, persistence, ranking and inspection, but may
+     not be counted as independent evidence or used for promotion. Any survivor
+     claim requires a separately predeclared chronological out-of-sample,
+     walk-forward and protected-data plan using evidence not already consumed
+     by selection. Calendar-roll discontinuities remain an explicit limitation
+     and must not be treated as market returns. The implementation preflight
+     must reconcile the legacy runner's stale unresolved-roll metadata with the
+     confirmed catalog provenance before executable launch.
+
+     This decision does not authorize open-ended optimization or data mining,
+     protected-test inspection, automatic promotion, new data acquisition,
+     paper orders, futures order execution, live work, a replacement research engine,
+     a dashboard redesign or production deployment. The next action is the
+     thinnest necessary adapter from this approved specification into the
+     existing durable VectorBT research path, with focused tests and independent
+     review under Decision 287.
+
+     Documentation-impact assessment: `AGENTS.md`, the agent policy,
+     `CLAUDE.md` and the implementation-preflight skill are updated for the
+     selected candidate and current preflight boundary; `docs/MILESTONES.md` is
+     updated for the active queue and evidence limits; this decision log is
+     appended; `docs/CHAT_HANDOFF.md` and `README.md` are updated so future work
+     does not continue to say that no candidate is active; the MES ORB strategy
+     specification and infrastructure inventory are updated to distinguish the
+     current candidate from its historical fixture evidence; ADR 0003 is
+     annotated for the narrow candidate exception. No new ADR applies because
+     no architecture, dependency, deployment, security or data flow changes.
+     `docs/DATA_CATALOG.md` and `docs/parameter-governance.md` remain accurate
+     and supply the data and parameter boundaries. No runbook changes because
+     no runtime or operating procedure changes in this documentation slice.
