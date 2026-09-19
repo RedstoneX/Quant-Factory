@@ -67,6 +67,7 @@ jobs:
           python -m pytest -q
           --junitxml=portable-test-results.xml
           tests/test_ci_portable_imports.py
+          tests/test_mes_orb_durable_screening.py
           tests/test_results_model.py
           tests/test_results_beta_layout.py
           tests/test_research_launch_claims.py
