@@ -81,7 +81,12 @@ The active shortest path is candidate/source inventory → one named, source-
 attributed hypothesis selected for explicit owner approval → the thinnest
 necessary adapter into the existing VectorBT batch-research path → durable
 results → ranking/filtering → inspection in the existing dashboard.
-Implementation of that complete path is pending. Decision 287 authorizes
+Decision 288 selects and approves the existing MES five-minute, 09:30 New York
+opening-range breakout specification for that first controlled path. Its
+cataloged 2019–2026 extent was already inspected, so it is development/reference
+evidence rather than an untouched protected test; its earlier baseline failure
+and optimistic sensitivity are not a qualified edge. Implementation of the
+complete durable path remains pending. Decision 287 authorizes
 controlled, bounded, source-attributed candidate intake, discovery and
 research/backtesting under Milestone 25 safeguards before Milestone 23 closes.
 Executable launch requires the owner's explicit approval of the named,
@@ -108,11 +113,14 @@ deployment preparation already authorized and retained.
 Decision 287 sets the current order:
 
 1. Inventory and assess controlled, source-attributed strategy candidates.
+   **Completed for the first candidate under Decision 288.**
 2. Select one named, source-attributed hypothesis and obtain explicit owner
    approval plus predeclared evidence boundaries before executable launch.
+   **Completed by Decision 288 for the existing MES five-minute ORB
+   specification and its fixed reference-first plan.**
 3. Connect that approved candidate through the thinnest necessary adapter to
    the existing VectorBT batch-research path without building a replacement
-   engine, and produce durable runs and evidence.
+   engine, and produce durable runs and evidence. **Current step.**
 4. Rank and filter durable results in the smallest reusable form needed for
    decision-making.
 5. Inspect selected results in the existing dashboard; change it only for a
@@ -140,7 +148,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R07 | 1 | in_progress | none | First inventory reusable ingestion/batch seams and controlled source-attributed candidates; select one named, source-attributed hypothesis and obtain explicit owner approval plus predeclared evidence boundaries before executable launch; then build only the thinnest necessary adapter into the existing VectorBT batch-research engine, persist durable runs/results/evidence, add the smallest reusable ranking/filtering needed for decisions, and inspect selected results in the existing dashboard; every slice must directly advance one step or remove a demonstrated blocker; the lead and independent reviewer reject unrelated dashboard work, generic infrastructure, speculative refactoring, execution expansion or replacement architecture; implementation is pending; controlled bounded research is authorized, while open-ended optimization/data mining, protected tests, automatic promotion, paper orders and live work remain unauthorized |
+| R07 | 1 | in_progress | none | Decision 288 selects and approves the existing MES five-minute 09:30 New York ORB specification as the first controlled candidate: reproduce the approved 30-minute/zero-offset reference in each direction, then only after parity run the existing 5×3×2 matrix (exactly 30 variants) with its fixed session, fill, exit, one-unit and baseline cost rules; reuse the verified MES dataset/manifest, current strategy code, VectorBT engine, durable run/evidence persistence, ranking/filtering and dashboard; reconcile the legacy runner's stale unresolved-roll metadata before launch; the already inspected catalog extent is development/reference evidence only and cannot qualify or promote an edge; build only the thinnest necessary durable-path adapter, and reject unrelated dashboard work, generic infrastructure, speculative refactoring, execution expansion or replacement architecture; open-ended optimization/data mining, protected tests, automatic promotion, paper orders and live work remain unauthorized |
 | R05 | 8 | pending | none | Preserve the validated selected-run Results repair outside canonical main; it remains unmerged and undeployed; freeze further dashboard implementation, polish, redesign and deployment unless R07 exposes a verified operational blocker; the owner accepts the existing dashboard as good enough for the controlled path, but Milestone 23 and the accepted later multi-run/cache requirements remain pending |
 | R06 | 9 | pending | R07 | Preserve completed paper-observer preparation; authenticated runtime work remains deferred until a defensible edge qualifies and every unchanged execution gate passes |
 <!-- active-work:end -->
@@ -211,7 +219,7 @@ is proposed or authorized here.
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
 | 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results-page acceptance, and every objective gate pass | **Pending — dashboard work frozen unless it blocks R07** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore plus bounded paper workflow after a qualified edge and every execution gate | Preparation retained; activation deferred |
-| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments; survivors pass predeclared evidence gates | **In progress for Decision 287's controlled, bounded, source-attributed candidate path; open-ended optimization/data mining remains gated** |
+| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments; survivors pass predeclared evidence gates | **In progress under Decision 287 safeguards, with Decision 288's narrow MES ORB research exception active; its existing data is development/reference evidence only, and open-ended optimization/data mining remains gated** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection pass | Pending |
 | 27 | Alpaca Micro-Live Proof and Independent Risk Sentinel | Separate approval, isolated live domain, independent supervision, and failure acceptance pass | Pending — far future |
 | 28–30 | Compliant crypto proof and multi-venue V1 | Legal/operational eligibility, isolated adapters, evidence, reconciliation, and recovery pass | Deferred |

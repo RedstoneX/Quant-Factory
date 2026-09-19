@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document preserves the research-factory requirements and historical gap inventory. [MILESTONES](MILESTONES.md) is the authority for current status and active work. The baseline-state and planned-work columns below predate later implementation: they are historical context, not current defect findings or a second queue. Verify code and current acceptance evidence before reopening a listed gap. Existing RSI, MES ORB, and SPY Donchian implementations are retained as deterministic infrastructure fixtures and historical evidence. They are not active profitability candidates.
+This document preserves the research-factory requirements and historical gap inventory. [MILESTONES](MILESTONES.md) is the authority for current status and active work. The baseline-state and planned-work columns below predate later implementation: they are historical context, not current defect findings or a second queue. Verify code and current acceptance evidence before reopening a listed gap. RSI and SPY Donchian remain deterministic infrastructure fixtures and historical evidence, not active profitability candidates. Decision 288 selects the existing MES ORB specification for the first controlled candidate path; its prior runs remain historical fixture evidence and do not establish profitability.
 
 The normal operator experience must occur through the dashboard. Python modules, terminal commands, CSV files, JSON artifacts, and backend logs are implementation details rather than the primary product interface.
 

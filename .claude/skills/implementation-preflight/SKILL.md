@@ -117,7 +117,17 @@ Identify:
 - worker ownership and complete initial prompts if parallel help is justified,
   including no descendants/direct owner escalation and an explicit polling budget.
 
-Do not broaden the task or begin a later milestone. Decisions 259 and 262 are
+Do not broaden the task or begin a later milestone. Decisions 287–288 authorize
+the controlled, bounded, source-attributed MES opening-range breakout candidate
+path before Milestone 23 closes. Confirm the named owner-approved hypothesis,
+the predeclared evidence boundaries, the exact Decision 287 path step advanced,
+and reuse of the existing strategy code, VectorBT engine, persistence,
+ranking/filtering and dashboard. The already inspected MES catalog extent is
+development/reference evidence rather than a protected test. Open-ended
+optimization or data mining, protected-test evaluation, automatic promotion,
+futures order execution, paper orders and live work remain blocked.
+
+Decisions 259 and 262 are
 the scoped exceptions permitting research-only deployment engineering,
 deployment preparation, broker-neutral contracts, isolated paper-adapter
 implementation and tests, an isolated research deployment after technical
@@ -171,7 +181,10 @@ does not authorize copying or adding a dependency without a compatible
 license. Distinguish prototype/reference behavior from integrated, tested,
 deployed, and operator-accepted product behavior.
 
-For the temporary Decision 286 selected-run Results beta boundary, also state:
+Decision 286's selected-run Results checklist below is inactive because
+Decision 287 supersedes that active priority. Apply it only if dashboard work
+is explicitly resumed to repair a verified blocker on the current operator
+path. In that case, also state:
 
 - which of the three authorized slices is active: approved-page
   reuse/integration, focused browser fixes, or backed-up validated OVH

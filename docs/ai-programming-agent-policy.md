@@ -76,6 +76,17 @@ research/backtesting may proceed under Milestone 25 safeguards while Milestone
 evaluation, automatic promotion, paper orders and live work remain outside
 this authority.
 
+Decision 288 completes the first selection and approval step with the existing
+MES five-minute, 09:30 New York opening-range breakout specification. Its first
+controlled launch is reference-first and then limited to the already approved
+30-variant matrix; no new parameters or structural rules are inferred. Reuse
+the existing strategy code, verified dataset/manifest, VectorBT engine,
+durable evidence path, ranking/filtering and dashboard. The previously
+inspected catalog extent is development/reference evidence, not a protected
+test or independent profitability observation. Reconcile the legacy runner's
+stale unresolved-roll metadata before launch. Futures order execution, promotion,
+paper orders and live work remain outside this authority.
+
 Preserve unrelated work. Use dedicated branches and pull requests; do not
 force-push, push directly to `main`, stage the entire tree, or use anonymous
 stashes. Never weaken a test or acceptance criterion to obtain a pass.

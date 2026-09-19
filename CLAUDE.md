@@ -55,13 +55,15 @@ agent; a documentation helper does not receive project ownership.
 
 ## Product and scope boundaries
 
-- Quant Factory is infrastructure-first, evidence-first, dashboard-first, and
-  operating-proof-first.
+- Quant Factory is infrastructure-first, evidence-first, and operating-proof-
+  first. The dashboard remains essential, but Decision 287 supersedes
+  dashboard-first active sequencing.
 - Plotly Dash is the normal operator interface. Python, terminal output, raw
   CSV/JSON, SQLite, and backend logs are implementation details.
-- Do not begin strategy discovery, optimization, protected-test evaluation,
-  paper-order activation, or live work unless the active milestone and explicit user
-  approval authorize it.
+- Decisions 287–288 authorize the controlled, bounded, source-attributed MES
+  opening-range breakout candidate path. Do not expand it into open-ended
+  optimization or data mining, protected-test evaluation, automatic promotion,
+  futures or paper-order activation, or live work.
 - Decisions 259 and 262 permit research-only packaging, deployment preparation,
   broker-neutral contracts, isolated paper-adapter implementation, tests, and
   target validation in parallel with Milestone 23. Harmless or paper

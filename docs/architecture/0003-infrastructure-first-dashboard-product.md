@@ -7,6 +7,10 @@
 - Superseded in part: Decision 287 replaces dashboard-first active sequencing
   and the blanket prohibition on controlled pre-Milestone-23 research. The
   dashboard/product architecture and all paper/live gates remain accepted.
+- Narrow candidate exception: Decision 288 selects the existing MES ORB
+  specification for the first controlled Decision 287 research path. Prior MES
+  ORB results remain historical fixture evidence; futures order execution and all
+  paper/live gates remain unchanged.
 
 ## Context
 
@@ -18,7 +22,11 @@ The owner does not intend to operate Quant Factory by editing Python, reading ra
 
 1. Quant Factory is infrastructure first until the end-to-end equity research factory passes acceptance.
 2. Plotly Dash is the primary operator interface. VectorBT Pro remains the portfolio analytics and Plotly-compatible chart engine.
-3. Existing RSI, MES ORB, and SPY Donchian implementations are reclassified as deterministic infrastructure fixtures and historical evidence, not active profitability candidates.
+3. Existing RSI, MES ORB, and SPY Donchian implementations are reclassified as
+   deterministic infrastructure fixtures and historical evidence, not active
+   profitability candidates. Decision 288 later makes MES ORB the narrow first
+   controlled candidate without converting its earlier results into
+   profitability evidence.
 4. Decision 287 authorizes controlled, bounded, source-attributed candidate
    intake, discovery and research/backtesting before Milestone 23 passes;
    open-ended optimization or data mining, protected-test evaluation, automatic
