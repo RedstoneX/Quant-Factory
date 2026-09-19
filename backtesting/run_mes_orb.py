@@ -33,7 +33,7 @@ NFA_REGULATORY_FEE_PER_CONTRACT_PER_SIDE = 0.02
 MANDATORY_CLEARING_FEE_PER_CONTRACT_PER_SIDE = 0.0
 ALL_IN_FEE_PER_CONTRACT_PER_SIDE = 0.62
 COST_STATUS = "confirmed_ibkr_nonmember_standard_routing"
-ROLL_STATUS = "unresolved"
+ROLL_STATUS = "confirmed_mes_c_0_calendar_front_expiry_unadjusted"
 PARAMETER_COMBINATIONS = build_parameter_grid()
 SCENARIO_SLIPPAGE_TICKS = {
     "baseline": 1.0,
@@ -61,7 +61,7 @@ def load_mes_data() -> tuple[pd.DataFrame, DataAudit, dict[str, object]]:
     frame = frame.rename(columns={name: name.title() for name in ("open", "high", "low", "close", "volume")})
     frame = frame.loc[:, ["Open", "High", "Low", "Close", "Volume"]]
     warnings = [
-        "Contract-roll/continuous-series construction is not encoded in the source file.",
+        "Contract series is confirmed as unadjusted Databento MES.c.0; calendar-roll discontinuities remain and must not be treated as market returns.",
         "Costs assume standard non-member IBKR routing at no more than 1,000 E-micro contracts per month.",
     ]
     audit = DataAudit(
@@ -74,7 +74,10 @@ def load_mes_data() -> tuple[pd.DataFrame, DataAudit, dict[str, object]]:
         requested_dynamic_end_policy="Fixed extent of the cataloged legacy dataset",
         latest_completed_exchange_session=frame.index[-1].date().isoformat(),
         prices_adjusted=False,
-        adjustment_verification="Futures bars are unadjusted; continuous-series roll method unresolved",
+        adjustment_verification=(
+            "Confirmed Databento MES.c.0 calendar/front-expiry rank zero; "
+            "prices are original and unadjusted"
+        ),
         download_time=str(manifest.metadata["imported_at_utc"]),
         download_timezone="UTC",
         actual_first_row_date=frame.index[0].isoformat(),
@@ -168,7 +171,9 @@ def run_experiment(
     ranked["all_in_fee_per_contract_per_side"] = ALL_IN_FEE_PER_CONTRACT_PER_SIDE
     ranked["roll_method_status"] = ROLL_STATUS
     ranked["promotion_eligible"] = False
-    ranked["promotion_status"] = "blocked_unresolved_roll_method"
+    ranked["promotion_status"] = (
+        "blocked_no_unseen_evidence_and_unadjusted_roll_discontinuities"
+    )
     ranked["_screening_order"] = ranked["screening_status"].map({"passed": 0, "screened_out": 1})
     ranked = ranked.sort_values(
         ["_screening_order", "total_return", "sharpe_ratio", "range_minutes", "breakout_offset_ticks", "direction_variant"],
@@ -190,7 +195,10 @@ def _print_summary(scenario: str, ranked: pd.DataFrame) -> None:
     print(f"Passed cheap screen: {(ranked['screening_status'] == 'passed').sum()}")
     print(ranked.loc[:, ["direction_variant", "range_minutes", "breakout_offset_ticks", "total_return", "sharpe_ratio", "max_drawdown", "number_of_trades", "screening_status"]].head(10).to_string(index=False))
     print(f"Saved {result_path(scenario)}")
-    print("Promotion blocked: continuous-series roll method remains unresolved.")
+    print(
+        "Promotion blocked: the inspected extent is development/reference evidence "
+        "and unadjusted calendar-roll discontinuities remain a limitation."
+    )
 
 
 def main() -> None:
