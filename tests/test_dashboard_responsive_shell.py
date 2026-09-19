@@ -45,6 +45,7 @@ def test_responsive_shell_mounts_one_location_and_accessible_drawer_controls() -
 
     assert len(locations) == 1
     assert locations[0].id == "url"
+    assert not hasattr(locations[0], "pathname")
     assert {
         "navigation-drawer-state",
         "navigation-drawer-toggle",

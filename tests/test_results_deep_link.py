@@ -165,7 +165,17 @@ def test_results_deep_link_preserves_unknown_identity_and_renders_failure(
         "operator-choice",
         [{"label": "Operator choice", "value": "operator-choice"}],
     )
-    rendered = str(inspect(requested, "operator-choice", 0, 0, 0, 0))
+    rendered = str(
+        inspect(
+            requested,
+            "operator-choice",
+            0,
+            0,
+            0,
+            0,
+            "/research/backtest-results",
+        )
+    )
 
     assert selected == requested
     assert {
@@ -201,7 +211,17 @@ def test_results_deep_link_preserves_malformed_request_as_invalid_state(
             "operator-choice",
             "/research/backtest-results",
         )
-        rendered = str(inspect(requested, "operator-choice", 0, 0, 0, 0))
+        rendered = str(
+            inspect(
+                requested,
+                "operator-choice",
+                0,
+                0,
+                0,
+                0,
+                "/research/backtest-results",
+            )
+        )
 
         assert requested == _INVALID_REQUESTED_RUN_STATE
         assert "Invalid Results link" in rendered
@@ -376,7 +396,17 @@ def test_deep_linked_identity_remains_visible_when_detail_retrieval_fails(
         "default-run",
         [{"label": "Default", "value": "default-run"}],
     )
-    rendered_detail = str(inspect(stored, "default-run", 0, 0, 0, 0))
+    rendered_detail = str(
+        inspect(
+            stored,
+            "default-run",
+            0,
+            0,
+            0,
+            0,
+            "/research/backtest-results",
+        )
+    )
 
     assert selected == "second-run"
     assert "second-run" in {option["value"] for option in options}

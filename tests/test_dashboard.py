@@ -934,7 +934,7 @@ def test_route_visibility_callback_is_not_initial_call_suppressed(
     assert route_callback["inputs"] == [{"id": "url", "property": "pathname"}]
 
 
-def test_serialized_location_uses_server_selected_pathname(
+def test_serialized_location_leaves_pathname_to_browser(
     tmp_path: Path,
 ) -> None:
     data = _data()
@@ -965,7 +965,7 @@ def test_serialized_location_uses_server_selected_pathname(
     url_props = find_url_props(layout_payload)
 
     assert url_props["refresh"] == "callback-nav"
-    assert url_props["pathname"] == "/"
+    assert "pathname" not in url_props
     assert "href" not in url_props
     assert "search" not in url_props
     assert "hash" not in url_props
@@ -983,7 +983,7 @@ def test_location_uses_standard_link_navigation_for_route_visibility_callback() 
     )
 
     assert url.refresh == "callback-nav"
-    assert url.pathname == "/"
+    assert not hasattr(url, "pathname")
     assert not hasattr(url, "href")
 
 
@@ -1049,7 +1049,7 @@ def test_deep_link_layout_initializes_visible_route_from_request_cookie(
                 find_url(item)
 
     find_url(layout_payload)
-    assert url_props["pathname"] == "/research/backtest-results"
+    assert "pathname" not in url_props
 
 
 def test_route_callbacks_ignore_unhydrated_location_none(
@@ -1143,6 +1143,7 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
 
     assert ("selected-run-state", "data") in detail_inputs
     assert ("selected-run-selector", "value") in detail_inputs
+    assert ("url", "pathname") in detail_inputs
     assert ("launch-selected-run-configuration", "n_clicks") not in detail_inputs
     assert ("cancel-selected-run", "n_clicks") not in detail_inputs
     assert detail_inputs[("cancellation-message", "children")]["allow_optional"]
@@ -4893,7 +4894,15 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
         0,
         "/research/compare-backtests",
     )
-    panel = inspect(stored, "spym_persisted_run", 0, 0, 0, 0)
+    panel = inspect(
+        stored,
+        "spym_persisted_run",
+        0,
+        0,
+        0,
+        0,
+        "/research/backtest-results",
+    )
     rendered = str(panel)
 
     assert [option["value"] for option in options] == [
@@ -4995,7 +5004,17 @@ def test_selected_run_store_recontrols_dropdown_after_detail_render_remount(
         "default_run_a",
         "/research/backtest-results",
     )
-    rendered = str(inspect(stored, "selected_run_b", 0, 0, 0, 0))
+    rendered = str(
+        inspect(
+            stored,
+            "selected_run_b",
+            0,
+            0,
+            0,
+            0,
+            "/research/backtest-results",
+        )
+    )
 
     monkeypatch.setattr(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
@@ -6284,7 +6303,15 @@ def test_dashboard_inspects_selected_run(tmp_path: Path, monkeypatch) -> None:
     service.run_detail_queries.clear()
     service.run_event_queries.clear()
     detail_adapter.requests.clear()
-    panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
+    panel = inspect(
+        "run_dashboard_fixture",
+        "run_dashboard_fixture",
+        0,
+        0,
+        0,
+        0,
+        "/research/backtest-results",
+    )
 
     assert service.run_detail_queries == ["run_dashboard_fixture"]
     assert service.run_event_queries == ["run_dashboard_fixture"]
@@ -6344,6 +6371,11 @@ def test_selected_run_detail_dash_endpoint_renders_with_absent_detail_controls(
                     "value": None,
                 },
                 {"id": "recover-stale-runs", "property": "n_clicks", "value": 0},
+                {
+                    "id": "url",
+                    "property": "pathname",
+                    "value": "/research/backtest-results",
+                },
             ],
             "state": [],
         },
@@ -6384,7 +6416,15 @@ def test_selected_run_detail_initializes_from_visible_dropdown_when_store_is_emp
     inspect = _callback_function(app, "selected-run-detail")
     service.run_detail_queries.clear()
     detail_adapter.requests.clear()
-    panel = inspect(None, "run_dashboard_fixture", 0, 0, 0, 0)
+    panel = inspect(
+        None,
+        "run_dashboard_fixture",
+        0,
+        0,
+        0,
+        0,
+        "/research/backtest-results",
+    )
     rendered = str(panel)
 
     assert service.run_detail_queries == ["run_dashboard_fixture"]
@@ -6456,7 +6496,15 @@ def test_selected_run_detail_callback_renders_charts_and_tables_for_persisted_ru
     )
 
     inspect = _callback_function(app, "selected-run-detail")
-    panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
+    panel = inspect(
+        "run_dashboard_fixture",
+        "run_dashboard_fixture",
+        0,
+        0,
+        0,
+        0,
+        "/research/backtest-results",
+    )
     rendered = str(panel)
 
     assert "Portfolio value and buy-and-hold comparison" in rendered
@@ -6493,7 +6541,15 @@ def test_dashboard_selected_run_detail_reports_adapter_failure(
     )
 
     inspect = _callback_function(app, "selected-run-detail")
-    panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
+    panel = inspect(
+        "run_dashboard_fixture",
+        "run_dashboard_fixture",
+        0,
+        0,
+        0,
+        0,
+        "/research/backtest-results",
+    )
 
     assert "Run detail retrieval failed: manifest missing" in str(panel)
 
@@ -6548,7 +6604,15 @@ def test_dashboard_reports_missing_selected_run(tmp_path: Path, monkeypatch) -> 
     inspect = _callback_function(app, "selected-run-detail")
     service.run_detail_queries.clear()
     service.run_event_queries.clear()
-    panel = inspect("missing-run", "missing-run", 0, 0, 0, 0)
+    panel = inspect(
+        "missing-run",
+        "missing-run",
+        0,
+        0,
+        0,
+        0,
+        "/research/backtest-results",
+    )
 
     assert service.run_detail_queries == ["missing-run"]
     assert service.run_event_queries == []

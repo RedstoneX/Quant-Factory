@@ -205,7 +205,6 @@ def create_dashboard_layout(
             ),
             dcc.Location(
                 id="url",
-                pathname=initial_pathname,
                 refresh="callback-nav",
             ),
             dcc.Store(

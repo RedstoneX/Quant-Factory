@@ -24,10 +24,17 @@ from prefect_spike.milestone23_browser_fixture import (
     TARGET_RUN_ID,
     prepare_milestone23_browser_fixture,
 )
+from tests.browser.dashboard_diagnostics import (
+    PendingCallbackRequests,
+    assert_browser_diagnostics_clean,
+    attach_browser_diagnostics,
+    parse_callback_statuses,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 BACKTEST_PATH = "/research/backtest-results"
+COMPARE_PATH = "/research/compare-backtests"
 SPYM_OPTION_TEXT = "SPYM RSI Mean Reversion Fixture"
 INITIAL_OPTION_TEXT = "Infrastructure Fixture"
 
@@ -99,6 +106,34 @@ def _wait_for_server(url: str, *, timeout: float = 30.0) -> None:
     raise AssertionError(f"Dashboard server did not start at {url}: {last_error}")
 
 
+def _wait_for_callback_quiescence(
+    page: Page,
+    pending_requests: PendingCallbackRequests,
+    *,
+    timeout_ms: int = 120_000,
+) -> None:
+    deadline = time.monotonic() + timeout_ms / 1000
+    quiet_since: float | None = None
+    while time.monotonic() < deadline:
+        loading = page.locator('[data-dash-is-loading="true"]').count() > 0
+        if not pending_requests and not loading:
+            quiet_since = quiet_since or time.monotonic()
+            if time.monotonic() - quiet_since >= 0.25:
+                return
+        else:
+            quiet_since = None
+        # A Playwright API call pumps request-finished/request-failed events;
+        # sleeping in Python would leave already-delivered events undispatched.
+        page.wait_for_timeout(50)
+    loading_ids = page.locator('[data-dash-is-loading="true"]').evaluate_all(
+        "elements => elements.map(element => element.id || element.className)"
+    )
+    raise AssertionError(
+        "Dash callbacks did not settle within 120 seconds: "
+        f"pending={len(pending_requests)}, loading={loading_ids}"
+    )
+
+
 @pytest.fixture()
 def dashboard_server(tmp_path: Path):
     fixture_root = tmp_path
@@ -122,6 +157,7 @@ from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService
 
 from tests.browser.test_backtest_results_spym_stability import _launcher
+from tests.browser.dashboard_diagnostics import install_callback_status_recorder
 
 database = Path(sys.argv[1])
 artifact_root = Path(sys.argv[2])
@@ -134,6 +170,7 @@ app = create_app(
         artifact_root=artifact_root,
     ),
 )
+install_callback_status_recorder(app.server)
 app.run(host="127.0.0.1", port=port, debug=False)
 """
     env = dict(os.environ)
@@ -185,6 +222,12 @@ def _state(page: Page, base_url: str) -> dict[str, object]:
         "h1": [text.strip() for text in page.locator("h1").all_inner_texts() if text.strip()],
         "plotly_charts": page.locator(".js-plotly-plot").count(),
         "graph_containers": page.locator(".dash-graph").count(),
+        "results_plotly_charts": page.locator(
+            "#route-research-backtest-results .js-plotly-plot"
+        ).count(),
+        "results_graph_containers": page.locator(
+            "#route-research-backtest-results .dash-graph"
+        ).count(),
         "has_portfolio_panel": page.get_by_text(
             "Portfolio value and buy-and-hold comparison", exact=True
         ).count() > 0,
@@ -192,24 +235,40 @@ def _state(page: Page, base_url: str) -> dict[str, object]:
     }
 
 
+def _browser_path_state(page: Page) -> dict[str, object]:
+    return page.evaluate(
+        """
+        () => {
+          const locationComponent = document.querySelector('#url');
+          return {
+            window_pathname: window.location.pathname,
+            window_search: window.location.search,
+            initial_path_cookie: document.cookie
+              .split('; ')
+              .find(value => value.startsWith('qf_dash_initial_pathname=')) || null,
+            location_component_present: locationComponent !== null,
+            location_component_html: locationComponent?.outerHTML || null,
+          };
+        }
+        """
+    )
+
+
 def _write_failure_artifacts(
     *,
     page: Page,
     tmp_path: Path,
     states: list[dict[str, object]],
-    console_errors: list[dict[str, object]],
-    page_errors: list[str],
-    dash_requests: list[dict[str, object]],
+    browser_events: list[dict[str, object]],
     history_events: list[dict[str, object]],
     server_log: Path,
 ) -> None:
     page.screenshot(path=tmp_path / "backtest-results-spym-failure.png", full_page=True)
     diagnostics = {
         "states": states,
-        "console_errors": console_errors,
-        "page_errors": page_errors,
+        "browser_events": browser_events,
         "history_events": history_events,
-        "dash_requests": dash_requests,
+        "callback_statuses": parse_callback_statuses([server_log]),
         "server_log": server_log.read_text(encoding="utf-8", errors="replace"),
     }
     (tmp_path / "backtest-results-spym-diagnostics.json").write_text(
@@ -223,9 +282,8 @@ def test_backtest_results_spym_selection_remains_stable(
     tmp_path: Path,
 ) -> None:
     base_url, server_log, initial_run_id = dashboard_server
-    console_errors: list[dict[str, object]] = []
-    page_errors: list[str] = []
-    dash_requests: list[dict[str, object]] = []
+    browser_events: list[dict[str, object]] = []
+    action = {"name": "open-results"}
     states: list[dict[str, object]] = []
 
     with sync_playwright() as playwright:
@@ -258,30 +316,10 @@ def test_backtest_results_spym_selection_remains_stable(
             """
         )
         page = context.new_page()
-        page.on(
-            "console",
-            lambda message: console_errors.append(
-                {
-                    "type": message.type,
-                    "text": message.text,
-                    "location": message.location,
-                }
-            )
-            if message.type == "error"
-            else None,
-        )
-        page.on("pageerror", lambda exc: page_errors.append(str(exc)))
-        page.on(
-            "request",
-            lambda request: dash_requests.append(
-                {
-                    "method": request.method,
-                    "url": request.url,
-                    "post_data": request.post_data,
-                }
-            )
-            if "/_dash-update-component" in request.url
-            else None,
+        pending_dash_requests = attach_browser_diagnostics(
+            page,
+            browser_events,
+            action,
         )
 
         try:
@@ -301,6 +339,7 @@ def test_backtest_results_spym_selection_remains_stable(
             states.append({"label": "selected", **_state(page, base_url)})
 
             page.wait_for_timeout(20_000)
+            _wait_for_callback_quiescence(page, pending_dash_requests)
             states.append({"label": "after-wait", **_state(page, base_url)})
             history_events = page.evaluate("window.__qfHistoryEvents || []")
 
@@ -313,17 +352,181 @@ def test_backtest_results_spym_selection_remains_stable(
             assert final["has_portfolio_panel"] is True
             assert final["has_trade_pnl_panel"] is True
             assert history_events == []
-            assert console_errors == []
-            assert page_errors == []
+
+            point_counts = page.locator(
+                "#route-research-backtest-results .js-plotly-plot"
+            ).evaluate_all(
+                """
+                plots => plots.flatMap(
+                  plot => (plot.data || []).map(
+                    trace => Array.isArray(trace.x) ? trace.x.length : 0
+                  )
+                )
+                """
+            )
+            assert 53_528 in point_counts
+
+            action["name"] = "full-navigation-compare"
+            page.goto(
+                f"{base_url}{COMPARE_PATH}",
+                wait_until="networkidle",
+                timeout=120_000,
+            )
+            page.locator("#route-research-compare-backtests").wait_for(
+                state="visible",
+                timeout=120_000,
+            )
+            page.wait_for_function(
+                """
+                () => document.querySelectorAll(
+                  '#route-research-backtest-results .dash-graph'
+                ).length === 0
+                """,
+                timeout=120_000,
+            )
+            states.append({"label": "full-navigation-compare", **_state(page, base_url)})
+            assert states[-1]["visible_routes"] == [
+                "route-research-compare-backtests"
+            ]
+            assert states[-1]["results_plotly_charts"] == 0
+            assert states[-1]["results_graph_containers"] == 0
+            _wait_for_callback_quiescence(page, pending_dash_requests)
+
+            action["name"] = "history-back-results"
+            page.go_back(wait_until="networkidle", timeout=120_000)
+            page.locator("#route-research-backtest-results").wait_for(
+                state="visible",
+                timeout=120_000,
+            )
+            page.wait_for_function(
+                """
+                () => document.querySelectorAll(
+                  '#route-research-backtest-results .js-plotly-plot'
+                ).length > 0
+                """,
+                timeout=120_000,
+            )
+            _wait_for_callback_quiescence(page, pending_dash_requests)
+            states.append({"label": "history-back-results", **_state(page, base_url)})
+            assert SPYM_OPTION_TEXT in str(states[-1]["selected_run"])
+            assert int(states[-1]["results_plotly_charts"]) > 0
+
+            action["name"] = "history-forward-compare"
+            page.go_forward(wait_until="networkidle", timeout=120_000)
+            page.locator("#route-research-compare-backtests").wait_for(
+                state="visible",
+                timeout=120_000,
+            )
+            page.wait_for_function(
+                """
+                () => document.querySelectorAll(
+                  '#route-research-backtest-results .dash-graph'
+                ).length === 0
+                """,
+                timeout=120_000,
+            )
+            _wait_for_callback_quiescence(page, pending_dash_requests)
+            states.append({"label": "history-forward-compare", **_state(page, base_url)})
+            assert states[-1]["visible_routes"] == [
+                "route-research-compare-backtests"
+            ]
+            assert states[-1]["results_graph_containers"] == 0
+
+            action["name"] = "history-second-back-results"
+            page.go_back(wait_until="networkidle", timeout=120_000)
+            page.locator("#route-research-backtest-results").wait_for(
+                state="visible",
+                timeout=120_000,
+            )
+            page.wait_for_function(
+                """
+                () => document.querySelectorAll(
+                  '#route-research-backtest-results .js-plotly-plot'
+                ).length > 0
+                """,
+                timeout=120_000,
+            )
+            _wait_for_callback_quiescence(page, pending_dash_requests)
+            states.append({"label": "history-second-back-results", **_state(page, base_url)})
+            assert SPYM_OPTION_TEXT in str(states[-1]["selected_run"])
+
+            action["name"] = "deep-link-refresh-results"
+            page.goto(
+                f"{base_url}{BACKTEST_PATH}?run_id={TARGET_RUN_ID}",
+                wait_until="networkidle",
+                timeout=120_000,
+            )
+            page.reload(wait_until="networkidle", timeout=120_000)
+            page.locator("#route-research-backtest-results").wait_for(
+                state="visible",
+                timeout=120_000,
+            )
+            page.wait_for_function(
+                """
+                expected => document.querySelector('#selected-run-selector')
+                  ?.innerText.includes(expected) === true
+                """,
+                arg=SPYM_OPTION_TEXT,
+                timeout=120_000,
+            )
+            _wait_for_callback_quiescence(page, pending_dash_requests)
+            page.wait_for_function(
+                """
+                () => document.querySelectorAll(
+                  '#route-research-backtest-results .js-plotly-plot'
+                ).length > 0
+                """,
+                timeout=120_000,
+            )
+            states.append({"label": "refreshed-deep-link-results", **_state(page, base_url)})
+            assert SPYM_OPTION_TEXT in str(states[-1]["selected_run"])
+            assert int(states[-1]["results_plotly_charts"]) > 0
+            refreshed_point_counts = page.locator(
+                "#route-research-backtest-results .js-plotly-plot"
+            ).evaluate_all(
+                """
+                plots => plots.flatMap(
+                  plot => (plot.data || []).map(
+                    trace => Array.isArray(trace.x) ? trace.x.length : 0
+                  )
+                )
+                """
+            )
+            assert 53_528 in refreshed_point_counts
+            matched_aborts = assert_browser_diagnostics_clean(
+                page,
+                browser_events,
+                [server_log],
+            )
+            (tmp_path / "backtest-results-spym-callback-evidence.json").write_text(
+                json.dumps(
+                    {
+                        "states": states,
+                        "history_events": page.evaluate(
+                            "window.__qfHistoryEvents || []"
+                        ),
+                        "browser_events": browser_events,
+                        "matched_navigation_aborts": matched_aborts,
+                        "callback_statuses": parse_callback_statuses([server_log]),
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
         except Exception:
+            states.append(
+                {
+                    "label": "request-diagnostics",
+                    "pending_dash_requests": len(pending_dash_requests),
+                    **_browser_path_state(page),
+                }
+            )
             history_events = page.evaluate("window.__qfHistoryEvents || []")
             _write_failure_artifacts(
                 page=page,
                 tmp_path=tmp_path,
                 states=states,
-                console_errors=console_errors,
-                page_errors=page_errors,
-                dash_requests=dash_requests,
+                browser_events=browser_events,
                 history_events=history_events,
                 server_log=server_log,
             )

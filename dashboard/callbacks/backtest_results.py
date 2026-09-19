@@ -1268,6 +1268,7 @@ def register_backtest_results_callbacks(
         Input("launch-message", "children"),
         Input("cancellation-message", "children", allow_optional=True),
         Input("stale-recovery-message", "children"),
+        Input("url", "pathname"),
     )
     def inspect_run(
         stored_run_id: str | None,
@@ -1276,7 +1277,11 @@ def register_backtest_results_callbacks(
         __: int,
         ___: int,
         ____: int,
+        pathname: str | None,
     ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            return _run_detail_panel(None)
+
         run_id = stored_run_id or selected_run_id
         if not run_id:
             return _run_detail_panel(None)

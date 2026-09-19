@@ -4209,95 +4209,21 @@ def create_app(
         else tuple(_history_row(run) for run in all_run_records)
     )
     recent_event_records = runs.recent_events(limit=20)
-    selected_run_panel: Any | None = None
+    # Keep the permanently mounted Results route lightweight until its route is
+    # active.  The page-owned callback hydrates the selected run on demand;
+    # embedding a production-sized Plotly figure in every route's initial
+    # layout makes unrelated Home/Compare navigation carry that figure too.
+    selected_run_panel: Any | None = _run_detail_panel(None)
     selected_run_id: str | None = None
     if recent_run_records:
-        selected_run, selected_detail = _select_initial_backtest(
+        selected_run, _ = _select_initial_backtest(
             recent_run_records,
             detail_adapter,
         )
     else:
-        selected_run, selected_detail = None, None
+        selected_run = None
     if selected_run is not None:
         selected_run_id = selected_run.run_id
-        if selected_detail is None:
-            try:
-                selected_detail = detail_adapter.selected_run_detail(
-                    selected_run.run_id
-                )
-            except (KeyError, RuntimeError, ValueError) as exc:
-                selected_detail = SelectedRunDetailView(
-                    configuration_fields=(),
-                    parameters=(),
-                    market_data=(),
-                    execution=(),
-                    ranking=(),
-                    screening=(),
-                    lineage_fields=(),
-                    manifest_fields=(),
-                    artifacts=(),
-                    result_summary=ResultSummaryView(
-                        status="empty",
-                        message="No persisted result summary is available for this run.",
-                        rows=(),
-                    ),
-                    evidence=RunEvidenceView(
-                        notices=(),
-                        metrics=(),
-                        trades=(),
-                        orders=(),
-                        equity_curve=(),
-                        drawdown_curve=(),
-                        validation=(),
-                        provenance=(),
-                        warnings=(),
-                    ),
-                    warnings=(f"Run detail retrieval failed: {exc}",),
-                )
-        selected_run_panel = _run_detail_panel(
-            selected_run,
-            runs.events_for_run(selected_run.run_id),
-            detail=selected_detail,
-        )
-    elif recent_run_records:
-        selected_run = recent_run_records[0]
-        selected_run_id = selected_run.run_id
-        try:
-            selected_detail = detail_adapter.selected_run_detail(selected_run.run_id)
-        except (KeyError, RuntimeError, ValueError) as exc:
-            selected_detail = SelectedRunDetailView(
-                configuration_fields=(),
-                parameters=(),
-                market_data=(),
-                execution=(),
-                ranking=(),
-                screening=(),
-                lineage_fields=(),
-                manifest_fields=(),
-                artifacts=(),
-                result_summary=ResultSummaryView(
-                    status="empty",
-                    message="No persisted result summary is available for this run.",
-                    rows=(),
-                ),
-                evidence=RunEvidenceView(
-                    notices=(),
-                    metrics=(),
-                    trades=(),
-                    orders=(),
-                    equity_curve=(),
-                    drawdown_curve=(),
-                    validation=(),
-                    provenance=(),
-                    warnings=(),
-                ),
-                warnings=(f"Run detail retrieval failed: {exc}",),
-            )
-        selected_run_panel = _run_detail_panel(
-            selected_run,
-            runs.events_for_run(selected_run.run_id),
-            detail=selected_detail,
-        )
     app = Dash(
         __name__,
         suppress_callback_exceptions=True,

@@ -63,7 +63,17 @@ from tests.test_review_context_artifacts import _source_lock_artifact
 
 def _render_selected(app, run_id: str) -> str:
     inspect = _callback_function(app, "selected-run-detail")
-    return str(inspect(run_id, run_id, 1, 0, 0, 0))
+    return str(
+        inspect(
+            run_id,
+            run_id,
+            1,
+            0,
+            0,
+            0,
+            "/research/backtest-results",
+        )
+    )
 
 
 def _context() -> DashboardContext:
@@ -451,6 +461,7 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
         0,
         0,
         0,
+        "/research/backtest-results",
     )
     assert "Research history" in str(reopened)
     assert "artifact-status-success" in str(reopened)

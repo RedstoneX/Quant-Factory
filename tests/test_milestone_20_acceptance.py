@@ -243,7 +243,9 @@ def _prepare_success_run_artifacts(database: Path, root: Path, run_id: str) -> N
 
 def _render_selected(app, run_id: str) -> str:
     inspect = _callback_function(app, "selected-run-detail")
-    return str(inspect(run_id, 1, 0, 0, 0, 0))
+    return str(
+        inspect(run_id, 1, 0, 0, 0, 0, "/research/backtest-results")
+    )
 
 
 def test_dashboard_success_workflow_and_restart_reopen(
