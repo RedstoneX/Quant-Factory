@@ -883,9 +883,12 @@ explicitly.
      eligible session. Exclude missing required boundary bars; do not fill or
      synthesize bars.
 
-     Readiness is measured as 173 sessions total, 135 eligible exact-boundary
-     sessions (72 long, 63 short, 0 zero), from 2025-11-03 through 2026-07-13.
-     A stricter full-minute-continuity check would leave 29 sessions, but the
+     A read-only actual-data check before execution corrected the readiness
+     measurement: 173 sessions total, 133 eligible exact-boundary sessions (70
+     long, 63 short, 0 zero), from 2025-11-03 through 2026-07-13. The sessions
+     2025-12-01 and 2025-12-26 are excluded because their immediately prior
+     scheduled NYSE sessions were early closes with no required 15:59 bar. A
+     stricter full-minute-continuity check would leave 29 sessions, but the
      approved source rule requires boundary values and realized daily returns,
      not every intervening one-minute bar. Missing intratrade bars remain an
      explicit drawdown/path limitation. Accounting is $10,000 initial cash,

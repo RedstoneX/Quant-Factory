@@ -20,12 +20,14 @@ merged, deployed, accepted, promoted, or edge result is claimed.
   missing. Do not fill, forward-fill, or synthesize bars.
 - No tuning, grid, accumulation, additional filter, or alternate exit.
 
-Readiness measured before implementation: 173 sessions total; 135 eligible
-exact-boundary sessions (72 long, 63 short, 0 zero), covering 2025-11-03 through
-2026-07-13. A stricter full-minute-continuity check leaves 29 sessions, but the
-approved source rule requires boundary values and realized daily returns rather
-than every intervening one-minute bar. Missing intratrade bars remain an
-explicit drawdown/path limitation.
+Readiness measured by a read-only actual-data check before execution: 173
+sessions total; 133 eligible exact-boundary sessions (70 long, 63 short, 0
+zero), covering 2025-11-03 through 2026-07-13. The check excludes 2025-12-01
+and 2025-12-26 because their immediately prior scheduled NYSE sessions were
+early closes with no required 15:59 bar. A stricter full-minute-continuity check
+leaves 29 sessions, but the approved source rule requires boundary values and
+realized daily returns rather than every intervening one-minute bar. Missing
+intratrade bars remain an explicit drawdown/path limitation.
 
 ## Data and accounting
 
