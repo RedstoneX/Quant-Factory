@@ -722,3 +722,43 @@ explicitly.
      no architecture or dependency is selected. No runbook applies because no
      operator or runtime procedure changes. The requirements document and
      README are updated as stated; no other governance row is implicated.
+
+293. **Connected-screen dashboard blueprint explicitly approved (accepted
+     2026-09-20).** Terry explicitly approves the bounded R05 connected-screen
+     blueprint. Preserve **Home**, **Ideas**, **Set up**, **Run test**, and the
+     approved chart-first **Results** experience. Economically reuse the
+     existing **Compare** route as the separate **Find & Compare** surface.
+     One selected saved test opens its exact **Results** view; selecting two to
+     four saved tests feeds the existing **Compare** route. One table row
+     represents one saved test, and any top-ranked variation metrics must be
+     explicitly labelled as variation metrics.
+
+     First run a cheap synthetic approximately 1,000-row responsiveness and
+     data-path check. Only after that measured check may the smallest
+     implementation slice be bounded. No new framework, schema, cache,
+     backend store, or global restyle is authorized unless evidence proves one
+     unavoidable. Broad redesign, deployment, backtests, market data,
+     paper/live work, caching, export, and polish are deferred.
+
+     This fulfills Decision 282's bounded-design owner review for the
+     specifically defined **Find & Compare** surface and authorizes the first
+     thin implementation slice after the synthetic check, strictly within the
+     boundaries above. It remains accepted design and authorization to begin a
+     bounded slice, not completed implementation, testing, deployment, beta
+     completion, or operator acceptance. Any design expansion beyond this
+     accepted surface requires new owner review before implementation. R05
+     remains in progress; the synthetic check is its next repository-local
+     action, followed by the authorized smallest slice.
+
+     Documentation-impact assessment: `docs/DECISIONS.md`,
+     `docs/MILESTONES.md`, and the dashboard product requirements are updated
+     because this is a durable accepted design and changes R05's next action
+     and evidence boundary. `AGENTS.md` and the agent policy are not
+     applicable because no stable operating rule, delegation rule, or agent
+     allocation changes. No ADR applies because no architecture, framework,
+     dependency, schema, cache, backend store, deployment, security, data
+     flow, or integration is selected. `CHAT_HANDOFF.md` is not applicable
+     because Tier 1 authorities already contain the durable direction and no
+     startup navigation changes. `README.md` is not applicable because public
+     orientation is unchanged. No runbook or procedure applies because no
+     operator, recovery, migration, runtime, paper, or live procedure changes.

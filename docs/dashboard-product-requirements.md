@@ -36,6 +36,38 @@ It supersedes only Decision 287's dashboard freeze for this bounded blueprint
 and later owner-approved thin essential-beta slices; it does not expand
 Decision 291 or restore dashboard-first sequencing.
 
+## Connected-screen blueprint — owner-approved boundary (2026-09-20)
+
+Terry explicitly approves the following connected-screen blueprint as the
+bounded R05 design direction. Preserve **Home**, **Ideas**, **Set up**, and
+**Run test**, with the approved chart-first **Results** experience as the
+product anchor. Economically reuse the existing **Compare** route as the
+separate **Find & Compare** surface rather than creating a second comparison
+system.
+
+One selected saved test opens its exact **Results** view. Selecting two to
+four saved tests feeds the existing **Compare** route. Each table row
+represents one saved test; any top-ranked variation metrics must be labelled
+explicitly as variation metrics and must not be presented as the selected
+test's identity or as independent evidence.
+
+Before bounding the smallest implementation slice, first run a cheap
+synthetic approximately 1,000-row responsiveness and data-path check. The
+check is a measurement gate for the blueprint, not production or market-data
+evidence. Only after that check may the smallest implementation be bounded.
+No new framework, schema, cache, backend store, or global restyle is planned
+unless evidence proves one unavoidable. Broad redesign, deployment,
+backtests, market data, paper/live work, caching, export, and polish are
+deferred.
+
+This fulfills Decision 282's bounded-design owner review for the specifically
+defined **Find & Compare** surface and authorizes the first thin implementation
+slice after the synthetic check, strictly within the accepted boundaries. It
+remains accepted design and implementation authorization, not completed
+implementation, testing, deployment, beta completion, or operator acceptance.
+Any design expansion beyond this accepted surface requires new owner review
+before implementation.
+
 A read-only inspection of local QAMC revision
 `a7197d5c060f83e5c226e1a06884027b359a1d40` (source paths
 `frontend/package.json`, `frontend/package-lock.json`, and `LICENSE`) measured
