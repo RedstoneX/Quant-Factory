@@ -56,10 +56,12 @@ replacement direction built around a truthful selected-run price chart,
 persisted trade markers, and a linked grouped trade ledger. Decision 282
 records the owner's approval of the detailed selected-run specification and
 requires a separate scalable multi-run analysis surface. Decision 291's bounded
-R07 rendering and exact-reopen correction is implemented and locally tested in
-this source revision. Integration, deployment, licensed-target proof, renewed
-owner acceptance, scalable multi-run analysis, and remaining objective gates
-are not complete.
+R07 rendering and exact-reopen correction merged through PR #70 at
+`4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after focused, portable
+real-browser, independent-review, and required-CI evidence passed. It is not
+deployed, target-validated, operator-accepted, full beta, or Milestone 23
+completion. Scalable multi-run analysis and remaining objective gates are not
+complete.
 
 Decision 283 requires safe caching for exact repeat research computations so
 repeats can reuse validated work instead of rebuilding everything. Each

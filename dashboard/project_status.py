@@ -17,7 +17,8 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=23,
     current_milestone_title="End-to-End Equity Research Factory Acceptance",
     current_milestone_status=(
-        "Pending; controlled research and the narrow Results correction are active."
+        "Pending; the narrow Results correction is merged, while target and operator "
+        "proof remain."
     ),
     strategy_status=(
         "Controlled research is active only for owner-approved, source-attributed "
@@ -25,7 +26,7 @@ PROJECT_STATUS = DashboardProjectStatus(
     ),
     workspace_status=(
         "Protected tests, promotion, paper execution, and live trading remain blocked. "
-        "Selected-run R07 inspection is corrected in this source revision."
+        "The selected-run R07 correction is merged but not deployed or operator-accepted."
     ),
     home_subtitle="Your strategy research workspace.",
 )

@@ -25,11 +25,10 @@ behavior.
 Decision 287 supersedes Decision 286's active three-slice Results-beta
 priority. Further Results implementation, polish, redesign and deployment are
 frozen unless a verified defect blocks operation. Preserve the approved
-prototype and validated unmerged, undeployed repair as future implementation
-input; the product requirements below remain accepted and pending rather than
-cancelled. The active path reuses the existing VectorBT engine, persistence,
-evidence and dashboard without starting another dashboard evaluation or
-redesign.
+prototype as implementation input; the product requirements below remain
+accepted and pending rather than cancelled. The active path reuses the existing
+VectorBT engine, persistence, evidence and dashboard without starting another
+dashboard evaluation or redesign.
 
 Decision 291 confirms one such verified defect: the existing page could not
 truthfully expose the preserved R07 native interval, MES units, complete ranked
@@ -41,7 +40,7 @@ separate calendar CAGR may be derived only from persisted total return and
 valid actual-coverage dates, and is not an engine output or screening metric. This
 does not authorize broader Results, multi-run, cache or deployment work.
 
-## Current owner review outcome — refreshed 2026-09-18
+## Current owner review outcome — refreshed 2026-09-20
 
 Private target checks cover mounted routes, refresh and selection behavior,
 fixture launch, charts, trade inspection, comparison, reproduction, durable
@@ -59,9 +58,11 @@ is the primary UX reference, and QAMC informs only docking, resizing and linked
 panel mechanics rather than information density. After hands-on use of the
 private interactive preview, Decision 282 approves the detailed selected-run
 specification below as intuitive and authorizes implementation. Decision 291's
-bounded R07 correction is implemented and locally validated in this revision;
-complete implementation, deployment, licensed-target proof and renewed
-acceptance of the eventual implemented experience remain pending.
+bounded R07 correction merged through PR #70 at
+`4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after focused, portable
+real-browser, independent-review, and required-CI evidence passed. Complete
+implementation, deployment, licensed-target proof and renewed acceptance of
+the eventual implemented experience remain pending.
 Retain Plotly Dash and VectorBT
 Pro; use Dash AG Grid and Dash Bootstrap Components where appropriate. Use
 capable retail-trader language while remaining understandable to a novice
@@ -776,7 +777,8 @@ progressive disclosure, and labelled technical drill-downs. The separate
 Decision 282 scalable multi-run requirement still needs a bounded design; its
 exact UI and architecture are not pre-approved. 23C-2 retains the ADR 0008
 mounted-route architecture and uses Dash AG Grid and Dash Bootstrap Components
-as approved implementation components. Implementation, deployment, automated
-and browser testing, licensed-target proof, and renewed owner acceptance of the
-implemented Results experience remain pending; 23C-3 also requires real-browser
-lifecycle and end-to-end workflow evidence.
+as approved implementation components. The bounded Decision 291 correction is
+merged and its focused automated and portable browser evidence passed; complete
+implementation and testing, deployment, licensed-target proof, and renewed
+owner acceptance of the implemented Results experience remain pending. 23C-3
+also requires real-browser lifecycle and end-to-end workflow evidence.
