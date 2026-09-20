@@ -142,7 +142,11 @@ The planned future execution policy is:
 
 ## Portable deployment direction
 
-Development may remain native in WSL through Milestone 23. Before Alpaca paper execution, production services will be packaged with Docker and Docker Compose so Quant Factory can move between the Windows/WSL machine and VPS providers without rebuilding the Python environment manually.
+Development uses the canonical public GitHub repository through its owned OVH
+checkout. The retired Windows/WSL clone is not authoritative. Before Alpaca
+paper execution, production services will be packaged with Docker and Docker
+Compose so Quant Factory can move between authorized hosts without rebuilding
+the Python environment manually.
 
 The portable deployment unit is:
 

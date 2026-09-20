@@ -102,8 +102,7 @@ def layout(
                 (
                     "Read-only health for the current research milestone. "
                     f"{PROJECT_STATUS.strategy_status} "
-                    f"{PROJECT_STATUS.workspace_status} Strategy discovery, "
-                    "paper execution, and live trading are blocked."
+                    f"{PROJECT_STATUS.workspace_status}"
                 ),
             ),
             html.Section(

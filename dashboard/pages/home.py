@@ -163,8 +163,9 @@ def build_home_view_model(
         ),
         milestone_status=project_status.current_milestone_status,
         discovery_gate=(
-            "Blocked — strategy discovery remains unavailable until Milestone 23 "
-            "passes every objective acceptance gate."
+            "Active only for owner-approved, source-attributed hypotheses with "
+            "predeclared evidence boundaries. Protected tests, promotion, paper "
+            "execution, and live trading remain blocked."
         ),
         health=health,
         run=_run_view(run),
@@ -200,8 +201,8 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                     ),
                     html.Div(
                         [
-                            html.Span("Discovery gate", className="summary-label"),
-                            html.Strong("Discovery blocked"),
+                            html.Span("Research boundary", className="summary-label"),
+                            html.Strong("Controlled research active"),
                             html.P(model.discovery_gate, className="summary-detail"),
                         ],
                         id="home-discovery-gate",

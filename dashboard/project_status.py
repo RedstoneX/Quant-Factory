@@ -16,8 +16,13 @@ class DashboardProjectStatus:
 PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=23,
     current_milestone_title="End-to-End Equity Research Factory Acceptance",
-    current_milestone_status="Pending - hard discovery gate",
-    strategy_status="Research only until Milestone 23 is accepted.",
-    workspace_status="Research workspace only; no paper or live trading is active.",
+    current_milestone_status="Pending; controlled research exception active.",
+    strategy_status=(
+        "Controlled research is active only for owner-approved, source-attributed "
+        "hypotheses with predeclared evidence boundaries."
+    ),
+    workspace_status=(
+        "Protected tests, promotion, paper execution, and live trading remain blocked."
+    ),
     home_subtitle="Your strategy research workspace.",
 )

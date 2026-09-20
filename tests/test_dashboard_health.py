@@ -335,7 +335,11 @@ def test_system_health_uses_read_only_database_and_artifact_checks(tmp_path: Pat
     assert "research state database does not exist" in rendered
     assert "configured artifact location does not exist" in rendered
     assert "Orchestrator" in rendered and "Not checked" in rendered
-    assert "paper execution, and live trading are blocked" in rendered
+    assert "Controlled research is active only for owner-approved" in rendered
+    assert (
+        "Protected tests, promotion, paper execution, and live trading remain blocked"
+        in rendered
+    )
 
 
 def test_system_health_marks_old_supplied_observation_stale(tmp_path: Path) -> None:
