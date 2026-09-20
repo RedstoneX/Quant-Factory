@@ -9,7 +9,8 @@ project.
 
 ## Current direction
 
-Quant Factory is explicitly **infrastructure first, evidence first, and operating-proof first**.
+Quant Factory is explicitly **research first, evidence truthful, and
+proportionate to one operator**.
 
 The dashboard is the primary user product and normal operating interface. Python modules, terminal commands, CSV files, JSON artifacts, and backend logs are implementation details.
 
@@ -20,24 +21,22 @@ reserved for verified gaps or cases where reuse is materially worse. Prototype
 approval is implementation input, not proof that behavior is integrated,
 tested, deployed, or finally accepted.
 
-The product objective is a complete, validated equity research factory that can launch, persist, explain, reproduce, compare, review, and fail closed. Read [MILESTONES](docs/MILESTONES.md) for current acceptance status, the restart findings, and the next action. One simple equity strategy and a small approved instrument set are deterministic infrastructure fixtures, not active profitability candidates.
+The immediate objective is to use the existing factory to test one approved,
+source-attributed candidate at a time, reject weak ideas quickly, and preserve
+truthful results. The MES ORB cycle is concluded and rejected as an edge
+candidate. The next action is to inventory candidates and ask Terry to approve
+one named hypothesis with fixed evidence boundaries. Read
+[MILESTONES](docs/MILESTONES.md) for the current queue.
 
-Decision 287 sets the current order: inventory source-attributed candidates →
+Decisions 287 and 294 set the current order: inventory source-attributed candidates →
 select one named, source-attributed hypothesis for explicit owner approval →
 use the thinnest necessary adapter into the existing VectorBT batch-research
 path → durable results and evidence → ranking/filtering → inspection in the
-existing dashboard. Decision 291 confirms that truthful R07 selected-run
-inspection is a verified blocker and authorizes only its smallest correction in
-the existing application. Decision 292 now authorizes an economical,
-reuse-first dashboard improvement direction: preserve the chart-first Results
-experience, start with a small connected-screen blueprint, and then improve
-only the essential beta journey in thin slices using the existing Dash/Plotly/
-VectorBT/persistence path and compatible maintained components. It does not
-expand Decision 291's narrow correction, restore dashboard-first sequencing,
-authorize a new framework, global rewrite, broad polish, deployment,
-paper/live work, or beta completion; R07 target deployment remains separately
-unauthorized. Any scalable multi-run design still requires bounded owner review
-under Decision 282 before implementation.
+existing dashboard. The bounded selected-run correction and reuse-first Find &
+Compare surface are merged. Terry found the reviewed Find & Compare image good
+and intuitive; standard labels merged through PR #77 at `9495a36`. This does
+not claim deployment or full Milestone 23 acceptance. Further dashboard work
+is dormant unless research exposes a blocker or Terry resumes that gate.
 Completed preparation within
 Milestone 24A–24D is retained, while remaining authenticated observer work is
 deferred. Resume paper activation only after an edge qualifies and all
@@ -46,11 +45,9 @@ become viable; live trading is far-future work. Automated paper forward
 testing, micro-live work, and other venues follow only at the later gates in
 [MILESTONES](docs/MILESTONES.md).
 
-Existing RSI and SPY Donchian work remains historical fixture evidence, not an
-active profitability candidate. Decision 288 selects the existing MES
-five-minute opening-range breakout specification for the first controlled
-Decision 287 candidate path. Its prior runs remain historical/reference
-evidence and do not prove a current edge.
+Existing RSI, SPY Donchian, and MES ORB work remains historical fixture or
+infrastructure evidence, not an active profitability candidate. The bounded MES
+ORB path completed and rejected the candidate; no next candidate is selected.
 
 Decision 287 permits controlled, bounded, source-attributed candidate intake,
 discovery and research/backtesting under Milestone 25 safeguards before
@@ -68,8 +65,8 @@ R07 rendering and exact-reopen correction merged through PR #70 at
 `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after focused, portable
 real-browser, independent-review, and required-CI evidence passed. It is not
 deployed, target-validated, operator-accepted, full beta, or Milestone 23
-completion. Scalable multi-run analysis and remaining objective gates are not
-complete.
+completion. Decision 293's bounded Find & Compare implementation is merged;
+broader multi-run expansion and the remaining objective gates are deferred.
 
 Decision 283 requires safe caching for exact repeat research computations so
 repeats can reuse validated work instead of rebuilding everything. Each
@@ -81,7 +78,7 @@ explicit Reproduce policy are not yet selected or implemented.
 Decision 275 is implemented: this sanitized clean-history public repository is
 the canonical source of truth, and the original repository is retained as a
 private, read-only historical archive. The cutover did not modify the
-production runtime. Decision 276 keeps required checks and admin enforcement
+older private preview/runtime. Decision 276 keeps required checks and admin enforcement
 while disabling GitHub's strict/up-to-date requirement, so independent green
 pull requests can merge without refresh builds. Dependent or overlapping work
 still integrates serially and is retested. This repository operation does not
@@ -151,6 +148,12 @@ The planned future execution policy is:
 
 ## Portable deployment direction
 
+**Deferred:** portability and deployment procedures are retained for later use
+when Terry requests a persistent install, an actual runtime change is approved,
+Milestone 23 closure resumes, or a qualified candidate approaches paper. They
+are not current research work, and the project never deploys merely to prove it
+can deploy.
+
 Development uses the canonical public GitHub repository through its owned OVH
 checkout. The retired Windows/WSL clone is not authoritative. Before Alpaca
 paper execution, production services will be packaged with Docker and Docker
@@ -216,7 +219,8 @@ The database and SQLite sidecars are local state and are ignored by Git.
 
 ## Work allocation
 
-Codex is the active project toolchain. The lead coordinates bounded Codex
-workers, independently validates critical evidence, and completes repository
-operations; the owner is not expected to perform Git synchronization. See the
+Codex is the active project toolchain. The lead completes small routine work
+directly, delegates only for a clear net benefit, independently validates
+critical evidence, and completes repository operations; the owner is not
+expected to perform Git synchronization. See the
 [agent policy](docs/ai-programming-agent-policy.md) for the detailed procedure.

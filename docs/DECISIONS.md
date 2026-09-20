@@ -82,10 +82,9 @@ explicitly.
     serialize merely because an independent pull request merged first.
     Overlapping or dependent changes remain serialized and retested against
     the resulting `main`.
-22. Codex is the sole active project agent toolchain. During the scoped
-    revival, the Codex lead orchestrates multiple bounded workers,
-    independently validates critical evidence, and remains the sole owner-
-    facing coordinator.
+22. Codex is the sole active project agent toolchain. The Codex lead remains
+    the sole owner-facing coordinator, delegates only for a net time, cost, or
+    specialist benefit, and independently validates critical evidence.
 
 ## Current accepted sequence
 
@@ -762,3 +761,74 @@ explicitly.
      startup navigation changes. `README.md` is not applicable because public
      orientation is unchanged. No runbook or procedure applies because no
      operator, recovery, migration, runtime, paper, or live procedure changes.
+
+294. **Lean single-operator MVP proportionality and research-first sequencing
+     (accepted 2026-09-20).** Terry is Quant Factory's sole user and operator.
+     There is currently no external-user, order, capital, or active operating
+     dependency to protect. Older private previews may exist, but they are not
+     production dependencies. Work must therefore be proportionate to a
+     one-person research MVP and advance the shortest evidence-truthful path to
+     finding or rejecting an edge. Official documentation and established
+     product archetypes, existing Quant Factory code, licensed dependencies,
+     and mature compatible components are considered before custom work or an
+     unsupported assumption.
+
+     The active sequence is research first: inventory source-attributed
+     candidates, select the next named hypothesis for Terry's approval with
+     fixed evidence boundaries, and pass it through the existing research,
+     persistence, ranking, filtering, and inspection path. The MES ORB
+     candidate is concluded and rejected as an edge candidate; its preserved
+     runs remain infrastructure evidence. Find & Compare is merged and its
+     screenshot direction was accepted as good and intuitive, including the
+     standard labels merged through PR #77 at
+     `9495a36a45af2bfe1288ab7cba840a4eed8ef54e`; it is not deployed and does
+     not close Milestone 23. Deployment, portability, broad Milestone 23
+     closure, and paper-runtime work are dormant until a recorded trigger is
+     reached. This supersedes Decisions 259, 262, and 266 only where their
+     earlier sequencing treated parallel deployment, migration, or execution
+     preparation as active work. Their authority, safeguards, and activation
+     conditions remain retained for later use when a Decision 294 trigger is
+     reached. No candidate is selected by this decision.
+
+     This decision supersedes Decisions 270 and 290 only where they require
+     workers for every task. The lead may complete small routine bounded work
+     directly and delegates only when parallelism, lower cost, or specialist
+     skill provides a clear net benefit; duplicate drafts are prohibited.
+     Independent review is required for material evidence, data, ranking,
+     protected-data, migration, credential, deployment, order/capital, or
+     costly-to-reverse changes. Routine documentation, copy, and layout use
+     focused checks and lead diff review. The material-proposal adversary
+     remains required.
+
+     Validation is risk-tiered. Use focused tests for the changed path and one
+     focused browser check for affected UI. Broader browser lifecycle,
+     recovery, device, and target proof is deferred unless a concrete risk, an
+     actual runtime or deployment change, explicit milestone closure, a
+     qualified candidate approaching paper, or an owner request activates it.
+     Never deploy merely to prove deployment. After an actual authorized
+     deployment, retain focused target startup and changed-flow verification,
+     with backup and rollback where required. A milestone requires only its
+     stated evidence; target proof applies when that milestone changes or
+     deploys a target.
+
+     This proportionality does not weaken durable result integrity; the rule
+     that research cannot place orders; the distinction between fixtures or
+     inspected data and edge evidence; the prohibitions on open-ended mining,
+     protected-test inspection, automatic promotion, and unapproved parameter
+     changes; secret isolation; or any paper/live gate. Paper activation still
+     requires a qualified edge and the existing account, credential, endpoint,
+     worker, reconciliation, recovery, capacity, audit, and fail-closed gates.
+     Live protection and separate owner approval remain unchanged.
+
+     Documentation-impact assessment: `AGENTS.md`, `docs/MILESTONES.md`, the
+     agent policy, implementation-preflight skill, dashboard product
+     requirements, `docs/QUANT_FACTORY_DASHBOARD_UI_DIRECTION.md`, Milestone 23
+     acceptance record, infrastructure inventory, `README.md`, ADR 0007, and
+     the research-deployment, paper-worker, and credential-gateway runbooks are
+     updated. This decision log is appended.
+     `docs/CHAT_HANDOFF.md` is not applicable because it already routes startup
+     to Tier 1 and no navigation change is needed. CI and migration documents
+     are not applicable because enforcement and migration procedure are
+     unchanged. No new ADR is needed because product architecture is
+     unchanged; ADR 0007 receives only a sequencing banner. `CLAUDE.md` and
+     `.claude/**` remain untouched by owner direction.

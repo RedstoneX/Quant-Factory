@@ -10,9 +10,10 @@ current status. Tier 1 remains authoritative.
 
 The owner controls mandate, priority, milestone acceptance, deployment,
 paper/live authority, and capital. The Codex lead is the sole owner-facing
-coordinator. It defines slices, delegates when proportionate, validates
-critical evidence independently, integrates reviewed work, and keeps the
-owner informed in plain language.
+coordinator. It defines slices, may complete small routine bounded work
+directly, delegates only when proportionate, validates critical evidence
+independently, integrates reviewed work, and keeps the owner informed in plain
+language.
 
 Workers receive no project ownership. They do not contact the owner, expand
 scope, spawn descendants, or treat unverified findings as decisions. A worker
@@ -21,10 +22,10 @@ or decisive validation cannot be completed.
 
 ## Bounded delegation
 
-Decision 270 requires bounded workers for task execution during the scoped
-revival: the lead orchestrates and validates rather than implementing inline.
-Parallelize independent work that materially shortens the critical path; do
-not create duplicate implementation drafts. Match worker and review effort to
+Decision 294 supersedes Decisions 270 and 290 only where they require workers
+for every task. Delegate when parallelism, lower cost, or specialist skill
+creates a clear net benefit. Do not delegate routine work merely to satisfy a
+process, and do not create duplicate drafts. Match worker and review effort to
 the cost and risk of the slice.
 
 Every worker prompt states:
@@ -43,11 +44,14 @@ rather than accepting a worker summary at face value.
 
 ## Preflight and adversary
 
-Before executable, runtime, configuration, schema, dependency, dashboard, or
-material scope changes, apply
+Before material executable, runtime, configuration, schema, dependency,
+dashboard-behavior, or scope changes, apply
 `.agents/skills/implementation-preflight/SKILL.md`. The result bounds the
 smallest change, reuse, exclusions, stop conditions, validation, and
 documentation impact before implementation starts.
+
+Routine factual documentation, copy, and presentation corrections use a short
+scope-and-reuse check instead of the full preflight.
 
 Before a material proposal or closure claim, apply
 `.agents/skills/quant-factory-adversary/SKILL.md`. Material triggers include
@@ -70,14 +74,18 @@ unrelated work. Use dedicated branches and pull requests; never push directly
 to `main`, force-push, blanket-stage the tree, use destructive Git, or weaken a
 test or acceptance criterion to obtain a pass.
 
-Run the narrowest decisive checks first. Broaden validation only for a
-specific remaining risk. Expensive backtests are not repeated when inputs and
-relevant implementation are unchanged.
+Run focused tests for the changed path and one focused browser check for an
+affected UI. Broaden to browser lifecycle, recovery, device, or target proof
+only for a concrete remaining risk, an actual runtime/deployment change,
+explicit milestone closure, a qualified candidate approaching paper, or an
+owner request. Expensive backtests are not repeated when inputs and relevant
+implementation are unchanged.
 
-Use an independent reviewer for material executable changes, security or
-trading controls, migrations, production deployment, or other work where an
-uncaught error has meaningful cost. Keep review bounded to the owned diff,
-scope compliance, load-bearing evidence, and decisive checks. Review is not a
+Use an independent reviewer for material changes to evidence, data, ranking,
+protected-data boundaries, migrations, credentials, deployment, orders or
+capital, and for costly-to-reverse work. Routine documentation, copy, and
+layout use focused checks and the lead's exact-diff review. Review is bounded
+to scope compliance, load-bearing evidence, and decisive checks; it is not a
 second implementation or an open-ended audit.
 
 The lead resolves review findings, confirms required checks, and integrates
@@ -94,9 +102,10 @@ claim behind a proposal or completion report independently.
 
 CI execution is not merge enforcement and neither is target-environment
 proof. Required enforcement needs a controlled failing check that blocks
-merge followed by a restored green path. Environment-input changes require
-separate loading, startup, and behavior proof on the authorized target. Do not
-place orders or expose secrets during validation.
+merge followed by a restored green path. After an actual authorized deployment
+or target environment-input change, prove startup and the changed flow on that
+target. Never deploy merely to prove deployment. Do not place orders or expose
+secrets during validation.
 
 ## Safety and integration
 

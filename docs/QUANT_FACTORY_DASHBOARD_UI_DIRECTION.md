@@ -1,9 +1,15 @@
 # Quant Factory Dashboard UI Direction
 
-- **Status:** Accepted 23C-1 selected-run Results and non-Results specification;
-  scalable multi-run analysis design pending under Decision 282
+- **Status:** Accepted selected-run specification; bounded Decision 293 Find &
+  Compare design and implementation merged; broader expansion and full
+  Milestone 23 evidence deferred
 - **Owner direction accepted:** 2026-09-18
 - **Objective implementation and browser evidence:** Pending
+
+> **Current sequencing (Decision 294):** This retained specification is not the
+> active work queue. Focused checks protect changed UI paths now; broader
+> expansion and the full Milestone 23 browser, lifecycle, device, and target
+> matrix remain deferred until a recorded trigger resumes them.
 
 ## Purpose and authority
 
@@ -21,9 +27,10 @@ The approved research flow is:
 The owner-authorized bounded 23C implementation follows this specification.
 Decision 279 supersedes Decision 277's acceptance for the former Results page;
 Decisions 280–281 establish the chart-first direction and validated preview
-constraints; and Decision 282 approves the detailed selected-run Results
-specification and authorizes implementation. The separate scalable multi-run
-analysis requirement still needs a bounded design. This document does not
+constraints; Decision 282 approves the detailed selected-run Results
+specification; and Decision 293 approves the bounded Find & Compare design,
+whose thin implementation is merged. Broader multi-run expansion remains
+deferred. This document does not
 record Milestone 23 completion or waive
 implementation, deployment, browser, workflow, failure-handling, testing,
 licensed-target proof, renewed operator acceptance, or documentation evidence.
@@ -359,10 +366,10 @@ Decision 282 separately requires a scalable multi-run analysis surface for
 hundreds or thousands of persisted runs. It must aggregate, slice, rank, filter
 and select by maximum drawdown, total return, profitable-trade measures and
 other useful evidence dimensions. A single selection opens Results; multiple
-selections can feed Compare. This accepted requirement does not preselect a
-route name, table or chart design, information architecture, storage/query
-architecture, or implementation component. Those details require a bounded
-design before implementation.
+selections can feed Compare. Decision 293 approves the bounded Find & Compare
+design on the existing route, and its thin implementation is merged. Broader
+information architecture, storage/query changes, charts, or feature expansion
+remain deferred and require a new bounded owner review.
 
 States:
 
@@ -534,15 +541,13 @@ launch/results page into the defined workflow. Reuse existing component IDs
 where their meaning still matches; do not keep misleading names through hidden
 aliases or test-only presentation.
 
-23C-2 is complete only when focused and relevant full tests pass and all route
-containers/callback ownership comply with ADR 0008. 23C-3 additionally requires
-real-browser proof for every registered route at desktop, tablet and mobile
-sizes, the complete operator workflow and failure behavior, and renewed owner
-acceptance of the implemented replacement Results experience. Decision 282
-completes selected-run specification approval only: implementation, deployment,
-tests, licensed-target proof and renewed operator acceptance remain pending.
-The separately required scalable multi-run surface still needs a bounded
-design before implementation.
+The bounded Find & Compare implementation and focused browser evidence are
+merged. Full 23C-2/23C-3 evidence remains an eventual Milestone 23 gate:
+registered-route proof at desktop, tablet and mobile sizes, the complete
+operator workflow and failure behavior, target proof when applicable, and
+renewed owner acceptance. Under Decision 294 that full matrix is deferred until
+the gate is explicitly resumed; deployment is never performed merely to prove
+deployment. Broader multi-run expansion also remains deferred.
 
 ## Explicit exclusions
 

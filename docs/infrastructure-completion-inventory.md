@@ -2,19 +2,27 @@
 
 ## Purpose
 
-This document preserves the research-factory requirements and historical gap inventory. [MILESTONES](MILESTONES.md) is the authority for current status and active work. The baseline-state and planned-work columns below predate later implementation: they are historical context, not current defect findings or a second queue. Verify code and current acceptance evidence before reopening a listed gap. RSI and SPY Donchian remain deterministic infrastructure fixtures and historical evidence, not active profitability candidates. Decision 288 selects the existing MES ORB specification for the first controlled candidate path; its prior runs remain historical fixture evidence and do not establish profitability.
+This document is a retained eventual infrastructure inventory, not the active
+queue. [MILESTONES](MILESTONES.md) is authoritative for current work. The
+baseline-state and planned-work columns predate later implementation and must
+not reopen work without a current trigger. RSI and SPY Donchian remain
+fixtures. The MES ORB candidate is concluded and rejected as an edge candidate;
+its preserved runs remain infrastructure evidence, not profitability proof.
 
 The normal operator experience must occur through the dashboard. Python modules, terminal commands, CSV files, JSON artifacts, and backend logs are implementation details rather than the primary product interface.
 
 ## Work-allocation rule
 
-Codex is the active project toolchain. The Codex lead plans and integrates
-work, delegates bounded tasks to Codex workers when useful, and independently
-checks critical evidence. The owner makes mandate, acceptance, deployment, and
-capital decisions. Detailed allocation is defined in the [agent
-policy](ai-programming-agent-policy.md).
+Codex is the active project toolchain. The lead completes small routine work
+directly and delegates only for a clear time, cost, or specialist benefit while
+independently checking critical evidence. The owner makes mandate, acceptance,
+deployment, and capital decisions. Detailed allocation is defined in the
+[agent policy](ai-programming-agent-policy.md).
 
 ## V1 completion inventory
+
+The table below is retained for eventual pre-paper/product acceptance. It is
+not a list of tasks to execute now.
 
 | Component | Historical baseline state | Planned requirement (verify current evidence) | Classification | Dependencies | Acceptance test | Dashboard exposure | Owner/tool |
 |---|---|---|---|---|---|---|---|

@@ -1,5 +1,13 @@
 # Milestone 23 Acceptance
 
+> **Current sequencing (Decision 294):** This is the retained eventual
+> pre-paper product-acceptance catalog, not the current work queue. Use focused
+> checks for changed paths now. Resume the full browser/lifecycle, recovery,
+> device, and target matrix only for a concrete blocker, an actual
+> deployment/runtime change, explicit Milestone 23 closure, a qualified
+> candidate approaching paper, or an owner request. Never deploy merely to
+> prove deployment.
+
 Milestone 23 proves the complete equity research workflow before any strategy
 can advance toward paper activation. Decision 287 narrowly permits controlled,
 bounded research for an owner-approved, source-attributed hypothesis with
@@ -17,7 +25,8 @@ after the synthetic responsiveness/data-path check. The bounded design is
 approved and the implementation/testing evidence merged through PR #74 at
 `5db5784cea925f4484f06eb78de9aea5b8e4acf2`; deployment, target validation,
 final owner acceptance, and the remaining objective evidence are still
-required. Any future expansion beyond this accepted surface requires new owner
+required when this gate is explicitly resumed. They are not active follow-up
+work. Any future expansion beyond this accepted surface requires new owner
 review and is outside this criterion.
 
 Decision 291 authorizes only the verified R07 selected-run inspection blocker
@@ -132,9 +141,12 @@ research-computation behavior is not misrepresented as a completed cache.
   horizontal overflow at 1440px.
 - Profit Factor is not persisted and was intentionally not invented; later
   engine-level consideration is not a current blocker.
+- Standard trader-facing labels merged through PR #77 at
+  `9495a36a45af2bfe1288ab7cba840a4eed8ef54e`. The owner reviewed the image as
+  good and intuitive.
 - Deployment, target validation, final owner acceptance, and beta completion
-  remain pending. The screenshot direction was owner-reviewed as
-  good/intuitive, but that is not final implementation acceptance.
+  remain pending but dormant until Decision 294's trigger occurs. The image
+  review does not establish the full workflow or Milestone 23 acceptance.
 
 ## Target-evidence audit — 2026-09-18
 
@@ -170,11 +182,11 @@ the unchecked criteria above.
   when run in a licensed environment; the browser suite adds the required
   real-browser evidence. Neither was rerun during this read-only audit.
 
-The smallest future target proof is to wait for the applicable workflow pull
-requests to merge, freeze the resulting public revision, and build a disposable
-OVH candidate/test runner from that revision using the existing authorized
-private VectorBT Pro build input. Mount the hash-matched SPYM data read-only and
-use fresh isolated state. First run
+If an actual deployment, explicit Milestone 23 closure, or owner request later
+activates target proof, the retained procedure is to freeze the applicable
+public revision and build a disposable OVH candidate/test runner using the
+existing authorized private VectorBT Pro build input. Mount the hash-matched
+SPYM data read-only and use fresh isolated state. First run
 `tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage`
 and
 `tests/test_milestone23_acceptance.py::test_milestone23_successful_spym_workflow_compare_reproduce_and_review`.

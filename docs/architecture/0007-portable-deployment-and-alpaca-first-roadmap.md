@@ -9,6 +9,13 @@
   Alpaca-first execution, VPS topology, isolation, and Sentinel networking remain
   authoritative.
 
+> **Current sequencing (Decision 294):** This architecture is retained for
+> later activation, not current work. Portability, deployment, and paper
+> runtime resume only when their Milestone trigger occurs or the owner requests
+> them. Never deploy merely to prove deployment; when an actual deployment is
+> authorized, the backup, rollback, startup, and changed-flow checks below
+> remain authoritative.
+
 ## Context
 
 Quant Factory’s business objective is to prove that the platform can discover or intake defensible strategy hypotheses, reject weak candidates, preserve uncontaminated evidence, paper trade surviving strategies reliably, reconcile model and broker behavior, and eventually deploy tightly bounded capital under independent risk controls.
@@ -20,6 +27,11 @@ The project also needs to move cleanly between the current Windows/WSL developme
 ## Decision
 
 ### 1. Finish the research factory before execution expansion
+
+**Historical sequencing:** Decision 294 supersedes the following active-path
+and parallel-preparation timing. Decisions 259, 262, and 266 retain their
+authority and safeguards for later activation, but this work is dormant until
+a Decision 294 trigger is reached.
 
 Milestones 22 and 23 remain the active acceptance path. Under Decision 259,
 research-only Docker/Compose packaging, migration preparation, isolated OVH
@@ -85,6 +97,11 @@ Venue-specific SDK objects remain inside venue adapters or execution workers.
 ### 6. Use portable containerized deployments
 
 Production and execution services will be packaged as portable containers. Docker Compose is the initial deployment mechanism; a more complex orchestrator is not required unless operating evidence justifies it.
+
+**Historical sequencing annotation:** Decision 294 makes the parallel
+packaging, target-validation, and migration timing below dormant. The
+architecture and Decisions 259, 262, and 266 conditions remain retained for
+later activation.
 
 **Current-state annotation (2026-09-20):** Decision 275's canonical public
 repository and its registered owned OVH checkout supersede only the historical
@@ -194,6 +211,11 @@ MAC-address locking is not an acceptable trust boundary between cloud hosts. The
 Loss of Sentinel communication blocks new entries according to policy. Position flattening occurs only under a predeclared emergency rule, not as an unconditional response to every network interruption.
 
 ### 10. Roadmap after Milestone 23
+
+**Historical sequencing:** Decision 294 supersedes the active/parallel timing
+below. Research-candidate selection is current; deployment, migration,
+portability, and paper-runtime preparation are dormant until their recorded
+trigger occurs.
 
 Decision 274 supersedes this ADR's earlier post-M23 work ordering. Dashboard
 and operator acceptance is priority 1. After M23, controlled strategy intake
