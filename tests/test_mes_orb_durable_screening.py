@@ -28,7 +28,12 @@ from backtesting.run_mes_orb_durable import (
 from backtesting.screening import ScreeningResult
 from backtesting.validation import ValidationResult
 from dashboard.callbacks.review_state import load_durable_review
-from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from dashboard.application import _run_detail_panel
+from dashboard.run_detail_adapter import (
+    RunDetailDashboardAdapter,
+    _calendar_cagr,
+    _screening_outcome_fields,
+)
 from market_data import DataAudit
 from orchestration import FixtureRunService
 from persistence import (
@@ -308,6 +313,31 @@ def test_predeclared_plans_and_legacy_roll_metadata_are_exact() -> None:
     assert "unresolved" not in _config("longonly").execution.__repr__()
 
 
+def test_screening_protected_data_state_requires_explicit_false() -> None:
+    base = {
+        "stage": "screening",
+        "screening": {
+            "evaluated_combinations": 1,
+            "passed": 0,
+            "screened_out": 1,
+        },
+        "promotion_blockers": ["No independent evidence."],
+    }
+
+    explicit = _screening_outcome_fields({**base, "protected_data_used": False})
+    absent = _screening_outcome_fields(base)
+    malformed = _screening_outcome_fields({**base, "protected_data_used": "false"})
+
+    assert {field.label: field.value for field in explicit}["Protected-data state"] == (
+        "Not used; development/reference evidence only"
+    )
+    for fields in (absent, malformed):
+        values = {field.label: field.value for field in fields}
+        assert "Not established" in values["Protected-data state"]
+        assert values["Lockbox eligibility"] == "No"
+        assert values["Strategy progression"] == "No strategy progression occurred."
+
+
 def test_command_defaults_to_reference_and_requires_explicit_matrix_choice(
     monkeypatch,
 ) -> None:
@@ -392,6 +422,7 @@ def test_durable_pair_persists_ranked_evidence_and_opens_in_existing_results(
         assert all(row["breakout_offset_ticks"] == 2 for row in captured)
 
     service = PersistenceService(database)
+    saved_metrics_by_run: dict[str, dict[str, Any]] = {}
     try:
         for prepared in outcome.runs:
             run = service.runs.get(prepared.run_id)
@@ -402,6 +433,7 @@ def test_durable_pair_persists_ranked_evidence_and_opens_in_existing_results(
             assert strategy is not None
             assert strategy.lifecycle == StrategyLifecycle.CANDIDATE
             rows = service.results.list_parameter_results(run.run_id)
+            saved_metrics_by_run[run.run_id] = json.loads(rows[0].metrics_json)
             assert len(rows) == expected_rows
             assert [row.ranking_position for row in rows] == list(
                 range(1, expected_rows + 1)
@@ -493,9 +525,89 @@ def test_durable_pair_persists_ranked_evidence_and_opens_in_existing_results(
         artifact_root=tmp_path,
     ).selected_run_detail(f"{plan}-long")
     assert detail.result_summary.status == "available"
+    assert len(detail.result_summary.table_rows) == expected_rows
+    assert "deterministic fixture" not in detail.result_summary.message.lower()
+    assert "development/reference evidence only" in detail.result_summary.message
     assert detail.evidence.metrics
     assert detail.evidence.trades
+    assert detail.evidence.price_series
+    assert detail.evidence.source_interval == "5m"
+    assert detail.evidence.price_unit == "index_points"
+    assert detail.evidence.pnl_unit == "USD"
+    assert detail.evidence.promotion_eligible is False
+    assert detail.evidence.evidence_classification is not None
+    assert any("Evidence classification" in notice for notice in detail.evidence.notices)
+    assert any("Promotion blocked" in notice for notice in detail.evidence.notices)
+    assert any("basis were not persisted" in notice for notice in detail.evidence.notices)
+    assert any(
+        "not the engine annualization or a new screening metric" in notice
+        for notice in detail.evidence.notices
+    )
+    assert {
+        field.label: field.value for field in detail.evidence.validation_outcome
+    }["Protected-data state"] == "Not used; development/reference evidence only"
+    assert "Annualized return (recorded engine output)" in {
+        field.label for field in detail.evidence.metrics
+    }
+    metric_values = {field.label: field.value for field in detail.evidence.metrics}
+    assert metric_values["Annualized return (recorded engine output)"] == (
+        f"{saved_metrics_by_run[f'{plan}-long']['annualized_return']:.2%}"
+    )
+    assert "Calendar CAGR (derived from recorded coverage)" in metric_values
     assert not any("integrity" in warning.lower() for warning in detail.warnings)
+    selected_run = next(
+        run
+        for run in FixtureRunService(database=database).recent_runs(limit=10)
+        if run.run_id == f"{plan}-long"
+    )
+    rendered = str(_run_detail_panel(selected_run, detail=detail))
+    assert "Development/reference only" in rendered
+    assert "Promotion is blocked" in rendered
+    assert "Open exact saved-run link" in rendered
+    assert f"run_id={plan}-long" in rendered
+    assert "Recorded MES assumptions" in rendered
+    assert "MES contract(s)" in rendered
+    assert "$5.0 per MES index point" in rendered
+    assert "$0.62 per contract per side" in rendered
+    assert "engine outputs under these persisted backtest costs" in rendered
+    assert "Fixture-only" not in rendered
+    assert "Research fixture" not in rendered
+
+
+def test_calendar_cagr_uses_only_recorded_return_and_coverage() -> None:
+    expected = pytest.approx(0.007823193067260314)
+    assert _calendar_cagr(
+        0.0542477,
+        "2019-05-05T22:00:00+00:00..2026-02-13T21:55:00+00:00",
+    ) == expected
+    assert _calendar_cagr(
+        0.0542477,
+        "2019-05-05T22:00:00+00:00/2026-02-13T21:55:00+00:00",
+    ) == expected
+
+
+@pytest.mark.parametrize(
+    ("total_return", "actual_coverage"),
+    [
+        (-1.0, "2020-01-01..2021-01-01"),
+        (float("nan"), "2020-01-01..2021-01-01"),
+        (True, "2020-01-01..2021-01-01"),
+        (
+            1e308,
+            "2020-01-01T00:00:00+00:00..2020-01-01T00:00:01+00:00",
+        ),
+        (0.05, None),
+        (0.05, "not-recorded"),
+        (0.05, "2021-01-01..2020-01-01"),
+        (0.05, "2020-01-01..2020-01-01"),
+        (0.05, "2020-01-01T00:00:00+00:00..2021-01-01"),
+    ],
+)
+def test_calendar_cagr_fails_closed_for_invalid_persisted_inputs(
+    total_return: object,
+    actual_coverage: object,
+) -> None:
+    assert _calendar_cagr(total_return, actual_coverage) is None
 
 
 def test_second_direction_failure_is_terminal_without_retry_and_keeps_first_success(

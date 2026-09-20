@@ -217,11 +217,11 @@ def trade_column_definitions() -> list[dict[str, Any]]:
             "cellClass": time_cell,
             "headerClass": header,
         },
-        _number_column("Entry price", "$"),
-        _number_column("Exit/valuation price", "$"),
+        _number_column("Entry price", "price"),
+        _number_column("Exit/valuation price", "price"),
         _number_column("Size", "quantity"),
-        _number_column("Fees", "$"),
-        _number_column("P&L", "$"),
+        _number_column("Fees", "money"),
+        _number_column("P&L", "money"),
         _number_column("Return", "%"),
     ]
 
@@ -230,6 +230,8 @@ def normalize_trade_rows(
     trades: tuple[dict[str, Any], ...],
     *,
     run_id: str | None,
+    price_unit: str = "currency",
+    pnl_unit: str = "USD",
 ) -> tuple[dict[str, Any], ...]:
     """Normalize VectorBT Pro readable trade rows into operator-facing rows."""
 
@@ -264,6 +266,8 @@ def normalize_trade_rows(
                 "__trade_index": index,
                 "__basis_date": basis_date,
                 "__date_status": date_status,
+                "__price_unit": price_unit,
+                "__pnl_unit": pnl_unit,
                 "Trade": f"Trade {index}",
                 "Outcome": _outcome(pnl, status),
                 "Status": status,
@@ -369,18 +373,33 @@ def selected_trade_detail(
         DetailField("Status", _display(row.get("Status"))),
         DetailField("Direction", _display(row.get("Direction"))),
         DetailField("Entry timestamp", _display(row.get("Entry timestamp"))),
-        DetailField("Entry price", _money(row.get("Entry price"))),
+        DetailField(
+            "Entry price",
+            _price(
+                row.get("Entry price"),
+                unit=str(row.get("__price_unit") or "currency"),
+            ),
+        ),
         DetailField(
             _exit_label(row, "timestamp"),
             _display(row.get("Exit/valuation timestamp")),
         ),
         DetailField(
             _exit_label(row, "price"),
-            _money(row.get("Exit/valuation price")),
+            _price(
+                row.get("Exit/valuation price"),
+                unit=str(row.get("__price_unit") or "currency"),
+            ),
         ),
         DetailField("Size", _quantity(row.get("Size"))),
-        DetailField("Fees", _money(row.get("Fees"))),
-        DetailField("P&L", _money(row.get("P&L"))),
+        DetailField(
+            "Fees",
+            _money_unit(row.get("Fees"), unit=str(row.get("__pnl_unit") or "not_recorded")),
+        ),
+        DetailField(
+            "P&L",
+            _money_unit(row.get("P&L"), unit=str(row.get("__pnl_unit") or "not_recorded")),
+        ),
         DetailField("Return", _percent(row.get("Return"))),
     )
     assumption_map = {field.label: field.value for field in execution_fields}
@@ -427,6 +446,22 @@ def _number_column(field: str, formatter: str) -> dict[str, Any]:
     function = "params.value == null ? 'Not recorded' : Number(params.value).toFixed(2)"
     if formatter == "$":
         function = "params.value == null ? 'Not recorded' : '$' + Number(params.value).toFixed(2)"
+    elif formatter == "money":
+        function = (
+            "params.value == null ? 'Not recorded' : "
+            "(params.data && params.data.__pnl_unit === 'USD' ? "
+            "'$' + Number(params.value).toFixed(2) : "
+            "Number(params.value).toFixed(2) + ' (unit not recorded)')"
+        )
+    elif formatter == "price":
+        function = (
+            "params.value == null ? 'Not recorded' : "
+            "(params.data && params.data.__price_unit === 'index_points' ? "
+            "Number(params.value).toFixed(2) + ' index points' : "
+            "(params.data && params.data.__price_unit === 'currency' ? "
+            "'$' + Number(params.value).toFixed(2) : "
+            "Number(params.value).toFixed(2) + ' (unit not recorded)'))"
+        )
     elif formatter == "%":
         function = (
             "params.value == null ? 'Not recorded' : "
@@ -474,6 +509,26 @@ def _number(value: Any) -> float | None:
     except (TypeError, ValueError):
         return None
     return parsed if isfinite(parsed) else None
+
+
+def _price(value: Any, *, unit: str) -> str:
+    number = _number(value)
+    if number is None:
+        return MISSING
+    if unit == "index_points":
+        return f"{number:,.2f} index points"
+    if unit == "currency":
+        return f"${number:,.2f}"
+    return f"{number:,.2f} (unit not recorded)"
+
+
+def _money_unit(value: Any, *, unit: str) -> str:
+    number = _number(value)
+    if number is None:
+        return MISSING
+    if unit == "USD":
+        return f"${number:,.2f}"
+    return f"{number:,.2f} (unit not recorded)"
 
 
 def _fees(row: dict[str, Any]) -> float | None:

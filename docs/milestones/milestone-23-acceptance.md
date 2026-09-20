@@ -16,6 +16,14 @@ design is still pending. Implementation, deployment, testing, licensed-target
 proof, renewed owner acceptance of the eventual implemented experience, and the
 remaining objective evidence are still required.
 
+Decision 291 authorizes only the verified R07 selected-run inspection blocker
+correction and supersedes Decision 287's good-enough/frozen treatment only for
+that defect. The correction reuses the existing application and must fail
+closed for missing interval, unit and protected-data facts. Its focused and
+synthetic real-browser evidence does not establish licensed-target proof,
+deployment, the scalable multi-run surface, complete beta, Milestone 23 closure,
+or renewed owner acceptance.
+
 Decision 283 separately requires safe caching for exact repeat research
 computations while preserving distinct durable run tickets and preventing
 cache reuse from masquerading as independent evidence. Its architecture,
@@ -53,6 +61,9 @@ research-computation behavior is not misrepresented as a completed cache.
       is explicitly approved under Decision 282.
 - [ ] The approved selected-run Results specification is implemented within
       ADR 0008.
+      A bounded Decision 291 slice now implements truthful R07 five-minute
+      rendering, linked MES trades, complete ranked rejection rows, evidence
+      limits and an exact-run reopen link; the full criterion remains open.
 - [ ] A bounded design is reviewed for the required scalable multi-run
       aggregation, slicing, ranking, filtering and selection surface; one run
       opens in Results and multiple selected runs can feed Compare.
@@ -77,6 +88,22 @@ research-computation behavior is not misrepresented as a completed cache.
       evidence is available.
 - [ ] The Milestone 23 gate result is recorded after every remaining objective
       criterion passes or fails.
+
+### Decision 291 bounded Results evidence — 2026-09-20
+
+- Focused portable tests cover native/coarser interval handling, fail-closed
+  unknown interval and protected-data state, MES index-point versus USD units,
+  all ranked rows and rejection reasons, distinct recorded engine annualization
+  and coverage-derived calendar CAGR, exact saved-run links and stale trade
+  isolation.
+- The existing real-browser Results acceptance fixture was reshaped to a
+  disposable synthetic R07-like screening run. It proves normal history
+  selection, exact-link open, refresh and back/forward identity, native 5-minute
+  charting, linked trades, ranked rejection evidence, responsive layout and
+  clean browser diagnostics for this source revision.
+- This is portable synthetic browser evidence. It is not licensed-target,
+  deployed-production, preserved-private-artifact, renewed operator-acceptance,
+  complete-workflow or Milestone 23 gate evidence.
 
 ## Target-evidence audit — 2026-09-18
 

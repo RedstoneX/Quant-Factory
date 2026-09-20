@@ -21,6 +21,7 @@ from dashboard.components.trade_explorer import (
     layout as trade_explorer_layout,
     normalize_trade_rows,
     selected_trade_detail,
+    trade_column_definitions,
 )
 from dashboard.run_detail_adapter import (
     DetailField,
@@ -96,7 +97,11 @@ def _audit(data: pd.DataFrame) -> DataAudit:
     )
 
 
-def _detail(trades: tuple[dict[str, Any], ...] = ()) -> SelectedRunDetailView:
+def _detail(
+    trades: tuple[dict[str, Any], ...] = (),
+    *,
+    price_unit: str = "currency",
+) -> SelectedRunDetailView:
     return SelectedRunDetailView(
         configuration_fields=(),
         parameters=(),
@@ -130,6 +135,9 @@ def _detail(trades: tuple[dict[str, Any], ...] = ()) -> SelectedRunDetailView:
             validation=(),
             provenance=(),
             warnings=(),
+            source_interval="1m",
+            price_unit=price_unit,
+            pnl_unit="USD",
         ),
         warnings=(),
     )
@@ -434,9 +442,20 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
         {
             "run-a": _detail(
                 (
+                    {
+                        "Entry Index": "2026-01-03T14:30:00Z",
+                        "Avg Entry Price": 6000,
+                        "Exit Index": "2026-01-03T15:00:00Z",
+                        "Avg Exit Price": 6005,
+                        "Direction": "Short",
+                        "PnL": -1,
+                        "Entry Fees": 0.62,
+                        "Exit Fees": 0.62,
+                        "Status": "Closed",
+                    },
                     {"Exit Index": "2026-01-02T15:00:00Z", "Direction": "Long", "PnL": 5, "Status": "Closed"},
-                    {"Exit Index": "2026-01-03T15:00:00Z", "Direction": "Short", "PnL": -1, "Status": "Closed"},
-                )
+                ),
+                price_unit="index_points",
             ),
             "run-b": _detail(
                 ({"Exit Index": "2026-02-02T15:00:00Z", "Direction": "Long", "PnL": 1},)
@@ -464,6 +483,7 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
     assert len(rows) == 1
     assert rows[0]["Outcome"] == "Loss"
     assert rows[0]["Direction"] == "Short"
+    assert rows[0]["__price_unit"] == "index_points"
     assert "Showing 1 of 2" in summary
     assert selected == []
 
@@ -481,3 +501,41 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
 
     with pytest.raises(PreventUpdate):
         refresh_rows("run-a", [], [], None, None, 0, "/")
+
+
+def test_mes_trade_prices_are_points_while_fees_and_pnl_remain_dollars() -> None:
+    row = normalize_trade_rows(
+        (
+            {
+                "Status": "Closed",
+                "Entry Index": "2026-01-03T14:30:00Z",
+                "Exit Index": "2026-01-03T15:00:00Z",
+                "Avg Entry Price": 6000.25,
+                "Avg Exit Price": 6005.5,
+                "Entry Fees": 0.62,
+                "Exit Fees": 0.62,
+                "PnL": 24.38,
+            },
+        ),
+        run_id="mes-screening",
+        price_unit="index_points",
+    )[0]
+    detail = selected_trade_detail(
+        [row],
+        run_id="mes-screening",
+        execution_fields=(),
+    )
+    rendered = _component_text(detail)
+    price_columns = {
+        column["field"]: column["valueFormatter"]["function"]
+        for column in trade_column_definitions()
+        if column.get("field") in {"Entry price", "Exit/valuation price", "Fees", "P&L"}
+    }
+
+    assert "6,000.25 index points" in rendered
+    assert "6,005.50 index points" in rendered
+    assert "$1.24" in rendered
+    assert "$24.38" in rendered
+    assert "index_points" in price_columns["Entry price"]
+    assert "'$'" in price_columns["Fees"]
+    assert "'$'" in price_columns["P&L"]

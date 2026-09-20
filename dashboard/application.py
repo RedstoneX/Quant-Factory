@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 import sys
 from typing import Any
+from urllib.parse import urlencode
 
 import dash_ag_grid as dag
 import pandas as pd
@@ -1028,6 +1029,39 @@ def _results_operator_context(
     )
 
 
+def _mes_assumption_summary(detail: SelectedRunDetailView | None) -> Any | None:
+    """Present only the MES contract facts persisted with the selected run."""
+
+    if detail is None or _evidence_instrument(detail).upper() != "MES":
+        return None
+    order_size = _detail_field_value(detail.execution, "Order Size")
+    multiplier = _detail_field_value(detail.execution, "Price Multiplier")
+    fixed_fee = _detail_field_value(
+        detail.execution,
+        "Fixed Fee Per Contract Per Side",
+    )
+    slippage_ticks = _detail_field_value(detail.execution, "Slippage Ticks")
+    facts: list[str] = []
+    if order_size is not None:
+        facts.append(f"Position size: {order_size} MES contract(s).")
+    if multiplier is not None:
+        facts.append(f"Point value: ${multiplier} per MES index point.")
+    if fixed_fee is not None:
+        facts.append(f"Fixed fee: ${fixed_fee} per contract per side.")
+    if slippage_ticks is not None:
+        facts.append(f"Adverse slippage: {slippage_ticks} MES tick(s) per side.")
+    if not facts:
+        return None
+    if fixed_fee is not None or slippage_ticks is not None:
+        facts.append(
+            "Recorded returns and trade P&L are engine outputs under these persisted backtest costs; they are not broker fills."
+        )
+    return html.Div(
+        [html.Strong("Recorded MES assumptions"), html.Ul([html.Li(fact) for fact in facts])],
+        className="fixture-disclaimer fixture-disclaimer-evidence",
+    )
+
+
 def _display_or_dash(value: str | None) -> str:
     if value in (None, "", "Not recorded", "Not available", "Not started", "Not completed"):
         return "—"
@@ -1094,7 +1128,14 @@ def _run_identity_strip(
         DetailField("Validation result", _display_or_dash(_validation_outcome_value(detail))),
     )
     metadata_fields = (
-        DetailField("Experiment", "Research fixture"),
+        DetailField(
+            "Experiment",
+            (
+                "Infrastructure fixture"
+                if run.stage == "fixture"
+                else run.stage.replace("_", " ").title()
+            ),
+        ),
         DetailField("Configuration", _display_or_dash(run.configuration_id[:12])),
         DetailField("Strategy version", _display_or_dash(run.strategy_version)),
         DetailField("Initial capital", _display_or_dash(initial_capital)),
@@ -1111,7 +1152,17 @@ def _run_identity_strip(
         [
             html.Div(
                 [
-                    html.Span("Fixture-only", className="fixture-chip"),
+                    html.Span(
+                        (
+                            "Fixture-only"
+                            if run.stage == "fixture"
+                            else "Development/reference only"
+                            if detail is not None
+                            and detail.evidence.evidence_classification
+                            else run.stage.replace("_", " ").title()
+                        ),
+                        className="fixture-chip",
+                    ),
                     *[
                         html.Div(
                             [
@@ -1158,7 +1209,13 @@ def _run_identity_strip(
 
 def _outcome_badge(outcome: str, status: str) -> html.Div:
     normalized = outcome.lower().replace("_", "-").replace(" ", "-")
-    if normalized not in {"passed", "failed", "invalid", "insufficient-evidence"}:
+    if normalized not in {
+        "passed",
+        "failed",
+        "invalid",
+        "insufficient-evidence",
+        "screened-out",
+    }:
         normalized = status.lower().replace("_", "-")
     return html.Div(
         [
@@ -1576,6 +1633,34 @@ def _artifact_inventory(artifacts: tuple[ArtifactInventoryView, ...]) -> Any:
 def _result_summary(summary: ResultSummaryView) -> Any:
     if not summary.rows:
         return html.P(summary.message, className="empty-state-copy")
+    if summary.table_rows:
+        frame = pd.DataFrame(summary.table_rows)
+        return html.Div(
+            [
+                html.P(summary.message, className="field-help"),
+                dag.AgGrid(
+                    columnDefs=_ranked_column_definitions(frame),
+                    rowData=list(summary.table_rows),
+                    defaultColDef={
+                        "sortable": True,
+                        "filter": True,
+                        "resizable": True,
+                        "wrapHeaderText": True,
+                        "autoHeaderHeight": True,
+                    },
+                    dashGridOptions={
+                        "animateRows": False,
+                        "pagination": True,
+                        "paginationPageSize": 15,
+                        "domLayout": "autoHeight",
+                        "suppressColumnVirtualisation": False,
+                    },
+                    columnSize="responsiveSizeToFit",
+                    className="ag-theme-alpine qf-data-grid",
+                    style={"width": "100%"},
+                ),
+            ]
+        )
     return html.Div(
         [
             html.P(summary.message, className="field-help"),
@@ -1884,6 +1969,7 @@ def _trade_marker_rows(
     trades: tuple[dict[str, Any], ...],
     *,
     event: str,
+    pnl_unit: str | None = None,
 ) -> tuple[dict[str, Any], ...]:
     rows: list[dict[str, Any]] = []
     if event == "entry":
@@ -1912,6 +1998,11 @@ def _trade_marker_rows(
         if timestamp in (None, "") or price is None:
             continue
         direction = str(trade.get("Direction", trade.get("direction", ""))).strip()
+        fees = (
+            trade.get("Entry Fees", trade.get("entry_fees", "Not recorded"))
+            if event == "entry"
+            else trade.get("Exit Fees", trade.get("exit_fees", "Not recorded"))
+        )
         rows.append(
             {
                 "trade_id": str(
@@ -1926,9 +2017,11 @@ def _trade_marker_rows(
                 "price": price,
                 "size": trade.get("Size", trade.get("size", "Not recorded")),
                 "fees": (
-                    trade.get("Entry Fees", trade.get("entry_fees", "Not recorded"))
-                    if event == "entry"
-                    else trade.get("Exit Fees", trade.get("exit_fees", "Not recorded"))
+                    _money(fees)
+                    if pnl_unit == "USD" and _numeric_value(fees) is not None
+                    else f"{_numeric_value(fees):,.2f} (unit not recorded)"
+                    if _numeric_value(fees) is not None
+                    else fees
                 ),
                 "direction": direction or "Not recorded",
             }
@@ -1959,14 +2052,52 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
 
     instrument = _evidence_instrument(detail)
     timeframe = _evidence_timeframe(detail)
-    normalized_timeframe = timeframe.lower().replace("-", " ").strip()
-    source_interval = (
-        "1m"
-        if normalized_timeframe in {"1m", "1 min", "1 minute", "1 minute bars"}
-        else timeframe
+    source_interval = detail.evidence.source_interval
+    source_label = source_interval or "not recorded"
+    price_is_points = detail.evidence.price_unit == "index_points"
+    price_is_currency = detail.evidence.price_unit == "currency"
+    price_tick_format = ",.2f" if price_is_points or not price_is_currency else "$,.2f"
+    price_axis_title = (
+        f"{instrument} price (index points)"
+        if price_is_points
+        else f"{instrument} price"
+        if price_is_currency
+        else f"{instrument} price (unit not recorded)"
     )
-    entry_rows = _trade_marker_rows(detail.evidence.trades, event="entry")
-    exit_rows = _trade_marker_rows(detail.evidence.trades, event="exit")
+    bar_hover = (
+        f"{source_label} source · %{{x}}<br>Open %{{open:,.2f}} index points<br>"
+        "High %{high:,.2f} index points<br>Low %{low:,.2f} index points<br>"
+        "Close %{close:,.2f} index points<extra></extra>"
+        if price_is_points
+        else (
+            f"{source_label} source · %{{x}}<br>Open %{{open:$,.2f}}<br>"
+            "High %{high:$,.2f}<br>Low %{low:$,.2f}<br>"
+            "Close %{close:$,.2f}<extra></extra>"
+        )
+        if price_is_currency
+        else (
+            f"{source_label} source · %{{x}}<br>Open %{{open:,.2f}}<br>"
+            "High %{high:,.2f}<br>Low %{low:,.2f}<br>"
+            "Close %{close:,.2f}<br>Unit not recorded<extra></extra>"
+        )
+    )
+    marker_price_hover = (
+        "Price %{y:,.2f} index points<br>"
+        if price_is_points
+        else "Price %{y:$,.2f}<br>"
+        if price_is_currency
+        else "Price %{y:,.2f} (unit not recorded)<br>"
+    )
+    entry_rows = _trade_marker_rows(
+        detail.evidence.trades,
+        event="entry",
+        pnl_unit=detail.evidence.pnl_unit,
+    )
+    exit_rows = _trade_marker_rows(
+        detail.evidence.trades,
+        event="exit",
+        pnl_unit=detail.evidence.pnl_unit,
+    )
     figure = go.Figure()
     interval_trace_indexes: dict[str, list[int]] = {}
     unavailable: list[str] = []
@@ -1986,7 +2117,7 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
             unavailable.append(f"{interval}: {interval_bars.reason}")
             continue
 
-        visible = interval == "1m"
+        visible = interval == source_interval
         bars = interval_bars.bars
         if bars:
             last_timestamp = max(last_timestamp or bars[-1].timestamp, bars[-1].timestamp)
@@ -2008,11 +2139,7 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
                 },
                 name=f"Observed {instrument} ({interval})",
                 visible=visible,
-                hovertemplate=(
-                    f"{interval} UTC bar %{{x}}<br>Open %{{open:$,.2f}}<br>"
-                    "High %{high:$,.2f}<br>Low %{low:$,.2f}<br>"
-                    "Close %{close:$,.2f}<extra></extra>"
-                ),
+                hovertemplate=bar_hover.replace(source_label, interval, 1),
             )
         )
         for event, rows, symbol, color, outline in (
@@ -2067,8 +2194,9 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
                     hovertemplate=(
                         f"{event.title()} · Trade %{{customdata[0]}}<br>"
                         "Exact event %{customdata[1]}<br>"
-                        "Containing bar %{customdata[2]}<br>Price %{y:$,.2f}<br>"
-                        "Size %{customdata[3]}<br>Fees %{customdata[4]}<br>"
+                        "Containing bar %{customdata[2]}<br>"
+                        + marker_price_hover
+                        + "Size %{customdata[3]}<br>Fees %{customdata[4]}<br>"
                         "Direction %{customdata[5]}<extra></extra>"
                     ),
                 )
@@ -2109,14 +2237,18 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
         margin={"l": 45, "r": 20, "t": 105, "b": 62},
         dragmode="pan",
         hovermode="x unified",
-        yaxis={"tickformat": "$,.2f", "title": f"{instrument} price"},
+        yaxis={"tickformat": price_tick_format, "title": price_axis_title},
         xaxis={"rangeslider": {"visible": False}},
         legend={"orientation": "h", "y": -0.2},
         updatemenus=[
             {
                 "type": "buttons",
                 "direction": "right",
-                "active": 0,
+                "active": (
+                    _RESULTS_INTERVALS.index(source_interval)
+                    if source_interval in _RESULTS_INTERVALS
+                    else 0
+                ),
                 "x": 0,
                 "y": 1.17,
                 "buttons": bars_buttons,
@@ -2451,6 +2583,8 @@ def _validation_evidence_summary(detail: SelectedRunDetailView | None) -> html.D
         next_action = "Review the supporting evidence before recording a decision."
     elif status_key in {"failed", "fail"}:
         next_action = "Inspect the technical details before deciding how to proceed."
+    elif status_key in {"screened_out", "screened out"}:
+        next_action = "Stop: no tested variant passed screening; this run is not promotable."
     else:
         next_action = "Inspect the technical details to determine the available next step."
 
@@ -2974,11 +3108,22 @@ def _run_detail_panel(
         ("Prefect flow run", run.prefect_flow_run_id or "Not available"),
         ("Prefect API", run.prefect_api_url or "Not available"),
     ]
-    terminal_summary = (
-        run.error_summary
-        if run.error_summary
-        else "Infrastructure fixture evidence verifies the factory path; it does not imply profitability."
-    )
+    if run.error_summary:
+        terminal_summary = run.error_summary
+    elif detail is not None and detail.evidence.evidence_classification:
+        terminal_summary = detail.evidence.evidence_classification.capitalize() + "."
+        if detail.evidence.promotion_eligible is False:
+            terminal_summary += " Promotion is blocked; this is not edge proof."
+    elif run.stage == "fixture":
+        terminal_summary = (
+            "Infrastructure fixture evidence verifies the factory path; "
+            "it does not imply profitability."
+        )
+    else:
+        terminal_summary = (
+            f"Persisted {run.stage.replace('_', ' ')} research result; "
+            "inspect its recorded evidence before making a decision."
+        )
 
     return html.Section(
         [
@@ -2989,6 +3134,15 @@ def _run_detail_panel(
                             html.P("Selected backtest", className="section-eyebrow"),
                             html.H2(_strategy_display_name(run.strategy_id)),
                             html.P(terminal_summary, className="run-status-summary"),
+                            html.A(
+                                "Open exact saved-run link",
+                                href=(
+                                    "/research/backtest-results?"
+                                    + urlencode({"run_id": run.run_id})
+                                ),
+                                className="secondary-action",
+                                title="Open or copy a link that always requests this exact saved run.",
+                            ),
                         ],
                         className="run-status-copy",
                     ),
@@ -3011,6 +3165,7 @@ def _run_detail_panel(
                 className="run-detail-hero",
             ),
             _run_identity_strip(run, detail),
+            _mes_assumption_summary(detail),
             (
                 html.Div(
                     [
@@ -3094,7 +3249,14 @@ def _run_detail_panel(
                 className="results-beta-workspace",
             ),
             html.Div(
-                "Infrastructure fixture evidence verifies the factory path; it does not imply profitability.",
+                (
+                    "Development/reference evidence only; promotion is blocked and this is not edge proof."
+                    if detail is not None
+                    and detail.evidence.evidence_classification
+                    else "Infrastructure fixture evidence verifies the factory path; it does not imply profitability."
+                    if run.stage == "fixture"
+                    else "Research evidence must be reviewed within its recorded stage and limitations."
+                ),
                 className="fixture-disclaimer",
             ),
             html.Section(

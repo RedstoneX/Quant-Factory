@@ -184,6 +184,7 @@ def test_optional_price_and_benchmark_payload_validation_fails_closed() -> None:
             "price_series",
             numeric_fields=("open", "high", "low", "close"),
             warnings=warnings,
+            source_interval="1m",
         )
         == ()
     )
@@ -208,6 +209,7 @@ def test_optional_price_and_benchmark_payload_validation_fails_closed() -> None:
             "price_series",
             numeric_fields=("open", "high", "low", "close"),
             warnings=warnings,
+            source_interval="1m",
         )
         == ()
     )

@@ -39,9 +39,9 @@ from tests.browser.test_backtest_results_spym_stability import (
 from tests.browser.test_dashboard_lifecycle import _wait_for_callbacks_to_settle
 
 
-RUN_ID = "portable-results-beta-run"
-ENTRY_TIME = "2026-01-02T14:41:00+00:00"
-EXIT_TIME = "2026-01-02T15:37:00+00:00"
+RUN_ID = "portable-r07-screening-run"
+ENTRY_TIME = "2026-01-02T14:40:00+00:00"
+EXIT_TIME = "2026-01-02T15:35:00+00:00"
 
 
 def _persist_json_artifact(
@@ -72,33 +72,40 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
     service = PersistenceService(database)
     try:
         strategy = service.register_strategy(
-            strategy_id="portable_results_beta_strategy",
+            strategy_id="mes_opening_range_breakout_long",
             strategy_version="1.0.0",
-            display_name="Portable Results Beta Strategy",
-            description="Licensed-engine-free selected-run browser fixture",
-            lifecycle=StrategyLifecycle.INFRASTRUCTURE_FIXTURE,
+            display_name="MES Opening Range Breakout Long",
+            description="Synthetic R07-shaped selected-run browser fixture",
+            lifecycle=StrategyLifecycle.CANDIDATE,
         )
         configuration = service.upsert_configuration(
             normalized_configuration_document(
-                experiment_id="portable_results_beta",
+                experiment_id="portable_r07_screening",
                 strategy_id=strategy.strategy_id,
                 strategy_version=strategy.strategy_version,
                 market_data={
                     "provider": "fixture",
-                    "symbol": "TEST",
-                    "interval": "1m",
+                    "symbol": "MES",
+                    "interval": "5m",
                 },
-                parameters={"fixture": True},
-                execution={"kind": "fixture", "fill_model": "next_open"},
+                parameters={"range_minutes": [5, 15, 30, 45, 60]},
+                execution={
+                    "kind": "theoretical_backtest",
+                    "fill_model": "next_open",
+                    "order_size": 1.0,
+                    "price_multiplier": 5.0,
+                    "fixed_fee_per_contract_per_side": 0.62,
+                    "slippage_ticks": 1.0,
+                },
                 ranking={"columns": ("total_return",), "ascending": (False,)},
-                screening={"kind": "none"},
+                screening={"kind": "bounded_r07"},
             )
         )
         service.create_run(
             configuration_id=configuration.configuration_id,
             strategy_id=strategy.strategy_id,
             strategy_version=strategy.strategy_version,
-            stage=RunStage.FIXTURE,
+            stage=RunStage.SCREENING,
             run_id=RUN_ID,
             status=RunStatus.SUCCEEDED,
         )
@@ -108,12 +115,12 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
                     run_id=RUN_ID,
                     provider="fixture",
                     provider_implementation="portable-results-beta-browser",
-                    symbol="TEST",
-                    interval="1m",
+                    symbol="MES",
+                    interval="5m",
                     timezone="UTC",
-                    requested_coverage="2026-01-02T14:30:00Z/2026-01-02T16:29:00Z",
-                    actual_coverage="2026-01-02T14:30:00Z/2026-01-02T16:29:00Z",
-                    adjusted=True,
+                    requested_coverage="2019-05-05T22:00:00+00:00/2026-02-13T21:55:00+00:00",
+                    actual_coverage="2019-05-05T22:00:00+00:00/2026-02-13T21:55:00+00:00",
+                    adjusted=False,
                     row_count=120,
                     cache_action="fixture",
                     validation_summary_json=canonical_json({"status": "valid"}),
@@ -125,30 +132,44 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
                 ExecutionAssumptionsRecord(
                     run_id=RUN_ID,
                     assumptions_json=canonical_json(
-                        {"kind": "fixture", "fill_model": "next_open"}
+                        {
+                            "kind": "theoretical_backtest",
+                            "fill_model": "next_open",
+                            "order_size": 1.0,
+                            "price_multiplier": 5.0,
+                            "fixed_fee_per_contract_per_side": 0.62,
+                            "slippage_ticks": 1.0,
+                        }
                     ),
                 )
             )
-            service.results.add_parameter_result(
-                run_id=RUN_ID,
-                row_id="portable-results-beta-row",
-                normalized_parameters={"fixture": True},
-                metrics={
-                    "total_return": 0.04,
-                    "max_drawdown": -0.015,
-                    "number_of_trades": 2,
-                },
-                ranking_position=1,
-                screening_status="infrastructure_fixture",
-            )
+            for rank in range(1, 16):
+                service.results.add_parameter_result(
+                    run_id=RUN_ID,
+                    row_id=f"portable-r07-row-{rank}",
+                    normalized_parameters={
+                        "range_minutes": (5, 15, 30, 45, 60)[(rank - 1) // 3],
+                        "breakout_offset_ticks": (rank - 1) % 3,
+                    },
+                    metrics={
+                        "total_return": 0.0542477 if rank == 1 else 0.04 - rank / 1000,
+                        "annualized_return": 0.0117 if rank == 1 else 0.01 - rank / 5000,
+                        "sharpe_ratio": 0.5 - rank / 100,
+                        "max_drawdown": -0.015 - rank / 1000,
+                        "number_of_trades": 100 + rank,
+                        "win_rate": 0.5,
+                    },
+                    ranking_position=rank,
+                    screening_status="screened_out",
+                    rejection_reasons=f"R07 threshold rejection {rank}",
+                )
 
         start = datetime(2026, 1, 2, 14, 30, tzinfo=timezone.utc)
         prices: list[dict[str, object]] = []
         equity: list[dict[str, object]] = []
-        benchmark: list[dict[str, object]] = []
         for index in range(120):
-            timestamp = (start + timedelta(minutes=index)).isoformat()
-            open_price = 100.0 + (index * 0.04)
+            timestamp = (start + timedelta(minutes=index * 5)).isoformat()
+            open_price = 6000.0 + (index * 0.25)
             close = open_price + (0.12 if index % 2 == 0 else -0.05)
             prices.append(
                 {
@@ -160,7 +181,6 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
                 }
             )
             equity.append({"timestamp": timestamp, "value": 10_000.0 + index * 4})
-            benchmark.append({"timestamp": timestamp, "value": 10_000.0 + index * 2})
 
         _persist_json_artifact(
             service,
@@ -170,14 +190,7 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
             payload={
                 "equity_curve": equity,
                 "price_series": prices,
-                "benchmark_curve": benchmark,
-                "benchmark": {
-                    "instrument": "TEST",
-                    "label": "TEST fixture buy-and-hold",
-                    "starting_capital": 10_000.0,
-                    "fees": 0.0,
-                    "slippage": 0.0,
-                },
+                "benchmark_omission": "No truthful futures benchmark is declared.",
             },
         )
         _persist_json_artifact(
@@ -186,33 +199,90 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
             artifact_type=ArtifactType.TRADES_OR_ORDERS,
             logical_name="trades_and_orders",
             payload={
+                "instrument": "MES",
+                "price_unit": "index_points",
+                "pnl_unit": "USD",
+                "price_multiplier": 5.0,
                 "trades": [
                     {
                         "Status": "Closed",
                         "Direction": "Long",
                         "Entry Index": ENTRY_TIME,
                         "Exit Index": EXIT_TIME,
-                        "Avg Entry Price": 100.56,
-                        "Avg Exit Price": 102.68,
-                        "Size": 2.0,
-                        "Entry Fees": 0.05,
-                        "Exit Fees": 0.05,
-                        "PnL": 4.14,
+                        "Avg Entry Price": 6000.50,
+                        "Avg Exit Price": 6003.25,
+                        "Size": 1.0,
+                        "Entry Fees": 0.62,
+                        "Exit Fees": 0.62,
+                        "PnL": 12.51,
                         "Return": 0.0206,
                     },
                     {
                         "Status": "Closed",
                         "Direction": "Short",
                         "Entry Index": "2026-01-02T15:45:00+00:00",
-                        "Exit Index": "2026-01-02T16:04:00+00:00",
-                        "Avg Entry Price": 103.0,
-                        "Avg Exit Price": 102.7,
+                        "Exit Index": "2026-01-02T16:05:00+00:00",
+                        "Avg Entry Price": 6004.0,
+                        "Avg Exit Price": 6003.5,
                         "Size": 1.0,
                         "PnL": 0.3,
                         "Return": 0.0029,
                     },
                 ],
                 "orders": [],
+            },
+        )
+        _persist_json_artifact(
+            service,
+            artifact_root,
+            artifact_type=ArtifactType.METRICS,
+            logical_name="metrics",
+            payload={
+                "parameter_row_id": "portable-r07-row-1",
+                "ranking_position": 1,
+                "metrics": {
+                    "total_return": 0.0542477,
+                    "annualized_return": 0.0117,
+                    "sharpe_ratio": 0.49,
+                    "max_drawdown": -0.016,
+                    "number_of_trades": 101,
+                    "win_rate": 0.5,
+                },
+            },
+        )
+        _persist_json_artifact(
+            service,
+            artifact_root,
+            artifact_type=ArtifactType.RUN_SUMMARY,
+            logical_name="run_summary",
+            payload={
+                "stage": "screening",
+                "evidence_classification": (
+                    "development/reference evidence only; not independent, OOS, protected, or edge proof"
+                ),
+                "promotion_eligible": False,
+                "broker_orders": "disabled",
+            },
+        )
+        _persist_json_artifact(
+            service,
+            artifact_root,
+            artifact_type=ArtifactType.VALIDATION_EVIDENCE,
+            logical_name="validation_evidence",
+            payload={
+                "stage": "screening",
+                "evidence_label": "synthetic R07-shaped development/reference fixture",
+                "evidence_classification": (
+                    "development/reference evidence only; not independent, OOS, protected, or edge proof"
+                ),
+                "protected_data_used": False,
+                "promotion_eligible": False,
+                "promotion_blockers": ["All bounded variants screened out."],
+                "screening": {
+                    "evaluated_combinations": 15,
+                    "passed": 0,
+                    "screened_out": 15,
+                },
             },
         )
         service.persist_run_manifest(service.build_run_manifest(RUN_ID))
@@ -373,7 +443,18 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
             else None,
         )
         try:
-            page.goto(url, wait_until="networkidle")
+            page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            page.locator(".results-change-run-history summary").click()
+            target_cell = page.locator("#run-history-grid").get_by_text("MES").first
+            expect(target_cell).to_be_visible()
+            target_cell.click()
+            _wait_for_callbacks_to_settle(page, pending)
+            exact_link = page.get_by_role("link", name="Open exact saved-run link")
+            expect(exact_link).to_have_attribute(
+                "href", f"{BACKTEST_PATH}?{urlencode({'run_id': RUN_ID})}"
+            )
+            page.goto(base_url + exact_link.get_attribute("href"), wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
             expect(page).to_have_url(url)
             expect(page.locator("#selected-run-detail")).to_contain_text(RUN_ID)
@@ -383,17 +464,49 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
 
             chart = page.locator("#price-marker-chart .js-plotly-plot")
             initial = _graph_state(page)
-            assert initial["bars"] == ["Observed TEST (1m)"]
+            assert initial["bars"] == ["Observed MES (5m)"]
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "1m: Bars interval 1m is finer than the persisted 5m source"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "MES price (index points)"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "Recorded MES assumptions"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "engine outputs under these persisted backtest costs"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "Annualized return (recorded engine output)"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text("1.17%")
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "Calendar CAGR (derived from recorded coverage)"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text("0.78%")
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "basis were not persisted"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "not the engine annualization or a new screening metric"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "Development/reference only"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "Promotion is blocked"
+            )
 
             page.locator("#price-marker-chart .updatemenu-button", has_text="1D").last.click()
             page.wait_for_timeout(150)
             view_state = _graph_state(page)
             assert view_state["bars"] == initial["bars"]
             assert view_state["viewActive"] != initial["viewActive"]
-            page.locator("#price-marker-chart .updatemenu-button", has_text="5m").first.click()
+            page.locator("#price-marker-chart .updatemenu-button", has_text="15m").first.click()
             page.wait_for_timeout(150)
             bars_state = _graph_state(page)
-            assert bars_state["bars"] == ["Observed TEST (5m)"]
+            assert bars_state["bars"] == ["Observed MES (15m)"]
             assert bars_state["viewActive"] == view_state["viewActive"]
 
             before_pan = bars_state["range"]
@@ -433,6 +546,18 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
             }
 
             _assert_report_normal_flow(page, expect_grid=True)
+            expect(page.locator("#selected-trade-detail")).to_contain_text("index points")
+            expect(page.locator("#selected-trade-detail")).to_contain_text("$1.24")
+
+            page.locator("#results-report-tabs .tab", has_text="Metrics").click()
+            page.locator(".run-validation-details summary").click()
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "R07 threshold rejection 1"
+            )
+            expect(page.locator("#selected-run-detail")).to_contain_text(
+                "R07 threshold rejection 15"
+            )
+            page.locator("#results-report-tabs .tab", has_text="Trades").click()
 
             initial_dimensions = _dimensions(page)
             handles = page.locator("[data-results-resizer]")

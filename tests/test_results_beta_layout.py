@@ -8,6 +8,7 @@ from typing import Any
 from dashboard.application import (
     _price_marker_figure,
     _price_marker_panel,
+    _result_summary,
     _results_report_tabs,
 )
 from dashboard.components.trade_explorer import (
@@ -66,6 +67,9 @@ def _detail() -> SelectedRunDetailView:
             warnings=(),
             price_series=prices,
             benchmark={"instrument": "TEST"},
+            source_interval="1m",
+            price_unit="currency",
+            pnl_unit="USD",
         ),
         warnings=(),
     )
@@ -109,6 +113,85 @@ def test_price_workspace_reuses_plotly_with_independent_bars_and_view_controls()
 
     graph = _price_marker_panel(_detail()).children[0]
     assert graph.config["scrollZoom"] is True
+
+
+def test_mes_workspace_keeps_native_five_minute_bars_and_index_point_prices() -> None:
+    base = _detail()
+    prices = tuple(
+        {
+            "timestamp": f"2026-01-02T14:{30 + (index * 5):02d}:00+00:00",
+            "open": 6000.0 + index,
+            "high": 6002.0 + index,
+            "low": 5999.0 + index,
+            "close": 6001.0 + index,
+        }
+        for index in range(6)
+    )
+    detail = SelectedRunDetailView(
+        **{
+            **base.__dict__,
+            "market_data": (
+                DetailField("Symbol", "MES"),
+                DetailField("Timeframe", "5m"),
+            ),
+            "evidence": RunEvidenceView(
+                **{
+                    **base.evidence.__dict__,
+                    "trades": (),
+                    "price_series": prices,
+                    "benchmark": None,
+                    "source_interval": "5m",
+                    "price_unit": "index_points",
+                }
+            ),
+        }
+    )
+
+    figure, availability = _price_marker_figure(detail)
+    candlesticks = [trace for trace in figure.data if trace.type == "candlestick"]
+
+    assert [trace.name for trace in candlesticks] == [
+        "Observed MES (5m)",
+        "Observed MES (15m)",
+        "Observed MES (1D)",
+    ]
+    assert candlesticks[0].visible is True
+    assert figure.layout.updatemenus[0].active == 1
+    assert figure.layout.yaxis.tickformat == ",.2f"
+    assert figure.layout.yaxis.title.text == "MES price (index points)"
+    assert "index points" in candlesticks[0].hovertemplate
+    assert "$" not in candlesticks[0].hovertemplate
+    assert "1m: Bars interval 1m is finer than the persisted 5m source" in availability
+
+
+def test_ranked_result_summary_exposes_all_fifteen_rows_in_existing_grid() -> None:
+    table_rows = tuple(
+        {
+            "ranking_position": rank,
+            "range_minutes": 5 * rank,
+            "breakout_offset_ticks": rank % 3,
+            "total_return": rank / 100,
+            "screening_status": "screened_out",
+            "screening_reason": f"Rejected by rule {rank}",
+        }
+        for rank in range(1, 16)
+    )
+    summary = ResultSummaryView(
+        status="available",
+        message="Persisted ranked screening results.",
+        rows=((DetailField("Rank", "1"),),),
+        table_rows=table_rows,
+    )
+
+    rendered = _result_summary(summary)
+    grid = next(component for component in _walk(rendered) if hasattr(component, "rowData"))
+
+    assert len(grid.rowData) == 15
+    assert grid.rowData[0]["screening_reason"] == "Rejected by rule 1"
+    assert grid.rowData[-1]["screening_reason"] == "Rejected by rule 15"
+    assert grid.dashGridOptions["paginationPageSize"] == 15
+    assert grid.dashGridOptions["domLayout"] == "autoHeight"
+    assert grid.style == {"width": "100%"}
 
 
 def test_results_report_reuses_existing_metrics_and_trade_explorer() -> None:
