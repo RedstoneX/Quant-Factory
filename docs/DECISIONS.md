@@ -551,3 +551,48 @@ explicitly.
      `docs/DATA_CATALOG.md` and `docs/parameter-governance.md` remain accurate
      and supply the data and parameter boundaries. No runbook changes because
      no runtime or operating procedure changes in this documentation slice.
+
+289. **Quant Factory adversarial proposal role (accepted 2026-09-20).** The
+     owner explicitly requests a durable adversary role, based on the useful
+     QAMC pattern but specific to Quant Factory, to keep the owner, lead and
+     project goal aligned and reach the finish line with less drift and waste.
+     The read-only `quant-factory-adversary` specialist challenges material
+     proposals before they proceed. Its narrow mandatory triggers are changes
+     to priority, scope, architecture, framework or dependency; custom-build
+     choices over reuse; strategy parameters or evidence, protected-data,
+     ranking or promotion boundaries; production deployment; paper/live
+     authority; and beta, milestone, edge-readiness or comparable material
+     closure claims.
+
+     The specialist freshly reads Quant Factory's Tier 1 authorities and the
+     relevant code and evidence rather than carrying a duplicate summary of
+     project doctrine. It tests the proposal's load-bearing existence and
+     current-state claim, direct trace to Decision 287's shortest path,
+     reusable alternatives, proportionality to the single-owner MVP, cost and
+     agent allocation, evidence truth, hidden gate expansion, and work that can
+     be removed or deferred. It distinguishes measured, inferred and unknown
+     claims and returns concise objections, the strongest contrary reading,
+     any cheaper or shorter path, and unresolved unknowns. It returns argument,
+     never approval, rejection, scoring, or a new gate. The lead must
+     explicitly disposition every material objection as `CHANGED` with
+     evidence or `REJECTED` with reasons before the proposal proceeds.
+
+     This role supplements implementation preflight and independent review; it
+     replaces neither. It is not required for routine status, read-only facts,
+     housekeeping, verified factual documentation corrections, or already
+     approved mechanical execution with no scope change. It cannot contact the
+     owner, implement work, or create child agents. The owner retains mandate,
+     milestone acceptance, deployment, paper/live and capital decisions. No
+     universal per-commit or per-PR adversary gate is created.
+
+     Documentation-impact assessment: `AGENTS.md`, the agent policy and
+     `CLAUDE.md` are updated for permanent behavior and specialist routing; the
+     implementation-preflight skill is updated for conditional invocation and
+     objection disposition; `docs/CHAT_HANDOFF.md` is updated so future chats
+     see the control immediately; this decision log is appended. `docs/MILESTONES.md`
+     is not applicable because active product order, status, scope and
+     acceptance do not change. No ADR applies because architecture,
+     deployment, security, data flow and integration are unchanged. `README.md`
+     is not applicable because public product orientation is unchanged. No
+     runbook or specification applies because no operator, recovery, migration,
+     incident or product procedure changes.

@@ -17,6 +17,13 @@ Then read [`DOCUMENTATION_GOVERNANCE.md`](DOCUMENTATION_GOVERNANCE.md), the
 or runbooks relevant to the task. `README.md` and this page are derived
 navigation, not competing authorities.
 
+Decision 289 adds the read-only
+[`quant-factory-adversary`](../.claude/agents/quant-factory-adversary.md) for
+material proposals and closure claims. It challenges scope, evidence, reuse,
+cost, and direct trace to the shortest safe single-owner MVP path before work
+proceeds; the lead must disposition its objections. It does not approve work,
+replace preflight or independent review, or make owner decisions.
+
 ## Current resume point
 
 Decisions 284–285 fix the product and implementation boundary. Quant Factory

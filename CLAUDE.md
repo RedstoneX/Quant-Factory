@@ -53,6 +53,13 @@ the ownership, polling, and CI proof rules in the agent policy. Workers report
 delegation or tool-limit blockers to the lead, who records the limitation. Claude Code remains the primary application implementation
 agent; a documentation helper does not receive project ownership.
 
+Decision 289 establishes `.claude/agents/quant-factory-adversary.md` as the
+read-only specialist for the material proposal and closure triggers defined in
+AGENTS. Run it before the proposal proceeds, then record each material
+objection as `CHANGED` with evidence or `REJECTED` with reasons. Its argument
+is not approval and does not replace implementation preflight, independent
+review, or an owner decision.
+
 ## Product and scope boundaries
 
 - Quant Factory is infrastructure-first, evidence-first, and operating-proof-
@@ -120,8 +127,10 @@ agent; a documentation helper does not receive project ownership.
 - The owner-supplied handoff authorizes this scoped revival, including
   root-cause repair, extensive testing, and reviewed push/merge work. Decision
   270 requires worker execution with lead orchestration and validation;
-  temporary workers remain bounded by the agent policy. Creating persistent
-  `.claude/agents/` scaffolding still requires explicit authorization.
+  temporary workers remain bounded by the agent policy. Decision 289 records
+  the owner's explicit authorization for the Quant Factory adversary file;
+  other persistent `.claude/agents/` scaffolding still requires explicit
+  authorization.
 - Obsidian is a future human-facing AI memory layer, not source-code storage and
   not a replacement for GitHub.
 - External recovery checkpoints do not override committed repository state.

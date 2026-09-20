@@ -210,6 +210,25 @@ current slice, selected reuse, boundary compliance, scope pressure, and next
 action. Treat the dashboard as the essential single-user interface without
 turning beta MVP delivery into a perfection gate.
 
+## 4b. Run the conditional adversarial proposal check
+
+Before proceeding, invoke `quant-factory-adversary` when the proposal changes
+priority, scope, architecture, framework or dependency; chooses custom work
+over reuse; changes strategy parameters or evidence/protected-data/ranking/
+promotion boundaries; deploys production; seeks paper/live authority; or
+claims beta, milestone, edge readiness or comparable material closure.
+
+Give the specialist the concrete proposal and relevant evidence. It is a
+read-only challenger, not an approver. Record every material objection and the
+lead's disposition before implementation:
+
+- `CHANGED` with the resulting proposal or evidence change; or
+- `REJECTED` with the evidence-based reason.
+
+Do not substitute this check for preflight or independent review. Do not run
+it for routine status, read-only facts, housekeeping, factual documentation
+corrections, or already approved mechanical execution with no scope change.
+
 ## 5. Apply Quant Factory acceptance rules
 
 - Use the real SPYM VectorBT Pro fixture in the successful integrated Milestone
