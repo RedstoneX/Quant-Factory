@@ -896,6 +896,12 @@ explicitly.
      adverse slippage per transaction, 252 sessions per year, and zero
      risk-free basis. Use one fixed rule with no tuning or parameter grid.
 
+     Any persisted screen fill prices must include the stated 0.02% adverse
+     slippage applied directionally to the observed 15:30 Open and 15:59 Close
+     base prices. Reported maximum drawdown is calculated only from
+     end-of-eligible-session equity values; missing intraday bars limit the
+     available path and drawdown evidence.
+
      This is a development/reference screen only. The full extent was already
      inspected; the history is short; raw prices can let dividends affect the
      signal; `EQUS.MINI` is not the official closing auction; bars are missing;

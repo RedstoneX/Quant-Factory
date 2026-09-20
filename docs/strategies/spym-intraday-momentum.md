@@ -36,7 +36,13 @@ Use only the checksum-matching owned manifest
 dataset. No acquisition or feed substitution is allowed. Use $10,000 initial
 cash, 1x leverage, all available cash, no accumulation, a 0.05% fee and 0.02%
 adverse slippage on each transaction, 252 sessions per year, and a zero
-risk-free basis.
+risk-free basis. When the screen runs, persisted fill prices must include the
+stated 0.02% adverse slippage applied directionally to the observed 15:30 Open
+and 15:59 Close base prices.
+
+Any reported maximum drawdown is calculated only from end-of-eligible-session
+equity values. Missing intraday bars limit the available path and drawdown
+evidence.
 
 ## Evidence boundary and limitations
 
