@@ -1,5 +1,10 @@
 # Research Deployment Runbook
 
+> **Deferred under Decision 294:** This procedure is not current work. Use it
+> only after an authorized actual deployment or persistent-install request;
+> never deploy merely to prove deployment. Its backup, rollback, startup, and
+> changed-flow checks remain authoritative when activated.
+
 This runbook describes a portable Linux research deployment. `OVH` is retained
 in the filename for historical navigation only; no provider-specific host,
 address, account, or port is required.

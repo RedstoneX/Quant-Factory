@@ -8,20 +8,21 @@ ordered work, milestone scope, and acceptance.
 | Item | Current truth |
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
-| Phase | Milestone 25 controlled research is active under Decision 287. Milestone 23 technical and operator acceptance remains pending. |
-| Active work | R07: validate and inspect the approved MES five-minute opening-range breakout (ORB) path using the existing research system; R05 is the next repository-local work for the owner-accepted economical dashboard direction. |
-| Finding | Reference parity passed, but all 30 bounded baseline ORB variants screened out on already-inspected development/reference data. No edge qualified. |
-| Next action | R05: preserve the merged bounded Find & Compare implementation while completing deployment, target validation, final owner acceptance, and the remaining Milestone 23 gates. The implementation merged through PR #74 at `5db5784cea925f4484f06eb78de9aea5b8e4acf2`; checks passed. R07's backed-up private deployment, target validation, and operator inspection remain separately unauthorized and target-dependent. |
-| Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, paper activation, futures execution, and live trading. |
+| Phase | Milestone 25 controlled research is active under Decisions 287 and 294. Milestone 23 remains an eventual pre-paper product gate, not the current queue. |
+| Active work | R08: inventory source-attributed candidates and present the next named hypothesis to Terry for approval with fixed evidence boundaries. No next candidate has been selected. |
+| Finding | MES ORB is concluded and rejected as an edge candidate; its preserved evidence still proves parts of the factory. Find & Compare is merged, and Terry found the reviewed image good and intuitive. |
+| Next action | Select the next source-attributed candidate for Terry's approval, then connect only that approved hypothesis to the existing research path. |
+| Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, unapproved parameter changes, paper activation, futures execution, and live trading. Deployment, portability, broad Milestone 23 closure, and paper-runtime work are dormant until their trigger occurs. |
 
 ## Product direction and boundaries
 
 - Quant Factory is a private, single-operator research system, not an
   enterprise, SaaS, multitenant, billing, or team product.
 - The priority is an operator-usable MVP that produces truthful, reproducible
-  evidence. Reuse existing Quant Factory code, VectorBT Pro, licensed
-  dependencies, approved prototypes, and suitable maintained components before
-  custom work.
+  evidence. Consult official documentation and established product archetypes,
+  then reuse existing Quant Factory code, VectorBT Pro, licensed dependencies,
+  approved prototypes, and suitable maintained components before custom work
+  or unsupported assumptions.
 - The dashboard is the normal operator interface. Decision 291 supersedes only
   Decision 287's good-enough/frozen treatment for the verified selected-run R07
   inspection blocker. The bounded correction does not restore dashboard-first
@@ -43,21 +44,19 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R07 | 1 | in_progress | none | The Decision 288 MES ORB adapter produced four successful isolated screening runs and 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Preserved evidence passed checksum, integrity and disposable application read-path validation. The Decision 291 selected-run correction merged through PR #70 at `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f`; focused, portable real-browser, independent-review, and required-CI evidence passed. It is not deployed, target-validated, operator-accepted, full beta, or Milestone 23 completion. |
-| R05 | 8 | in_progress | none | Terry explicitly approved the bounded connected-screen blueprint on 2026-09-20: preserve Home, Ideas, Set up, Run test and the approved chart-first Results; reuse the existing Compare route as Find & Compare; one selected saved test opens exact Results and 2–4 feed Compare; each row is one saved test and top-ranked variation metrics are explicitly labelled. Decision 293 fulfilled Decision 282's bounded-design owner review for this surface. The implementation merged through PR #74 at `5db5784cea925f4484f06eb78de9aea5b8e4acf2`; required checks passed. It reuses Compare with full-history grid, one Results action, 2–4 Compare, labelled top-ranked metric basis, interval/return/drawdown/win rate/Sharpe/trades, quick search/counts/reset, and native state persistence; the 1,000-row synthetic server check was 0.152s (~438KB), and browser readiness was about 1.2s with no horizontal overflow at 1440px. Deployment, target validation, final owner acceptance, and beta completion remain pending. Screenshot direction was owner-reviewed as good/intuitive, but this is not final implementation acceptance. Profit Factor is not persisted and was not invented; engine-level consideration is later work, not a current blocker. Any design expansion beyond this surface requires new owner review. Cache, export, broad redesign and complete workflow acceptance remain pending. |
-| R06 | 9 | pending | R07 | Preserve completed paper-observer preparation. Authenticated runtime work and activation remain deferred until a defensible edge qualifies and every execution gate passes. |
+| R08 | 1 | in_progress | none | The first controlled candidate, MES ORB, completed its bounded path and was rejected as an edge candidate; no next candidate has been selected. Inventory source-attributed candidates, then obtain Terry's explicit approval of one named hypothesis and fixed evidence boundaries before executable work. Reuse the existing engine, persistence, ranking/filtering, and dashboard. |
 <!-- active-work:end -->
 
 ## Current execution path
 
 | Step | Status | Evidence or next action |
 |---:|---|---|
-| 1. Inventory an attributed candidate | Complete for the first candidate | Decision 288 selected the existing MES five-minute, 09:30 New York ORB specification. |
-| 2. Approve the hypothesis and boundaries | Complete for this candidate | The owner approved the fixed reference-first plan and bounded 30-variant matrix. |
-| 3. Connect it to existing research | Complete | The thin durable adapter was validated at `0f7701fd6d3823b9603576777df441dd92df45a8` and merged through PR #65 at `a5c10c676bbbc3c3043ca80f87dcbbac6e750509`. |
-| 4. Persist, rank, and filter results | Complete for this screen | Four successful runs persisted 2 reference rows and 30 ranked matrix rows. |
-| 5. Inspect through the dashboard | Owner/target-dependent | The artifacts and disposable read path passed, and the bounded selected-run correction is merged. Backed-up private deployment, target validation, and operator inspection require separate owner authorization and remain target-dependent. |
-| 6. Continue bounded research | Pending | Use Milestone 25 safeguards; any new executable candidate needs explicit owner approval and predeclared evidence boundaries. |
+| 1. Inventory an attributed candidate | In progress for the next cycle | The MES ORB cycle completed and rejected that candidate. Inventory the next source-attributed candidates without inventing one. |
+| 2. Approve the hypothesis and boundaries | Pending | Terry selects one named candidate and approves fixed evidence boundaries before executable launch. |
+| 3. Connect it to existing research | Pending selection | Use the thinnest adapter to the existing VectorBT research path; do not replace the engine. |
+| 4. Persist, rank, and filter results | Proven by ORB; pending next candidate | Preserve distinct durable runs and truthful ranking/filtering for the approved candidate. |
+| 5. Inspect through the dashboard | Available in merged source | Find & Compare and the selected-run correction are merged; Terry found the reviewed Find & Compare image good and intuitive. Persistent deployment is not needed for the current research step. |
+| 6. Continue bounded research | Active | Use Milestone 25 safeguards; each new executable candidate needs explicit owner approval and predeclared evidence boundaries. |
 | 7. Activate paper trading | Gated | Requires a qualified edge and every Milestone 24 execution gate. |
 | 8. Automate paper forward testing | Gated | Milestone 26 follows successful paper activation and reconciliation proof. |
 | 9. Consider micro-live trading | Far future | Milestone 27 requires successful paper evidence and separate explicit owner approval. |
@@ -69,9 +68,9 @@ Milestones 1–22 are complete.
 | # | Milestone | Acceptance summary | Status |
 |---:|---|---|---|
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
-| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Pending; Decision 291 authorizes only the verified R07 selected-run blocker correction** |
-| 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; activation deferred |
-| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **In progress; MES ORB reference parity passed, but all 30 baseline variants screened out and no edge qualified** |
+| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Pending eventual pre-paper gate; broad closure work is dormant** |
+| 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; portability, deployment and activation dormant |
+| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **In progress; MES ORB rejected, next named candidate not yet selected** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
 | 27 | Alpaca Micro-Live Proof and Independent Risk Sentinel | Separate approval, isolated live domain, independent supervision, and failure acceptance | Pending; far future |
 | 28–30 | Compliant crypto proof and multi-venue V1 | Legal and operational eligibility, isolated adapters, evidence, reconciliation, and recovery | Deferred |
@@ -88,7 +87,13 @@ paper orders, and live work remain blocked.
 
 ### Milestone 23
 
-Milestone 23 remains the complete equity research workflow acceptance gate.
+Milestone 23 remains the eventual complete equity research workflow acceptance
+gate before paper activation; this catalog is not the current work queue.
+Focused checks protect each changed path now. The full browser/lifecycle,
+recovery, device and target matrix resumes only for a concrete blocker, an
+actual deployment/runtime change, explicit Milestone 23 closure, a qualified
+candidate approaching paper, or an owner request.
+
 Decision 287's narrow research exception does not waive it. A non-programming
 operator must be able to launch an approved fixture experiment, monitor it,
 inspect provenance, assumptions, charts, signals, trades and validation, compare
@@ -99,7 +104,8 @@ Current slices:
 
 - **23A — Scenarios and fixtures:** frozen. **Complete.**
 - **23B — Automated full-system acceptance:** supporting evidence implemented;
-  keep the complete scenario inventory green.
+  preserve the complete scenario inventory and run the full matrix when the
+  gate is explicitly resumed.
 - **23C-1 — Review/design:** selected-run design approved. A separate scalable
   multi-run design remains pending.
 - **23C-2 — Implementation:** durable run tickets are merged. The bounded
@@ -108,7 +114,8 @@ Current slices:
   real-browser, independent-review, and required-CI evidence passed. The
   complete selected-run/Milestone 23 implementation is not claimed.
 - **23C-3 — Browser/operator acceptance:** renewed owner acceptance, real-browser
-  lifecycle evidence, and the complete workflow remain pending.
+  lifecycle evidence, and the complete workflow remain pending and dormant
+  until the gate is resumed.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
   cancellation, stale-recovery, missing-artifact, and corrupt-lineage coverage.
 - **23E — Gate decision:** record an explicit pass or fail after all criteria.
@@ -163,7 +170,10 @@ and an independent Risk Sentinel.
 - **Multi-run analysis:** hundreds or thousands of persisted runs must be
   aggregated, sliced, ranked, filtered, and selected by return, drawdown,
   profitable-trade measures, and other useful evidence. One run opens in
-  Results; multiple selections can feed Compare. Its exact design is pending.
+  Results; multiple selections feed Compare. The bounded Find & Compare design
+  and implementation are merged. Standard metric labels merged through PR #77
+  at `9495a36a45af2bfe1288ab7cba840a4eed8ef54e`; broader additions are
+  deferred unless research exposes a blocker.
 - **Exact-repeat cache:** Decision 283 requires faster exact repeats while every
   request keeps a distinct durable ticket and lifecycle. Reuse must be validated,
   traceable, isolated by every result-changing input and protected-data boundary,
@@ -182,6 +192,8 @@ and an independent Risk Sentinel.
 - Four successful isolated runs persisted 32 ranked rows: two references and 30
   matrix variants. The 30-minute, zero-offset references matched their matrix
   rows exactly in both directions.
+- R07 is concluded: MES ORB is rejected as an edge candidate and retained only
+  as infrastructure and historical research evidence.
 - Every baseline variant screened out. Best long: 15 minutes/2 ticks, 5.42477%
   return, 0.458798 Sharpe, 4.19045% maximum drawdown, and 1,227 trades. Best
   short: 30 minutes/0 ticks, -5.52201% return, -0.453648 Sharpe, 7.55715%
@@ -202,11 +214,25 @@ and an independent Risk Sentinel.
   target validation, operator acceptance, full beta, and Milestone 23
   completion remain pending.
 
+### Find & Compare — 2026-09-20
+
+- The bounded reuse-first implementation merged through PR #74 at
+  `5db5784cea925f4484f06eb78de9aea5b8e4acf2`; focused tests, a focused browser
+  check, independent review, and required CI passed.
+- Standard trader-facing metric labels merged through PR #77 at
+  `9495a36a45af2bfe1288ab7cba840a4eed8ef54e`.
+- Terry reviewed the image and described it as good and intuitive. This accepts
+  the reviewed direction, not deployment, the full Milestone 23 matrix, or
+  complete workflow acceptance.
+- R05 is concluded as a merged source slice. Persistent deployment and broad
+  Milestone 23 closure are dormant rather than active follow-up work.
+
 ### Repository and CI history
 
 - **R01 — completed 2026-09-18:** Decision 275 published the reviewed,
   clean-history public repository as canonical while retaining the original as
-  a private read-only archive. Production was not modified.
+  a private read-only archive. The older private preview/runtime was not
+  modified.
 - Decision 276 keeps required checks and admin enforcement enabled while
   `strict`/up-to-date remains disabled. Independent green pull requests need not
   queue behind refresh builds; overlapping or dependent work still integrates
@@ -217,7 +243,7 @@ Readable completed incident history is retained in
 
 ## Governing references
 
-- [Owner decisions](DECISIONS.md), especially Decisions 278–291.
+- [Owner decisions](DECISIONS.md), especially Decisions 278–294.
 - [Milestone 23 acceptance record](milestones/milestone-23-acceptance.md).
 - [Dashboard product requirements](dashboard-product-requirements.md).
 - [MES ORB specification](strategies/mes-opening-range-breakout.md).

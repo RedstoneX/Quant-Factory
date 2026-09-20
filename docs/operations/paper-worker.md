@@ -1,5 +1,9 @@
 # Paper Worker and Read-Only Observer
 
+> **Deferred under Decision 294:** Paper-runtime work is dormant until a
+> qualified edge and the existing paper gates activate it. The procedure and
+> safety requirements below remain authoritative when that occurs.
+
 ## Security boundary
 
 The paper worker is independently deployable and paper-only. It has separate

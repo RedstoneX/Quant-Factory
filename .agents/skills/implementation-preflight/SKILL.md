@@ -1,12 +1,15 @@
 ---
 name: implementation-preflight
-description: Bound Quant Factory executable or material implementation work before coding. Use before runtime, configuration, schema, dependency, dashboard, or material scope changes; skip pure read-only analysis and factual documentation corrections.
+description: Bound material Quant Factory implementation before coding. Use for material executable, runtime, configuration, schema, dependency, dashboard-behavior, or scope changes; skip read-only work and routine factual, copy, or presentation corrections.
 ---
 
 # Implementation Preflight
 
 Produce a short implementation boundary before editing executable behavior.
 Do not implement while performing this preflight.
+
+Routine factual documentation, copy, and presentation corrections need only a
+brief scope-and-reuse check, not this full procedure.
 
 1. Confirm the canonical repository, accepted `main` base, branch, clean owned
    worktree, and exact owned paths.
@@ -22,8 +25,9 @@ Do not implement while performing this preflight.
 5. Define the smallest safe change, explicit exclusions, stop conditions, and
    any dependency on owner authority. Preserve protected-data, credential,
    execution, and capital boundaries.
-6. Define focused decisive validation, independent review when required, and
-   separate target-environment proof for affected environment inputs.
+6. Define focused decisive validation and independent review only where
+   required. Add target proof only for an actual authorized deployment or
+   target change; never deploy merely to prove deployment.
 7. Classify documentation impact under
    `docs/DOCUMENTATION_GOVERNANCE.md`; do not create a competing status or
    roadmap document.

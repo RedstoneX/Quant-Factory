@@ -38,6 +38,10 @@ trading and capital exposure.
 - Every implementation slice must advance the current Tier 1 path or remove a
   demonstrated blocker. Do not add speculative infrastructure, refactoring,
   dashboard polish, or execution scope.
+- Research comes first: inventory and select the next source-attributed
+  candidate for owner approval, then run only its fixed evidence plan through
+  the existing factory. Deployment, portability, full Milestone 23 closure,
+  and paper-runtime work stay dormant until their recorded trigger occurs.
 - Correct verified factual drift, but never turn a correction into an
   unapproved change of scope, architecture, status, or acceptance.
 - Record permanent changes under documentation governance; chat is not durable
@@ -63,11 +67,15 @@ trading and capital exposure.
 
 ## Implementation and reuse
 
-Before executable, runtime, configuration, schema, dependency, or dashboard
-changes, use `.agents/skills/implementation-preflight/SKILL.md`.
+Before material executable, runtime, configuration, schema, dependency, or
+dashboard-behavior changes, use
+`.agents/skills/implementation-preflight/SKILL.md`. Routine factual or
+presentation corrections need only a short scope-and-reuse check.
 
-- Inspect relevant code, tests, accepted designs, licensed dependencies, and
-  maintained legally compatible components before writing custom code.
+- Inspect official documentation and established product archetypes, relevant
+  code and tests, accepted designs, licensed dependencies, and maintained
+  legally compatible components before writing custom code or relying on an
+  unsupported assumption.
 - Prefer a suitable proven component or the smallest adapter over rebuilding
   mature behavior. Custom code requires a verified product-specific gap or
   evidence that reuse is materially worse.
@@ -76,13 +84,18 @@ changes, use `.agents/skills/implementation-preflight/SKILL.md`.
 - Read applicable accepted ADRs before architecture changes. Keep research,
   validation, evidence, and strategy logic venue-neutral; research must never
   submit venue orders directly.
-- Do not bypass, weaken, or skip relevant tests. Run focused checks first and
-  broader checks only for a concrete remaining risk.
+- Do not bypass, weaken, or skip relevant tests. Run focused checks for the
+  changed path and one focused browser check for affected UI. Broader browser,
+  lifecycle, recovery, device, or target proof is required only for a concrete
+  risk, an actual runtime/deployment change, explicit milestone closure, a
+  qualified candidate approaching paper, or an owner request.
 
 For a material proposal or closure claim, use
 `.agents/skills/quant-factory-adversary/SKILL.md`. The adversary challenges
-reasoning; it does not decide. An independent reviewer checks the owned diff,
-decisive evidence, and scope before integration.
+reasoning; it does not decide. Independent review is required for material
+evidence/data/ranking/protected-data changes, migrations, credentials,
+deployments, orders/capital, or costly-to-reverse work. Routine documentation,
+copy, and layout changes use focused checks and lead diff review.
 
 ## Evidence, data, and target proof
 
@@ -94,10 +107,11 @@ decisive evidence, and scope before integration.
   promotion, and unapproved parameter changes are prohibited.
 - Before changing market data, read `docs/DATA_CATALOG.md` and its manifests.
   Raw data stays outside Git; verify checksums and preserve original sources.
-- CI proves repository checks, not target-environment behavior. After runtime,
-  dependency, configuration, or secret-injection changes, separately verify
-  loading, startup, and relevant behavior on the authorized target, with
-  backup and rollback where required.
+- CI proves repository checks, not target-environment behavior. After an
+  authorized deployment or target runtime, dependency, configuration, or
+  secret-injection change, separately verify startup and the changed flow on
+  that target, with backup and rollback where required. Never deploy merely to
+  prove deployment.
 - Do not rerun expensive backtests unless relevant inputs changed.
 
 ## Credentials, execution, and capital
@@ -119,11 +133,13 @@ decisive evidence, and scope before integration.
 ## Codex orchestration and completion
 
 Follow `docs/ai-programming-agent-policy.md` for delegation, review, and
-integration. During the scoped revival, the lead delegates bounded task work,
-remains the sole owner-facing coordinator, and independently validates
-critical evidence rather than implementing inline.
+integration. The lead may complete small, routine, bounded work directly.
+Delegate only when specialization or parallel work produces a clear net time
+or cost benefit; never commission duplicate drafts. The lead remains the sole
+owner-facing coordinator and independently validates critical evidence.
 
 A milestone is complete only when acceptance evidence passes, reviewed work is
-merged and synchronized, records are updated, required target proof exists,
-and the owner accepts it where required. Report: repository, files changed,
-validation, documentation impact, commit/push, and warnings.
+merged and synchronized, records are updated, and the owner accepts it where
+required. Target proof is required only when the milestone changes or deploys
+a target. Report: repository, files changed, validation, documentation impact,
+commit/push, and warnings.

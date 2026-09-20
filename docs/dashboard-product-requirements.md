@@ -1,5 +1,12 @@
 # Quant Factory Dashboard Product Requirements
 
+> **Current sequencing (Decision 294):** This is the retained eventual
+> pre-paper product catalog, not the current work queue. Use focused checks for
+> changed dashboard paths and one focused browser check for affected UI. Resume
+> the full browser/lifecycle, recovery, device, and target matrix only for a
+> concrete blocker, an actual deployment/runtime change, explicit Milestone 23
+> closure, a qualified candidate approaching paper, or an owner request.
+
 ## Product role
 
 The dashboard is the primary Quant Factory product interface. The normal operator must not need to edit Python, inspect CSV or JSON files, read backend logs, or use terminal commands to understand and operate the research system.
@@ -81,12 +88,14 @@ Lead validation passed 25 selected unit/dashboard tests and one real-browser
 test. A 1,000-row browser page was ready in about 1.2 seconds with no
 horizontal overflow at 1440px.
 
-Deployment, target validation, final owner acceptance, and beta completion
-remain pending. The screenshot direction was owner-reviewed as good/intuitive,
-but that review is not final implementation acceptance. Profit Factor is not
-persisted and was intentionally not invented; engine-level consideration is
-later work, not a current blocker. Any design expansion beyond this accepted
-surface requires new owner review before implementation.
+Standard trader-facing metric labels merged through PR #77 at
+`9495a36a45af2bfe1288ab7cba840a4eed8ef54e`. The owner reviewed the image as
+good and intuitive. Deployment, target validation, full workflow acceptance,
+and beta completion remain pending but dormant until Decision 294's trigger
+occurs. Profit Factor is not persisted and was intentionally not invented;
+engine-level consideration is later work, not a current blocker. Any design
+expansion beyond this accepted surface requires new owner review before
+implementation.
 
 A read-only inspection of local QAMC revision
 `a7197d5c060f83e5c226e1a06884027b359a1d40` (source paths
@@ -110,11 +119,9 @@ separate calendar CAGR may be derived only from persisted total return and
 valid actual-coverage dates, and is not an engine output or screening metric. This
 does not authorize broader Results, multi-run, cache or deployment work.
 
-Decision 292's direction/design approval does not approve an exact multi-run
-UI, executable implementation, deployment, beta completion or renewed owner
-acceptance. Any scalable multi-run portion of the blueprint still requires
-the Decision 282 bounded-design owner review and acceptance before code;
-agent-bounding alone does not authorize implementation. Inactive and
+Decision 293 supplied the bounded-design owner approval for Find & Compare,
+and its thin implementation is merged. That does not approve broader multi-run
+expansion, deployment, beta completion, or the full workflow. Inactive and
 secondary pages remain deferred unless a demonstrated essential-beta blocker
 is recorded.
 
@@ -847,16 +854,19 @@ Visual polish alone is insufficient. The dashboard must operate the complete res
 
 ## Milestone 23C design and implementation gate
 
-23C-1 is complete for the selected-run Results experience under Decision 282.
+This gate is retained for eventual pre-paper acceptance and is not the current
+work queue. 23C-1 is complete for the selected-run Results experience under
+Decision 282.
 The approved specification covers the
 approved workflow, responsive desktop/tablet/mobile behavior, novice language,
 the four persistent selected-run fields, truthful chart/ledger linkage,
 progressive disclosure, and labelled technical drill-downs. The separate
-Decision 282 scalable multi-run requirement still needs a bounded design; its
-exact UI and architecture are not pre-approved. 23C-2 retains the ADR 0008
-mounted-route architecture and uses Dash AG Grid and Dash Bootstrap Components
-as approved implementation components. The bounded Decision 291 correction is
-merged and its focused automated and portable browser evidence passed; complete
-implementation and testing, deployment, licensed-target proof, and renewed
-owner acceptance of the implemented Results experience remain pending. 23C-3
-also requires real-browser lifecycle and end-to-end workflow evidence.
+Decision 282 scalable multi-run requirement has the bounded Decision 293 Find
+& Compare design and merged implementation; broader expansion remains
+unapproved. 23C-2 retains the ADR 0008 mounted-route architecture and uses Dash
+AG Grid and Dash Bootstrap Components as approved implementation components.
+The bounded Decision 291 correction is merged and its focused automated and
+portable browser evidence passed. Complete workflow acceptance, deployment,
+licensed-target proof, and renewed owner acceptance remain pending but dormant.
+23C-3's full real-browser lifecycle and end-to-end workflow evidence resumes
+only when the gate is explicitly activated under Decision 294.
