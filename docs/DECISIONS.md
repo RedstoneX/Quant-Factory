@@ -920,9 +920,11 @@ explicitly.
      adapter and these notices; do not change the common engine or schema. One
      bounded development/reference screen has now run at source revision
      `3ae6912937501b46f67666dea269ec76e92caad5` using licensed VectorBT Pro
-     2026.4.7 and screened out the candidate at the initial rules. Final
-     evidence review is in progress; this does not claim an edge, promotion,
-     deployment, paper/live authority, or accepted application behavior.
+     2026.4.7 and screened out the candidate at the initial rules. Independent
+     evidence review is complete with no blockers; database plus 7/7
+     artifacts/checksums, metric/fill arithmetic, and dashboard reopening
+     agree. This does not claim an edge, promotion, deployment, paper/live
+     authority, or accepted application behavior.
 
      Documentation-impact assessment: `docs/DECISIONS.md`,
      `docs/MILESTONES.md`, `docs/DATA_CATALOG.md`, the SPYM manifest, and

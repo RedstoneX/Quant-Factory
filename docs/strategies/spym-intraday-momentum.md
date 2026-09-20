@@ -9,9 +9,10 @@ Zhou, “Market Intraday Momentum,” *Journal of Financial Economics* (2018), D
 The bounded development/reference screen has completed from clean source at
 source revision `3ae6912937501b46f67666dea269ec76e92caad5` using licensed
 VectorBT Pro 2026.4.7.
-It screened out at the initial screen; final evidence review is in progress.
-This is not independent/protected evidence and does not claim a tested,
-merged, deployed, accepted, promoted, or edge result.
+It screened out at the initial screen. Independent evidence review is complete
+with no blockers. The screen is
+tested/measured, but this is not independent/protected evidence and does not
+claim merged, deployed, operator-accepted, promoted, or edge status.
 
 ## Exact fixed rule
 
@@ -77,9 +78,9 @@ evidence, an edge, or promotion evidence.
 
 ## Progression and reuse
 
-Finish final evidence review of the completed bounded screen; do not rerun or
-extend this rejected candidate. Any new screen requires owner selection and
-approval of another source-attributed candidate with fixed boundaries. Do not
+The completed bounded screen requires no rerun or extension. Any new screen
+requires owner selection and approval of another source-attributed candidate
+with fixed boundaries. Do not
 progress automatically; no next candidate is currently selected or approved,
 and no paper, deployment, or live work is authorized. The existing VectorBT Pro engine, manifest
 verification, screening, durable persistence/artifacts, filters, and dashboard
