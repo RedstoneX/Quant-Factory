@@ -348,6 +348,11 @@ def test_compare_page_persists_only_its_selection_in_session() -> None:
         "sharpe_ratio",
         "number_of_trades",
     ]
+    assert next(
+        column["headerName"]
+        for column in selector.columnDefs
+        if column["field"] == "max_drawdown"
+    ) == "Top result max drawdown"
     assert _by_id(page, "comparison-loading") is not None
     assert "Each row is one saved test" in _text(page)
 
