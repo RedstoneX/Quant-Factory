@@ -1,54 +1,97 @@
-"""Read-only Compare page for persisted research runs."""
+"""Find & Compare page for the complete persisted research-run history."""
 
 from __future__ import annotations
 
+from typing import Any
+from urllib.parse import urlencode
+
+import dash_ag_grid as dag
 from dash import dcc, html
 
-from dashboard.compare_query import compare_query_href
-from dashboard.components.compare_results import compare_empty, compare_loading
-from orchestration import RunSummary
+from dashboard.components.compare_results import compare_empty
 
 
-def comparison_selector_options(
-    recent_runs: tuple[RunSummary, ...],
-) -> list[dict[str, str]]:
-    """Give otherwise-identical persisted tests a stable readable identity."""
+def results_query_href(run_id: str) -> str:
+    """Build the existing exact Results URL for one persisted run."""
 
-    from dashboard.application import _backtest_selector_label, _ordered_backtests
+    return f"/research/backtest-results?{urlencode({'run_id': str(run_id)})}"
 
+
+def find_compare_columns() -> list[dict[str, Any]]:
+    percent = {
+        "function": "params.value == null ? '' : (params.value * 100).toFixed(2) + '%'"
+    }
     return [
+        {"field": "run_id", "headerName": "Run ID", "hide": True},
+        {"field": "created_at", "headerName": "Date", "minWidth": 125},
+        {"field": "instrument", "headerName": "Instrument", "minWidth": 80},
+        {"field": "interval", "headerName": "Bars", "minWidth": 68},
         {
-            "label": f"{_backtest_selector_label(run)} · Test {run.run_id}",
-            "value": run.run_id,
-        }
-        for run in _ordered_backtests(recent_runs)
+            "field": "strategy",
+            "headerName": "Strategy",
+            "filter": "agTextColumnFilter",
+            "minWidth": 145,
+        },
+        {
+            "field": "evidence",
+            "headerName": "Screening / evidence",
+            "filter": "agTextColumnFilter",
+            "minWidth": 145,
+        },
+        {"field": "total_return", "headerName": "Top return", "valueFormatter": percent},
+        {
+            "field": "max_drawdown",
+            "headerName": "Top drawdown",
+            "valueFormatter": percent,
+        },
+        {"field": "win_rate", "headerName": "Top win rate", "valueFormatter": percent},
+        {
+            "field": "sharpe_ratio",
+            "headerName": "Sharpe",
+            "valueFormatter": {
+                "function": (
+                    "params.value == null ? '' : Number(params.value).toFixed(2)"
+                )
+            },
+            "minWidth": 74,
+        },
+        {"field": "number_of_trades", "headerName": "Trades", "minWidth": 78},
     ]
 
 
-def layout(*, recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
-    """Mount Compare controls and stable output regions once."""
+def _compact_research_path() -> html.Div:
+    """Keep the six accepted workflow steps on one compact row on this page."""
 
-    from dashboard.application import (
-        _default_comparison_values,
-        _strategy_research_path,
-    )
+    from dashboard.application import _strategy_research_path
 
-    selected_values = _default_comparison_values(recent_runs)
-    initial_href = compare_query_href(selected_values)
-    initial_state = (
-        compare_loading(selected_values) if selected_values else compare_empty()
-    )
+    path = _strategy_research_path("/research/compare-backtests")
+    path.style = {**(path.style or {}), "flexWrap": "wrap", "gap": "6px"}
+    for child in path.children:
+        if isinstance(child, dcc.Link):
+            child.style = {
+                **(child.style or {}),
+                "flex": "1 1 110px",
+                "minWidth": "90px",
+                "padding": "10px",
+            }
+    return path
+
+
+def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
+    """Mount the full-history selector and existing comparison output."""
+
     return html.Div(
         [
             html.Header(
                 [
                     html.Div(
                         [
-                            html.P("RESEARCH / COMPARE", className="page-eyebrow"),
-                            html.H1("Compare results", className="page-title"),
+                            html.P("RESEARCH / FIND & COMPARE", className="page-eyebrow"),
+                            html.H1("Find & Compare", className="page-title"),
                             html.P(
-                                "Compare persisted tests without hiding evidence, "
-                                "review, data, or assumption differences.",
+                                "Search, sort, and filter every saved test. Select one "
+                                "row for its exact Results page, or two to four rows for "
+                                "an exact comparison.",
                                 className="page-description",
                             ),
                         ]
@@ -58,24 +101,28 @@ def layout(*, recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
                         id="refresh-comparisons",
                         n_clicks=0,
                         className="secondary-action page-action",
-                        title=(
-                            "Retry reading persisted comparison evidence. "
-                            "No test will run or change."
-                        ),
+                        title="Retry reading persisted history. No test will run or change.",
+                        style={
+                            "alignSelf": "flex-start",
+                            "justifySelf": "end",
+                            "maxWidth": "160px",
+                            "minWidth": "120px",
+                            "width": "auto",
+                        },
                     ),
                 ],
                 className="page-heading page-heading-with-actions",
             ),
-            _strategy_research_path("/research/compare-backtests"),
+            _compact_research_path(),
             html.Section(
                 [
                     html.Div(
                         [
-                            html.Span("Selection", className="section-kicker"),
-                            html.H2("Choose persisted tests"),
+                            html.Span("SAVED TESTS", className="section-kicker"),
+                            html.H2("Find a test or build a comparison"),
                             html.P(
-                                "Select two or more saved tests, then read their "
-                                "recorded evidence. This selection is independent of Results.",
+                                "Each row is one saved test. Metrics are from that test's "
+                                "top-ranked variation; unavailable values remain blank.",
                                 className="section-description",
                             ),
                         ],
@@ -84,47 +131,89 @@ def layout(*, recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
                     html.Div(
                         [
                             html.Label(
-                                "Selected tests",
-                                htmlFor="comparison-run-selector",
-                                className="field-label",
+                                [
+                                    html.Span("Quick search", className="field-label"),
+                                    dcc.Input(
+                                        id="find-compare-search",
+                                        type="search",
+                                        placeholder="Search saved tests",
+                                        debounce=True,
+                                        persistence=True,
+                                        persistence_type="session",
+                                        className="text-input",
+                                    ),
+                                ]
                             ),
-                            dcc.Dropdown(
-                                id="comparison-run-selector",
-                                options=comparison_selector_options(recent_runs),
-                                value=selected_values,
-                                multi=True,
-                                placeholder="Select at least two persisted tests",
-                                persistence=True,
-                                persistence_type="session",
+                            html.Button(
+                                "Reset view",
+                                id="find-compare-reset-view",
+                                n_clicks=0,
+                                className="secondary-action",
                             ),
                             html.P(
-                                "Your Compare selection is kept for this browser session.",
-                                className="field-help compact-field-help",
-                            ),
-                            html.P(
-                                id="comparison-query-message",
+                                f"{len(history_rows):,} matched · 0 selected",
+                                id="find-compare-grid-count",
                                 className="field-help compact-field-help",
                                 **{"aria-live": "polite"},
                             ),
-                            dcc.Link(
-                                "Open exact comparison",
-                                id="comparison-exact-link",
-                                href=initial_href,
-                                style={} if initial_href else {"display": "none"},
-                                className="secondary-action",
-                                title=(
-                                    "Open a durable link to these exact persisted tests."
-                                ),
+                        ],
+                        className="page-actions",
+                        style={"alignItems": "center", "marginBottom": "12px"},
+                    ),
+                    dag.AgGrid(
+                        id="find-compare-grid",
+                        rowData=list(history_rows),
+                        columnDefs=find_compare_columns(),
+                        defaultColDef={"sortable": True, "filter": True, "resizable": True},
+                        dashGridOptions={
+                            "pagination": True,
+                            "paginationPageSize": 25,
+                            "rowSelection": {
+                                "mode": "multiRow",
+                                "checkboxes": True,
+                                "headerCheckbox": False,
+                                "enableClickSelection": True,
+                            },
+                        },
+                        getRowId="params.data.run_id",
+                        selectedRows=[],
+                        persistence=True,
+                        persistence_type="session",
+                        persisted_props=["filterModel", "columnState"],
+                        columnSize="responsiveSizeToFit",
+                        columnSizeOptions={"defaultMinWidth": 56},
+                        style={"height": "520px", "width": "100%"},
+                        className="ag-theme-alpine qf-data-grid",
+                    ),
+                    html.Div(
+                        [
+                            html.P(
+                                "Select one saved test to open Results, or two to four to compare.",
+                                id="find-compare-selection-message",
+                                className="field-help compact-field-help",
+                                **{"aria-live": "polite"},
+                            ),
+                            html.Div(
+                                [
+                                    dcc.Link(
+                                        "Open exact Results",
+                                        id="find-compare-results-link",
+                                        href=None,
+                                        className="secondary-action",
+                                        style={"display": "none"},
+                                    ),
+                                    dcc.Link(
+                                        "Compare selected tests",
+                                        id="find-compare-exact-link",
+                                        href=None,
+                                        className="primary-action",
+                                        style={"display": "none"},
+                                    ),
+                                ],
+                                className="page-actions",
                             ),
                         ],
                         className="comparison-selector-control",
-                    ),
-                    html.Button(
-                        "Compare selected tests",
-                        id="compare-selected-runs",
-                        n_clicks=0,
-                        className="primary-action page-action",
-                        title="Read immutable persisted evidence for the selected tests.",
                     ),
                 ],
                 className="comparison-setup-panel",
@@ -132,7 +221,7 @@ def layout(*, recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
             html.Div(
                 dcc.Loading(
                     html.Div(
-                        initial_state,
+                        compare_empty(),
                         id="run-comparison-output",
                         className="run-comparison-output",
                     ),
@@ -147,4 +236,4 @@ def layout(*, recent_runs: tuple[RunSummary, ...] = ()) -> html.Div:
     )
 
 
-__all__ = ["comparison_selector_options", "layout"]
+__all__ = ["find_compare_columns", "layout", "results_query_href"]

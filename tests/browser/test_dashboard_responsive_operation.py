@@ -6,6 +6,7 @@ import json
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import pytest
 
@@ -264,13 +265,19 @@ def test_inspect_review_and_compare_actions_work_at_each_viewport(
             ).click()
             expect(page).to_have_url(base_url + "/research/compare-backtests")
             _wait_for_callbacks_to_settle(page, pending)
+            page.goto(
+                f"{base_url}/research/compare-backtests?"
+                + urlencode(
+                    (("run_id", target_run_id), ("run_id", peer_run_id))
+                ),
+                wait_until="networkidle",
+            )
             expect(page.locator(".compare-run-card")).to_have_count(2, timeout=10_000)
             compare_ids = page.locator(".compare-run-card").evaluate_all(
                 "cards => cards.map(card => card.dataset.runId)"
             )
             assert set(compare_ids) == {target_run_id, peer_run_id}
-            _assert_action_contained(page, "#compare-selected-runs")
-            page.locator("#compare-selected-runs").click()
+            expect(page.locator("#find-compare-exact-link")).to_be_visible()
             expect(page.locator("#run-comparison-output")).to_contain_text(
                 target_run_id,
                 timeout=10_000,

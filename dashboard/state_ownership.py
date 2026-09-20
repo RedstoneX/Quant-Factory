@@ -61,8 +61,8 @@ STATE_OWNERS = {
         "rule": "Results binds durable-review form state and messages to the shared selected persisted run; no separate review identity is written.",
     },
     "comparison_selection": {
-        "source": "comparison-run-selector.value",
+        "source": "find-compare-grid.selectedRows",
         "owner": "dashboard.callbacks.compare_backtests",
-        "rule": "Compare owns comparison selector options, selected cards, and comparison output.",
+        "rule": "Find & Compare owns full-history grid selection, exact links, and comparison output.",
     },
 }

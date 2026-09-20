@@ -556,11 +556,9 @@ def test_compare_renders_independent_persisted_context_for_each_selected_run(
         app,
         "run-comparison-output",
     )(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["review_context_target", "wf-run"],
+        "?run_id=review_context_target&run_id=wf-run",
     )
     contexts = [
         component
@@ -612,7 +610,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 29
+    assert len(app.callback_map) == 34
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -633,8 +631,8 @@ def test_dashboard_callback_outputs_are_singly_owned(tmp_path: Path) -> None:
 
     assert output_keys.count("selected-run-selector.value") == 1
     assert output_keys.count("selected-run-selector.options") == 1
-    assert output_keys.count("comparison-run-selector.options") == 1
-    assert output_keys.count("comparison-run-selector.value") == 1
+    assert output_keys.count("find-compare-grid.rowData") == 1
+    assert output_keys.count("find-compare-grid.selectedRows") == 1
     assert output_keys.count("run-comparison-output.children") == 1
     assert output_keys.count("reproduction-message.children") == 1
     assert output_keys.count("selected-run-detail.children") == 1
@@ -717,10 +715,12 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
     passive_route_refresh_keys = {
         "..selected-trade-grid.rowData...trade-explorer-summary.children..."
         "selected-trade-grid.selectedRows..",
-        "comparison-run-selector.options",
-        "..comparison-run-selector.value...comparison-query-message.children..."
-        "comparison-query-message.className...comparison-exact-link.href..."
-        "comparison-exact-link.style..",
+        "find-compare-grid.rowData",
+        "find-compare-grid.selectedRows",
+        "..find-compare-selection-message.children..."
+        "find-compare-selection-message.className...find-compare-results-link.href..."
+        "find-compare-results-link.style...find-compare-exact-link.href..."
+        "find-compare-exact-link.style..",
         "..run-comparison-output.children...run-comparison-output.className..",
     }
 
@@ -902,7 +902,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
         "/research/backtest-results": "Results",
-        "/research/compare-backtests": "Compare results",
+        "/research/compare-backtests": "Find & Compare",
         "/paper/fleet": "Paper Trading Overview",
         "/paper/strategy": "Strategy Monitor",
         "/system": "System Status",
@@ -1165,7 +1165,7 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
 
     comparison_inputs = {
         (item["id"], item["property"]): item
-        for item in app.callback_map["comparison-run-selector.options"]["inputs"]
+        for item in app.callback_map["find-compare-grid.rowData"]["inputs"]
     }
     assert set(comparison_inputs) == {
         ("refresh-comparisons", "n_clicks"),
@@ -1183,7 +1183,6 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
         for item in compare_output["inputs"]
     }
     assert compare_inputs == {
-        ("compare-selected-runs", "n_clicks"),
         ("refresh-comparisons", "n_clicks"),
         ("url", "pathname"),
         ("url", "search"),
@@ -1201,7 +1200,7 @@ def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
         ("reproduction-message", (1, "missing-run", None, "/")),
         (
             "run-comparison-output",
-            (1, 0, "/research/backtest-results", None, ["a", "b"]),
+            (0, "/research/backtest-results", "?run_id=a&run_id=b"),
         ),
         ("cancellation-message", (1, "missing-run", "/")),
         ("stale-recovery-message", (1, "2026-07-13T12:00:00Z", "/")),
@@ -1318,10 +1317,10 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     comparisons = page_for_path("/research/compare-backtests", context)
     assert comparisons.className == "page-container comparison-page"
     rendered_comparisons = str(comparisons)
-    assert "Compare results" in rendered_comparisons
-    assert "comparison-run-selector" in rendered_comparisons
+    assert "Find & Compare" in rendered_comparisons
+    assert "find-compare-grid" in rendered_comparisons
     assert "comparison-loading" in rendered_comparisons
-    assert "compare-selected-runs" in rendered_comparisons
+    assert "find-compare-exact-link" in rendered_comparisons
     assert "run-comparison-output" in rendered_comparisons
     assert "href='/research/compare-backtests'" in str(
         page_for_path("/research/backtest-results", context)
@@ -1398,7 +1397,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
         "/research/backtest-results": "Results",
-        "/research/compare-backtests": "Compare results",
+        "/research/compare-backtests": "Find & Compare",
     }
 
     for pathname, title in expected.items():
@@ -1413,11 +1412,12 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
             assert "Understand what happened, whether the evidence is usable, and what decision is required." in rendered_page
         if pathname == "/research/market-data":
             assert "View the price history used in strategy research." in rendered_page
-        if pathname == "/research/compare-backtests":
-            assert (
-                "Compare persisted tests without hiding evidence, review, data, "
-                "or assumption differences."
-            ) in rendered_page
+            if pathname == "/research/compare-backtests":
+                assert (
+                    "Search, sort, and filter every saved test. Select one row for "
+                    "its exact Results page, or two to four rows for an exact "
+                    "comparison."
+                ) in rendered_page
 
         links = [
             component
@@ -1534,7 +1534,7 @@ def test_every_workflow_page_has_same_active_six_step_progress() -> None:
         "Set up a test",
         "Run test",
         "Results",
-        "Compare results",
+        "Find & Compare",
     ]
 
     for pathname, identity in zip(paths, expected_identities, strict=True):
@@ -2361,11 +2361,11 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             ),
         },
         "comparison_selection": {
-            "source": "comparison-run-selector.value",
+            "source": "find-compare-grid.selectedRows",
             "owner": "dashboard.callbacks.compare_backtests",
             "rule": (
-                "Compare owns comparison selector options, selected "
-                "cards, and comparison output."
+                "Find & Compare owns full-history grid selection, exact links, "
+                "and comparison output."
             ),
         },
     }
@@ -2895,16 +2895,7 @@ def _callback_function(app, output_fragment: str):
         for key, value in app.callback_map.items()
         if output_fragment in key
     ]
-    if output_fragment == "run-comparison-output" and len(entries) > 1:
-        entry = next(
-            value
-            for value in entries
-            if any(
-                item["id"] == "compare-selected-runs"
-                for item in value.get("inputs", ())
-            )
-        )
-    elif output_fragment == "review-message" and len(entries) > 1:
+    if output_fragment == "review-message" and len(entries) > 1:
         entry = next(
             value
             for value in entries
@@ -3493,11 +3484,9 @@ def test_dashboard_run_comparison_renders_equal_changed_and_missing_fields(
     compare = _callback_function(app, "run-comparison-output")
 
     panel, class_name = compare(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["compare_run_a", "compare_run_b"],
+        "?run_id=compare_run_a&run_id=compare_run_b",
     )
     rendered = str(panel)
 
@@ -3518,7 +3507,7 @@ def test_dashboard_run_comparison_renders_equal_changed_and_missing_fields(
     assert "Unavailable" in rendered
 
 
-def test_dashboard_comparison_defaults_use_recent_succeeded_backtests() -> None:
+def test_dashboard_find_compare_mounts_supplied_full_history_without_default_selection() -> None:
     service = _DashboardRunService()
     failed = service._summary("failed_recent", "a" * 64, "failed")
     succeeded_a = service._summary("succeeded_a", "b" * 64, "succeeded")
@@ -3527,11 +3516,18 @@ def test_dashboard_comparison_defaults_use_recent_succeeded_backtests() -> None:
         "/research/compare-backtests",
         DashboardContext(pd.DataFrame([_ranked_row()]), _data(), _audit(_data())),
         recent_runs=(failed, succeeded_a, succeeded_b),
+        history_rows=(
+            {"run_id": "failed_recent"},
+            {"run_id": "succeeded_a"},
+            {"run_id": "succeeded_b"},
+        ),
     )
 
     rendered = str(page)
     assert "spym_rsi_mean_reversion_fixture" not in rendered
-    assert "value=['succeeded_a', 'succeeded_b']" in rendered
+    assert "failed_recent" in rendered
+    assert "succeeded_a" in rendered
+    assert "selectedRows=[]" in rendered
 
 
 def test_dashboard_comparison_read_model_follows_selection_and_refresh(
@@ -3548,20 +3544,16 @@ def test_dashboard_comparison_read_model_follows_selection_and_refresh(
 
     rendered_a = str(
         compare(
-            1,
             0,
             "/research/compare-backtests",
-            None,
-            ["compare_run_a"],
+            "?run_id=compare_run_a",
         )[0]
     )
     rendered_b = str(
         compare(
             1,
-            1,
             "/research/compare-backtests",
-            None,
-            ["compare_run_b", "compare_run_c"],
+            "?run_id=compare_run_b&run_id=compare_run_c",
         )[0]
     )
 
@@ -3582,20 +3574,16 @@ def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
     compare = _callback_function(app, "run-comparison-output")
 
     invalid, invalid_class = compare(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["compare_run_a"],
+        "?run_id=compare_run_a",
     )
     assert invalid_class == "run-comparison-output"
-    assert "Select at least two persisted runs" in str(invalid)
+    assert "requires two to four persisted run identities" in str(invalid)
     missing, missing_class = compare(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["compare_run_a", "missing-run"],
+        "?run_id=compare_run_a&run_id=missing-run",
     )
     assert missing_class == "run-comparison-output"
     assert "missing-run" in str(missing)
@@ -3612,11 +3600,9 @@ def test_dashboard_run_comparison_fails_closed_for_bad_selection_or_data(
         service.close()
 
     failure, failure_class = compare(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["compare_run_a", "compare_run_b"],
+        "?run_id=compare_run_a&run_id=compare_run_b",
     )
     assert failure_class == "run-comparison-output"
     assert "invalid persisted evidence" in str(failure)
@@ -3633,18 +3619,14 @@ def test_dashboard_run_comparison_survives_dashboard_recreation(
     second = create_app(context, database)
 
     first_panel, first_class = _callback_function(first, "run-comparison-output")(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["compare_run_a", "compare_run_b"],
+        "?run_id=compare_run_a&run_id=compare_run_b",
     )
     second_panel, second_class = _callback_function(second, "run-comparison-output")(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["compare_run_a", "compare_run_b"],
+        "?run_id=compare_run_a&run_id=compare_run_b",
     )
     first_rendered = str(first_panel)
     second_rendered = str(second_panel)
@@ -3672,11 +3654,9 @@ def test_dashboard_run_comparison_uses_callback_local_sqlite_connection(
         try:
             result.append(
                 compare(
-                    1,
                     0,
                     "/research/compare-backtests",
-                    None,
-                    ["compare_run_a", "compare_run_b"],
+                    "?run_id=compare_run_a&run_id=compare_run_b",
                 )
             )
         except BaseException as exc:  # pragma: no cover - assertion below owns reporting
@@ -4620,10 +4600,11 @@ def test_run_monitor_refreshes_from_service(tmp_path: Path, monkeypatch) -> None
         "run_dashboard_fixture",
         [],
     )
-    refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
-    comparison_options = refresh_comparison_options(
+    refresh_comparison_rows = _callback_function(app, "find-compare-grid.rowData")
+    comparison_rows = refresh_comparison_rows(
         0,
         "/research/compare-backtests",
+        None,
     )
 
     assert options == [
@@ -4632,12 +4613,7 @@ def test_run_monitor_refreshes_from_service(tmp_path: Path, monkeypatch) -> None
             "value": "run_dashboard_fixture",
         }
     ]
-    assert [option["value"] for option in comparison_options] == [
-        option["value"] for option in options
-    ]
-    assert comparison_options[0]["label"].endswith(
-        " · Test run_dashboard_fixture"
-    )
+    assert [row["run_id"] for row in comparison_rows] == ["run_dashboard_fixture"]
     assert selected is no_update
 
 
@@ -4899,10 +4875,11 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
         "spym_persisted_run",
         [],
     )
-    refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
-    comparison_options = refresh_comparison_options(
+    refresh_comparison_rows = _callback_function(app, "find-compare-grid.rowData")
+    comparison_rows = refresh_comparison_rows(
         0,
         "/research/compare-backtests",
+        None,
     )
     panel = inspect(stored, "spym_persisted_run", 0, 0, 0, 0)
     rendered = str(panel)
@@ -4911,10 +4888,9 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
         "run_dashboard_fixture",
         "spym_persisted_run",
     ]
-    assert [option["value"] for option in comparison_options] == [
+    assert [row["run_id"] for row in comparison_rows] == [
         option["value"] for option in options
     ]
-    assert all(" · Test " in option["label"] for option in comparison_options)
     assert selected is no_update
     assert stored == "spym_persisted_run"
     assert service.run_detail_queries[-1] == "spym_persisted_run"
@@ -5201,18 +5177,18 @@ def test_initial_selector_hydration_does_not_rewrite_existing_dropdown(
         "run_dashboard_fixture",
         existing_options,
     )
-    refresh_comparison_options = _callback_function(app, "comparison-run-selector.options")
-    comparison_options = refresh_comparison_options(
+    refresh_comparison_rows = _callback_function(app, "find-compare-grid.rowData")
+    comparison_rows = refresh_comparison_rows(
         0,
         "/research/compare-backtests",
+        None,
     )
 
     assert options is no_update
     assert selected is no_update
-    assert [option["value"] for option in comparison_options] == [
+    assert [row["run_id"] for row in comparison_rows] == [
         option["value"] for option in existing_options
     ]
-    assert all(" · Test " in option["label"] for option in comparison_options)
 
 
 def test_initial_session_selection_beats_layout_default_dropdown(

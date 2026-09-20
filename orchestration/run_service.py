@@ -174,22 +174,31 @@ def _top_ranked_metrics(results: tuple[object, ...]) -> tuple[dict[str, float | 
         "total_return": None,
         "annualized_return": None,
         "sharpe_ratio": None,
+        "max_drawdown": None,
+        "win_rate": None,
         "number_of_trades": None,
     }
     if not results:
-        return metrics, "No persisted ranked result"
+        return metrics, "Top-ranked variation unavailable · No persisted ranked result"
 
     selected = results[0]
     try:
         values = json.loads(selected.metrics_json)
     except (AttributeError, TypeError, json.JSONDecodeError):
-        return metrics, "Top-ranked metrics unavailable"
+        return metrics, "Top-ranked variation unavailable · Metrics could not be read"
     if not isinstance(values, dict):
-        return metrics, "Top-ranked metrics unavailable"
+        return metrics, "Top-ranked variation unavailable · Metrics could not be read"
 
     for name in metrics:
         metrics[name] = _numeric_metric(values, name)
-    return metrics, f"Rank {selected.ranking_position} result"
+    basis = ["Top-ranked variation"]
+    ranking_position = getattr(selected, "ranking_position", None)
+    if ranking_position is not None:
+        basis.append(f"Rank {ranking_position}")
+    screening_status = getattr(selected, "screening_status", None)
+    if isinstance(screening_status, str) and screening_status.strip():
+        basis.append(f"Screening {screening_status.replace('_', ' ').title()}")
+    return metrics, " · ".join(basis)
 
 
 def _registered_artifact_status(artifacts: tuple[object, ...]) -> str:
@@ -610,6 +619,11 @@ class FixtureRunService:
                         "Configuration unavailable"
                         if configuration_issue is not None
                         else market_data.get("symbol", "Not recorded")
+                    ),
+                    "interval": (
+                        "Unavailable"
+                        if configuration_issue is not None
+                        else market_data.get("interval", "Not recorded")
                     ),
                     "strategy": (
                         strategy.display_name
