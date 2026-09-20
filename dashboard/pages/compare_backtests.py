@@ -41,7 +41,7 @@ def find_compare_columns() -> list[dict[str, Any]]:
         {"field": "total_return", "headerName": "Top return", "valueFormatter": percent},
         {
             "field": "max_drawdown",
-            "headerName": "Top drawdown",
+            "headerName": "Top result max drawdown",
             "valueFormatter": percent,
         },
         {"field": "win_rate", "headerName": "Top win rate", "valueFormatter": percent},
