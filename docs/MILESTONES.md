@@ -9,9 +9,9 @@ ordered work, milestone scope, and acceptance.
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
 | Phase | Milestone 25 controlled research is active under Decisions 287 and 294. Milestone 23 remains an eventual pre-paper product gate, not the current queue. |
-| Active work | R08: inventory source-attributed candidates and present the next named hypothesis to Terry for approval with fixed evidence boundaries. No next candidate has been selected. |
-| Finding | MES ORB is concluded and rejected as an edge candidate; its preserved evidence still proves parts of the factory. Find & Compare is merged, and Terry found the reviewed image good and intuitive. |
-| Next action | Select the next source-attributed candidate for Terry's approval, then connect only that approved hypothesis to the existing research path. |
+| Active work | R08: reconcile the existing source-attributed shortlist, then present the next named hypothesis to Terry for approval with fixed evidence boundaries. No next candidate has been selected. |
+| Finding | MES ORB is concluded and rejected as an edge candidate; it proved early screening, durable results, ranking and dashboard reading, but not the complete filtration chain. Find & Compare is merged, and Terry found the reviewed image good and intuitive. |
+| Next action | Reconcile the completed shortlist, then select the next source-attributed candidate for Terry's approval and connect only that approved hypothesis to the existing research path. |
 | Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, unapproved parameter changes, paper activation, futures execution, and live trading. Deployment, portability, broad Milestone 23 closure, and paper-runtime work are dormant until their trigger occurs. |
 
 ## Product direction and boundaries
@@ -44,18 +44,18 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | The first controlled candidate, MES ORB, completed its bounded path and was rejected as an edge candidate; no next candidate has been selected. Inventory source-attributed candidates, then obtain Terry's explicit approval of one named hypothesis and fixed evidence boundaries before executable work. Reuse the existing engine, persistence, ranking/filtering, and dashboard. |
+| R08 | 1 | in_progress | none | MES ORB completed its bounded path and was rejected; a 2026-09-19 read-only shortlist already records ETF market intraday momentum (recommended), turn-of-month (alternative), and pre-holiday effect (alternative). Reconcile that shortlist, then obtain Terry's explicit approval of one named hypothesis and fixed evidence boundaries before executable work. Reuse the existing engine, persistence, ranking/filtering, and dashboard. |
 <!-- active-work:end -->
 
 ## Current execution path
 
 | Step | Status | Evidence or next action |
 |---:|---|---|
-| 1. Inventory an attributed candidate | In progress for the next cycle | The MES ORB cycle completed and rejected that candidate. Inventory the next source-attributed candidates without inventing one. |
+| 1. Inventory an attributed candidate | Completed for the current shortlist; reconcile before next cycle | On 2026-09-19 a read-only, source-attributed shortlist recorded ETF market intraday momentum (recommended), turn-of-month (alternative), and pre-holiday effect (alternative). No code, data acquisition, or backtest occurred; no candidate was selected. |
 | 2. Approve the hypothesis and boundaries | Pending | Terry selects one named candidate and approves fixed evidence boundaries before executable launch. |
 | 3. Connect it to existing research | Pending selection | Use the thinnest adapter to the existing VectorBT research path; do not replace the engine. |
-| 4. Persist, rank, and filter results | Proven by ORB; pending next candidate | Preserve distinct durable runs and truthful ranking/filtering for the approved candidate. |
-| 5. Inspect through the dashboard | Available in merged source | Find & Compare and the selected-run correction are merged; Terry found the reviewed Find & Compare image good and intuitive. Persistent deployment is not needed for the current research step. |
+| 4. Persist, rank, and filter results | Early path proven by ORB; complete filtration path not yet proven end to end | Preserve distinct durable runs and truthful progression through every applicable filter for the approved candidate. |
+| 5. Inspect through the dashboard | Capability merged; the current candidate cycle has not reached this step | Find & Compare and the selected-run correction are merged; Terry found the reviewed Find & Compare image good and intuitive. Persistent deployment is not needed for the current research step. |
 | 6. Continue bounded research | Active | Use Milestone 25 safeguards; each new executable candidate needs explicit owner approval and predeclared evidence boundaries. |
 | 7. Activate paper trading | Gated | Requires a qualified edge and every Milestone 24 execution gate. |
 | 8. Automate paper forward testing | Gated | Milestone 26 follows successful paper activation and reconciliation proof. |
@@ -213,6 +213,23 @@ and an independent Risk Sentinel.
   real-browser, independent-review, and required-CI evidence passed. Deployment,
   target validation, operator acceptance, full beta, and Milestone 23
   completion remain pending.
+
+### Candidate shortlist investigation — 2026-09-19
+
+- A read-only, source-attributed shortlist assessed [ETF market intraday
+  momentum](https://doi.org/10.1016/j.jfineco.2018.05.009) (recommended),
+  [turn-of-month](https://doi.org/10.2469/faj.v64.n2.11) (alternative), and
+  [pre-holiday effect](https://doi.org/10.1111/j.1540-6261.1990.tb03731.x)
+  (alternative).
+- Status and reason: completed inventory only; no candidate was selected,
+  because Terry's approval and fixed evidence boundaries were still pending.
+- Data limitation measured at review: intraday momentum lacked sufficient
+  catalogued ETF minute history; turn-of-month and pre-holiday lacked a
+  suitable catalogued multi-year adjusted broad-market dataset. No code was
+  written, no market data was acquired, and no candidate was backtested. The
+  shortlist is research context, not edge or profitability evidence. Reconcile
+  this record before commissioning another candidate inventory or
+  implementation.
 
 ### Find & Compare — 2026-09-20
 

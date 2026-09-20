@@ -42,6 +42,12 @@ trading and capital exposure.
   candidate for owner approval, then run only its fixed evidence plan through
   the existing factory. Deployment, portability, full Milestone 23 closure,
   and paper-runtime work stay dormant until their recorded trigger occurs.
+- Before commissioning candidate research or material implementation, perform
+  a lean prior-work check in the Tier 1 authorities and repository history.
+  Reuse or reconcile completed work before proposing it again; record each
+  meaningful completed candidate investigation, status, and reason in
+  `docs/MILESTONES.md`. Before compaction or handoff, confirm that completed
+  research and the exact next action are durable there.
 - Correct verified factual drift, but never turn a correction into an
   unapproved change of scope, architecture, status, or acceptance.
 - Record permanent changes under documentation governance; chat is not durable

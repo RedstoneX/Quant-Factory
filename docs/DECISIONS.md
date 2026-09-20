@@ -832,3 +832,41 @@ explicitly.
      unchanged. No new ADR is needed because product architecture is
      unchanged; ADR 0007 receives only a sequencing banner. `CLAUDE.md` and
      `.claude/**` remain untouched by owner direction.
+
+295. **Prior-work reconciliation prevents duplicate candidate research
+     (accepted 2026-09-20).** The owner directs Quant Factory to perform a lean
+     prior-work check in the Tier 1 authorities and repository history before
+     commissioning candidate research or material implementation. Completed candidate
+     investigations must be reused or reconciled rather than re-proposed, and
+     every meaningful completed investigation must be recorded in
+     `docs/MILESTONES.md` with its status and reason. Before compaction or
+     handoff, completed research and the exact next action must be durable in
+     Tier 1 rather than left only in chat. This corrects the verified
+     2026-09-20 duplication after compaction without selecting a candidate,
+     acquiring data, changing evidence gates, or authorizing executable work.
+
+     The durable 2026-09-19 shortlist is: ETF market intraday momentum
+     (recommended), turn-of-month (alternative), and pre-holiday effect
+     (alternative). It was read-only source-attributed research context; no
+     code, market-data acquisition, or backtest occurred. No candidate was
+     selected because owner approval and fixed evidence boundaries remained
+     pending. These limitations must remain explicit and turn-of-month must
+     not be described as backtested.
+
+     The filter engines have focused implementation evidence, but the complete
+     filtration chain has not been proven end to end for a new candidate. MES
+     ORB proved early screening, durable results, ranking, and dashboard
+     reading before it screened out. Dashboard capability is merged source,
+     not evidence that the current candidate cycle has reached inspection or
+     that Milestone 23 is complete.
+
+     Documentation-impact assessment: `AGENTS.md`, `docs/MILESTONES.md`, the
+     agent policy, and `README.md` are updated because permanent prior-work
+     behavior, R08 order/status, durable candidate history, and public
+     orientation change. This decision log is appended. No ADR applies because
+     no architecture, data flow, runtime, dependency, or integration changes.
+     `docs/CHAT_HANDOFF.md` is not applicable because Tier 1 remains the
+     startup route. No runbook/specification applies because no operator,
+     recovery, migration, deployment, paper, or live procedure changes. No
+     milestone-completion record changes; R08 remains in progress. `CLAUDE.md`
+     and `.claude/**` remain untouched.
