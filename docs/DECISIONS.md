@@ -910,16 +910,24 @@ explicitly.
      are unknown. There is no independent or protected evidence, promotion,
      paper order, deployment, or edge claim. Reuse VectorBT Pro, manifest
      verification, screening, durable persistence/artifacts, filters, and the
-     dashboard. Permit only a candidate-specific mixed-price adapter; do not
-     change the common engine, schema, or dashboard. Implementation is in
-     progress and the backtest has not run; it is not tested, merged, deployed,
-     or accepted application behavior.
+     dashboard. Under Decision 287's verified-operational-blocker exception,
+     authorize only two narrow candidate-display truth corrections: suppress
+     the generic annualization notice when persisted `252` sessions/year and
+     zero risk-free basis are present, and suppress the blanket SPYM
+     fixture-only notice for this approved candidate while retaining historical
+     fixture wording for actual fixtures. These corrections are not redesign,
+     polish, or new features. Permit only a candidate-specific mixed-price
+     adapter and these notices; do not change the common engine or schema.
+     Implementation is in progress and the backtest has not run; it is not
+     tested, merged, deployed, or accepted application behavior.
 
      Documentation-impact assessment: `docs/DECISIONS.md`,
      `docs/MILESTONES.md`, `docs/DATA_CATALOG.md`, the SPYM manifest, and
      `docs/strategies/spym-intraday-momentum.md` are updated because this is an
-     owner-approved candidate, changes R08's status and next action, and
-     bounds the permitted use of an existing dataset. `AGENTS.md` and the
+     owner-approved candidate, changes R08's status and next action, bounds the
+     permitted use of an existing dataset, and records the two narrow
+     candidate-display truth corrections authorized under Decision 287's
+     verified-operational-blocker exception. `AGENTS.md` and the
      agent policy are not applicable because no stable operating or delegation
      rule changes. No ADR applies because the common architecture, schema,
      deployment, security, and integration are unchanged. `CHAT_HANDOFF.md`

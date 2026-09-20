@@ -59,6 +59,12 @@ orders, deploy, or claim an edge from this screen.
 Finish and review the candidate-specific mixed-price adapter, then run one
 bounded screen through the existing VectorBT Pro engine, manifest verification,
 screening, durable persistence/artifacts, filters, and dashboard. Do not change
-the common engine, schema, or dashboard. Preserve excluded sessions and all
-screen outputs. A screen result only determines whether a separately approved
-next evidence stage is considered; it does not authorize one automatically.
+the common engine or schema. Under Decision 287's verified-operational-blocker
+exception, the screen may receive only two narrow candidate-display truth
+corrections: suppress the generic annualization notice when persisted `252`
+sessions/year and zero risk-free basis are present, and suppress the blanket
+SPYM fixture-only notice for this approved candidate while retaining historical
+fixture wording for actual fixtures. These are not redesign, polish, or new
+features. Preserve excluded sessions and all screen outputs. A screen result
+only determines whether a separately approved next evidence stage is
+considered; it does not authorize one automatically.
