@@ -82,10 +82,10 @@ explicitly.
     serialize merely because an independent pull request merged first.
     Overlapping or dependent changes remain serialized and retested against
     the resulting `main`.
-22. During the scoped revival, the lead orchestrates multiple bounded workers,
+22. Codex is the sole active project agent toolchain. During the scoped
+    revival, the Codex lead orchestrates multiple bounded workers,
     independently validates critical evidence, and remains the sole owner-
-    facing coordinator. Outside that scope, Claude Code remains the primary
-    sustained implementation agent.
+    facing coordinator.
 
 ## Current accepted sequence
 
@@ -596,3 +596,38 @@ explicitly.
      is not applicable because public product orientation is unchanged. No
      runbook or specification applies because no operator, recovery, migration,
      incident or product procedure changes.
+
+290. **Codex-only lean agent instruction system (accepted 2026-09-20).** The
+     owner selects Codex as Quant Factory's sole active project agent and asks
+     that the instruction system be optimized for Codex and kept lean. Normal
+     Codex work must not load, invoke, rely on, update, or follow `CLAUDE.md` or
+     `.claude/**`. Those files remain untouched historical or tool-specific
+     material; this decision does not delete or rewrite them.
+
+     This supersedes only the agent-allocation and tooling portions of earlier
+     decisions and documents that describe Codex as retired or another agent
+     as the primary implementation tool. It preserves Decision 270's bounded
+     lead/worker orchestration through Codex subagents and Decision 289's
+     independent adversary principle through native Codex skills. `AGENTS.md`
+     is reduced to stable rules loaded for every session; current product state
+     stays in `docs/MILESTONES.md`, decision history stays here, and detailed
+     procedures are loaded only when relevant. Native skills under
+     `.agents/skills/` provide implementation preflight and the material-
+     proposal adversary without placing those procedures in every session.
+
+     This decision changes agent tooling and instruction loading only. It does
+     not change product direction, active work, milestone status or acceptance,
+     architecture, deployment, strategy or evidence boundaries, credential
+     authority, paper/live gates, or capital authority.
+
+     Documentation-impact assessment: `AGENTS.md`, the agent policy, and this
+     decision log are updated; the two native Codex skill procedures are added.
+     `docs/CHAT_HANDOFF.md`, `README.md`, the infrastructure inventory, and the
+     current-status annotation on ADR 0009 are updated in the combined change
+     so active navigation no longer routes work to inactive tooling.
+     `docs/MILESTONES.md` is not applicable because product order, status,
+     scope, and acceptance are unchanged. `CLAUDE.md` and `.claude/**` are not
+     applicable and remain untouched by owner instruction. No new ADR applies
+     because product architecture, deployment, security, data flow, and
+     integration are unchanged. No product runbook or specification changes
+     because no operator or runtime procedure changes.
