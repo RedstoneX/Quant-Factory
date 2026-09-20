@@ -622,9 +622,12 @@ explicitly.
 
      Documentation-impact assessment: `AGENTS.md`, the agent policy, and this
      decision log are updated; the two native Codex skill procedures are added.
-     `docs/CHAT_HANDOFF.md`, `README.md`, the infrastructure inventory, and the
-     current-status annotation on ADR 0009 are updated in the combined change
-     so active navigation no longer routes work to inactive tooling.
+     `docs/CHAT_HANDOFF.md`, `README.md`, the infrastructure inventory, the
+     current-status annotation on ADR 0009, and active agent-allocation or
+     proof-actor wording in ADRs 0003 and 0010 are updated in the combined
+     change so active navigation and procedures no longer route work to
+     inactive tooling. The ADR 0003 and ADR 0010 wording corrections change no
+     product architecture or credential gate.
      `docs/MILESTONES.md` is not applicable because product order, status,
      scope, and acceptance are unchanged. `CLAUDE.md` and `.claude/**` are not
      applicable and remain untouched by owner instruction. No new ADR applies
