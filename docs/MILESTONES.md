@@ -91,9 +91,18 @@ completed four successful isolated screening runs: two reference runs and two
 matrix runs persisted 32 ranked rows (2 reference plus 30 matrix), and the
 30-minute/zero-offset reference matched the corresponding matrix rows exactly
 in both directions. Every matrix variant remained screened out. Each run
-persisted seven registered artifacts plus its integrity manifest. This is
-development/reference integration evidence only; it establishes no edge,
-promotion, deployment, paper activation, or live authority. Decision 287 authorizes
+persisted seven registered artifacts plus its integrity manifest. PR #65
+merged the adapter and its required portable test into canonical `main` at
+merge revision `a5c10c676bbbc3c3043ca80f87dcbbac6e750509`. The validated run
+database and artifacts are preserved in verified owner-only external host
+storage outside production; they have not been imported into or deployed with
+the production research runtime and are not available in its dashboard. A
+bounded blocker repair for truthful ORB rendering is implemented and reviewed
+at local revision
+`f2c443afb970b9518147c5823de4e0ae03c6ebe1`, but remains unmerged and
+undeployed. This is development/reference integration evidence only; it
+establishes no edge, promotion, deployment, paper activation, or live
+authority. Decision 287 authorizes
 controlled, bounded, source-attributed candidate intake, discovery and
 research/backtesting under Milestone 25 safeguards before Milestone 23 closes.
 Executable launch requires the owner's explicit approval of the named,
@@ -128,13 +137,20 @@ Decision 287 sets the current order:
 3. Connect that approved candidate through the thinnest necessary adapter to
    the existing VectorBT batch-research path without building a replacement
    engine, and produce durable runs and evidence. **Implemented and validated
-   in the isolated branch at revision `0f7701fd6d3823b9603576777df441dd92df45a8`;
-   repository integration remains pending.**
+   at executable revision `0f7701fd6d3823b9603576777df441dd92df45a8`, then
+   merged into canonical `main` through PR #65 at merge revision
+   `a5c10c676bbbc3c3043ca80f87dcbbac6e750509`. The validated result state
+   is preserved in verified external host storage outside production and
+   remains undeployed.**
 4. Rank and filter durable results in the smallest reusable form needed for
    decision-making. **The bounded matrix persisted all 30 ranked rows; no
    variant survived screening.**
 5. Inspect selected results in the existing dashboard; change it only for a
-   verified operational blocker. **Next after repository integration.**
+   verified operational blocker. **Read-path validation identified truthful
+   rendering blockers. The bounded repair is implemented and independently
+   reviewed at local revision `f2c443afb970b9518147c5823de4e0ae03c6ebe1`, but
+   complete accepted-artifact validation, repository integration, deployment,
+   and operator inspection remain pending.**
 6. Continue controlled, bounded research under Milestone 25 safeguards until a
    defensible edge qualifies.
 7. Resume remaining Milestone 24 paper activation only after the qualifying
@@ -158,7 +174,7 @@ resulting `main`.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R07 | 1 | in_progress | none | Decision 288's thin durable MES ORB adapter is implemented and isolated-runtime validated at executable revision `0f7701fd6d3823b9603576777df441dd92df45a8`: four successful runs persisted 32 ranked rows (2 reference plus 30 matrix), exact 30-minute/zero-offset parity passed in both directions, and every matrix variant screened out; best long was 15 minutes/2 ticks with 5.42477% return, 0.458798 Sharpe, 4.19045% maximum drawdown and 1,227 trades; best short was 30 minutes/0 ticks with -5.52201% return, -0.453648 Sharpe, 7.55715% maximum drawdown and 1,049 trades; each run persisted seven registered artifacts plus its integrity manifest; an initial disk-full attempt was partial invalid evidence and was excluded, then a fresh isolated retry succeeded; all evidence remains development/reference only and establishes no edge, promotion, deployment, paper or live authority; next integrate the reviewed branch, then inspect the runs in the existing dashboard and repair only verified operational blockers |
+| R07 | 1 | in_progress | none | Decision 288's thin durable MES ORB adapter is implemented and isolated-runtime validated at executable revision `0f7701fd6d3823b9603576777df441dd92df45a8`, then merged through PR #65 at `a5c10c676bbbc3c3043ca80f87dcbbac6e750509`: four successful runs persisted 32 ranked rows (2 reference plus 30 matrix), exact 30-minute/zero-offset parity passed in both directions, and every matrix variant screened out; best long was 15 minutes/2 ticks with 5.42477% return, 0.458798 Sharpe, 4.19045% maximum drawdown and 1,227 trades; best short was 30 minutes/0 ticks with -5.52201% return, -0.453648 Sharpe, 7.55715% maximum drawdown and 1,049 trades; each run persisted seven registered artifacts plus its integrity manifest; an initial disk-full attempt was partial invalid evidence and was excluded, then a fresh isolated retry succeeded; the validated result state is preserved in verified owner-only external host storage outside production and remains undeployed; a bounded dashboard blocker repair is implemented and independently reviewed at local `f2c443afb970b9518147c5823de4e0ae03c6ebe1` but remains unmerged and undeployed, with complete accepted-artifact validation still pending; all evidence remains development/reference only and establishes no edge, promotion, deployment, paper or live authority; next complete artifact-backed validation from the preserved external evidence, integrate the repair if green, and perform only the backed-up private deployment and operator inspection needed for R07 |
 | R05 | 8 | pending | none | Preserve the validated selected-run Results repair outside canonical main; it remains unmerged and undeployed; freeze further dashboard implementation, polish, redesign and deployment unless R07 exposes a verified operational blocker; the owner accepts the existing dashboard as good enough for the controlled path, but Milestone 23 and the accepted later multi-run/cache requirements remain pending |
 | R06 | 9 | pending | R07 | Preserve completed paper-observer preparation; authenticated runtime work remains deferred until a defensible edge qualifies and every unchanged execution gate passes |
 <!-- active-work:end -->
@@ -175,6 +191,21 @@ ADRs, `README.md`, runbooks, and `dashboard/project_status.py` are not applicabl
 because this record changes no mandate, architecture, deployment, operating
 procedure, public orientation, or accepted dashboard status. R07 and Milestone
 25 remain in progress.
+
+### PR #65 integration status correction — 2026-09-20
+
+This is a factual implementation-status correction, not a new owner decision,
+roadmap change, deployment claim, or milestone acceptance. `docs/MILESTONES.md`
+is updated because the ORB adapter is now merged while its validated result
+state is preserved in verified external host storage outside production and
+remains undeployed. `docs/CHAT_HANDOFF.md` is updated so a
+future session resumes from artifact-backed validation and the local dashboard
+blocker repair instead of repeating completed repository integration.
+`AGENTS.md`, the agent policy, `docs/DECISIONS.md`, ADRs, `README.md`, runbooks,
+the strategy specification, and `dashboard/project_status.py` are not
+applicable because no mandate, architecture, public orientation, operating
+procedure, strategy rule, deployment, acceptance, or milestone-completion fact
+changes. R07 and Milestone 25 remain in progress.
 
 ## Completed repository remediation
 
