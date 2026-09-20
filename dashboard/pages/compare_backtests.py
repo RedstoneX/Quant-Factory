@@ -38,13 +38,13 @@ def find_compare_columns() -> list[dict[str, Any]]:
             "filter": "agTextColumnFilter",
             "minWidth": 145,
         },
-        {"field": "total_return", "headerName": "Top return", "valueFormatter": percent},
+        {"field": "total_return", "headerName": "Total return", "valueFormatter": percent},
         {
             "field": "max_drawdown",
-            "headerName": "Top result max drawdown",
+            "headerName": "Max drawdown",
             "valueFormatter": percent,
         },
-        {"field": "win_rate", "headerName": "Top win rate", "valueFormatter": percent},
+        {"field": "win_rate", "headerName": "Win rate", "valueFormatter": percent},
         {
             "field": "sharpe_ratio",
             "headerName": "Sharpe",
