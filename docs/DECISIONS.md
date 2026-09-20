@@ -917,9 +917,12 @@ explicitly.
      fixture-only notice for this approved candidate while retaining historical
      fixture wording for actual fixtures. These corrections are not redesign,
      polish, or new features. Permit only a candidate-specific mixed-price
-     adapter and these notices; do not change the common engine or schema.
-     Implementation is in progress and the backtest has not run; it is not
-     tested, merged, deployed, or accepted application behavior.
+     adapter and these notices; do not change the common engine or schema. One
+     bounded development/reference screen has now run at source revision
+     `3ae6912937501b46f67666dea269ec76e92caad5` using licensed VectorBT Pro
+     2026.4.7 and screened out the candidate at the initial rules. Final
+     evidence review is in progress; this does not claim an edge, promotion,
+     deployment, paper/live authority, or accepted application behavior.
 
      Documentation-impact assessment: `docs/DECISIONS.md`,
      `docs/MILESTONES.md`, `docs/DATA_CATALOG.md`, the SPYM manifest, and

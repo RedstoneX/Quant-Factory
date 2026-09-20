@@ -9,9 +9,9 @@ ordered work, milestone scope, and acceptance.
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
 | Phase | Milestone 25 controlled research is active under Decisions 287 and 294. Milestone 23 remains an eventual pre-paper product gate, not the current queue. |
-| Active work | R08: implement and run the owner-approved SPYM intraday-momentum transfer test within fixed evidence boundaries. |
-| Finding | MES ORB is concluded and rejected as an edge candidate; it proved early screening, durable results, ranking and dashboard reading, but not the complete filtration chain. Find & Compare is merged, and Terry found the reviewed image good and intuitive. |
-| Next action | Finish and review the fixed SPYM adapter, then run one bounded development/reference screen. |
+| Active work | R08: review the completed owner-approved SPYM intraday-momentum transfer test and select the next source-attributed candidate only after owner approval. |
+| Finding | MES ORB is concluded and rejected as an edge candidate. The bounded SPYM screen also rejected its candidate at the initial screen; it proved the current result/artifact path, not an edge or complete filtration chain. Find & Compare is merged, and Terry found the reviewed image good and intuitive. |
+| Next action | Finish final evidence review of the SPYM screen, then obtain owner selection and approval of another source-attributed candidate; no next candidate is currently selected or approved, and there is no automatic progression. |
 | Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, unapproved parameter changes, paper activation, futures execution, and live trading. Deployment, portability, broad Milestone 23 closure, and paper-runtime work are dormant until their trigger occurs. |
 
 ## Product direction and boundaries
@@ -44,7 +44,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | MES ORB completed its bounded path and was rejected. Terry approved the SPYM transfer test under Decision 296 on 2026-09-20: use only the checksum-matching owned EQUS.MINI dataset, one fixed intraday rule, and the stated cost and eligibility boundaries. The adapter is in progress; finish/review it, then run one bounded development/reference screen through the existing engine, persistence, ranking/filtering, and dashboard. |
+| R08 | 1 | in_progress | none | MES ORB completed its bounded path and was rejected. Terry approved the SPYM transfer test under Decision 296 on 2026-09-20; its bounded screen completed at source revision `3ae6912937501b46f67666dea269ec76e92caad5` using licensed VectorBT Pro 2026.4.7 and screened out on total-return, annualized-return, and Sharpe rules. Final evidence review is in progress; select and approve another source-attributed candidate before any next run. |
 <!-- active-work:end -->
 
 ## Current execution path
@@ -53,10 +53,10 @@ ordered work, milestone scope, and acceptance.
 |---:|---|---|
 | 1. Inventory an attributed candidate | Completed for the current shortlist; reconcile before next cycle | On 2026-09-19 a read-only, source-attributed shortlist recorded ETF market intraday momentum (recommended), turn-of-month (alternative), and pre-holiday effect (alternative). No code, data acquisition, or backtest occurred; no candidate was selected. |
 | 2. Approve the hypothesis and boundaries | Approved | Terry approved the SPYM intraday-momentum transfer test and its fixed evidence boundaries on 2026-09-20; see Decision 296 and `docs/strategies/spym-intraday-momentum.md`. |
-| 3. Connect it to existing research | In progress | Finish and review the candidate-specific mixed-price adapter using the existing VectorBT research path. Decision 296 also authorizes only two narrow candidate-display truth corrections under Decision 287's verified-operational-blocker exception; no redesign, polish, or new feature. Do not change the common engine or schema. |
-| 4. Persist, rank, and filter results | Pending this candidate | Preserve distinct durable runs and truthful progression through every applicable filter after the bounded SPYM screen; the ORB path proves only early infrastructure behavior. |
-| 5. Inspect through the dashboard | Capability merged; the current candidate cycle has not reached this step | Find & Compare and the selected-run correction are merged; Terry found the reviewed Find & Compare image good and intuitive. Persistent deployment is not needed for the current research step. |
-| 6. Continue bounded research | Active | Use Milestone 25 safeguards; each new executable candidate needs explicit owner approval and predeclared evidence boundaries. |
+| 3. Connect it to existing research | Completed for this candidate; final evidence review in progress | The candidate-specific mixed-price adapter produced one bounded screen through the existing VectorBT research path at source revision `3ae6912937501b46f67666dea269ec76e92caad5`; no common engine or schema change. Decision 296's two narrow candidate-display truth corrections remain bounded under Decision 287. |
+| 4. Persist, rank, and filter results | Completed for this candidate; rejected at initial screen | The screen persisted 7/7 valid artifacts; database, artifact, and dashboard metrics agree; 0 passed and 1 screened out on total return, annualized return, and Sharpe. This is development/reference evidence, not an edge or promotion result. |
+| 5. Inspect through the dashboard | Capability merged; screen metrics agree, operator acceptance not claimed | The SPYM database, artifacts, and dashboard metrics agree. Find & Compare and the selected-run correction are merged; persistent deployment and operator acceptance are not claimed. |
+| 6. Continue bounded research | Gated on new owner approval | Select and approve another source-attributed candidate with fixed evidence boundaries before any next executable run; do not progress automatically from the SPYM rejection. |
 | 7. Activate paper trading | Gated | Requires a qualified edge and every Milestone 24 execution gate. |
 | 8. Automate paper forward testing | Gated | Milestone 26 follows successful paper activation and reconciliation proof. |
 | 9. Consider micro-live trading | Far future | Milestone 27 requires successful paper evidence and separate explicit owner approval. |
@@ -70,7 +70,7 @@ Milestones 1–22 are complete.
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
 | 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Pending eventual pre-paper gate; broad closure work is dormant** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; portability, deployment and activation dormant |
-| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **In progress; MES ORB rejected, SPYM selected under Decision 296, adapter review in progress; no SPYM run or result claimed** |
+| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **In progress; MES ORB and the SPYM initial screen rejected; final SPYM evidence review and next owner-approved candidate selection remain** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
 | 27 | Alpaca Micro-Live Proof and Independent Risk Sentinel | Separate approval, isolated live domain, independent supervision, and failure acceptance | Pending; far future |
 | 28–30 | Compliant crypto proof and multi-venue V1 | Legal and operational eligibility, isolated adapters, evidence, reconciliation, and recovery | Deferred |

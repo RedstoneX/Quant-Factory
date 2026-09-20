@@ -6,8 +6,12 @@ Decision 296 (accepted 2026-09-20) approves this as a bounded development/refere
 screen. It is a SPYM transfer test—not a SPY reproduction—of Gao, Han, Li &
 Zhou, “Market Intraday Momentum,” *Journal of Financial Economics* (2018), DOI
 [`10.1016/j.jfineco.2018.05.009`](https://doi.org/10.1016/j.jfineco.2018.05.009).
-The implementation is in progress and the backtest has not run; no tested,
-merged, deployed, accepted, promoted, or edge result is claimed.
+The bounded development/reference screen has completed from clean source at
+source revision `3ae6912937501b46f67666dea269ec76e92caad5` using licensed
+VectorBT Pro 2026.4.7.
+It screened out at the initial screen; final evidence review is in progress.
+This is not independent/protected evidence and does not claim a tested,
+merged, deployed, accepted, promoted, or edge result.
 
 ## Exact fixed rule
 
@@ -54,12 +58,33 @@ than 500 trades while this feed has no comparable trade-count field; and Alpaca
 shortability and account eligibility are unknown. Do not promote, place paper
 orders, deploy, or claim an edge from this screen.
 
+## Initial screen result
+
+The screen produced 133 closed trades and 266 orders across 70 long, 63 short,
+and 0 zero signals; 40 sessions were excluded. Total return was
+`-0.1686805974716311` (`-16.87%`), annualized return
+`-0.29533724723539356` (`-29.53%`), Sharpe
+`-12.968788931253316`, maximum end-of-eligible-session drawdown
+`-0.1686805974716311` (`-16.87%`), and win rate `0.15789473684210525`
+(`15.79%`). The screen passed 0 variants and screened out 1 variant because it
+failed the total-return, annualized-return, and Sharpe rules.
+
+The 7/7 persisted artifacts were valid; database, artifact, and dashboard
+metrics agreed; the dataset checksum matched; no warnings were emitted; and no
+orders occurred outside simulation. These are measured development/reference
+results over the already-inspected extent, not independent or protected
+evidence, an edge, or promotion evidence.
+
 ## Progression and reuse
 
-Finish and review the candidate-specific mixed-price adapter, then run one
-bounded screen through the existing VectorBT Pro engine, manifest verification,
-screening, durable persistence/artifacts, filters, and dashboard. Do not change
-the common engine or schema. Under Decision 287's verified-operational-blocker
+Finish final evidence review of the completed bounded screen; do not rerun or
+extend this rejected candidate. Any new screen requires owner selection and
+approval of another source-attributed candidate with fixed boundaries. Do not
+progress automatically; no next candidate is currently selected or approved,
+and no paper, deployment, or live work is authorized. The existing VectorBT Pro engine, manifest
+verification, screening, durable persistence/artifacts, filters, and dashboard
+remain the reusable path; do not change the common engine or schema. Under
+Decision 287's verified-operational-blocker
 exception, the screen may receive only two narrow candidate-display truth
 corrections: suppress the generic annualization notice when persisted `252`
 sessions/year and zero risk-free basis are present, and suppress the blanket
