@@ -2,9 +2,10 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-28
-- **Superseded in part:** Decision 237 retires Codex from the fallback and
-  review roles described below. Claude Code remains the primary programming
-  agent.
+- **Current allocation:** Decision 290 supersedes only the programming-agent
+  allocation in sections 6–7 and the related allocation consequences below.
+  Codex is now the sole active project toolchain. The venue, execution,
+  security, and source-of-truth architecture in this ADR remains accepted.
 
 ## Context
 
