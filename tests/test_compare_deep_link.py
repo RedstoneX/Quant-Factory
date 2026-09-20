@@ -18,9 +18,11 @@ COMPARE_PATH = "/research/compare-backtests"
 
 
 class _Runs:
-    def recent_runs(self, *, limit: int = 20):
-        assert limit == 20
-        return ()
+    def all_history(self, *, artifact_root=None):
+        return (
+            {"run_id": "exact-old"},
+            {"run_id": "exact-failed"},
+        )
 
 
 class _DetailAdapter:
@@ -117,35 +119,17 @@ def test_registered_compare_callbacks_adopt_query_without_writing_location() -> 
         (("run_id", "exact-old"), ("run_id", "exact-failed"))
     )
 
-    options = _callback(app, "comparison-run-selector.options")
-    hydrate = _callback(app, "comparison-query-message.children")
+    rows = _callback(app, "find-compare-grid.rowData")
+    hydrate = _callback(app, "find-compare-grid.selectedRows")
     compare = _callback(app, "run-comparison-output.children")
 
-    assert options(0, COMPARE_PATH, query) == [
-        {"label": "Requested exact test · Test exact-old", "value": "exact-old"},
-        {
-            "label": "Requested exact test · Test exact-failed",
-            "value": "exact-failed",
-        },
-    ]
-    value, message, message_class, href, style = hydrate(
-        query,
-        COMPARE_PATH,
-        0,
-        ["newest-a", "newest-b"],
-    )
-    assert value == ["exact-old", "exact-failed"]
-    assert "URL controls" in message
-    assert "error-state" not in message_class
-    assert href == f"{COMPARE_PATH}{query}"
-    assert style == {}
+    history = rows(0, COMPARE_PATH, query)
+    assert hydrate(query, COMPARE_PATH, history) == history
 
     rendered, class_name = compare(
         0,
-        0,
         COMPARE_PATH,
         query,
-        ["newest-a", "newest-b"],
     )
     assert class_name == "run-comparison-output"
     assert _by_id(rendered, "comparison-read-model") is not None
@@ -157,27 +141,15 @@ def test_invalid_query_clears_selector_and_never_reads_or_falls_back() -> None:
     adapter = _CompareAdapter(_model())
     app = _app(adapter)
     query = "?run_id=duplicate&run_id=duplicate"
-    hydrate = _callback(app, "comparison-query-message.children")
+    hydrate = _callback(app, "find-compare-grid.selectedRows")
     compare = _callback(app, "run-comparison-output.children")
 
-    value, message, message_class, href, style = hydrate(
-        query,
-        COMPARE_PATH,
-        0,
-        ["newest-a", "newest-b"],
-    )
-    assert value == []
-    assert "distinct" in message
-    assert "error-state" in message_class
-    assert href is None
-    assert style == {"display": "none"}
+    assert hydrate(query, COMPARE_PATH, [{"run_id": "duplicate"}]) == []
 
     rendered, _ = compare(
         0,
-        0,
         COMPARE_PATH,
         query,
-        ["newest-a", "newest-b"],
     )
     assert adapter.reads == []
     text = _text(rendered)
@@ -185,23 +157,50 @@ def test_invalid_query_clears_selector_and_never_reads_or_falls_back() -> None:
     assert "Comparison could not be read" in text
 
 
-def test_no_query_preserves_session_selector_and_builds_ordinary_link() -> None:
+def test_grid_selection_builds_explicit_results_and_compare_links() -> None:
     app = _app(_CompareAdapter(_model()))
-    hydrate = _callback(app, "comparison-query-message.children")
+    actions = _callback(app, "find-compare-selection-message.children")
 
-    value, message, _, href, style = hydrate(
-        "",
+    def selected(count: int):
+        return [
+            {
+                "run_id": f"session-{index}",
+                "status": "Succeeded",
+                "review": "Not reviewed",
+                "metric_basis": (
+                    "Top-ranked variation · Rank 1 · Screening Passed"
+                ),
+            }
+            for index in range(count)
+        ]
+
+    zero = actions(selected(0), "", COMPARE_PATH)
+    assert zero[2] is None and zero[4] is None
+
+    one = actions(selected(1), "", COMPARE_PATH)
+    assert one[2] == "/research/backtest-results?run_id=session-0"
+    assert one[3] == {}
+    assert one[5] == {"display": "none"}
+    assert "Rank 1 · Screening Passed" in one[0]
+
+    for count in (2, 3, 4):
+        comparison = actions(selected(count), "", COMPARE_PATH)
+        assert comparison[2] is None
+        assert comparison[4].count("run_id=") == count
+        assert comparison[5] == {}
+
+    five = actions(selected(5), "", COMPARE_PATH)
+    assert five[2] is None and five[4] is None
+    assert "reduce the selection" in five[0]
+
+    ordered = actions(
+        [{"run_id": "second"}, {"run_id": "first"}],
+        "?run_id=first&run_id=second",
         COMPARE_PATH,
-        1,
-        ["session-a", "session-b"],
     )
-
-    assert value is no_update
-    assert "link now matches" in message
-    assert href == (
-        "/research/compare-backtests?run_id=session-a&run_id=session-b"
+    assert ordered[4] == (
+        "/research/compare-backtests?run_id=first&run_id=second"
     )
-    assert style == {}
 
 
 def test_unknown_valid_run_identity_reaches_read_only_adapter_as_unavailable(
@@ -224,9 +223,10 @@ def test_unknown_valid_run_identity_reaches_read_only_adapter_as_unavailable(
 
 
 def test_compare_page_mounts_exact_link_and_query_status_region() -> None:
-    page = layout(recent_runs=())
+    page = layout(history_rows=())
 
-    assert _by_id(page, "comparison-query-message") is not None
-    link = _by_id(page, "comparison-exact-link")
+    assert _by_id(page, "find-compare-selection-message") is not None
+    assert _by_id(page, "find-compare-grid") is not None
+    link = _by_id(page, "find-compare-exact-link")
     assert link.href is None
     assert link.style == {"display": "none"}

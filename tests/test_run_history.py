@@ -110,6 +110,8 @@ def test_all_history_reports_ranked_metrics_and_metadata_without_artifact_payloa
                         "total_return": 0.10 + index,
                         "annualized_return": 0.20 + index,
                         "sharpe_ratio": 1.5 + index,
+                        "max_drawdown": -0.05,
+                        "win_rate": 0.6,
                         "number_of_trades": 5 + index,
                     },
                     ranking_position=1,
@@ -180,9 +182,12 @@ def test_all_history_reports_ranked_metrics_and_metadata_without_artifact_payloa
     assert first["total_return"] == 20.1
     assert first["annualized_return"] == 20.2
     assert first["sharpe_ratio"] == 21.5
+    assert first["max_drawdown"] == -0.05
+    assert first["win_rate"] == 0.6
     assert first["number_of_trades"] == 25
-    assert first["metric_basis"] == "Rank 1 result"
+    assert first["metric_basis"] == "Top-ranked variation · Rank 1 · Screening Passed"
     assert first["instrument"] == "SPY"
+    assert first["interval"] == "1d"
     assert first["strategy"] == "Ranked History Strategy"
     assert first["stage"] == "Fixture backtest"
     assert first["status"] == "Succeeded"
@@ -192,7 +197,7 @@ def test_all_history_reports_ranked_metrics_and_metadata_without_artifact_payloa
     assert first["reproducibility"].startswith("Manifest invalid:")
     assert last["run_id"] == "history-grid-00"
     assert last["total_return"] == 0.10
-    assert last["metric_basis"] == "Rank 1 result"
+    assert last["metric_basis"] == "Top-ranked variation · Rank 1 · Screening Passed"
     assert last["review"] == "Watchlist"
     assert last["evidence"] == "Evidence registered; outcome not applicable"
     assert last["artifact_status"] == "1 registered artifacts"

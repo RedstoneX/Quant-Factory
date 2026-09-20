@@ -325,13 +325,31 @@ def test_loading_empty_and_failure_states_keep_safe_read_only_guidance() -> None
 
 def test_compare_page_persists_only_its_selection_in_session() -> None:
     page = compare_page()
-    selector = _by_id(page, "comparison-run-selector")
+    selector = _by_id(page, "find-compare-grid")
 
+    assert selector.selectedRows == []
+    assert selector.dashGridOptions["rowSelection"]["mode"] == "multiRow"
+    assert selector.columnSize == "responsiveSizeToFit"
     assert selector.persistence is True
     assert selector.persistence_type == "session"
-    assert selector.multi is True
+    assert selector.persisted_props == ["filterModel", "columnState"]
+    assert _by_id(page, "find-compare-search").persistence is True
+    assert _by_id(page, "find-compare-reset-view") is not None
+    assert _by_id(page, "find-compare-grid-count") is not None
+    assert [column["field"] for column in selector.columnDefs if not column.get("hide")] == [
+        "created_at",
+        "instrument",
+        "interval",
+        "strategy",
+        "evidence",
+        "total_return",
+        "max_drawdown",
+        "win_rate",
+        "sharpe_ratio",
+        "number_of_trades",
+    ]
     assert _by_id(page, "comparison-loading") is not None
-    assert "This selection is independent of Results" in _text(page)
+    assert "Each row is one saved test" in _text(page)
 
 
 class _CompareAdapter:
@@ -353,7 +371,7 @@ class _RunService:
     def __init__(self) -> None:
         self.recent_reads = 0
 
-    def recent_runs(self, *, limit: int = 20):
+    def all_history(self, *, artifact_root=None):
         self.recent_reads += 1
         return ()
 
@@ -393,11 +411,11 @@ def _callback_app(adapter: _CompareAdapter) -> tuple[Dash, _RunService]:
 def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> None:
     adapter = _CompareAdapter(_model())
     app, runs = _callback_app(adapter)
-    compare = _callback(app, "run-comparison-output", "compare-selected-runs")
-    options = _callback(app, "comparison-run-selector.options", "refresh-comparisons")
+    compare = _callback(app, "run-comparison-output", "refresh-comparisons")
+    options = _callback(app, "find-compare-grid.rowData", "refresh-comparisons")
     option_inputs = {
         (item["id"], item["property"])
-        for item in app.callback_map["comparison-run-selector.options"]["inputs"]
+        for item in app.callback_map["find-compare-grid.rowData"]["inputs"]
     }
     comparison_output = next(
         value
@@ -415,7 +433,6 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
         ("url", "search"),
     }
     assert comparison_inputs == {
-        ("compare-selected-runs", "n_clicks"),
         ("refresh-comparisons", "n_clicks"),
         ("url", "pathname"),
         ("url", "search"),
@@ -423,22 +440,18 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
     assert all("reproduction-message" not in key for key in app.callback_map)
 
     with pytest.raises(PreventUpdate):
-        compare(1, 0, "/research/setup", None, ["run-a", "run-b"])
+        compare(0, "/research/setup", "?run_id=run-a&run_id=run-b")
     assert adapter.reads == []
 
     first, first_class = compare(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["run-a", "run-b"],
+        "?run_id=run-a&run_id=run-b",
     )
     refreshed, refreshed_class = compare(
         1,
-        1,
         "/research/compare-backtests",
-        None,
-        ["run-a", "run-b"],
+        "?run_id=run-a&run_id=run-b",
     )
     assert first_class == refreshed_class == "run-comparison-output"
     assert _by_id(first, "comparison-equity-chart") is not None
@@ -454,14 +467,12 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
 def test_compare_callback_retains_identities_on_read_failure() -> None:
     adapter = _CompareAdapter(error=RuntimeError("persisted store unavailable"))
     app, _ = _callback_app(adapter)
-    compare = _callback(app, "run-comparison-output", "compare-selected-runs")
+    compare = _callback(app, "run-comparison-output", "refresh-comparisons")
 
     rendered, class_name = compare(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["run-a", "run-b"],
+        "?run_id=run-a&run_id=run-b",
     )
 
     assert class_name == "run-comparison-output"

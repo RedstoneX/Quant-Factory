@@ -340,12 +340,12 @@ def _assert_exact_compare(page) -> None:
         f"{RESULTS_PATH}?{urlencode({'run_id': TARGET_RUN_ID})}",
         f"{RESULTS_PATH}?{urlencode({'run_id': FAILED_RUN_ID})}",
     ]
-    expect(page.locator("#comparison-exact-link")).to_have_attribute(
+    expect(page.locator("#find-compare-exact-link")).to_have_attribute(
         "href",
         f"{COMPARE_PATH}?{_compare_query()}",
     )
-    expect(page.locator("#comparison-query-message")).to_contain_text(
-        "URL controls"
+    expect(page.locator("#find-compare-selection-message")).to_contain_text(
+        "2 saved tests selected"
     )
 
 
