@@ -240,7 +240,7 @@ def test_home_recent_failure_takes_precedence_over_active_run() -> None:
     )
 
 
-def test_home_keeps_discovery_blocked_while_milestone_23_is_pending() -> None:
+def test_home_shows_controlled_research_boundary_while_milestone_23_is_pending() -> None:
     model = build_home_view_model(
         recent_runs=(_run("first", "succeeded"), _run("second", "succeeded")),
         as_of=NOW,
@@ -249,8 +249,12 @@ def test_home_keeps_discovery_blocked_while_milestone_23_is_pending() -> None:
     discovery = _text(_component(page, "home-discovery-gate"))
 
     assert model.milestone.startswith("Milestone 23")
-    assert model.milestone_status == "Pending - hard discovery gate"
-    assert "Discovery blocked" in discovery
-    assert "strategy discovery remains unavailable" in discovery
+    assert model.milestone_status == "Pending; controlled research exception active."
+    assert "Controlled research active" in discovery
+    assert "owner-approved, source-attributed hypotheses" in discovery
+    assert (
+        "Protected tests, promotion, paper execution, and live trading remain blocked"
+        in discovery
+    )
     assert model.action.label == "Continue to Compare"
     assert "discover" not in model.action.label.lower()

@@ -95,5 +95,6 @@ def test_milestone21_and_22_are_complete_and_milestone23_is_active() -> None:
         in milestones
     )
     assert "| 23 | End-to-End Equity Research Factory Acceptance" in milestones
-    assert "| R05 | 1 | in_progress |" in milestones
-    assert "milestone is **23 — End-to-End Equity Research Factory Acceptance**." in milestones
+    assert "| R07 | 1 | in_progress |" in milestones
+    assert "Milestone 25 controlled research is active" in milestones
+    assert "Milestone 23 technical and operator acceptance remains pending" in milestones

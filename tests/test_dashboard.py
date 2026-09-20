@@ -874,7 +874,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     home_text = mounted_pages["/"]
     assert "Research readiness" in home_text
     assert "Not checked" in home_text
-    assert "Discovery blocked" in home_text
+    assert "Controlled research active" in home_text
     assert home_visible == ["/"]
 
     retired_review_visible = visible_routes(
@@ -1298,8 +1298,12 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     assert str(PROJECT_STATUS.current_milestone_number) in home_text
     assert PROJECT_STATUS.current_milestone_title in home_text
     assert PROJECT_STATUS.current_milestone_status in home_text
-    assert "Discovery blocked" in home_text
-    assert "strategy discovery remains unavailable" in home_text
+    assert "Controlled research active" in home_text
+    assert "owner-approved, source-attributed hypotheses" in home_text
+    assert (
+        "Protected tests, promotion, paper execution, and live trading remain blocked"
+        in home_text
+    )
     assert "Not checked" in home_text
     assert "Milestone 20" not in home_text
     assert "Operator Home" not in home_text
@@ -1336,7 +1340,14 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         assert "Page not found" in _component_text(page_for_path(legacy_path, context))
     assert page_for_path("/paper/fleet", context).className == "page-container pending-page"
     assert page_for_path("/paper/strategy", context).className == "page-container pending-page"
-    assert page_for_path("/system", context).className == "page-container"
+    system = page_for_path("/system", context)
+    system_text = _component_text(system)
+    assert system.className == "page-container"
+    assert "Controlled research is active only for owner-approved" in system_text
+    assert (
+        "Protected tests, promotion, paper execution, and live trading remain blocked"
+        in system_text
+    )
     assert page_for_path("/system/providers", context).className == "page-container"
     assert page_for_path("/settings", context).className == "page-container pending-page"
     assert page_for_path("/missing", context).className == "page-container"
@@ -1638,7 +1649,7 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
     assert "No selected, active, or persisted run is available yet." in rendered
     assert "No recent failures require attention." in rendered
     assert rendered.count("Not checked") >= 12
-    assert "Discovery blocked" in rendered
+    assert "Controlled research active" in rendered
     assert "P&L" not in rendered
     assert "profit" not in rendered.lower()
     action = next(

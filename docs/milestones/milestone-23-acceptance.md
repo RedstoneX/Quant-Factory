@@ -1,15 +1,20 @@
 # Milestone 23 Acceptance
 
-Milestone 23 proves the complete equity research workflow before strategy
-discovery. Decision 279 supersedes Decision 277's acceptance for the former
-Results-page experience. Decisions 280–281 establish the chart-first direction
-and validated preview constraints. Decision 282 records hands-on owner
-approval of the detailed selected-run Results specification and authorizes
-implementation; it also requires a separate scalable multi-run analysis
-surface whose precise design is still pending. Implementation, deployment,
-testing, licensed-target proof, renewed owner acceptance of the eventual
-implemented experience, and the remaining objective evidence are still
-required.
+Milestone 23 proves the complete equity research workflow before any strategy
+can advance toward paper activation. Decision 287 narrowly permits controlled,
+bounded research for an owner-approved, source-attributed hypothesis with
+predeclared evidence boundaries before this milestone closes. It does not waive
+this checklist or authorize protected-test inspection, automatic promotion,
+paper orders, or live work.
+
+Decision 279 supersedes Decision 277's acceptance for the former Results-page
+experience. Decisions 280–281 establish the chart-first direction and validated
+preview constraints. Decision 282 records hands-on owner approval of the
+detailed selected-run Results specification and authorizes implementation; it
+also requires a separate scalable multi-run analysis surface whose precise
+design is still pending. Implementation, deployment, testing, licensed-target
+proof, renewed owner acceptance of the eventual implemented experience, and the
+remaining objective evidence are still required.
 
 Decision 283 separately requires safe caching for exact repeat research
 computations while preserving distinct durable run tickets and preventing
