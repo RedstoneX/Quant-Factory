@@ -78,11 +78,22 @@ persisted 32 ranked rows (2 reference plus 30 matrix), exact 30-minute/zero-
 offset parity passed in both directions, and all 30 matrix variants screened
 out. Each run persisted seven registered artifacts plus its integrity manifest.
 An initial disk-full attempt was partial invalid evidence and was excluded; a
-fresh isolated retry succeeded. This remains development/reference evidence
-only and does not establish an edge, promotion, deployment, paper activation,
-or live authority. R07 and Milestone 25 remain in progress. The next action is
-repository integration, followed by inspection in the existing dashboard and
-only narrow repairs for verified operational blockers. Decision 278
+fresh isolated retry succeeded. PR #65 merged the adapter and its required
+portable test into canonical `main` at merge revision
+`a5c10c676bbbc3c3043ca80f87dcbbac6e750509`. The validated run database and
+artifacts are preserved in verified owner-only external host storage outside
+production; they are not deployed with the production research runtime or
+available in its dashboard.
+Read-path validation identified truthful ORB rendering blockers. The bounded
+repair is implemented and independently reviewed at local revision
+`f2c443afb970b9518147c5823de4e0ae03c6ebe1`, but remains unmerged and
+undeployed, and complete accepted-artifact validation remains pending. This is
+development/reference evidence only and does not establish an edge, promotion,
+deployment, paper activation, or live authority. R07 and Milestone 25 remain
+in progress. Resume by completing artifact-backed validation from the
+preserved external evidence, integrating the repair if green, and then
+performing only the backed-up private deployment and operator inspection
+needed for R07. Decision 278
 accepts ADR 0011's safer durable run-ticket design and authorizes its
 implementation. That bounded implementation is merged in canonical source for
 Run test, historical relaunch, and reproduction. PR #50 adds focused
