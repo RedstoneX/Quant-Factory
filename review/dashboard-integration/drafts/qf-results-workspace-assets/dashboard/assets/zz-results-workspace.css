@@ -1,0 +1,242 @@
+/*
+ * Results workspace integration contract
+ * --------------------------------------
+ * Root:    .results-workspace[data-results-run-id]
+ * Regions: .results-workspace__chart and .results-workspace__report
+ * Handles: [data-results-resize="chart-top|chart-report|report-bottom"]
+ * Reset:   [data-results-reset-layout]
+ *
+ * The companion JavaScript owns only the two dimension variables below.
+ * Bars, View, tabs, trade selection, evidence, review, and route state remain
+ * application-owned. Report content stays in normal document flow.
+ */
+
+.results-workspace {
+  --qf-results-chart-height: 540px;
+  --qf-results-report-min-height: 320px;
+  box-sizing: border-box;
+  color: #172033;
+  display: grid;
+  gap: 12px;
+  max-width: 100%;
+  min-width: 0;
+  padding-bottom: clamp(2rem, 5vw, 3.25rem);
+}
+
+.results-workspace *,
+.results-workspace *::before,
+.results-workspace *::after {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.results-workspace__selected-run,
+.results-workspace__chart,
+.results-workspace__report {
+  background: #ffffff;
+  border: 1px solid #cbd7e6;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.results-workspace__selected-run {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  justify-content: space-between;
+  padding: 14px 18px;
+}
+
+.results-workspace__chart,
+.results-workspace__report {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.results-workspace__chart {
+  height: var(--qf-results-chart-height);
+  min-height: 320px;
+}
+
+.results-workspace__chart-surface,
+.results-workspace__chart-surface .dash-graph,
+.results-workspace__chart-surface .js-plotly-plot,
+.results-workspace__chart-surface .plot-container {
+  height: 100%;
+  width: 100%;
+}
+
+.results-workspace__report {
+  max-height: none;
+  min-height: var(--qf-results-report-min-height);
+}
+
+.results-workspace__metrics,
+.results-workspace__trades,
+[data-results-report] {
+  height: auto;
+  max-height: none;
+  overflow-y: visible;
+}
+
+.results-workspace__toolbar,
+.results-workspace__control-group,
+.results-workspace__tabs,
+.results-workspace__trade-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.results-workspace__toolbar {
+  border-bottom: 1px solid #dbe5f1;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.results-workspace__control-label {
+  color: #526178;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.results-workspace button,
+.results-workspace [role="button"],
+.results-workspace [role="tab"] {
+  font: inherit;
+}
+
+.results-workspace button:focus-visible,
+.results-workspace [role="button"]:focus-visible,
+.results-workspace [role="tab"]:focus-visible,
+.results-workspace [role="separator"]:focus-visible {
+  outline: 3px solid rgba(35, 87, 217, 0.35);
+  outline-offset: 2px;
+}
+
+.results-workspace [aria-pressed="true"],
+.results-workspace [role="tab"][aria-selected="true"] {
+  background: #2357d9;
+  border-color: #2357d9;
+  color: #ffffff;
+}
+
+.results-workspace__trade-ledger,
+.results-workspace__trade-detail {
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.results-workspace__trade-ledger th,
+.results-workspace__trade-ledger td {
+  padding: 10px 12px;
+  white-space: normal;
+}
+
+.results-workspace__trade-detail {
+  font-size: 1.05rem;
+}
+
+.results-workspace__resize-handle {
+  align-items: center;
+  cursor: row-resize;
+  display: flex;
+  height: 12px;
+  justify-content: center;
+  margin: -6px 0;
+  position: relative;
+  touch-action: none;
+  z-index: 3;
+}
+
+.results-workspace__resize-handle::before {
+  background: #a9bdd6;
+  border-radius: 999px;
+  content: "";
+  height: 2px;
+  transition: background-color 120ms ease, height 120ms ease, width 120ms ease;
+  width: 54px;
+}
+
+.results-workspace__resize-handle:hover::before,
+.results-workspace__resize-handle:focus-visible::before,
+.results-workspace__resize-handle[data-results-resizing="true"]::before {
+  background: #2357d9;
+  height: 4px;
+  width: 72px;
+}
+
+.results-workspace__resize-handle[aria-disabled="true"] {
+  cursor: default;
+}
+
+.results-workspace__resize-handle[aria-disabled="true"]::before {
+  background: transparent;
+}
+
+@media (max-width: 1099px) {
+  .results-workspace {
+    --qf-results-chart-height: auto;
+    --qf-results-report-min-height: 0px;
+    display: block;
+  }
+
+  .results-workspace > * + * {
+    margin-top: 12px;
+  }
+
+  .results-workspace__chart {
+    height: auto;
+    min-height: 420px;
+  }
+
+  .results-workspace__chart-surface,
+  .results-workspace__chart-surface .dash-graph {
+    min-height: 340px;
+  }
+
+  .results-workspace__report {
+    min-height: 0;
+  }
+
+  .results-workspace__resize-handle {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .results-workspace {
+    padding-bottom: 2rem;
+  }
+
+  .results-workspace__selected-run,
+  .results-workspace__toolbar {
+    align-items: stretch;
+    display: grid;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .results-workspace__chart {
+    min-height: 360px;
+  }
+
+  .results-workspace__chart-surface,
+  .results-workspace__chart-surface .dash-graph {
+    min-height: 300px;
+  }
+
+  .results-workspace__trade-ledger,
+  .results-workspace__trade-detail {
+    font-size: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .results-workspace__resize-handle::before {
+    transition: none;
+  }
+}

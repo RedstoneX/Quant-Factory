@@ -1,0 +1,1225 @@
+From 31cf941e84d849f77d8fe4fdac617890bd408049 Mon Sep 17 00:00:00 2001
+From: Codex <noreply@openai.com>
+Date: Sun, 20 Sep 2026 15:06:06 +0000
+Subject: [PATCH] fix: integrate R07 durable evidence rendering
+
+---
+ dashboard/application.py                      | 159 ++++++++++++++----
+ dashboard/callbacks/trade_explorer.py         |   6 +-
+ dashboard/compare_adapter.py                  |  15 ++
+ dashboard/components/trade_explorer.py        |  35 +++-
+ dashboard/results_model.py                    |  20 ++-
+ dashboard/run_detail_adapter.py               | 157 ++++++++++++++++-
+ docs/MILESTONES.md                            |  19 ++-
+ docs/strategies/mes-opening-range-breakout.md |   9 +
+ tests/test_compare_adapter.py                 |  36 +++-
+ tests/test_mes_orb_durable_screening.py       |  22 +++
+ tests/test_results_beta_layout.py             |  77 +++++++++
+ tests/test_results_model.py                   |  26 ++-
+ tests/test_spym_price_benchmark.py            |   4 +-
+ tests/test_trade_explorer.py                  |  62 ++++++-
+ 14 files changed, 581 insertions(+), 66 deletions(-)
+
+diff --git a/dashboard/application.py b/dashboard/application.py
+index 8d2d9f3..9ff63d7 100644
+--- a/dashboard/application.py
++++ b/dashboard/application.py
+@@ -1094,7 +1094,14 @@ def _run_identity_strip(
+         DetailField("Validation result", _display_or_dash(_validation_outcome_value(detail))),
+     )
+     metadata_fields = (
+-        DetailField("Experiment", "Research fixture"),
++        DetailField(
++            "Experiment",
++            (
++                "Infrastructure fixture"
++                if run.stage == "fixture"
++                else run.stage.replace("_", " ").title()
++            ),
++        ),
+         DetailField("Configuration", _display_or_dash(run.configuration_id[:12])),
+         DetailField("Strategy version", _display_or_dash(run.strategy_version)),
+         DetailField("Initial capital", _display_or_dash(initial_capital)),
+@@ -1111,7 +1118,17 @@ def _run_identity_strip(
+         [
+             html.Div(
+                 [
+-                    html.Span("Fixture-only", className="fixture-chip"),
++                    html.Span(
++                        (
++                            "Fixture-only"
++                            if run.stage == "fixture"
++                            else "Development/reference only"
++                            if detail is not None
++                            and detail.evidence.evidence_classification
++                            else run.stage.replace("_", " ").title()
++                        ),
++                        className="fixture-chip",
++                    ),
+                     *[
+                         html.Div(
+                             [
+@@ -1158,7 +1175,13 @@ def _run_identity_strip(
+ 
+ def _outcome_badge(outcome: str, status: str) -> html.Div:
+     normalized = outcome.lower().replace("_", "-").replace(" ", "-")
+-    if normalized not in {"passed", "failed", "invalid", "insufficient-evidence"}:
++    if normalized not in {
++        "passed",
++        "failed",
++        "invalid",
++        "insufficient-evidence",
++        "screened-out",
++    }:
+         normalized = status.lower().replace("_", "-")
+     return html.Div(
+         [
+@@ -1576,6 +1599,34 @@ def _artifact_inventory(artifacts: tuple[ArtifactInventoryView, ...]) -> Any:
+ def _result_summary(summary: ResultSummaryView) -> Any:
+     if not summary.rows:
+         return html.P(summary.message, className="empty-state-copy")
++    if summary.table_rows:
++        frame = pd.DataFrame(summary.table_rows)
++        return html.Div(
++            [
++                html.P(summary.message, className="field-help"),
++                dag.AgGrid(
++                    columnDefs=_ranked_column_definitions(frame),
++                    rowData=list(summary.table_rows),
++                    defaultColDef={
++                        "sortable": True,
++                        "filter": True,
++                        "resizable": True,
++                        "wrapHeaderText": True,
++                        "autoHeaderHeight": True,
++                    },
++                    dashGridOptions={
++                        "animateRows": False,
++                        "pagination": True,
++                        "paginationPageSize": 15,
++                        "domLayout": "autoHeight",
++                        "suppressColumnVirtualisation": False,
++                    },
++                    columnSize="responsiveSizeToFit",
++                    className="ag-theme-alpine qf-data-grid",
++                    style={"width": "100%"},
++                ),
++            ]
++        )
+     return html.Div(
+         [
+             html.P(summary.message, className="field-help"),
+@@ -1857,8 +1908,8 @@ def _portfolio_value_panel(detail: SelectedRunDetailView) -> Any:
+             _detail_fields(
+                 _benchmark_summary_fields(detail),
+                 empty=(
+-                    "No persisted buy-and-hold benchmark is available. "
+-                    "Rerun the approved fixture to capture the missing comparison series."
++                    "No persisted benchmark is available for this run. "
++                    "No comparison series was inferred or fabricated."
+                 ),
+             ),
+         ],
+@@ -1912,6 +1963,11 @@ def _trade_marker_rows(
+         if timestamp in (None, "") or price is None:
+             continue
+         direction = str(trade.get("Direction", trade.get("direction", ""))).strip()
++        fees = (
++            trade.get("Entry Fees", trade.get("entry_fees", "Not recorded"))
++            if event == "entry"
++            else trade.get("Exit Fees", trade.get("exit_fees", "Not recorded"))
++        )
+         rows.append(
+             {
+                 "trade_id": str(
+@@ -1925,11 +1981,7 @@ def _trade_marker_rows(
+                 "timestamp": str(timestamp),
+                 "price": price,
+                 "size": trade.get("Size", trade.get("size", "Not recorded")),
+-                "fees": (
+-                    trade.get("Entry Fees", trade.get("entry_fees", "Not recorded"))
+-                    if event == "entry"
+-                    else trade.get("Exit Fees", trade.get("exit_fees", "Not recorded"))
+-                ),
++                "fees": _money(fees) if _numeric_value(fees) is not None else fees,
+                 "direction": direction or "Not recorded",
+             }
+         )
+@@ -1959,11 +2011,29 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
+ 
+     instrument = _evidence_instrument(detail)
+     timeframe = _evidence_timeframe(detail)
+-    normalized_timeframe = timeframe.lower().replace("-", " ").strip()
+-    source_interval = (
+-        "1m"
+-        if normalized_timeframe in {"1m", "1 min", "1 minute", "1 minute bars"}
+-        else timeframe
++    source_interval = detail.evidence.source_interval
++    price_is_points = detail.evidence.price_unit == "index_points"
++    price_tick_format = ",.2f" if price_is_points else "$,.2f"
++    price_axis_title = (
++        f"{instrument} price (index points)"
++        if price_is_points
++        else f"{instrument} price"
++    )
++    bar_hover = (
++        f"{source_interval} source · %{{x}}<br>Open %{{open:,.2f}} index points<br>"
++        "High %{high:,.2f} index points<br>Low %{low:,.2f} index points<br>"
++        "Close %{close:,.2f} index points<extra></extra>"
++        if price_is_points
++        else (
++            f"{source_interval} source · %{{x}}<br>Open %{{open:$,.2f}}<br>"
++            "High %{high:$,.2f}<br>Low %{low:$,.2f}<br>"
++            "Close %{close:$,.2f}<extra></extra>"
++        )
++    )
++    marker_price_hover = (
++        "Price %{y:,.2f} index points<br>"
++        if price_is_points
++        else "Price %{y:$,.2f}<br>"
+     )
+     entry_rows = _trade_marker_rows(detail.evidence.trades, event="entry")
+     exit_rows = _trade_marker_rows(detail.evidence.trades, event="exit")
+@@ -1986,7 +2056,7 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
+             unavailable.append(f"{interval}: {interval_bars.reason}")
+             continue
+ 
+-        visible = interval == "1m"
++        visible = interval == source_interval
+         bars = interval_bars.bars
+         if bars:
+             last_timestamp = max(last_timestamp or bars[-1].timestamp, bars[-1].timestamp)
+@@ -2008,11 +2078,7 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
+                 },
+                 name=f"Observed {instrument} ({interval})",
+                 visible=visible,
+-                hovertemplate=(
+-                    f"{interval} UTC bar %{{x}}<br>Open %{{open:$,.2f}}<br>"
+-                    "High %{high:$,.2f}<br>Low %{low:$,.2f}<br>"
+-                    "Close %{close:$,.2f}<extra></extra>"
+-                ),
++                hovertemplate=bar_hover.replace(source_interval, interval, 1),
+             )
+         )
+         for event, rows, symbol, color, outline in (
+@@ -2067,8 +2133,9 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
+                     hovertemplate=(
+                         f"{event.title()} · Trade %{{customdata[0]}}<br>"
+                         "Exact event %{customdata[1]}<br>"
+-                        "Containing bar %{customdata[2]}<br>Price %{y:$,.2f}<br>"
+-                        "Size %{customdata[3]}<br>Fees %{customdata[4]}<br>"
++                        "Containing bar %{customdata[2]}<br>"
++                        + marker_price_hover
++                        + "Size %{customdata[3]}<br>Fees %{customdata[4]}<br>"
+                         "Direction %{customdata[5]}<extra></extra>"
+                     ),
+                 )
+@@ -2109,14 +2176,18 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
+         margin={"l": 45, "r": 20, "t": 105, "b": 62},
+         dragmode="pan",
+         hovermode="x unified",
+-        yaxis={"tickformat": "$,.2f", "title": f"{instrument} price"},
++        yaxis={"tickformat": price_tick_format, "title": price_axis_title},
+         xaxis={"rangeslider": {"visible": False}},
+         legend={"orientation": "h", "y": -0.2},
+         updatemenus=[
+             {
+                 "type": "buttons",
+                 "direction": "right",
+-                "active": 0,
++                "active": (
++                    _RESULTS_INTERVALS.index(source_interval)
++                    if source_interval in _RESULTS_INTERVALS
++                    else 0
++                ),
+                 "x": 0,
+                 "y": 1.17,
+                 "buttons": bars_buttons,
+@@ -2174,7 +2245,7 @@ def _price_marker_panel(detail: SelectedRunDetailView) -> Any:
+                 ),
+                 html.Small(
+                     (
+-                        "Older runs remain readable, but the approved fixture must "
++                        "Older runs remain readable, but the backtest must "
+                         "be rerun to capture price, entry/exit marker, and benchmark evidence."
+                     ),
+                     className="empty-state-note",
+@@ -2451,6 +2522,8 @@ def _validation_evidence_summary(detail: SelectedRunDetailView | None) -> html.D
+         next_action = "Review the supporting evidence before recording a decision."
+     elif status_key in {"failed", "fail"}:
+         next_action = "Inspect the technical details before deciding how to proceed."
++    elif status_key in {"screened_out", "screened out"}:
++        next_action = "Stop: no tested variant passed screening; this run is not promotable."
+     else:
+         next_action = "Inspect the technical details to determine the available next step."
+ 
+@@ -2892,7 +2965,7 @@ def _run_action_controls(
+             html.Div(
+                 (
+                     "Cancellation is cooperative. The run remains active "
+-                    "until the fixture acknowledges the request."
++                    "until the research process acknowledges the request."
+                     if run_running
+                     else "Select a persisted run to inspect its cancellation controls."
+                     if run is None
+@@ -2936,7 +3009,7 @@ def _run_action_availability(
+         (
+             "Request cooperative cancellation for this active run."
+             if run.status == "running"
+-            else "Only an active running fixture can be cancelled."
++            else "Only an active running research process can be cancelled."
+         ),
+     )
+ 
+@@ -2974,11 +3047,22 @@ def _run_detail_panel(
+         ("Prefect flow run", run.prefect_flow_run_id or "Not available"),
+         ("Prefect API", run.prefect_api_url or "Not available"),
+     ]
+-    terminal_summary = (
+-        run.error_summary
+-        if run.error_summary
+-        else "Infrastructure fixture evidence verifies the factory path; it does not imply profitability."
+-    )
++    if run.error_summary:
++        terminal_summary = run.error_summary
++    elif detail is not None and detail.evidence.evidence_classification:
++        terminal_summary = detail.evidence.evidence_classification.capitalize() + "."
++        if detail.evidence.promotion_eligible is False:
++            terminal_summary += " Promotion is blocked; this is not edge proof."
++    elif run.stage == "fixture":
++        terminal_summary = (
++            "Infrastructure fixture evidence verifies the factory path; "
++            "it does not imply profitability."
++        )
++    else:
++        terminal_summary = (
++            f"Persisted {run.stage.replace('_', ' ')} research result; "
++            "inspect its recorded evidence before making a decision."
++        )
+ 
+     return html.Section(
+         [
+@@ -3094,7 +3178,14 @@ def _run_detail_panel(
+                 className="results-beta-workspace",
+             ),
+             html.Div(
+-                "Infrastructure fixture evidence verifies the factory path; it does not imply profitability.",
++                (
++                    "Development/reference evidence only; promotion is blocked and this is not edge proof."
++                    if detail is not None
++                    and detail.evidence.evidence_classification
++                    else "Infrastructure fixture evidence verifies the factory path; it does not imply profitability."
++                    if run.stage == "fixture"
++                    else "Research evidence must be reviewed within its recorded stage and limitations."
++                ),
+                 className="fixture-disclaimer",
+             ),
+             html.Section(
+diff --git a/dashboard/callbacks/trade_explorer.py b/dashboard/callbacks/trade_explorer.py
+index 8420c2e..97b05c7 100644
+--- a/dashboard/callbacks/trade_explorer.py
++++ b/dashboard/callbacks/trade_explorer.py
+@@ -73,7 +73,11 @@ def register_trade_explorer_callbacks(
+                 [],
+             )
+ 
+-        rows = normalize_trade_rows(detail.evidence.trades, run_id=run_id)
++        rows = normalize_trade_rows(
++            detail.evidence.trades,
++            run_id=run_id,
++            price_unit=detail.evidence.price_unit,
++        )
+         if not rows:
+             return (
+                 [],
+diff --git a/dashboard/compare_adapter.py b/dashboard/compare_adapter.py
+index 907eb40..c3f469d 100644
+--- a/dashboard/compare_adapter.py
++++ b/dashboard/compare_adapter.py
+@@ -307,10 +307,14 @@ class CompareDashboardAdapter:
+         }
+ 
+         rows = service.results.list_parameter_results(run_id)
++        screening_status: str | None = None
++        screening_reasons: str | None = None
+         if not rows:
+             snapshot.omissions.append("No persisted ranked metric result is available.")
+         else:
+             selected = rows[0]
++            screening_status = selected.screening_status
++            screening_reasons = selected.rejection_reasons
+             snapshot.metric_basis = (
+                 f"Rank {selected.ranking_position} persisted parameter result"
+                 + (
+@@ -356,6 +360,17 @@ class CompareDashboardAdapter:
+                 outcome.get("Protected-data state")
+             )
+ 
++        if (
++            snapshot.stage == "Screening"
++            and snapshot.evidence_outcome == "Not run"
++            and screening_status in {"passed", "screened_out"}
++        ):
++            snapshot.evidence_outcome = (
++                "Passed" if screening_status == "passed" else "Screened out"
++            )
++            if screening_reasons:
++                snapshot.evidence_reasons = screening_reasons
++
+         try:
+             review = load_durable_review(
+                 self.database,
+diff --git a/dashboard/components/trade_explorer.py b/dashboard/components/trade_explorer.py
+index 1d2097c..041bc8b 100644
+--- a/dashboard/components/trade_explorer.py
++++ b/dashboard/components/trade_explorer.py
+@@ -217,8 +217,8 @@ def trade_column_definitions() -> list[dict[str, Any]]:
+             "cellClass": time_cell,
+             "headerClass": header,
+         },
+-        _number_column("Entry price", "$"),
+-        _number_column("Exit/valuation price", "$"),
++        _number_column("Entry price", "price"),
++        _number_column("Exit/valuation price", "price"),
+         _number_column("Size", "quantity"),
+         _number_column("Fees", "$"),
+         _number_column("P&L", "$"),
+@@ -230,6 +230,7 @@ def normalize_trade_rows(
+     trades: tuple[dict[str, Any], ...],
+     *,
+     run_id: str | None,
++    price_unit: str = "currency",
+ ) -> tuple[dict[str, Any], ...]:
+     """Normalize VectorBT Pro readable trade rows into operator-facing rows."""
+ 
+@@ -264,6 +265,7 @@ def normalize_trade_rows(
+                 "__trade_index": index,
+                 "__basis_date": basis_date,
+                 "__date_status": date_status,
++                "__price_unit": price_unit,
+                 "Trade": f"Trade {index}",
+                 "Outcome": _outcome(pnl, status),
+                 "Status": status,
+@@ -369,14 +371,23 @@ def selected_trade_detail(
+         DetailField("Status", _display(row.get("Status"))),
+         DetailField("Direction", _display(row.get("Direction"))),
+         DetailField("Entry timestamp", _display(row.get("Entry timestamp"))),
+-        DetailField("Entry price", _money(row.get("Entry price"))),
++        DetailField(
++            "Entry price",
++            _price(
++                row.get("Entry price"),
++                unit=str(row.get("__price_unit") or "currency"),
++            ),
++        ),
+         DetailField(
+             _exit_label(row, "timestamp"),
+             _display(row.get("Exit/valuation timestamp")),
+         ),
+         DetailField(
+             _exit_label(row, "price"),
+-            _money(row.get("Exit/valuation price")),
++            _price(
++                row.get("Exit/valuation price"),
++                unit=str(row.get("__price_unit") or "currency"),
++            ),
+         ),
+         DetailField("Size", _quantity(row.get("Size"))),
+         DetailField("Fees", _money(row.get("Fees"))),
+@@ -427,6 +438,13 @@ def _number_column(field: str, formatter: str) -> dict[str, Any]:
+     function = "params.value == null ? 'Not recorded' : Number(params.value).toFixed(2)"
+     if formatter == "$":
+         function = "params.value == null ? 'Not recorded' : '$' + Number(params.value).toFixed(2)"
++    elif formatter == "price":
++        function = (
++            "params.value == null ? 'Not recorded' : "
++            "(params.data && params.data.__price_unit === 'index_points' ? "
++            "Number(params.value).toFixed(2) + ' index points' : "
++            "'$' + Number(params.value).toFixed(2))"
++        )
+     elif formatter == "%":
+         function = (
+             "params.value == null ? 'Not recorded' : "
+@@ -476,6 +494,15 @@ def _number(value: Any) -> float | None:
+     return parsed if isfinite(parsed) else None
+ 
+ 
++def _price(value: Any, *, unit: str) -> str:
++    number = _number(value)
++    if number is None:
++        return MISSING
++    if unit == "index_points":
++        return f"{number:,.2f} index points"
++    return f"${number:,.2f}"
++
++
+ def _fees(row: dict[str, Any]) -> float | None:
+     entry = _number(row.get("Entry Fees"))
+     exit_ = _number(row.get("Exit Fees"))
+diff --git a/dashboard/results_model.py b/dashboard/results_model.py
+index ce19cba..027f340 100644
+--- a/dashboard/results_model.py
++++ b/dashboard/results_model.py
+@@ -207,14 +207,26 @@ def prepare_interval(
+             available=False,
+             reason=f"Bars interval {interval!r} is not supported.",
+         )
+-    if source_interval != "1m":
++    source_width = SUPPORTED_INTERVALS.get(source_interval)
++    if source_width is None:
+         return IntervalBars(
+             interval=interval,
+             bars=(),
+             available=False,
+             reason=(
+                 f"Bars interval {interval} is unavailable because truthful aggregation "
+-                f"currently requires persisted 1m OHLC, not {source_interval}."
++                f"does not support persisted source interval {source_interval!r}."
++            ),
++        )
++    target_width = SUPPORTED_INTERVALS[interval]
++    if target_width < source_width:
++        return IntervalBars(
++            interval=interval,
++            bars=(),
++            available=False,
++            reason=(
++                f"Bars interval {interval} is finer than the persisted {source_interval} "
++                "source; finer bars cannot be fabricated."
+             ),
+         )
+     source = validate_ohlc_rows(rows, source_interval=source_interval)
+@@ -225,10 +237,10 @@ def prepare_interval(
+             available=False,
+             reason="No persisted OHLC bars are available for this run.",
+         )
+-    if interval == "1m":
++    if interval == source_interval:
+         return IntervalBars(interval=interval, bars=source, available=True)
+ 
+-    width = SUPPORTED_INTERVALS[interval]
++    width = target_width
+     aggregated: list[OhlcBar] = []
+     bucket: datetime | None = None
+     bucket_rows: list[OhlcBar] = []
+diff --git a/dashboard/run_detail_adapter.py b/dashboard/run_detail_adapter.py
+index ddd6d1a..3f154e6 100644
+--- a/dashboard/run_detail_adapter.py
++++ b/dashboard/run_detail_adapter.py
+@@ -44,6 +44,7 @@ class ResultSummaryView:
+     status: str
+     message: str
+     rows: tuple[tuple[DetailField, ...], ...]
++    table_rows: tuple[dict[str, Any], ...] = ()
+ 
+ 
+ @dataclass(frozen=True)
+@@ -61,6 +62,11 @@ class RunEvidenceView:
+     price_series: tuple[dict[str, Any], ...] = ()
+     benchmark_curve: tuple[dict[str, Any], ...] = ()
+     benchmark: dict[str, Any] | None = None
++    source_interval: str = "1m"
++    price_unit: str = "currency"
++    pnl_unit: str = "USD"
++    evidence_classification: str | None = None
++    promotion_eligible: bool | None = None
+ 
+ 
+ @dataclass(frozen=True)
+@@ -141,7 +147,7 @@ def _lineage_fields(document: dict[str, Any] | None) -> tuple[DetailField, ...]:
+         DetailField("Actual coverage", _display(data.get("actual_coverage"))),
+         DetailField("Dataset manifest", _display(data.get("dataset_manifest_reference"))),
+         DetailField("Dataset checksum", _display(data.get("dataset_checksum"))),
+-        DetailField("Parent/child lineage", "Not recorded for this fixture run"),
++        DetailField("Parent/child lineage", "Not recorded for this run"),
+     )
+ 
+ 
+@@ -178,10 +184,15 @@ def _artifact_view(artifact, validation_by_id: dict[int, Any]) -> ArtifactInvent
+     )
+ 
+ 
+-def _result_summary(detail: dict[str, Any] | None) -> ResultSummaryView:
++def _result_summary(
++    detail: dict[str, Any] | None,
++    *,
++    evidence_classification: str | None = None,
++) -> ResultSummaryView:
+     parameters = (detail or {}).get("parameters") or ()
+     rows = []
+-    for row in parameters[:5]:
++    table_rows: list[dict[str, Any]] = []
++    for row in parameters:
+         metrics = json.loads(row.get("metrics_json", "{}"))
+         normalized = json.loads(row.get("normalized_parameters_json", "{}"))
+         fields = [
+@@ -193,16 +204,34 @@ def _result_summary(detail: dict[str, Any] | None) -> ResultSummaryView:
+         if row.get("rejection_reasons"):
+             fields.append(DetailField("Rejection reasons", _display(row.get("rejection_reasons"))))
+         rows.append(tuple(fields))
++        table_rows.append(
++            {
++                "ranking_position": row.get("ranking_position"),
++                **normalized,
++                **metrics,
++                "screening_status": row.get("screening_status"),
++                "screening_reason": row.get("rejection_reasons") or "",
++            }
++        )
+     if not rows:
+         return ResultSummaryView(
+             status="empty",
+             message="No persisted parameter result summary is available for this run.",
+             rows=(),
+         )
++    run_document = (detail or {}).get("run")
++    message = (
++        "Persisted deterministic fixture result summary."
++        if isinstance(run_document, dict) and run_document.get("stage") == "fixture"
++        else "Persisted ranked research result summary."
++    )
++    if evidence_classification:
++        message = f"Persisted ranked screening results. {evidence_classification}."
+     return ResultSummaryView(
+         status="available",
+-        message="Persisted deterministic fixture result summary.",
++        message=message,
+         rows=tuple(rows),
++        table_rows=tuple(table_rows),
+     )
+ 
+ 
+@@ -223,6 +252,29 @@ def _empty_evidence() -> RunEvidenceView:
+     )
+ 
+ 
++def _canonical_interval(value: Any) -> str:
++    normalized = str(value or "").lower().replace("-", " ").strip()
++    aliases = {
++        "1m": "1m",
++        "1 min": "1m",
++        "1 minute": "1m",
++        "1 minute bars": "1m",
++        "5m": "5m",
++        "5 min": "5m",
++        "5 minute": "5m",
++        "5 minute bars": "5m",
++        "15m": "15m",
++        "15 min": "15m",
++        "15 minute": "15m",
++        "15 minute bars": "15m",
++        "1d": "1D",
++        "1 day": "1D",
++        "1 day bars": "1D",
++        "daily": "1D",
++    }
++    return aliases.get(normalized, str(value or "recorded"))
++
++
+ def _safe_artifact_path(root: Path, location: str) -> Path:
+     relative = Path(location)
+     if relative.is_absolute() or ".." in relative.parts:
+@@ -344,6 +396,7 @@ def _validated_series_rows(
+     *,
+     numeric_fields: tuple[str, ...],
+     warnings: list[str],
++    source_interval: str = "1m",
+ ) -> tuple[dict[str, Any], ...]:
+     if not isinstance(document, dict) or key not in document:
+         return ()
+@@ -370,7 +423,7 @@ def _validated_series_rows(
+         valid_rows.append(row)
+     if {"open", "high", "low", "close"}.issubset(numeric_fields):
+         try:
+-            validate_ohlc_rows(valid_rows)
++            validate_ohlc_rows(valid_rows, source_interval=source_interval)
+         except ResultsDataError as exc:
+             warnings.append(f"Artifact equity_curve field {key} is invalid: {exc.reason}")
+             return ()
+@@ -432,6 +485,45 @@ def _validation_outcome_fields(
+     )
+ 
+ 
++def _screening_outcome_fields(document: Any) -> tuple[DetailField, ...]:
++    if not isinstance(document, dict) or document.get("stage") != "screening":
++        return ()
++    screening = document.get("screening")
++    if not isinstance(screening, dict):
++        return ()
++    evaluated = screening.get("evaluated_combinations")
++    passed = screening.get("passed")
++    screened_out = screening.get("screened_out")
++    counts = (evaluated, passed, screened_out)
++    if not all(
++        isinstance(value, int) and not isinstance(value, bool) for value in counts
++    ):
++        return ()
++    if (
++        evaluated <= 0
++        or passed < 0
++        or screened_out < 0
++        or passed + screened_out != evaluated
++    ):
++        return ()
++    status = "passed" if passed else "screened_out"
++    blockers = document.get("promotion_blockers")
++    reasons = blockers if isinstance(blockers, list) else ()
++    return (
++        DetailField("Stage", "Screening"),
++        DetailField("Normalized status", status),
++        DetailField("Reasons", _display(reasons)),
++        DetailField(
++            "Protected-data state",
++            "Not used; development/reference evidence only",
++        ),
++        DetailField("Evidence identity", _display(document.get("evidence_label"))),
++        DetailField("Artifact identity", "validation_evidence"),
++        DetailField("Lockbox eligibility", "No"),
++        DetailField("Strategy progression", "No strategy progression occurred."),
++    )
++
++
+ def _evidence_view(
+     *,
+     service: PersistenceService,
+@@ -461,12 +553,20 @@ def _evidence_view(
+     summary_doc = documents.get("run_summary")
+     dataset_doc = documents.get("dataset_manifest")
+ 
++    provenance_doc = (detail or {}).get("provenance")
++    source_interval = _canonical_interval(
++        provenance_doc.get("interval") if isinstance(provenance_doc, dict) else None
++    )
++    if source_interval == "recorded":
++        source_interval = "1m"
++
+     equity_curve = _table_rows(equity_doc, "equity_curve")
+     price_series = _validated_series_rows(
+         equity_doc,
+         "price_series",
+         numeric_fields=("open", "high", "low", "close"),
+         warnings=warnings,
++        source_interval=source_interval,
+     )
+     benchmark_curve = _validated_series_rows(
+         equity_doc,
+@@ -478,6 +578,26 @@ def _evidence_view(
+     if benchmark is None:
+         benchmark_curve = ()
+     notices: list[str] = []
++    evidence_classification = None
++    promotion_eligible = None
++    for document in (summary_doc, validation_doc):
++        if not isinstance(document, dict):
++            continue
++        classification = document.get("evidence_classification")
++        if (
++            evidence_classification is None
++            and isinstance(classification, str)
++            and classification.strip()
++        ):
++            evidence_classification = classification.strip().rstrip(".")
++        if promotion_eligible is None and isinstance(document.get("promotion_eligible"), bool):
++            promotion_eligible = document["promotion_eligible"]
++    if evidence_classification:
++        notices.append(f"Evidence classification: {evidence_classification}.")
++    if promotion_eligible is False:
++        notices.append(
++            "Promotion blocked: this screening run cannot qualify an edge or advance to paper trading."
++        )
+     if isinstance(summary_doc, dict) and summary_doc.get("fixture_only") is True:
+         notices.append(
+             "Infrastructure fixture only: this run proves factory plumbing and is not profitability evidence."
+@@ -492,7 +612,6 @@ def _evidence_view(
+             "SPYM is an ingestion and execution fixture here; it is not selected as the final paper or micro-live instrument."
+         )
+ 
+-    provenance_doc = (detail or {}).get("provenance")
+     provenance = _fields(provenance_doc) if isinstance(provenance_doc, dict) else ()
+     dataset_identity_fields = _flatten_fields(
+         {
+@@ -519,6 +638,22 @@ def _evidence_view(
+         run_id=run_id,
+         artifact_root=artifact_root,
+     )
++    if not validation_outcome:
++        validation_outcome = _screening_outcome_fields(validation_doc)
++
++    price_unit = "currency"
++    pnl_unit = "USD"
++    if isinstance(trades_doc, dict):
++        recorded_price_unit = trades_doc.get("price_unit")
++        if recorded_price_unit in {"currency", "index_points"}:
++            price_unit = recorded_price_unit
++        elif recorded_price_unit not in (None, ""):
++            warnings.append(
++                f"Artifact trades_and_orders price_unit {recorded_price_unit!r} is unsupported."
++            )
++        recorded_pnl_unit = trades_doc.get("pnl_unit")
++        if isinstance(recorded_pnl_unit, str) and recorded_pnl_unit.strip():
++            pnl_unit = recorded_pnl_unit.strip()
+ 
+     return RunEvidenceView(
+         notices=tuple(notices),
+@@ -531,6 +666,11 @@ def _evidence_view(
+         price_series=price_series,
+         benchmark_curve=benchmark_curve,
+         benchmark=benchmark,
++        source_interval=source_interval,
++        price_unit=price_unit,
++        pnl_unit=pnl_unit,
++        evidence_classification=evidence_classification,
++        promotion_eligible=promotion_eligible,
+         validation=_flatten_fields(validation_doc if isinstance(validation_doc, dict) else None),
+         provenance=provenance,
+         warnings=tuple(warnings),
+@@ -645,7 +785,10 @@ class RunDetailDashboardAdapter:
+                 lineage_fields=_lineage_fields(manifest_document),
+                 manifest_fields=_manifest_fields(manifest_document, manifest_checksum),
+                 artifacts=artifacts,
+-                result_summary=_result_summary(detail),
++                result_summary=_result_summary(
++                    detail,
++                    evidence_classification=evidence.evidence_classification,
++                ),
+                 evidence=evidence,
+                 warnings=tuple(warnings),
+             )
+diff --git a/docs/MILESTONES.md b/docs/MILESTONES.md
+index e32cadc..8064ce5 100644
+--- a/docs/MILESTONES.md
++++ b/docs/MILESTONES.md
+@@ -11,7 +11,7 @@ ordered work, milestone scope, and acceptance.
+ | Phase | Milestone 25 controlled research is active under Decision 287. Milestone 23 technical and operator acceptance remains pending. |
+ | Active work | R07: validate and inspect the approved MES five-minute opening-range breakout (ORB) path using the existing research system. |
+ | Finding | Reference parity passed, but all 30 bounded baseline ORB variants screened out on already-inspected development/reference data. No edge qualified. |
+-| Next action | Validate the preserved artifacts completely; only if they are green, integrate the reviewed rendering repair and perform the backed-up private deployment and operator inspection needed for R07. |
++| Next action | Merge the reviewed rendering repair in this proposed change, then perform the backed-up private deployment and operator inspection needed for R07. |
+ | Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, paper activation, futures execution, and live trading. |
+ 
+ ## Product direction and boundaries
+@@ -39,7 +39,7 @@ ordered work, milestone scope, and acceptance.
+ <!-- active-work:start -->
+ | ID | Priority | Status | Depends | Evidence |
+ |---|---:|---|---|---|
+-| R07 | 1 | in_progress | none | The merged Decision 288 MES ORB adapter completed four successful isolated screening runs and produced 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Their evidence and checksums are preserved in owner-only external storage outside production. A reviewed rendering repair exists locally but is unmerged and undeployed. Next: complete artifact-backed validation, then integrate and privately inspect only if green. |
++| R07 | 1 | in_progress | none | The merged Decision 288 MES ORB adapter completed four successful isolated screening runs and produced 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. The preserved bundle passed 38/38 checksum verification, SQLite integrity, and all four current-main application read paths. Those reads exposed incomplete rendering; this proposed change integrates the reviewed repair. Repository merge, private deployment, and operator inspection remain pending. |
+ | R05 | 8 | pending | none | Preserve the validated selected-run Results repair outside canonical `main`. It remains unmerged and undeployed. Dashboard work stays frozen unless R07 exposes an operational blocker; Milestone 23 and the accepted multi-run and cache requirements remain pending. |
+ | R06 | 9 | pending | R07 | Preserve completed paper-observer preparation. Authenticated runtime work and activation remain deferred until a defensible edge qualifies and every execution gate passes. |
+ <!-- active-work:end -->
+@@ -52,7 +52,7 @@ ordered work, milestone scope, and acceptance.
+ | 2. Approve the hypothesis and boundaries | Complete for this candidate | The owner approved the fixed reference-first plan and bounded 30-variant matrix. |
+ | 3. Connect it to existing research | Complete | The thin durable adapter was validated at `0f7701fd6d3823b9603576777df441dd92df45a8` and merged through PR #65 at `a5c10c676bbbc3c3043ca80f87dcbbac6e750509`. |
+ | 4. Persist, rank, and filter results | Complete for this screen | Four successful runs persisted 2 reference rows and 30 ranked matrix rows. |
+-| 5. Inspect through the dashboard | Current | Complete artifact-backed validation. If green, integrate the reviewed repair, then use a backed-up private deployment for operator inspection. |
++| 5. Inspect through the dashboard | Current | Artifact-backed integrity and all four current-main read paths passed. This proposed change integrates the reviewed rendering repair; repository merge, backed-up private deployment, and operator inspection remain pending. |
+ | 6. Continue bounded research | Pending | Use Milestone 25 safeguards; any new executable candidate needs explicit owner approval and predeclared evidence boundaries. |
+ | 7. Activate paper trading | Gated | Requires a qualified edge and every Milestone 24 execution gate. |
+ | 8. Automate paper forward testing | Gated | Milestone 26 follows successful paper activation and reconciliation proof. |
+@@ -184,10 +184,15 @@ and an independent Risk Sentinel.
+   edge, promotion, deployment, paper, futures-execution, or live authority.
+ - Evidence and checksums from the successful isolated screening runs are
+   preserved in owner-only external host storage outside production and remain
+-  undeployed; complete artifact-backed and application read-path validation is
+-  pending. The bounded truthful-rendering repair was independently reviewed at
+-  local revision
+-  `f2c443afb970b9518147c5823de4e0ae03c6ebe1`; it remains unmerged and undeployed.
++  undeployed. The preserved bundle passed 38/38 checksum verification, SQLite
++  integrity, and all four current-main application read paths. Current main
++  loaded each run without warnings but exposed only 5 of 15 matrix rows and
++  omitted the source interval, units, evidence classification, and blocked-
++  promotion status. The bounded truthful-rendering repair was independently
++  reviewed at local revision
++  `f2c443afb970b9518147c5823de4e0ae03c6ebe1`; this proposed change integrates
++  it, while repository merge, deployment, and operator inspection remain
++  pending.
+ 
+ ### Repository and CI history
+ 
+diff --git a/docs/strategies/mes-opening-range-breakout.md b/docs/strategies/mes-opening-range-breakout.md
+index 7049ff0..73c7521 100644
+--- a/docs/strategies/mes-opening-range-breakout.md
++++ b/docs/strategies/mes-opening-range-breakout.md
+@@ -115,6 +115,15 @@ seven registered artifacts plus its integrity manifest. An initial disk-full
+ attempt was partial invalid evidence and was excluded; a fresh isolated retry
+ succeeded.
+ 
++The preserved successful-run bundle subsequently passed 38/38 checksum
++verification and SQLite integrity. All four application read paths opened on
++current main without warnings, but each matrix view exposed only 5 of 15 rows
++and omitted its five-minute source interval, index-point price unit, USD P&L
++unit, evidence classification, and blocked-promotion status. This proposed
++repository change integrates the independently reviewed truthful-rendering
++repair. Repository merge, private deployment, and operator inspection remain
++pending.
++
+ This validation reproduced development/reference evidence over the already
+ inspected catalog extent. It is not an independent observation, untouched
+ out-of-sample or protected evidence, a qualified edge, or authority for
+diff --git a/tests/test_compare_adapter.py b/tests/test_compare_adapter.py
+index d4bdff9..f41fe7f 100644
+--- a/tests/test_compare_adapter.py
++++ b/tests/test_compare_adapter.py
+@@ -64,6 +64,8 @@ def _persist_run(
+     adjusted: bool = True,
+     checksum: str = "shared-dataset-checksum",
+     stage: RunStage = RunStage.FIXTURE,
++    screening_status: str = "passed",
++    screening_reasons: str = "",
+ ) -> Path:
+     service = PersistenceService(database)
+     try:
+@@ -136,7 +138,8 @@ def _persist_run(
+                     },
+                     metrics=metrics,
+                     ranking_position=1,
+-                    screening_status="passed",
++                    screening_status=screening_status,
++                    rejection_reasons=screening_reasons,
+                 )
+ 
+         payload = {
+@@ -279,6 +282,37 @@ def test_comparable_runs_build_aligned_metrics_normalized_curves_and_differences
+     assert any(finding.code == "execution_differences" for finding in model.findings)
+ 
+ 
++@pytest.mark.parametrize(
++    ("screening_status", "expected"),
++    (("screened_out", "Screened out"), ("passed", "Passed")),
++)
++def test_screening_compare_uses_ranked_screening_outcome_when_later_stages_not_run(
++    tmp_path: Path,
++    screening_status: str,
++    expected: str,
++) -> None:
++    database, artifact_root = _comparison_stack(tmp_path)
++    _persist_run(
++        database,
++        artifact_root,
++        run_id=f"screening-{screening_status}",
++        equity_values=(100.0, 101.0),
++        metrics={"total_return": 0.01},
++        stage=RunStage.SCREENING,
++        screening_status=screening_status,
++        screening_reasons="Minimum Sharpe threshold was not met.",
++    )
++
++    model = CompareDashboardAdapter(
++        database,
++        artifact_root=artifact_root,
++    ).compare((f"screening-{screening_status}",))
++
++    assert model.runs[0].evidence_outcome == expected
++    evidence_outcome = _field(model, "evidence", "outcome")
++    assert evidence_outcome.values[0].value == expected
++
++
+ def test_incompatible_metric_basis_and_data_windows_are_explicit(
+     tmp_path: Path,
+ ) -> None:
+diff --git a/tests/test_mes_orb_durable_screening.py b/tests/test_mes_orb_durable_screening.py
+index 2f375bb..9c769f9 100644
+--- a/tests/test_mes_orb_durable_screening.py
++++ b/tests/test_mes_orb_durable_screening.py
+@@ -28,6 +28,7 @@ from backtesting.run_mes_orb_durable import (
+ from backtesting.screening import ScreeningResult
+ from backtesting.validation import ValidationResult
+ from dashboard.callbacks.review_state import load_durable_review
++from dashboard.application import _run_detail_panel
+ from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+ from market_data import DataAudit
+ from orchestration import FixtureRunService
+@@ -493,9 +494,30 @@ def test_durable_pair_persists_ranked_evidence_and_opens_in_existing_results(
+         artifact_root=tmp_path,
+     ).selected_run_detail(f"{plan}-long")
+     assert detail.result_summary.status == "available"
++    assert len(detail.result_summary.table_rows) == expected_rows
++    assert "deterministic fixture" not in detail.result_summary.message.lower()
++    assert "development/reference evidence only" in detail.result_summary.message
+     assert detail.evidence.metrics
+     assert detail.evidence.trades
++    assert detail.evidence.price_series
++    assert detail.evidence.source_interval == "5m"
++    assert detail.evidence.price_unit == "index_points"
++    assert detail.evidence.pnl_unit == "USD"
++    assert detail.evidence.promotion_eligible is False
++    assert detail.evidence.evidence_classification is not None
++    assert any("Evidence classification" in notice for notice in detail.evidence.notices)
++    assert any("Promotion blocked" in notice for notice in detail.evidence.notices)
+     assert not any("integrity" in warning.lower() for warning in detail.warnings)
++    selected_run = next(
++        run
++        for run in FixtureRunService(database=database).recent_runs(limit=10)
++        if run.run_id == f"{plan}-long"
++    )
++    rendered = str(_run_detail_panel(selected_run, detail=detail))
++    assert "Development/reference only" in rendered
++    assert "Promotion is blocked" in rendered
++    assert "Fixture-only" not in rendered
++    assert "Research fixture" not in rendered
+ 
+ 
+ def test_second_direction_failure_is_terminal_without_retry_and_keeps_first_success(
+diff --git a/tests/test_results_beta_layout.py b/tests/test_results_beta_layout.py
+index 037026b..8fb4651 100644
+--- a/tests/test_results_beta_layout.py
++++ b/tests/test_results_beta_layout.py
+@@ -8,6 +8,7 @@ from typing import Any
+ from dashboard.application import (
+     _price_marker_figure,
+     _price_marker_panel,
++    _result_summary,
+     _results_report_tabs,
+ )
+ from dashboard.components.trade_explorer import (
+@@ -111,6 +112,82 @@ def test_price_workspace_reuses_plotly_with_independent_bars_and_view_controls()
+     assert graph.config["scrollZoom"] is True
+ 
+ 
++def test_mes_workspace_keeps_native_five_minute_bars_and_index_point_prices() -> None:
++    base = _detail()
++    prices = tuple(
++        {
++            "timestamp": f"2026-01-02T14:{30 + (index * 5):02d}:00+00:00",
++            "open": 6000.0 + index,
++            "high": 6002.0 + index,
++            "low": 5999.0 + index,
++            "close": 6001.0 + index,
++        }
++        for index in range(6)
++    )
++    detail = SelectedRunDetailView(
++        **{
++            **base.__dict__,
++            "market_data": (
++                DetailField("Symbol", "MES"),
++                DetailField("Timeframe", "5m"),
++            ),
++            "evidence": RunEvidenceView(
++                **{
++                    **base.evidence.__dict__,
++                    "trades": (),
++                    "price_series": prices,
++                    "benchmark": None,
++                    "source_interval": "5m",
++                    "price_unit": "index_points",
++                }
++            ),
++        }
++    )
++
++    figure, availability = _price_marker_figure(detail)
++    candlesticks = [trace for trace in figure.data if trace.type == "candlestick"]
++
++    assert [trace.name for trace in candlesticks] == [
++        "Observed MES (5m)",
++        "Observed MES (15m)",
++        "Observed MES (1D)",
++    ]
++    assert candlesticks[0].visible is True
++    assert figure.layout.updatemenus[0].active == 1
++    assert figure.layout.yaxis.tickformat == ",.2f"
++    assert figure.layout.yaxis.title.text == "MES price (index points)"
++    assert "index points" in candlesticks[0].hovertemplate
++    assert "$" not in candlesticks[0].hovertemplate
++    assert "1m: Bars interval 1m is finer than the persisted 5m source" in availability
++
++
++def test_ranked_result_summary_exposes_all_fifteen_rows_in_existing_grid() -> None:
++    table_rows = tuple(
++        {
++            "ranking_position": rank,
++            "range_minutes": 5 * rank,
++            "breakout_offset_ticks": rank % 3,
++            "total_return": rank / 100,
++            "screening_status": "screened_out",
++        }
++        for rank in range(1, 16)
++    )
++    summary = ResultSummaryView(
++        status="available",
++        message="Persisted ranked screening results.",
++        rows=((DetailField("Rank", "1"),),),
++        table_rows=table_rows,
++    )
++
++    rendered = _result_summary(summary)
++    grid = next(component for component in _walk(rendered) if hasattr(component, "rowData"))
++
++    assert len(grid.rowData) == 15
++    assert grid.dashGridOptions["paginationPageSize"] == 15
++    assert grid.dashGridOptions["domLayout"] == "autoHeight"
++    assert grid.style == {"width": "100%"}
++
++
+ def test_results_report_reuses_existing_metrics_and_trade_explorer() -> None:
+     report = _results_report_tabs(_detail())
+     rendered = str(report)
+diff --git a/tests/test_results_model.py b/tests/test_results_model.py
+index 5e67724..3cb6360 100644
+--- a/tests/test_results_model.py
++++ b/tests/test_results_model.py
+@@ -131,14 +131,34 @@ def test_daily_aggregation_uses_utc_epoch_buckets() -> None:
+ def test_intervals_report_explicit_unsupported_and_unavailable_reasons() -> None:
+     unsupported = prepare_interval((), "30m")
+     empty = prepare_interval((), "5m")
+-    wrong_source = prepare_interval((), "5m", source_interval="5m")
++    finer_than_source = prepare_interval((), "1m", source_interval="5m")
+ 
+     assert unsupported.available is False
+     assert "not supported" in unsupported.reason
+     assert empty.available is False
+     assert empty.reason == "No persisted OHLC bars are available for this run."
+-    assert wrong_source.available is False
+-    assert "requires persisted 1m OHLC" in wrong_source.reason
++    assert finer_than_source.available is False
++    assert "cannot be fabricated" in finer_than_source.reason
++
++
++def test_native_five_minute_source_allows_only_equal_or_coarser_bars() -> None:
++    rows = (
++        _row("2026-01-01T14:30:00Z", 6000, 6002, 5999, 6001),
++        _row("2026-01-01T14:35:00Z", 6001, 6004, 6000, 6003),
++        _row("2026-01-01T14:40:00Z", 6003, 6005, 6002, 6004),
++    )
++
++    one_minute = prepare_interval(rows, "1m", source_interval="5m")
++    five_minute = prepare_interval(rows, "5m", source_interval="5m")
++    fifteen_minute = prepare_interval(rows, "15m", source_interval="5m")
++
++    assert one_minute.available is False
++    assert "persisted 5m source" in (one_minute.reason or "")
++    assert five_minute.available is True
++    assert len(five_minute.bars) == 3
++    assert fifteen_minute.available is True
++    assert len(fifteen_minute.bars) == 1
++    assert fifteen_minute.bars[0].source_count == 3
+ 
+ 
+ def test_trade_event_mapping_preserves_exact_event_and_uses_containing_bar() -> None:
+diff --git a/tests/test_spym_price_benchmark.py b/tests/test_spym_price_benchmark.py
+index 44915b5..ac7e823 100644
+--- a/tests/test_spym_price_benchmark.py
++++ b/tests/test_spym_price_benchmark.py
+@@ -168,10 +168,10 @@ def test_older_equity_artifact_without_price_or_benchmark_fails_closed() -> None
+     price_panel = _price_marker_panel(detail)
+     assert isinstance(price_panel, html.Div)
+     assert "Evidence not recorded" in str(price_panel)
+-    assert "approved fixture must be rerun" in str(price_panel)
++    assert "backtest must be rerun" in str(price_panel)
+ 
+     benchmark_panel = _portfolio_value_panel(detail)
+-    assert "No persisted buy-and-hold benchmark is available" in str(benchmark_panel)
++    assert "No persisted benchmark is available for this run" in str(benchmark_panel)
+     assert _graph(benchmark_panel).figure.layout.title.text == "Portfolio value over time"
+     assert len(_graph(benchmark_panel).figure.data) == 1
+ 
+diff --git a/tests/test_trade_explorer.py b/tests/test_trade_explorer.py
+index 37d519e..6a83274 100644
+--- a/tests/test_trade_explorer.py
++++ b/tests/test_trade_explorer.py
+@@ -21,6 +21,7 @@ from dashboard.components.trade_explorer import (
+     layout as trade_explorer_layout,
+     normalize_trade_rows,
+     selected_trade_detail,
++    trade_column_definitions,
+ )
+ from dashboard.run_detail_adapter import (
+     DetailField,
+@@ -96,7 +97,11 @@ def _audit(data: pd.DataFrame) -> DataAudit:
+     )
+ 
+ 
+-def _detail(trades: tuple[dict[str, Any], ...] = ()) -> SelectedRunDetailView:
++def _detail(
++    trades: tuple[dict[str, Any], ...] = (),
++    *,
++    price_unit: str = "currency",
++) -> SelectedRunDetailView:
+     return SelectedRunDetailView(
+         configuration_fields=(),
+         parameters=(),
+@@ -130,6 +135,7 @@ def _detail(trades: tuple[dict[str, Any], ...] = ()) -> SelectedRunDetailView:
+             validation=(),
+             provenance=(),
+             warnings=(),
++            price_unit=price_unit,
+         ),
+         warnings=(),
+     )
+@@ -434,9 +440,20 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
+         {
+             "run-a": _detail(
+                 (
++                    {
++                        "Entry Index": "2026-01-03T14:30:00Z",
++                        "Avg Entry Price": 6000,
++                        "Exit Index": "2026-01-03T15:00:00Z",
++                        "Avg Exit Price": 6005,
++                        "Direction": "Short",
++                        "PnL": -1,
++                        "Entry Fees": 0.62,
++                        "Exit Fees": 0.62,
++                        "Status": "Closed",
++                    },
+                     {"Exit Index": "2026-01-02T15:00:00Z", "Direction": "Long", "PnL": 5, "Status": "Closed"},
+-                    {"Exit Index": "2026-01-03T15:00:00Z", "Direction": "Short", "PnL": -1, "Status": "Closed"},
+-                )
++                ),
++                price_unit="index_points",
+             ),
+             "run-b": _detail(
+                 ({"Exit Index": "2026-02-02T15:00:00Z", "Direction": "Long", "PnL": 1},)
+@@ -464,6 +481,7 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
+     assert len(rows) == 1
+     assert rows[0]["Outcome"] == "Loss"
+     assert rows[0]["Direction"] == "Short"
++    assert rows[0]["__price_unit"] == "index_points"
+     assert "Showing 1 of 2" in summary
+     assert selected == []
+ 
+@@ -481,3 +499,41 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
+ 
+     with pytest.raises(PreventUpdate):
+         refresh_rows("run-a", [], [], None, None, 0, "/")
++
++
++def test_mes_trade_prices_are_points_while_fees_and_pnl_remain_dollars() -> None:
++    row = normalize_trade_rows(
++        (
++            {
++                "Status": "Closed",
++                "Entry Index": "2026-01-03T14:30:00Z",
++                "Exit Index": "2026-01-03T15:00:00Z",
++                "Avg Entry Price": 6000.25,
++                "Avg Exit Price": 6005.5,
++                "Entry Fees": 0.62,
++                "Exit Fees": 0.62,
++                "PnL": 24.38,
++            },
++        ),
++        run_id="mes-screening",
++        price_unit="index_points",
++    )[0]
++    detail = selected_trade_detail(
++        [row],
++        run_id="mes-screening",
++        execution_fields=(),
++    )
++    rendered = _component_text(detail)
++    price_columns = {
++        column["field"]: column["valueFormatter"]["function"]
++        for column in trade_column_definitions()
++        if column.get("field") in {"Entry price", "Exit/valuation price", "Fees", "P&L"}
++    }
++
++    assert "6,000.25 index points" in rendered
++    assert "6,005.50 index points" in rendered
++    assert "$1.24" in rendered
++    assert "$24.38" in rendered
++    assert "index_points" in price_columns["Entry price"]
++    assert "'$'" in price_columns["Fees"]
++    assert "'$'" in price_columns["P&L"]
+-- 
+2.43.0
+

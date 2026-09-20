@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quant Factory · SYNTHETIC REVIEW</title>
+  <link rel="stylesheet" href="/chart-first-private/staging-chart-first-preview.css">
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@3.1.0/plotly.min.js" defer></script>
+  <script src="/chart-first-private/synthetic-review-preview.js" defer></script>
+</head>
+<body>
+  <main id="qf-chart-first" class="qf-preview-shell" aria-busy="true">
+    <header class="qf-appbar">
+      <a class="qf-brand" href="#" aria-label="Quant Factory home">QUANT FACTORY</a>
+      <div class="qf-breadcrumb" aria-label="Current page"><span>Research</span><span aria-hidden="true">/</span><strong>Results</strong></div>
+      <button id="refresh-preview" class="qf-button qf-button-quiet" type="button">Reset layout</button>
+    </header>
+
+    <section class="qf-run-strip" aria-label="Selected backtest">
+      <div class="qf-run-copy">
+        <span class="qf-eyebrow">SYNTHETIC REVIEW / NOT TRADING EVIDENCE</span>
+        <div class="qf-run-title-row">
+          <h1>Synthetic chart interaction review</h1>
+          <span class="qf-status"><span aria-hidden="true"></span>Synthetic</span>
+        </div>
+        <p>Invented identity and timeline <span aria-hidden="true">·</span> SYNTHETIC <span aria-hidden="true">·</span> 1 minute</p>
+      </div>
+      <div class="qf-run-actions">
+        <p><strong>SYNTHETIC REVIEW / NOT TRADING EVIDENCE.</strong> Invented values for layout review only.</p>
+        <button id="change-run" class="qf-button" type="button" aria-expanded="false" aria-controls="run-menu">Change run</button>
+        <div id="run-menu" class="qf-run-menu" hidden>
+          <strong>Synthetic preview</strong>
+          <span>One invented review run is loaded.</span>
+          <span class="qf-run-choice" aria-current="true">SYNTHETIC REVIEW / NOT TRADING EVIDENCE</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="qf-chart-workspace" aria-labelledby="price-heading">
+      <div id="chart-resizer-top" class="qf-panel-resizer qf-panel-resizer-top" role="separator" tabindex="0" title="Drag to resize chart from its top edge" aria-label="Resize price chart from top edge" aria-orientation="horizontal" aria-valuemin="300" aria-valuemax="900" aria-valuenow="520"><span aria-hidden="true"></span></div>
+      <div class="qf-chart-heading">
+        <div>
+          <div class="qf-instrument-line">
+            <h2 id="price-heading">SYNTHETIC</h2>
+            <span class="qf-chart-control-label">Bars:</span>
+            <div class="qf-interval-controls" role="group" aria-label="Chart interval">
+              <button class="qf-interval-button is-active" type="button" data-interval="1m" aria-pressed="true">1m</button>
+              <button class="qf-interval-button" type="button" data-interval="5m" aria-pressed="false">5m</button>
+              <button class="qf-interval-button" type="button" data-interval="15m" aria-pressed="false">15m</button>
+              <button class="qf-interval-button" type="button" data-interval="1D" aria-pressed="false">1D</button>
+            </div>
+            <span class="qf-chart-control-label">View:</span>
+            <div class="qf-view-controls" role="group" aria-label="Chart view">
+              <button class="qf-view-button" type="button" data-view="full" aria-pressed="false">Full run</button>
+              <button class="qf-view-button is-active" type="button" data-view="1D" aria-pressed="true">1D</button>
+              <button class="qf-view-button" type="button" data-view="1W" aria-pressed="false">1W</button>
+              <button class="qf-view-button" type="button" data-view="1M" aria-pressed="false">1M</button>
+            </div>
+          </div>
+          <p id="chart-context">Loading persisted price and trade evidence…</p>
+        </div>
+        <div class="qf-chart-actions">
+          <button id="reset-chart-range" class="qf-button qf-button-quiet qf-range-reset" type="button">Reset range</button>
+          <div class="qf-chart-legend" aria-label="Trade marker legend">
+            <span><i class="qf-entry-symbol" aria-hidden="true"></i>Entry</span>
+            <span><i class="qf-exit-symbol" aria-hidden="true"></i>Exit</span>
+            <span id="chart-counts">53,528 invented 1m bars · 366 closed trades</span>
+          </div>
+        </div>
+      </div>
+      <div id="price-chart" class="qf-price-chart" role="img" aria-label="Synthetic candlestick chart with invented trade entry and exit markers"></div>
+      <div id="chart-live" class="qf-chart-live" aria-live="polite">Loading chart…</div>
+    </section>
+
+    <section id="results-dock" class="qf-results-dock" aria-label="Backtest report">
+      <div id="dock-resizer" class="qf-dock-resizer" role="separator" tabindex="0" title="Drag the shared chart and report boundary" aria-label="Resize price chart bottom and report top" aria-orientation="horizontal" aria-valuemin="300" aria-valuemax="900" aria-valuenow="520"><span aria-hidden="true"></span></div>
+      <header class="qf-dock-header">
+        <div class="qf-mode-tabs" role="tablist" aria-label="Backtest report mode">
+          <button id="metrics-tab" class="qf-mode-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="metrics-panel">Metrics</button>
+          <button id="trades-tab" class="qf-mode-tab" type="button" role="tab" aria-selected="false" aria-controls="trades-panel">Trades <span>366</span></button>
+        </div>
+        <div class="qf-dock-tools">
+          <span id="dock-selection" aria-live="polite">Latest trade selected</span>
+          <button id="collapse-dock" class="qf-button qf-button-quiet" type="button" aria-expanded="true" aria-controls="dock-body">Collapse</button>
+        </div>
+      </header>
+
+      <div id="dock-body" class="qf-dock-body">
+        <section id="metrics-panel" class="qf-metrics-panel" role="tabpanel" aria-labelledby="metrics-tab">
+          <div class="qf-metric-row" aria-label="Key backtest metrics">
+            <article><span>Total return</span><strong id="metric-return">—</strong></article>
+            <article><span>Max drawdown</span><strong id="metric-drawdown">—</strong></article>
+            <article><span>Profitable trades</span><strong id="metric-profitable">—</strong><small id="metric-profitable-count">—</small></article>
+            <article><span>Trades</span><strong id="metric-trades">—</strong><small>Closed simulated trades</small></article>
+          </div>
+          <div class="qf-performance-row">
+            <div>
+              <h3>Closed-trade P&amp;L</h3>
+              <p>Cumulative result from the same persisted trade evidence.</p>
+            </div>
+            <div id="performance-chart" class="qf-performance-chart" role="img" aria-label="Cumulative closed-trade profit and loss"></div>
+          </div>
+        </section>
+
+        <section id="trades-panel" class="qf-trades-panel" role="tabpanel" aria-labelledby="trades-tab" hidden>
+          <header class="qf-trades-toolbar">
+            <div><strong id="trade-page-label">Trades 1–12 of 366</strong><span>Each trade is grouped into its entry and exit.</span></div>
+            <div class="qf-pagination" aria-label="Trade pages">
+              <button id="previous-trades" class="qf-button qf-button-quiet" type="button">Previous</button>
+              <button id="next-trades" class="qf-button qf-button-quiet" type="button">Next</button>
+            </div>
+          </header>
+          <div id="trade-groups" class="qf-trade-groups" aria-live="polite"></div>
+        </section>
+      </div>
+      <div id="dock-resizer-bottom" class="qf-panel-resizer qf-panel-resizer-bottom" role="separator" tabindex="0" title="Drag to resize report from its bottom edge" aria-label="Resize report from bottom edge" aria-orientation="horizontal" aria-valuemin="240" aria-valuemax="760" aria-valuenow="320"><span aria-hidden="true"></span></div>
+    </section>
+
+    <div id="preview-error" class="qf-error" role="alert" hidden></div>
+  </main>
+</body>
+</html>
