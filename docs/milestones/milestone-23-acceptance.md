@@ -10,11 +10,15 @@ protected-test inspection, automatic promotion, paper orders, or live work.
 Decision 279 supersedes Decision 277's acceptance for the former Results-page
 experience. Decisions 280–281 establish the chart-first direction and validated
 preview constraints. Decision 282 records hands-on owner approval of the
-detailed selected-run Results specification and authorizes implementation; it
-also requires a separate scalable multi-run analysis surface whose precise
-design is still pending. Implementation, deployment, testing, licensed-target
-proof, renewed owner acceptance of the eventual implemented experience, and the
-remaining objective evidence are still required.
+detailed selected-run Results specification and authorizes implementation.
+Decision 293 fulfills Decision 282's bounded-design owner review for the
+required Find & Compare surface and authorizes its first thin implementation
+after the synthetic responsiveness/data-path check. The bounded design is
+approved and the implementation/testing evidence merged through PR #74 at
+`5db5784cea925f4484f06eb78de9aea5b8e4acf2`; deployment, target validation,
+final owner acceptance, and the remaining objective evidence are still
+required. Any future expansion beyond this accepted surface requires new owner
+review and is outside this criterion.
 
 Decision 291 authorizes only the verified R07 selected-run inspection blocker
 correction and supersedes Decision 287's good-enough/frozen treatment only for
@@ -66,9 +70,12 @@ research-computation behavior is not misrepresented as a completed cache.
       A bounded Decision 291 slice now implements truthful R07 five-minute
       rendering, linked MES trades, complete ranked rejection rows, evidence
       limits and an exact-run reopen link; the full criterion remains open.
-- [ ] A bounded design is reviewed for the required scalable multi-run
+- [x] A bounded design is reviewed for the required scalable multi-run
       aggregation, slicing, ranking, filtering and selection surface; one run
       opens in Results and multiple selected runs can feed Compare.
+      Decision 293 fulfills this review for the bounded Find & Compare surface;
+      its implementation/testing evidence merged through PR #74. Deployment,
+      target validation and final owner acceptance remain pending.
 - [ ] Bars and View controls remain distinct; truthful aggregation produces the
       expected persisted-fixture counts and preserves exact trade-event
       timestamps and prices while markers map to containing bars.
@@ -110,6 +117,24 @@ research-computation behavior is not misrepresented as a completed cache.
 - This is portable synthetic browser evidence. It is not licensed-target,
   deployed-production, preserved-private-artifact, renewed operator-acceptance,
   complete-workflow, full-beta, or Milestone 23 gate evidence.
+
+### Decision 293 merged Find & Compare evidence — 2026-09-20
+
+- The synthetic server check handled 1,000 rows in 0.152 seconds (~438KB).
+- The implementation merged through PR #74 at
+  `5db5784cea925f4484f06eb78de9aea5b8e4acf2`; required checks passed.
+- It reuses Compare with a full-history grid, one Results action for one
+  selected saved test, 2–4 Compare selection, labelled top-ranked metric basis,
+  interval/return/drawdown/win rate/Sharpe/trades, quick search/counts, reset,
+  and native state persistence.
+- Lead validation passed 25 selected unit/dashboard tests and one real-browser
+  test. The 1,000-row browser page was ready in about 1.2 seconds with no
+  horizontal overflow at 1440px.
+- Profit Factor is not persisted and was intentionally not invented; later
+  engine-level consideration is not a current blocker.
+- Deployment, target validation, final owner acceptance, and beta completion
+  remain pending. The screenshot direction was owner-reviewed as
+  good/intuitive, but that is not final implementation acceptance.
 
 ## Target-evidence audit — 2026-09-18
 

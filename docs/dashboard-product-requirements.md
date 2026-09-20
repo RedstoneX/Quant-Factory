@@ -54,7 +54,8 @@ test's identity or as independent evidence.
 Before bounding the smallest implementation slice, first run a cheap
 synthetic approximately 1,000-row responsiveness and data-path check. The
 check is a measurement gate for the blueprint, not production or market-data
-evidence. Only after that check may the smallest implementation be bounded.
+evidence. That check passed in 0.152 seconds for 1,000 rows (~438KB), after
+which the smallest slice was implemented and merged.
 No new framework, schema, cache, backend store, or global restyle is planned
 unless evidence proves one unavoidable. Broad redesign, deployment,
 backtests, market data, paper/live work, caching, export, and polish are
@@ -67,6 +68,25 @@ remains accepted design and implementation authorization, not completed
 implementation, testing, deployment, beta completion, or operator acceptance.
 Any design expansion beyond this accepted surface requires new owner review
 before implementation.
+
+### Find & Compare merged implementation evidence — 2026-09-20
+
+The bounded implementation merged through PR #74 at
+`5db5784cea925f4484f06eb78de9aea5b8e4acf2`; required checks passed. It reuses
+the existing Compare route with a full-history grid, one exact Results action
+for one selected saved test, exact Compare for two to four selected tests,
+explicitly labelled top-ranked metric basis, interval/return/drawdown/win
+rate/Sharpe/trades, quick search, counts, reset, and native state persistence.
+Lead validation passed 25 selected unit/dashboard tests and one real-browser
+test. A 1,000-row browser page was ready in about 1.2 seconds with no
+horizontal overflow at 1440px.
+
+Deployment, target validation, final owner acceptance, and beta completion
+remain pending. The screenshot direction was owner-reviewed as good/intuitive,
+but that review is not final implementation acceptance. Profit Factor is not
+persisted and was intentionally not invented; engine-level consideration is
+later work, not a current blocker. Any design expansion beyond this accepted
+surface requires new owner review before implementation.
 
 A read-only inspection of local QAMC revision
 `a7197d5c060f83e5c226e1a06884027b359a1d40` (source paths
