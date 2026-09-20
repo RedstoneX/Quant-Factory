@@ -75,5 +75,8 @@ approval of its named, source-attributed hypothesis and predeclared evidence
 boundaries. Open-ended optimization or data mining, protected-test evaluation,
 automatic promotion, paper orders and live work remain blocked. Decisions
 280–282's accepted Results requirements and the remaining objective technical
-gates remain pending; the dashboard work is frozen unless a verified defect
-blocks operation.
+gates remain pending. Decision 291 authorizes only the verified R07 selected-run
+inspection blocker correction: native five-minute/MES-unit rendering, complete
+ranked rejection evidence, truthful evidence limits and exact-run reopening in
+the existing application. Multi-run analysis, caching, deployment, complete
+beta and Milestone 23 acceptance remain pending.

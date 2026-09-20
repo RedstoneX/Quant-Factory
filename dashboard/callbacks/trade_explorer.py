@@ -73,7 +73,12 @@ def register_trade_explorer_callbacks(
                 [],
             )
 
-        rows = normalize_trade_rows(detail.evidence.trades, run_id=run_id)
+        rows = normalize_trade_rows(
+            detail.evidence.trades,
+            run_id=run_id,
+            price_unit=detail.evidence.price_unit or "not_recorded",
+            pnl_unit=detail.evidence.pnl_unit or "not_recorded",
+        )
         if not rows:
             return (
                 [],

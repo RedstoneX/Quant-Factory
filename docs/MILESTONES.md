@@ -11,7 +11,7 @@ ordered work, milestone scope, and acceptance.
 | Phase | Milestone 25 controlled research is active under Decision 287. Milestone 23 technical and operator acceptance remains pending. |
 | Active work | R07: validate and inspect the approved MES five-minute opening-range breakout (ORB) path using the existing research system. |
 | Finding | Reference parity passed, but all 30 bounded baseline ORB variants screened out on already-inspected development/reference data. No edge qualified. |
-| Next action | Validate the preserved artifacts completely; only if they are green, integrate the reviewed rendering repair and perform the backed-up private deployment and operator inspection needed for R07. |
+| Next action | Independently review and integrate the bounded Decision 291 selected-run correction, then treat any backed-up private deployment and operator inspection as a separate authorized slice. |
 | Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, paper activation, futures execution, and live trading. |
 
 ## Product direction and boundaries
@@ -22,10 +22,10 @@ ordered work, milestone scope, and acceptance.
   evidence. Reuse existing Quant Factory code, VectorBT Pro, licensed
   dependencies, approved prototypes, and suitable maintained components before
   custom work.
-- The dashboard is the normal operator interface. Decision 287 accepts the
-  existing dashboard as good enough for controlled research and freezes further
-  dashboard work unless a verified defect blocks that path. This does not close
-  Milestone 23 or make an unmerged repair current product behavior.
+- The dashboard is the normal operator interface. Decision 291 supersedes only
+  Decision 287's good-enough/frozen treatment for the verified selected-run R07
+  inspection blocker. The bounded correction does not restore dashboard-first
+  sequencing, close Milestone 23, or authorize broad dashboard work.
 - Fixtures validate infrastructure and are not active profitability candidates.
   Previously inspected data is not independent evidence. Research must reject
   false edges, preserve evidence, and keep strategy and validation logic
@@ -39,8 +39,8 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R07 | 1 | in_progress | none | The merged Decision 288 MES ORB adapter completed four successful isolated screening runs and produced 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Their evidence and checksums are preserved in owner-only external storage outside production. A reviewed rendering repair exists locally but is unmerged and undeployed. Next: complete artifact-backed validation, then integrate and privately inspect only if green. |
-| R05 | 8 | pending | none | Preserve the validated selected-run Results repair outside canonical `main`. It remains unmerged and undeployed. Dashboard work stays frozen unless R07 exposes an operational blocker; Milestone 23 and the accepted multi-run and cache requirements remain pending. |
+| R07 | 1 | in_progress | none | The Decision 288 MES ORB adapter produced four successful isolated screening runs and 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Preserved evidence passed checksum, integrity and disposable application read-path validation. Decision 291 authorizes the verified selected-run blocker correction; this revision implements and locally validates that bounded slice, pending independent review, integration, any separate private deployment, and operator inspection. |
+| R05 | 8 | pending | none | Preserve the remaining selected-run and Milestone 23 work without broadening R07. Decision 291 corrects only the verified R07 inspection blocker; scalable multi-run analysis, cache work, complete workflow acceptance and renewed owner acceptance remain pending. |
 | R06 | 9 | pending | R07 | Preserve completed paper-observer preparation. Authenticated runtime work and activation remain deferred until a defensible edge qualifies and every execution gate passes. |
 <!-- active-work:end -->
 
@@ -52,7 +52,7 @@ ordered work, milestone scope, and acceptance.
 | 2. Approve the hypothesis and boundaries | Complete for this candidate | The owner approved the fixed reference-first plan and bounded 30-variant matrix. |
 | 3. Connect it to existing research | Complete | The thin durable adapter was validated at `0f7701fd6d3823b9603576777df441dd92df45a8` and merged through PR #65 at `a5c10c676bbbc3c3043ca80f87dcbbac6e750509`. |
 | 4. Persist, rank, and filter results | Complete for this screen | Four successful runs persisted 2 reference rows and 30 ranked matrix rows. |
-| 5. Inspect through the dashboard | Current | Complete artifact-backed validation. If green, integrate the reviewed repair, then use a backed-up private deployment for operator inspection. |
+| 5. Inspect through the dashboard | Current | The artifacts and disposable read path passed. Review and integrate the bounded selected-run correction; deployment and operator inspection remain separate. |
 | 6. Continue bounded research | Pending | Use Milestone 25 safeguards; any new executable candidate needs explicit owner approval and predeclared evidence boundaries. |
 | 7. Activate paper trading | Gated | Requires a qualified edge and every Milestone 24 execution gate. |
 | 8. Automate paper forward testing | Gated | Milestone 26 follows successful paper activation and reconciliation proof. |
@@ -65,7 +65,7 @@ Milestones 1–22 are complete.
 | # | Milestone | Acceptance summary | Status |
 |---:|---|---|---|
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
-| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Pending; dashboard work is frozen unless it blocks R07** |
+| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Pending; Decision 291 authorizes only the verified R07 selected-run blocker correction** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; activation deferred |
 | 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **In progress; MES ORB reference parity passed, but all 30 baseline variants screened out and no edge qualified** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
@@ -98,9 +98,10 @@ Current slices:
   keep the complete scenario inventory green.
 - **23C-1 — Review/design:** selected-run design approved. A separate scalable
   multi-run design remains pending.
-- **23C-2 — Implementation:** durable run tickets are merged. The Results repair
-  is preserved but unmerged and undeployed; work resumes only for a verified R07
-  blocker.
+- **23C-2 — Implementation:** durable run tickets are merged. The bounded
+  Decision 291 R07 selected-run correction is implemented and locally tested in
+  this revision; independent review and integration remain pending, and the
+  complete selected-run/Milestone 23 implementation is not claimed.
 - **23C-3 — Browser/operator acceptance:** renewed owner acceptance, real-browser
   lifecycle evidence, and the complete workflow remain pending.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
@@ -147,9 +148,11 @@ and an independent Risk Sentinel.
   events, linked grouped trades, direct pan and wheel zoom, separate Bars
   (`1m`/`5m`/`15m`/`1D`) and View (`Full run`/`1D`/`1W`/`1M`) controls,
   resettable resizable chart/report panels, normal-flow Metrics and Trades,
-  responsive stacking, and readable trade typography. The validated repair is
-  not merged, deployed, target-validated, or accepted as current behavior;
-  final palette selection remains deferred.
+  responsive stacking, and readable trade typography. Decision 291 authorizes
+  and this revision implements the narrow R07 usability correction using the
+  existing page; it is not yet integrated, deployed, target-validated, or
+  renewed-owner-accepted, and it is not the complete Milestone 23 beta. Final
+  palette selection remains deferred.
 - **Multi-run analysis:** hundreds or thousands of persisted runs must be
   aggregated, sliced, ranked, filtered, and selected by return, drawdown,
   profitable-trade measures, and other useful evidence. One run opens in
@@ -184,10 +187,11 @@ and an independent Risk Sentinel.
   edge, promotion, deployment, paper, futures-execution, or live authority.
 - Evidence and checksums from the successful isolated screening runs are
   preserved in owner-only external host storage outside production and remain
-  undeployed; complete artifact-backed and application read-path validation is
-  pending. The bounded truthful-rendering repair was independently reviewed at
-  local revision
-  `f2c443afb970b9518147c5823de4e0ae03c6ebe1`; it remains unmerged and undeployed.
+  undeployed. Checksum, database integrity, artifact structure, metric agreement
+  and a disposable current-main application read path passed on 2026-09-20.
+  Decision 291's bounded truthful-rendering correction is implemented and
+  locally validated in this revision; review, integration, deployment and
+  operator acceptance remain pending.
 
 ### Repository and CI history
 
@@ -204,7 +208,7 @@ Readable completed incident history is retained in
 
 ## Governing references
 
-- [Owner decisions](DECISIONS.md), especially Decisions 278–288.
+- [Owner decisions](DECISIONS.md), especially Decisions 278–291.
 - [Milestone 23 acceptance record](milestones/milestone-23-acceptance.md).
 - [Dashboard product requirements](dashboard-product-requirements.md).
 - [MES ORB specification](strategies/mes-opening-range-breakout.md).

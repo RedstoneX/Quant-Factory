@@ -31,6 +31,16 @@ cancelled. The active path reuses the existing VectorBT engine, persistence,
 evidence and dashboard without starting another dashboard evaluation or
 redesign.
 
+Decision 291 confirms one such verified defect: the existing page could not
+truthfully expose the preserved R07 native interval, MES units, complete ranked
+rejections and evidence limits. It authorizes only the smallest correction to
+the existing selected-run page. Missing interval, unit or protected-data facts
+remain unavailable rather than inferred; recorded annualized return retains its
+saved value and discloses that its calculation basis was not persisted. A
+separate calendar CAGR may be derived only from persisted total return and
+valid actual-coverage dates, and is not an engine output or screening metric. This
+does not authorize broader Results, multi-run, cache or deployment work.
+
 ## Current owner review outcome — refreshed 2026-09-18
 
 Private target checks cover mounted routes, refresh and selection behavior,
@@ -48,9 +58,10 @@ ledger grouped by completed trade, TradingView's backtesting Strategy Report
 is the primary UX reference, and QAMC informs only docking, resizing and linked
 panel mechanics rather than information density. After hands-on use of the
 private interactive preview, Decision 282 approves the detailed selected-run
-specification below as intuitive and authorizes implementation. Implementation,
-deployment, tests, licensed-target proof and renewed acceptance of the eventual
-implemented experience remain pending.
+specification below as intuitive and authorizes implementation. Decision 291's
+bounded R07 correction is implemented and locally validated in this revision;
+complete implementation, deployment, licensed-target proof and renewed
+acceptance of the eventual implemented experience remain pending.
 Retain Plotly Dash and VectorBT
 Pro; use Dash AG Grid and Dash Bootstrap Components where appropriate. Use
 capable retail-trader language while remaining understandable to a novice

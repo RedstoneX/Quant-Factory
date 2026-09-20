@@ -44,6 +44,7 @@ class ResultSummaryView:
     status: str
     message: str
     rows: tuple[tuple[DetailField, ...], ...]
+    table_rows: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,11 @@ class RunEvidenceView:
     price_series: tuple[dict[str, Any], ...] = ()
     benchmark_curve: tuple[dict[str, Any], ...] = ()
     benchmark: dict[str, Any] | None = None
+    source_interval: str | None = None
+    price_unit: str | None = None
+    pnl_unit: str | None = None
+    evidence_classification: str | None = None
+    promotion_eligible: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -141,7 +147,7 @@ def _lineage_fields(document: dict[str, Any] | None) -> tuple[DetailField, ...]:
         DetailField("Actual coverage", _display(data.get("actual_coverage"))),
         DetailField("Dataset manifest", _display(data.get("dataset_manifest_reference"))),
         DetailField("Dataset checksum", _display(data.get("dataset_checksum"))),
-        DetailField("Parent/child lineage", "Not recorded for this fixture run"),
+        DetailField("Parent/child lineage", "Not recorded for this run"),
     )
 
 
@@ -178,10 +184,15 @@ def _artifact_view(artifact, validation_by_id: dict[int, Any]) -> ArtifactInvent
     )
 
 
-def _result_summary(detail: dict[str, Any] | None) -> ResultSummaryView:
+def _result_summary(
+    detail: dict[str, Any] | None,
+    *,
+    evidence_classification: str | None = None,
+) -> ResultSummaryView:
     parameters = (detail or {}).get("parameters") or ()
     rows = []
-    for row in parameters[:5]:
+    table_rows: list[dict[str, Any]] = []
+    for row in parameters:
         metrics = json.loads(row.get("metrics_json", "{}"))
         normalized = json.loads(row.get("normalized_parameters_json", "{}"))
         fields = [
@@ -193,16 +204,34 @@ def _result_summary(detail: dict[str, Any] | None) -> ResultSummaryView:
         if row.get("rejection_reasons"):
             fields.append(DetailField("Rejection reasons", _display(row.get("rejection_reasons"))))
         rows.append(tuple(fields))
+        table_rows.append(
+            {
+                "ranking_position": row.get("ranking_position"),
+                **normalized,
+                **metrics,
+                "screening_status": row.get("screening_status"),
+                "screening_reason": row.get("rejection_reasons") or "",
+            }
+        )
     if not rows:
         return ResultSummaryView(
             status="empty",
             message="No persisted parameter result summary is available for this run.",
             rows=(),
         )
+    run_document = (detail or {}).get("run")
+    message = (
+        "Persisted deterministic fixture result summary."
+        if isinstance(run_document, dict) and run_document.get("stage") == "fixture"
+        else "Persisted ranked research result summary."
+    )
+    if evidence_classification:
+        message = f"Persisted ranked screening results. {evidence_classification}."
     return ResultSummaryView(
         status="available",
-        message="Persisted deterministic fixture result summary.",
+        message=message,
         rows=tuple(rows),
+        table_rows=tuple(table_rows),
     )
 
 
@@ -221,6 +250,29 @@ def _empty_evidence() -> RunEvidenceView:
         benchmark_curve=(),
         benchmark=None,
     )
+
+
+def _canonical_interval(value: Any) -> str | None:
+    normalized = str(value or "").lower().replace("-", " ").strip()
+    aliases = {
+        "1m": "1m",
+        "1 min": "1m",
+        "1 minute": "1m",
+        "1 minute bars": "1m",
+        "5m": "5m",
+        "5 min": "5m",
+        "5 minute": "5m",
+        "5 minute bars": "5m",
+        "15m": "15m",
+        "15 min": "15m",
+        "15 minute": "15m",
+        "15 minute bars": "15m",
+        "1d": "1D",
+        "1 day": "1D",
+        "1 day bars": "1D",
+        "daily": "1D",
+    }
+    return aliases.get(normalized)
 
 
 def _safe_artifact_path(root: Path, location: str) -> Path:
@@ -263,7 +315,44 @@ def _read_valid_json_artifacts(
     return documents, warnings
 
 
-def _metric_fields(metrics: dict[str, Any]) -> tuple[DetailField, ...]:
+def _calendar_cagr(total_return: Any, actual_coverage: Any) -> float | None:
+    """Derive calendar CAGR only from valid persisted return and coverage facts."""
+
+    if isinstance(total_return, bool):
+        return None
+    try:
+        normalized_return = float(total_return)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(normalized_return) or normalized_return <= -1.0:
+        return None
+    if not isinstance(actual_coverage, str):
+        return None
+    separator = ".." if ".." in actual_coverage else "/" if "/" in actual_coverage else None
+    if separator is None:
+        return None
+    start_text, end_text = (part.strip() for part in actual_coverage.split(separator, 1))
+    try:
+        start = datetime.fromisoformat(start_text.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end_text.replace("Z", "+00:00"))
+        elapsed_seconds = (end - start).total_seconds()
+    except (TypeError, ValueError):
+        return None
+    if elapsed_seconds <= 0:
+        return None
+    elapsed_years = elapsed_seconds / (365.2425 * 24 * 60 * 60)
+    try:
+        result = (1.0 + normalized_return) ** (1.0 / elapsed_years) - 1.0
+    except OverflowError:
+        return None
+    return result if math.isfinite(result) else None
+
+
+def _metric_fields(
+    metrics: dict[str, Any],
+    *,
+    actual_coverage: Any = None,
+) -> tuple[DetailField, ...]:
     preferred = (
         "total_return",
         "annualized_return",
@@ -272,11 +361,27 @@ def _metric_fields(metrics: dict[str, Any]) -> tuple[DetailField, ...]:
         "number_of_trades",
         "win_rate",
     )
-    return tuple(
-        DetailField(name.replace("_", " ").title(), format_metric(name, metrics[name]))
+    fields = [
+        DetailField(
+            (
+                "Annualized return (recorded engine output)"
+                if name == "annualized_return"
+                else name.replace("_", " ").title()
+            ),
+            format_metric(name, metrics[name]),
+        )
         for name in preferred
         if name in metrics
-    )
+    ]
+    calendar_cagr = _calendar_cagr(metrics.get("total_return"), actual_coverage)
+    if calendar_cagr is not None:
+        fields.append(
+            DetailField(
+                "Calendar CAGR (derived from recorded coverage)",
+                format_metric("annualized_return", calendar_cagr),
+            )
+        )
+    return tuple(fields)
 
 
 def _flatten_fields(document: dict[str, Any] | None) -> tuple[DetailField, ...]:
@@ -344,6 +449,7 @@ def _validated_series_rows(
     *,
     numeric_fields: tuple[str, ...],
     warnings: list[str],
+    source_interval: str | None = None,
 ) -> tuple[dict[str, Any], ...]:
     if not isinstance(document, dict) or key not in document:
         return ()
@@ -369,8 +475,13 @@ def _validated_series_rows(
                 return ()
         valid_rows.append(row)
     if {"open", "high", "low", "close"}.issubset(numeric_fields):
+        if source_interval is None:
+            warnings.append(
+                f"Artifact equity_curve field {key} cannot be used because its source interval was not recorded."
+            )
+            return ()
         try:
-            validate_ohlc_rows(valid_rows)
+            validate_ohlc_rows(valid_rows, source_interval=source_interval)
         except ResultsDataError as exc:
             warnings.append(f"Artifact equity_curve field {key} is invalid: {exc.reason}")
             return ()
@@ -432,6 +543,51 @@ def _validation_outcome_fields(
     )
 
 
+def _screening_outcome_fields(document: Any) -> tuple[DetailField, ...]:
+    if not isinstance(document, dict) or document.get("stage") != "screening":
+        return ()
+    screening = document.get("screening")
+    if not isinstance(screening, dict):
+        return ()
+    evaluated = screening.get("evaluated_combinations")
+    passed = screening.get("passed")
+    screened_out = screening.get("screened_out")
+    counts = (evaluated, passed, screened_out)
+    if not all(
+        isinstance(value, int) and not isinstance(value, bool) for value in counts
+    ):
+        return ()
+    if (
+        evaluated <= 0
+        or passed < 0
+        or screened_out < 0
+        or passed + screened_out != evaluated
+    ):
+        return ()
+    status = "passed" if passed else "screened_out"
+    blockers = document.get("promotion_blockers")
+    reasons = blockers if isinstance(blockers, list) else ()
+    protected_data_used = document.get("protected_data_used")
+    protected_state = (
+        "Not used; development/reference evidence only"
+        if protected_data_used is False
+        else "Not established; protected-data use was not explicitly recorded"
+    )
+    return (
+        DetailField("Stage", "Screening"),
+        DetailField("Normalized status", status),
+        DetailField("Reasons", _display(reasons)),
+        DetailField(
+            "Protected-data state",
+            protected_state,
+        ),
+        DetailField("Evidence identity", _display(document.get("evidence_label"))),
+        DetailField("Artifact identity", "validation_evidence"),
+        DetailField("Lockbox eligibility", "No"),
+        DetailField("Strategy progression", "No strategy progression occurred."),
+    )
+
+
 def _evidence_view(
     *,
     service: PersistenceService,
@@ -461,12 +617,17 @@ def _evidence_view(
     summary_doc = documents.get("run_summary")
     dataset_doc = documents.get("dataset_manifest")
 
+    provenance_doc = (detail or {}).get("provenance")
+    source_interval = _canonical_interval(
+        provenance_doc.get("interval") if isinstance(provenance_doc, dict) else None
+    )
     equity_curve = _table_rows(equity_doc, "equity_curve")
     price_series = _validated_series_rows(
         equity_doc,
         "price_series",
         numeric_fields=("open", "high", "low", "close"),
         warnings=warnings,
+        source_interval=source_interval,
     )
     benchmark_curve = _validated_series_rows(
         equity_doc,
@@ -478,6 +639,40 @@ def _evidence_view(
     if benchmark is None:
         benchmark_curve = ()
     notices: list[str] = []
+    evidence_classification = None
+    promotion_eligible = None
+    for document in (summary_doc, validation_doc):
+        if not isinstance(document, dict):
+            continue
+        classification = document.get("evidence_classification")
+        if (
+            evidence_classification is None
+            and isinstance(classification, str)
+            and classification.strip()
+        ):
+            evidence_classification = classification.strip().rstrip(".")
+        if promotion_eligible is None and isinstance(document.get("promotion_eligible"), bool):
+            promotion_eligible = document["promotion_eligible"]
+    if evidence_classification:
+        notices.append(f"Evidence classification: {evidence_classification}.")
+    calendar_cagr = _calendar_cagr(
+        metrics.get("total_return") if isinstance(metrics, dict) else None,
+        provenance_doc.get("actual_coverage")
+        if isinstance(provenance_doc, dict)
+        else None,
+    )
+    if isinstance(metrics, dict) and "annualized_return" in metrics:
+        notices.append(
+            "Annualized return is the recorded engine output. Its frequency, annualization, and risk-free basis were not persisted; do not treat it as a separately calculated calendar growth rate."
+        )
+    if calendar_cagr is not None:
+        notices.append(
+            "Calendar CAGR is derived separately from recorded total return and actual coverage; it is not the engine annualization or a new screening metric."
+        )
+    if promotion_eligible is False:
+        notices.append(
+            "Promotion blocked: this screening run cannot qualify an edge or advance to paper trading."
+        )
     if isinstance(summary_doc, dict) and summary_doc.get("fixture_only") is True:
         notices.append(
             "Infrastructure fixture only: this run proves factory plumbing and is not profitability evidence."
@@ -492,7 +687,6 @@ def _evidence_view(
             "SPYM is an ingestion and execution fixture here; it is not selected as the final paper or micro-live instrument."
         )
 
-    provenance_doc = (detail or {}).get("provenance")
     provenance = _fields(provenance_doc) if isinstance(provenance_doc, dict) else ()
     dataset_identity_fields = _flatten_fields(
         {
@@ -519,10 +713,33 @@ def _evidence_view(
         run_id=run_id,
         artifact_root=artifact_root,
     )
+    if not validation_outcome:
+        validation_outcome = _screening_outcome_fields(validation_doc)
+
+    price_unit: str | None = None
+    pnl_unit: str | None = None
+    if isinstance(trades_doc, dict):
+        recorded_price_unit = trades_doc.get("price_unit")
+        if recorded_price_unit in {"currency", "index_points"}:
+            price_unit = recorded_price_unit
+        elif recorded_price_unit not in (None, ""):
+            warnings.append(
+                f"Artifact trades_and_orders price_unit {recorded_price_unit!r} is unsupported."
+            )
+        recorded_pnl_unit = trades_doc.get("pnl_unit")
+        if isinstance(recorded_pnl_unit, str) and recorded_pnl_unit.strip():
+            pnl_unit = recorded_pnl_unit.strip()
 
     return RunEvidenceView(
         notices=tuple(notices),
-        metrics=_metric_fields(metrics),
+        metrics=_metric_fields(
+            metrics,
+            actual_coverage=(
+                provenance_doc.get("actual_coverage")
+                if isinstance(provenance_doc, dict)
+                else None
+            ),
+        ),
         trades=_table_rows(trades_doc, "trades"),
         orders=_table_rows(trades_doc, "orders"),
         equity_curve=equity_curve,
@@ -531,6 +748,11 @@ def _evidence_view(
         price_series=price_series,
         benchmark_curve=benchmark_curve,
         benchmark=benchmark,
+        source_interval=source_interval,
+        price_unit=price_unit,
+        pnl_unit=pnl_unit,
+        evidence_classification=evidence_classification,
+        promotion_eligible=promotion_eligible,
         validation=_flatten_fields(validation_doc if isinstance(validation_doc, dict) else None),
         provenance=provenance,
         warnings=tuple(warnings),
@@ -645,7 +867,10 @@ class RunDetailDashboardAdapter:
                 lineage_fields=_lineage_fields(manifest_document),
                 manifest_fields=_manifest_fields(manifest_document, manifest_checksum),
                 artifacts=artifacts,
-                result_summary=_result_summary(detail),
+                result_summary=_result_summary(
+                    detail,
+                    evidence_classification=evidence.evidence_classification,
+                ),
                 evidence=evidence,
                 warnings=tuple(warnings),
             )

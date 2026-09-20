@@ -634,3 +634,47 @@ explicitly.
      because product architecture, deployment, security, data flow, and
      integration are unchanged. No product runbook or specification changes
      because no operator or runtime procedure changes.
+
+291. **Narrow selected-run Results blocker correction authorized (accepted
+     2026-09-20).** The owner confirms that truthful inspection of the first
+     controlled MES ORB results is an operational blocker and authorizes the
+     smallest correction to the existing selected-run Results page. This
+     supersedes only Decision 287's treatment of the current Results behavior
+     as good enough and frozen for this verified blocker. It does not restore
+     Decision 286's former dashboard-first sequence or temporary planning
+     ceiling, authorize broad dashboard work, or change the active controlled-
+     research path.
+
+     Reuse the existing Plotly Dash application, Plotly chart, persisted run
+     adapter, AG Grid and trade explorer. Through normal navigation the owner
+     must be able to select a saved R07-shaped run, inspect its recorded native
+     five-minute chart and linked entry/exit trades, see recorded costs, returns,
+     drawdown, all ranked rows and rejection reasons, understand its evidence,
+     protected-data and promotion limits, and reopen the exact run without
+     identity confusion. Missing interval, units or protected-data facts fail
+     closed. MES prices remain index points while recorded fees and P&L remain
+     USD. The persisted annualized-return metric remains unchanged and is
+     labelled as an engine output whose calculation basis was not persisted;
+     it is not relabelled as calendar CAGR. When persisted total return and
+     parseable actual-coverage dates are both present, show calendar CAGR
+     separately as a derived coverage-period value, not as engine annualization
+     or a new screening metric; otherwise omit it.
+
+     This is a selected-run usability correction, not the scalable multi-run
+     surface, cache, redesign, new framework, schema change, research rerun,
+     protected-data inspection, strategy change, deployment, beta completion,
+     Milestone 23 acceptance, edge claim, paper activation or live authority.
+     Current-revision focused and real-browser evidence plus independent review
+     are required before integration. Deployment and renewed owner acceptance
+     remain separate later steps.
+
+     Documentation-impact assessment: `docs/MILESTONES.md` and the Milestone
+     23 acceptance record are updated because active R07 inspection and
+     selected-run implementation status change; the dashboard product
+     requirements and infrastructure inventory are aligned to the narrow
+     exception; `README.md` is updated because its public current-direction
+     summary would otherwise retain the superseded freeze wording; this
+     decision log is appended. `AGENTS.md`, the agent policy and ADR 0008 are
+     not applicable because agent behavior, architecture, routing and
+     dependencies do not change. No runbook applies because deployment and
+     runtime operation are excluded.

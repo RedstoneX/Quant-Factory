@@ -196,7 +196,7 @@ def prepare_interval(
     rows: Iterable[Mapping[str, Any]],
     interval: str,
     *,
-    source_interval: str = "1m",
+    source_interval: str | None = None,
 ) -> IntervalBars:
     """Return truthful interval bars or an explicit unsupported/unavailable state."""
 
@@ -207,14 +207,26 @@ def prepare_interval(
             available=False,
             reason=f"Bars interval {interval!r} is not supported.",
         )
-    if source_interval != "1m":
+    source_width = SUPPORTED_INTERVALS.get(source_interval)
+    if source_width is None:
         return IntervalBars(
             interval=interval,
             bars=(),
             available=False,
             reason=(
                 f"Bars interval {interval} is unavailable because truthful aggregation "
-                f"currently requires persisted 1m OHLC, not {source_interval}."
+                f"does not support persisted source interval {source_interval!r}."
+            ),
+        )
+    target_width = SUPPORTED_INTERVALS[interval]
+    if target_width < source_width:
+        return IntervalBars(
+            interval=interval,
+            bars=(),
+            available=False,
+            reason=(
+                f"Bars interval {interval} is finer than the persisted {source_interval} "
+                "source; finer bars cannot be fabricated."
             ),
         )
     source = validate_ohlc_rows(rows, source_interval=source_interval)
@@ -225,10 +237,10 @@ def prepare_interval(
             available=False,
             reason="No persisted OHLC bars are available for this run.",
         )
-    if interval == "1m":
+    if interval == source_interval:
         return IntervalBars(interval=interval, bars=source, available=True)
 
-    width = SUPPORTED_INTERVALS[interval]
+    width = target_width
     aggregated: list[OhlcBar] = []
     bucket: datetime | None = None
     bucket_rows: list[OhlcBar] = []

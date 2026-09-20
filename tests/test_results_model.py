@@ -83,7 +83,7 @@ def test_aggregation_uses_epoch_left_ohlc_rules_and_does_not_fill_gaps() -> None
         _row("2026-01-01T14:41:00Z", 20, 22, 19, 21),
     )
 
-    five_minute = prepare_interval(rows, "5m")
+    five_minute = prepare_interval(rows, "5m", source_interval="1m")
 
     assert five_minute.available is True
     assert [bar.timestamp.isoformat() for bar in five_minute.bars] == [
@@ -96,7 +96,7 @@ def test_aggregation_uses_epoch_left_ohlc_rules_and_does_not_fill_gaps() -> None
     assert five_minute.bars[0].close == 13
     assert five_minute.bars[0].source_count == 2
     assert five_minute.bars[1].source_count == 1
-    fifteen_minute = prepare_interval(rows, "15m")
+    fifteen_minute = prepare_interval(rows, "15m", source_interval="1m")
     assert len(fifteen_minute.bars) == 1
     assert fifteen_minute.bars[0].source_count == 3
 
@@ -119,6 +119,7 @@ def test_daily_aggregation_uses_utc_epoch_buckets() -> None:
             _row("2026-01-02T05:01:00Z", 10.5, 12, 10, 11.5),
         ),
         "1D",
+        source_interval="1m",
     )
 
     assert daily.available is True
@@ -130,15 +131,59 @@ def test_daily_aggregation_uses_utc_epoch_buckets() -> None:
 
 def test_intervals_report_explicit_unsupported_and_unavailable_reasons() -> None:
     unsupported = prepare_interval((), "30m")
-    empty = prepare_interval((), "5m")
-    wrong_source = prepare_interval((), "5m", source_interval="5m")
+    empty = prepare_interval((), "5m", source_interval="1m")
+    finer_than_source = prepare_interval((), "1m", source_interval="5m")
+    missing_source = prepare_interval((), "5m", source_interval=None)
 
     assert unsupported.available is False
     assert "not supported" in unsupported.reason
     assert empty.available is False
     assert empty.reason == "No persisted OHLC bars are available for this run."
-    assert wrong_source.available is False
-    assert "requires persisted 1m OHLC" in wrong_source.reason
+    assert finer_than_source.available is False
+    assert "cannot be fabricated" in finer_than_source.reason
+    assert missing_source.available is False
+    assert "source interval None" in (missing_source.reason or "")
+
+
+def test_native_five_minute_source_allows_only_equal_or_coarser_bars() -> None:
+    rows = (
+        _row("2026-01-01T14:30:00Z", 6000, 6002, 5999, 6001),
+        _row("2026-01-01T14:35:00Z", 6001, 6004, 6000, 6003),
+        _row("2026-01-01T14:40:00Z", 6003, 6005, 6002, 6004),
+    )
+
+    one_minute = prepare_interval(rows, "1m", source_interval="5m")
+    five_minute = prepare_interval(rows, "5m", source_interval="5m")
+    fifteen_minute = prepare_interval(rows, "15m", source_interval="5m")
+
+    assert one_minute.available is False
+    assert "persisted 5m source" in (one_minute.reason or "")
+    assert five_minute.available is True
+    assert len(five_minute.bars) == 3
+    assert fifteen_minute.available is True
+    assert len(fifteen_minute.bars) == 1
+    assert fifteen_minute.bars[0].source_count == 3
+
+
+def test_persisted_price_rows_fail_closed_when_source_interval_is_missing() -> None:
+    warnings: list[str] = []
+
+    rows = _validated_series_rows(
+        {
+            "price_series": [
+                _row("2026-01-01T14:30:00Z", 6000, 6002, 5999, 6001)
+            ]
+        },
+        "price_series",
+        numeric_fields=("open", "high", "low", "close"),
+        warnings=warnings,
+        source_interval=None,
+    )
+
+    assert rows == ()
+    assert warnings == [
+        "Artifact equity_curve field price_series cannot be used because its source interval was not recorded."
+    ]
 
 
 def test_trade_event_mapping_preserves_exact_event_and_uses_containing_bar() -> None:
@@ -148,6 +193,7 @@ def test_trade_event_mapping_preserves_exact_event_and_uses_containing_bar() -> 
             _row("2026-01-01T14:31:00Z", 10.5, 12, 10, 11.5),
         ),
         "5m",
+        source_interval="1m",
     )
     event = TradeEvent(
         trade_id="7",
@@ -167,7 +213,9 @@ def test_trade_event_mapping_preserves_exact_event_and_uses_containing_bar() -> 
 
 def test_trade_event_mapping_does_not_fabricate_marker_in_empty_bucket() -> None:
     interval = prepare_interval(
-        (_row("2026-01-01T14:30:00Z", 10, 11, 9, 10.5),), "5m"
+        (_row("2026-01-01T14:30:00Z", 10, 11, 9, 10.5),),
+        "5m",
+        source_interval="1m",
     )
     event = TradeEvent(
         trade_id="7",
@@ -360,6 +408,7 @@ def test_adapter_price_validation_uses_strict_results_contract() -> None:
         "price_series",
         numeric_fields=("open", "high", "low", "close"),
         warnings=warnings,
+        source_interval="1m",
     )
 
     assert rows == ()
