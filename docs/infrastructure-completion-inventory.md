@@ -78,5 +78,8 @@ automatic promotion, paper orders and live work remain blocked. Decisions
 gates remain pending. Decision 291 authorizes only the verified R07 selected-run
 inspection blocker correction: native five-minute/MES-unit rendering, complete
 ranked rejection evidence, truthful evidence limits and exact-run reopening in
-the existing application. Multi-run analysis, caching, deployment, complete
-beta and Milestone 23 acceptance remain pending.
+the existing application. That correction merged through PR #70 at
+`4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after focused, portable
+real-browser, independent-review, and required-CI evidence passed. It is not
+deployed, target-validated, operator-accepted, full beta, or Milestone 23
+completion. Multi-run analysis and caching remain pending.

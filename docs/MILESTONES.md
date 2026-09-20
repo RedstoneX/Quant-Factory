@@ -11,7 +11,7 @@ ordered work, milestone scope, and acceptance.
 | Phase | Milestone 25 controlled research is active under Decision 287. Milestone 23 technical and operator acceptance remains pending. |
 | Active work | R07: validate and inspect the approved MES five-minute opening-range breakout (ORB) path using the existing research system. |
 | Finding | Reference parity passed, but all 30 bounded baseline ORB variants screened out on already-inspected development/reference data. No edge qualified. |
-| Next action | Independently review and integrate the bounded Decision 291 selected-run correction, then treat any backed-up private deployment and operator inspection as a separate authorized slice. |
+| Next action | No repository-local R07 integration blocker remains. A backed-up private deployment, target validation, and operator inspection are the next R07 step, but require separate owner authorization and remain target-dependent. The next recorded repository-local Milestone 23 blocker is the pending bounded scalable multi-run design under R05; Decision 291 does not activate it. |
 | Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, paper activation, futures execution, and live trading. |
 
 ## Product direction and boundaries
@@ -39,7 +39,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R07 | 1 | in_progress | none | The Decision 288 MES ORB adapter produced four successful isolated screening runs and 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Preserved evidence passed checksum, integrity and disposable application read-path validation. Decision 291 authorizes the verified selected-run blocker correction; this revision implements and locally validates that bounded slice, pending independent review, integration, any separate private deployment, and operator inspection. |
+| R07 | 1 | in_progress | none | The Decision 288 MES ORB adapter produced four successful isolated screening runs and 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Preserved evidence passed checksum, integrity and disposable application read-path validation. The Decision 291 selected-run correction merged through PR #70 at `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f`; focused, portable real-browser, independent-review, and required-CI evidence passed. It is not deployed, target-validated, operator-accepted, full beta, or Milestone 23 completion. |
 | R05 | 8 | pending | none | Preserve the remaining selected-run and Milestone 23 work without broadening R07. Decision 291 corrects only the verified R07 inspection blocker; scalable multi-run analysis, cache work, complete workflow acceptance and renewed owner acceptance remain pending. |
 | R06 | 9 | pending | R07 | Preserve completed paper-observer preparation. Authenticated runtime work and activation remain deferred until a defensible edge qualifies and every execution gate passes. |
 <!-- active-work:end -->
@@ -52,7 +52,7 @@ ordered work, milestone scope, and acceptance.
 | 2. Approve the hypothesis and boundaries | Complete for this candidate | The owner approved the fixed reference-first plan and bounded 30-variant matrix. |
 | 3. Connect it to existing research | Complete | The thin durable adapter was validated at `0f7701fd6d3823b9603576777df441dd92df45a8` and merged through PR #65 at `a5c10c676bbbc3c3043ca80f87dcbbac6e750509`. |
 | 4. Persist, rank, and filter results | Complete for this screen | Four successful runs persisted 2 reference rows and 30 ranked matrix rows. |
-| 5. Inspect through the dashboard | Current | The artifacts and disposable read path passed. Review and integrate the bounded selected-run correction; deployment and operator inspection remain separate. |
+| 5. Inspect through the dashboard | Owner/target-dependent | The artifacts and disposable read path passed, and the bounded selected-run correction is merged. Backed-up private deployment, target validation, and operator inspection require separate owner authorization and remain target-dependent. |
 | 6. Continue bounded research | Pending | Use Milestone 25 safeguards; any new executable candidate needs explicit owner approval and predeclared evidence boundaries. |
 | 7. Activate paper trading | Gated | Requires a qualified edge and every Milestone 24 execution gate. |
 | 8. Automate paper forward testing | Gated | Milestone 26 follows successful paper activation and reconciliation proof. |
@@ -99,8 +99,9 @@ Current slices:
 - **23C-1 — Review/design:** selected-run design approved. A separate scalable
   multi-run design remains pending.
 - **23C-2 — Implementation:** durable run tickets are merged. The bounded
-  Decision 291 R07 selected-run correction is implemented and locally tested in
-  this revision; independent review and integration remain pending, and the
+  Decision 291 R07 selected-run correction merged through PR #70 at
+  `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f`; its focused, portable
+  real-browser, independent-review, and required-CI evidence passed. The
   complete selected-run/Milestone 23 implementation is not claimed.
 - **23C-3 — Browser/operator acceptance:** renewed owner acceptance, real-browser
   lifecycle evidence, and the complete workflow remain pending.
@@ -149,9 +150,11 @@ and an independent Risk Sentinel.
   (`1m`/`5m`/`15m`/`1D`) and View (`Full run`/`1D`/`1W`/`1M`) controls,
   resettable resizable chart/report panels, normal-flow Metrics and Trades,
   responsive stacking, and readable trade typography. Decision 291 authorizes
-  and this revision implements the narrow R07 usability correction using the
-  existing page; it is not yet integrated, deployed, target-validated, or
-  renewed-owner-accepted, and it is not the complete Milestone 23 beta. Final
+  the narrow R07 usability correction using the existing page; it merged
+  through PR #70 at `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after
+  focused, portable real-browser, independent-review, and required-CI evidence
+  passed. It is not deployed, target-validated, renewed-owner-accepted, full
+  beta, or Milestone 23 completion. Final
   palette selection remains deferred.
 - **Multi-run analysis:** hundreds or thousands of persisted runs must be
   aggregated, sliced, ranked, filtered, and selected by return, drawdown,
@@ -189,9 +192,11 @@ and an independent Risk Sentinel.
   preserved in owner-only external host storage outside production and remain
   undeployed. Checksum, database integrity, artifact structure, metric agreement
   and a disposable current-main application read path passed on 2026-09-20.
-  Decision 291's bounded truthful-rendering correction is implemented and
-  locally validated in this revision; review, integration, deployment and
-  operator acceptance remain pending.
+  Decision 291's bounded truthful-rendering correction merged through PR #70 at
+  `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f`; focused, portable
+  real-browser, independent-review, and required-CI evidence passed. Deployment,
+  target validation, operator acceptance, full beta, and Milestone 23
+  completion remain pending.
 
 ### Repository and CI history
 

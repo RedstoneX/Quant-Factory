@@ -19,10 +19,12 @@ remaining objective evidence are still required.
 Decision 291 authorizes only the verified R07 selected-run inspection blocker
 correction and supersedes Decision 287's good-enough/frozen treatment only for
 that defect. The correction reuses the existing application and must fail
-closed for missing interval, unit and protected-data facts. Its focused and
-synthetic real-browser evidence does not establish licensed-target proof,
-deployment, the scalable multi-run surface, complete beta, Milestone 23 closure,
-or renewed owner acceptance.
+closed for missing interval, unit and protected-data facts. It merged through
+PR #70 at `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after focused,
+portable real-browser, independent-review, and required-CI evidence passed.
+That evidence does not establish licensed-target proof, deployment, the
+scalable multi-run surface, complete beta, Milestone 23 closure, or renewed
+owner acceptance.
 
 Decision 283 separately requires safe caching for exact repeat research
 computations while preserving distinct durable run tickets and preventing
@@ -91,6 +93,10 @@ research-computation behavior is not misrepresented as a completed cache.
 
 ### Decision 291 bounded Results evidence — 2026-09-20
 
+- The bounded correction merged through PR #70 at
+  `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f`. Focused tests, portable
+  real-browser evidence, independent review, and required CI passed.
+
 - Focused portable tests cover native/coarser interval handling, fail-closed
   unknown interval and protected-data state, MES index-point versus USD units,
   all ranked rows and rejection reasons, distinct recorded engine annualization
@@ -103,7 +109,7 @@ research-computation behavior is not misrepresented as a completed cache.
   clean browser diagnostics for this source revision.
 - This is portable synthetic browser evidence. It is not licensed-target,
   deployed-production, preserved-private-artifact, renewed operator-acceptance,
-  complete-workflow or Milestone 23 gate evidence.
+  complete-workflow, full-beta, or Milestone 23 gate evidence.
 
 ## Target-evidence audit — 2026-09-18
 
