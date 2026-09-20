@@ -91,7 +91,8 @@ Supporting documents explain their assigned subject and do not create another cu
 
 - [Documentation governance](docs/DOCUMENTATION_GOVERNANCE.md) — authority, document lifecycle, and completion checks.
 - [Chat handoff](docs/CHAT_HANDOFF.md) — startup navigation.
-- [AI programming-agent policy](docs/ai-programming-agent-policy.md) and [Claude instructions](CLAUDE.md) — operating procedures.
+- [Codex agent policy](docs/ai-programming-agent-policy.md) — detailed operating procedures.
+- [Implementation preflight](.agents/skills/implementation-preflight/SKILL.md) and [adversarial proposal check](.agents/skills/quant-factory-adversary/SKILL.md) — on-demand Codex controls.
 - [Dashboard product requirements](docs/dashboard-product-requirements.md) — operator behavior and requirements.
 - [Portable deployment ADR](docs/architecture/0007-portable-deployment-and-alpaca-first-roadmap.md) — Docker portability, VPS topology, and post-23 direction.
 - [Research deployment runbook](docs/operations/ovh-research-deployment.md) — portable Docker/Compose deployment, private access, backup, restore, and rollback.
@@ -202,9 +203,7 @@ The database and SQLite sidecars are local state and are ignored by Git.
 
 ## Work allocation
 
-During the scoped revival, Decision 270 requires multiple agents matched to
-task complexity. The lead orchestrates and independently validates critical
-evidence; the user is not expected to perform Git synchronization. Claude Code
-remains the primary programming agent outside this scoped revival. See [the
-agent policy](docs/ai-programming-agent-policy.md) for the standing allocation
-and the revival exception.
+Codex is the active project toolchain. The lead coordinates bounded Codex
+workers, independently validates critical evidence, and completes repository
+operations; the owner is not expected to perform Git synchronization. See the
+[agent policy](docs/ai-programming-agent-policy.md) for the detailed procedure.

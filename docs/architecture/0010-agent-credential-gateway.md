@@ -23,7 +23,7 @@ The evaluated open-source options were OneCLI, Agent Vault, Infisical, and a cus
 
 Before OneCLI is adopted beyond evaluation, it must demonstrate that:
 
-- Claude Code can call a harmless test API without receiving the real credential;
+- a bounded Codex agent can call a harmless test API without receiving the real credential;
 - the agent cannot print, retrieve, or reconstruct the underlying secret;
 - credentials can be restricted by agent, destination host, and path or operation where supported;
 - denied destinations fail closed;

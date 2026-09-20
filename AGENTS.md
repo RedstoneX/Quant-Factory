@@ -1,405 +1,129 @@
-# Quant Factory Agent Instructions
+# Quant Factory Codex Instructions
 
-The permanent AI-agent collaboration rules are in
-[`docs/ai-programming-agent-policy.md`](docs/ai-programming-agent-policy.md).
-Documentation work must also follow
-[`docs/DOCUMENTATION_GOVERNANCE.md`](docs/DOCUMENTATION_GOVERNANCE.md).
-Claude Code must also follow [`CLAUDE.md`](CLAUDE.md) and run the
-`implementation-preflight` project skill before executable implementation.
+## Mission and authority
 
-## Start and source of truth
+Quant Factory is a private tool for Terry, its sole owner and operator, to find
+and validate a defensible trading edge and pursue consistent market income.
+Build the shortest safe, evidence-truthful path to an operator-usable MVP. It
+is not an enterprise, SaaS, multitenant, billing, or team product.
 
-The closed Tier 1 set is `AGENTS.md` (working contract),
-`docs/MILESTONES.md` (product intent, current status, ordered active work and
-acceptance), and `docs/DECISIONS.md` (owner decisions and supersessions).
-Read current scope and relevant decisions before acting. Supporting documents
-have the roles defined in `docs/DOCUMENTATION_GOVERNANCE.md`; none may create
-a competing mandate, status, or plan.
+The closed Tier 1 authority set is:
 
-At the initial revival handoff, summarize this understanding and obtain the
-project owner's confirmation before writing application code. The owner
-confirmed the scoped full-authority revival on 2026-09-02; carry that
-authorization forward within its approved scope and do not repeatedly ask.
+1. `AGENTS.md` — stable Codex operating contract.
+2. `docs/MILESTONES.md` — direction, current status, ordered work, acceptance.
+3. `docs/DECISIONS.md` — accepted owner decisions and supersessions.
 
-## Communication and evidence
+At the start of substantive work, read `docs/MILESTONES.md` and only relevant
+decisions. Load supporting material only when the task requires it. Supporting
+documents cannot create a competing mandate or status. Follow
+`docs/DOCUMENTATION_GOVERNANCE.md` for documentation changes.
 
-- Lead with the answer, current phase, next action, and real blocker. Use short lines or point form and keep the overview to six short bullets or fewer.
-- Report what changed, why, what was verified, and any decision needed. Mention material scope exclusions when they affect the result. Keep unnecessary paths, IDs, and implementation detail in linked evidence.
-- Say when something is unknown, unverified, or inferred. Do not round partial success up to completion or use fabricated precision.
-- Check the assertion that the next action depends on, cheaply and adversarially. For a test-pass claim, inspect the result and counts; for a causal claim, reproduce the symptom; for "never worked," look for a counterexample.
-- Verify dates, durations, and history from Git, filesystem, or recorded runtime evidence rather than impression. Distinguish proposed, implemented, tested, merged, deployed, and operator-accepted work.
-- Do not reopen a defect from stale notes alone. Report newly verified pre-existing problems in ordinary language; discovery is not authorization to repair unrelated work.
-- Run the narrowest decisive validation first. Broaden only for a concrete remaining risk and stop when the result is proven.
-- Correct demonstrably wrong documentation on sight without another permission request; check the existing primary home first. A factual correction must not silently change mandate, scope, architecture, or acceptance.
-- Attribute agent-chosen scope cuts, deferrals, or simplifications to the agent and state the reason. Trace unattributed mandate constraints to their source; if still unverified, ask the project owner before relying on them.
-- Only the project owner ratifies mandate or policy changes. An agent's proposal or its own merge is not owner ratification. Explicit owner instructions to adopt or record a rule count as acceptance.
-- Record owner corrections and explicitly confirmed unusual successful approaches in the proper standing-rule document, with context and boundaries. Do not leave them only in chat or generalize one success into unlimited scope.
-- Keep AGENTS a curated contract, current work an ordered queue, and completed incidents in readable history. Follow the document lifecycle and enforcement-status distinctions in `docs/DOCUMENTATION_GOVERNANCE.md`.
-- Use explicit text labels for status; the operator must not need to distinguish red from green to understand the result.
+Codex is the sole active project agent toolchain. Do not load, invoke, rely
+on, update, or follow `CLAUDE.md` or `.claude/**` during normal project work.
+Those files remain untouched historical or tool-specific material.
 
-## Repository
+The owner has already authorized the scoped revival. Continue within accepted
+scope without repeatedly requesting permission. Only the owner changes the
+mandate, accepts milestones, authorizes deployment, or approves paper/live
+trading and capital exposure.
 
-- Resolve the active checkout from `QF_REPO_ROOT`; public examples use
-  `/srv/quant-factory/repo`. Isolated task worktrees must have explicit
-  ownership. Never treat an unrelated clone as authoritative.
-- Decision 275's controlled migration is complete. The clean-history public
-  `RedstoneX/Quant-Factory` repository is canonical and is the sole forward
-  source of truth. The original repository remains private, read-only
-  historical evidence; never rewrite or delete its history or treat it as a
-  development remote.
-- Use `main` as the accepted integration baseline. Use dedicated branches and PRs for substantive work; never push changes directly to `main` or force-push. Review and preserve any existing branch/worktree state before changing it.
-- On the public canonical repository, require the applicable CI checks for
-  pull requests. Decision 276 permanently sets GitHub's strict/up-to-date
-  requirement to `false` unless the owner changes that decision. Independent
-  green pull requests may merge without rebasing, updating, or rebuilding
-  solely because another independent pull request merged first. CI concurrency
-  is per ref and no merge queue is used. Keep required checks and admin
-  enforcement enabled; keep repository auto-merge and merged-branch deletion
-  enabled. Overlapping or dependent changes must still be integrated serially
-  and retested against the resulting `main`; this throughput rule is not
-  permission to merge incompatible work.
-- Never use the retired Windows clone for development.
-- GitHub remains authoritative for committed state and the owned worktree for
-  live local state. External recovery snapshots are temporary evidence only.
-- Never run destructive Git commands without explicit instruction.
-- Stage explicit owned paths only; never use `git add -A` or `git add .`.
-- Never use a bare `git stash`. Prefer an isolated task worktree from the active repository when needed to preserve concurrent work. If a stash is necessary, give it a unique name, record its exact object identity and owned paths, and verify that identity before restoration or removal; stash refs are shared across sessions.
-- Keep rollback possible and preserve other sessions' edits. Concurrent writers must have separate directories/worktrees; a separate branch alone does not isolate files in one working tree.
-- Never commit secrets, credentials, downloaded market data, generated result files, environment files, or machine-specific artifacts.
-- Commit and push executable work only after its diff and required validation are reviewed.
+## Work selection and communication
 
-## User Git-operation boundary
+- Lead with the answer, phase, next action, and any real blocker in no more than
+  six short bullets. Use plain language.
+- State what is measured, inferred, or unknown. Distinguish proposed,
+  implemented, tested, merged, deployed, and owner-accepted work.
+- Verify the load-bearing claim cheaply before acting. Use the narrowest
+  decisive validation and stop when the result is established.
+- Every implementation slice must advance the current Tier 1 path or remove a
+  demonstrated blocker. Do not add speculative infrastructure, refactoring,
+  dashboard polish, or execution scope.
+- Correct verified factual drift, but never turn a correction into an
+  unapproved change of scope, architecture, status, or acceptance.
+- Record permanent changes under documentation governance; chat is not durable
+  project memory.
 
-- The user does not independently operate Git or GitHub synchronization and is not expected to infer Git commands.
-- Repository-changing Git work must be completed by ChatGPT through an available repository tool, by one exact bounded command beginning with `clear`, or by one explicit bounded Claude Code instruction.
-- Codex is retired from ordinary project work. The owner's 2026-09-02 full-
-  authority revival authorization reauthorizes the current assistant for the
-  scoped revival, including root-cause repair, extensive testing, and reviewed
-  repository operations needed to push and merge. The scope and supersession
-  are recorded in DECISIONS and the agent policy.
-- Never tell the user merely to pull, sync, merge, rebase, reset, or resolve conflicts.
-- Before a repository-changing command, state the concrete change, any material scope exclusions, stop conditions, and verification output.
-- A permanent rule is not established until it is recorded under the documentation-governance procedure.
+## Repository safety
 
-## Mission and current direction
+- `RedstoneX/Quant-Factory` is the canonical forward source of truth. Use an
+  owned checkout or isolated worktree based on accepted `main`.
+- Substantive work uses a dedicated branch and pull request. Never push to
+  `main`, force-push, use destructive Git, or alter the historical repository.
+- Preserve unrelated edits. Concurrent writers use separate worktrees. Stage
+  explicit owned paths only; never use `git add .`, `git add -A`, or a bare
+  stash.
+- Never commit secrets, market data, generated results, environment files, or
+  machine-specific artifacts.
+- Required checks and admin enforcement remain enabled. GitHub strict/up-to-
+  date remains disabled under Decision 276; independent green pull requests
+  need not rebuild after another independent merge. Dependent or overlapping
+  work integrates serially and is retested against resulting `main`.
+- The owner is not expected to operate Git. Codex completes authorized Git and
+  GitHub work and reports the result.
 
-- Quant Factory is a private system for Terry, its single owner/operator, to
-  find and validate a trading edge and pursue consistent market income. It is
-  not an enterprise product, SaaS offering, software-sales project, or
-  multi-user/team platform. Multitenancy, customer onboarding, billing,
-  organization administration, and features that exist only for hypothetical
-  external customers are out of scope unless the owner separately approves
-  them.
-- The controlling delivery priority is the shortest safe, evidence-truthful
-  path to an operator-usable MVP that can validate or reject a trading edge.
-  Reuse, architecture, testing, and documentation serve that outcome; they are
-  not independent product goals.
-- Quant Factory is infrastructure first, evidence first, and operating-proof
-  first. The dashboard remains the essential operator interface, but Decision
-  287 supersedes the former dashboard-first active sequence.
-- The goal is to reject false edges, preserve reproducible evidence, paper trade qualified strategies, reconcile model and venue state, and deploy only tightly bounded capital under explicit human approval and independent risk controls.
-- The dashboard is the primary operator interface. Python, terminals, raw CSV/JSON, and backend logs are implementation details.
-- RSI and SPY Donchian remain infrastructure fixtures and historical evidence,
-  not active profitability candidates. Decision 288 selects the existing MES
-  five-minute opening-range breakout specification as the first controlled
-  candidate under Decision 287. Its earlier runs remain historical fixture
-  evidence, not current profitability proof.
-- Decision 279 supersedes Decision 277's acceptance of the former Results-page
-  comprehension and flow. Decisions 280–281 establish the chart-first and
-  validated-preview requirements. Decision 282 records the owner's hands-on
-  approval of the detailed selected-run Results specification and authorizes
-  its implementation. A separate scalable multi-run analysis surface must
-  aggregate, slice, rank, filter and select hundreds or thousands of persisted
-  runs; its exact design remains pending. Selected-run implementation,
-  deployment, tests, licensed-target proof, and renewed acceptance of the
-  eventual implemented page remain pending. Decision 287 records the owner's
-  acceptance of the existing dashboard as good enough to proceed with the
-  controlled MVP research path and freezes further dashboard work unless a
-  verified defect blocks operation. That limited acceptance does not accept or
-  deploy the pending repair, close Milestone 23, or waive its remaining
-  technical gates. Controlled, bounded, source-attributed candidate intake,
-  discovery and research/backtesting may proceed under Milestone 25 safeguards;
-  open-ended optimization or data mining, protected-test evaluation, automatic
-  promotion, and paper or live activation remain gated.
-- Decision 283 requires safe reuse of validated results for exact repeat
-  research computations so repeats are materially faster than rebuilding all
-  computation. Every explicit request still receives its own durable run
-  ticket and lifecycle. Reusable computed artifacts must be validated,
-  traceable, isolated by every result-changing input and protected-data
-  boundary, and must never turn one computation into multiple independent
-  evidence observations. Failed, partial, corrupt, or unknown work is not
-  reusable. Cache architecture, identity/keying mechanism, storage, eviction,
-  implementation sequence, and whether explicit **Reproduce** bypasses or
-  verifies cached work require a bounded design before implementation.
-- Under Decisions 259 and 262, research-only Docker/Compose packaging,
-  deployment preparation, broker-neutral contracts, isolated paper-adapter
-  implementation, tests, and target validation may proceed in parallel with
-  Milestone 23. Any use of harmless or paper credentials requires the existing
-  ADR 0010 credential-isolation proof and the documented account-ownership
-  boundary, except for the one-shot operator check in Decision 271. This does not
-  authorize paper-order activation, discovery, protected tests, optimization,
-  live capital, or completion of Milestone 24. Decision 266 separately
-  authorizes authoritative OVH research-runtime migration after backup,
-  reconciliation, private-access, restart, restore, and rollback checks; this
-  does not accept Milestone 23 or authorize execution.
+## Implementation and reuse
 
-- Private dashboard availability requires owner authorization, authenticated
-  private networking, and target-environment proof. Provider-specific private
-  coordinates remain external to the public repository.
+Before executable, runtime, configuration, schema, dependency, or dashboard
+changes, use `.agents/skills/implementation-preflight/SKILL.md`.
 
-## Reuse before custom implementation
+- Inspect relevant code, tests, accepted designs, licensed dependencies, and
+  maintained legally compatible components before writing custom code.
+- Prefer a suitable proven component or the smallest adapter over rebuilding
+  mature behavior. Custom code requires a verified product-specific gap or
+  evidence that reuse is materially worse.
+- Preserve approved prototypes as inputs; never call them integrated, tested,
+  deployed, or accepted application behavior.
+- Read applicable accepted ADRs before architecture changes. Keep research,
+  validation, evidence, and strategy logic venue-neutral; research must never
+  submit venue orders directly.
+- Do not bypass, weaken, or skip relevant tests. Run focused checks first and
+  broader checks only for a concrete remaining risk.
 
-- Reuse is a means to the controlling operator-usable MVP outcome, not an end
-  in itself. Before custom implementation, inventory the existing Quant Factory code and
-  tests, licensed dependencies including VectorBT Pro, owner-approved
-  prototypes, and mature maintained external components or reference projects
-  that may already solve the need. Start with
-  [`docs/component-reuse-audit.md`](docs/component-reuse-audit.md) where
-  relevant, but revalidate its candidate fit and licensing for the current
-  task rather than treating historical evaluation as current proof.
-- Compare candidates for functional fit, license and legal use, security,
-  maintenance health, integration cost, and truthful handling of Quant
-  Factory data and evidence. Prefer adapting or integrating a suitable proven
-  component over recreating it.
-- Custom code is permitted only for a verified product-specific gap or when
-  reuse is materially worse under that comparison. Record the inventory,
-  selected reuse, remaining gap, and custom-code rationale in implementation
-  preflight before writing executable code.
-- Do not recreate mature commercial-grade dashboard, charting, grid, panel,
-  or research-engine behavior merely for architectural neatness, local
-  control, or speculative future flexibility. This rule does not prohibit the
-  smallest necessary domain adapter, evidence-integrity check, or safety
-  control, and it never authorizes copying or depending on code without a
-  compatible license.
-- Clearly distinguish a prototype or reference from integrated, tested,
-  deployed, and operator-accepted product behavior. Preserve an
-  owner-approved prototype as implementation input; do not discard it and
-  independently greenfield the same experience without a documented reason.
-- Decision 287 supersedes Decision 286's active selected-run Results completion
-  priority. Preserve the validated repair work, which remains unmerged and
-  undeployed, but do not resume dashboard implementation, polish, redesign, or
-  deployment unless a verified defect blocks the active operator path. The
-  current shortest path is to inventory source-attributed candidates → select
-  one named, source-attributed hypothesis for explicit owner approval → connect
-  it through the thinnest necessary adapter to the existing VectorBT batch-
-  research path → durable results → ranking/filtering → inspection in the
-  existing dashboard. Reuse the existing engine, persistence, and interface;
-  do not substitute a new research engine, dashboard, framework, or speculative
-  platform layer. Executable candidate launch requires that explicit owner
-  approval and predeclared evidence boundaries.
+For a material proposal or closure claim, use
+`.agents/skills/quant-factory-adversary/SKILL.md`. The adversary challenges
+reasoning; it does not decide. An independent reviewer checks the owned diff,
+decisive evidence, and scope before integration.
 
-- Every proposed implementation slice must directly advance one step of that
-  path or repair a demonstrated blocker to it. The lead and independent
-  reviewer must reject unrelated dashboard work, generic infrastructure,
-  speculative refactoring, execution expansion, or other slices without that
-  direct trace. Review remains bounded to the owned diff, decisive evidence,
-  and compliance with this path.
+## Evidence, data, and target proof
 
-## Accepted execution sequence
-
-Decision 287 sets the current order and supersedes Decision 274's dashboard-
-first active sequence. The milestone numbers and all paper/live gates remain
-unchanged.
-
-1. Inventory and assess controlled, source-attributed strategy candidates.
-2. Select one named, source-attributed hypothesis and obtain explicit owner
-   approval plus predeclared evidence boundaries before executable launch.
-3. Connect the approved candidate through the thinnest necessary adapter to the
-   existing VectorBT batch-research path without building a replacement engine.
-4. Persist each run and its evidence durably.
-5. Rank and filter the durable results in the smallest reusable form needed to
-   decide what merits inspection.
-6. Inspect selected results in the existing dashboard; change the dashboard
-   only for a verified operational blocker.
-7. Resume and complete the remaining Milestone 24 paper activation only after
-   an edge qualifies and account, credential, endpoint, worker and execution
-   acceptance gates pass.
-8. Run automated Alpaca paper forward testing and reconciliation under
-   Milestone 26 for qualified strategies.
-9. Treat Alpaca micro-live testing under Milestone 27 as far-future work that
-   requires successful paper evidence and separate explicit owner approval.
-10. Evaluate a compliant crypto venue and multi-venue operation only after the
-   equity path proves its operating value; WEEX remains the preferred first
-   crypto execution proof, subject to legal, account, API, and operational
-   eligibility verification.
-
-Hyperliquid and MEXC are later evaluation targets. Decision 288's bounded MES
-ORB research is a narrow exception; futures order execution and all other futures,
-FX, listed-options, and Interactive Brokers work remain deferred backlog
-items. Networking, containers, VPNs, or proxies must not be used to bypass
-eligibility restrictions.
-
-## Architecture
-
-- Keep strategy, validation, evidence, and research logic venue-neutral.
-- Venue-specific SDK objects belong only inside independently deployable execution adapters or workers.
-- Quant Factory owns workflow, decisions, records, orchestration, evidence, review, reconciliation, and strategy lifecycle state.
-- Research cannot submit venue orders directly.
-- Plotly Dash is the application framework; VectorBT Pro remains the portfolio analytics and Plotly-compatible chart engine.
-- ADR 0008 governs the dashboard: one persistent `dcc.Location`, one permanent
-  application shell, permanently mounted route containers, pathname-driven
-  visibility, page-owned callbacks, reusable components, and browser-lifecycle
-  acceptance. Dynamic `page-content.children` routing is prohibited as the
-  active routing mechanism.
-- Production and execution services use portable containers with external persistent storage and external secrets.
-- Paper and live deployments remain separate security domains.
-- Micro-live operation requires an independent Risk Sentinel, authenticated private networking, cryptographic service identity, firewall allowlists, signed commands, and external audit evidence.
-- AI agents may analyze, propose, review, alert, and perform explicitly bounded approved actions. They may not bypass risk limits, silently change parameters, enable live trading, or increase capital.
-- Read accepted ADRs under `docs/architecture/` before architectural changes.
-- CloddsBot is an extraction and reference source for exchange abstractions, risk controls, trade ledgers, monitoring, MCP patterns, and UI ideas. It is not the Quant Factory foundation.
-
-## Agent allocation
-
-- ChatGPT handles architecture, research, documentation, roadmap and milestone maintenance, decision logging, source-of-truth synchronization, GitHub inspection, remote documentation commits, and isolated changes it can safely verify directly.
-- Claude Code is the primary programming agent for sustained local implementation, multi-file work, looping, subagent coordination, runtime debugging, VectorBT Pro integration, migrations, dashboard callbacks, test creation, and local Git validation.
-- Codex is retired from ordinary project work except for the current owner-
-  authorized revival scope recorded in DECISIONS and the agent policy. Claude
-  Code remains the primary programming agent outside that scoped revival.
-- Under ordinary routing, do not send documentation-only, planning, roadmap,
-  source-of-truth, read-only inspection, diff, status, comparison, counting, or
-  explanation work to Claude Code. While the lead is orchestrating, delegable
-  work follows the orchestrator qualification below.
-- The lead may use bounded read-only helpers and independent implementation workers when parallelism shortens the critical path. Follow the complete initial-prompt, ownership, escalation, and polling rules in `docs/ai-programming-agent-policy.md`; helpers do not inherit authority to expand scope.
-- Agents must read repository instructions and accepted decisions rather than requiring the user to relay project history.
-
-Under Decision 270, the current scoped revival uses multiple agents for all
-task execution. The lead orchestrates, defines scope, independently validates
-critical evidence, and remains available to the project owner; it does not implement
-inline. Assign documentation, inventories, and mechanical edits to the cheapest
-suitable worker, bounded implementation requiring judgment to a mid-tier
-worker, and architecture, risk-bearing logic, or hard-to-reverse decisions to
-the strongest suitable worker. Use parallel workers for independent work and
-sequence dependencies. Workers report delegation or tool-limit blockers to
-the lead; the lead records the limitation rather than silently taking over
-implementation. Claude Code remains the primary application implementation
-agent outside this revival; helpers do not receive project ownership.
-
-Decision 289 adds the read-only `quant-factory-adversary` specialist for
-material proposals and closure claims. Invoke it before changes to priority,
-scope, architecture, framework or dependency; a custom-build choice over
-reuse; strategy parameters or evidence/protected-data/ranking/promotion
-boundaries; production deployment; paper/live authority; or a beta,
-milestone, edge-readiness or comparable material closure claim. It freshly
-reads Tier 1 and relevant evidence, challenges the load-bearing claim, direct
-trace to the current Tier 1 execution path, shorter reuse path, single-owner
-MVP proportionality, cost and agent allocation, evidence truth, hidden gate
-expansion, and work that can be deferred or removed. It returns concise
-argument, never approval, rejection, a score, or a new gate. Before proceeding,
-the lead explicitly
-dispositions every material objection as `CHANGED` with evidence or `REJECTED`
-with reasons. The role supplements rather than replaces implementation
-preflight and independent review. Do not invoke it for routine status,
-read-only facts, housekeeping, factual documentation corrections, or already
-approved mechanical execution with no scope change. The owner retains mandate,
-acceptance, deployment, paper/live and capital decisions.
-
-CI is part of initial engineering setup; for this restart, establish and prove
-the missing gate in the first authorized executable setup slice. Claim a gate
-only after a required test check caused a blocked merge; CI is not target
-environment proof. After environment-input changes, validate loading, startup,
-and relevant behavior in the actual target environment. See the agent policy
-for the controlled-failure procedure and evidence rules.
-
-## Credential management
-
-- OneCLI remains the selected first agent credential gateway under Decision 269, subject to ADR 0010 acceptance. Current work and ordering live in `docs/MILESTONES.md`.
-- The Agent Vault fallback evaluation is superseded as current work. Do not replace OneCLI or resume that fallback without separate explicit owner instruction.
-- Infisical and a custom Bitwarden SDK integration are deferred for the initial implementation.
-- Personal password-manager vaults are unrelated to Quant Factory and must not be exposed to agents or treated as project dependencies.
-- Agents never receive unrestricted vault access or underlying secret values.
-- Preferred flow: restricted agent identity or placeholder → OneCLI policy and credential injection → approved outbound request, without exposing the secret to the agent.
-- Decision 271 authorizes the one-shot operator-controlled Alpaca paper-account GET through existing OneCLI before general gateway proof or upgrade. It exposes no underlying keys and authorizes no orders, worker activation, account reuse, live access, or general gateway adoption. All other credential use retains ADR 0010 and account-ownership gates.
-- Begin with harmless test credentials and then paper credentials only.
-- Secrets must never appear in prompts, GitHub, committed `.env` files, Python source, Markdown, logs, UI, tests, process output, or generated artifacts.
-- Paper and live credentials remain separate. Withdrawal permissions are prohibited.
-- Credential use and denials must be auditable and fail closed.
-
-## Milestone gate
-
-- Work proceeds through the Decision 287 controlled strategy-ingestion/backend
-  path, the still-pending Milestone 23 acceptance work only when it blocks that
-  path, and the explicitly scoped preparation in Decisions 259 and 262.
-- Milestone 23 is the end-to-end equity research factory acceptance gate.
-- Decision 287 authorizes controlled, bounded, source-attributed candidate
-  intake, discovery and research/backtesting, durable result production,
-  ranking/filtering, and inspection before Milestone 23 closes. Executable
-  candidate launch requires explicit owner approval of the named,
-  source-attributed hypothesis and predeclared evidence boundaries. It does not
-  authorize open-ended optimization or data mining, protected-test evaluation,
-  automatic promotion, paper-order activation, or live work. Independent
-  execution implementation and testing follow Decision 262.
-- Infrastructure acceptance uses deterministic fixtures and known artifacts; it does not require a profitable strategy.
-- `docs/MILESTONES.md` is authoritative for active scope, slices, status, and acceptance criteria.
-- Before accepting or closing a milestone, synchronize `docs/MILESTONES.md`
-  with `dashboard/project_status.py`.
-
-## Equity fixtures and initial venue
-
-- SPY remains the primary research benchmark and a possible listed-options instrument later.
-- SCHX is the selected future broad-market whole-share paper and micro-live infrastructure fixture.
-- SCHB, SCHG, and SCHA remain portability references.
-- MSFT and AAPL remain historical and paper portability fixtures unless later approved for micro-live use.
-- SPYM remains a completed Databento ingestion, deterministic execution, and dashboard evidence fixture; its evidence is not transferable.
-- Alpaca Paper Trading is the first execution venue.
-- Every instrument requires its own dataset identity, liquidity/spread evidence, corporate-action review, execution assumptions, validation, and promotion record.
-
-## Documentation governance
-
-- Repository documentation is durable project memory; conversational recall is not a substitute.
-- Follow `docs/DOCUMENTATION_GOVERNANCE.md` for every accepted decision, roadmap change, milestone completion, architecture change, deployment decision, venue decision, or permanent workflow change.
-- Classify discussions as idea, investigation, accepted decision, implemented decision, or superseded decision.
-- Assess impact across `AGENTS.md`, `docs/MILESTONES.md`, `docs/DECISIONS.md`, ADRs, `docs/CHAT_HANDOFF.md`, `README.md`, and relevant runbooks/specifications.
-- Search authoritative files for contradictory statements and correct them in the same change set.
-- Do not create parallel roadmap, project-state, decision, or handoff documents.
-
-## Dashboard product contract
-
-Before Milestone 23 can close or any strategy can advance toward paper
-activation, a non-programming operator must be able to inspect health; launch
-approved fixture experiments; select instruments, strategies, and
-configurations; inspect data provenance and execution assumptions; observe run
-status; view equity, drawdown, benchmark, signals, and trades; review
-validation evidence; understand pass/fail reasons; compare runs; record
-decisions; reproduce prior runs; verify lineage; and operate without Python,
-CSV, JSON, or terminal output. Decision 287 permits the narrower controlled
-intake/backend path to use the existing dashboard before that full contract is
-accepted; it does not waive the contract.
-
-Authoritative requirements are in `docs/dashboard-product-requirements.md` and `docs/infrastructure-completion-inventory.md`.
-
-For meaningful dashboard or user-experience changes:
-
-- Agree trader-facing vocabulary and visual direction before implementation,
-  using an approved mockup or concise page specification when appropriate.
-- Keep developer, database, and implementation terms in clearly labelled
-  technical drill-downs rather than primary operator language.
-- Require manual browser acceptance for navigation, routing, page identity,
-  selected states, and visual hierarchy.
-- Test affected routing through the registered Dash callback or endpoint;
-  helper-only tests are insufficient.
-- Do not use hidden compatibility text, invisible markers, legacy aliases, or
-  test-only presentation behavior to satisfy acceptance.
-- Do not claim the ADR 0008 shell, routing, refresh, or browser lifecycle
-  complete until its browser-lifecycle checklist passes.
-
-## Market data and environment
-
-- Read `docs/DATA_CATALOG.md` and inspect `data/manifests/` before acquiring or changing market data.
-- Raw data lives outside GitHub under `QF_DATA_ROOT`; public examples use `/srv/quant-factory/data`.
-- Resolve the actual root from untracked `config/data_locations.local.toml`.
-- Verify file existence and SHA-256 against committed manifests.
-- Preserve original archives and source files. Copy; do not move or delete.
-- Every imported dataset requires a committed manifest and catalog entry.
-- Use the Python 3.12 environment under `QF_REPO_ROOT`.
-- Import VectorBT Pro as `import vectorbtpro as vbt`.
-- Inspect current code, tests, authoritative documentation, relevant ADRs, and Git history before editing.
-- Prefer reusable tested logic, maintained external components, deterministic tests, and clear failures.
-- Check licensing before copying third-party code.
-
-## Testing and completion
-
-- Do not bypass, weaken, or skip relevant tests.
-- Run focused tests first and the full suite only when required for milestone acceptance.
+- Fixtures and previously inspected data prove infrastructure, not a trading
+  edge or independent profitability evidence.
+- Keep hypothesis attribution, parameters, dataset and runtime identity,
+  execution assumptions, and protected-data boundaries reproducible.
+- Open-ended optimization, data mining, protected-test inspection, automatic
+  promotion, and unapproved parameter changes are prohibited.
+- Before changing market data, read `docs/DATA_CATALOG.md` and its manifests.
+  Raw data stays outside Git; verify checksums and preserve original sources.
+- CI proves repository checks, not target-environment behavior. After runtime,
+  dependency, configuration, or secret-injection changes, separately verify
+  loading, startup, and relevant behavior on the authorized target, with
+  backup and rollback where required.
 - Do not rerun expensive backtests unless relevant inputs changed.
-- A milestone is complete only after required tests pass, the diff is reviewed, the commit is pushed, `origin/main` is synchronized, milestones and durable decisions are updated, and the documentation completion gate passes.
-- Return concise reports using: Repository; Files changed; Validation; Documentation impact; Commit; Push; Warnings or deviations.
+
+## Credentials, execution, and capital
+
+- Never expose unrestricted vault access or secret values. Credentials must be
+  isolated, injected through an approved boundary, auditable, and fail closed.
+  Secrets must not enter prompts, logs, source, tests, docs, or artifacts.
+- Paper and live credentials, state, and deployments remain separate.
+  Withdrawal permission is prohibited.
+- AI may analyze, propose, review, alert, and perform explicitly bounded
+  approved actions. It may not bypass deterministic risk limits, silently
+  change strategy parameters, enable trading, or increase capital.
+- Paper activation requires a qualified edge and every current account,
+  credential, endpoint, worker, reconciliation, recovery, capacity, audit, and
+  fail-closed gate. Live work additionally requires successful paper evidence,
+  separate explicit owner approval, isolated live security boundaries, and an
+  independent Risk Sentinel.
+
+## Codex orchestration and completion
+
+Follow `docs/ai-programming-agent-policy.md` for delegation, review, and
+integration. During the scoped revival, the lead delegates bounded task work,
+remains the sole owner-facing coordinator, and independently validates
+critical evidence rather than implementing inline.
+
+A milestone is complete only when acceptance evidence passes, reviewed work is
+merged and synchronized, records are updated, required target proof exists,
+and the owner accepts it where required. Report: repository, files changed,
+validation, documentation impact, commit/push, and warnings.

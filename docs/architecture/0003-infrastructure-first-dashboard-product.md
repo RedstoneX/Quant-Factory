@@ -56,11 +56,11 @@ The future execution design uses patient limit entries at bid or midpoint, a def
 
 ## Work-allocation consequence
 
-ADR 0009 and Decision 237 supersede this section's Codex fallback wording.
-Claude Code is the primary implementation agent under the current agent
-policy; orchestration follows its bounded worker rules. ChatGPT retains
-architecture, research, documentation, source-of-truth maintenance, direct
-repository work, and independent review.
+Decision 290 supersedes this section's earlier programming-agent allocation.
+Codex is the sole active project toolchain and follows the bounded worker and
+independent-review rules in the current agent policy. The owner retains
+mandate, acceptance, deployment, paper/live, and capital decisions. This
+allocation change does not alter the architecture above.
 
 ## Superseded direction
 
