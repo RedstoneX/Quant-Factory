@@ -39,7 +39,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R07 | 1 | in_progress | none | The Decision 288 MES ORB adapter is merged and its four validated runs produced 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Results are preserved in verified owner-only external storage outside production. A reviewed rendering repair exists locally but is unmerged and undeployed. Next: complete artifact validation, then integrate and privately inspect only if green. |
+| R07 | 1 | in_progress | none | The merged Decision 288 MES ORB adapter completed four successful isolated screening runs and produced 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Their evidence and checksums are preserved in owner-only external storage outside production. A reviewed rendering repair exists locally but is unmerged and undeployed. Next: complete artifact-backed validation, then integrate and privately inspect only if green. |
 | R05 | 8 | pending | none | Preserve the validated selected-run Results repair outside canonical `main`. It remains unmerged and undeployed. Dashboard work stays frozen unless R07 exposes an operational blocker; Milestone 23 and the accepted multi-run and cache requirements remain pending. |
 | R06 | 9 | pending | R07 | Preserve completed paper-observer preparation. Authenticated runtime work and activation remain deferred until a defensible edge qualifies and every execution gate passes. |
 <!-- active-work:end -->
@@ -131,13 +131,14 @@ record live in
 
 ### Paper and live trading
 
-Paper activation requires a qualified edge plus verified account ownership,
-isolated credentials, fixed paper endpoint, worker identity, idempotent
-submission, broker reconciliation, restart recovery, duplicate prevention,
-capacity controls, complete audit evidence, and fail-closed behavior. Paper and
-live are separate security domains. Live additionally requires successful paper
-evidence, separate owner approval, isolated live credentials/state/deployment,
-authenticated private networking, and an independent Risk Sentinel.
+Paper activation requires explicit owner approval, a qualified edge, verified
+account ownership, isolated credentials, a fixed paper endpoint, worker
+identity, idempotent submission, broker reconciliation, restart recovery,
+duplicate prevention, capacity controls, complete audit evidence, and
+fail-closed behavior. Paper and live are separate security domains. Live
+additionally requires successful paper evidence, separate later owner approval,
+isolated live credentials/state/deployment, authenticated private networking,
+and an independent Risk Sentinel.
 
 ### Accepted but not active
 
@@ -181,9 +182,11 @@ authenticated private networking, and an independent Risk Sentinel.
 - The catalog extent was already inspected. These results are development and
   reference evidence, not an independent observation, protected test, qualified
   edge, promotion, deployment, paper, futures-execution, or live authority.
-- Validated artifacts are preserved in verified owner-only external host storage
-  outside production and remain undeployed. The bounded truthful-rendering
-  repair was independently reviewed at local revision
+- Evidence and checksums from the successful isolated screening runs are
+  preserved in owner-only external host storage outside production and remain
+  undeployed; complete artifact-backed and application read-path validation is
+  pending. The bounded truthful-rendering repair was independently reviewed at
+  local revision
   `f2c443afb970b9518147c5823de4e0ae03c6ebe1`; it remains unmerged and undeployed.
 
 ### Repository and CI history

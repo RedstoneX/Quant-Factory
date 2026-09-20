@@ -86,6 +86,11 @@ Venue-specific SDK objects remain inside venue adapters or execution workers.
 
 Production and execution services will be packaged as portable containers. Docker Compose is the initial deployment mechanism; a more complex orchestrator is not required unless operating evidence justifies it.
 
+**Current-state annotation (2026-09-20):** Decision 275's canonical public
+repository and its registered owned OVH checkout supersede only the historical
+development-location wording below. The portable container and deployment
+architecture remains unchanged.
+
 Development remains native in WSL through Milestone 23. Research-only
 container packaging, 24A–24D preparation, isolated OVH target
 validation, and an isolated research deployment after technical checks may

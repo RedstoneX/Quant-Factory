@@ -4,8 +4,8 @@ Milestone 23 proves the complete equity research workflow before any strategy
 can advance toward paper activation. Decision 287 narrowly permits controlled,
 bounded research for an owner-approved, source-attributed hypothesis with
 predeclared evidence boundaries before this milestone closes. It does not waive
-this checklist or authorize protected-test inspection, automatic promotion,
-paper orders, or live work.
+this checklist or authorize open-ended optimization or data mining,
+protected-test inspection, automatic promotion, paper orders, or live work.
 
 Decision 279 supersedes Decision 277's acceptance for the former Results-page
 experience. Decisions 280–281 establish the chart-first direction and validated
