@@ -24,11 +24,15 @@ tested, deployed, or finally accepted.
 The immediate objective is to use the existing factory to test one approved,
 source-attributed candidate at a time, reject weak ideas quickly, and preserve
 truthful results. The MES ORB cycle is concluded and rejected as an edge
-candidate. The next action is to inventory candidates and ask Terry to approve
-one named hypothesis with fixed evidence boundaries. Read
+candidate. A 2026-09-19 read-only shortlist already records ETF market
+intraday momentum (recommended), turn-of-month (alternative), and pre-holiday
+effect (alternative); none was coded, data-acquired, or backtested. Reconcile
+that shortlist before asking Terry to approve one named hypothesis with fixed
+evidence boundaries. Read
 [MILESTONES](docs/MILESTONES.md) for the current queue.
 
-Decisions 287 and 294 set the current order: inventory source-attributed candidates →
+Decisions 287, 294 and 295 set the current order: reuse and reconcile the
+existing source-attributed inventory →
 select one named, source-attributed hypothesis for explicit owner approval →
 use the thinnest necessary adapter into the existing VectorBT batch-research
 path → durable results and evidence → ranking/filtering → inspection in the
@@ -47,7 +51,9 @@ testing, micro-live work, and other venues follow only at the later gates in
 
 Existing RSI, SPY Donchian, and MES ORB work remains historical fixture or
 infrastructure evidence, not an active profitability candidate. The bounded MES
-ORB path completed and rejected the candidate; no next candidate is selected.
+ORB path completed and rejected the candidate; it proved the early screening,
+durable-result, ranking and dashboard-reading path, not the complete filtration
+chain. No next candidate is selected.
 
 Decision 287 permits controlled, bounded, source-attributed candidate intake,
 discovery and research/backtesting under Milestone 25 safeguards before

@@ -44,6 +44,14 @@ rather than accepting a worker summary at face value.
 
 ## Preflight and adversary
 
+Before commissioning candidate research or material implementation, check the
+Tier 1 authorities and repository history for completed work. Reuse or
+reconcile a prior candidate investigation before proposing it again;
+meaningful completed investigations must be recorded in
+`docs/MILESTONES.md` with their status and reason. Before compaction or
+handoff, verify that completed research and the exact next action are durable
+in Tier 1 rather than relying on chat history.
+
 Before material executable, runtime, configuration, schema, dependency,
 dashboard-behavior, or scope changes, apply
 `.agents/skills/implementation-preflight/SKILL.md`. The result bounds the
