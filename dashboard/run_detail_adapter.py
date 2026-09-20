@@ -588,6 +588,52 @@ def _screening_outcome_fields(document: Any) -> tuple[DetailField, ...]:
     )
 
 
+def _is_legacy_spym_fixture_notice(
+    summary_document: Any,
+    dataset_document: Any,
+    detail: dict[str, Any] | None,
+) -> bool:
+    """Keep the historical SPYM fixture notice off the Decision-296 candidate."""
+    if not isinstance(dataset_document, dict) or dataset_document.get("symbol") != "SPYM":
+        return False
+    strategy_id = (
+        summary_document.get("strategy_id")
+        if isinstance(summary_document, dict)
+        else None
+    )
+    if not isinstance(strategy_id, str) and isinstance(detail, dict):
+        run = detail.get("run")
+        if isinstance(run, dict):
+            strategy_id = run.get("strategy_id")
+    return strategy_id != "spym_intraday_momentum"
+
+
+def _persisted_annualization_notice(document: Any) -> str | None:
+    if not isinstance(document, dict):
+        return None
+    annualization = document.get("annualization")
+    if not isinstance(annualization, dict):
+        return None
+    sessions = annualization.get("sessions_per_year")
+    risk_free = annualization.get("risk_free_rate")
+    basis = annualization.get("basis")
+    if (
+        not isinstance(sessions, int)
+        or isinstance(sessions, bool)
+        or sessions <= 0
+        or not isinstance(risk_free, (int, float))
+        or isinstance(risk_free, bool)
+        or not math.isfinite(float(risk_free))
+        or not isinstance(basis, str)
+        or not basis.strip()
+    ):
+        return None
+    return (
+        f"Annualized return uses the persisted {sessions} sessions/year and "
+        f"{float(risk_free):g} risk-free basis from {basis.strip()}."
+    )
+
+
 def _evidence_view(
     *,
     service: PersistenceService,
@@ -663,7 +709,8 @@ def _evidence_view(
     )
     if isinstance(metrics, dict) and "annualized_return" in metrics:
         notices.append(
-            "Annualized return is the recorded engine output. Its frequency, annualization, and risk-free basis were not persisted; do not treat it as a separately calculated calendar growth rate."
+            _persisted_annualization_notice(validation_doc)
+            or "Annualized return is the recorded engine output. Its frequency, annualization, and risk-free basis were not persisted; do not treat it as a separately calculated calendar growth rate."
         )
     if calendar_cagr is not None:
         notices.append(
@@ -679,10 +726,7 @@ def _evidence_view(
         )
     if isinstance(summary_doc, dict) and summary_doc.get("broker_orders") == "disabled":
         notices.append("Broker orders were disabled; no paper or live orders were submitted.")
-    if (
-        isinstance(dataset_doc, dict)
-        and dataset_doc.get("symbol") == "SPYM"
-    ):
+    if _is_legacy_spym_fixture_notice(summary_doc, dataset_doc, detail):
         notices.append(
             "SPYM is an ingestion and execution fixture here; it is not selected as the final paper or micro-live instrument."
         )
