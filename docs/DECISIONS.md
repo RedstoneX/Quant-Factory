@@ -678,3 +678,47 @@ explicitly.
      not applicable because agent behavior, architecture, routing and
      dependencies do not change. No runbook applies because deployment and
      runtime operation are excluded.
+
+292. **Economical reuse-first dashboard improvement direction accepted
+     (accepted 2026-09-20).** The owner approves starting a bounded dashboard
+     improvement direction to shorten the path to an operator-usable MVP. The
+     approved chart-first Results experience remains the product anchor. Work
+     must reuse the existing Plotly Dash application, Plotly, VectorBT Pro,
+     persistence and suitable maintained prebuilt components. Reusable QAMC
+     component patterns may be examined, but only technically and licensing-
+     compatible parts may be adopted; no incompatible dependency or copied
+     implementation is authorized.
+
+     This supersedes only Decision 287's dashboard freeze to permit the
+     bounded blueprint and later owner-approved thin essential-beta slices. It
+     does not expand Decision 291's narrow R07 correction or restore
+     dashboard-first sequencing.
+
+     The first deliverable is a small connected-screen blueprint showing the
+     essential beta journey and its existing data and callback connections.
+     Only after that blueprint is bounded may thin slices improve the essential
+     beta journey. Use cost-effective, bounded subagents where delegation is
+     useful and keep review proportional to the slice. Inactive or secondary
+     pages, a new framework, a global rewrite, deployment, paper/live work and
+     broad polish are deferred. This direction does not approve an exact
+     scalable multi-run UI, executable implementation, deployment, beta
+     completion or owner acceptance of an eventual implementation. Any
+     scalable multi-run portion of the blueprint remains subject to the
+     Decision 282 bounded-design owner review and acceptance before code;
+     agent-bounding alone does not authorize implementation.
+
+     R07 remains priority 1 and its backed-up target deployment, validation and
+     operator inspection remain separately unauthorized and target-dependent.
+     R05 is the next repository-local work for the blueprint and bounded
+     dashboard direction; this does not waive Milestone 23 gates, controlled-
+     research safeguards or any execution and capital boundary.
+
+     Documentation-impact assessment: `docs/MILESTONES.md`, the dashboard
+     product requirements and `README.md` are updated to record the accepted
+     direction and current order; this decision log is appended. `AGENTS.md`
+     and the agent policy are not applicable because no stable operating rule
+     changes. `CHAT_HANDOFF.md` is not applicable because this is navigation-
+     only orientation that points to Tier 1 authorities. No ADR applies because
+     no architecture or dependency is selected. No runbook applies because no
+     operator or runtime procedure changes. The requirements document and
+     README are updated as stated; no other governance row is implicated.

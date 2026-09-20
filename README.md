@@ -28,8 +28,16 @@ use the thinnest necessary adapter into the existing VectorBT batch-research
 path → durable results and evidence → ranking/filtering → inspection in the
 existing dashboard. Decision 291 confirms that truthful R07 selected-run
 inspection is a verified blocker and authorizes only its smallest correction in
-the existing application. This does not restore dashboard-first sequencing,
-close Milestone 23, authorize broad dashboard work, or deploy the correction.
+the existing application. Decision 292 now authorizes an economical,
+reuse-first dashboard improvement direction: preserve the chart-first Results
+experience, start with a small connected-screen blueprint, and then improve
+only the essential beta journey in thin slices using the existing Dash/Plotly/
+VectorBT/persistence path and compatible maintained components. It does not
+expand Decision 291's narrow correction, restore dashboard-first sequencing,
+authorize a new framework, global rewrite, broad polish, deployment,
+paper/live work, or beta completion; R07 target deployment remains separately
+unauthorized. Any scalable multi-run design still requires bounded owner review
+under Decision 282 before implementation.
 Completed preparation within
 Milestone 24A–24D is retained, while remaining authenticated observer work is
 deferred. Resume paper activation only after an edge qualifies and all

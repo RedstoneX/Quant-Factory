@@ -23,12 +23,30 @@ integrated, tested, deployed, and renewed operator-accepted application
 behavior.
 
 Decision 287 supersedes Decision 286's active three-slice Results-beta
-priority. Further Results implementation, polish, redesign and deployment are
-frozen unless a verified defect blocks operation. Preserve the approved
-prototype as implementation input; the product requirements below remain
-accepted and pending rather than cancelled. The active path reuses the existing
-VectorBT engine, persistence, evidence and dashboard without starting another
-dashboard evaluation or redesign.
+priority. Decision 292 now permits an economical, reuse-first dashboard
+improvement direction because the owner wants the shortest safe path to an
+operator-usable MVP. Preserve the approved chart-first Results experience as
+the product anchor. Start with a small connected-screen blueprint, then make
+only thin slices that improve the essential beta journey. Reuse the existing
+VectorBT engine, persistence, evidence and dashboard, plus suitable maintained
+prebuilt components. QAMC patterns may be examined, but adoption is limited to
+technically and licensing-compatible parts. This is not a new framework,
+global rewrite, broad polish or deployment authorization.
+It supersedes only Decision 287's dashboard freeze for this bounded blueprint
+and later owner-approved thin essential-beta slices; it does not expand
+Decision 291 or restore dashboard-first sequencing.
+
+A read-only inspection of local QAMC revision
+`a7197d5c060f83e5c226e1a06884027b359a1d40` (source paths
+`frontend/package.json`, `frontend/package-lock.json`, and `LICENSE`) measured
+a separate React/Vite/Tailwind frontend with React-only Dockview, Tremor,
+TanStack and Lightweight Charts components. This inspection does not claim a
+clean or current QAMC checkout. Those components are not directly compatible
+with Quant Factory's settled Dash stack, so no second frontend or direct
+component transplant is selected. Its MIT-licensed behavior patterns may
+inform bounded resizing, truthful state panels, responsive layout, table
+behavior and linked chart/trade interactions, within Decision 280's narrower
+reference boundary.
 
 Decision 291 confirms one such verified defect: the existing page could not
 truthfully expose the preserved R07 native interval, MES units, complete ranked
@@ -39,6 +57,14 @@ saved value and discloses that its calculation basis was not persisted. A
 separate calendar CAGR may be derived only from persisted total return and
 valid actual-coverage dates, and is not an engine output or screening metric. This
 does not authorize broader Results, multi-run, cache or deployment work.
+
+Decision 292's direction/design approval does not approve an exact multi-run
+UI, executable implementation, deployment, beta completion or renewed owner
+acceptance. Any scalable multi-run portion of the blueprint still requires
+the Decision 282 bounded-design owner review and acceptance before code;
+agent-bounding alone does not authorize implementation. Inactive and
+secondary pages remain deferred unless a demonstrated essential-beta blocker
+is recorded.
 
 ## Current owner review outcome — refreshed 2026-09-20
 

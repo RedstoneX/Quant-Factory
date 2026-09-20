@@ -9,9 +9,9 @@ ordered work, milestone scope, and acceptance.
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
 | Phase | Milestone 25 controlled research is active under Decision 287. Milestone 23 technical and operator acceptance remains pending. |
-| Active work | R07: validate and inspect the approved MES five-minute opening-range breakout (ORB) path using the existing research system. |
+| Active work | R07: validate and inspect the approved MES five-minute opening-range breakout (ORB) path using the existing research system; R05 is the next repository-local work for the owner-accepted economical dashboard direction. |
 | Finding | Reference parity passed, but all 30 bounded baseline ORB variants screened out on already-inspected development/reference data. No edge qualified. |
-| Next action | No repository-local R07 integration blocker remains. A backed-up private deployment, target validation, and operator inspection are the next R07 step, but require separate owner authorization and remain target-dependent. The next recorded repository-local Milestone 23 blocker is the pending bounded scalable multi-run design under R05; Decision 291 does not activate it. |
+| Next action | R05: produce the small connected-screen blueprint and bound the first essential beta slice under Decision 292. R07's backed-up private deployment, target validation, and operator inspection remain separately unauthorized and target-dependent. |
 | Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, paper activation, futures execution, and live trading. |
 
 ## Product direction and boundaries
@@ -25,7 +25,11 @@ ordered work, milestone scope, and acceptance.
 - The dashboard is the normal operator interface. Decision 291 supersedes only
   Decision 287's good-enough/frozen treatment for the verified selected-run R07
   inspection blocker. The bounded correction does not restore dashboard-first
-  sequencing, close Milestone 23, or authorize broad dashboard work.
+  sequencing, close Milestone 23, or authorize broad dashboard work. Decision
+  292 supersedes only Decision 287's dashboard freeze to permit the bounded
+  blueprint and later owner-approved thin essential-beta slices; it does not
+  expand Decision 291 or restore dashboard-first sequencing. It does not
+  authorize a new framework, global rewrite, deployment or broad polish.
 - Fixtures validate infrastructure and are not active profitability candidates.
   Previously inspected data is not independent evidence. Research must reject
   false edges, preserve evidence, and keep strategy and validation logic
@@ -40,7 +44,7 @@ ordered work, milestone scope, and acceptance.
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
 | R07 | 1 | in_progress | none | The Decision 288 MES ORB adapter produced four successful isolated screening runs and 32 ranked rows; exact reference parity passed and all 30 matrix variants screened out. Preserved evidence passed checksum, integrity and disposable application read-path validation. The Decision 291 selected-run correction merged through PR #70 at `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f`; focused, portable real-browser, independent-review, and required-CI evidence passed. It is not deployed, target-validated, operator-accepted, full beta, or Milestone 23 completion. |
-| R05 | 8 | pending | none | Preserve the remaining selected-run and Milestone 23 work without broadening R07. Decision 291 corrects only the verified R07 inspection blocker; scalable multi-run analysis, cache work, complete workflow acceptance and renewed owner acceptance remain pending. |
+| R05 | 8 | in_progress | none | Decision 292 accepts an economical reuse-first dashboard direction. The next repository-local deliverable is a small connected-screen blueprint; no executable implementation or completion evidence exists. Any scalable multi-run portion still requires the Decision 282 bounded-design owner review and acceptance before implementation. Cache work, complete workflow acceptance and renewed owner acceptance remain pending. |
 | R06 | 9 | pending | R07 | Preserve completed paper-observer preparation. Authenticated runtime work and activation remain deferred until a defensible edge qualifies and every execution gate passes. |
 <!-- active-work:end -->
 
