@@ -870,3 +870,72 @@ explicitly.
      recovery, migration, deployment, paper, or live procedure changes. No
      milestone-completion record changes; R08 remains in progress. `CLAUDE.md`
      and `.claude/**` remain untouched.
+
+296. **SPYM intraday-momentum transfer test approved within fixed boundaries
+     (accepted 2026-09-20).** Terry approved a bounded SPYM transfer test—not
+     a SPY reproduction—of Gao, Han, Li & Zhou, “Market Intraday Momentum,”
+     *Journal of Financial Economics* (2018), DOI
+     `10.1016/j.jfineco.2018.05.009`. Use only the checksum-matching owned
+     `equities_SPYM_1m_databento_equs_mini` dataset; do not acquire data. The
+     signal is the previous regular-session 15:59 close to the current 09:59
+     close: positive means long and zero/negative means short. Enter at the
+     current 15:30 open and exit at the current 15:59 close, with one trade per
+     eligible session. Exclude missing required boundary bars; do not fill or
+     synthesize bars.
+
+     A read-only actual-data check before execution corrected the readiness
+     measurement: 173 sessions total, 133 eligible exact-boundary sessions (70
+     long, 63 short, 0 zero), from 2025-11-03 through 2026-07-13. The sessions
+     2025-12-01 and 2025-12-26 are excluded because their immediately prior
+     scheduled NYSE sessions were early closes with no required 15:59 bar. A
+     stricter full-minute-continuity check would leave 29 sessions, but the
+     approved source rule requires boundary values and realized daily returns,
+     not every intervening one-minute bar. Missing intratrade bars remain an
+     explicit drawdown/path limitation. Accounting is $10,000 initial cash,
+     1x leverage, all available cash, no accumulation, 0.05% fee and 0.02%
+     adverse slippage per transaction, 252 sessions per year, and zero
+     risk-free basis. Use one fixed rule with no tuning or parameter grid.
+
+     Any persisted screen fill prices must include the stated 0.02% adverse
+     slippage applied directionally to the observed 15:30 Open and 15:59 Close
+     base prices. Reported maximum drawdown is calculated only from
+     end-of-eligible-session equity values; missing intraday bars limit the
+     available path and drawdown evidence.
+
+     This is a development/reference screen only. The full extent was already
+     inspected; the history is short; raw prices can let dividends affect the
+     signal; `EQUS.MINI` is not the official closing auction; bars are missing;
+     the source excluded days with fewer than 500 trades but this feed has no
+     comparable trade-count field; and Alpaca shortability/account eligibility
+     are unknown. There is no independent or protected evidence, promotion,
+     paper order, deployment, or edge claim. Reuse VectorBT Pro, manifest
+     verification, screening, durable persistence/artifacts, filters, and the
+     dashboard. Under Decision 287's verified-operational-blocker exception,
+     authorize only two narrow candidate-display truth corrections: suppress
+     the generic annualization notice when persisted `252` sessions/year and
+     zero risk-free basis are present, and suppress the blanket SPYM
+     fixture-only notice for this approved candidate while retaining historical
+     fixture wording for actual fixtures. These corrections are not redesign,
+     polish, or new features. Permit only a candidate-specific mixed-price
+     adapter and these notices; do not change the common engine or schema. One
+     bounded development/reference screen has now run at source revision
+     `3ae6912937501b46f67666dea269ec76e92caad5` using licensed VectorBT Pro
+     2026.4.7 and screened out the candidate at the initial rules. Independent
+     evidence review is complete with no blockers; database plus 7/7
+     artifacts/checksums, metric/fill arithmetic, and dashboard reopening
+     agree. This does not claim an edge, promotion, deployment, paper/live
+     authority, or accepted application behavior.
+
+     Documentation-impact assessment: `docs/DECISIONS.md`,
+     `docs/MILESTONES.md`, `docs/DATA_CATALOG.md`, the SPYM manifest, and
+     `docs/strategies/spym-intraday-momentum.md` are updated because this is an
+     owner-approved candidate, changes R08's status and next action, bounds the
+     permitted use of an existing dataset, and records the two narrow
+     candidate-display truth corrections authorized under Decision 287's
+     verified-operational-blocker exception. `AGENTS.md` and the
+     agent policy are not applicable because no stable operating or delegation
+     rule changes. No ADR applies because the common architecture, schema,
+     deployment, security, and integration are unchanged. `CHAT_HANDOFF.md`
+     and `README.md` are not applicable because startup navigation and public
+     orientation are unchanged. No runbook or milestone-completion record
+     applies. `CLAUDE.md` and `.claude/**` remain untouched.

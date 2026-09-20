@@ -13,6 +13,7 @@ from strategies.spy_donchian_trend_breakout import (
 from strategies.spym_rsi_mean_reversion_fixture import (
     SPYM_RSI_MEAN_REVERSION_FIXTURE_STRATEGY,
 )
+from strategies.spym_intraday_momentum import SPYM_INTRADAY_MOMENTUM_STRATEGY
 from strategies.parameter_governance import (
     PROVISIONAL_GRID_WARNING_THRESHOLD,
     ParameterGridContribution,
@@ -47,6 +48,7 @@ REGISTRY.register(MES_ORB_SHORT_STRATEGY)
 REGISTRY.register(SPY_DONCHIAN_LONG_STRATEGY)
 REGISTRY.register(SPY_DONCHIAN_SHORT_STRATEGY)
 REGISTRY.register(SPYM_RSI_MEAN_REVERSION_FIXTURE_STRATEGY)
+REGISTRY.register(SPYM_INTRADAY_MOMENTUM_STRATEGY)
 
 
 def get_strategy(strategy_id: str) -> Strategy:

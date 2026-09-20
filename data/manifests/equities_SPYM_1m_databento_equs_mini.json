@@ -485,7 +485,8 @@
   "corporate_action_policy": "Preserve raw provider bars; record and review splits, cash dividends, and other corporate actions separately. Do not splice SPLG bars into SPYM history without a separately checksummed manifest and explicit lineage.",
   "cache_policy": "Reuse only a checksum-matching manifest/cache pair; refresh missing completed NYSE sessions incrementally; never overwrite an unverifiable cache.",
   "approved_uses": [
-    "Milestone 21 SPYM operational equity data fixture after explicit Databento EQUS.MINI entitlement, cost, and ticker-history review"
+    "Milestone 21 SPYM operational equity data fixture after explicit Databento EQUS.MINI entitlement, cost, and ticker-history review",
+    "Decision 296 bounded development/reference SPYM intraday-momentum screening only"
   ],
   "restrictions": [
     "Databento EQUS.MINI only; do not substitute another feed silently",

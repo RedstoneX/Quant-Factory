@@ -201,7 +201,7 @@ validated and nine ambiguous, derived, or redundant artifacts are quarantined.
 - Validation notes: ordered; 0 duplicate timestamps; 0 nulls; 0 OHLC violations; 0 negative-volume rows; SPYM symbology resolved for 2025-10-31 through 2026-07-13
 - Databento cost: estimated/recorded acquisition cost USD 0.035834848881
 - Manifest: `data/manifests/equities_SPYM_1m_databento_equs_mini.json`
-- Approved uses: Milestone 21 operational SPYM equity data fixture after explicit Databento entitlement, cost and ticker-history review
+- Approved uses: Milestone 21 operational SPYM equity data fixture after explicit Databento entitlement, cost and ticker-history review; Decision 296's bounded development/reference SPYM intraday-momentum screening only
 - Restrictions: Databento `EQUS.MINI` only; do not substitute another feed silently; SPYM history only; do not splice SPLG bars into this dataset
 
 ### `equities_SPY_1m_alpaca_iex`
