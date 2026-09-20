@@ -9,9 +9,9 @@ ordered work, milestone scope, and acceptance.
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
 | Phase | Milestone 25 controlled research is active under Decisions 287 and 294. Milestone 23 remains an eventual pre-paper product gate, not the current queue. |
-| Active work | R08: reconcile the existing source-attributed shortlist, then present the next named hypothesis to Terry for approval with fixed evidence boundaries. No next candidate has been selected. |
+| Active work | R08: implement and run the owner-approved SPYM intraday-momentum transfer test within fixed evidence boundaries. |
 | Finding | MES ORB is concluded and rejected as an edge candidate; it proved early screening, durable results, ranking and dashboard reading, but not the complete filtration chain. Find & Compare is merged, and Terry found the reviewed image good and intuitive. |
-| Next action | Reconcile the completed shortlist, then select the next source-attributed candidate for Terry's approval and connect only that approved hypothesis to the existing research path. |
+| Next action | Finish and review the fixed SPYM adapter, then run one bounded development/reference screen. |
 | Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, unapproved parameter changes, paper activation, futures execution, and live trading. Deployment, portability, broad Milestone 23 closure, and paper-runtime work are dormant until their trigger occurs. |
 
 ## Product direction and boundaries
@@ -44,7 +44,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | MES ORB completed its bounded path and was rejected; a 2026-09-19 read-only shortlist already records ETF market intraday momentum (recommended), turn-of-month (alternative), and pre-holiday effect (alternative). Reconcile that shortlist, then obtain Terry's explicit approval of one named hypothesis and fixed evidence boundaries before executable work. Reuse the existing engine, persistence, ranking/filtering, and dashboard. |
+| R08 | 1 | in_progress | none | MES ORB completed its bounded path and was rejected. Terry approved the SPYM transfer test under Decision 296 on 2026-09-20: use only the checksum-matching owned EQUS.MINI dataset, one fixed intraday rule, and the stated cost and eligibility boundaries. The adapter is in progress; finish/review it, then run one bounded development/reference screen through the existing engine, persistence, ranking/filtering, and dashboard. |
 <!-- active-work:end -->
 
 ## Current execution path
@@ -52,9 +52,9 @@ ordered work, milestone scope, and acceptance.
 | Step | Status | Evidence or next action |
 |---:|---|---|
 | 1. Inventory an attributed candidate | Completed for the current shortlist; reconcile before next cycle | On 2026-09-19 a read-only, source-attributed shortlist recorded ETF market intraday momentum (recommended), turn-of-month (alternative), and pre-holiday effect (alternative). No code, data acquisition, or backtest occurred; no candidate was selected. |
-| 2. Approve the hypothesis and boundaries | Pending | Terry selects one named candidate and approves fixed evidence boundaries before executable launch. |
-| 3. Connect it to existing research | Pending selection | Use the thinnest adapter to the existing VectorBT research path; do not replace the engine. |
-| 4. Persist, rank, and filter results | Early path proven by ORB; complete filtration path not yet proven end to end | Preserve distinct durable runs and truthful progression through every applicable filter for the approved candidate. |
+| 2. Approve the hypothesis and boundaries | Approved | Terry approved the SPYM intraday-momentum transfer test and its fixed evidence boundaries on 2026-09-20; see Decision 296 and `docs/strategies/spym-intraday-momentum.md`. |
+| 3. Connect it to existing research | In progress | Finish and review the candidate-specific mixed-price adapter using the existing VectorBT research path; do not change the common engine, schema, or dashboard. |
+| 4. Persist, rank, and filter results | Pending this candidate | Preserve distinct durable runs and truthful progression through every applicable filter after the bounded SPYM screen; the ORB path proves only early infrastructure behavior. |
 | 5. Inspect through the dashboard | Capability merged; the current candidate cycle has not reached this step | Find & Compare and the selected-run correction are merged; Terry found the reviewed Find & Compare image good and intuitive. Persistent deployment is not needed for the current research step. |
 | 6. Continue bounded research | Active | Use Milestone 25 safeguards; each new executable candidate needs explicit owner approval and predeclared evidence boundaries. |
 | 7. Activate paper trading | Gated | Requires a qualified edge and every Milestone 24 execution gate. |
