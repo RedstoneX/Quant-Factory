@@ -274,6 +274,25 @@ the lead; the lead records the limitation rather than silently taking over
 implementation. Claude Code remains the primary application implementation
 agent outside this revival; helpers do not receive project ownership.
 
+Decision 289 adds the read-only `quant-factory-adversary` specialist for
+material proposals and closure claims. Invoke it before changes to priority,
+scope, architecture, framework or dependency; a custom-build choice over
+reuse; strategy parameters or evidence/protected-data/ranking/promotion
+boundaries; production deployment; paper/live authority; or a beta,
+milestone, edge-readiness or comparable material closure claim. It freshly
+reads Tier 1 and relevant evidence, challenges the load-bearing claim, direct
+trace to the current Tier 1 execution path, shorter reuse path, single-owner
+MVP proportionality, cost and agent allocation, evidence truth, hidden gate
+expansion, and work that can be deferred or removed. It returns concise
+argument, never approval, rejection, a score, or a new gate. Before proceeding,
+the lead explicitly
+dispositions every material objection as `CHANGED` with evidence or `REJECTED`
+with reasons. The role supplements rather than replaces implementation
+preflight and independent review. Do not invoke it for routine status,
+read-only facts, housekeeping, factual documentation corrections, or already
+approved mechanical execution with no scope change. The owner retains mandate,
+acceptance, deployment, paper/live and capital decisions.
+
 CI is part of initial engineering setup; for this restart, establish and prove
 the missing gate in the first authorized executable setup slice. Claim a gate
 only after a required test check caused a blocked merge; CI is not target

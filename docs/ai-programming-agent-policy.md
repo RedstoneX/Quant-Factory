@@ -21,6 +21,36 @@ authorities, owned paths, allowed actions, exclusions, expected output,
 decisive validation, stop conditions, and a polling budget. Concurrent writers
 use separate worktrees or directories.
 
+## Adversarial proposal check
+
+Decision 289 establishes `quant-factory-adversary` as a read-only specialist
+for material proposals and closure claims. It is invoked before a proposal
+that changes priority, scope, architecture, framework or dependency; selects
+custom implementation over reuse; changes strategy parameters or evidence,
+protected-data, ranking or promotion boundaries; deploys production; seeks
+paper/live authority; or claims beta, milestone, edge readiness or comparable
+material closure.
+
+The specialist freshly reads Tier 1 and the relevant code and evidence. It
+challenges the proposal's load-bearing existence/current-state claim, exact
+trace to the current Tier 1 execution path, shorter reusable alternatives,
+proportionality to the single-owner MVP, cost and agent allocation, evidence
+truth, hidden gate expansion, and removable or deferrable work. It identifies
+measured, inferred, and unknown claims and returns concise objections, the
+strongest contrary interpretation, a cheaper or shorter alternative when one
+exists, and unresolved unknowns.
+
+The specialist returns argument only. It cannot approve or reject work, score
+the proposal, create a gate, contact the owner, implement changes, or spawn
+workers. The lead explicitly dispositions each material objection as
+`CHANGED` with evidence or `REJECTED` with reasons before the proposal
+proceeds. The owner retains mandate, milestone acceptance, deployment,
+paper/live and capital decisions. This check supplements implementation
+preflight and independent review; it does not replace either. Routine status,
+read-only factual answers, housekeeping, factual documentation corrections,
+and already approved mechanical execution with no scope change are exempt so
+the control remains proportionate.
+
 ## Routing and implementation
 
 Read-only inspection, documentation, status, and comparison use the smallest
