@@ -1060,3 +1060,32 @@ explicitly.
      change. No ADR, README, chat-handoff, schema, code, test, data, runtime,
      deployment, or other runbook change applies. The private review address
      is intentionally not added to the public repository.
+
+301. **Repair the blocking Results-page freeze without changing research
+     evidence (accepted 2026-09-21).** During the Step 15 review, Terry supplied
+     browser evidence that the selected-run Results page repeatedly became
+     unresponsive and explicitly reported it as unusable. That report resumes
+     work under Decision 300 only for this blocking defect; it does not grant
+     final dashboard acceptance, beta entry, deployment, new research, or a
+     broader redesign.
+
+     The repair keeps the approved chart-first page and existing Dash,
+     persistence, evidence, and Plotly components. It sends only the selected
+     Bars/View window to the price chart, bounds supporting line-chart display
+     points with a maintained representative sampling component, and keeps one
+     validated successful-run detail in a file-aware read cache. Full saved
+     evidence and all reported metrics remain unchanged; sampling is display
+     only. Measured browser data for the selected result fell from about 12.0
+     MB to about 0.43 MB. Ordinary Bars and View changes completed in about
+     1.5 seconds; the worst-case 53,528-bar Full run completed without freezing
+     in about 7.7 seconds in local real-browser checks. Owner retesting is still
+     required.
+
+     Documentation-impact assessment: `docs/MILESTONES.md`, this decision log,
+     `docs/dashboard-product-requirements.md`, and the Milestone 23 acceptance
+     record are updated because a blocking owner-review defect and its bounded
+     behavior changed. `AGENTS.md`, the agent policy, ADRs, README,
+     `docs/CHAT_HANDOFF.md`, schemas, datasets, research records, deployment,
+     and trading authority are not applicable because permanent operating
+     rules, architecture, evidence, public orientation, and runtime authority
+     did not change.

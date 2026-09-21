@@ -12,10 +12,12 @@ from typing import Any
 from urllib.parse import urlencode
 
 import dash_ag_grid as dag
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
+from tsdownsample import MinMaxLTTBDownsampler
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -1812,6 +1814,48 @@ def _curve_figure(
     )
 
 
+_MAX_OVERVIEW_POINTS = 1_500
+
+
+def _bounded_curve_rows(
+    rows: tuple[dict[str, Any], ...],
+    *,
+    y_field: str,
+    max_points: int = _MAX_OVERVIEW_POINTS,
+) -> tuple[tuple[dict[str, Any], ...], bool]:
+    """Select representative persisted observations for a browser chart only."""
+
+    if len(rows) <= max_points:
+        return rows, False
+    valid_positions = [
+        index
+        for index, row in enumerate(rows)
+        if _numeric_value(row.get(y_field)) is not None
+    ]
+    if len(valid_positions) <= max_points:
+        return tuple(rows[index] for index in valid_positions), len(valid_positions) < len(rows)
+    values = np.asarray(
+        [float(rows[index][y_field]) for index in valid_positions],
+        dtype=np.float64,
+    )
+    selected = MinMaxLTTBDownsampler().downsample(values, n_out=max_points)
+    selected_positions = [valid_positions[int(index)] for index in selected]
+    return tuple(rows[index] for index in selected_positions), True
+
+
+def _curve_sampling_note(*, displayed: int, persisted: int) -> Any | None:
+    if displayed >= persisted:
+        return None
+    return html.Small(
+        (
+            f"Responsive overview: {displayed:,} representative points are shown "
+            f"from {persisted:,} persisted observations. Stored results and metrics "
+            "are unchanged."
+        ),
+        className="empty-state-note",
+    )
+
+
 def _curve_graph(
     rows: tuple[dict[str, Any], ...],
     *,
@@ -1828,9 +1872,10 @@ def _curve_graph(
             empty,
             className="empty-state-copy",
         )
-    return dcc.Graph(
+    display_rows, sampled = _bounded_curve_rows(rows, y_field=y_field)
+    graph = dcc.Graph(
         figure=_curve_figure(
-            rows,
+            display_rows,
             y_field=y_field,
             title=title,
             color=color,
@@ -1840,6 +1885,15 @@ def _curve_graph(
         ),
         responsive=True,
         style={"width": "100%", "minWidth": 0},
+    )
+    if not sampled:
+        return graph
+    return html.Div(
+        [
+            graph,
+            _curve_sampling_note(displayed=len(display_rows), persisted=len(rows)),
+        ],
+        className="run-bounded-chart",
     )
 
 
@@ -1900,8 +1954,12 @@ def _portfolio_value_panel(detail: SelectedRunDetailView) -> Any:
             "No persisted equity curve artifact is available for this run.",
             className="empty-state-copy",
         )
-    figure = _curve_figure(
+    equity_rows, equity_sampled = _bounded_curve_rows(
         detail.evidence.equity_curve,
+        y_field="value",
+    )
+    figure = _curve_figure(
+        equity_rows,
         y_field="value",
         title=(
             "Portfolio value vs same-instrument buy-and-hold"
@@ -1910,14 +1968,22 @@ def _portfolio_value_panel(detail: SelectedRunDetailView) -> Any:
         ),
         color="#2563eb",
     )
+    displayed_counts = [len(equity_rows)]
+    persisted_counts = [len(detail.evidence.equity_curve)]
     if detail.evidence.benchmark_curve:
         benchmark_label = (
             (detail.evidence.benchmark or {}).get("label")
             or "Same-instrument buy-and-hold"
         )
+        benchmark_rows, benchmark_sampled = _bounded_curve_rows(
+            detail.evidence.benchmark_curve,
+            y_field="value",
+        )
+        displayed_counts.append(len(benchmark_rows))
+        persisted_counts.append(len(detail.evidence.benchmark_curve))
         benchmark_series = pd.Series(
-            [row.get("value") for row in detail.evidence.benchmark_curve],
-            index=[row.get("timestamp") for row in detail.evidence.benchmark_curve],
+            [row.get("value") for row in benchmark_rows],
+            index=[row.get("timestamp") for row in benchmark_rows],
             name=benchmark_label,
         )
         figure.add_trace(
@@ -1931,6 +1997,10 @@ def _portfolio_value_panel(detail: SelectedRunDetailView) -> Any:
             )
         )
     figure.update_layout(legend={"orientation": "h", "y": -0.2})
+    sampling_note = _curve_sampling_note(
+        displayed=max(displayed_counts),
+        persisted=max(persisted_counts),
+    ) if equity_sampled or (detail.evidence.benchmark_curve and benchmark_sampled) else None
     return html.Div(
         [
             dcc.Graph(
@@ -1939,6 +2009,7 @@ def _portfolio_value_panel(detail: SelectedRunDetailView) -> Any:
                 responsive=True,
                 style={"width": "100%", "minWidth": 0},
             ),
+            sampling_note,
             _detail_fields(
                 _benchmark_summary_fields(detail),
                 empty=(
@@ -2045,14 +2116,47 @@ _RESULTS_VIEWS = (
     ("1W", timedelta(weeks=1)),
     ("1M", timedelta(days=30)),
 )
+_RESULTS_VIEW_DURATIONS = dict(_RESULTS_VIEWS)
+_RESULTS_DEFAULT_VIEWS = {"1m": "1D", "5m": "1W", "15m": "1M", "1D": "Full run"}
 
 
-def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]:
+def _empty_price_marker_figure(message: str) -> go.Figure:
+    figure = go.Figure()
+    figure.update_layout(
+        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin={"l": 45, "r": 20, "t": 55, "b": 40},
+        annotations=[
+            {
+                "text": message,
+                "xref": "paper",
+                "yref": "paper",
+                "x": 0.5,
+                "y": 0.5,
+                "showarrow": False,
+            }
+        ],
+    )
+    return figure
+
+
+def _price_marker_figure(
+    detail: SelectedRunDetailView,
+    *,
+    interval: str | None = None,
+    view: str | None = None,
+    selected_trade_index: int | None = None,
+) -> tuple[go.Figure, str]:
     """Build the approved Bars/View workspace from persisted evidence only."""
 
     instrument = _evidence_instrument(detail)
     timeframe = _evidence_timeframe(detail)
     source_interval = detail.evidence.source_interval
+    selected_interval = interval or (
+        source_interval if source_interval in _RESULTS_INTERVALS else _RESULTS_INTERVALS[0]
+    )
+    selected_view = view or _RESULTS_DEFAULT_VIEWS.get(selected_interval, "1D")
     source_label = source_interval or "not recorded"
     price_is_points = detail.evidence.price_unit == "index_points"
     price_is_currency = detail.evidence.price_unit == "currency"
@@ -2098,241 +2202,252 @@ def _price_marker_figure(detail: SelectedRunDetailView) -> tuple[go.Figure, str]
         event="exit",
         pnl_unit=detail.evidence.pnl_unit,
     )
-    figure = go.Figure()
-    interval_trace_indexes: dict[str, list[int]] = {}
-    unavailable: list[str] = []
-    last_timestamp: datetime | None = None
-
-    for interval in _RESULTS_INTERVALS:
-        try:
-            interval_bars = prepare_interval(
-                detail.evidence.price_series,
-                interval,
-                source_interval=source_interval,
-            )
-        except ResultsDataError as exc:
-            unavailable.append(f"{interval}: {exc.reason}")
-            continue
-        if not interval_bars.available:
-            unavailable.append(f"{interval}: {interval_bars.reason}")
-            continue
-
-        visible = interval == source_interval
-        bars = interval_bars.bars
-        if bars:
-            last_timestamp = max(last_timestamp or bars[-1].timestamp, bars[-1].timestamp)
-        interval_trace_indexes[interval] = [len(figure.data)]
-        figure.add_trace(
-            go.Candlestick(
-                x=[bar.timestamp for bar in bars],
-                open=[bar.open for bar in bars],
-                high=[bar.high for bar in bars],
-                low=[bar.low for bar in bars],
-                close=[bar.close for bar in bars],
-                increasing={
-                    "line": {"color": "#16a34a", "width": 1},
-                    "fillcolor": "#16a34a",
-                },
-                decreasing={
-                    "line": {"color": "#dc2626", "width": 1},
-                    "fillcolor": "#dc2626",
-                },
-                name=f"Observed {instrument} ({interval})",
-                visible=visible,
-                hovertemplate=bar_hover.replace(source_label, interval, 1),
-            )
+    try:
+        interval_bars = prepare_interval(
+            detail.evidence.price_series,
+            selected_interval,
+            source_interval=source_interval,
         )
-        for event, rows, symbol, color, outline in (
-            ("entry", entry_rows, "triangle-up", "#16a34a", "#064e3b"),
-            ("exit", exit_rows, "triangle-down", "#dc2626", "#7f1d1d"),
-        ):
-            mapped_rows: list[tuple[dict[str, Any], datetime]] = []
-            for row in rows:
-                try:
-                    mapping = map_event_to_bar(
-                        TradeEvent(
-                            trade_id=row["trade_id"],
-                            leg=event,
-                            timestamp=datetime.fromisoformat(
-                                row["timestamp"].replace("Z", "+00:00")
-                            ),
-                            price=row["price"],
-                        ),
-                        interval_bars,
-                    )
-                except (ResultsDataError, ValueError):
-                    continue
-                if mapping.available and mapping.bar_timestamp is not None:
-                    mapped_rows.append((row, mapping.bar_timestamp))
-            if not mapped_rows:
-                continue
-            interval_trace_indexes[interval].append(len(figure.data))
-            figure.add_trace(
-                go.Scatter(
-                    x=[bar_timestamp for _, bar_timestamp in mapped_rows],
-                    y=[row["price"] for row, _ in mapped_rows],
-                    mode="markers",
-                    marker={
-                        "symbol": symbol,
-                        "size": 9,
-                        "color": color,
-                        "line": {"color": outline, "width": 1},
-                    },
-                    customdata=[
-                        [
-                            row["trade_index"],
-                            row["timestamp"],
-                            bar_timestamp.isoformat(),
-                            row["size"],
-                            row["fees"],
-                            row["direction"],
-                        ]
-                        for row, bar_timestamp in mapped_rows
-                    ],
-                    name=_marker_trace_name(rows, event),
-                    visible=visible,
-                    hovertemplate=(
-                        f"{event.title()} · Trade %{{customdata[0]}}<br>"
-                        "Exact event %{customdata[1]}<br>"
-                        "Containing bar %{customdata[2]}<br>"
-                        + marker_price_hover
-                        + "Size %{customdata[3]}<br>Fees %{customdata[4]}<br>"
-                        "Direction %{customdata[5]}<extra></extra>"
-                    ),
+    except ResultsDataError as exc:
+        return _empty_price_marker_figure(exc.reason), exc.reason
+    if not interval_bars.available:
+        reason = interval_bars.reason or "The selected bars are unavailable."
+        return _empty_price_marker_figure(reason), reason
+
+    bars = interval_bars.bars
+    duration = _RESULTS_VIEW_DURATIONS.get(selected_view)
+    selected_event_times = [
+        datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00"))
+        for row in (*entry_rows, *exit_rows)
+        if selected_trade_index is not None
+        and row["trade_index"] == selected_trade_index
+    ]
+    if duration is None or not bars:
+        visible_bars = bars
+    else:
+        visible_duration = duration
+        if len(selected_event_times) >= 2:
+            selected_span = max(selected_event_times) - min(selected_event_times)
+            if selected_span >= visible_duration:
+                visible_duration = selected_span + max(
+                    selected_span / 10,
+                    timedelta(minutes=1),
                 )
-            )
-
-    trace_count = len(figure.data)
-    bars_buttons = []
-    for interval in _RESULTS_INTERVALS:
-        trace_indexes = interval_trace_indexes.get(interval, [])
-        bars_buttons.append(
-            {
-                "label": interval,
-                "method": "restyle",
-                "args": [
-                    {"visible": [index in trace_indexes for index in range(trace_count)]}
-                ],
-                "execute": bool(trace_indexes),
-            }
-        )
-    view_buttons = []
-    for label, duration in _RESULTS_VIEWS:
-        if duration is None or last_timestamp is None:
-            args = [{"xaxis.autorange": True}]
+        data_start = bars[0].timestamp
+        data_end = bars[-1].timestamp
+        if selected_event_times:
+            center = min(selected_event_times) + (
+                max(selected_event_times) - min(selected_event_times)
+            ) / 2
+            start = center - (visible_duration / 2)
+            end = center + (visible_duration / 2)
         else:
-            args = [
-                {
-                    "xaxis.autorange": False,
-                    "xaxis.range": [last_timestamp - duration, last_timestamp],
-                }
-            ]
-        view_buttons.append({"label": label, "method": "relayout", "args": args})
+            end = data_end + timedelta(microseconds=1)
+            start = end - visible_duration
+        if start < data_start:
+            start = data_start
+            end = start + visible_duration
+        if end > data_end + timedelta(microseconds=1):
+            end = data_end + timedelta(microseconds=1)
+            start = end - visible_duration
+        visible_bars = tuple(bar for bar in bars if start <= bar.timestamp < end)
+        if not visible_bars:
+            visible_bars = bars[-1:]
+
+    visible_timestamps = {bar.timestamp for bar in visible_bars}
+    figure = go.Figure()
+    figure.add_trace(
+        go.Candlestick(
+            x=[bar.timestamp for bar in visible_bars],
+            open=[bar.open for bar in visible_bars],
+            high=[bar.high for bar in visible_bars],
+            low=[bar.low for bar in visible_bars],
+            close=[bar.close for bar in visible_bars],
+            increasing={"line": {"color": "#16a34a", "width": 1}, "fillcolor": "#16a34a"},
+            decreasing={"line": {"color": "#dc2626", "width": 1}, "fillcolor": "#dc2626"},
+            name=f"Observed {instrument} ({selected_interval})",
+            hovertemplate=bar_hover.replace(source_label, selected_interval, 1),
+        )
+    )
+    visible_marker_count = 0
+    for event, rows, symbol, color, outline in (
+        ("entry", entry_rows, "triangle-up", "#16a34a", "#064e3b"),
+        ("exit", exit_rows, "triangle-down", "#dc2626", "#7f1d1d"),
+    ):
+        mapped_rows: list[tuple[dict[str, Any], datetime]] = []
+        for row in rows:
+            try:
+                mapping = map_event_to_bar(
+                    TradeEvent(
+                        trade_id=row["trade_id"],
+                        leg=event,
+                        timestamp=datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00")),
+                        price=row["price"],
+                    ),
+                    interval_bars,
+                )
+            except (ResultsDataError, ValueError):
+                continue
+            if mapping.available and mapping.bar_timestamp in visible_timestamps:
+                mapped_rows.append((row, mapping.bar_timestamp))
+        if not mapped_rows:
+            continue
+        visible_marker_count += len(mapped_rows)
+        selected = [
+            selected_trade_index is not None and row["trade_index"] == selected_trade_index
+            for row, _ in mapped_rows
+        ]
+        figure.add_trace(
+            go.Scatter(
+                x=[bar_timestamp for _, bar_timestamp in mapped_rows],
+                y=[row["price"] for row, _ in mapped_rows],
+                mode="markers",
+                marker={
+                    "symbol": symbol,
+                    "size": [17 if active else 9 for active in selected],
+                    "color": ["#facc15" if active else color for active in selected],
+                    "line": {
+                        "color": ["#172033" if active else outline for active in selected],
+                        "width": [2.5 if active else 1 for active in selected],
+                    },
+                },
+                customdata=[
+                    [
+                        row["trade_index"], row["timestamp"], bar_timestamp.isoformat(),
+                        row["size"], row["fees"], row["direction"],
+                    ]
+                    for row, bar_timestamp in mapped_rows
+                ],
+                name=_marker_trace_name(rows, event),
+                hovertemplate=(
+                    f"{event.title()} · Trade %{{customdata[0]}}<br>"
+                    "Exact event %{customdata[1]}<br>Containing bar %{customdata[2]}<br>"
+                    + marker_price_hover
+                    + "Size %{customdata[3]}<br>Fees %{customdata[4]}<br>"
+                    "Direction %{customdata[5]}<extra></extra>"
+                ),
+            )
+        )
 
     figure.update_layout(
         title=f"{instrument} observed {timeframe} price with trade entries and exits",
         template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        margin={"l": 45, "r": 20, "t": 105, "b": 62},
+        margin={"l": 45, "r": 20, "t": 55, "b": 62},
         dragmode="pan",
         hovermode="x unified",
         yaxis={"tickformat": price_tick_format, "title": price_axis_title},
         xaxis={"rangeslider": {"visible": False}},
         legend={"orientation": "h", "y": -0.2},
-        updatemenus=[
-            {
-                "type": "buttons",
-                "direction": "right",
-                "active": (
-                    _RESULTS_INTERVALS.index(source_interval)
-                    if source_interval in _RESULTS_INTERVALS
-                    else 0
-                ),
-                "x": 0,
-                "y": 1.17,
-                "buttons": bars_buttons,
-                "showactive": True,
-            },
-            {
-                "type": "buttons",
-                "direction": "right",
-                "active": 0,
-                "x": 0.42,
-                "y": 1.17,
-                "buttons": view_buttons,
-                "showactive": True,
-            },
-        ],
-        annotations=[
-            {
-                "text": "Bars:",
-                "xref": "paper",
-                "yref": "paper",
-                "x": 0,
-                "y": 1.24,
-                "showarrow": False,
-            },
-            {
-                "text": "View:",
-                "xref": "paper",
-                "yref": "paper",
-                "x": 0.42,
-                "y": 1.24,
-                "showarrow": False,
-            },
-        ],
+        uirevision=f"{selected_interval}:{selected_view}:{selected_trade_index or 'none'}",
     )
-    availability = (
-        "All persisted display intervals are available."
-        if not unavailable
-        else "Unavailable display intervals — " + "; ".join(unavailable)
+    summary = (
+        f"Showing {len(visible_bars):,} of {len(bars):,} actual {selected_interval} bars "
+        f"for {selected_view}, with {visible_marker_count:,} visible trade markers."
     )
-    return figure, availability
+    return figure, summary
 
 
-def _price_marker_panel(detail: SelectedRunDetailView) -> Any:
-    prices = detail.evidence.price_series
-    if not prices:
-        return html.Div(
-            [
-                html.Span("Evidence not recorded", className="pending-state-badge"),
-                html.P(
-                    (
-                        "This run does not include a persisted underlying price "
-                        "series or buy-and-hold benchmark."
-                    ),
-                    className="empty-state-copy",
-                ),
-                html.Small(
-                    (
-                        "Older runs remain readable, but the approved fixture must "
-                        "be rerun to capture price, entry/exit marker, and benchmark evidence."
-                    ),
-                    className="empty-state-note",
-                ),
-            ],
-            className="run-price-marker-empty compact-empty-state",
+def _price_marker_panel(detail: SelectedRunDetailView | None) -> Any:
+    prices = detail.evidence.price_series if detail is not None else ()
+    source_interval = detail.evidence.source_interval if detail is not None else None
+    source_index = (
+        _RESULTS_INTERVALS.index(source_interval)
+        if source_interval in _RESULTS_INTERVALS
+        else len(_RESULTS_INTERVALS)
+    )
+    interval_options = [
+        {
+            "label": interval,
+            "value": interval,
+            "disabled": not prices or index < source_index,
+        }
+        for index, interval in enumerate(_RESULTS_INTERVALS)
+    ]
+    initial_interval = (
+        source_interval if source_interval in _RESULTS_INTERVALS else _RESULTS_INTERVALS[0]
+    ) if detail is not None else _RESULTS_INTERVALS[0]
+    initial_view = _RESULTS_DEFAULT_VIEWS.get(initial_interval, "1D")
+    placeholder = (
+        "Loading the selected saved chart…"
+        if prices
+        else (
+            "Evidence not recorded: This run does not include a persisted underlying "
+            "price series or buy-and-hold benchmark. Older runs remain readable, but "
+            "the approved fixture must be rerun to capture the missing chart evidence."
         )
-    instrument = _evidence_instrument(detail)
-    timeframe = _evidence_timeframe(detail)
-    figure, availability = _price_marker_figure(detail)
+        if detail is not None
+        else "Select a completed run with persisted price evidence."
+    )
+    initial_figure = _empty_price_marker_figure(placeholder)
+    initial_summary = placeholder
+    unavailable_intervals = (
+        _RESULTS_INTERVALS[:source_index]
+        if prices and source_interval in _RESULTS_INTERVALS
+        else ()
+    )
+    availability_note = (
+        "Unavailable Bars — "
+        + "; ".join(
+            f"{interval}: Bars interval {interval} is finer than the persisted "
+            f"{source_interval} source"
+            for interval in unavailable_intervals
+        )
+        + "."
+        if unavailable_intervals
+        else (
+            "Unavailable Bars — the persisted source interval was not recorded."
+            if prices and source_interval not in _RESULTS_INTERVALS
+            else None
+        )
+    )
+    if detail is not None and prices:
+        initial_figure, initial_summary = _price_marker_figure(
+            detail,
+            interval=initial_interval,
+            view=initial_view,
+            selected_trade_index=None,
+        )
     return html.Div(
         [
+            html.Div(
+                [
+                    html.Span("Bars:", className="price-chart-control-label"),
+                    dcc.RadioItems(
+                        id="price-chart-bars",
+                        options=interval_options,
+                        value=initial_interval,
+                        inline=True,
+                        className="price-chart-choice-group",
+                    ),
+                    html.Span("View:", className="price-chart-control-label"),
+                    dcc.RadioItems(
+                        id="price-chart-view",
+                        options=[{"label": label, "value": label} for label, _ in _RESULTS_VIEWS],
+                        value=initial_view,
+                        inline=True,
+                        className="price-chart-choice-group",
+                    ),
+                ],
+                className="price-chart-controls",
+            ),
             dcc.Graph(
                 id="price-marker-chart",
-                figure=figure,
+                figure=initial_figure,
                 responsive=True,
                 config={"scrollZoom": True, "displaylogo": False},
                 style={"width": "100%", "minWidth": 0},
             ),
             html.Small(
-                (
-                    f"Persisted {instrument} {timeframe} source: {len(prices):,} bars. "
-                    "Bars changes only display aggregation; View changes only the visible range. "
-                    f"{availability}"
-                ),
+                initial_summary,
+                id="price-marker-summary",
                 className="empty-state-note",
+            ),
+            (
+                html.Small(availability_note, className="empty-state-note")
+                if availability_note
+                else None
             ),
         ],
         className="run-price-marker-panel",
@@ -2437,14 +2552,6 @@ def _trade_pnl_chart(trades: tuple[dict[str, Any], ...], *, mode: str) -> Any:
 
 
 def _run_chart_and_trade_focus(detail: SelectedRunDetailView | None) -> Any:
-    if detail is None:
-        return html.P(
-            (
-                "The persisted price chart appears after selecting a completed "
-                "run with valid price evidence."
-            ),
-            className="empty-state-copy",
-        )
     return _detail_subsection(
         "Price and completed trades",
         _price_marker_panel(detail),
@@ -3089,6 +3196,7 @@ def _run_detail_panel(
                     "Select a recent run to inspect its authoritative state and events.",
                     className="empty-state-copy",
                 ),
+                _run_chart_and_trade_focus(None),
                 _results_report_tabs(None),
             ],
                 className="panel run-detail-panel",

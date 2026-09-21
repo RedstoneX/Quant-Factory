@@ -438,6 +438,15 @@ window. If the proposed **Reset range** engineering default is retained, it
 returns to the independently selected Bars/View window without altering either
 control; it is not Decision 281's accepted **Reset layout** requirement.
 
+The browser receives only the selected Bars/View price window, not hidden
+copies of every interval. Supporting equity, benchmark, and drawdown line
+charts may use clearly disclosed representative display points when the saved
+series is large. That display sampling never changes persisted rows, headline
+metrics, screening, validation, or downloadable evidence. Reopening the same
+unchanged successful run may reuse one file-aware validated read; changed or
+missing artifacts invalidate that read. This is dashboard read optimization,
+not Decision 283's backtest-result reuse cache.
+
 Entry and exit markers use the persisted event price and exact timestamp.
 Hover or focus text states the exact event time and, when aggregated, the
 containing bar time. The selected marker is distinguishable by shape/outline

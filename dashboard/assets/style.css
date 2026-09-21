@@ -2702,6 +2702,53 @@ input {
   min-height: 0;
 }
 
+.price-chart-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 6px;
+}
+
+.price-chart-control-label {
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.price-chart-choice-group {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.price-chart-choice-group label {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 700;
+  min-height: 30px;
+  padding: 3px 8px;
+}
+
+.price-chart-choice-group label:has(input:checked) {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.price-chart-choice-group label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.price-chart-choice-group input {
+  margin: 0 5px 0 0;
+}
+
 .results-chart-region .dash-graph {
   flex: 1 1 auto;
   height: auto;

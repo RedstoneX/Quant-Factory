@@ -610,7 +610,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 34
+    assert len(app.callback_map) == 35
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -724,6 +724,7 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
         "..run-comparison-output.children...run-comparison-output.className..",
         "selected-run-detail.children",
         "..results-operator-context.children...results-operator-context.className..",
+        "..price-marker-chart.figure...price-marker-summary.children..",
     }
 
     for output_key, metadata in app.callback_map.items():
@@ -3186,6 +3187,49 @@ def _review_decision_stack(
         summary_service,
         RunDetailDashboardAdapter(database=database, artifact_root=artifact_root),
     )
+
+
+def test_successful_run_detail_read_is_reused_until_evidence_changes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _, artifact_root, _, adapter = _review_decision_stack(tmp_path)
+    original = adapter._selected_run_detail
+    calls = 0
+
+    def counted(run_id: str):
+        nonlocal calls
+        calls += 1
+        return original(run_id)
+
+    monkeypatch.setattr(adapter, "_selected_run_detail", counted)
+
+    first = adapter.selected_run_detail("decision_review_run")
+    second = adapter.selected_run_detail("decision_review_run")
+
+    assert second is first
+    assert calls == 1
+
+    service = PersistenceService(adapter.database)
+    try:
+        artifact_record = service.list_run_artifacts("decision_review_run")[0]
+        service.update_artifact_availability(
+            artifact_record.artifact_id,
+            ArtifactAvailability.MISSING,
+        )
+    finally:
+        service.close()
+
+    adapter.selected_run_detail("decision_review_run")
+
+    assert calls == 2
+
+    artifact = next(artifact_root.rglob("validation_evidence.json"))
+    artifact.write_bytes(artifact.read_bytes() + b"\n")
+
+    adapter.selected_run_detail("decision_review_run")
+
+    assert calls == 3
 
 
 def _review_context_stack(

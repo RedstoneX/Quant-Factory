@@ -357,8 +357,6 @@ def _graph_state(page: Page) -> dict[str, object]:
           bars: graph.data.filter(trace => trace.type === "candlestick" && trace.visible !== false)
             .map(trace => trace.name),
           range: graph._fullLayout.xaxis.range.map(String),
-          barsActive: graph.layout.updatemenus[0].active,
-          viewActive: graph.layout.updatemenus[1].active,
           selectedMarkers: graph.data.filter(trace => trace.type === "scatter")
             .flatMap(trace => (trace.customdata || []).map((item, index) => ({
               trade: Number(item[0]),
@@ -465,6 +463,7 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
             chart = page.locator("#price-marker-chart .js-plotly-plot")
             initial = _graph_state(page)
             assert initial["bars"] == ["Observed MES (5m)"]
+            expect(page.get_by_role("radio", name="1m", exact=True)).to_be_disabled()
             expect(page.locator("#selected-run-detail")).to_contain_text(
                 "1m: Bars interval 1m is finer than the persisted 5m source"
             )
@@ -498,16 +497,19 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
                 "Promotion is blocked"
             )
 
-            page.locator("#price-marker-chart .updatemenu-button", has_text="1D").last.click()
-            page.wait_for_timeout(150)
+            view_one_day = page.locator("#price-chart-view").get_by_role(
+                "radio", name="1D", exact=True
+            )
+            view_one_day.click()
+            _wait_for_callbacks_to_settle(page, pending)
             view_state = _graph_state(page)
             assert view_state["bars"] == initial["bars"]
-            assert view_state["viewActive"] != initial["viewActive"]
-            page.locator("#price-marker-chart .updatemenu-button", has_text="15m").first.click()
-            page.wait_for_timeout(150)
+            expect(view_one_day).to_be_checked()
+            page.get_by_role("radio", name="15m", exact=True).click()
+            _wait_for_callbacks_to_settle(page, pending)
             bars_state = _graph_state(page)
             assert bars_state["bars"] == ["Observed MES (15m)"]
-            assert bars_state["viewActive"] == view_state["viewActive"]
+            expect(view_one_day).to_be_checked()
 
             before_pan = bars_state["range"]
             box = chart.bounding_box()
@@ -536,7 +538,10 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
             expect(row).to_have_attribute("aria-selected", "true")
             assert page.evaluate("document.activeElement?.getAttribute('row-index')") == "0"
             status = page.locator("#results-chart-focus-status")
-            expect(status).to_contain_text("Trade 1 identified on chart")
+            expect(status).to_contain_text("Trade 1 selected")
+            expect(status).to_contain_text(
+                "chart window updates without changing Bars or View"
+            )
             expect(status).to_contain_text(ENTRY_TIME)
             expect(status).to_contain_text(EXIT_TIME)
             selected = _graph_state(page)["selectedMarkers"]
@@ -590,7 +595,7 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
             assert reset_dimensions["chart"] == initial_dimensions["chart"]
             assert reset_dimensions["report"] == initial_dimensions["report"]
             assert _graph_state(page)["bars"] == state_before_reset["bars"]
-            assert _graph_state(page)["viewActive"] == state_before_reset["viewActive"]
+            expect(view_one_day).to_be_checked()
             expect(page.locator("#results-report-tabs .tab--selected")).to_have_text("Trades")
             assert page.evaluate(
                 """

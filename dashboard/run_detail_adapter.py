@@ -7,6 +7,7 @@ from datetime import datetime
 import json
 import math
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from persistence import ArtifactAvailability, PersistenceService
@@ -814,8 +815,64 @@ class RunDetailDashboardAdapter:
     ) -> None:
         self.database = database_path(database)
         self.artifact_root = Path(artifact_root or Path.cwd())
+        self._successful_detail_cache: tuple[tuple[Any, ...], SelectedRunDetailView] | None = None
+        self._successful_detail_cache_lock = RLock()
 
     def selected_run_detail(self, run_id: str) -> SelectedRunDetailView:
+        service = PersistenceService(self.database)
+        try:
+            run = service.runs.get(run_id)
+            succeeded = run is not None and run.status == "succeeded"
+            persisted_manifest = (
+                service.read_persisted_run_manifest(run_id) if succeeded else None
+            )
+            artifact_fingerprint: list[tuple[Any, ...]] = []
+            if succeeded:
+                for artifact in service.list_run_artifacts(run_id):
+                    location = Path(artifact.location)
+                    path = location if location.is_absolute() else self.artifact_root / location
+                    try:
+                        stat = path.stat()
+                        observed = (stat.st_size, stat.st_mtime_ns)
+                    except OSError:
+                        observed = (None, None)
+                    artifact_fingerprint.append(
+                        (
+                            artifact.artifact_id,
+                            artifact.run_id,
+                            artifact.artifact_type.value,
+                            artifact.logical_name,
+                            artifact.schema_version,
+                            artifact.media_type,
+                            artifact.format,
+                            artifact.checksum_algorithm,
+                            artifact.checksum,
+                            artifact.size_bytes,
+                            artifact.location,
+                            artifact.availability_state.value,
+                            artifact.created_at,
+                            *observed,
+                        )
+                    )
+            cache_key = (
+                run_id,
+                run.completed_at if run is not None else None,
+                persisted_manifest,
+                tuple(artifact_fingerprint),
+            )
+        finally:
+            service.close()
+        if not succeeded:
+            return self._selected_run_detail(run_id)
+        with self._successful_detail_cache_lock:
+            cached = self._successful_detail_cache
+            if cached is not None and cached[0] == cache_key:
+                return cached[1]
+            detail = self._selected_run_detail(run_id)
+            self._successful_detail_cache = (cache_key, detail)
+            return detail
+
+    def _selected_run_detail(self, run_id: str) -> SelectedRunDetailView:
         service = PersistenceService(self.database)
         warnings: list[str] = []
         try:
