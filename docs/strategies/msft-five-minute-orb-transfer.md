@@ -2,8 +2,8 @@
 
 ## Status
 
-**Proposed; awaiting Terry's approval. Nothing in this document authorizes
-implementation or execution.**
+**Withdrawn under Decision 306. Nothing in this document authorizes
+implementation or execution. Retained only as investigation history.**
 
 This is one bounded transfer test of the rules in Zarattini, Barbon and Aziz,
 [*A Profitable Day Trading Strategy for the U.S. Equity

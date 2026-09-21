@@ -43,12 +43,15 @@ trading and capital exposure.
   deterministic fixtures to prove missing factory stages; do not commission a
   new candidate, acquire data, or run another candidate backtest merely to
   prove the architecture. Edge research resumes only after beta.
-- Before commissioning candidate research or material implementation, perform
-  a lean prior-work check in the Tier 1 authorities and repository history.
-  Reuse or reconcile completed work before proposing it again; record each
-  meaningful completed candidate investigation, status, and reason in
-  `docs/MILESTONES.md`. Before compaction or handoff, confirm that completed
-  research and the exact next action are durable there.
+- Before candidate or strategy-family research, implementation, data
+  inspection, execution, or delegation, perform a cheap read-only prior-work
+  check. The unresolved need must come from Tier 1, an owner instruction, an
+  acceptance criterion, or a measured blocker; name why existing work cannot
+  close it and the cheapest sufficient action. A symbol, dataset, wrapper,
+  wording, or presentation change is not enough unless it serves an approved
+  replication need or genuinely required independent evidence. Otherwise stop
+  and reuse or report the existing work. Record meaningful completed or
+  withdrawn investigations and the exact next action in `docs/MILESTONES.md`.
 - Correct verified factual drift, but never turn a correction into an
   unapproved change of scope, architecture, status, or acceptance.
 - Record permanent changes under documentation governance; chat is not durable

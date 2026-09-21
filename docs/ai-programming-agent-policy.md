@@ -48,13 +48,34 @@ rather than accepting a worker summary at face value.
 
 ## Preflight and adversary
 
-Before commissioning candidate research or material implementation, check the
-Tier 1 authorities and repository history for completed work. Reuse or
-reconcile a prior candidate investigation before proposing it again;
-meaningful completed investigations must be recorded in
-`docs/MILESTONES.md` with their status and reason. Before compaction or
-handoff, verify that completed research and the exact next action are durable
-in Tier 1 rather than relying on chat history.
+Before delegated candidate or strategy-family research, implementation, raw-
+data inspection, or execution, the lead first performs a cheap read-only
+history check and applies one work-delta gate:
+
+1. Name the unresolved requirement from current Tier 1, an owner instruction,
+   an acceptance criterion, or a measured blocker.
+2. Cite why existing code, evidence, research or an owner decision does not
+   already close it.
+3. Name the cheapest sufficient action and the evidence that will close it.
+
+If any answer is absent, do not commission the work. Reuse the prior result or
+report that no new work is justified. A changed symbol, dataset, wrapper,
+wording, presentation, or fresh proposal does not by itself establish a new
+requirement. Do not ask the owner to repeat an approval already recorded or
+convert a completed factory-mechanics test into another candidate test.
+Symbol or dataset changes qualify only for an owner-approved replication need
+or genuinely independent evidence required by the source hypothesis. A
+materially new source-attributed hypothesis and a predeclared next evidence
+stage remain valid new work. Routine defect fixes, factual documentation, and
+already-approved mechanical work continue under their normal proportional
+checks rather than this candidate gate.
+
+Before commissioning candidate research or material implementation, check Tier
+1 and repository history for completed or withdrawn work. Reconcile a prior
+candidate investigation rather than proposing it again; meaningful
+investigations must be recorded in `docs/MILESTONES.md` with their status and
+reason. Before compaction or handoff, verify that completed research and the
+exact next action are durable in Tier 1 rather than relying on chat history.
 
 Before material executable, runtime, configuration, schema, dependency,
 dashboard-behavior, or scope changes, apply

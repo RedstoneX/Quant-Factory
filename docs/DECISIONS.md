@@ -1201,3 +1201,52 @@ explicitly.
      schemas, data records, deployment records, and runbooks are not applicable
      because no permanent operating rule, architecture, dashboard behavior,
      data, runtime, deployment, or operator procedure changed.
+
+306. **Stop duplicate work and withdraw the repeated MSFT ORB proposal
+     (accepted 2026-09-21).** Terry directs Quant Factory to stop consuming
+     time, tokens and money by researching, proposing or building substantially
+     the same work again. The MSFT five-minute ORB proposal merged through PR
+     #94 is withdrawn and retained only as investigation history. Its published
+     rule differed technically from the prior MES ORB work, but another ORB
+     proposal did not close a new factory requirement and Terry judged it
+     unnecessary repeated strategy-family work. No MSFT adapter or backtest was
+     built or run.
+
+     Before research, a proposal, implementation or delegation begins, Codex
+     must name: (1) the specific unresolved requirement from current Tier 1,
+     an owner instruction, an acceptance criterion or a measured blocker; (2)
+     why existing code, evidence, research or an owner decision cannot satisfy
+     it; and (3) the cheapest sufficient action and the evidence that will
+     close it. If any answer is missing, no work or subagent is commissioned;
+     existing evidence is reused or the absence of justified new work is
+     reported. A change of symbol, dataset, wrapper, wording, presentation or
+     approval package does not by itself create a new requirement. It qualifies
+     only for an owner-approved replication need or genuinely independent
+     evidence required by the source hypothesis. Do not ask Terry to repeat a
+     recorded approval or turn a completed factory-mechanics test into another
+     strategy test. A cheap history check, routine defect fix, factual
+     correction and already-approved mechanical work remain allowed.
+
+     The next action is a concise reconciliation of genuinely unfinished
+     factory-to-beta requirements using existing evidence only. This decision
+     does not permanently prohibit future ORB or other edge research; it
+     requires a genuinely new purpose and Terry's existing candidate approval
+     gate before that work resumes. It does not authorize data acquisition, a
+     backtest, protected-test access, deployment, paper/live trading or capital
+     exposure.
+
+     This supersedes Decision 305 only where it made another candidate proposal
+     the active next action. Decision 305's merged factory-connection facts and
+     evidence remain unchanged.
+
+     Documentation-impact assessment: `AGENTS.md` and the agent policy are
+     updated because this is a permanent work-selection and delegation rule;
+     `docs/MILESTONES.md` is updated because the active proposal is withdrawn
+     and the next action changes; this decision log records the owner
+     correction; the MSFT proposal is marked withdrawn; and `README.md` is
+     updated because its current-direction summary would otherwise be stale.
+     ADRs, `docs/CHAT_HANDOFF.md`, dashboard requirements, schemas, data,
+     manifests, deployment records and runbooks are not applicable because no
+     architecture, startup navigation, application behavior, evidence, data,
+     runtime, deployment or operating procedure changed. `CLAUDE.md` and
+     `.claude/**` remain untouched.
