@@ -2977,16 +2977,34 @@ input {
 }
 
 .run-primary-metric-grid {
+  background: #dfe7f1;
+  border: 1px solid #dfe7f1;
+  border-radius: 8px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  overflow: hidden;
 }
 
 .run-primary-metric-card {
-  min-height: 82px;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  display: grid;
+  gap: 2px 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 0;
+  padding: 7px 9px;
 }
 
 .run-primary-metric-card strong {
-  font-size: 1.45rem;
+  font-size: 1.18rem;
+  text-align: right;
+}
+
+.run-primary-metric-card .metric-unavailable {
+  grid-column: 1 / -1;
 }
 
 .run-primary-metric-negative strong {

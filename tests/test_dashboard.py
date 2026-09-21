@@ -6074,6 +6074,43 @@ def test_selected_backtest_hierarchy_keeps_trace_id_out_of_primary_heading() -> 
     assert "Backtest ID" in rendered
 
 
+def test_selected_backtest_formats_period_and_initial_capital_for_a_trader() -> None:
+    service = _DashboardRunService()
+    run = service.recent_runs()[0]
+    detail = replace(
+        _selected_detail_view(),
+        lineage_fields=(
+            DetailField(
+                "Actual coverage",
+                "2025-10-31T13:30:00+00:00..2026-07-13T19:59:00+00:00",
+            ),
+        ),
+        execution=(DetailField("Initial Cash", "10000.0"),),
+    )
+
+    rendered = str(_run_detail_panel(run, service.recent_events(), detail=detail))
+
+    assert "Test period: " in rendered
+    assert "Oct 31, 2025, 1:30 PM UTC → Jul 13, 2026, 7:59 PM UTC" in rendered
+    assert "Initial capital: " in rendered
+    assert "$10,000.00" in rendered
+
+
+def test_primary_metrics_use_a_compact_responsive_summary_grid() -> None:
+    css = (
+        Path(__file__).resolve().parents[1]
+        / "dashboard"
+        / "assets"
+        / "style.css"
+    ).read_text(encoding="utf-8")
+
+    assert "grid-template-columns: repeat(auto-fit, minmax(110px, 1fr))" in css
+    assert ".run-primary-metric-card {" in css
+    assert "grid-template-columns: minmax(0, 1fr) auto" in css
+    assert "min-height: 0" in css
+    assert "padding: 7px 9px" in css
+
+
 def test_run_detail_panel_surfaces_artifact_warning_and_error_states() -> None:
     service = _DashboardRunService()
     detail = _selected_detail_view(

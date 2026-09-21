@@ -205,6 +205,12 @@ the approved working chart behavior and Plotly Dash/VectorBT Pro direction are
 settled for these slices. Any later reconsideration requires a separate
 owner-approved scope.
 
+The selected-run summary presents recorded test timestamps as readable dates
+and times with an explicit time zone, presents initial capital as currency, and
+uses a compact primary-metrics summary rather than tall isolated cards. Raw
+recorded values remain available in the technical evidence where applicable;
+these presentation rules do not alter calculations or saved evidence.
+
 ## Primary operator workflow
 
 The dashboard must support this complete path, including the approved Ideas
