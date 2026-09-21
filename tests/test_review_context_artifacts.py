@@ -101,6 +101,7 @@ def _source_lock_artifact(
     execution_assumptions: dict[str, object] | None = None,
     source_start: str = "2020-01-01",
     source_end: str = "2020-04-30",
+    parameter_lock_id: str = "parameter-lock-1",
 ) -> int:
     payload = {
         "schema_version": 1,
@@ -114,7 +115,7 @@ def _source_lock_artifact(
         "data_provenance": data_provenance or {"provider": "fixture"},
         "execution_assumptions": execution_assumptions or {"kind": "fixture"},
         "parameter_lock": {
-            "lock_id": "parameter-lock-1",
+            "lock_id": parameter_lock_id,
             "normalized_parameters": locked_parameters or REVIEW_PARAMETERS,
         },
         "selection_status": "passed",
