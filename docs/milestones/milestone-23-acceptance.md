@@ -216,6 +216,11 @@ unavailable and are outside this review. A reachable page, agent-run browser
 test, or vague visual impression is not owner acceptance. Resume only after
 Terry reports a failed step or explicitly authorizes further work.
 
+Terry subsequently reported the Results page repeatedly unresponsive and
+provided browser evidence. Decision 301 resumes work only for that blocking
+defect. The checklist remains unaccepted and should be repeated after the
+review page is refreshed with the reviewed repair.
+
 ## Target-evidence audit — 2026-09-18
 
 This read-only audit distinguishes historical licensed-target evidence from
@@ -312,5 +317,20 @@ checks passed without changing saved research evidence. Rendering the full
 53,528-point saved Results view still takes materially longer than ordinary
 page navigation and is not claimed to be instant. Step 15 owner acceptance
 remains active.
+
+### 2026-09-21 — Selected-run Results overwhelmed the browser
+
+Impact: after the first loading correction, opening the preserved 53,528-bar
+result still sent every chart interval plus full supporting curves in one
+selected-run update. The update measured about 12.0 MB and remained in the
+browser's “Updating…” state for more than 39 seconds in a focused check; Terry
+reported repeated page freezes and the workflow was unusable. Decision 301
+authorized only a bounded display repair, which merged through PR #88. The
+repair keeps saved evidence and metrics unchanged, sends one selected Bars/View
+window, displays representative points for supporting line-chart overviews, and
+reuses one evidence-aware validated successful-run read. Local browser checks
+measured Bars and View changes at about 1.5 seconds and the worst-case
+53,528-bar Full run at about 7.7 seconds without a freeze. This is repair
+evidence, not owner acceptance or beta entry.
 
 <!-- incident-history:end -->

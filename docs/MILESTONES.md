@@ -9,10 +9,10 @@ ordered work, milestone scope, and acceptance.
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
 | Phase | Factory-to-beta completion is active under Decision 298. New edge-candidate research is paused until beta. |
-| Active work | Step 15: Terry's final dashboard and workflow acceptance checkpoint. |
-| Finding | PR #86 merged the bounded loading correction at `f8f2aa69fdd9a298bc86e5925d1d413e75e1fa4a`; the private review page now starts with about 263 KB instead of 12.25 MB of hidden Results data. Terry said the dashboard looks okay but feels nonfunctional and has not completed the core workflow test, so usability and final acceptance remain unknown. |
-| Next action | Wait. Terry will follow the Step 15 owner checklist in the Milestone 23 acceptance record and report the first failed step or explicitly authorize work to resume. Do not infer approval from the review page being reachable. |
-| Blocked | All further implementation is paused by Decision 300 pending Terry's explicit approval. New candidate research/backtests, data acquisition, optimization, protected-test inspection, automatic promotion, deployment, paper/live activation, and portability also remain blocked. |
+| Active work | Step 15: return the repaired Results workflow for Terry's final acceptance review. |
+| Finding | Terry supplied browser evidence that the selected-run Results page repeatedly became unresponsive. The bounded repair merged through PR #88: it sends one Bars/View window, representative supporting-chart points, and reuses one evidence-aware validated read; saved evidence and metrics are unchanged. Ordinary chart changes measured about 1.5 seconds and the 53,528-bar Full run about 7.7 seconds without freezing in local browser checks. |
+| Next action | Refresh only the private review service from the merged revision, validate it, then ask Terry to repeat the Results steps. |
+| Blocked | Step 15 acceptance and Step 16 beta remain blocked until Terry verifies the repaired Results workflow. New candidate research/backtests, data acquisition, optimization, protected-test inspection, automatic promotion, production deployment, paper/live activation, and portability remain blocked. |
 
 ## Product direction and boundaries
 
@@ -43,7 +43,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | blocked | none | Steps 4–14 of Decision 298 are complete. The Step 15 loading correction merged through PR #86 and the private review page was refreshed without changing production or saved research evidence. Terry has not accepted the workflow and directed Codex to do no further work until he gives approval. Resume only from his checklist result or explicit authorization; Step 16 beta remains pending. |
+| R08 | 1 | in_progress | none | Steps 4–14 are complete. Terry's Step 15 browser evidence exposed a blocking selected-run Results freeze; its bounded repair merged through PR #88 without changing saved evidence. Refresh the private review service, validate it, and return the Results checks to Terry. Step 16 beta remains pending. |
 <!-- active-work:end -->
 
 ## Owner-accepted factory-to-beta path
@@ -71,7 +71,7 @@ drafts.
 | 12. Show Terry each working dashboard page | Done | Terry directed work to proceed after the restored clickable page review. This completed the direction checkpoint only, not final acceptance. |
 | 13. Connect every essential page to real saved engine and filter results | Done | Current `main` opened the preserved SPYM candidate plus a consistent private snapshot containing 45 real saved runs; Setup, Run History, Results, Evidence, Find & Compare, and System all read the existing persistence and evidence services truthfully. No research was rerun. |
 | 14. Test the complete browser workflow | Done | Passive real-browser proof covered Home → Ideas → Setup → Run test → Results → Find & Compare plus System; all three Results resize controls, reset, responsive stacking, refresh, back/forward, exact links, and fresh process/browser reopening passed with clean diagnostics. Database content and artifacts remained unchanged. |
-| 15. Obtain Terry's final dashboard and workflow acceptance | Owner checkpoint — paused | The corrected private review page is available. Terry has not accepted it and directed Codex to wait while he follows the recorded owner checklist. Resume only after his explicit approval or reported failed step. |
+| 15. Obtain Terry's final dashboard and workflow acceptance | Owner checkpoint — repaired page retest pending | Terry reported the selected-run Results page repeatedly freezing. The Decision 301 repair merged through PR #88; after the private review refresh and validation, Terry retests Results before acceptance can continue. |
 | 16. Begin beta testing | Pending | Beta starts only after the completed workflow passes its acceptance checks. |
 | 17. Test real strategies for an edge | Gated until after beta | Use source-attributed, owner-approved candidates with fixed evidence boundaries. |
 | 18. Consider paper trading | Gated | Only a qualified edge that survives every filter can approach the separate paper gates. |

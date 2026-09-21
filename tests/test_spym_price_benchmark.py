@@ -8,7 +8,12 @@ from typing import Any
 
 from dash import dcc, html
 
-from dashboard.application import _numeric_value, _portfolio_value_panel, _price_marker_panel
+from dashboard.application import (
+    _numeric_value,
+    _portfolio_value_panel,
+    _price_marker_figure,
+    _price_marker_panel,
+)
 from dashboard.run_detail_adapter import (
     ResultSummaryView,
     RunDetailDashboardAdapter,
@@ -136,18 +141,13 @@ def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> N
     price_graph = _graph(_price_marker_panel(detail))
     assert price_graph is not None
     assert price_graph.id == "price-marker-chart"
-    candlesticks = [
-        trace for trace in price_graph.figure.data if trace.type == "candlestick"
-    ]
-    assert [trace.name for trace in candlesticks] == [
-        "Observed SPYM (1m)",
-        "Observed SPYM (5m)",
-        "Observed SPYM (15m)",
-        "Observed SPYM (1D)",
-    ]
-    assert [len(trace.x) for trace in candlesticks] == [53528, 13340, 4474, 173]
-    assert len([trace for trace in price_graph.figure.data if trace.type == "scatter"]) == 8
     assert price_graph.config["scrollZoom"] is True
+    counts = []
+    for interval in ("1m", "5m", "15m", "1D"):
+        figure, _ = _price_marker_figure(detail, interval=interval, view="Full run")
+        candlestick = next(trace for trace in figure.data if trace.type == "candlestick")
+        counts.append(len(candlestick.x))
+    assert counts == [53528, 13340, 4474, 173]
 
     benchmark_panel = _portfolio_value_panel(detail)
     benchmark_graph = _graph(benchmark_panel)
@@ -157,6 +157,8 @@ def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> N
         "Portfolio value vs same-instrument buy-and-hold",
         "SPYM same-instrument buy-and-hold",
     ]
+    assert [len(trace.x) for trace in benchmark_graph.figure.data] == [1500, 1500]
+    assert "representative points are shown" in str(benchmark_panel)
     assert "Starting capital" in str(benchmark_panel)
     assert "$10,000.00" in str(benchmark_panel)
     assert "0.000%" in str(benchmark_panel)
