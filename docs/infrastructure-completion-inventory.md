@@ -89,5 +89,6 @@ ranked rejection evidence, truthful evidence limits and exact-run reopening in
 the existing application. That correction merged through PR #70 at
 `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after focused, portable
 real-browser, independent-review, and required-CI evidence passed. It is not
-deployed, target-validated, operator-accepted, full beta, or Milestone 23
-completion. Multi-run analysis and caching remain pending.
+production-deployed, full beta completion, or Milestone 23 completion. The
+corrected private review workflow is owner-accepted under Decision 303.
+Multi-run analysis and caching remain pending.

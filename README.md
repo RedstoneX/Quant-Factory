@@ -30,9 +30,10 @@ merged. Terry completed the Step 12 direction checkpoint, and Steps 13–14 then
 passed against private disposable copies of real saved results: every essential
 page opened existing evidence and the complete passive browser workflow retained
 navigation, resizing, responsive layout, exact reopening, and saved identity.
-Step 15 final owner acceptance is now active; beta remains Step 16 in
-[MILESTONES](docs/MILESTONES.md). No new candidate run or data acquisition is
-part of that path.
+Terry accepted the corrected Step 15 dashboard workflow after the final
+readability corrections passed on the private review page. Bounded beta use is
+now active at Step 16 in [MILESTONES](docs/MILESTONES.md). No new candidate run
+or data acquisition is part of beta.
 
 Decision 298 sets the current order: reconcile and prove the remaining filter
 mechanics with saved evidence or deterministic fixtures → verify stop/advance
@@ -73,8 +74,9 @@ requires a separate scalable multi-run analysis surface. Decision 291's bounded
 R07 rendering and exact-reopen correction merged through PR #70 at
 `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after focused, portable
 real-browser, independent-review, and required-CI evidence passed. It is not
-deployed, target-validated, operator-accepted, full beta, or Milestone 23
-completion. Decision 293's bounded Find & Compare implementation is merged;
+production-deployed, full beta completion, or Milestone 23 completion. The
+corrected private review workflow is owner-accepted under Decision 303.
+Decision 293's bounded Find & Compare implementation is merged;
 broader multi-run expansion and the remaining objective gates are deferred.
 
 Decision 283 requires safe caching for exact repeat research computations so

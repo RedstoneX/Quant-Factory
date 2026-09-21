@@ -252,15 +252,15 @@ def test_home_shows_factory_to_beta_boundary_while_milestone_23_is_pending() -> 
     assert model.milestone_status == (
         "Factory mechanics, essential dashboard pages, real saved-result connections, "
         "and the complete passive browser workflow are complete through Step 14. "
-        "Terry's Step 15 final dashboard and workflow acceptance is next; beta remains "
-        "Step 16."
+        "Terry accepted the corrected Step 15 dashboard workflow; bounded beta use is "
+        "active at Step 16."
     )
     assert (
         "complete passive browser workflow are complete through Step 14"
         in discovery
     )
-    assert "Terry's Step 15 final dashboard and workflow acceptance is next" in discovery
-    assert "New candidate and edge research are paused until beta" in discovery
+    assert "Terry accepted the corrected Step 15 dashboard workflow" in discovery
+    assert "New candidate and edge research remain paused during beta" in discovery
     assert (
         "Protected-data inspection, promotion, deployment, paper execution, and live "
         "trading remain blocked"

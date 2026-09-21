@@ -1111,3 +1111,31 @@ explicitly.
      README, `docs/CHAT_HANDOFF.md`, schemas, data records, deployment records,
      and runbooks are not applicable because no permanent operating rule,
      architecture, evidence, startup path, or runtime authority changed.
+
+303. **Accept Step 15 and begin bounded Step 16 beta use (accepted
+     2026-09-21).** PR #90 merged the three Decision 302 presentation
+     corrections at `9aa0bf3b83e70b922d47c4c2e5772ef3e779d708`. The private
+     review service was refreshed from that revision. A focused browser check
+     of the exact saved result showed readable UTC dates, dollar-formatted
+     initial capital, compact primary metrics, no page-level horizontal
+     overflow, and no browser errors. The saved review database checksum was
+     unchanged.
+
+     Terry's statement that the repaired workflow works great, conditioned
+     only on those now-verified corrections, completes Step 15. Step 16 begins
+     as economical owner use and defect-finding on the accepted workflow and
+     saved evidence. Fix only reproduced material beta defects. Do not create
+     beta infrastructure, start another candidate or dataset, deploy to
+     production, begin paper/live trading, or claim Milestone 23 closure or a
+     trading edge.
+
+     Documentation-impact assessment: `docs/MILESTONES.md`, this decision log,
+     `README.md`, the dashboard product requirements, the Milestone 23
+     acceptance record, the dashboard UI direction, the infrastructure
+     inventory, and `dashboard/project_status.py` are updated because the owner
+     checkpoint and trader-facing project status changed. Focused status-copy
+     tests are updated. `AGENTS.md`, the agent policy, ADRs,
+     `docs/CHAT_HANDOFF.md`, schemas, datasets, research records, deployment
+     records, and runbooks are not applicable because no permanent operating
+     rule, architecture, evidence, production runtime, or trading authority
+     changed.
