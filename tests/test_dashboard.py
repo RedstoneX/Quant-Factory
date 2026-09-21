@@ -722,6 +722,8 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
         "find-compare-results-link.style...find-compare-exact-link.href..."
         "find-compare-exact-link.style..",
         "..run-comparison-output.children...run-comparison-output.className..",
+        "selected-run-detail.children",
+        "..results-operator-context.children...results-operator-context.className..",
     }
 
     for output_key, metadata in app.callback_map.items():
@@ -1146,6 +1148,7 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
 
     assert ("selected-run-state", "data") in detail_inputs
     assert ("selected-run-selector", "value") in detail_inputs
+    assert ("url", "pathname") in detail_inputs
     assert ("launch-selected-run-configuration", "n_clicks") not in detail_inputs
     assert ("cancel-selected-run", "n_clicks") not in detail_inputs
     assert detail_inputs[("cancellation-message", "children")]["allow_optional"]
@@ -6295,6 +6298,59 @@ def test_dashboard_inspects_selected_run(tmp_path: Path, monkeypatch) -> None:
     assert "Research history" in str(panel)
 
 
+def test_hidden_results_callbacks_skip_large_detail_reconstruction(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService()
+    detail_adapter = _DashboardRunDetailAdapter()
+    data = _data()
+    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
+    app = create_app(
+        context,
+        tmp_path / "reviews.json",
+        run_service=service,
+        run_detail_adapter=detail_adapter,
+    )
+    mounted_detail = next(
+        component
+        for component in _walk_components(_resolved_layout(app))
+        if getattr(component, "id", None) == "selected-run-detail"
+    )
+    assert "Persisted performance metrics appear after selecting" in str(mounted_detail)
+    assert "Primary metrics" not in str(mounted_detail)
+
+    inspect = _callback_function(app, "selected-run-detail")
+    operator_context = _callback_function(app, "results-operator-context")
+    detail_adapter.requests.clear()
+
+    with pytest.raises(PreventUpdate):
+        inspect(
+            "run_dashboard_fixture",
+            "run_dashboard_fixture",
+            0,
+            0,
+            0,
+            0,
+            "/research/setup",
+        )
+    with pytest.raises(PreventUpdate):
+        operator_context(
+            "run_dashboard_fixture",
+            0,
+            None,
+            None,
+            "/research/setup",
+        )
+
+    assert detail_adapter.requests == []
+
+
 def test_selected_run_detail_dash_endpoint_renders_with_absent_detail_controls(
     tmp_path: Path,
     monkeypatch,
@@ -6344,6 +6400,11 @@ def test_selected_run_detail_dash_endpoint_renders_with_absent_detail_controls(
                     "value": None,
                 },
                 {"id": "recover-stale-runs", "property": "n_clicks", "value": 0},
+                {
+                    "id": "url",
+                    "property": "pathname",
+                    "value": "/research/backtest-results",
+                },
             ],
             "state": [],
         },

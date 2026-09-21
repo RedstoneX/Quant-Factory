@@ -10,8 +10,8 @@ ordered work, milestone scope, and acceptance.
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
 | Phase | Factory-to-beta completion is active under Decision 298. New edge-candidate research is paused until beta. |
 | Active work | Step 15: Terry's final dashboard and workflow acceptance checkpoint. |
-| Finding | Steps 12–14 passed. Terry directed work to continue after the page review; current `main` then opened real saved engine/filter results and passed the complete passive browser workflow without changing saved evidence. |
-| Next action | Give Terry the private clickable real-results review pages and obtain his final dashboard/workflow acceptance before beta. |
+| Finding | Steps 12–14 passed. Step 15 review then exposed a 10–15 second interaction delay: every route carried about 12.25 MB of hidden Results data and inactive callbacks rebuilt it. The bounded correction keeps the real mounted Results shell while loading its large saved charts only on the Results route; the initial package measured about 263 KB. |
+| Next action | Give Terry the corrected private real-results review page and obtain his final dashboard/workflow acceptance before beta. |
 | Blocked | New candidate research/backtests, data acquisition, open-ended optimization, protected-test inspection, automatic promotion, deployment, paper activation, futures execution, live trading, and portability work. |
 
 ## Product direction and boundaries
@@ -43,7 +43,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | Steps 4–14 of Decision 298 are complete. Filter mechanics merged through PR #82; essential dashboard reconciliation merged through PR #83. Terry completed the Step 12 direction checkpoint. Disposable current-`main` review copies then proved real saved results across every essential page and the complete passive browser workflow, including all three resize controls, responsive stacking, refresh, history traversal, exact Results/Compare reopening after a fresh process/browser, and unchanged database/artifact evidence. Step 15 final owner acceptance is active; Step 16 beta remains pending. |
+| R08 | 1 | in_progress | none | Steps 4–14 of Decision 298 are complete. Filter mechanics merged through PR #82; essential dashboard reconciliation merged through PR #83. Terry completed the Step 12 direction checkpoint. Disposable current-`main` review copies then proved real saved results across every essential page and the complete passive browser workflow. Step 15 review exposed and bounded the hidden Results-loading delay without changing saved evidence or the approved design. Final owner acceptance remains active; Step 16 beta remains pending. |
 <!-- active-work:end -->
 
 ## Owner-accepted factory-to-beta path

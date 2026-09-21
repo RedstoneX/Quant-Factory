@@ -274,4 +274,18 @@ operational history. Decision 275 selected a clean-history public snapshot,
 retaining only generalized incident continuity here and preserving the full
 record in a private read-only archive.
 
+### 2026-09-21 — Hidden Results loading delayed ordinary page interaction
+
+Impact: the real-saved-results review carried about 12.25 MB of hidden Results
+chart data on every route and inactive Results callbacks rebuilt that data,
+causing the browser to remain on “Updating…” and queue clicks for roughly
+10–15 seconds. The bounded correction retains ADR 0008's real mounted Results
+page and the approved design, but starts with its lightweight shell and loads
+large saved charts only while Results is active. The initial package measured
+about 263 KB after the correction. Focused callback, exact-link, and browser
+checks passed without changing saved research evidence. Rendering the full
+53,528-point saved Results view still takes materially longer than ordinary
+page navigation and is not claimed to be instant. Step 15 owner acceptance
+remains active.
+
 <!-- incident-history:end -->

@@ -1268,6 +1268,7 @@ def register_backtest_results_callbacks(
         Input("launch-message", "children"),
         Input("cancellation-message", "children", allow_optional=True),
         Input("stale-recovery-message", "children"),
+        Input("url", "pathname"),
     )
     def inspect_run(
         stored_run_id: str | None,
@@ -1276,7 +1277,10 @@ def register_backtest_results_callbacks(
         __: int,
         ___: int,
         ____: int,
+        pathname: str | None = "/research/backtest-results",
     ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
         run_id = stored_run_id or selected_run_id
         if not run_id:
             return _run_detail_panel(None)
@@ -1371,13 +1375,17 @@ def register_backtest_results_callbacks(
         Input("refresh-runs", "n_clicks"),
         Input("review-message", "children"),
         Input("stale-recovery-message", "children"),
+        Input("url", "pathname"),
     )
     def update_results_operator_context(
         run_id: str | None,
         _refresh_clicks: int,
         _review_message: object,
         _stale_recovery_message: object = None,
+        pathname: str | None = "/research/backtest-results",
     ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
         run_id = _persisted_selected_run_id(run_id)
         if not run_id:
             context = _results_operator_context(None)
