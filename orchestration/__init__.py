@@ -8,8 +8,22 @@ from orchestration.run_service import (
     RunServiceError,
     RunSummary,
 )
+from orchestration.filter_chain import (
+    FILTER_HANDOFF_ENVIRONMENT_KEY,
+    FactoryFilterChainService,
+    FilterChainOutcome,
+    FilterStageInvocationUnknownError,
+    FilterStageContext,
+    FilterStageHandoff,
+    PersistedStageReference,
+    VALIDATION_STAGE_ORDER,
+)
 from orchestration.research_launch_claims import (
+    CANDIDATE_SCREENING_LAUNCH_CONTRACT,
+    CANDIDATE_SCREENING_LAUNCH_POLICY,
+    CANDIDATE_SCREENING_REQUEST_PROTOCOL_VERSION,
     DurableResearchLaunchService,
+    FIXTURE_LAUNCH_CONTRACT,
     ResearchDispatchDecision,
     ResearchDispatchResult,
     ResearchLaunchClaim,
@@ -24,8 +38,21 @@ from orchestration.research_launch_claims import (
     new_dispatcher_instance_id,
     new_research_launch_key,
 )
+from orchestration.candidate_run_service import (
+    CandidateRunService,
+    CandidateScreeningAdapter,
+    CandidateScreeningLaunchResult,
+)
 
 __all__ = [
+    "FactoryFilterChainService",
+    "FILTER_HANDOFF_ENVIRONMENT_KEY",
+    "FilterChainOutcome",
+    "FilterStageInvocationUnknownError",
+    "FilterStageContext",
+    "FilterStageHandoff",
+    "PersistedStageReference",
+    "VALIDATION_STAGE_ORDER",
     "FixtureRunService",
     "RunLaunchResult",
     "RunReproductionResult",
@@ -33,6 +60,10 @@ __all__ = [
     "RunServiceError",
     "RunSummary",
     "DurableResearchLaunchService",
+    "FIXTURE_LAUNCH_CONTRACT",
+    "CANDIDATE_SCREENING_LAUNCH_CONTRACT",
+    "CANDIDATE_SCREENING_LAUNCH_POLICY",
+    "CANDIDATE_SCREENING_REQUEST_PROTOCOL_VERSION",
     "ResearchDispatchDecision",
     "ResearchDispatchResult",
     "ResearchLaunchClaim",
@@ -46,4 +77,7 @@ __all__ = [
     "ResearchLaunchRequest",
     "new_dispatcher_instance_id",
     "new_research_launch_key",
+    "CandidateRunService",
+    "CandidateScreeningAdapter",
+    "CandidateScreeningLaunchResult",
 ]

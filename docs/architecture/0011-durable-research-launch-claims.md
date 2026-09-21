@@ -25,6 +25,24 @@
   proof, complete Milestone 23 workflow evidence, renewed Results acceptance,
   or milestone completion.
 
+## Decision 304 candidate-screening extension
+
+Decision 304 extends the existing schema-5 claim mechanism without a database
+migration. The original fixture request protocol, launch policy, stage, event
+text, service, and tests remain the default contract. A separate explicit
+candidate-screening contract requires an active `candidate` strategy record,
+creates a `screening` run, and records a distinct protocol and launch policy.
+
+The candidate service accepts an injected strategy adapter that must bind the
+durable claim before its work can be acknowledged. Owner approval of the named
+strategy and fixed evidence boundaries remains a caller and project-governance
+prerequisite; it is not inferred by the callable interface. The extension does
+not make Ideas executable, expose candidate launch in the
+dashboard, choose a strategy, load market data, run a backtest, promote a
+result, inspect protected data, or authorize paper/live trading. An adapter
+failure after the invocation marker remains `submission_unknown` and cannot be
+automatically reinvoked, preserving the original fail-closed guarantee.
+
 > **Acceptance boundary:** On 2026-09-18 Terry approved the safer run-ticket
 > design in plain language: Quant Factory must save an accepted run identity
 > before launch so refreshes and retries cannot silently duplicate or lose a
