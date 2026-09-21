@@ -17,15 +17,18 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=23,
     current_milestone_title="End-to-End Equity Research Factory Acceptance",
     current_milestone_status=(
-        "Pending; the narrow Results correction is merged, while target and operator "
-        "proof remain."
+        "Factory mechanics and essential dashboard pages are complete for this bounded "
+        "Step 11 path; Terry's Step 12 direction review is next. Real saved "
+        "filter-result connection, full workflow proof, final acceptance, and beta "
+        "remain in Steps 13–16."
     ),
     strategy_status=(
-        "Controlled research is active only for owner-approved, source-attributed "
-        "hypotheses with predeclared evidence boundaries."
+        "New candidate and edge research are paused until beta; deterministic factory "
+        "mechanics and essential dashboard pages are complete for this bounded path."
     ),
     workspace_status=(
-        "Protected tests, promotion, paper execution, and live trading remain blocked. "
+        "Protected-data inspection, promotion, deployment, paper execution, and live "
+        "trading remain blocked; their later authority and evidence gates still apply. "
         "The selected-run R07 correction is merged but not deployed or operator-accepted."
     ),
     home_subtitle="Your strategy research workspace.",

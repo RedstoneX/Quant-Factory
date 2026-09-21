@@ -342,6 +342,12 @@ def _select(page, selector, label, index=0):
     page.locator(".dash-options-list-option-text", has_text=label).nth(index).click()
 
 
+def _select_compare_run(page, run_id: str) -> None:
+    row = page.locator(f'#find-compare-grid .ag-row[row-id="{run_id}"]')
+    expect(row).to_have_count(1)
+    row.locator(".ag-selection-checkbox").click()
+
+
 def _assert_route(page, base_url, path, container):
     expect(page).to_have_url(base_url + path)
     expect(page.locator(f"#{container}")).to_be_visible()
@@ -801,6 +807,7 @@ def test_run_history_grid_opens_older_run_and_survives_refresh(
         pending_requests = _attach_diagnostics(page, events, action)
         try:
             page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
+            page.locator(".results-change-run-history summary").click()
             expect(page.locator("#run-history-grid")).to_be_visible(timeout=10000)
             _wait_for_callbacks_to_settle(page, pending_requests)
             page.evaluate(
@@ -908,6 +915,9 @@ def test_compare_renders_independent_quartets_in_browser(
                 base_url + "/research/compare-backtests",
                 wait_until="networkidle",
             )
+            _select_compare_run(page, target_run_id)
+            _select_compare_run(page, peer_run_id)
+            page.locator("#find-compare-exact-link").click()
             reviewed_context = page.locator(
                 f'#comparison-operator-contexts [data-run-id="{target_run_id}"]'
             )
@@ -972,6 +982,9 @@ def test_results_owns_reproduction_without_mutating_compare_selection(
                 base_url + "/research/compare-backtests",
                 wait_until="networkidle",
             )
+            _select_compare_run(page, source_run_id)
+            _select_compare_run(page, "browser_comparison_peer")
+            page.locator("#find-compare-exact-link").click()
             expect(page.locator(".compare-run-card")).to_have_count(2, timeout=10000)
             original_compare_ids = page.locator(".compare-run-card").evaluate_all(
                 "cards => cards.map((card) => card.dataset.runId)"
@@ -1006,7 +1019,11 @@ def test_results_owns_reproduction_without_mutating_compare_selection(
             ) as selector_refresh:
                 page.locator("#reproduce-selected-run").click()
             expect(page.locator("#reproduction-message")).to_contain_text(
-                f"Reproduced {source_run_id} as",
+                "Submission: Acknowledged",
+                timeout=60000,
+            )
+            expect(page.locator("#reproduction-message")).to_contain_text(
+                "Run status: Succeeded",
                 timeout=60000,
             )
             reproduced_id = page.locator(
@@ -1038,7 +1055,7 @@ def test_results_owns_reproduction_without_mutating_compare_selection(
             )
 
             action["name"] = "return to independently selected Compare runs"
-            page.locator("#navigation-link-research-compare-backtests").click()
+            page.go_back(wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
             expect(page.locator(".compare-run-card")).to_have_count(2, timeout=10000)
             assert page.locator(".compare-run-card").evaluate_all(

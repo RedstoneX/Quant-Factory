@@ -240,7 +240,7 @@ def test_home_recent_failure_takes_precedence_over_active_run() -> None:
     )
 
 
-def test_home_shows_controlled_research_boundary_while_milestone_23_is_pending() -> None:
+def test_home_shows_factory_to_beta_boundary_while_milestone_23_is_pending() -> None:
     model = build_home_view_model(
         recent_runs=(_run("first", "succeeded"), _run("second", "succeeded")),
         as_of=NOW,
@@ -249,11 +249,21 @@ def test_home_shows_controlled_research_boundary_while_milestone_23_is_pending()
     discovery = _text(_component(page, "home-discovery-gate"))
 
     assert model.milestone.startswith("Milestone 23")
-    assert model.milestone_status == "Pending; controlled research exception active."
-    assert "Controlled research active" in discovery
-    assert "owner-approved, source-attributed hypotheses" in discovery
+    assert model.milestone_status == (
+        "Factory mechanics and essential dashboard pages are complete for this bounded "
+        "Step 11 path; Terry's Step 12 direction review is next. Real saved "
+        "filter-result connection, full workflow proof, final acceptance, and beta "
+        "remain in Steps 13–16."
+    )
     assert (
-        "Protected tests, promotion, paper execution, and live trading remain blocked"
+        "essential dashboard pages are complete for this bounded Step 11 path"
+        in discovery
+    )
+    assert "Terry's Step 12 direction review is next" in discovery
+    assert "New candidate and edge research are paused until beta" in discovery
+    assert (
+        "Protected-data inspection, promotion, deployment, paper execution, and live "
+        "trading remain blocked"
         in discovery
     )
     assert model.action.label == "Continue to Compare"
