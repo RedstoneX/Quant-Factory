@@ -1013,3 +1013,23 @@ explicitly.
      deployment, or runbook changes because architecture and executable
      behavior are unchanged. `docs/CHAT_HANDOFF.md` is not applicable because
      it already sends every new session to the synchronized Tier 1 authorities.
+
+299. **Step 12 dashboard direction checkpoint completed; continue to the
+     real-results workflow proof (accepted 2026-09-21).** After the restored
+     clickable dashboard review was available, Terry explicitly directed
+     Codex to proceed. This completes Decision 298 Step 12 and authorizes the
+     already-defined Steps 13–14 work: connect the essential pages to existing
+     real saved engine/filter results and prove the complete browser workflow.
+     It is not final dashboard/workflow acceptance, beta entry, deployment,
+     new research, an edge claim, or paper/live authority. Step 15 remains
+     Terry's final acceptance checkpoint.
+
+     Documentation-impact assessment: `docs/MILESTONES.md`, this decision log,
+     `README.md`, the dashboard product requirements, the Milestone 23
+     acceptance record, and `dashboard/project_status.py` are updated because
+     the active checkpoint and measured completion status changed. `AGENTS.md`
+     and the agent policy are not applicable because no permanent operating or
+     allocation rule changed. No ADR, schema, runbook, data record, deployment
+     record, or `docs/CHAT_HANDOFF.md` change applies because architecture,
+     data, runtime, deployment, startup navigation, and trading authority are
+     unchanged. `CLAUDE.md` and `.claude/**` remain untouched.

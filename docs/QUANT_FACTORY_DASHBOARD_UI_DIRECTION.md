@@ -1,15 +1,16 @@
 # Quant Factory Dashboard UI Direction
 
-- **Status:** Essential surfaces reviewed and reconciled through Decision 298
-  Step 11; Step 12 owner direction review is next
+- **Status:** Essential surfaces and the real-saved-result browser workflow are
+  complete through Decision 298 Step 14; Step 15 final owner acceptance is next
 - **Owner direction accepted:** 2026-09-18
 - **Objective implementation and browser evidence:** Focused Step 11 evidence
-  passed; Steps 13–15 remain pending
+  and the Steps 13–14 real-saved-result browser proof passed; Step 15 remains
+  pending
 
-> **Current sequencing (Decision 298):** Essential-page review and
-> reconciliation are complete through Step 11. Step 12 is the owner's
-> clickable direction review. Real saved-result connections, complete workflow
-> proof, final acceptance, and beta remain Steps 13–16.
+> **Current sequencing (Decisions 298–299):** Essential-page work and the
+> real-saved-result browser workflow are complete through Step 14. Step 15 is
+> the owner's final dashboard/workflow acceptance checkpoint; beta remains
+> Step 16.
 
 ## Purpose and authority
 
