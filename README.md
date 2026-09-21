@@ -36,7 +36,9 @@ dashboard remains available for bounded beta use. Decision 304's two bounded
 factory connections merged through PR #92: candidate screening now has its own
 durable launch boundary, and later filters have one persisted stop-or-advance
 coordinator. No real candidate ran and no data was acquired. The next step is
-an owner-reviewed candidate proposal, not execution.
+to identify one genuinely unfinished factory-to-beta requirement from existing
+evidence. The repeated MSFT ORB proposal is withdrawn; no candidate research is
+active.
 
 Decision 298 sets the current order: reconcile and prove the remaining filter
 mechanics with saved evidence or deterministic fixtures → verify stop/advance

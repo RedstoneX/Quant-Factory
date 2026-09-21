@@ -8,10 +8,10 @@ ordered work, milestone scope, and acceptance.
 | Item | Current truth |
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
-| Phase | Decision 304's reusable factory connections merged through PR #92. One bounded MSFT five-minute ORB transfer proposal is ready for owner review; it has not been implemented or run. |
-| Active work | Wait for Terry to approve, change or decline the fixed MSFT proposal. |
-| Finding | MSFT five-minute data is the only suitable unused equity history already owned. The proposal is a clearly limited single-stock transfer of published cross-stock ORB research, not a claimed edge or reproduction. |
-| Next action | Terry reviews the named candidate, fixed rule, costs, evidence periods, limitations and stop conditions in `docs/strategies/msft-five-minute-orb-transfer.md`. |
+| Phase | The reusable factory connections and accepted dashboard workflow are merged. The repeated MSFT ORB proposal is withdrawn; no candidate research is active. |
+| Active work | Reconcile the genuinely unfinished factory-to-beta requirements from existing evidence before spending on another build or test. |
+| Finding | The MSFT rule differed technically, but another ORB test did not establish a new factory requirement; Terry withdrew it as unnecessary repeated strategy-family work. |
+| Next action | Present one concise remaining-build list that names the unresolved requirement, why existing work does not close it, and the cheapest sufficient action. |
 | Blocked | Candidate implementation or execution, data acquisition, protected-test inspection, automatic promotion, deployment, paper/live activation, and portability remain unauthorized. |
 
 ## Product direction and boundaries
@@ -42,8 +42,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R10 | 1 | in_progress | none | One fixed MSFT five-minute ORB transfer proposal is recorded for owner approval; implementation and execution remain blocked. |
-| R08 | 2 | pending | none | Continue economical owner beta use in parallel; only reproduced material dashboard defects qualify as beta work. |
+| R08 | 1 | in_progress | none | Bounded owner beta remains available; reconcile only genuinely unfinished factory-to-beta requirements and fix only reproduced material defects. |
 <!-- active-work:end -->
 
 ## Owner-accepted factory-to-beta path
@@ -74,7 +73,7 @@ drafts.
 | 15. Obtain Terry's final dashboard and workflow acceptance | Done | Terry reported the repaired workflow works great. PR #90 merged the three final presentation corrections and the focused private-page check passed without changing saved evidence. |
 | 16. Begin beta testing | Accepted; active work redirected | Economical owner use remains available. Decision 304 redirects current build work to the two missing factory connections without reopening the accepted dashboard. |
 | 16A. Complete the reusable factory connections | Done | PR #92 merged at `02c46f6041e32ce12e7f3359273b79a7c506e38b` after 103 focused checks, required CI, adversary review, and independent review passed. This did not run a real candidate. |
-| 17. Test real strategies for an edge | Proposal ready; owner decision required | The fixed MSFT five-minute ORB transfer proposal is documented. Nothing is implemented or run until Terry approves, changes or declines it. |
+| 17. Test real strategies for an edge | Paused; no active candidate | The repeated MSFT ORB proposal is withdrawn. Do not propose another candidate until a genuinely new need is identified and Terry chooses to resume edge research. |
 | 18. Consider paper trading | Gated | Only a qualified edge that survives every filter can approach the separate paper gates. |
 
 ## Milestone roadmap
@@ -86,7 +85,7 @@ Milestones 1–22 are complete.
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
 | 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Steps 10–15 complete; Step 16 bounded beta active; full gate not yet closed** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; portability, deployment and activation dormant |
-| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Reusable connections merged; bounded candidate proposal is next** |
+| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Reusable connections merged; no active candidate** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
 | 27 | Alpaca Micro-Live Proof and Independent Risk Sentinel | Separate approval, isolated live domain, independent supervision, and failure acceptance | Pending; far future |
 | 28–30 | Compliant crypto proof and multi-venue V1 | Legal and operational eligibility, isolated adapters, evidence, reconciliation, and recovery | Deferred |
@@ -107,8 +106,10 @@ is retained for later use; it is not the current queue.
 
 Decision 304's reusable candidate-screening claim and persisted filter handoff
 merged through PR #92. Their deterministic proof is infrastructure evidence,
-not profitability work. The next candidate still requires explicit owner
-approval of the named hypothesis and predeclared evidence boundaries.
+not profitability work. Decision 306 withdraws the repeated MSFT ORB proposal
+and requires a verified new need before another candidate proposal. Any later
+candidate still requires explicit owner approval of the named hypothesis and
+predeclared evidence boundaries.
 
 ### Milestone 23
 
@@ -277,10 +278,13 @@ and an independent Risk Sentinel.
   20 relative-volume stocks. The proposed long-only MSFT test is therefore
   explicitly a transfer test, not a reproduction or evidence of an MSFT edge.
 - The exact proposal, costs, 60/20/20 chronological dates, stop rules and
-  limitations are recorded in
+  limitations remain recorded in
   [`docs/strategies/msft-five-minute-orb-transfer.md`](strategies/msft-five-minute-orb-transfer.md).
-  Status: proposed and awaiting Terry's decision; no code, data acquisition,
-  backtest, protected-period inspection, deployment or trading occurred.
+  Status: withdrawn under Decision 306. Its published rule differed from MES,
+  but it did not close a new factory requirement and Terry judged another ORB
+  proposal unnecessary repeated strategy-family work. No adapter, data
+  acquisition, backtest, protected-period inspection, deployment or trading
+  occurred.
 
 ### Find & Compare — 2026-09-20
 
