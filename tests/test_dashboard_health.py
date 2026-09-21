@@ -335,7 +335,7 @@ def test_system_health_uses_read_only_database_and_artifact_checks(tmp_path: Pat
     assert "research state database does not exist" in rendered
     assert "configured artifact location does not exist" in rendered
     assert "Orchestrator" in rendered and "Not checked" in rendered
-    assert "New candidate and edge research are paused until beta" in rendered
+    assert "New candidate and edge research remain paused during beta" in rendered
     assert (
         "Protected-data inspection, promotion, deployment, paper execution, and live "
         "trading remain blocked"

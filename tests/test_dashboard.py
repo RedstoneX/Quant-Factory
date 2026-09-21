@@ -1308,8 +1308,8 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         "complete passive browser workflow are complete through Step 14"
         in home_text
     )
-    assert "Terry's Step 15 final dashboard and workflow acceptance" in home_text
-    assert "New candidate and edge research are paused until beta" in home_text
+    assert "Terry accepted the corrected Step 15 dashboard workflow" in home_text
+    assert "New candidate and edge research remain paused during beta" in home_text
     assert (
         "Protected-data inspection, promotion, deployment, paper execution, and live "
         "trading remain blocked"
@@ -1354,8 +1354,8 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     system = page_for_path("/system", context)
     system_text = _component_text(system)
     assert system.className == "page-container"
-    assert "New candidate and edge research are paused until beta" in system_text
-    assert "essential dashboard pages are complete for this bounded path" in system_text
+    assert "New candidate and edge research remain paused during beta" in system_text
+    assert "use saved results to find and correct demonstrated workflow defects" in system_text
     assert (
         "Protected-data inspection, promotion, deployment, paper execution, and live "
         "trading remain blocked"
@@ -1663,7 +1663,7 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
     assert "No selected, active, or persisted run is available yet." in rendered
     assert "No recent failures require attention." in rendered
     assert rendered.count("Not checked") >= 12
-    assert "New candidate and edge research are paused until beta" in rendered
+    assert "New candidate and edge research remain paused during beta" in rendered
     assert "P&L" not in rendered
     assert "profit" not in rendered.lower()
     action = next(

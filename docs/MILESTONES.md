@@ -8,11 +8,11 @@ ordered work, milestone scope, and acceptance.
 | Item | Current truth |
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
-| Phase | Factory-to-beta completion is active under Decision 298. New edge-candidate research is paused until beta. |
-| Active work | Step 15: complete Terry's three final Results presentation corrections, then verify them on the private review page. |
-| Finding | Terry reported that the repaired workflow works great. He requested only a readable test period, dollar-formatted initial capital, and a denser primary-metrics summary before proceeding. |
-| Next action | Merge and refresh those bounded presentation corrections, verify the private review page, then record Step 15 acceptance and begin bounded beta defect-finding in Step 16. |
-| Blocked | Step 16 waits only for those three corrections and the focused page check. New candidate research/backtests, data acquisition, optimization, protected-test inspection, automatic promotion, production deployment, paper/live activation, and portability remain blocked. |
+| Phase | Step 16 bounded beta use is active under Decisions 298 and 303. New edge-candidate research remains paused during beta. |
+| Active work | Use the accepted workflow with saved evidence and correct only demonstrated beta defects. |
+| Finding | PR #90 merged the three final Results presentation corrections at `9aa0bf3b83e70b922d47c4c2e5772ef3e779d708`. The private page showed readable UTC dates, `$10,000.00` initial capital, compact metrics, no page-level horizontal overflow, no browser errors, and an unchanged saved database. Step 15 is accepted. |
+| Next action | Terry uses the private dashboard normally to inspect saved results and reports the first material beta defect; Codex investigates only a reproduced blocker. |
+| Blocked | Step 17 candidate research waits for beta completion. New candidate backtests, data acquisition, optimization, protected-test inspection, automatic promotion, production deployment, paper/live activation, and portability remain blocked. |
 
 ## Product direction and boundaries
 
@@ -43,7 +43,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | Steps 4–14 are complete. Terry reported that repaired Results works great and requested three final presentation corrections: readable dates, dollar-formatted initial capital, and denser primary metrics. Step 15 becomes accepted only after those corrections merge and pass the private-page check; Step 16 has not begun. |
+| R08 | 1 | in_progress | none | Steps 4–15 are complete. Terry accepted the corrected workflow, PR #90 merged the final presentation corrections, and the private-page check passed. Step 16 bounded beta use is active; candidate research remains paused. |
 <!-- active-work:end -->
 
 ## Owner-accepted factory-to-beta path
@@ -71,8 +71,8 @@ drafts.
 | 12. Show Terry each working dashboard page | Done | Terry directed work to proceed after the restored clickable page review. This completed the direction checkpoint only, not final acceptance. |
 | 13. Connect every essential page to real saved engine and filter results | Done | Current `main` opened the preserved SPYM candidate plus a consistent private snapshot containing 45 real saved runs; Setup, Run History, Results, Evidence, Find & Compare, and System all read the existing persistence and evidence services truthfully. No research was rerun. |
 | 14. Test the complete browser workflow | Done | Passive real-browser proof covered Home → Ideas → Setup → Run test → Results → Find & Compare plus System; all three Results resize controls, reset, responsive stacking, refresh, back/forward, exact links, and fresh process/browser reopening passed with clean diagnostics. Database content and artifacts remained unchanged. |
-| 15. Obtain Terry's final dashboard and workflow acceptance | Owner checkpoint — final corrections active | Terry reported the repaired workflow works great and requested only readable dates, dollar-formatted initial capital, and denser primary metrics. Acceptance becomes final after those corrections merge and pass the private-page check. |
-| 16. Begin beta testing | Pending | After Step 15 closes, begin economical owner defect-finding on the accepted workflow and saved evidence; do not add beta infrastructure or start candidate research. |
+| 15. Obtain Terry's final dashboard and workflow acceptance | Done | Terry reported the repaired workflow works great. PR #90 merged the three final presentation corrections and the focused private-page check passed without changing saved evidence. |
+| 16. Begin beta testing | Active | Economical owner use and defect-finding on the accepted workflow and saved evidence; do not add beta infrastructure or start candidate research. |
 | 17. Test real strategies for an edge | Gated until after beta | Use source-attributed, owner-approved candidates with fixed evidence boundaries. |
 | 18. Consider paper trading | Gated | Only a qualified edge that survives every filter can approach the separate paper gates. |
 
@@ -83,9 +83,9 @@ Milestones 1–22 are complete.
 | # | Milestone | Acceptance summary | Status |
 |---:|---|---|---|
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
-| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Steps 10–14 complete; Step 15 final owner acceptance active** |
+| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Steps 10–15 complete; Step 16 bounded beta active; full gate not yet closed** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; portability, deployment and activation dormant |
-| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Factory proof in progress; new candidate research is paused until beta** |
+| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Factory beta active; new candidate research is paused during beta** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
 | 27 | Alpaca Micro-Live Proof and Independent Risk Sentinel | Separate approval, isolated live domain, independent supervision, and failure acceptance | Pending; far future |
 | 28–30 | Compliant crypto proof and multi-venue V1 | Legal and operational eligibility, isolated adapters, evidence, reconciliation, and recovery | Deferred |
@@ -136,8 +136,10 @@ Current slices:
 - **23C-3 — Browser/operator acceptance:** three focused lifecycle corrections
   passed in a real browser through PR #83. Terry completed the Step 12
   direction checkpoint, and the current-`main` real-saved-result and complete
-  passive browser workflow proof passed for Steps 13–14. Step 15 final owner
-  acceptance remains pending.
+  passive browser workflow proof passed for Steps 13–14. Terry accepted the
+  corrected workflow after PR #90's final presentation corrections passed on
+  the private review page. Step 16 beta is active; the broader Milestone 23
+  gate remains open.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
   cancellation, stale-recovery, missing-artifact, and corrupt-lineage coverage.
 - **23E — Gate decision:** record an explicit pass or fail after all criteria.
@@ -186,8 +188,8 @@ and an independent Risk Sentinel.
   the narrow R07 usability correction using the existing page; it merged
   through PR #70 at `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after
   focused, portable real-browser, independent-review, and required-CI evidence
-  passed. It is not deployed, target-validated, renewed-owner-accepted, full
-  beta, or Milestone 23 completion. Final
+  passed. The corrected private review workflow is now owner-accepted; it is
+  not production-deployed, full beta completion, or Milestone 23 completion. Final
   palette selection remains deferred.
 - **Multi-run analysis:** hundreds or thousands of persisted runs must be
   aggregated, sliced, ranked, filtered, and selected by return, drawdown,

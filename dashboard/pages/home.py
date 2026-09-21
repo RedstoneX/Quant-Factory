@@ -165,10 +165,10 @@ def build_home_view_model(
         discovery_gate=(
             "Factory mechanics, essential dashboard pages, real saved-result "
             "connections, and the complete passive browser workflow are complete "
-            "through Step 14. Terry's Step 15 final dashboard and workflow acceptance "
-            "is next; beta remains Step 16. New candidate and edge research are paused "
-            "until beta. Protected-data inspection, promotion, deployment, paper "
-            "execution, and live trading remain blocked."
+            "through Step 14. Terry accepted the corrected Step 15 dashboard workflow; "
+            "bounded beta use is active at Step 16. New candidate and edge research "
+            "remain paused during beta. Protected-data inspection, promotion, "
+            "deployment, paper execution, and live trading remain blocked."
         ),
         health=health,
         run=_run_view(run),

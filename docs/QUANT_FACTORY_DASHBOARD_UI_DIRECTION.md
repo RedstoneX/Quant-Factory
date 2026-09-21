@@ -1,16 +1,15 @@
 # Quant Factory Dashboard UI Direction
 
 - **Status:** Essential surfaces and the real-saved-result browser workflow are
-  complete through Decision 298 Step 14; Step 15 final owner acceptance is next
+  owner-accepted through Step 15; Step 16 bounded beta use is active
 - **Owner direction accepted:** 2026-09-18
 - **Objective implementation and browser evidence:** Focused Step 11 evidence
-  and the Steps 13–14 real-saved-result browser proof passed; Step 15 remains
-  pending
+  and the Steps 13–14 real-saved-result browser proof passed; PR #90's final
+  presentation corrections passed on the private review page and Step 15 is accepted
 
-> **Current sequencing (Decisions 298–299):** Essential-page work and the
-> real-saved-result browser workflow are complete through Step 14. Step 15 is
-> the owner's final dashboard/workflow acceptance checkpoint; beta remains
-> Step 16.
+> **Current sequencing (Decisions 298 and 303):** Essential-page work and the
+> real-saved-result browser workflow are accepted through Step 15. Step 16
+> bounded beta use is active; candidate research remains paused.
 
 ## Purpose and authority
 

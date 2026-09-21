@@ -19,17 +19,18 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_status=(
         "Factory mechanics, essential dashboard pages, real saved-result connections, "
         "and the complete passive browser workflow are complete through Step 14. "
-        "Terry's Step 15 final dashboard and workflow acceptance is next; beta remains "
-        "Step 16."
+        "Terry accepted the corrected Step 15 dashboard workflow; bounded beta use is "
+        "active at Step 16."
     ),
     strategy_status=(
-        "New candidate and edge research are paused until beta; deterministic factory "
-        "mechanics and essential dashboard pages are complete for this bounded path."
+        "New candidate and edge research remain paused during beta; use saved results "
+        "to find and correct demonstrated workflow defects first."
     ),
     workspace_status=(
         "Protected-data inspection, promotion, deployment, paper execution, and live "
         "trading remain blocked; their later authority and evidence gates still apply. "
-        "The selected-run R07 correction is merged but not deployed or operator-accepted."
+        "The selected-run workflow is owner-accepted on the private review service, not "
+        "production-deployed and not a claim of a trading edge."
     ),
     home_subtitle="Your strategy research workspace.",
 )

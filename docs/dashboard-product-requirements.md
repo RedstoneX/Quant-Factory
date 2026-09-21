@@ -1,9 +1,9 @@
 # Quant Factory Dashboard Product Requirements
 
-> **Current sequencing (Decisions 298–299):** Essential dashboard work and the
-> real-saved-result browser workflow are complete through Step 14. Step 15 is
-> Terry's final dashboard/workflow acceptance checkpoint. This does not
-> authorize deployment, broad polish, or beta before that checkpoint passes.
+> **Current sequencing (Decisions 298 and 303):** Essential dashboard work and
+> the real-saved-result browser workflow are accepted through Step 15. Step 16
+> bounded beta use is active. This does not authorize deployment, broad polish,
+> new candidate research, or paper/live trading.
 
 ## Product role
 

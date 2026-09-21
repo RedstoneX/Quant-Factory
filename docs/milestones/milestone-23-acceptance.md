@@ -1,9 +1,8 @@
 # Milestone 23 Acceptance
 
-> **Current sequencing (Decisions 298–299):** Essential dashboard work and the
-> real-saved-result browser workflow are complete through Step 14. Step 15 is
-> Terry's final dashboard/workflow acceptance checkpoint; beta remains Step 16.
-> Never deploy merely to prove deployment.
+> **Current sequencing (Decisions 298 and 303):** Essential dashboard work and
+> the real-saved-result browser workflow are accepted through Step 15. Step 16
+> bounded beta use is active. Never deploy merely to prove deployment.
 
 Milestone 23 proves the complete equity research workflow before any strategy
 can advance toward paper activation. Decision 287 narrowly permits controlled,
@@ -98,7 +97,7 @@ research-computation behavior is not misrepresented as a completed cache.
       review without Python, terminal, raw JSON/CSV, or SQLite.
 - [ ] Failures explain impact and the next safe action.
 - [ ] Documentation and `dashboard/project_status.py` agree.
-- [ ] The project owner explicitly accepts the implemented replacement
+- [x] The project owner explicitly accepts the implemented replacement
       Results-page experience after the detailed-design, browser, and workflow
       evidence is available.
 - [ ] The Milestone 23 gate result is recorded after every remaining objective
@@ -191,12 +190,10 @@ research-computation behavior is not misrepresented as a completed cache.
   behavior, beta entry, final owner acceptance, or the unchecked full
   Milestone 23 launch/reproduce/review criteria.
 
-### Step 15 owner review checklist — active 2026-09-21
+### Step 15 owner review checklist — accepted 2026-09-21
 
-Terry directed Codex to pause all further work until he explicitly approves
-resumption. The corrected private review page is available, but Step 15 has not
-passed. The owner will test these actions in order and report the first failed
-step:
+Terry initially directed Codex to pause until he reviewed the corrected private
+page. The owner used this checklist:
 
 1. Open the current private complete-dashboard review page and refresh once.
 2. Open **Set up** and confirm the page changes within a few seconds.
@@ -228,6 +225,13 @@ primary-metrics summary. This is conditional Step 15 acceptance: it becomes
 final only after those exact corrections merge and pass a focused check on the
 private review page. It does not authorize a new candidate, new data,
 deployment, paper/live trading, or a claim of profitability.
+
+PR #90 then merged those exact corrections at
+`9aa0bf3b83e70b922d47c4c2e5772ef3e779d708`. The refreshed private page showed
+readable UTC dates, dollar-formatted initial capital, compact metrics, no
+page-level horizontal overflow, and no browser errors. The saved review
+database checksum remained unchanged. Decision 303 records final Step 15
+acceptance and the bounded start of Step 16 beta.
 
 ## Target-evidence audit — 2026-09-18
 
@@ -351,5 +355,17 @@ first Results opening took about 13.5 seconds, changing Bars about 1.45 seconds,
 and selecting a trade about 1.18 seconds. The temporary diagnostic service and
 worktree were removed. Terry's retest and explicit Step 15 acceptance remain
 required.
+
+### 2026-09-21 — Results workflow accepted and bounded beta began
+
+Impact: Terry reported that the repaired workflow works great and requested
+only three final presentation corrections. PR #90 merged readable test dates,
+dollar-formatted initial capital, and a compact primary-metrics summary at
+`9aa0bf3b83e70b922d47c4c2e5772ef3e779d708`. The private review service was
+refreshed; the exact saved run displayed all three corrections with no browser
+errors or page-level horizontal overflow, and the saved database checksum was
+unchanged. Step 15 is accepted and Step 16 bounded beta use is active. This is
+not production deployment, Milestone 23 closure, an edge claim, or authority
+for new candidate research or paper/live trading.
 
 <!-- incident-history:end -->
