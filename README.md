@@ -26,10 +26,13 @@ essential dashboard workflow through beta before testing another real strategy
 for an edge. The SPYM run proved the licensed engine, durable results, first
 filter, and dashboard reopening; its weak strategy row correctly screened out.
 The remaining filter mechanics and essential dashboard-page reconciliation are
-now merged. Step 12 is Terry's clickable direction review; real saved-result
-connections, complete workflow proof, final acceptance, and beta remain Steps
-13–16 in [MILESTONES](docs/MILESTONES.md). No new candidate run or data
-acquisition is part of that path.
+merged. Terry completed the Step 12 direction checkpoint, and Steps 13–14 then
+passed against private disposable copies of real saved results: every essential
+page opened existing evidence and the complete passive browser workflow retained
+navigation, resizing, responsive layout, exact reopening, and saved identity.
+Step 15 final owner acceptance is now active; beta remains Step 16 in
+[MILESTONES](docs/MILESTONES.md). No new candidate run or data acquisition is
+part of that path.
 
 Decision 298 sets the current order: reconcile and prove the remaining filter
 mechanics with saved evidence or deterministic fixtures → verify stop/advance

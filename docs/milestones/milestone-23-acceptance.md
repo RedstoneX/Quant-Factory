@@ -1,10 +1,9 @@
 # Milestone 23 Acceptance
 
-> **Current sequencing (Decision 298):** Essential dashboard review and
-> reconciliation are complete through Step 11. Step 12 is Terry's clickable
-> direction review. Real saved-result connections, the complete browser
-> workflow, final acceptance, and beta remain Steps 13–16. Never deploy merely
-> to prove deployment.
+> **Current sequencing (Decisions 298–299):** Essential dashboard work and the
+> real-saved-result browser workflow are complete through Step 14. Step 15 is
+> Terry's final dashboard/workflow acceptance checkpoint; beta remains Step 16.
+> Never deploy merely to prove deployment.
 
 Milestone 23 proves the complete equity research workflow before any strategy
 can advance toward paper activation. Decision 287 narrowly permits controlled,
@@ -86,7 +85,7 @@ research-computation behavior is not misrepresented as a completed cache.
 - [ ] Bars and View controls remain distinct; truthful aggregation produces the
       expected persisted-fixture counts and preserves exact trade-event
       timestamps and prices while markers map to containing bars.
-- [ ] Desktop chart/report edges resize and reset without losing selected state;
+- [x] Desktop chart/report edges resize and reset without losing selected state;
       Metrics and Trades have no nested vertical scrolling, the page retains
       comfortable bottom breathing room, and responsive layouts stack chart
       then report.
@@ -157,6 +156,40 @@ research-computation behavior is not misrepresented as a completed cache.
 - The change corrected Decision 298 status text and old checks that still
   expected pre-approved behavior. It did not implement Steps 13–16, deploy the
   application, prove a trading edge, or establish owner acceptance.
+
+### Decision 298 Steps 12–14 evidence — 2026-09-21
+
+- Terry explicitly directed work to proceed after the restored clickable page
+  review. Decision 299 records this as completion of the Step 12 direction
+  checkpoint, not final dashboard/workflow acceptance.
+- Current `main` at `e3c990a2ee5d63dc7a87df69f5b56bd57f5ddf40` opened an
+  owner-private disposable copy of the preserved Decision 296 SPYM result. The
+  exact saved run, chart, 133 trades, costs, screening outcome, rejection
+  reasons, and evidence limitations rendered without browser errors. All seven
+  registered artifacts remained unchanged.
+- A transactionally consistent SQLite backup plus copied artifacts from the
+  preserved research runtime supplied 45 real saved runs, including 42
+  successful runs and 154 registered artifacts. All 154 artifact files matched
+  their recorded size and SHA-256. Current `main` read those records through
+  the existing Setup, Run History, Results, Evidence, Find & Compare, and
+  System paths; two real saved runs rendered in exact Compare.
+- The passive browser workflow visited Home → Ideas → Setup → Run test
+  → Results → Find & Compare plus System. It launched no test and changed
+  no review. Setup identity survived Run test refresh and browser history;
+  exact Results and Compare survived refresh, back/forward navigation, a fresh
+  application process, and a fresh browser context.
+- All three desktop Results resize controls changed the layout and reset
+  correctly while the selected run, Trades tab, and selected trade remained
+  intact. Tablet and mobile checks retained chart-before-report stacking, hid
+  desktop-only handles on mobile, and had no page-level horizontal overflow.
+- Browser diagnostics recorded no page or console errors and no external
+  requests. Deterministic database-file, database-content, and artifact hashes
+  were unchanged after the checks. The source production runtime and preserved
+  candidate evidence were never modified.
+- This proves Decision 298 Steps 13–14 for the current source and existing
+  saved evidence. It does not prove a trading edge, deployment, target-runtime
+  behavior, beta entry, final owner acceptance, or the unchecked full
+  Milestone 23 launch/reproduce/review criteria.
 
 ## Target-evidence audit — 2026-09-18
 

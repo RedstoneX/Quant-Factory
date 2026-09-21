@@ -9,9 +9,9 @@ ordered work, milestone scope, and acceptance.
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
 | Phase | Factory-to-beta completion is active under Decision 298. New edge-candidate research is paused until beta. |
-| Active work | Step 12: give Terry clickable working dashboard pages for direction review. |
-| Finding | Steps 4–9 proved the existing filter-chain mechanics with one labelled deterministic fixture, not a trading edge. Steps 10–11 found the essential dashboard surfaces already present, preserved their approved structure, corrected stale status text and tests, and passed focused checks. |
-| Next action | Start a disposable review instance from current `main` and provide direct links for Home, Setup, Results, Find & Compare, and System. |
+| Active work | Step 15: Terry's final dashboard and workflow acceptance checkpoint. |
+| Finding | Steps 12–14 passed. Terry directed work to continue after the page review; current `main` then opened real saved engine/filter results and passed the complete passive browser workflow without changing saved evidence. |
+| Next action | Give Terry the private clickable real-results review pages and obtain his final dashboard/workflow acceptance before beta. |
 | Blocked | New candidate research/backtests, data acquisition, open-ended optimization, protected-test inspection, automatic promotion, deployment, paper activation, futures execution, live trading, and portability work. |
 
 ## Product direction and boundaries
@@ -43,7 +43,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | Steps 4–11 of Decision 298 are merged. Filter mechanics passed independent adversary review; 144 related checks passed before the final lock-identity correction and 21 focused checks passed afterward. PR #82 merged at `89428965465e81e2493cd37670ed1c05b5928eb6`. Essential dashboard reconciliation passed 44 focused checks, three real-browser lifecycle checks, licensed VectorBT reconstruction, and required CI through PR #83 at `e8fa5f33613c8355e26d9ea3bef8aebd178de7bf`. Step 12 owner direction review is next; Steps 13–16 remain open. |
+| R08 | 1 | in_progress | none | Steps 4–14 of Decision 298 are complete. Filter mechanics merged through PR #82; essential dashboard reconciliation merged through PR #83. Terry completed the Step 12 direction checkpoint. Disposable current-`main` review copies then proved real saved results across every essential page and the complete passive browser workflow, including all three resize controls, responsive stacking, refresh, history traversal, exact Results/Compare reopening after a fresh process/browser, and unchanged database/artifact evidence. Step 15 final owner acceptance is active; Step 16 beta remains pending. |
 <!-- active-work:end -->
 
 ## Owner-accepted factory-to-beta path
@@ -68,10 +68,10 @@ drafts.
 | 9. Prove correct stop or advance behavior at every filter | Done | Training/selection/test routing, selection stop, walk-forward stop, persisted handoffs, and the final fail-closed gate are asserted; automatic promotion remains blocked. |
 | 10. Review every existing dashboard page | Done | Setup, embedded Run History, Find & Compare, Results, embedded Evidence, and System are essential and retained. Ideas intake, live market-data connections, paper pages, Settings expansion, caching, export, deployment, and broad polish are deferred. No essential page required a new route or framework. |
 | 11. Complete the essential dashboard pages | Done | Current components were retained. Decision 298 status text and only the proven stale checks were corrected; 44 focused checks, three real-browser checks, licensed reconstruction, and required CI passed through PR #83. |
-| 12. Show Terry each working dashboard page | Owner checkpoint — active | Provide clickable disposable review pages; this is neither production deployment nor final acceptance. |
-| 13. Connect every essential page to real saved engine and filter results | Planned after Step 12 | Preserve truthful run identity, evidence limits, screening reasons, and saved state. |
-| 14. Test the complete browser workflow | Planned | Check navigation, resizing, reopening, and saved state with focused end-to-end proof. |
-| 15. Obtain Terry's final dashboard and workflow acceptance | Owner checkpoint | Acceptance belongs only to Terry. |
+| 12. Show Terry each working dashboard page | Done | Terry directed work to proceed after the restored clickable page review. This completed the direction checkpoint only, not final acceptance. |
+| 13. Connect every essential page to real saved engine and filter results | Done | Current `main` opened the preserved SPYM candidate plus a consistent private snapshot containing 45 real saved runs; Setup, Run History, Results, Evidence, Find & Compare, and System all read the existing persistence and evidence services truthfully. No research was rerun. |
+| 14. Test the complete browser workflow | Done | Passive real-browser proof covered Home → Ideas → Setup → Run test → Results → Find & Compare plus System; all three Results resize controls, reset, responsive stacking, refresh, back/forward, exact links, and fresh process/browser reopening passed with clean diagnostics. Database content and artifacts remained unchanged. |
+| 15. Obtain Terry's final dashboard and workflow acceptance | Owner checkpoint — active | Give Terry the working private review links. Acceptance belongs only to Terry. |
 | 16. Begin beta testing | Pending | Beta starts only after the completed workflow passes its acceptance checks. |
 | 17. Test real strategies for an edge | Gated until after beta | Use source-attributed, owner-approved candidates with fixed evidence boundaries. |
 | 18. Consider paper trading | Gated | Only a qualified edge that survives every filter can approach the separate paper gates. |
@@ -83,7 +83,7 @@ Milestones 1–22 are complete.
 | # | Milestone | Acceptance summary | Status |
 |---:|---|---|---|
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
-| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Steps 10–11 complete; Step 12 owner direction review active; Steps 13–15 remain** |
+| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Steps 10–14 complete; Step 15 final owner acceptance active** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; portability, deployment and activation dormant |
 | 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Factory proof in progress; new candidate research is paused until beta** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
@@ -134,8 +134,10 @@ Current slices:
   real-browser, independent-review, and required-CI evidence passed. The
   complete selected-run/Milestone 23 implementation is not claimed.
 - **23C-3 — Browser/operator acceptance:** three focused lifecycle corrections
-  passed in a real browser through PR #83. Step 12 direction review and the
-  complete Steps 13–15 workflow and final acceptance remain pending.
+  passed in a real browser through PR #83. Terry completed the Step 12
+  direction checkpoint, and the current-`main` real-saved-result and complete
+  passive browser workflow proof passed for Steps 13–14. Step 15 final owner
+  acceptance remains pending.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
   cancellation, stale-recovery, missing-artifact, and corrupt-lineage coverage.
 - **23E — Gate decision:** record an explicit pass or fail after all criteria.

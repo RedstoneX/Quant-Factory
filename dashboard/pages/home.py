@@ -163,12 +163,12 @@ def build_home_view_model(
         ),
         milestone_status=project_status.current_milestone_status,
         discovery_gate=(
-            "Factory mechanics and essential dashboard pages are complete for this "
-            "bounded Step 11 path; Terry's Step 12 direction review is next. Real "
-            "saved filter-result connection, full workflow proof, final acceptance, "
-            "and beta remain in Steps 13–16. New candidate and edge research are "
-            "paused until beta. Protected-data inspection, promotion, deployment, "
-            "paper execution, and live trading remain blocked."
+            "Factory mechanics, essential dashboard pages, real saved-result "
+            "connections, and the complete passive browser workflow are complete "
+            "through Step 14. Terry's Step 15 final dashboard and workflow acceptance "
+            "is next; beta remains Step 16. New candidate and edge research are paused "
+            "until beta. Protected-data inspection, promotion, deployment, paper "
+            "execution, and live trading remain blocked."
         ),
         health=health,
         run=_run_view(run),

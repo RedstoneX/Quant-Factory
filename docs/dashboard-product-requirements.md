@@ -1,10 +1,9 @@
 # Quant Factory Dashboard Product Requirements
 
-> **Current sequencing (Decision 298):** Essential dashboard review and
-> completion are Steps 10–15 of the factory-to-beta path, after the remaining
-> filter-chain proof. Use focused checks for changed paths and one focused
-> browser check for affected UI; the complete browser workflow is proved at
-> Step 14. This does not authorize deployment or broad polish.
+> **Current sequencing (Decisions 298–299):** Essential dashboard work and the
+> real-saved-result browser workflow are complete through Step 14. Step 15 is
+> Terry's final dashboard/workflow acceptance checkpoint. This does not
+> authorize deployment, broad polish, or beta before that checkpoint passes.
 
 ## Product role
 

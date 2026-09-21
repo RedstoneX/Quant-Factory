@@ -875,7 +875,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     assert "Research readiness" in home_text
     assert "Not checked" in home_text
     assert (
-        "essential dashboard pages are complete for this bounded Step 11 path"
+        "complete passive browser workflow are complete through Step 14"
         in home_text
     )
     assert home_visible == ["/"]
@@ -1301,10 +1301,10 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     assert PROJECT_STATUS.current_milestone_title in home_text
     assert PROJECT_STATUS.current_milestone_status in home_text
     assert (
-        "essential dashboard pages are complete for this bounded Step 11 path"
+        "complete passive browser workflow are complete through Step 14"
         in home_text
     )
-    assert "Real saved filter-result connection, full workflow proof" in home_text
+    assert "Terry's Step 15 final dashboard and workflow acceptance" in home_text
     assert "New candidate and edge research are paused until beta" in home_text
     assert (
         "Protected-data inspection, promotion, deployment, paper execution, and live "
