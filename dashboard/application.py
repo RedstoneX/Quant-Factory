@@ -1070,6 +1070,54 @@ def _display_or_dash(value: str | None) -> str:
     return str(value)
 
 
+def _format_recorded_timestamp(value: str) -> str:
+    normalized = value.strip().replace("Z", "+00:00")
+    try:
+        recorded = datetime.fromisoformat(normalized)
+    except ValueError:
+        return value.strip()
+    date_label = recorded.strftime("%b %d, %Y").replace(" 0", " ")
+    if "T" not in value and " " not in value:
+        return date_label
+    hour = recorded.strftime("%I").lstrip("0") or "0"
+    time_label = f"{hour}:{recorded:%M} {recorded:%p}"
+    offset = recorded.utcoffset()
+    if offset == timedelta(0):
+        zone_label = "UTC"
+    elif offset is None:
+        zone_label = "recorded time"
+    else:
+        total_minutes = int(offset.total_seconds() // 60)
+        sign = "+" if total_minutes >= 0 else "−"
+        total_minutes = abs(total_minutes)
+        zone_label = f"UTC{sign}{total_minutes // 60:02d}:{total_minutes % 60:02d}"
+    return f"{date_label}, {time_label} {zone_label}"
+
+
+def _format_test_period(value: str | None) -> str:
+    if value in (None, "", "Not recorded", "Not available"):
+        return "—"
+    raw = str(value).strip()
+    delimiter = ".." if ".." in raw else "/" if "/" in raw else None
+    if delimiter is None:
+        return _format_recorded_timestamp(raw)
+    start, end = (part.strip() for part in raw.split(delimiter, 1))
+    return f"{_format_recorded_timestamp(start)} → {_format_recorded_timestamp(end)}"
+
+
+def _format_currency(value: str | None) -> str:
+    if value in (None, "", "Not recorded", "Not available"):
+        return "—"
+    raw = str(value).strip()
+    try:
+        amount = float(raw.replace("$", "").replace(",", ""))
+    except ValueError:
+        return raw
+    if not math.isfinite(amount):
+        return raw
+    return f"${amount:,.2f}"
+
+
 def _run_identity_strip(
     run: RunSummary,
     detail: SelectedRunDetailView | None,
@@ -1126,7 +1174,7 @@ def _run_identity_strip(
     primary_fields = (
         DetailField("Instrument", _display_or_dash(instrument)),
         DetailField("Timeframe", _display_or_dash(timeframe)),
-        DetailField("Test period", _display_or_dash(date_range)),
+        DetailField("Test period", _format_test_period(date_range)),
         DetailField("Validation result", _display_or_dash(_validation_outcome_value(detail))),
     )
     metadata_fields = (
@@ -1140,7 +1188,7 @@ def _run_identity_strip(
         ),
         DetailField("Configuration", _display_or_dash(run.configuration_id[:12])),
         DetailField("Strategy version", _display_or_dash(run.strategy_version)),
-        DetailField("Initial capital", _display_or_dash(initial_capital)),
+        DetailField("Initial capital", _format_currency(initial_capital)),
         DetailField("Costs", _display_or_dash(costs)),
         DetailField("Slippage", _display_or_dash(slippage)),
         DetailField("Completion status", _display_or_dash(run.status)),
@@ -1168,7 +1216,7 @@ def _run_identity_strip(
                     *[
                         html.Div(
                             [
-                                html.Span(field.label, className="run-identity-label"),
+                                html.Span(f"{field.label}: ", className="run-identity-label"),
                                 html.Strong(_operator_value(field.value)),
                             ],
                             className="run-identity-item run-identity-primary-item",
@@ -1182,7 +1230,7 @@ def _run_identity_strip(
                 [
                     html.Div(
                         [
-                            html.Span(field.label, className="run-identity-label"),
+                            html.Span(f"{field.label}: ", className="run-identity-label"),
                             html.Strong(_operator_value(field.value)),
                         ],
                         className="run-identity-item",
@@ -1195,7 +1243,7 @@ def _run_identity_strip(
                 [
                     html.Div(
                         [
-                            html.Span(field.label, className="run-identity-label"),
+                            html.Span(f"{field.label}: ", className="run-identity-label"),
                             html.Strong(_operator_value(field.value)),
                         ],
                         className="run-identity-item run-identity-trace",

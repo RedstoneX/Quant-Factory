@@ -1089,3 +1089,25 @@ explicitly.
      and trading authority are not applicable because permanent operating
      rules, architecture, evidence, public orientation, and runtime authority
      did not change.
+
+302. **Treat the three requested Results presentation corrections as the final
+     condition for Step 15 acceptance (accepted 2026-09-21).** After the
+     Decision 301 repair was refreshed, Terry reported that the workflow works
+     great. He requested only a readable test period, dollar-formatted initial
+     capital, and a denser primary-metrics summary, then directed Codex to
+     proceed to the next stages.
+
+     Step 15 becomes accepted only after those exact corrections merge, appear
+     on the private review page, and pass a focused page check. Step 16 then
+     begins as economical owner beta use and defect-finding on the accepted
+     workflow and saved evidence. This decision does not authorize beta
+     infrastructure, another candidate or dataset, deployment, paper/live
+     trading, Milestone 23 closure, or a profitability claim.
+
+     Documentation-impact assessment: `docs/MILESTONES.md`, this decision log,
+     `docs/dashboard-product-requirements.md`, and the Milestone 23 acceptance
+     record are updated because the owner set the final presentation condition
+     and the immediate beta boundary. `AGENTS.md`, the agent policy, ADRs,
+     README, `docs/CHAT_HANDOFF.md`, schemas, data records, deployment records,
+     and runbooks are not applicable because no permanent operating rule,
+     architecture, evidence, startup path, or runtime authority changed.

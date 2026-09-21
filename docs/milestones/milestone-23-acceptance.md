@@ -221,6 +221,14 @@ provided browser evidence. Decision 301 resumes work only for that blocking
 defect. The checklist remains unaccepted and should be repeated after the
 review page is refreshed with the reviewed repair.
 
+After the repair was refreshed and checked, Terry reported that the workflow
+works great. He requested three final presentation corrections before moving
+on: a readable test period, dollar-formatted initial capital, and a denser
+primary-metrics summary. This is conditional Step 15 acceptance: it becomes
+final only after those exact corrections merge and pass a focused check on the
+private review page. It does not authorize a new candidate, new data,
+deployment, paper/live trading, or a claim of profitability.
+
 ## Target-evidence audit — 2026-09-18
 
 This read-only audit distinguishes historical licensed-target evidence from
