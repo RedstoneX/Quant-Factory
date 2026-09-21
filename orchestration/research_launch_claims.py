@@ -100,6 +100,7 @@ class ResearchLaunchContract:
     required_strategy_lifecycle: StrategyLifecycle
     stage_field: str
     created_event_message: str
+    started_event_message: str
 
 
 FIXTURE_LAUNCH_CONTRACT = ResearchLaunchContract(
@@ -109,6 +110,7 @@ FIXTURE_LAUNCH_CONTRACT = ResearchLaunchContract(
     required_strategy_lifecycle=StrategyLifecycle.INFRASTRUCTURE_FIXTURE,
     stage_field="fixture_stage",
     created_event_message="Run created for durable research fixture submission.",
+    started_event_message="Run started through acknowledged Prefect fixture execution.",
 )
 
 CANDIDATE_SCREENING_LAUNCH_CONTRACT = ResearchLaunchContract(
@@ -118,6 +120,9 @@ CANDIDATE_SCREENING_LAUNCH_CONTRACT = ResearchLaunchContract(
     required_strategy_lifecycle=StrategyLifecycle.CANDIDATE,
     stage_field="candidate_stage",
     created_event_message="Run created for explicit candidate screening submission.",
+    started_event_message=(
+        "Run started through acknowledged Prefect candidate screening execution."
+    ),
 )
 
 SUPPORTED_LAUNCH_CONTRACTS = frozenset(
@@ -1004,7 +1009,7 @@ class DurableResearchLaunchService:
                                     run_id=run_id,
                                     event_type=RunEventType.RUN_STARTED,
                                     severity=EventSeverity.INFO,
-                                    message="Run started through acknowledged Prefect fixture execution.",
+                                    message=self._launch_contract.started_event_message,
                                     occurred_at=running.started_at,
                                 )
                                 current = submissions.get(key)

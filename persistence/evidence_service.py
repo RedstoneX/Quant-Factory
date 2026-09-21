@@ -214,6 +214,67 @@ class ValidationEvidenceArtifactService:
             expected_source=self.source_document(run_id),
         )
 
+    def retrieve_out_of_sample_source_lock(
+        self,
+        run_id: str,
+        *,
+        artifact_root: str | Path,
+    ) -> Any:
+        """Retrieve the one validated source-lock artifact for an OOS run."""
+        run = self._service.runs.get(run_id)
+        if run is None:
+            raise KeyError(f"unknown run {run_id}")
+        if run.stage != RunStage.OOS:
+            raise ValueError("source-lock evidence requires an out-of-sample run")
+        retrieval = self._service.retrieve_run_artifacts(
+            run_id,
+            artifact_root=artifact_root,
+        )
+        invalid = tuple(
+            validation for validation in retrieval.validations if not validation.valid
+        )
+        if invalid:
+            raise ValueError(
+                "source-lock run contains unavailable evidence: "
+                + ", ".join(validation.reason for validation in invalid)
+            )
+        candidates = tuple(
+            artifact
+            for artifact in retrieval.artifacts
+            if artifact.artifact_type.value == "validation_evidence"
+        )
+        configuration = self._service.configurations.get(run.configuration_id)
+        if configuration is None:
+            raise RuntimeError(f"run {run_id} references missing configuration")
+        try:
+            document = json.loads(configuration.canonical_config_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("source-lock configuration JSON is corrupt") from exc
+        if not isinstance(document, dict):
+            raise ValueError("source-lock configuration is malformed")
+        source_locks = []
+        for candidate in candidates:
+            try:
+                source_lock = self._retrieve_validated_source_lock(
+                    source_lock_run_id=run_id,
+                    source_lock_artifact_id=candidate.artifact_id,
+                    target_configuration=document,
+                    artifact_root=artifact_root,
+                )
+            except ValueError:
+                continue
+            if source_lock.artifact_kind == "out_of_sample":
+                source_locks.append(source_lock)
+        if len(source_locks) != 1:
+            raise ValueError(
+                "out-of-sample run must contain exactly one valid source-lock artifact"
+            )
+        source_lock = source_locks[0]
+        parameters = self._effective_strategy_parameters(document.get("parameters"))
+        if canonical_json(parameters) != canonical_json(source_lock.locked_parameters):
+            raise ValueError("source-lock parameters do not match the run configuration")
+        return source_lock
+
     def stage_outcome(
         self,
         run_id: str,

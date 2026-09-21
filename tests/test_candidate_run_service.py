@@ -108,6 +108,19 @@ def test_candidate_screening_claim_is_distinct_and_replays_one_adapter_invocatio
     assert request["accepted_launch_policy"] == CANDIDATE_SCREENING_LAUNCH_POLICY
     assert request["candidate_stage"] == RunStage.SCREENING.value
     assert "fixture_stage" not in request
+    persistence = PersistenceService(database)
+    try:
+        messages = tuple(
+            event.message
+            for event in persistence.events.list_for_run(first.claim.run.run_id)
+        )
+        assert messages == (
+            "Run created for explicit candidate screening submission.",
+            "Run started through acknowledged Prefect candidate screening execution.",
+        )
+        assert all("fixture" not in message.lower() for message in messages)
+    finally:
+        persistence.close()
 
 
 def test_candidate_screening_key_conflict_creates_nothing_and_does_not_reinvoke(

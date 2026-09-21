@@ -1,25 +1,31 @@
 """Durable stop-or-advance coordination for the research filter chain.
 
-The stage adapters remain responsible for strategy-specific computation and
-evidence persistence.  This service owns only the fixed factory order and the
-decision to stop before another stage is invoked.
+Stage adapters perform strategy-specific computation and persist one run. This
+service owns the fixed order, reopens the persisted evidence, and stops before
+another stage is invoked when that evidence does not qualify.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Literal
+import hashlib
+import json
+from pathlib import Path
+import sqlite3
+from typing import Any, Literal
 
-from persistence import PersistenceService, RunStage, RunStatus
+from persistence import (
+    EventSeverity,
+    PersistenceService,
+    RunEventType,
+    RunStage,
+    RunStatus,
+)
+from persistence.evidence_service import ValidationEvidenceArtifactService
 
 
-FilterStatus = Literal["passed", "failed", "insufficient_evidence", "invalid"]
-ChainStatus = Literal[
-    "screened_out",
-    "stopped",
-    "ready_for_protected_test",
-]
+ChainStatus = Literal["screened_out", "stopped", "ready_for_protected_test"]
 
 VALIDATION_STAGE_ORDER = (
     RunStage.OOS,
@@ -27,74 +33,80 @@ VALIDATION_STAGE_ORDER = (
     RunStage.ROBUSTNESS,
     RunStage.MONTE_CARLO,
 )
+FILTER_HANDOFF_ENVIRONMENT_KEY = "filter_handoff"
+
+
+@dataclass(frozen=True)
+class PersistedStageReference:
+    """The only claim a stage adapter may make: which run it persisted."""
+
+    stage: RunStage
+    run_id: str
 
 
 @dataclass(frozen=True)
 class FilterStageContext:
-    """Immutable identity handed from one persisted stage to the next."""
+    """Immutable identity handed from one stage adapter to the next."""
 
     screening_run_id: str
-    previous: tuple["FilterStageHandoff", ...] = ()
+    stage: RunStage
+    run_id: str
+    previous: tuple[PersistedStageReference, ...] = ()
 
     @property
     def previous_run_id(self) -> str:
-        return (
-            self.previous[-1].run_id
-            if self.previous
-            else self.screening_run_id
-        )
+        return self.previous[-1].run_id if self.previous else self.screening_run_id
 
 
 @dataclass(frozen=True)
 class FilterStageHandoff:
-    """One adapter's persisted stage result and progression decision."""
+    """Outcome derived by reopening one persisted stage's evidence."""
 
     stage: RunStage
     run_id: str
-    status: FilterStatus
+    status: str
     eligible_to_progress: bool
-    evidence_identity: str
-    reasons: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class ProtectedTestGate:
-    """Final prerequisite decision; this never executes protected data."""
-
-    status: FilterStatus
-    eligible_to_execute: bool
-    evidence_identity: str
+    evidence_identity: str | None
     reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class FilterChainOutcome:
-    """Complete, operator-readable result of one connected handoff attempt."""
+    """Operator-readable result of one connected handoff attempt."""
 
     status: ChainStatus
     screening_run_id: str
     completed: tuple[FilterStageHandoff, ...]
     stopped_at: str | None
     reasons: tuple[str, ...]
-    protected_test_gate: ProtectedTestGate | None = None
+    protected_test_gate: Any | None = None
 
 
-StageAdapter = Callable[[FilterStageContext], FilterStageHandoff]
-GateAdapter = Callable[[FilterStageContext], ProtectedTestGate]
+StageAdapter = Callable[[FilterStageContext], PersistedStageReference]
+
+
+class FilterStageInvocationUnknownError(RuntimeError):
+    """Raised when a reserved filter stage may have started but did not finish."""
 
 
 class FactoryFilterChainService:
-    """Invoke persisted filter stages in order and stop on the first failure."""
+    """Invoke persisted filters in order and derive every decision from evidence."""
 
-    def __init__(self, persistence: PersistenceService) -> None:
+    def __init__(
+        self,
+        persistence: PersistenceService,
+        *,
+        artifact_root: str | Path,
+    ) -> None:
         self._persistence = persistence
+        self._artifact_root = Path(artifact_root)
+        self._evidence = ValidationEvidenceArtifactService(persistence)
 
     def run(
         self,
         *,
         screening_run_id: str,
         stage_adapters: Mapping[RunStage, StageAdapter],
-        protected_test_gate: GateAdapter,
     ) -> FilterChainOutcome:
         screening = self._persistence.runs.get(screening_run_id)
         if screening is None:
@@ -122,27 +134,132 @@ class FactoryFilterChainService:
                 reasons=reasons or ("No screening result qualified for later filters.",),
             )
 
-        supplied = set(stage_adapters)
-        required = set(VALIDATION_STAGE_ORDER)
-        if supplied != required:
-            missing = sorted(stage.value for stage in required - supplied)
-            extra = sorted(stage.value for stage in supplied - required)
-            details = []
-            if missing:
-                details.append(f"missing: {', '.join(missing)}")
-            if extra:
-                details.append(f"unexpected: {', '.join(extra)}")
-            raise ValueError("filter-stage adapters are incomplete (" + "; ".join(details) + ")")
-
+        self._require_complete_adapters(stage_adapters)
+        references: list[PersistedStageReference] = []
         completed: list[FilterStageHandoff] = []
+        source_lock: Any | None = None
+
         for expected_stage in VALIDATION_STAGE_ORDER:
-            context = FilterStageContext(screening_run_id, tuple(completed))
-            handoff = stage_adapters[expected_stage](context)
-            self._validate_handoff(
+            previous_run_id = (
+                references[-1].run_id if references else screening_run_id
+            )
+            expected_run_id = self._handoff_run_id(
+                screening_run_id=screening_run_id,
+                source_run_id=previous_run_id,
+                stage=expected_stage,
+            )
+            context = FilterStageContext(
+                screening_run_id=screening_run_id,
+                stage=expected_stage,
+                run_id=expected_run_id,
+                previous=tuple(references),
+            )
+            reserved = self._reserve_stage_run(
+                screening_run_id=screening_run_id,
+                stage=expected_stage,
+                run_id=expected_run_id,
+                source_run_id=previous_run_id,
+            )
+            if reserved:
+                try:
+                    reference = stage_adapters[expected_stage](context)
+                except Exception as exc:
+                    persisted = self._persistence.runs.get(expected_run_id)
+                    if persisted is not None and persisted.status == RunStatus.SUCCEEDED:
+                        reference = PersistedStageReference(
+                            stage=expected_stage,
+                            run_id=expected_run_id,
+                        )
+                    else:
+                        if persisted is not None and persisted.status in {
+                            RunStatus.CREATED,
+                            RunStatus.RUNNING,
+                        }:
+                            failed = self._persistence.transition_run(
+                                expected_run_id,
+                                RunStatus.FAILED,
+                                error_summary=(
+                                    "Filter-stage adapter outcome is unknown; automatic "
+                                    "rerun is blocked pending owner investigation."
+                                ),
+                            )
+                            self._persistence.append_run_event(
+                                run_id=expected_run_id,
+                                event_type=RunEventType.RUN_FAILED,
+                                severity=EventSeverity.ERROR,
+                                message=(
+                                    "Filter stage stopped with an unknown outcome; "
+                                    "automatic rerun is blocked."
+                                ),
+                                occurred_at=failed.completed_at,
+                            )
+                        raise FilterStageInvocationUnknownError(
+                            f"{expected_stage.value} adapter outcome is unknown; "
+                            "automatic rerun is blocked pending owner investigation"
+                        ) from exc
+            else:
+                reference = PersistedStageReference(
+                    stage=expected_stage,
+                    run_id=expected_run_id,
+                )
+            self._validate_persisted_reference(
                 screening_run_id=screening_run_id,
                 expected_stage=expected_stage,
-                handoff=handoff,
+                expected_source_run_id=context.previous_run_id,
+                expected_run_id=expected_run_id,
+                reference=reference,
             )
+            references.append(reference)
+
+            if expected_stage == RunStage.OOS:
+                try:
+                    source_lock = self._evidence.retrieve_out_of_sample_source_lock(
+                        reference.run_id,
+                        artifact_root=self._artifact_root,
+                    )
+                except (KeyError, RuntimeError, ValueError) as exc:
+                    handoff = FilterStageHandoff(
+                        stage=expected_stage,
+                        run_id=reference.run_id,
+                        status="invalid",
+                        eligible_to_progress=False,
+                        evidence_identity=None,
+                        reasons=(str(exc),),
+                    )
+                else:
+                    handoff = FilterStageHandoff(
+                        stage=expected_stage,
+                        run_id=reference.run_id,
+                        status=source_lock.status,
+                        eligible_to_progress=source_lock.status == "passed",
+                        evidence_identity=source_lock.artifact_id,
+                        reasons=tuple(source_lock.reasons),
+                    )
+            else:
+                outcome = self._evidence.stage_outcome(
+                    reference.run_id,
+                    artifact_root=self._artifact_root,
+                )
+                walk_forward_complete = (
+                    expected_stage == RunStage.WALK_FORWARD
+                    and outcome.status == "insufficient_evidence"
+                    and outcome.reasons
+                    == (
+                        "successful walk-forward folds do not define an overall "
+                        "acceptance decision",
+                    )
+                )
+                handoff = FilterStageHandoff(
+                    stage=expected_stage,
+                    run_id=reference.run_id,
+                    status=outcome.status,
+                    eligible_to_progress=(
+                        outcome.status == "passed" or walk_forward_complete
+                    ),
+                    evidence_identity=outcome.evidence_identity,
+                    reasons=outcome.reasons,
+                )
+
             completed.append(handoff)
             if not handoff.eligible_to_progress:
                 return FilterChainOutcome(
@@ -150,23 +267,27 @@ class FactoryFilterChainService:
                     screening_run_id=screening_run_id,
                     completed=tuple(completed),
                     stopped_at=expected_stage.value,
-                    reasons=handoff.reasons or (
-                        f"{expected_stage.value} did not qualify for the next filter.",
-                    ),
+                    reasons=handoff.reasons
+                    or (f"{expected_stage.value} did not qualify for the next filter.",),
                 )
 
-        context = FilterStageContext(screening_run_id, tuple(completed))
-        gate = protected_test_gate(context)
-        self._validate_gate(gate)
-        if not gate.eligible_to_execute:
+        assert source_lock is not None
+        by_stage = {reference.stage: reference.run_id for reference in references}
+        gate = self._evidence.evaluate_lockbox_prerequisites(
+            walk_forward_run_id=by_stage[RunStage.WALK_FORWARD],
+            monte_carlo_run_id=by_stage[RunStage.MONTE_CARLO],
+            robustness_run_id=by_stage[RunStage.ROBUSTNESS],
+            source_lock=source_lock,
+            artifact_root=self._artifact_root,
+            protected_data_state="gated",
+        )
+        if not gate.eligible_to_execute_lockbox:
             return FilterChainOutcome(
                 status="stopped",
                 screening_run_id=screening_run_id,
                 completed=tuple(completed),
                 stopped_at="protected_test_gate",
-                reasons=gate.reasons or (
-                    "The protected test prerequisites did not pass.",
-                ),
+                reasons=gate.reasons or ("The protected test prerequisites did not pass.",),
                 protected_test_gate=gate,
             )
         return FilterChainOutcome(
@@ -174,32 +295,93 @@ class FactoryFilterChainService:
             screening_run_id=screening_run_id,
             completed=tuple(completed),
             stopped_at=None,
-            reasons=(
-                "Protected test remains locked until its separate authority is granted.",
-            ),
+            reasons=("Protected test remains locked until separate authority is granted.",),
             protected_test_gate=gate,
         )
 
-    def _validate_handoff(
+    @staticmethod
+    def _handoff_run_id(
+        *,
+        screening_run_id: str,
+        source_run_id: str,
+        stage: RunStage,
+    ) -> str:
+        identity = "|".join(
+            ("factory_filter_handoff_v1", screening_run_id, source_run_id, stage.value)
+        )
+        return "run_" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
+
+    def _reserve_stage_run(
+        self,
+        *,
+        screening_run_id: str,
+        stage: RunStage,
+        run_id: str,
+        source_run_id: str,
+    ) -> bool:
+        """Atomically reserve one deterministic stage run before adapter work."""
+        if self._persistence.runs.get(run_id) is not None:
+            return False
+        screening = self._persistence.runs.get(screening_run_id)
+        assert screening is not None
+        try:
+            self._persistence.create_run(
+                configuration_id=screening.configuration_id,
+                strategy_id=screening.strategy_id,
+                strategy_version=screening.strategy_version,
+                stage=stage,
+                run_id=run_id,
+                environment={
+                    FILTER_HANDOFF_ENVIRONMENT_KEY: {
+                        "source_run_id": source_run_id,
+                    }
+                },
+            )
+        except sqlite3.IntegrityError:
+            if self._persistence.runs.get(run_id) is None:
+                raise
+            return False
+        return True
+
+    @staticmethod
+    def _require_complete_adapters(
+        stage_adapters: Mapping[RunStage, StageAdapter],
+    ) -> None:
+        supplied = set(stage_adapters)
+        required = set(VALIDATION_STAGE_ORDER)
+        if supplied == required:
+            return
+        missing = sorted(stage.value for stage in required - supplied)
+        extra = sorted(stage.value for stage in supplied - required)
+        details = []
+        if missing:
+            details.append(f"missing: {', '.join(missing)}")
+        if extra:
+            details.append(f"unexpected: {', '.join(extra)}")
+        raise ValueError("filter-stage adapters are incomplete (" + "; ".join(details) + ")")
+
+    def _validate_persisted_reference(
         self,
         *,
         screening_run_id: str,
         expected_stage: RunStage,
-        handoff: FilterStageHandoff,
+        expected_source_run_id: str,
+        expected_run_id: str,
+        reference: PersistedStageReference,
     ) -> None:
-        if handoff.stage != expected_stage:
+        if reference.stage != expected_stage:
             raise ValueError(
-                f"expected {expected_stage.value} handoff, got {handoff.stage.value}"
+                f"expected {expected_stage.value} handoff, got {reference.stage.value}"
             )
-        if not handoff.run_id.strip() or not handoff.evidence_identity.strip():
-            raise ValueError(f"{expected_stage.value} handoff identity is incomplete")
-        if handoff.eligible_to_progress and handoff.status != "passed":
+        if not reference.run_id.strip():
+            raise ValueError(f"{expected_stage.value} handoff run identity is incomplete")
+        if reference.run_id != expected_run_id:
             raise ValueError(
-                f"{expected_stage.value} cannot advance with status {handoff.status}"
+                f"{expected_stage.value} handoff did not use its durable run identity"
             )
 
         source = self._persistence.runs.get(screening_run_id)
-        persisted = self._persistence.runs.get(handoff.run_id)
+        persisted = self._persistence.runs.get(reference.run_id)
         if source is None or persisted is None:
             raise ValueError(f"{expected_stage.value} handoff run is not persisted")
         if (
@@ -212,16 +394,17 @@ class FactoryFilterChainService:
             raise ValueError(
                 f"{expected_stage.value} handoff disagrees with persisted run identity"
             )
-        if not self._persistence.list_run_artifacts(handoff.run_id):
-            raise ValueError(f"{expected_stage.value} handoff has no persisted evidence")
-        if self._persistence.read_persisted_run_manifest(handoff.run_id) is None:
-            raise ValueError(f"{expected_stage.value} handoff has no persisted manifest")
-
-    @staticmethod
-    def _validate_gate(gate: ProtectedTestGate) -> None:
-        if not gate.evidence_identity.strip():
-            raise ValueError("protected-test gate identity is incomplete")
-        if gate.eligible_to_execute and gate.status != "passed":
+        try:
+            environment = json.loads(persisted.environment_json)
+        except json.JSONDecodeError as exc:
             raise ValueError(
-                f"protected-test gate cannot advance with status {gate.status}"
+                f"{expected_stage.value} handoff lineage is malformed"
+            ) from exc
+        handoff = environment.get(FILTER_HANDOFF_ENVIRONMENT_KEY)
+        if (
+            not isinstance(handoff, dict)
+            or handoff.get("source_run_id") != expected_source_run_id
+        ):
+            raise ValueError(
+                f"{expected_stage.value} handoff predecessor lineage is invalid"
             )

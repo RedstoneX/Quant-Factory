@@ -9,11 +9,13 @@ from orchestration.run_service import (
     RunSummary,
 )
 from orchestration.filter_chain import (
+    FILTER_HANDOFF_ENVIRONMENT_KEY,
     FactoryFilterChainService,
     FilterChainOutcome,
+    FilterStageInvocationUnknownError,
     FilterStageContext,
     FilterStageHandoff,
-    ProtectedTestGate,
+    PersistedStageReference,
     VALIDATION_STAGE_ORDER,
 )
 from orchestration.research_launch_claims import (
@@ -44,10 +46,12 @@ from orchestration.candidate_run_service import (
 
 __all__ = [
     "FactoryFilterChainService",
+    "FILTER_HANDOFF_ENVIRONMENT_KEY",
     "FilterChainOutcome",
+    "FilterStageInvocationUnknownError",
     "FilterStageContext",
     "FilterStageHandoff",
-    "ProtectedTestGate",
+    "PersistedStageReference",
     "VALIDATION_STAGE_ORDER",
     "FixtureRunService",
     "RunLaunchResult",

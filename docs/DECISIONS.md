@@ -1139,3 +1139,38 @@ explicitly.
      records, and runbooks are not applicable because no permanent operating
      rule, architecture, evidence, production runtime, or trading authority
      changed.
+
+304. **Complete the two verified factory integration gaps before another
+     strategy test (accepted 2026-09-21).** Terry directed Codex to proceed
+     after reviewing the measured remaining-build inventory. The accepted
+     dashboard and existing engine, persistence, filter algorithms, evidence
+     services, and saved results remain in place. Correct the earlier broad
+     completion wording: the operator launch path was restricted to
+     infrastructure fixtures, and the later filter engines were manually
+     composed in deterministic tests rather than connected through a reusable
+     application service.
+
+     Add only two bounded connections. First, extend the existing durable
+     research-claim mechanism with a separate active-candidate screening
+     contract and injected strategy adapter seam while preserving the existing
+     fixture contract. Second, add one coordinator that invokes persisted
+     unseen-data, walk-forward, robustness, and Monte Carlo handoffs in fixed
+     order, stops before the next stage on failure, and leaves the protected
+     test locked behind its existing gate. Prove both with deterministic test
+     evidence; do not select or run a candidate, acquire data, redesign the
+     dashboard, add a universal idea converter, migrate the database, deploy,
+     inspect protected data, promote automatically, or begin paper/live work.
+     Each future approved strategy may still require a small strategy-specific
+     signal/data/execution adapter.
+
+     Documentation-impact assessment: `docs/MILESTONES.md` and `README.md` are
+     updated because the current phase, next action, and public orientation
+     change; this decision log records the owner instruction; ADR 0011 is
+     amended because its durable claim architecture gains a separate candidate
+     screening contract. `AGENTS.md` and the agent policy are not applicable
+     because their reuse, economy, evidence, delegation, and trading rules do
+     not change. `docs/CHAT_HANDOFF.md` is not applicable because Tier 1 remains
+     the startup path. Dashboard requirements, milestone acceptance records,
+     data records, schemas, deployment records, and runbooks are not applicable
+     because no dashboard behavior, milestone acceptance, dataset, schema,
+     runtime, deployment, or operator procedure changes.

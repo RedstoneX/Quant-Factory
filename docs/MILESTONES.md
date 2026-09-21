@@ -8,11 +8,11 @@ ordered work, milestone scope, and acceptance.
 | Item | Current truth |
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
-| Phase | Step 16 bounded beta use is active under Decisions 298 and 303. New edge-candidate research remains paused during beta. |
-| Active work | Use the accepted workflow with saved evidence and correct only demonstrated beta defects. |
-| Finding | PR #90 merged the three final Results presentation corrections at `9aa0bf3b83e70b922d47c4c2e5772ef3e779d708`. The private page showed readable UTC dates, `$10,000.00` initial capital, compact metrics, no page-level horizontal overflow, no browser errors, and an unchanged saved database. Step 15 is accepted. |
-| Next action | Terry uses the private dashboard normally to inspect saved results and reports the first material beta defect; Codex investigates only a reproduced blocker. |
-| Blocked | Step 17 candidate research waits for beta completion. New candidate backtests, data acquisition, optimization, protected-test inspection, automatic promotion, production deployment, paper/live activation, and portability remain blocked. |
+| Phase | Decision 304 completes two verified factory integration gaps before another real strategy is tested. The accepted dashboard remains available for bounded beta use. |
+| Active work | Merge and verify the reusable candidate-screening launch boundary and connected stop-or-advance filter handoff using deterministic evidence only. |
+| Finding | The generic engine, persistence, filter algorithms, evidence services, and accepted dashboard already existed. The operator launch path was fixture-only, and the later filters had no reusable application service that invoked their persisted handoffs in order. |
+| Next action | Complete focused review and merge of the two bounded connections, then present the next real candidate and its fixed evidence boundaries for owner approval. |
+| Blocked | No new candidate backtest, data acquisition, protected-test inspection, automatic promotion, production deployment, paper/live activation, or portability work is authorized by this correction. |
 
 ## Product direction and boundaries
 
@@ -32,18 +32,18 @@ ordered work, milestone scope, and acceptance.
   Previously inspected data is not independent evidence. Research must reject
   false edges, preserve evidence, and keep strategy and validation logic
   venue-neutral. Research cannot submit venue orders.
-- The active path is: reconcile and prove the mechanics of the remaining
-  factory filters using saved evidence or a deterministic fixture → verify
-  stop/advance behavior → complete the essential dashboard workflow → owner
-  review and acceptance → beta. New edge-candidate research begins only after
-  beta.
+- The accepted dashboard workflow and bounded beta remain available. Decision
+  304 corrects the next build order: finish the reusable candidate-screening
+  launch boundary and connected persisted filter handoff with deterministic
+  evidence before selecting or running another real strategy.
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | Steps 4–15 are complete. Terry accepted the corrected workflow, PR #90 merged the final presentation corrections, and the private-page check passed. Step 16 bounded beta use is active; candidate research remains paused. |
+| R09 | 1 | in_progress | none | Decision 304 preserves the accepted dashboard and corrects two overstated backend claims: operator launch was fixture-only, and real filter engines were composed in tests rather than connected by a reusable application service. Implement and review only those two connections with deterministic evidence; do not run a candidate. |
+| R08 | 2 | pending | R09 | Resume economical owner beta use after the factory-bridge correction; only reproduced material dashboard defects qualify as beta work. |
 <!-- active-work:end -->
 
 ## Owner-accepted factory-to-beta path
@@ -60,20 +60,21 @@ drafts.
 | 1. Prove one fixed run through the licensed backtest engine | Done | The bounded SPYM run completed with VectorBT Pro 2026.4.7. |
 | 2. Save settings, trades, costs, results, and evidence | Done | Database plus 7/7 artifacts and checksums agreed under independent review. |
 | 3. Apply the first filter and preserve its reasons | Done | The weak SPYM row screened out with explicit return and Sharpe reasons; this was correct factory behavior. |
-| 4. Inventory the existing later filters and missing connections | Done | Existing unseen-data, walk-forward, stability/regime, Monte Carlo, persistence, and fail-closed gates were reused; only a single connected mechanics proof was missing. |
+| 4. Inventory the existing later filters and missing connections | Corrected | The engines and persistence existed, but two integration gaps remained: a durable real-candidate screening launch boundary and a reusable connected filter handoff. Decision 304 corrects the earlier overstatement. |
 | 5. Prove the unseen-data filter mechanics with one fixed reusable example | Done | The real runner uses one labelled deterministic survivor and proves train → selection → held-out-test routing; it makes no profitability claim. |
 | 6. Prove the walk-forward filter mechanics with the same example | Done | The same fixture passes the real rolling-window runner and preserves its fixed parameter locks and fold returns. |
 | 7. Prove stability and different-market-condition filter mechanics | Done | The real robustness pipeline evaluates a nonempty parameter neighborhood and labelled regimes through deterministic test seams. |
 | 8. Prove the Monte Carlo stress-filter mechanics | Done | The existing Monte Carlo runner consumes the recorded walk-forward returns and its evidence is persisted and reopened. |
-| 9. Prove correct stop or advance behavior at every filter | Done | Training/selection/test routing, selection stop, walk-forward stop, persisted handoffs, and the final fail-closed gate are asserted; automatic promotion remains blocked. |
+| 9. Prove correct stop or advance behavior at every filter | Mechanics done; application connection active | Real filter runners and persisted evidence were manually composed in a deterministic test. Decision 304 adds the missing reusable service that invokes persisted handoffs in fixed order and stops before the next stage on failure. |
 | 10. Review every existing dashboard page | Done | Setup, embedded Run History, Find & Compare, Results, embedded Evidence, and System are essential and retained. Ideas intake, live market-data connections, paper pages, Settings expansion, caching, export, deployment, and broad polish are deferred. No essential page required a new route or framework. |
 | 11. Complete the essential dashboard pages | Done | Current components were retained. Decision 298 status text and only the proven stale checks were corrected; 44 focused checks, three real-browser checks, licensed reconstruction, and required CI passed through PR #83. |
 | 12. Show Terry each working dashboard page | Done | Terry directed work to proceed after the restored clickable page review. This completed the direction checkpoint only, not final acceptance. |
-| 13. Connect every essential page to real saved engine and filter results | Done | Current `main` opened the preserved SPYM candidate plus a consistent private snapshot containing 45 real saved runs; Setup, Run History, Results, Evidence, Find & Compare, and System all read the existing persistence and evidence services truthfully. No research was rerun. |
-| 14. Test the complete browser workflow | Done | Passive real-browser proof covered Home → Ideas → Setup → Run test → Results → Find & Compare plus System; all three Results resize controls, reset, responsive stacking, refresh, back/forward, exact links, and fresh process/browser reopening passed with clean diagnostics. Database content and artifacts remained unchanged. |
+| 13. Connect every essential page to real saved engine and filter results | Done for reading saved evidence | Current `main` opened the preserved SPYM candidate plus a consistent private snapshot containing 45 real saved runs. The pages truthfully read existing persistence and evidence; this did not prove generic candidate launch or connected downstream execution. |
+| 14. Test the complete browser workflow | Done for passive saved-result use | Passive real-browser proof covered Home → Ideas → Setup → Run test → Results → Find & Compare plus System; navigation, resizing, reopening, and saved identity passed without launching research or changing evidence. |
 | 15. Obtain Terry's final dashboard and workflow acceptance | Done | Terry reported the repaired workflow works great. PR #90 merged the three final presentation corrections and the focused private-page check passed without changing saved evidence. |
-| 16. Begin beta testing | Active | Economical owner use and defect-finding on the accepted workflow and saved evidence; do not add beta infrastructure or start candidate research. |
-| 17. Test real strategies for an edge | Gated until after beta | Use source-attributed, owner-approved candidates with fixed evidence boundaries. |
+| 16. Begin beta testing | Accepted; active work redirected | Economical owner use remains available. Decision 304 redirects current build work to the two missing factory connections without reopening the accepted dashboard. |
+| 16A. Complete the reusable factory connections | In progress | Add a candidate-only durable screening launch contract and a persisted stop-or-advance coordinator using existing services and deterministic evidence; no candidate run. |
+| 17. Test real strategies for an edge | Gated until Step 16A merges | Present one source-attributed candidate and fixed evidence boundaries for owner approval before executable work. |
 | 18. Consider paper trading | Gated | Only a qualified edge that survives every filter can approach the separate paper gates. |
 
 ## Milestone roadmap
@@ -85,7 +86,7 @@ Milestones 1–22 are complete.
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
 | 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Steps 10–15 complete; Step 16 bounded beta active; full gate not yet closed** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; portability, deployment and activation dormant |
-| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Factory beta active; new candidate research is paused during beta** |
+| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Reusable launch/handoff correction active; candidate research remains paused** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
 | 27 | Alpaca Micro-Live Proof and Independent Risk Sentinel | Separate approval, isolated live domain, independent supervision, and failure acceptance | Pending; far future |
 | 28–30 | Compliant crypto proof and multi-venue V1 | Legal and operational eligibility, isolated adapters, evidence, reconciliation, and recovery | Deferred |
@@ -103,6 +104,11 @@ paper orders, and live work remain blocked.
 Decision 298 changes the current order: do not select or run another candidate
 until the factory-to-beta Steps 4–16 are complete. Earlier candidate authority
 is retained for later use; it is not the current queue.
+
+Decision 304 preserves the accepted dashboard but corrects the next action:
+complete the reusable candidate-screening claim and persisted filter handoff
+before selecting or running another candidate. Deterministic tests may exercise
+those connections; they are infrastructure evidence, not profitability work.
 
 ### Milestone 23
 
@@ -136,7 +142,7 @@ Current slices:
 - **23C-3 — Browser/operator acceptance:** three focused lifecycle corrections
   passed in a real browser through PR #83. Terry completed the Step 12
   direction checkpoint, and the current-`main` real-saved-result and complete
-  passive browser workflow proof passed for Steps 13–14. Terry accepted the
+  passive saved-result browser workflow proof passed for Steps 13–14. Terry accepted the
   corrected workflow after PR #90's final presentation corrections passed on
   the private review page. Step 16 beta is active; the broader Milestone 23
   gate remains open.

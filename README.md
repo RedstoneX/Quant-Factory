@@ -31,9 +31,12 @@ passed against private disposable copies of real saved results: every essential
 page opened existing evidence and the complete passive browser workflow retained
 navigation, resizing, responsive layout, exact reopening, and saved identity.
 Terry accepted the corrected Step 15 dashboard workflow after the final
-readability corrections passed on the private review page. Bounded beta use is
-now active at Step 16 in [MILESTONES](docs/MILESTONES.md). No new candidate run
-or data acquisition is part of beta.
+readability corrections passed on the private review page. The accepted
+dashboard remains available for bounded beta use. Decision 304 now completes
+two verified backend gaps before another real strategy is tested: the existing
+operator launcher was fixture-only, and the later filters lacked one reusable
+persisted stop-or-advance coordinator. No new candidate run or data acquisition
+is part of this correction.
 
 Decision 298 sets the current order: reconcile and prove the remaining filter
 mechanics with saved evidence or deterministic fixtures → verify stop/advance
@@ -54,8 +57,9 @@ testing, micro-live work, and other venues follow only at the later gates in
 Existing RSI, SPY Donchian, and MES ORB work remains historical fixture or
 infrastructure evidence, not an active profitability candidate. The bounded MES
 ORB path completed and rejected the candidate; it proved the early screening,
-durable-result, ranking and dashboard-reading path, not the complete filtration
-chain. No next candidate will be selected before beta.
+durable-result, ranking and dashboard-reading path, not a reusable real-candidate
+launch or connected downstream application workflow. No next candidate will be
+selected until Decision 304's bounded factory connections merge.
 
 Decision 287 permits controlled, bounded, source-attributed candidate intake,
 discovery and research/backtesting under Milestone 25 safeguards before
