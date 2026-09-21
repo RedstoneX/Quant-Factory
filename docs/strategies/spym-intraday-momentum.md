@@ -9,10 +9,12 @@ Zhou, “Market Intraday Momentum,” *Journal of Financial Economics* (2018), D
 The bounded development/reference screen has completed from clean source at
 source revision `3ae6912937501b46f67666dea269ec76e92caad5` using licensed
 VectorBT Pro 2026.4.7.
-It screened out at the initial screen. Independent evidence review is complete
-with no blockers. The screen is
-tested/measured, but this is not independent/protected evidence and does not
-claim merged, deployed, operator-accepted, promoted, or edge status.
+Its strategy row screened out at the initial filter. Independent evidence
+review is complete with no blockers. Under Decision 297, the immediate purpose
+was to test the backtest engine, durable evidence, dashboard handoff, and first
+filter—not to establish an edge. That factory test succeeded. The result is
+tested/measured, but it is not independent/protected evidence and does not
+claim deployment, operator acceptance, promotion, or an edge.
 
 ## Exact fixed rule
 
@@ -59,16 +61,17 @@ than 500 trades while this feed has no comparable trade-count field; and Alpaca
 shortability and account eligibility are unknown. Do not promote, place paper
 orders, deploy, or claim an edge from this screen.
 
-## Initial screen result
+## Factory-test outcome
 
-The screen produced 133 closed trades and 266 orders across 70 long, 63 short,
+The engine produced 133 closed trades and 266 orders across 70 long, 63 short,
 and 0 zero signals; 40 sessions were excluded. Total return was
 `-0.1686805974716311` (`-16.87%`), annualized return
 `-0.29533724723539356` (`-29.53%`), Sharpe
 `-12.968788931253316`, maximum end-of-eligible-session drawdown
 `-0.1686805974716311` (`-16.87%`), and win rate `0.15789473684210525`
-(`15.79%`). The screen passed 0 variants and screened out 1 variant because it
-failed the total-return, annualized-return, and Sharpe rules.
+(`15.79%`). The first filter passed 0 rows and screened out 1 row because it
+failed the total-return, annualized-return, and Sharpe rules. That screen-out is
+the strategy-row outcome; it is not a failure of the engine or filter.
 
 The 7/7 persisted artifacts were valid; database, artifact, and dashboard
 metrics agreed; the dataset checksum matched; no warnings were emitted; and no
@@ -78,13 +81,14 @@ evidence, an edge, or promotion evidence.
 
 ## Progression and reuse
 
-The completed bounded screen requires no rerun or extension. Any new screen
-requires owner selection and approval of another source-attributed candidate
-with fixed boundaries. Do not
-progress automatically; no next candidate is currently selected or approved,
-and no paper, deployment, or live work is authorized. The existing VectorBT Pro engine, manifest
-verification, screening, durable persistence/artifacts, filters, and dashboard
-remain the reusable path; do not change the common engine or schema. Under
+The completed bounded screen requires no rerun or extension. Reuse its saved
+evidence to reconcile the already-built downstream filter stages and identify
+the smallest missing end-to-end factory proof. Do not launch another candidate
+merely because this row screened out. A future candidate run still requires
+owner approval of fixed boundaries, and no paper, deployment, or live work is
+authorized. The existing VectorBT Pro engine, manifest verification,
+screening, durable persistence/artifacts, filters, and dashboard remain the
+reusable path; do not change the common engine or schema. Under
 Decision 287's verified-operational-blocker
 exception, the screen may receive only two narrow candidate-display truth
 corrections: suppress the generic annualization notice when persisted `252`

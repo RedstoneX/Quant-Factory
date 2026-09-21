@@ -939,3 +939,77 @@ explicitly.
      and `README.md` are not applicable because startup navigation and public
      orientation are unchanged. No runbook or milestone-completion record
      applies. `CLAUDE.md` and `.claude/**` remain untouched.
+
+297. **SPYM outcome is factory-validation evidence, not an attempted edge
+     finding (accepted 2026-09-21).** Terry clarified that the immediate SPYM
+     objective was to test the backtest engine and filter path, not to establish
+     a trading edge. The strategy row screened out on the declared performance
+     rules, while the intended factory test succeeded: the licensed engine
+     completed the fixed run, durable database and artifact metrics agreed,
+     the filter retained explicit rejection reasons, and the result reopened
+     through the dashboard without warnings. Describe these as two distinct
+     outcomes; do not call the factory test rejected merely because its input
+     strategy screened out.
+
+     The next action is to reconcile the already-built downstream filtration
+     engines and tests and identify the smallest missing end-to-end factory
+     proof. Reuse the saved SPYM evidence or deterministic fixtures where they
+     fit. Do not rerun SPYM or launch another candidate merely to continue the
+     pipeline. Any later candidate run still requires the existing owner
+     approval and fixed evidence boundaries. This clarification does not claim
+     the complete filter chain, an edge, deployment, paper/live authority, or
+     Milestone 23 acceptance.
+
+     Documentation-impact assessment: `docs/MILESTONES.md`, this decision log,
+     and `docs/strategies/spym-intraday-momentum.md` are updated because the
+     owner corrected the purpose and interpretation of the completed run.
+     `AGENTS.md`, ADRs, schemas, code, runbooks, data records, and deployment
+     documents are unaffected because no stable operating rule, architecture,
+     executable behavior, dataset, or runtime changed.
+
+298. **Complete and test the factory through beta before new edge research
+     (accepted 2026-09-21).** Terry approves the following fixed order: (1)
+     licensed backtest-engine run, done; (2) durable settings, trades, costs,
+     results, and evidence, done; (3) first filter with preserved reasons,
+     done; (4) inventory later filters and missing connections; (5) prove the
+     unseen-data filter mechanics with one fixed reusable example; (6) prove
+     walk-forward mechanics with the same example; (7) prove stability and
+     different-market-condition filter mechanics; (8) prove Monte Carlo stress
+     mechanics; (9) prove correct stop/advance behavior at every filter; (10)
+     review every dashboard page and classify it as essential, blocking, or
+     deferred; (11) complete the essential Setup, Run History, Find & Compare,
+     Results, Evidence, and System pages using existing components; (12) show
+     Terry each working page for direction review; (13) connect every essential
+     page to real saved engine and filter results; (14) test navigation,
+     resizing, reopening, and saved state in the complete browser workflow;
+     (15) obtain Terry's final dashboard/workflow acceptance; (16) begin beta;
+     (17) only after beta test real strategies for an edge; and (18) consider
+     paper only if a strategy survives every filter and later execution gates.
+
+     Steps 1–3 are complete factory evidence, not edge evidence. Step 4 is the
+     current work. Steps 5–9 reuse saved evidence where it fits and one clearly
+     labelled deterministic survivor only where a later filter needs a passing
+     input. These steps prove mechanics, not unseen profitability, stability,
+     or an edge. They do not authorize a new candidate backtest, data
+     acquisition, parameter search, or protected-data inspection. This sequence
+     supersedes Decisions 287 and 294 only where their earlier order placed new
+     candidate research before full factory and dashboard beta completion.
+     Their evidence, safety, reuse, paper/live, and capital gates remain
+     unchanged. Deployment and portability remain deferred.
+
+     Codex may proceed autonomously through Step 11 without repeated owner
+     permission. Step 12 is the first planned owner checkpoint and Step 15 is
+     final acceptance. Contact Terry sooner only for a genuine decision that
+     would change the agreed goal, cost, scope, or authority. Apply the
+     adversary before each major slice and closure claim. Delegate only when it
+     provides a clear time, cost, or specialist benefit; duplicate drafts are
+     prohibited.
+
+     Documentation-impact assessment: `AGENTS.md`, `docs/MILESTONES.md`, the
+     agent policy, this decision log, `README.md`, the dashboard product
+     requirements, and the SPYM strategy note are updated because the owner
+     changed the active order, bounded autonomy, and interpretation of the
+     completed run. No ADR, schema, code, test, dataset, manifest, runtime,
+     deployment, or runbook changes because architecture and executable
+     behavior are unchanged. `docs/CHAT_HANDOFF.md` is not applicable because
+     it already sends every new session to the synchronized Tier 1 authorities.

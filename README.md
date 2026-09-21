@@ -9,8 +9,8 @@ project.
 
 ## Current direction
 
-Quant Factory is explicitly **research first, evidence truthful, and
-proportionate to one operator**.
+Quant Factory is explicitly **evidence truthful and proportionate to one
+operator**.
 
 The dashboard is the primary user product and normal operating interface. Python modules, terminal commands, CSV files, JSON artifacts, and backend logs are implementation details.
 
@@ -21,26 +21,22 @@ reserved for verified gaps or cases where reuse is materially worse. Prototype
 approval is implementation input, not proof that behavior is integrated,
 tested, deployed, or finally accepted.
 
-The immediate objective is to use the existing factory to test one approved,
-source-attributed candidate at a time, reject weak ideas quickly, and preserve
-truthful results. The MES ORB cycle is concluded and rejected as an edge
-candidate. A 2026-09-19 read-only shortlist already records ETF market
-intraday momentum (recommended), turn-of-month (alternative), and pre-holiday
-effect (alternative); none was coded, data-acquired, or backtested. Reconcile
-that shortlist before asking Terry to approve one named hypothesis with fixed
-evidence boundaries. Read
-[MILESTONES](docs/MILESTONES.md) for the current queue.
+The immediate objective is to finish and test the existing factory and its
+essential dashboard workflow through beta before testing another real strategy
+for an edge. The SPYM run proved the licensed engine, durable results, first
+filter, and dashboard reopening; its weak strategy row correctly screened out.
+The remaining filters and essential dashboard pages now follow the ordered
+factory-to-beta path in [MILESTONES](docs/MILESTONES.md). No new candidate run
+or data acquisition is part of that path.
 
-Decisions 287, 294 and 295 set the current order: reuse and reconcile the
-existing source-attributed inventory →
-select one named, source-attributed hypothesis for explicit owner approval →
-use the thinnest necessary adapter into the existing VectorBT batch-research
-path → durable results and evidence → ranking/filtering → inspection in the
-existing dashboard. The bounded selected-run correction and reuse-first Find &
-Compare surface are merged. Terry found the reviewed Find & Compare image good
-and intuitive; standard labels merged through PR #77 at `9495a36`. This does
-not claim deployment or full Milestone 23 acceptance. Further dashboard work
-is dormant unless research exposes a blocker or Terry resumes that gate.
+Decision 298 sets the current order: reconcile and prove the remaining filter
+mechanics with saved evidence or deterministic fixtures → verify stop/advance
+behavior → complete the essential dashboard workflow → owner review and
+acceptance → beta → only then test new candidates for an edge. The bounded
+selected-run correction and reuse-first Find & Compare surface are already
+merged. Terry found the reviewed Find & Compare image good and intuitive;
+standard labels merged through PR #77 at `9495a36`. This does not claim
+deployment, beta, or full Milestone 23 acceptance.
 Completed preparation within
 Milestone 24A–24D is retained, while remaining authenticated observer work is
 deferred. Resume paper activation only after an edge qualifies and all
@@ -53,14 +49,16 @@ Existing RSI, SPY Donchian, and MES ORB work remains historical fixture or
 infrastructure evidence, not an active profitability candidate. The bounded MES
 ORB path completed and rejected the candidate; it proved the early screening,
 durable-result, ranking and dashboard-reading path, not the complete filtration
-chain. No next candidate is selected.
+chain. No next candidate will be selected before beta.
 
 Decision 287 permits controlled, bounded, source-attributed candidate intake,
 discovery and research/backtesting under Milestone 25 safeguards before
 Milestone 23 passes. Executable candidate launch requires explicit owner
 approval of the named, source-attributed hypothesis and predeclared evidence
 boundaries. Open-ended optimization or data mining, protected-test evaluation
-and automatic promotion remain unauthorized. Decision 279 records the owner's
+and automatic promotion remain unauthorized. Decision 298 pauses that
+candidate authority until beta; its safeguards remain in force for later.
+Decision 279 records the owner's
 rejection of the former
 Results-page comprehension and flow. Decision 280 accepts a chart-first
 replacement direction built around a truthful selected-run price chart,

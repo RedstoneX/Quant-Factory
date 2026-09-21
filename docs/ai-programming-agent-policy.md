@@ -6,6 +6,10 @@
 This procedure supports `AGENTS.md`; it does not create product direction or
 current status. Tier 1 remains authoritative.
 
+Current sequencing and owner checkpoints come only from
+`docs/MILESTONES.md`. Do not infer the next task from an older decision or
+supporting document when the milestone record has superseded its order.
+
 ## Roles
 
 The owner controls mandate, priority, milestone acceptance, deployment,
