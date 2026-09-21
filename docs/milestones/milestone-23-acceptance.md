@@ -325,11 +325,12 @@ result still sent every chart interval plus full supporting curves in one
 selected-run update. The update measured about 12.0 MB and remained in the
 browser's “Updating…” state for more than 39 seconds in a focused check; Terry
 reported repeated page freezes and the workflow was unusable. Decision 301
-authorizes only a bounded display repair. The repair keeps saved evidence and
-metrics unchanged, sends one selected Bars/View window, displays representative
-points for supporting line-chart overviews, and reuses one validated successful
-run read. Local browser checks measured Bars and View changes at about 1.5
-seconds and the worst-case 53,528-bar Full run at about 7.7 seconds without a
-freeze. This is repair evidence, not owner acceptance or beta entry.
+authorized only a bounded display repair, which merged through PR #88. The
+repair keeps saved evidence and metrics unchanged, sends one selected Bars/View
+window, displays representative points for supporting line-chart overviews, and
+reuses one evidence-aware validated successful-run read. Local browser checks
+measured Bars and View changes at about 1.5 seconds and the worst-case
+53,528-bar Full run at about 7.7 seconds without a freeze. This is repair
+evidence, not owner acceptance or beta entry.
 
 <!-- incident-history:end -->
