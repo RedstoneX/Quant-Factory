@@ -1,11 +1,10 @@
 # Quant Factory Dashboard Product Requirements
 
-> **Current sequencing (Decision 294):** This is the retained eventual
-> pre-paper product catalog, not the current work queue. Use focused checks for
-> changed dashboard paths and one focused browser check for affected UI. Resume
-> the full browser/lifecycle, recovery, device, and target matrix only for a
-> concrete blocker, an actual deployment/runtime change, explicit Milestone 23
-> closure, a qualified candidate approaching paper, or an owner request.
+> **Current sequencing (Decision 298):** Essential dashboard review and
+> completion are Steps 10–15 of the factory-to-beta path, after the remaining
+> filter-chain proof. Use focused checks for changed paths and one focused
+> browser check for affected UI; the complete browser workflow is proved at
+> Step 14. This does not authorize deployment or broad polish.
 
 ## Product role
 
@@ -42,6 +41,10 @@ global rewrite, broad polish or deployment authorization.
 It supersedes only Decision 287's dashboard freeze for this bounded blueprint
 and later owner-approved thin essential-beta slices; it does not expand
 Decision 291 or restore dashboard-first sequencing.
+
+Decision 298 now authorizes those thin essential-beta slices at Step 11 after
+the filter-chain proof. It does not authorize a new framework, global rewrite,
+deployment, or work on nonessential pages.
 
 ## Connected-screen blueprint — owner-approved boundary (2026-09-20)
 
@@ -91,8 +94,8 @@ horizontal overflow at 1440px.
 Standard trader-facing metric labels merged through PR #77 at
 `9495a36a45af2bfe1288ab7cba840a4eed8ef54e`. The owner reviewed the image as
 good and intuitive. Deployment, target validation, full workflow acceptance,
-and beta completion remain pending but dormant until Decision 294's trigger
-occurs. Profit Factor is not persisted and was intentionally not invented;
+and beta completion remain pending in the Decision 298 sequence. Profit Factor
+is not persisted and was intentionally not invented;
 engine-level consideration is later work, not a current blocker. Any design
 expansion beyond this accepted surface requires new owner review before
 implementation.

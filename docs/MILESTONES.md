@@ -8,11 +8,11 @@ ordered work, milestone scope, and acceptance.
 | Item | Current truth |
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
-| Phase | Milestone 25 controlled research is active under Decisions 287 and 294. Milestone 23 remains an eventual pre-paper product gate, not the current queue. |
-| Active work | R08: review the completed owner-approved SPYM intraday-momentum transfer test and select the next source-attributed candidate only after owner approval. |
-| Finding | MES ORB is concluded and rejected as an edge candidate. The bounded SPYM screen also rejected its candidate at the initial screen; it proved the current result/artifact path, not an edge or complete filtration chain. Find & Compare is merged, and Terry found the reviewed image good and intuitive. |
-| Next action | Obtain owner selection and approval of another source-attributed candidate; no next candidate is currently selected or approved, and there is no automatic progression. |
-| Blocked | Open-ended optimization, protected-test evaluation, automatic promotion, unapproved parameter changes, paper activation, futures execution, and live trading. Deployment, portability, broad Milestone 23 closure, and paper-runtime work are dormant until their trigger occurs. |
+| Phase | Factory-to-beta completion is active under Decision 298. New edge-candidate research is paused until beta. |
+| Active work | Step 4: inventory the existing later filters and identify only the missing connections. |
+| Finding | The SPYM strategy row screened out, while the intended factory test succeeded: the backtest engine, persistence, evidence, dashboard reopening, and first filter produced a coherent reviewed result. This did not attempt to establish a trading edge or prove the complete filtration chain. |
+| Next action | Reconcile the existing downstream filter code and tests, then define the smallest reusable mechanics proof for Steps 5–9; do not run another candidate. |
+| Blocked | New candidate research/backtests, data acquisition, open-ended optimization, protected-test inspection, automatic promotion, deployment, paper activation, futures execution, live trading, and portability work. |
 
 ## Product direction and boundaries
 
@@ -23,43 +23,58 @@ ordered work, milestone scope, and acceptance.
   then reuse existing Quant Factory code, VectorBT Pro, licensed dependencies,
   approved prototypes, and suitable maintained components before custom work
   or unsupported assumptions.
-- The dashboard is the normal operator interface. Decision 291 supersedes only
-  Decision 287's good-enough/frozen treatment for the verified selected-run R07
-  inspection blocker. The bounded correction does not restore dashboard-first
-  sequencing, close Milestone 23, or authorize broad dashboard work. Decision
-  292 supersedes only Decision 287's dashboard freeze to permit the bounded
-  blueprint and later owner-approved thin essential-beta slices; it does not
-  expand Decision 291 or restore dashboard-first sequencing. It does not
-  authorize a new framework, global rewrite, deployment or broad polish.
+- The dashboard is the normal operator interface. Preserve the approved
+  chart-first Results design and merged Find & Compare work. Decision 298
+  schedules review and completion of the essential dashboard pages after the
+  filter-chain proof and before beta. It does not authorize a new framework,
+  global rewrite, deployment, or broad polish.
 - Fixtures validate infrastructure and are not active profitability candidates.
   Previously inspected data is not independent evidence. Research must reject
   false edges, preserve evidence, and keep strategy and validation logic
   venue-neutral. Research cannot submit venue orders.
-- The active path is: attributed candidate → owner-approved hypothesis and
-  evidence boundaries → smallest adapter to the existing VectorBT batch path →
-  durable results → ranking/filtering → inspection in the existing dashboard.
+- The active path is: reconcile and prove the mechanics of the remaining
+  factory filters using saved evidence or a deterministic fixture → verify
+  stop/advance behavior → complete the essential dashboard workflow → owner
+  review and acceptance → beta. New edge-candidate research begins only after
+  beta.
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | MES ORB completed its bounded path and was rejected. Terry approved the SPYM transfer test under Decision 296 on 2026-09-20; its bounded screen completed at source revision `3ae6912937501b46f67666dea269ec76e92caad5` using licensed VectorBT Pro 2026.4.7 and screened out on total-return, annualized-return, and Sharpe rules. Independent evidence review is complete with no blockers; select and approve another source-attributed candidate before any next run. |
+| R08 | 1 | in_progress | none | The Decision 296 SPYM run completed at source revision `3ae6912937501b46f67666dea269ec76e92caad5` using licensed VectorBT Pro 2026.4.7. Its strategy row screened out, but the intended factory test succeeded: engine output, durable evidence, first-filter reasons, and dashboard reopening agreed under independent review. Decision 298 now requires the remaining filter-chain mechanics and essential-dashboard proof before beta and before another candidate. |
 <!-- active-work:end -->
 
-## Current execution path
+## Owner-accepted factory-to-beta path
+
+Codex is authorized to continue through Step 11 without repeatedly asking for
+permission. Step 12 is the first planned owner checkpoint. Contact Terry sooner
+only if a genuine decision would change the agreed goal, cost, scope, or
+authority. Apply the adversary before every major slice and closure claim;
+delegate only where it saves time or cost, and never commission duplicate
+drafts.
 
 | Step | Status | Evidence or next action |
 |---:|---|---|
-| 1. Inventory an attributed candidate | Completed for the current shortlist; reconcile before next cycle | On 2026-09-19 a read-only, source-attributed shortlist recorded ETF market intraday momentum (recommended), turn-of-month (alternative), and pre-holiday effect (alternative). No code, data acquisition, or backtest occurred; no candidate was selected. |
-| 2. Approve the hypothesis and boundaries | Approved | Terry approved the SPYM intraday-momentum transfer test and its fixed evidence boundaries on 2026-09-20; see Decision 296 and `docs/strategies/spym-intraday-momentum.md`. |
-| 3. Connect it to existing research | Completed for this candidate; independently reviewed with no blockers | The candidate-specific mixed-price adapter produced one bounded screen through the existing VectorBT research path at source revision `3ae6912937501b46f67666dea269ec76e92caad5`; no common engine or schema change. Independent review confirmed database plus 7/7 artifacts/checksums, metric/fill arithmetic, and dashboard reopening agree. Decision 296's two narrow candidate-display truth corrections remain bounded under Decision 287. |
-| 4. Persist, rank, and filter results | Completed for this candidate; rejected at initial screen | The screen persisted 7/7 valid artifacts; database, artifact, and dashboard metrics agree; 0 passed and 1 screened out on total return, annualized return, and Sharpe. This is development/reference evidence, not an edge or promotion result. |
-| 5. Inspect through the dashboard | Capability merged; screen metrics agree, operator acceptance not claimed | The SPYM database, artifacts, and dashboard metrics agree. Find & Compare and the selected-run correction are merged; persistent deployment and operator acceptance are not claimed. |
-| 6. Continue bounded research | Gated on new owner approval | Select and approve another source-attributed candidate with fixed evidence boundaries before any next executable run; do not progress automatically from the SPYM rejection. |
-| 7. Activate paper trading | Gated | Requires a qualified edge and every Milestone 24 execution gate. |
-| 8. Automate paper forward testing | Gated | Milestone 26 follows successful paper activation and reconciliation proof. |
-| 9. Consider micro-live trading | Far future | Milestone 27 requires successful paper evidence and separate explicit owner approval. |
+| 1. Prove one fixed run through the licensed backtest engine | Done | The bounded SPYM run completed with VectorBT Pro 2026.4.7. |
+| 2. Save settings, trades, costs, results, and evidence | Done | Database plus 7/7 artifacts and checksums agreed under independent review. |
+| 3. Apply the first filter and preserve its reasons | Done | The weak SPYM row screened out with explicit return and Sharpe reasons; this was correct factory behavior. |
+| 4. Inventory the existing later filters and missing connections | In progress | Reconcile code, tests, and prior evidence before changing anything. |
+| 5. Prove the unseen-data filter mechanics with one fixed reusable example | Planned | Reuse saved evidence where it fits; use one clearly labelled deterministic survivor only if a later filter needs a passing input. This proves mechanics, not unseen profitability. |
+| 6. Prove the walk-forward filter mechanics with the same example | Planned | Reuse the Step 5 example and existing components; do not run a new candidate. |
+| 7. Prove stability and different-market-condition filter mechanics | Planned | Test only the existing required behavior and record truthful limitations. |
+| 8. Prove the Monte Carlo stress-filter mechanics | Planned | Use the same bounded example and existing engine. |
+| 9. Prove correct stop or advance behavior at every filter | Planned | Confirm weak rows stop and qualifying fixture rows advance without automatic promotion. |
+| 10. Review every existing dashboard page | Planned | Mark each page essential and retained, a real beta blocker, or deferred. |
+| 11. Complete the essential dashboard pages | Planned | Use existing components for Setup, Run History, Find & Compare, Results, Evidence, and System; avoid broad redesign or polish. |
+| 12. Show Terry each working dashboard page | Owner checkpoint | Provide clickable working review pages; this is neither production deployment nor final acceptance. |
+| 13. Connect every essential page to real saved engine and filter results | Planned after Step 12 | Preserve truthful run identity, evidence limits, screening reasons, and saved state. |
+| 14. Test the complete browser workflow | Planned | Check navigation, resizing, reopening, and saved state with focused end-to-end proof. |
+| 15. Obtain Terry's final dashboard and workflow acceptance | Owner checkpoint | Acceptance belongs only to Terry. |
+| 16. Begin beta testing | Pending | Beta starts only after the completed workflow passes its acceptance checks. |
+| 17. Test real strategies for an edge | Gated until after beta | Use source-attributed, owner-approved candidates with fixed evidence boundaries. |
+| 18. Consider paper trading | Gated | Only a qualified edge that survives every filter can approach the separate paper gates. |
 
 ## Milestone roadmap
 
@@ -68,9 +83,9 @@ Milestones 1–22 are complete.
 | # | Milestone | Acceptance summary | Status |
 |---:|---|---|---|
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
-| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Pending eventual pre-paper gate; broad closure work is dormant** |
+| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Planned in Steps 10–15 after the filter-chain proof** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; portability, deployment and activation dormant |
-| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **In progress; MES ORB and the SPYM initial screen rejected; independent SPYM evidence review complete, next owner-approved candidate selection remains** |
+| 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Factory proof in progress; new candidate research is paused until beta** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
 | 27 | Alpaca Micro-Live Proof and Independent Risk Sentinel | Separate approval, isolated live domain, independent supervision, and failure acceptance | Pending; far future |
 | 28–30 | Compliant crypto proof and multi-venue V1 | Legal and operational eligibility, isolated adapters, evidence, reconciliation, and recovery | Deferred |
@@ -85,10 +100,15 @@ of the named hypothesis and predeclared evidence boundaries. Open-ended
 optimization or data mining, protected-test inspection, automatic promotion,
 paper orders, and live work remain blocked.
 
+Decision 298 changes the current order: do not select or run another candidate
+until the factory-to-beta Steps 4–16 are complete. Earlier candidate authority
+is retained for later use; it is not the current queue.
+
 ### Milestone 23
 
-Milestone 23 remains the eventual complete equity research workflow acceptance
-gate before paper activation; this catalog is not the current work queue.
+Milestone 23 remains the complete equity research workflow acceptance gate
+before paper activation. Decision 298 schedules its essential dashboard and
+workflow work at Steps 10–15 after the remaining filter-chain proof.
 Focused checks protect each changed path now. The full browser/lifecycle,
 recovery, device and target matrix resumes only for a concrete blocker, an
 actual deployment/runtime change, explicit Milestone 23 closure, a qualified
@@ -114,8 +134,8 @@ Current slices:
   real-browser, independent-review, and required-CI evidence passed. The
   complete selected-run/Milestone 23 implementation is not claimed.
 - **23C-3 — Browser/operator acceptance:** renewed owner acceptance, real-browser
-  lifecycle evidence, and the complete workflow remain pending and dormant
-  until the gate is resumed.
+  lifecycle evidence, and the complete workflow remain pending for Steps
+  12–15.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
   cancellation, stale-recovery, missing-artifact, and corrupt-lineage coverage.
 - **23E — Gate decision:** record an explicit pass or fail after all criteria.

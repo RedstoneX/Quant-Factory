@@ -38,10 +38,11 @@ trading and capital exposure.
 - Every implementation slice must advance the current Tier 1 path or remove a
   demonstrated blocker. Do not add speculative infrastructure, refactoring,
   dashboard polish, or execution scope.
-- Research comes first: inventory and select the next source-attributed
-  candidate for owner approval, then run only its fixed evidence plan through
-  the existing factory. Deployment, portability, full Milestone 23 closure,
-  and paper-runtime work stay dormant until their recorded trigger occurs.
+- Follow the factory-to-beta sequence and owner checkpoints in
+  `docs/MILESTONES.md`. While that sequence is active, reuse saved results and
+  deterministic fixtures to prove missing factory stages; do not commission a
+  new candidate, acquire data, or run another candidate backtest merely to
+  prove the architecture. Edge research resumes only after beta.
 - Before commissioning candidate research or material implementation, perform
   a lean prior-work check in the Tier 1 authorities and repository history.
   Reuse or reconcile completed work before proposing it again; record each
