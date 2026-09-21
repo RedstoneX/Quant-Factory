@@ -333,4 +333,15 @@ measured Bars and View changes at about 1.5 seconds and the worst-case
 53,528-bar Full run at about 7.7 seconds without a freeze. This is repair
 evidence, not owner acceptance or beta entry.
 
+### 2026-09-21 — Repaired Results page returned for owner review
+
+Impact: PR #88 passed required checks and merged at
+`ec7422a94acb54b29ba538d4527f9ea98cbb0a64`. The private review service was
+refreshed from that revision without changing the saved review database
+checksum. A public-browser check completed with no console or page errors: the
+first Results opening took about 13.5 seconds, changing Bars about 1.45 seconds,
+and selecting a trade about 1.18 seconds. The temporary diagnostic service and
+worktree were removed. Terry's retest and explicit Step 15 acceptance remain
+required.
+
 <!-- incident-history:end -->
