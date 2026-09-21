@@ -8,10 +8,10 @@ ordered work, milestone scope, and acceptance.
 | Item | Current truth |
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
-| Phase | Decision 304's reusable factory connections merged through PR #92. The next stage is a bounded candidate proposal for owner approval, not execution. |
-| Active work | Prepare one source-attributed equity or ETF candidate and fixed evidence boundaries using the existing data inventory; do not implement or run it. |
-| Finding | The candidate-screening launch boundary and persisted stop-or-advance coordinator now reuse the existing claim, evidence, persistence, and protected-test controls. Required CI and independent review passed. |
-| Next action | Present the named candidate, available-data fit, fixed parameters, costs, screening rules, validation periods, and stop conditions for Terry's approval. |
+| Phase | Decision 304's reusable factory connections merged through PR #92. One bounded MSFT five-minute ORB transfer proposal is ready for owner review; it has not been implemented or run. |
+| Active work | Wait for Terry to approve, change or decline the fixed MSFT proposal. |
+| Finding | MSFT five-minute data is the only suitable unused equity history already owned. The proposal is a clearly limited single-stock transfer of published cross-stock ORB research, not a claimed edge or reproduction. |
+| Next action | Terry reviews the named candidate, fixed rule, costs, evidence periods, limitations and stop conditions in `docs/strategies/msft-five-minute-orb-transfer.md`. |
 | Blocked | Candidate implementation or execution, data acquisition, protected-test inspection, automatic promotion, deployment, paper/live activation, and portability remain unauthorized. |
 
 ## Product direction and boundaries
@@ -42,7 +42,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R10 | 1 | in_progress | none | Prepare one source-attributed equity or ETF candidate and fixed evidence boundaries for owner approval using existing inventory only; do not implement or run it. |
+| R10 | 1 | in_progress | none | One fixed MSFT five-minute ORB transfer proposal is recorded for owner approval; implementation and execution remain blocked. |
 | R08 | 2 | pending | none | Continue economical owner beta use in parallel; only reproduced material dashboard defects qualify as beta work. |
 <!-- active-work:end -->
 
@@ -74,7 +74,7 @@ drafts.
 | 15. Obtain Terry's final dashboard and workflow acceptance | Done | Terry reported the repaired workflow works great. PR #90 merged the three final presentation corrections and the focused private-page check passed without changing saved evidence. |
 | 16. Begin beta testing | Accepted; active work redirected | Economical owner use remains available. Decision 304 redirects current build work to the two missing factory connections without reopening the accepted dashboard. |
 | 16A. Complete the reusable factory connections | Done | PR #92 merged at `02c46f6041e32ce12e7f3359273b79a7c506e38b` after 103 focused checks, required CI, adversary review, and independent review passed. This did not run a real candidate. |
-| 17. Test real strategies for an edge | Proposal next; execution gated | Present one source-attributed equity or ETF candidate and fixed evidence boundaries for owner approval before implementation or execution. |
+| 17. Test real strategies for an edge | Proposal ready; owner decision required | The fixed MSFT five-minute ORB transfer proposal is documented. Nothing is implemented or run until Terry approves, changes or declines it. |
 | 18. Consider paper trading | Gated | Only a qualified edge that survives every filter can approach the separate paper gates. |
 
 ## Milestone roadmap
@@ -260,6 +260,27 @@ and an independent Risk Sentinel.
   shortlist is research context, not edge or profitability evidence. Reconcile
   this record before commissioning another candidate inventory or
   implementation.
+
+### MSFT five-minute ORB proposal investigation — 2026-09-21
+
+- The earlier shortlist, concluded SPYM momentum, SPY Donchian and MES ORB
+  work were reconciled before considering a new candidate. None will be rerun
+  or relabelled.
+- Existing data fit was measured without calculating a strategy result. The
+  only suitable unused equity history already owned is validated MSFT
+  five-minute data from 2019-05-01 through 2026-02-13. Existing SPY minute data
+  covers only five sessions; no suitable catalogued multi-year adjusted
+  broad-market dataset exists for the seasonal alternatives.
+- Zarattini, Barbon and Aziz's [U.S. equity ORB
+  paper](https://doi.org/10.2139/ssrn.4729284) provides the fixed source rule,
+  but its strongest reported result uses long and short trades across the top
+  20 relative-volume stocks. The proposed long-only MSFT test is therefore
+  explicitly a transfer test, not a reproduction or evidence of an MSFT edge.
+- The exact proposal, costs, 60/20/20 chronological dates, stop rules and
+  limitations are recorded in
+  [`docs/strategies/msft-five-minute-orb-transfer.md`](strategies/msft-five-minute-orb-transfer.md).
+  Status: proposed and awaiting Terry's decision; no code, data acquisition,
+  backtest, protected-period inspection, deployment or trading occurred.
 
 ### Find & Compare — 2026-09-20
 
