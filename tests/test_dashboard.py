@@ -874,7 +874,10 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     home_text = mounted_pages["/"]
     assert "Research readiness" in home_text
     assert "Not checked" in home_text
-    assert "Controlled research active" in home_text
+    assert (
+        "essential dashboard pages are complete for this bounded Step 11 path"
+        in home_text
+    )
     assert home_visible == ["/"]
 
     retired_review_visible = visible_routes(
@@ -1297,10 +1300,15 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     assert str(PROJECT_STATUS.current_milestone_number) in home_text
     assert PROJECT_STATUS.current_milestone_title in home_text
     assert PROJECT_STATUS.current_milestone_status in home_text
-    assert "Controlled research active" in home_text
-    assert "owner-approved, source-attributed hypotheses" in home_text
     assert (
-        "Protected tests, promotion, paper execution, and live trading remain blocked"
+        "essential dashboard pages are complete for this bounded Step 11 path"
+        in home_text
+    )
+    assert "Real saved filter-result connection, full workflow proof" in home_text
+    assert "New candidate and edge research are paused until beta" in home_text
+    assert (
+        "Protected-data inspection, promotion, deployment, paper execution, and live "
+        "trading remain blocked"
         in home_text
     )
     assert "Not checked" in home_text
@@ -1342,9 +1350,11 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     system = page_for_path("/system", context)
     system_text = _component_text(system)
     assert system.className == "page-container"
-    assert "Controlled research is active only for owner-approved" in system_text
+    assert "New candidate and edge research are paused until beta" in system_text
+    assert "essential dashboard pages are complete for this bounded path" in system_text
     assert (
-        "Protected tests, promotion, paper execution, and live trading remain blocked"
+        "Protected-data inspection, promotion, deployment, paper execution, and live "
+        "trading remain blocked"
         in system_text
     )
     assert page_for_path("/system/providers", context).className == "page-container"
@@ -1630,7 +1640,7 @@ def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> No
     assert "No run selected" in _component_text(run_page)
     assert "Succeeded" in _component_text(results_page)
     assert "comparison-operator-contexts" in str(compare_page)
-    assert "Loading comparison" in _component_text(compare_page)
+    assert "Choose persisted tests to compare" in _component_text(compare_page)
 
 
 def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> None:
@@ -1649,7 +1659,7 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
     assert "No selected, active, or persisted run is available yet." in rendered
     assert "No recent failures require attention." in rendered
     assert rendered.count("Not checked") >= 12
-    assert "Controlled research active" in rendered
+    assert "New candidate and edge research are paused until beta" in rendered
     assert "P&L" not in rendered
     assert "profit" not in rendered.lower()
     action = next(
@@ -5860,7 +5870,7 @@ def test_run_detail_panel_renders_spym_fixture_persisted_evidence() -> None:
     assert "Recent trades" in rendered
     assert "Closed trades" in rendered
     assert "Cumulative trade P&L" in rendered
-    assert "Underlying price, entries, and exits" in rendered
+    assert "Price and completed trades" in rendered
     assert "Evidence not recorded" in rendered
     assert "This run does not include a persisted underlying price" in rendered
     assert "Portfolio value and buy-and-hold comparison" in rendered
@@ -5904,14 +5914,14 @@ def test_recent_trades_grid_uses_responsive_column_profile() -> None:
         component
         for component in _walk_components(panel)
         if getattr(component, "className", None)
-        == "ag-theme-alpine qf-data-grid qf-trades-grid"
+        == "ag-theme-alpine qf-data-grid qf-trades-grid qf-trade-explorer-grid"
     ]
 
     assert len(grids) == 1
     columns = {column["field"]: column for column in grids[0].columnDefs}
-    assert columns["Entry Index"]["minWidth"] >= 160
-    assert columns["Side"]["width"] <= 110
-    assert columns["PnL"]["cellClass"] == (
+    assert columns["Entry timestamp"]["minWidth"] >= 160
+    assert columns["Direction"]["width"] <= 120
+    assert columns["P&L"]["cellClass"] == (
         "qf-table-cell qf-table-cell-center qf-table-cell-number"
     )
     assert columns["Return"]["headerClass"] == (
@@ -6224,7 +6234,10 @@ def test_run_detail_panel_handles_missing_manifest_config_and_empty_summary() ->
     assert "No persisted parameter result summary is available" in rendered
     assert "No persisted equity curve artifact is available for this run." in rendered
     assert "No persisted drawdown artifact is available for this run." in rendered
-    assert "No persisted trades artifact is available." in rendered
+    assert (
+        "Completed trades appear here when the run has a persisted trades artifact."
+        in rendered
+    )
 
 
 def test_run_detail_enables_historical_configuration_launch_when_launchable() -> None:
