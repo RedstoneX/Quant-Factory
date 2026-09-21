@@ -1,15 +1,15 @@
 # Quant Factory Dashboard UI Direction
 
-- **Status:** Accepted selected-run specification; bounded Decision 293 Find &
-  Compare design and implementation merged; broader expansion and full
-  Milestone 23 evidence deferred
+- **Status:** Essential surfaces reviewed and reconciled through Decision 298
+  Step 11; Step 12 owner direction review is next
 - **Owner direction accepted:** 2026-09-18
-- **Objective implementation and browser evidence:** Pending
+- **Objective implementation and browser evidence:** Focused Step 11 evidence
+  passed; Steps 13–15 remain pending
 
-> **Current sequencing (Decision 294):** This retained specification is not the
-> active work queue. Focused checks protect changed UI paths now; broader
-> expansion and the full Milestone 23 browser, lifecycle, device, and target
-> matrix remain deferred until a recorded trigger resumes them.
+> **Current sequencing (Decision 298):** Essential-page review and
+> reconciliation are complete through Step 11. Step 12 is the owner's
+> clickable direction review. Real saved-result connections, complete workflow
+> proof, final acceptance, and beta remain Steps 13–16.
 
 ## Purpose and authority
 

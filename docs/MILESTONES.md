@@ -9,9 +9,9 @@ ordered work, milestone scope, and acceptance.
 |---|---|
 | Goal | Give Terry, the sole operator, the shortest safe way to find or reject a defensible trading edge. |
 | Phase | Factory-to-beta completion is active under Decision 298. New edge-candidate research is paused until beta. |
-| Active work | Step 4: inventory the existing later filters and identify only the missing connections. |
-| Finding | The SPYM strategy row screened out, while the intended factory test succeeded: the backtest engine, persistence, evidence, dashboard reopening, and first filter produced a coherent reviewed result. This did not attempt to establish a trading edge or prove the complete filtration chain. |
-| Next action | Reconcile the existing downstream filter code and tests, then define the smallest reusable mechanics proof for Steps 5–9; do not run another candidate. |
+| Active work | Step 12: give Terry clickable working dashboard pages for direction review. |
+| Finding | Steps 4–9 proved the existing filter-chain mechanics with one labelled deterministic fixture, not a trading edge. Steps 10–11 found the essential dashboard surfaces already present, preserved their approved structure, corrected stale status text and tests, and passed focused checks. |
+| Next action | Start a disposable review instance from current `main` and provide direct links for Home, Setup, Results, Find & Compare, and System. |
 | Blocked | New candidate research/backtests, data acquisition, open-ended optimization, protected-test inspection, automatic promotion, deployment, paper activation, futures execution, live trading, and portability work. |
 
 ## Product direction and boundaries
@@ -43,7 +43,7 @@ ordered work, milestone scope, and acceptance.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R08 | 1 | in_progress | none | The Decision 296 SPYM run completed at source revision `3ae6912937501b46f67666dea269ec76e92caad5` using licensed VectorBT Pro 2026.4.7. Its strategy row screened out, but the intended factory test succeeded: engine output, durable evidence, first-filter reasons, and dashboard reopening agreed under independent review. Decision 298 now requires the remaining filter-chain mechanics and essential-dashboard proof before beta and before another candidate. |
+| R08 | 1 | in_progress | none | Steps 4–11 of Decision 298 are merged. Filter mechanics passed independent adversary review; 144 related checks passed before the final lock-identity correction and 21 focused checks passed afterward. PR #82 merged at `89428965465e81e2493cd37670ed1c05b5928eb6`. Essential dashboard reconciliation passed 44 focused checks, three real-browser lifecycle checks, licensed VectorBT reconstruction, and required CI through PR #83 at `e8fa5f33613c8355e26d9ea3bef8aebd178de7bf`. Step 12 owner direction review is next; Steps 13–16 remain open. |
 <!-- active-work:end -->
 
 ## Owner-accepted factory-to-beta path
@@ -60,15 +60,15 @@ drafts.
 | 1. Prove one fixed run through the licensed backtest engine | Done | The bounded SPYM run completed with VectorBT Pro 2026.4.7. |
 | 2. Save settings, trades, costs, results, and evidence | Done | Database plus 7/7 artifacts and checksums agreed under independent review. |
 | 3. Apply the first filter and preserve its reasons | Done | The weak SPYM row screened out with explicit return and Sharpe reasons; this was correct factory behavior. |
-| 4. Inventory the existing later filters and missing connections | In progress | Reconcile code, tests, and prior evidence before changing anything. |
-| 5. Prove the unseen-data filter mechanics with one fixed reusable example | Planned | Reuse saved evidence where it fits; use one clearly labelled deterministic survivor only if a later filter needs a passing input. This proves mechanics, not unseen profitability. |
-| 6. Prove the walk-forward filter mechanics with the same example | Planned | Reuse the Step 5 example and existing components; do not run a new candidate. |
-| 7. Prove stability and different-market-condition filter mechanics | Planned | Test only the existing required behavior and record truthful limitations. |
-| 8. Prove the Monte Carlo stress-filter mechanics | Planned | Use the same bounded example and existing engine. |
-| 9. Prove correct stop or advance behavior at every filter | Planned | Confirm weak rows stop and qualifying fixture rows advance without automatic promotion. |
-| 10. Review every existing dashboard page | Planned | Mark each page essential and retained, a real beta blocker, or deferred. |
-| 11. Complete the essential dashboard pages | Planned | Use existing components for Setup, Run History, Find & Compare, Results, Evidence, and System; avoid broad redesign or polish. |
-| 12. Show Terry each working dashboard page | Owner checkpoint | Provide clickable working review pages; this is neither production deployment nor final acceptance. |
+| 4. Inventory the existing later filters and missing connections | Done | Existing unseen-data, walk-forward, stability/regime, Monte Carlo, persistence, and fail-closed gates were reused; only a single connected mechanics proof was missing. |
+| 5. Prove the unseen-data filter mechanics with one fixed reusable example | Done | The real runner uses one labelled deterministic survivor and proves train → selection → held-out-test routing; it makes no profitability claim. |
+| 6. Prove the walk-forward filter mechanics with the same example | Done | The same fixture passes the real rolling-window runner and preserves its fixed parameter locks and fold returns. |
+| 7. Prove stability and different-market-condition filter mechanics | Done | The real robustness pipeline evaluates a nonempty parameter neighborhood and labelled regimes through deterministic test seams. |
+| 8. Prove the Monte Carlo stress-filter mechanics | Done | The existing Monte Carlo runner consumes the recorded walk-forward returns and its evidence is persisted and reopened. |
+| 9. Prove correct stop or advance behavior at every filter | Done | Training/selection/test routing, selection stop, walk-forward stop, persisted handoffs, and the final fail-closed gate are asserted; automatic promotion remains blocked. |
+| 10. Review every existing dashboard page | Done | Setup, embedded Run History, Find & Compare, Results, embedded Evidence, and System are essential and retained. Ideas intake, live market-data connections, paper pages, Settings expansion, caching, export, deployment, and broad polish are deferred. No essential page required a new route or framework. |
+| 11. Complete the essential dashboard pages | Done | Current components were retained. Decision 298 status text and only the proven stale checks were corrected; 44 focused checks, three real-browser checks, licensed reconstruction, and required CI passed through PR #83. |
+| 12. Show Terry each working dashboard page | Owner checkpoint — active | Provide clickable disposable review pages; this is neither production deployment nor final acceptance. |
 | 13. Connect every essential page to real saved engine and filter results | Planned after Step 12 | Preserve truthful run identity, evidence limits, screening reasons, and saved state. |
 | 14. Test the complete browser workflow | Planned | Check navigation, resizing, reopening, and saved state with focused end-to-end proof. |
 | 15. Obtain Terry's final dashboard and workflow acceptance | Owner checkpoint | Acceptance belongs only to Terry. |
@@ -83,7 +83,7 @@ Milestones 1–22 are complete.
 | # | Milestone | Acceptance summary | Status |
 |---:|---|---|---|
 | 16–22 | Infrastructure, persistence, orchestration, lineage, dashboard foundation, equity fixture, and unified validation | Durable records, reproducible evidence, normalized outcomes, and protected-data gates | Complete |
-| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Planned in Steps 10–15 after the filter-chain proof** |
+| 23 | End-to-End Equity Research Factory Acceptance | ADR 0008 browser lifecycle, complete operator workflow, renewed Results acceptance, and every objective gate | **Steps 10–11 complete; Step 12 owner direction review active; Steps 13–15 remain** |
 | 24 | Portable Deployment and Alpaca Paper-Execution MVP | Portable restore and bounded paper workflow after a qualified edge and every execution gate | Preparation retained; portability, deployment and activation dormant |
 | 25 | Controlled Equity Strategy Intake, Discovery and Survivor Validation | Approved, attributed ideas become bounded experiments and survivors pass predeclared evidence gates | **Factory proof in progress; new candidate research is paused until beta** |
 | 26 | Automated Alpaca Paper Forward Testing and Reconciliation | Eligibility, deployment, monitoring, reconciliation, recovery, and paper fault injection | Pending |
@@ -133,9 +133,9 @@ Current slices:
   `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f`; its focused, portable
   real-browser, independent-review, and required-CI evidence passed. The
   complete selected-run/Milestone 23 implementation is not claimed.
-- **23C-3 — Browser/operator acceptance:** renewed owner acceptance, real-browser
-  lifecycle evidence, and the complete workflow remain pending for Steps
-  12–15.
+- **23C-3 — Browser/operator acceptance:** three focused lifecycle corrections
+  passed in a real browser through PR #83. Step 12 direction review and the
+  complete Steps 13–15 workflow and final acceptance remain pending.
 - **23D — Recovery and integrity:** preserve failure, retry, timeout,
   cancellation, stale-recovery, missing-artifact, and corrupt-lineage coverage.
 - **23E — Gate decision:** record an explicit pass or fail after all criteria.

@@ -1,12 +1,10 @@
 # Milestone 23 Acceptance
 
-> **Current sequencing (Decision 294):** This is the retained eventual
-> pre-paper product-acceptance catalog, not the current work queue. Use focused
-> checks for changed paths now. Resume the full browser/lifecycle, recovery,
-> device, and target matrix only for a concrete blocker, an actual
-> deployment/runtime change, explicit Milestone 23 closure, a qualified
-> candidate approaching paper, or an owner request. Never deploy merely to
-> prove deployment.
+> **Current sequencing (Decision 298):** Essential dashboard review and
+> reconciliation are complete through Step 11. Step 12 is Terry's clickable
+> direction review. Real saved-result connections, the complete browser
+> workflow, final acceptance, and beta remain Steps 13–16. Never deploy merely
+> to prove deployment.
 
 Milestone 23 proves the complete equity research workflow before any strategy
 can advance toward paper activation. Decision 287 narrowly permits controlled,
@@ -145,8 +143,20 @@ research-computation behavior is not misrepresented as a completed cache.
   `9495a36a45af2bfe1288ab7cba840a4eed8ef54e`. The owner reviewed the image as
   good and intuitive.
 - Deployment, target validation, final owner acceptance, and beta completion
-  remain pending but dormant until Decision 294's trigger occurs. The image
-  review does not establish the full workflow or Milestone 23 acceptance.
+  remain pending. Decision 298 resumed only the factory-to-beta sequence. The
+  image review does not establish the full workflow or Milestone 23 acceptance.
+
+### Decision 298 Steps 10–11 evidence — 2026-09-21
+
+- The existing essential surfaces were retained: Setup; Run History inside
+  Results; Find & Compare; Results; Evidence inside Results; and System. No new
+  route, dashboard framework, charting package, or duplicate backend was added.
+- PR #83 merged at `e8fa5f33613c8355e26d9ea3bef8aebd178de7bf` after 44 focused
+  checks, three targeted real-browser lifecycle checks, one licensed VectorBT
+  reconstruction check, and every required GitHub check passed.
+- The change corrected Decision 298 status text and old checks that still
+  expected pre-approved behavior. It did not implement Steps 13–16, deploy the
+  application, prove a trading edge, or establish owner acceptance.
 
 ## Target-evidence audit — 2026-09-18
 
