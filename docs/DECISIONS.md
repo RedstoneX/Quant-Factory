@@ -1033,3 +1033,30 @@ explicitly.
      record, or `docs/CHAT_HANDOFF.md` change applies because architecture,
      data, runtime, deployment, startup navigation, and trading authority are
      unchanged. `CLAUDE.md` and `.claude/**` remain untouched.
+
+300. **Pause after the Step 15 review instructions until the owner explicitly
+     approves resumption (accepted 2026-09-21).** After the bounded dashboard
+     loading correction merged through PR #86, Terry reported that the
+     dashboard looked okay but felt nonfunctional and that he could not yet
+     judge its usability. This is not final dashboard acceptance or a verified
+     finding that every core control is broken. Terry directed Codex not to
+     start further work until he gives approval.
+
+     The owner review now uses the concise Step 15 checklist in the Milestone
+     23 acceptance record. Navigation, saved-run selection, chart interaction,
+     Metrics and Trades, trade selection, run history, Compare, and refresh
+     continuity are expected to work and therefore count as defects if the
+     owner observes otherwise. Ideas execution, Export, paper trading, and
+     expanded Settings remain intentionally unavailable. The next action is to
+     wait for Terry to report the first failed checklist step or explicitly
+     authorize resumption. Step 15 remains unaccepted and Step 16 beta has not
+     begun.
+
+     Documentation-impact assessment: `docs/MILESTONES.md`, this decision log,
+     and the Milestone 23 acceptance record are updated because current work is
+     paused at the owner checkpoint and the next action must survive
+     compaction. `AGENTS.md` and the agent policy are not applicable because
+     this is a temporary owner checkpoint, not a permanent operating-rule
+     change. No ADR, README, chat-handoff, schema, code, test, data, runtime,
+     deployment, or other runbook change applies. The private review address
+     is intentionally not added to the public repository.

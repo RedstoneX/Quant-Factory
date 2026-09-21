@@ -191,6 +191,31 @@ research-computation behavior is not misrepresented as a completed cache.
   behavior, beta entry, final owner acceptance, or the unchecked full
   Milestone 23 launch/reproduce/review criteria.
 
+### Step 15 owner review checklist — active 2026-09-21
+
+Terry directed Codex to pause all further work until he explicitly approves
+resumption. The corrected private review page is available, but Step 15 has not
+passed. The owner will test these actions in order and report the first failed
+step:
+
+1. Open the current private complete-dashboard review page and refresh once.
+2. Open **Set up** and confirm the page changes within a few seconds.
+3. Open **Results** and allow up to 20 seconds once for the large saved chart.
+4. Drag inside the main chart and confirm the visible time range moves.
+5. Use the mouse wheel over the chart and confirm it zooms.
+6. Select **5m**, **15m**, and **1D** and confirm the chart redraws.
+7. Open **Metrics** and **Trades** without a full-page reload.
+8. Select one trade row and confirm its detail and chart identity appear.
+9. Use **Change run** and confirm the chart and results change.
+10. Open **Change run history**, select another row, and confirm it opens.
+11. Open **Compare**, select two saved runs, and confirm a comparison appears.
+12. Refresh and confirm the same page and selected run reopen.
+
+Ideas execution, Export, paper trading, and expanded Settings are intentionally
+unavailable and are outside this review. A reachable page, agent-run browser
+test, or vague visual impression is not owner acceptance. Resume only after
+Terry reports a failed step or explicitly authorizes further work.
+
 ## Target-evidence audit — 2026-09-18
 
 This read-only audit distinguishes historical licensed-target evidence from
