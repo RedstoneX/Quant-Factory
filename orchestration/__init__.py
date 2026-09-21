@@ -8,6 +8,14 @@ from orchestration.run_service import (
     RunServiceError,
     RunSummary,
 )
+from orchestration.filter_chain import (
+    FactoryFilterChainService,
+    FilterChainOutcome,
+    FilterStageContext,
+    FilterStageHandoff,
+    ProtectedTestGate,
+    VALIDATION_STAGE_ORDER,
+)
 from orchestration.research_launch_claims import (
     CANDIDATE_SCREENING_LAUNCH_CONTRACT,
     CANDIDATE_SCREENING_LAUNCH_POLICY,
@@ -35,6 +43,12 @@ from orchestration.candidate_run_service import (
 )
 
 __all__ = [
+    "FactoryFilterChainService",
+    "FilterChainOutcome",
+    "FilterStageContext",
+    "FilterStageHandoff",
+    "ProtectedTestGate",
+    "VALIDATION_STAGE_ORDER",
     "FixtureRunService",
     "RunLaunchResult",
     "RunReproductionResult",
