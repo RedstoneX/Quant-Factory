@@ -43,6 +43,8 @@ from persistence.serialization import canonical_json
 
 REQUEST_PROTOCOL_VERSION = 1
 ACCEPTED_LAUNCH_POLICY = "milestone23_infrastructure_fixture_only"
+CANDIDATE_SCREENING_REQUEST_PROTOCOL_VERSION = "candidate_screening_v1"
+CANDIDATE_SCREENING_LAUNCH_POLICY = "owner_approved_candidate_screening_only"
 DEFAULT_BUSY_TIMEOUT_SECONDS = 0.25
 MIN_BUSY_TIMEOUT_SECONDS = 0.01
 MAX_BUSY_TIMEOUT_SECONDS = 30.0
@@ -86,6 +88,41 @@ class ResearchLaunchInvocationUnknownError(ResearchLaunchError):
 
 class ResearchLaunchInvocationError(ResearchLaunchError):
     """Raised when an acknowledged invocation still reports a caller-visible error."""
+
+
+@dataclass(frozen=True)
+class ResearchLaunchContract:
+    """The immutable durable-claim identity for one enabled research path."""
+
+    protocol_version: int | str
+    accepted_launch_policy: str
+    stage: RunStage
+    required_strategy_lifecycle: StrategyLifecycle
+    stage_field: str
+    created_event_message: str
+
+
+FIXTURE_LAUNCH_CONTRACT = ResearchLaunchContract(
+    protocol_version=REQUEST_PROTOCOL_VERSION,
+    accepted_launch_policy=ACCEPTED_LAUNCH_POLICY,
+    stage=RunStage.FIXTURE,
+    required_strategy_lifecycle=StrategyLifecycle.INFRASTRUCTURE_FIXTURE,
+    stage_field="fixture_stage",
+    created_event_message="Run created for durable research fixture submission.",
+)
+
+CANDIDATE_SCREENING_LAUNCH_CONTRACT = ResearchLaunchContract(
+    protocol_version=CANDIDATE_SCREENING_REQUEST_PROTOCOL_VERSION,
+    accepted_launch_policy=CANDIDATE_SCREENING_LAUNCH_POLICY,
+    stage=RunStage.SCREENING,
+    required_strategy_lifecycle=StrategyLifecycle.CANDIDATE,
+    stage_field="candidate_stage",
+    created_event_message="Run created for explicit candidate screening submission.",
+)
+
+SUPPORTED_LAUNCH_CONTRACTS = frozenset(
+    {FIXTURE_LAUNCH_CONTRACT, CANDIDATE_SCREENING_LAUNCH_CONTRACT}
+)
 
 
 @dataclass(frozen=True)
@@ -202,6 +239,7 @@ class DurableResearchLaunchService:
         run_id_factory: Callable[[], str] | None = None,
         claim_failure_injector: Callable[[str], None] | None = None,
         initialize_schema: bool = True,
+        launch_contract: ResearchLaunchContract = FIXTURE_LAUNCH_CONTRACT,
     ) -> None:
         if (
             isinstance(busy_timeout_seconds, bool)
@@ -214,14 +252,23 @@ class DurableResearchLaunchService:
             raise ValueError("busy timeout must be a finite value between 0.01 and 30 seconds")
         if not isinstance(initialize_schema, bool):
             raise ValueError("initialize_schema must be a boolean")
+        if launch_contract not in SUPPORTED_LAUNCH_CONTRACTS:
+            raise ValueError("research launch contract is not an enabled durable path")
         self.database_path = database_path(database)
         self.busy_timeout_seconds = float(busy_timeout_seconds)
         self._busy_timeout_ms = max(1, round(self.busy_timeout_seconds * 1000))
         self._run_id_factory = run_id_factory or (lambda: f"run_{uuid4().hex}")
         self._claim_failure_injector = claim_failure_injector
+        self._launch_contract = launch_contract
         if initialize_schema:
             initialized = initialize_database(self.database_path)
             initialized.close()
+
+    @property
+    def launch_contract(self) -> ResearchLaunchContract:
+        """Enabled claim identity; callers cannot mutate it after construction."""
+
+        return self._launch_contract
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
@@ -407,8 +454,8 @@ class DurableResearchLaunchService:
             _bounded_text(value, label=key, maximum=256)
         return derived
 
-    @staticmethod
     def _canonical_request_for_configuration(
+        self,
         connection: sqlite3.Connection,
         request: ResearchLaunchRequest,
     ) -> tuple[str, str, str, str, str]:
@@ -451,9 +498,17 @@ class DurableResearchLaunchService:
             raise ResearchLaunchIntegrityError(
                 f"saved configuration {configuration_id} references an unregistered strategy"
             )
-        if not strategy.active or strategy.lifecycle != StrategyLifecycle.INFRASTRUCTURE_FIXTURE:
+        if (
+            not strategy.active
+            or strategy.lifecycle != self._launch_contract.required_strategy_lifecycle
+        ):
+            if self._launch_contract == FIXTURE_LAUNCH_CONTRACT:
+                raise ResearchLaunchError(
+                    f"saved configuration {configuration_id} is not an approved infrastructure fixture"
+                )
             raise ResearchLaunchError(
-                f"saved configuration {configuration_id} is not an approved infrastructure fixture"
+                f"saved configuration {configuration_id} is not approved for "
+                f"{self._launch_contract.stage.value} launch"
             )
         source_lineage = DurableResearchLaunchService._derive_source_lineage(
             connection,
@@ -468,14 +523,14 @@ class DurableResearchLaunchService:
                 "provided source lineage does not match persisted source evidence"
             )
         document = {
-            "protocol_version": REQUEST_PROTOCOL_VERSION,
+            "protocol_version": self._launch_contract.protocol_version,
             "operation_kind": operation.value,
             "configuration_id": configuration.configuration_id,
             "configuration_hash": configuration.config_hash,
             "strategy_id": configuration.strategy_id,
             "strategy_version": configuration.strategy_version,
-            "fixture_stage": RunStage.FIXTURE.value,
-            "accepted_launch_policy": ACCEPTED_LAUNCH_POLICY,
+            self._launch_contract.stage_field: self._launch_contract.stage.value,
+            "accepted_launch_policy": self._launch_contract.accepted_launch_policy,
             "source_run_id": source_run_id,
             "source_lineage": source_lineage,
         }
@@ -544,7 +599,7 @@ class DurableResearchLaunchService:
                     configuration_id=configuration_id,
                     strategy_id=strategy_id,
                     strategy_version=strategy_version,
-                    stage=RunStage.FIXTURE,
+                    stage=self._launch_contract.stage,
                     status=RunStatus.CREATED,
                     environment=json.loads(environment_json),
                 )
@@ -553,7 +608,7 @@ class DurableResearchLaunchService:
                     run_id=run.run_id,
                     event_type=RunEventType.RUN_CREATED,
                     severity=EventSeverity.INFO,
-                    message="Run created for durable research fixture submission.",
+                    message=self._launch_contract.created_event_message,
                     occurred_at=run.created_at,
                 )
                 self._inject_claim_failure("after_run_created_event")
@@ -579,8 +634,8 @@ class DurableResearchLaunchService:
         with self._connection() as connection:
             return ResearchRunSubmissionRepository(connection).get_for_run(run_id)
 
-    @staticmethod
     def _validate_persisted_claim(
+        self,
         connection: sqlite3.Connection,
         submission: ResearchRunSubmissionRecord,
         *,
@@ -611,9 +666,11 @@ class DurableResearchLaunchService:
                 "stored research submission operation is invalid"
             ) from exc
         if (
-            document.get("protocol_version") != REQUEST_PROTOCOL_VERSION
-            or document.get("accepted_launch_policy") != ACCEPTED_LAUNCH_POLICY
-            or document.get("fixture_stage") != RunStage.FIXTURE.value
+            document.get("protocol_version") != self._launch_contract.protocol_version
+            or document.get("accepted_launch_policy")
+            != self._launch_contract.accepted_launch_policy
+            or document.get(self._launch_contract.stage_field)
+            != self._launch_contract.stage.value
             or document.get("configuration_id") != submission.configuration_id
         ):
             raise ResearchLaunchIntegrityError(
@@ -648,7 +705,7 @@ class DurableResearchLaunchService:
             )
         if require_launchable_configuration and (
             not strategy.active
-            or strategy.lifecycle != StrategyLifecycle.INFRASTRUCTURE_FIXTURE
+            or strategy.lifecycle != self._launch_contract.required_strategy_lifecycle
         ):
             raise ResearchLaunchIntegrityError(
                 "research submission configuration is no longer launchable"
@@ -662,7 +719,7 @@ class DurableResearchLaunchService:
             run.configuration_id != submission.configuration_id
             or run.strategy_id != configuration.strategy_id
             or run.strategy_version != configuration.strategy_version
-            or run.stage != RunStage.FIXTURE
+            or run.stage != self._launch_contract.stage
         ):
             raise ResearchLaunchIntegrityError(
                 "research submission run identity is inconsistent"

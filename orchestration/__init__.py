@@ -9,7 +9,11 @@ from orchestration.run_service import (
     RunSummary,
 )
 from orchestration.research_launch_claims import (
+    CANDIDATE_SCREENING_LAUNCH_CONTRACT,
+    CANDIDATE_SCREENING_LAUNCH_POLICY,
+    CANDIDATE_SCREENING_REQUEST_PROTOCOL_VERSION,
     DurableResearchLaunchService,
+    FIXTURE_LAUNCH_CONTRACT,
     ResearchDispatchDecision,
     ResearchDispatchResult,
     ResearchLaunchClaim,
@@ -24,6 +28,11 @@ from orchestration.research_launch_claims import (
     new_dispatcher_instance_id,
     new_research_launch_key,
 )
+from orchestration.candidate_run_service import (
+    CandidateRunService,
+    CandidateScreeningAdapter,
+    CandidateScreeningLaunchResult,
+)
 
 __all__ = [
     "FixtureRunService",
@@ -33,6 +42,10 @@ __all__ = [
     "RunServiceError",
     "RunSummary",
     "DurableResearchLaunchService",
+    "FIXTURE_LAUNCH_CONTRACT",
+    "CANDIDATE_SCREENING_LAUNCH_CONTRACT",
+    "CANDIDATE_SCREENING_LAUNCH_POLICY",
+    "CANDIDATE_SCREENING_REQUEST_PROTOCOL_VERSION",
     "ResearchDispatchDecision",
     "ResearchDispatchResult",
     "ResearchLaunchClaim",
@@ -46,4 +59,7 @@ __all__ = [
     "ResearchLaunchRequest",
     "new_dispatcher_instance_id",
     "new_research_launch_key",
+    "CandidateRunService",
+    "CandidateScreeningAdapter",
+    "CandidateScreeningLaunchResult",
 ]
