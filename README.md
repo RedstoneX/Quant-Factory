@@ -25,9 +25,11 @@ The immediate objective is to finish and test the existing factory and its
 essential dashboard workflow through beta before testing another real strategy
 for an edge. The SPYM run proved the licensed engine, durable results, first
 filter, and dashboard reopening; its weak strategy row correctly screened out.
-The remaining filters and essential dashboard pages now follow the ordered
-factory-to-beta path in [MILESTONES](docs/MILESTONES.md). No new candidate run
-or data acquisition is part of that path.
+The remaining filter mechanics and essential dashboard-page reconciliation are
+now merged. Step 12 is Terry's clickable direction review; real saved-result
+connections, complete workflow proof, final acceptance, and beta remain Steps
+13–16 in [MILESTONES](docs/MILESTONES.md). No new candidate run or data
+acquisition is part of that path.
 
 Decision 298 sets the current order: reconcile and prove the remaining filter
 mechanics with saved evidence or deterministic fixtures → verify stop/advance
