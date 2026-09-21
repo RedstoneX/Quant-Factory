@@ -4228,91 +4228,28 @@ def create_app(
     selected_run_panel: Any | None = None
     selected_run_id: str | None = None
     if recent_run_records:
-        selected_run, selected_detail = _select_initial_backtest(
+        selected_run, _ = _select_initial_backtest(
             recent_run_records,
             detail_adapter,
         )
     else:
-        selected_run, selected_detail = None, None
+        selected_run = None
     if selected_run is not None:
         selected_run_id = selected_run.run_id
-        if selected_detail is None:
-            try:
-                selected_detail = detail_adapter.selected_run_detail(
-                    selected_run.run_id
-                )
-            except (KeyError, RuntimeError, ValueError) as exc:
-                selected_detail = SelectedRunDetailView(
-                    configuration_fields=(),
-                    parameters=(),
-                    market_data=(),
-                    execution=(),
-                    ranking=(),
-                    screening=(),
-                    lineage_fields=(),
-                    manifest_fields=(),
-                    artifacts=(),
-                    result_summary=ResultSummaryView(
-                        status="empty",
-                        message="No persisted result summary is available for this run.",
-                        rows=(),
-                    ),
-                    evidence=RunEvidenceView(
-                        notices=(),
-                        metrics=(),
-                        trades=(),
-                        orders=(),
-                        equity_curve=(),
-                        drawdown_curve=(),
-                        validation=(),
-                        provenance=(),
-                        warnings=(),
-                    ),
-                    warnings=(f"Run detail retrieval failed: {exc}",),
-                )
+        # Keep the permanently mounted Results page lightweight. Its real
+        # controls and selected-run shell remain mounted for ADR 0008, while
+        # the large persisted charts are hydrated by the Results-owned
+        # callback only when that route is active.
         selected_run_panel = _run_detail_panel(
             selected_run,
             runs.events_for_run(selected_run.run_id),
-            detail=selected_detail,
         )
     elif recent_run_records:
         selected_run = recent_run_records[0]
         selected_run_id = selected_run.run_id
-        try:
-            selected_detail = detail_adapter.selected_run_detail(selected_run.run_id)
-        except (KeyError, RuntimeError, ValueError) as exc:
-            selected_detail = SelectedRunDetailView(
-                configuration_fields=(),
-                parameters=(),
-                market_data=(),
-                execution=(),
-                ranking=(),
-                screening=(),
-                lineage_fields=(),
-                manifest_fields=(),
-                artifacts=(),
-                result_summary=ResultSummaryView(
-                    status="empty",
-                    message="No persisted result summary is available for this run.",
-                    rows=(),
-                ),
-                evidence=RunEvidenceView(
-                    notices=(),
-                    metrics=(),
-                    trades=(),
-                    orders=(),
-                    equity_curve=(),
-                    drawdown_curve=(),
-                    validation=(),
-                    provenance=(),
-                    warnings=(),
-                ),
-                warnings=(f"Run detail retrieval failed: {exc}",),
-            )
         selected_run_panel = _run_detail_panel(
             selected_run,
             runs.events_for_run(selected_run.run_id),
-            detail=selected_detail,
         )
     app = Dash(
         __name__,
