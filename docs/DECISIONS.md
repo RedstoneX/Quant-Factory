@@ -1174,3 +1174,30 @@ explicitly.
      data records, schemas, deployment records, and runbooks are not applicable
      because no dashboard behavior, milestone acceptance, dataset, schema,
      runtime, deployment, or operator procedure changes.
+
+305. **Close the bounded factory-connection correction and prepare one
+     candidate proposal (recorded 2026-09-21).** PR #92 merged Decision 304's
+     candidate-only durable screening contract and persisted filter coordinator
+     at `02c46f6041e32ce12e7f3359273b79a7c506e38b`. The coordinator assigns and
+     reserves stable stage identities, reopens validated evidence, prevents
+     duplicate work, checks predecessor lineage, stops before a failed next
+     stage, and uses the existing protected-test gate. Candidate and fixture
+     event histories remain distinct.
+
+     One hundred and three focused compatibility checks, required GitHub CI,
+     adversary review, and independent review passed. This proves generic
+     infrastructure only. No real candidate adapter was built, no candidate or
+     backtest ran, no data was acquired, no protected test was opened, and no
+     deployment, paper, live, edge, or profitability claim follows.
+
+     The next bounded action is to present one source-attributed equity or ETF
+     hypothesis and its existing-data fit, fixed parameters, costs, screening
+     rules, validation periods, and stop conditions for Terry's explicit
+     approval. Implementation and execution remain blocked until that approval.
+
+     Documentation-impact assessment: `docs/MILESTONES.md`, this decision log,
+     and `README.md` are updated because the merged status and next action
+     changed. `AGENTS.md`, the agent policy, ADRs, dashboard requirements,
+     schemas, data records, deployment records, and runbooks are not applicable
+     because no permanent operating rule, architecture, dashboard behavior,
+     data, runtime, deployment, or operator procedure changed.
