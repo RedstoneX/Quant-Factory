@@ -877,10 +877,9 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     home_text = mounted_pages["/"]
     assert "Research readiness" in home_text
     assert "Not checked" in home_text
-    assert (
-        "complete passive browser workflow are complete through Step 14"
-        in home_text
-    )
+    assert PROJECT_STATUS.current_milestone_status in home_text
+    assert PROJECT_STATUS.strategy_status in home_text
+    assert PROJECT_STATUS.workspace_status in home_text
     assert home_visible == ["/"]
 
     retired_review_visible = visible_routes(
@@ -1304,17 +1303,8 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     assert str(PROJECT_STATUS.current_milestone_number) in home_text
     assert PROJECT_STATUS.current_milestone_title in home_text
     assert PROJECT_STATUS.current_milestone_status in home_text
-    assert (
-        "complete passive browser workflow are complete through Step 14"
-        in home_text
-    )
-    assert "Terry accepted the corrected Step 15 dashboard workflow" in home_text
-    assert "New candidate and edge research remain paused during beta" in home_text
-    assert (
-        "Protected-data inspection, promotion, deployment, paper execution, and live "
-        "trading remain blocked"
-        in home_text
-    )
+    assert PROJECT_STATUS.strategy_status in home_text
+    assert PROJECT_STATUS.workspace_status in home_text
     assert "Not checked" in home_text
     assert "Milestone 20" not in home_text
     assert "Operator Home" not in home_text
@@ -1354,13 +1344,9 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     system = page_for_path("/system", context)
     system_text = _component_text(system)
     assert system.className == "page-container"
-    assert "New candidate and edge research remain paused during beta" in system_text
-    assert "use saved results to find and correct demonstrated workflow defects" in system_text
-    assert (
-        "Protected-data inspection, promotion, deployment, paper execution, and live "
-        "trading remain blocked"
-        in system_text
-    )
+    assert PROJECT_STATUS.current_milestone_status in system_text
+    assert PROJECT_STATUS.strategy_status in system_text
+    assert PROJECT_STATUS.workspace_status in system_text
     assert page_for_path("/system/providers", context).className == "page-container"
     assert page_for_path("/settings", context).className == "page-container pending-page"
     assert page_for_path("/missing", context).className == "page-container"
@@ -1663,7 +1649,8 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
     assert "No selected, active, or persisted run is available yet." in rendered
     assert "No recent failures require attention." in rendered
     assert rendered.count("Not checked") >= 12
-    assert "New candidate and edge research remain paused during beta" in rendered
+    assert PROJECT_STATUS.strategy_status in rendered
+    assert PROJECT_STATUS.workspace_status in rendered
     assert "P&L" not in rendered
     assert "profit" not in rendered.lower()
     action = next(
