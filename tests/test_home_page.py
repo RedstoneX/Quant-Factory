@@ -250,12 +250,11 @@ def test_home_shows_edge_discovery_status() -> None:
 
     assert model.milestone.startswith("Milestone 26")
     assert model.milestone_status == (
-        "Backend completion is recorded. Current work is to select and bound one genuinely "
-        "new short-duration S&P/Nasdaq hypothesis, then run only the cheapest sufficient "
-        "first-stage discovery test."
+        "Backend completion is recorded. One fixed modern SPY turn-of-month development-screen "
+        "proposal is predeclared and awaits explicit owner acceptance before execution."
     )
     assert "Backend completion is recorded" in discovery
-    assert "No candidate is currently qualified" in discovery
+    assert "turn-of-month hypothesis is proposed but untested" in discovery
     assert "not accepted as the long-term operator interface" in discovery
     assert "paper execution, and live trading remain deferred" in discovery
     assert model.action.label == "Continue to Compare"
