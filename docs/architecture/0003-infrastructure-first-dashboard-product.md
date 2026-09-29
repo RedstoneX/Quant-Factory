@@ -1,5 +1,11 @@
 # ADR 0003: Infrastructure-first dashboard product
 
+> **Current sequencing:** Decision 307 supersedes this ADR's infrastructure-first
+> and dashboard-first language as an active work order. The retained architecture,
+> evidence boundaries, and paper/live safety gates remain useful. Backend edge
+> discovery is now active; current work is defined only in `docs/MILESTONES.md`.
+
+
 - Status: Accepted
 - Date: 2026-07-09
 - Superseded in part: ADR 0009 replaces the Codex-first work-allocation
