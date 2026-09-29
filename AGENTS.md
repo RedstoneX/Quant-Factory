@@ -31,12 +31,9 @@ approves paper/live trading and capital exposure.
 
 Follow the queue in `docs/MILESTONES.md`. The default sequence is:
 
-**edge discovery -> validation -> execution-vehicle comparison -> dashboard
-repair -> paper operation -> live operation later.**
+**backend completion -> edge discovery -> validation -> execution-vehicle comparison -> dashboard repair -> paper operation -> live operation later.**
 
-Do not make dashboard completion, deployment, broker integration, portability,
-or generic infrastructure a prerequisite for edge research unless a measured
-blocker proves that it is one.
+Complete the verified generic backend runtime gap before new candidate selection. Do not reopen broad infrastructure, dashboard, deployment, or broker work unless a measured blocker requires it. Once backend completion is recorded, do not keep testing the factory instead of moving into edge research.
 
 The current dashboard's historical technical evidence is retained, but the
 owner does not consider the present interface sufficiently intuitive or viable
@@ -58,7 +55,7 @@ or material delegation, state in no more than six short bullets:
 If any item is missing, do not invent work. Reuse existing evidence or report
 that no new work is justified.
 
-Before new candidate-family work, perform a cheap read-only prior-work check.
+While backend completion is active, do not select or research a new candidate. After backend completion is recorded, perform a cheap read-only prior-work check before new candidate-family work.
 A new symbol, dataset, wrapper, wording, or presentation is not by itself a new
 requirement. Do not repeat completed or withdrawn strategy work without a
 genuinely new hypothesis or independent-evidence need.

@@ -13,7 +13,8 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **307** | **Backend-first reset:** edge discovery is the active priority; dashboard repair follows a promising edge or a measured UI blocker; orchestration is parallel-first and cost-aware; documentation authority is consolidated. |
+| **308** | **Backend completion correction:** finish the missing generic candidate-to-validation runtime path before selecting another strategy; one decisive fixture proof closes the backend phase. |
+| 307 | Backend-first product reset remains in force, but Decision 308 corrects its premature activation of edge discovery. Dashboard repair still follows a promising edge or measured UI blocker; parallel-first orchestration and consolidated authority remain. |
 | 306 | Prevent duplicate candidate/strategy-family work; a symbol or wrapper change is not a new requirement. |
 | 294 | Single-operator proportionality and evidence-truthful MVP rules remain, except Decision 307 supersedes its active sequencing. |
 | 290 | Codex remains the sole active project agent toolchain; Decision 307 supersedes serial/worker-selection wording where it conflicts with parallel-first orchestration. |
@@ -23,8 +24,7 @@ only when a task needs their evidence or rationale.
 | 276 | Independent green pull requests may proceed without strict up-to-date rebuilding; overlapping/dependent work remains serialized. |
 | 275 | `RedstoneX/Quant-Factory` is the canonical forward repository. |
 
-Where an older decision conflicts with Decision 307 on **priority, sequencing,
-dashboard usability status, or orchestration**, Decision 307 controls. Older
+Where an older decision conflicts with Decision 308 on backend-completion sequencing, Decision 308 controls. Otherwise Decision 307 controls priority, dashboard usability status, and orchestration as previously recorded. Older
 technical evidence and safety constraints remain valid unless explicitly
 superseded.
 
@@ -1329,3 +1329,52 @@ superseded.
      - No strategy code, market data, execution capability, deployment,
        credential, protected-test state, paper order, or live-capital authority
        changes in this governance reset.
+
+
+308. **Complete the generic research backend before candidate selection
+     (accepted 2026-09-29).** Terry corrects Decision 307's active sequencing.
+     "Backend-first" means the generic research backend must be operational
+     before Quant Factory spends resources selecting or testing another trading
+     hypothesis.
+
+     Existing engines and evidence services are not to be rebuilt. The verified
+     remaining gap is operational wiring: the durable candidate screening
+     service and persisted filter-chain coordinator currently depend on injected
+     screening/stage adapters, while the full-chain factory proof uses
+     deterministic/test seams. This does not yet establish one finished generic
+     runtime path that can take an already-approved candidate through screening,
+     chronological OOS, walk-forward, robustness/regime, Monte Carlo, and stop
+     at the protected-test gate without manual stage assembly.
+
+     The active work is therefore to inspect and reuse the existing experiment
+     runner, stage runners, persistence/evidence services, durable launch
+     service, and filter-chain coordinator; implement only the minimum missing
+     generic runtime adapters/wiring; and perform one decisive deterministic
+     non-profitability end-to-end proof. Repeated fixture testing, broad
+     infrastructure work, dashboard work, candidate selection, new market-data
+     acquisition, and broker/execution expansion are not substitutes for
+     completing this runtime path.
+
+     Backend completion is reached when an already-approved candidate can be
+     launched durably, screened through the real experiment path, advanced
+     through the real validation stages according to persisted evidence,
+     stopped automatically on failure, and brought to protected-test-ready on a
+     passing fixture while protected data remains locked. Replay/interruption
+     behavior remains idempotent and fail closed.
+
+     After this backend-completion acceptance is recorded, Quant Factory moves
+     directly to edge discovery. Do not continue proving the factory merely
+     because additional tests are possible.
+
+     This supersedes Decision 307 only where it made edge discovery immediately
+     active before the remaining generic backend runtime gap was closed.
+     Decision 307's product mission, dashboard deferral, execution-vehicle
+     sequencing, parallel-first orchestration, reuse rules, documentation
+     consolidation, evidence boundaries, and paper/live safety controls remain
+     in force.
+
+     Documentation impact: AGENTS.md, docs/MILESTONES.md, README.md,
+     dashboard/project_status.py, focused status tests, and this decision log
+     are updated. No strategy logic, market data, protected evidence, broker
+     capability, deployment, credentials, paper orders, or capital authority
+     changes under this correction.
