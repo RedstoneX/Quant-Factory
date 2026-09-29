@@ -13,7 +13,8 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **308** | **Backend completion correction satisfied:** the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under its existing bounds. |
+| **309** | **Intraday mission clarification:** active edge discovery is day trading only—same-session entry/exit, minutes-to-hours holding, no overnight or multi-day carry. Turn-of-month is retained but out of scope. Existing licensed VectorBT Pro must be located/reused before treating a checkout-local absence as a blocker. |
+| 308 | Backend completion correction satisfied: the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under Decision 309's intraday bounds. |
 | 307 | Backend-first product reset remains in force, but Decision 308 corrects its premature activation of edge discovery. Dashboard repair still follows a promising edge or measured UI blocker; parallel-first orchestration and consolidated authority remain. |
 | 306 | Prevent duplicate candidate/strategy-family work; a symbol or wrapper change is not a new requirement. |
 | 294 | Single-operator proportionality and evidence-truthful MVP rules remain, except Decision 307 supersedes its active sequencing. |
@@ -24,7 +25,7 @@ only when a task needs their evidence or rationale.
 | 276 | Independent green pull requests may proceed without strict up-to-date rebuilding; overlapping/dependent work remains serialized. |
 | 275 | `RedstoneX/Quant-Factory` is the canonical forward repository. |
 
-Where an older decision conflicts with Decision 308 on backend-completion sequencing, Decision 308 controls. Otherwise Decision 307 controls priority, dashboard usability status, and orchestration as previously recorded. Older
+Where an older decision conflicts with Decision 309 on active research mission fit or VectorBT-Pro availability handling, Decision 309 controls. Decision 308 controls backend-completion sequencing. Otherwise Decision 307 controls priority, dashboard usability status, and orchestration as previously recorded. Older
 technical evidence and safety constraints remain valid unless explicitly
 superseded.
 
@@ -1378,3 +1379,46 @@ superseded.
      are updated. No strategy logic, market data, protected evidence, broker
      capability, deployment, credentials, paper orders, or capital authority
      changes under this correction.
+
+
+309. **Clarify active edge discovery as intraday/day trading only
+     (accepted 2026-09-29).** Terry clarifies that Quant Factory's active edge
+     search is for short-duration **day-trading** strategies, not swing or
+     multi-day calendar strategies. For the current R11 phase, a candidate must
+     express a directional edge within one defined trading session, with entry
+     and exit in that session, an expected holding period measured in minutes
+     to hours, and no position carried beyond the strategy's session boundary.
+
+     Multi-day swing trades, overnight carry, turn-of-month holds, seasonal
+     holds, and other calendar strategies are out of scope for active R11 work
+     unless Terry explicitly changes the mandate. The existing SPY turn-of-month
+     proposal is retained as a legitimate bounded idea for possible future swing
+     research; it is rejected only for current mission fit and must not be
+     backtested now.
+
+     Initial active research remains focused on S&P 500 and Nasdaq-100 markets.
+     Existing MES/MNQ intraday data should be reused for economical first-stage
+     discovery when appropriate. A surviving futures signal does not by itself
+     establish a SPY/QQQ/SPXW options edge; the underlying/index must later be
+     validated, and any 0DTE implementation requires defensible historical
+     option quote/execution evidence.
+
+     Terry also confirms that the project has licensed VectorBT Pro and it has
+     been used successfully before. Codex must not equate absence from the
+     current checkout-local virtual environment with absence from the VPS or
+     project. Before treating VectorBT Pro as a blocker, locate and reuse or
+     safely reconnect the existing licensed runtime/environment. Do not expose
+     license credentials or create a second unnecessary installation when a
+     working licensed environment already exists.
+
+     This decision narrows Decision 307's phrase "short-duration directional
+     behavior" to the explicit intraday/day-trading mandate above. It does not
+     change the backend completion recorded under Decision 308, the owner
+     candidate-approval gate, protected-data controls, dashboard deferral,
+     execution-vehicle sequencing, or paper/live safety boundaries.
+
+     Documentation impact: AGENTS.md, docs/MILESTONES.md, README.md,
+     dashboard/project_status.py, the focused Home status test, and the
+     turn-of-month proposal status are updated to remove ambiguity. No strategy
+     code, data acquisition, backtest, protected evidence, broker capability,
+     deployment, credential, paper order, or capital authority changes here.
