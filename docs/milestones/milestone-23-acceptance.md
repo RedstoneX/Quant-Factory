@@ -1,5 +1,14 @@
 # Milestone 23 Acceptance
 
+> **Historical/supporting record:** This file preserves Milestone 23 acceptance,
+> browser, integrity, and incident evidence. Decision 307 (2026-09-29) defers
+> formal M23 closure, withdraws any current claim that the implemented dashboard
+> is sufficiently intuitive/viable, and makes backend edge discovery active.
+> Historical technical evidence remains valid for what it proved. Relevant
+> operability and safety gates still apply before paper operation. Current work
+> is defined only in `docs/MILESTONES.md`.
+
+
 > **Current sequencing (Decisions 298 and 303):** Essential dashboard work and
 > the real-saved-result browser workflow are accepted through Step 15. Step 16
 > bounded beta use is active. Never deploy merely to prove deployment.
