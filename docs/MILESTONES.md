@@ -229,8 +229,7 @@ candidate history.
 Read only when the task needs them:
 
 - `docs/DATA_CATALOG.md` and `docs/DATA_SOURCES.md` — dataset/provider facts;
-- `docs/milestones/milestone-23-acceptance.md` — historical M23 evidence and
-  incident record;
+- [`docs/milestones/milestone-23-acceptance.md`](milestones/milestone-23-acceptance.md) — historical M23 evidence and [incident history](milestones/milestone-23-acceptance.md#incident-history);
 - `docs/QUANT_FACTORY_DASHBOARD_UI_DIRECTION.md` — retained dashboard UX
   specification;
 - `review/dashboard-integration/**` on its review branch — retained prototype
