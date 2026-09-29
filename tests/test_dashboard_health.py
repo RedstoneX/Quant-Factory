@@ -23,6 +23,7 @@ from dashboard.callbacks.health import health_presentations
 from dashboard.application import create_layout
 from dashboard.pages.market_data import layout as market_data_layout
 from dashboard.pages.system_health import layout as system_health_layout
+from dashboard.project_status import PROJECT_STATUS
 from dashboard.run_adapter import SavedConfigurationView
 from persistence.database import initialize_database
 
@@ -335,12 +336,8 @@ def test_system_health_uses_read_only_database_and_artifact_checks(tmp_path: Pat
     assert "research state database does not exist" in rendered
     assert "configured artifact location does not exist" in rendered
     assert "Orchestrator" in rendered and "Not checked" in rendered
-    assert "New candidate and edge research remain paused during beta" in rendered
-    assert (
-        "Protected-data inspection, promotion, deployment, paper execution, and live "
-        "trading remain blocked"
-        in rendered
-    )
+    assert PROJECT_STATUS.strategy_status in rendered
+    assert PROJECT_STATUS.workspace_status in rendered
 
 
 def test_system_health_marks_old_supplied_observation_stale(tmp_path: Path) -> None:

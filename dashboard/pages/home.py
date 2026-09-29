@@ -162,13 +162,12 @@ def build_home_view_model(
             f"{project_status.current_milestone_title}"
         ),
         milestone_status=project_status.current_milestone_status,
-        discovery_gate=(
-            "Factory mechanics, essential dashboard pages, real saved-result "
-            "connections, and the complete passive browser workflow are complete "
-            "through Step 14. Terry accepted the corrected Step 15 dashboard workflow; "
-            "bounded beta use is active at Step 16. New candidate and edge research "
-            "remain paused during beta. Protected-data inspection, promotion, "
-            "deployment, paper execution, and live trading remain blocked."
+        discovery_gate=" ".join(
+            (
+                project_status.current_milestone_status,
+                project_status.strategy_status,
+                project_status.workspace_status,
+            )
         ),
         health=health,
         run=_run_view(run),
