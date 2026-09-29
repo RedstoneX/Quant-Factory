@@ -1,5 +1,11 @@
 # SPY modern turn-of-month development screen
 
+> **Current status:** retained for possible future swing/calendar research, but
+> rejected for the present R11 mission because the rule carries a position
+> across multiple sessions. It is **not disproven**; it is simply out of scope
+> for the current intraday/day-trading mandate and must not be backtested under
+> R11.
+
 > Current phase, status, blockers, and next action are authoritative only in
 > [`docs/MILESTONES.md`](../MILESTONES.md).
 
