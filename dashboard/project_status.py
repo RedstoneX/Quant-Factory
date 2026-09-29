@@ -13,18 +13,18 @@ class DashboardProjectStatus:
 
 PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=26,
-    current_milestone_title="Edge Discovery and Candidate Selection",
+    current_milestone_title="Intraday Edge Discovery and Candidate Selection",
     current_milestone_status=(
-        "Backend completion is recorded. One fixed modern SPY turn-of-month development-screen "
-        "proposal is predeclared and awaits explicit owner acceptance before execution."
+        "Backend completion is recorded. Current work is to select one bounded intraday "
+        "S&P/Nasdaq directional hypothesis with same-session entry and exit."
     ),
     strategy_status=(
-        "The turn-of-month hypothesis is proposed but untested. It has no result, no qualified "
-        "edge status, and no authority to acquire data, run, or progress automatically."
+        "No candidate is currently approved. The SPY turn-of-month proposal is retained "
+        "for possible future swing research but is out of scope for the current day-trading mandate."
     ),
     workspace_status=(
         "The current dashboard is not accepted as the long-term operator interface. "
         "Non-blocking UI repair, deployment, paper execution, and live trading remain deferred."
     ),
-    home_subtitle="Find, reject, and rigorously validate one defensible edge.",
+    home_subtitle="Find and validate a same-session intraday trading edge.",
 )

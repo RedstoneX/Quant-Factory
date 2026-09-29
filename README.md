@@ -19,7 +19,7 @@ as the long-term operating interface. Its successful chart-first prototype and
 Find & Compare research remain UX references. Dashboard repair resumes after a
 promising edge exists or sooner if the UI becomes a measured research blocker.
 
-Current research has predeclared one fixed, source-inspired modern SPY turn-of-month development-screen proposal after reconciling prior work. Its rule, costs, data cutoff, inference, and pass/fail thresholds are fixed, but it awaits the owner's explicit candidate approval and a licensed VectorBT Pro environment. A future pass would still require independent validation before any options edge is claimed.
+Current research is restricted to **intraday/day-trading directional edges** in S&P 500 and Nasdaq-100 markets: minutes-to-hours holding, flat by the strategy's defined session boundary, and no overnight or multi-day carry. The previously bounded SPY turn-of-month idea is retained for possible future swing research but is not a current R11 candidate. Existing MES/MNQ data should be reused for economical discovery where appropriate, with surviving signals later validated on the intended SPY/QQQ/index underlying.
 
 No paid market-data acquisition, options execution adapter, futures broker
 stack, deployment, paper activation, or live-capital work is justified until a
