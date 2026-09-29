@@ -1,5 +1,14 @@
 # ADR 0007: Portable deployment and Alpaca-first execution roadmap
 
+> **Current sequencing:** Decision 307 (2026-09-29) supersedes this ADR's
+> older active-order language. Backend edge discovery is active before formal
+> Milestone 23 closure. Alpaca-first architecture is retained, but listed
+> options are not categorically deferred when a qualified edge requires them.
+> Futures research remains allowed; futures broker infrastructure remains
+> deferred until evidence creates that execution requirement. Current work is
+> defined only in `docs/MILESTONES.md`.
+
+
 - **Status:** Accepted
 - **Date:** 2026-07-15
 - **Scope:** Post-acceptance roadmap, deployment portability, VPS topology, venue sequencing, execution-worker isolation, and Risk Sentinel networking
@@ -41,7 +50,7 @@ Broker-connected deployment, strategy profitability search, paper orders, and
 live-capital work remain gated; this parallel preparation does not complete
 Milestone 24.
 
-After Milestone 23 acceptance, controlled equity research under Milestone 25 precedes the remaining Alpaca paper activation, under Decision 274. Completed deployment/execution preparation is retained; remaining R06 authenticated observer work is deferred.
+Controlled edge research now precedes formal Milestone 23 closure under Decision 307. Completed deployment/execution preparation is retained; authenticated paper/deployment work remains deferred until a qualified edge and its execution requirements justify resumption.
 
 ### 2. Alpaca is the first execution venue
 
@@ -55,7 +64,7 @@ The first broker adapter and operating proof will use Alpaca Paper Trading with 
 - dashboard operation and auditability;
 - automated forward evidence without capital risk.
 
-The existing SCHX whole-share fixture remains the approved low-capital infrastructure fixture. SPY, QQQ, IWM, and other liquid ETFs may become research or strategy candidates only through the post-Milestone-23 hypothesis and evidence process. SPX options are deferred until the simpler listed-equity path works.
+The existing SCHX whole-share fixture remains the approved low-capital infrastructure fixture. SPY, QQQ, IWM, and other liquid ETFs may become research or strategy candidates only through the post-Milestone-23 hypothesis and evidence process. Listed options, including supported index options, may become the first paper execution path when a qualified edge requires them; current broker capability must be re-verified at implementation time.
 
 ### 3. Futures and FX are deferred to the backlog
 
