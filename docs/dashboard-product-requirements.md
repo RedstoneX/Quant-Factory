@@ -8,10 +8,9 @@
 > `docs/MILESTONES.md` for current work.
 
 
-> **Current sequencing (Decisions 298 and 303):** Essential dashboard work and
-> the real-saved-result browser workflow are accepted through Step 15. Step 16
-> bounded beta use is active. This does not authorize deployment, broad polish,
-> new candidate research, or paper/live trading.
+> **Historical sequencing snapshot:** Decisions 298 and 303 recorded completion
+> through Step 15 and bounded beta entry in September 2026. Decision 307
+> supersedes that sequence as current work; the evidence remains historical.
 
 ## Product role
 
@@ -35,23 +34,12 @@ reused or adapted for the selected-run beta, but remain distinct from
 integrated, tested, deployed, and renewed operator-accepted application
 behavior.
 
-Decision 287 supersedes Decision 286's active three-slice Results-beta
-priority. Decision 292 now permits an economical, reuse-first dashboard
-improvement direction because the owner wants the shortest safe path to an
-operator-usable MVP. Preserve the approved chart-first Results experience as
-the product anchor. Start with a small connected-screen blueprint, then make
-only thin slices that improve the essential beta journey. Reuse the existing
-VectorBT engine, persistence, evidence and dashboard, plus suitable maintained
-prebuilt components. QAMC patterns may be examined, but adoption is limited to
-technically and licensing-compatible parts. This is not a new framework,
-global rewrite, broad polish or deployment authorization.
-It supersedes only Decision 287's dashboard freeze for this bounded blueprint
-and later owner-approved thin essential-beta slices; it does not expand
-Decision 291 or restore dashboard-first sequencing.
-
-Decision 298 now authorizes those thin essential-beta slices at Step 11 after
-the filter-chain proof. It does not authorize a new framework, global rewrite,
-deployment, or work on nonessential pages.
+Historical Decisions 287, 292, and 298 progressively bounded the dashboard
+beta work. Their implementation evidence and reuse constraints remain useful,
+but Decision 307 supersedes them as the active sequence. When dashboard work
+resumes, preserve the approved chart-first Results experience, reuse the
+existing VectorBT engine, persistence, evidence and dashboard, and prefer
+mature maintained components over custom infrastructure.
 
 ## Connected-screen blueprint — owner-approved boundary (2026-09-20)
 
