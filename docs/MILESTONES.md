@@ -91,7 +91,7 @@ fail-closed gates. Live remains far future and requires separate owner approval.
 Read only when needed:
 
 - `docs/DATA_CATALOG.md`
-- `docs/milestones/milestone-23-acceptance.md`
+- [`docs/milestones/milestone-23-acceptance.md`](milestones/milestone-23-acceptance.md) — historical M23 evidence and [incident history](milestones/milestone-23-acceptance.md#incident-history)
 - `docs/QUANT_FACTORY_DASHBOARD_UI_DIRECTION.md`
 - strategy specifications under `docs/strategies/`
 - relevant accepted ADRs and tests
