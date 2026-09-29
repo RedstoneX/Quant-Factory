@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class DashboardProjectStatus:
     current_milestone_number: int
@@ -12,24 +11,22 @@ class DashboardProjectStatus:
     workspace_status: str
     home_subtitle: str
 
-
 PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=25,
-    current_milestone_title="Intraday Edge Discovery and Validation",
+    current_milestone_title="Research Backend Completion",
     current_milestone_status=(
-        "Backend edge discovery is active. The reusable screening, out-of-sample, "
-        "walk-forward, robustness, Monte Carlo, persistence, and filter-handoff "
-        "infrastructure is retained rather than rebuilt."
+        "Backend completion is active. Existing screening, out-of-sample, walk-forward, "
+        "robustness, Monte Carlo, persistence, durable launch, and filter-chain services "
+        "are being connected into one generic runtime path before new strategy research."
     ),
     strategy_status=(
-        "The next research step is one genuinely new, bounded short-duration "
-        "S&P/Nasdaq directional hypothesis using existing validated data where sufficient."
+        "New candidate selection is deferred until the backend can carry an approved "
+        "candidate through the existing validation pipeline without test-only adapters "
+        "or manual stage assembly."
     ),
     workspace_status=(
-        "Historical dashboard evidence is retained, but the owner does not consider the "
-        "current interface sufficiently intuitive for long-term operation. Non-blocking UI "
-        "repair, deployment, paper execution, and live trading are deferred behind the "
-        "current research phase and their later gates."
+        "The current dashboard is not accepted as the long-term operator interface. "
+        "Non-blocking UI repair, deployment, paper execution, and live trading remain deferred."
     ),
-    home_subtitle="Find and validate a defensible trading edge.",
+    home_subtitle="Complete the research backend, then find and validate an edge.",
 )
