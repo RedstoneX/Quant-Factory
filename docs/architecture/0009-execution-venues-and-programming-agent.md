@@ -2,10 +2,11 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-28
-- **Current allocation:** Decision 290 supersedes only the programming-agent
-  allocation in sections 6–7 and the related allocation consequences below.
-  Codex is now the sole active project toolchain. The venue, execution,
-  security, and source-of-truth architecture in this ADR remains accepted.
+- **Current allocation:** Decisions 290 and 307 supersede the programming-agent
+  allocation in sections 6–7 and related allocation consequences below.
+  Codex is the sole active project toolchain; Decision 307 makes orchestration
+  parallel-first when dependencies allow. Venue, execution, security, and
+  source-of-truth architecture in this ADR remains accepted.
 
 ## Context
 
