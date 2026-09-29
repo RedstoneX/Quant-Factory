@@ -1,8 +1,9 @@
 # Paper Worker and Read-Only Observer
 
-> **Deferred under Decision 294:** Paper-runtime work is dormant until a
-> qualified edge and the existing paper gates activate it. The procedure and
-> safety requirements below remain authoritative when that occurs.
+> **Deferred under Decision 307:** Paper-runtime work is dormant until a
+> qualified edge, a minimum usable operator path, and the applicable paper
+> gates activate it. The procedure and safety requirements below remain
+> authoritative when that occurs.
 
 ## Security boundary
 
@@ -43,6 +44,8 @@ Before authenticated deployment, prove:
 10. the observer still has no order path.
 
 These checks do not activate paper execution. Order activation additionally
-requires Milestone 23 acceptance, a Milestone 25-qualified edge, broker-neutral
-submission/reconciliation proof, duplicate prevention, restart safety,
-capacity controls, and explicit milestone authorization.
+requires a qualified edge, the applicable research/operator gates recorded in
+MILESTONES, broker-neutral submission/reconciliation proof, duplicate
+prevention, restart safety, capacity controls, and explicit milestone/owner
+authorization. Formal Milestone 23 closure is not independently inferred as a
+paper prerequisite when current MILESTONES defines a narrower applicable gate.
