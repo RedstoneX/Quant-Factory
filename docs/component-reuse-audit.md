@@ -1,5 +1,12 @@
 # Quant Factory Component Reuse Audit
 
+> **Current status:** Retained reuse evidence, not an active dashboard project.
+> Decision 307 preserves reuse-before-custom as a governing rule but defers
+> dashboard repair until a promising edge exists or a measured UI blocker
+> appears. The approved prototype is a UX reference, not implementation code.
+> See `docs/MILESTONES.md` for current work.
+
+
 - **Status:** Supporting inventory; Decision 285 and `AGENTS.md` are
   authoritative.
 - **Current-use rule:** Revalidate candidate fit, license, security,
@@ -107,12 +114,12 @@ must be reused or adapted where it remains technically and legally suitable.
 It is not by itself integrated, tested, deployed, or renewed operator-accepted
 application behavior.
 
-Decision 287 supersedes Decision 286's active Results-beta priority and freezes
-further Results work unless a verified defect blocks operation. Preserve the
-approved prototype and validated unmerged repair as future implementation
-input; the reuse choices below remain valid. The active path reuses the existing
-VectorBT engine, persistence, evidence and dashboard without restarting a
-dashboard replacement evaluation or redesign.
+The approved prototype and validated integration evidence remain future
+implementation input; the reuse choices below remain valid. Decision 307
+defers dashboard work until a promising edge or measured UI blocker activates
+it. When resumed, reuse the existing VectorBT engine, persistence, evidence and
+dashboard and reproduce the approved UX with mature components rather than
+restarting a greenfield replacement.
 
 The earlier Milestone 20 component recommendation was:
 

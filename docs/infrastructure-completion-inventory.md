@@ -1,5 +1,11 @@
 # Quant Factory Infrastructure Completion Inventory
 
+> **Current status:** Historical/eventual inventory only. Decision 307 makes
+> backend edge discovery the active priority. Do not reopen an inventory row
+> unless the active candidate exposes a measured blocker or a later milestone
+> explicitly activates it. See `docs/MILESTONES.md`.
+
+
 ## Purpose
 
 This document is a retained eventual infrastructure inventory, not the active

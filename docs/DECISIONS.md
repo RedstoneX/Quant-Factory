@@ -1,90 +1,50 @@
 # Quant Factory Decisions
 
-This clean-history log preserves the accepted decision set needed to operate
-the public project. Detailed private operational history remains in the
-private archive. New decisions are appended and supersede earlier decisions
-explicitly.
+This append-only history preserves accepted owner decisions and explicit
+supersessions. Detailed private operational history remains in the private
+archive.
 
-## Foundation and product direction
+**Current work is not inferred by reading this file chronologically.**
+`docs/MILESTONES.md` is the authority for the active queue. Use the index
+below to locate the decisions that currently matter, then read older decisions
+only when a task needs their evidence or rationale.
 
-1. The clean-history public Quant Factory repository is canonical and is the
-   sole forward source of truth after Decision 275's completed controlled
-   cutover. The original repository is retained privately as read-only
-   historical evidence. Repository documentation is durable project memory.
-2. The closed Tier 1 authority set is `AGENTS.md`, `docs/MILESTONES.md`, and
-   `docs/DECISIONS.md`. Supporting documents cannot create competing mandate,
-   status, or roadmap authority.
-3. Quant Factory is infrastructure first, evidence first, and operating-proof
-   first. Plotly Dash is the operator interface and VectorBT Pro is the licensed
-   research engine. Decision 287 supersedes dashboard-first active sequencing.
-4. Research, validation, evidence, and strategy logic remain venue-neutral.
-   Research cannot submit venue orders directly.
-5. Deterministic fixtures prove infrastructure; their results are not
-   profitability evidence or deployment approval.
+## Current effective decision index
 
-## Research and evidence
+| Decision | Current effect |
+|---:|---|
+| **307** | **Backend-first reset:** edge discovery is the active priority; dashboard repair follows a promising edge or a measured UI blocker; orchestration is parallel-first and cost-aware; documentation authority is consolidated. |
+| 306 | Prevent duplicate candidate/strategy-family work; a symbol or wrapper change is not a new requirement. |
+| 294 | Single-operator proportionality and evidence-truthful MVP rules remain, except Decision 307 supersedes its active sequencing. |
+| 290 | Codex remains the sole active project agent toolchain; Decision 307 supersedes serial/worker-selection wording where it conflicts with parallel-first orchestration. |
+| 285 | Reuse mature components before custom implementation. |
+| 283 | Exact-repeat computation caching remains a deferred requirement, not active work. |
+| 282 | The chart-first Results prototype remains an approved UX reference; this is not current acceptance of the implemented dashboard as sufficiently usable. |
+| 276 | Independent green pull requests may proceed without strict up-to-date rebuilding; overlapping/dependent work remains serialized. |
+| 275 | `RedstoneX/Quant-Factory` is the canonical forward repository. |
 
-6. Data provenance, adjustment policy, validation status, identity, and
-   checksums are required. Downloaded market data and generated results remain
-   outside Git.
-7. Hypotheses and parameter ranges require attribution and explicit approval.
-   Reference reproduction precedes bounded exploration; protected data cannot
-   participate in selection.
-8. Screening, chronological out-of-sample, walk-forward, robustness, and
-   Monte Carlo evidence retain distinct pass, fail, invalid, and insufficient-
-   evidence outcomes.
-9. Evidence decisions never execute protected tests, promote a strategy, or
-   authorize deployment automatically.
+Where an older decision conflicts with Decision 307 on **priority, sequencing,
+dashboard usability status, or orchestration**, Decision 307 controls. Older
+technical evidence and safety constraints remain valid unless explicitly
+superseded.
 
-## Dashboard architecture
+## Stable retained principles
 
-10. ADR 0008 is the accepted dashboard baseline: one persistent
-    `dcc.Location`, one permanent shell, permanently mounted route containers,
-    pathname-driven visibility, page-owned callbacks, reusable components,
-    and mandatory browser-lifecycle acceptance.
-11. Dynamic `page-content.children` replacement is prohibited as the active
-    routing mechanism. Hidden compatibility content and test-only presentation
-    behavior are prohibited.
-12. Operator language and decision-useful visuals are primary. Technical IDs,
-    hashes, storage details, and diagnostics belong in labelled drill-downs.
-13. The target flow is Home → Ideas → Set up → Run test → Results → Compare.
-    During Milestone 23, Ideas is non-executing and may capture safe drafts or
-    source references only. External retrieval and backtesting remain gated.
-
-## Execution and security
-
-14. Alpaca Paper Trading is the first execution venue. SCHX is the broad-
-    market whole-share execution fixture; SPYM remains an ingestion and
-    deterministic research fixture.
-15. Paper and live deployments are separate security domains. A configuration
-    change cannot convert paper execution into live execution.
-16. Real-capital activation requires successful paper evidence, explicit human
-    approval, isolated credentials and state, authenticated private networking,
-    deterministic risk controls, and an independent Risk Sentinel.
-17. OneCLI is the selected first credential gateway, subject to ADR 0010.
-    Agents never receive unrestricted vault access or underlying secret values.
-    Paper and live credentials remain separate; withdrawal permission is
-    prohibited.
-18. The broker-neutral journal records a durable submission claim before a
-    broker call. Ambiguous submissions are never retried automatically;
-    reconciliation and restart behavior fail closed.
-
-## Repository and agent operation
-
-19. Substantive work uses dedicated branches and pull requests. Direct pushes
-    to `main`, force pushes, blanket staging, destructive Git, and anonymous
-    stashes are prohibited.
-20. CI execution and target-environment proof are separate. Required-check
-    enforcement is proven only when a controlled failing check blocks merging
-    and the restored green path passes.
-21. Independent pull requests use required status checks with GitHub's strict/
-    up-to-date option disabled under Decision 276. They do not refresh or
-    serialize merely because an independent pull request merged first.
-    Overlapping or dependent changes remain serialized and retested against
-    the resulting `main`.
-22. Codex is the sole active project agent toolchain. The Codex lead remains
-    the sole owner-facing coordinator, delegates only for a net time, cost, or
-    specialist benefit, and independently validates critical evidence.
+- The closed Tier 1 authority set is `AGENTS.md`,
+  `docs/MILESTONES.md`, and `docs/DECISIONS.md`.
+- Quant Factory is a private, single-operator system whose primary purpose is
+  finding and validating trading edges.
+- VectorBT Pro remains the licensed research engine. Research, validation,
+  evidence, and strategy logic remain venue-neutral and never submit orders.
+- Fixtures and previously inspected data prove infrastructure, not an edge.
+- Data provenance, identity, validation, checksums, protected-data boundaries,
+  and reproducibility remain mandatory.
+- Paper and live remain separate security domains. Capital exposure always
+  requires the applicable explicit owner authority.
+- Substantive repository work uses branches and pull requests; direct pushes to
+  `main`, destructive Git, and secrets in source are prohibited.
+- Supporting documents record architecture, procedures, specifications, or
+  historical evidence; they cannot create a competing active queue.
 
 ## Current accepted sequence
 
@@ -1250,3 +1210,122 @@ explicitly.
      architecture, startup navigation, application behavior, evidence, data,
      runtime, deployment or operating procedure changed. `CLAUDE.md` and
      `.claude/**` remain untouched.
+
+
+307. **Backend-first edge-discovery, dashboard-usability and Codex governance
+     reset (accepted 2026-09-29).** Terry sets Quant Factory's primary purpose
+     as finding, rejecting and rigorously validating repeatable trading edges.
+     Converting qualified edges into consistent market income is secondary.
+     An approximately USD $100 average daily outcome may be studied later as a
+     scaling objective for roughly USD $10,000-$15,000 of capital; it is not a
+     forced daily-profit requirement and does not override expectancy,
+     drawdown, robustness, or evidence quality.
+
+     The active sequence is now: **edge discovery -> validation ->
+     execution-vehicle comparison -> dashboard repair -> paper operation ->
+     live operation later.** Existing research infrastructure is reused.
+     Dashboard completion, deployment, portability, broker expansion, and
+     speculative infrastructure are not prerequisites for edge research unless
+     a measured blocker proves otherwise.
+
+     Initial edge research focuses on short-duration directional behavior in
+     S&P 500 and Nasdaq-100 markets. Existing validated MES and MNQ history is
+     reused where sufficient; SPY and QQQ are relevant underlying research
+     instruments. A surviving directional edge may later be compared through
+     MES, MNQ, SPY 0DTE, QQQ 0DTE, and SPXW 0DTE where economically relevant.
+     Options are initially a capital-efficient directional execution vehicle
+     with premium risk capped at the amount paid, not authorization for a
+     complex volatility, spread, or market-making platform. Delta, strike
+     location, liquidity, spreads, and quote size select how an edge is
+     expressed; they do not substitute for the underlying edge.
+
+     Historical options data is acquired only for a defined experiment. Before
+     paying for Alpaca OPRA, Databento OPRA, or another source, Codex must bound
+     the exact symbols, expirations, strike neighborhood, dates, quote/trade
+     schema, and expected cost, then choose the cheapest sufficient source.
+     Full-market options downloads are not the default. Historical option
+     execution research must use defensible quote/execution evidence rather
+     than theoretical pricing alone.
+
+     The owner withdraws any current claim that the implemented dashboard is
+     sufficiently intuitive or viable as the long-term operator interface.
+     This does **not** invalidate the historical browser, persistence, integrity,
+     performance, or implementation evidence that was actually obtained.
+     Decision 303's Step-15 acceptance is retained as historical acceptance of
+     that reviewed workflow at that time, but no longer establishes present
+     product usability. The successful chart-first prototype, Results research,
+     and Find & Compare work remain design evidence. When dashboard work
+     resumes, reproduce the approved UX using mature maintained components and
+     thin Quant Factory adapters; do not turn prototype HTML/CSS/JavaScript
+     into a second custom application or rebuild generic chart, grid, docking,
+     layout, or component systems without a measured gap.
+
+     Dashboard work resumes after a promising/qualified edge makes the operator
+     product valuable, or earlier if a verified UI deficiency materially blocks
+     research inspection or decision-making. Formal Milestone 23 closure is
+     deferred and is not a prerequisite for bounded edge research. Relevant
+     operability, evidence, credential, paper, and live gates remain fully
+     applicable before paper or capital exposure.
+
+     Alpaca remains the preferred first paper venue where it supports the
+     execution vehicle required by a qualified edge because existing
+     broker-neutral contracts, journaling, reconciliation/recovery preparation,
+     and Alpaca paper boundaries should be reused. The current Alpaca adapter's
+     whole-share restriction is not expanded until a qualified candidate
+     requires options execution. Interactive Brokers, NautilusTrader, or other
+     futures infrastructure is added only when surviving evidence creates a
+     concrete execution requirement.
+
+     Codex orchestration becomes **parallel-first when dependencies allow**.
+     The lead remains the sole owner-facing coordinator but should split
+     independent read-only analysis, audits, research, testing, and
+     non-overlapping implementation into concurrent streams when this reduces
+     wall-clock time. Serialize only genuine dependencies, overlapping
+     writes/state, protected-evidence transitions, or safety-sensitive work.
+     Use the cheapest/faster available subagent model capable of each bounded
+     task and escalate capability for architecture, strategy/evidence judgment,
+     difficult debugging, security, or costly-to-reverse decisions. Every
+     subagent receives a narrow scope, token/cost discipline, expected output,
+     and stop condition. Duplicate agents are prohibited except for explicit
+     independent review. Optimize correctness, elapsed time, and token/cost
+     efficiency together; neither a serial lead bottleneck nor an uncontrolled
+     agent swarm is acceptable.
+
+     Documentation is consolidated so `AGENTS.md`,
+     `docs/MILESTONES.md`, and `docs/DECISIONS.md` are the only Tier 1
+     authorities. `docs/MILESTONES.md` alone owns current status, queue,
+     sequencing, blockers, and next action. Supporting ADRs, specifications,
+     acceptance records, README, and handoff documents must point to Tier 1
+     rather than maintain competing current-status narratives. Historical
+     evidence is preserved rather than rewritten or deleted.
+
+     This decision supersedes Decisions 298, 303, 304, 305, and 306 only where
+     they set a different **active sequence** or treat dashboard beta/usability
+     as the current prerequisite. Decision 306's anti-duplication rule remains
+     retained. It supersedes Decision 294's active sequence while preserving
+     its single-operator proportionality and safety rules. It supersedes
+     Decision 290 only where worker-selection wording conflicts with
+     parallel-first orchestration. Decisions 275, 276, 282, 283, 285, paper/live
+     isolation, protected-data controls, evidence rules, credential isolation,
+     and capital-approval requirements remain in force.
+
+     Documentation-impact assessment:
+     - `AGENTS.md`: updated — stable mission, sequencing, work-delta,
+       parallel-first orchestration, reuse, research, and safety rules.
+     - `docs/MILESTONES.md`: updated — backend edge discovery becomes the
+       only active product queue; dashboard and execution phases are sequenced.
+     - `docs/DECISIONS.md`: updated — this decision and a non-authoritative
+       current-effective index are recorded while historical decisions remain.
+     - ADR 0007: amended — Alpaca-first architecture retained; categorical
+       option deferral and old active sequencing are removed.
+     - `docs/CHAT_HANDOFF.md`: updated — navigation points directly to the
+       current queue and decision index.
+     - `README.md`: updated — public orientation no longer repeats stale
+       beta sequencing.
+     - Dashboard and Milestone 23 specifications: status banners updated —
+       historical requirements/evidence preserved but inactive unless triggered.
+     - `dashboard/project_status.py`: aligned so the product does not display
+       superseded beta/paused-research status.
+     - No strategy code, market data, execution capability, deployment,
+       credential, protected-test state, paper order, or live-capital authority
+       changes in this governance reset.

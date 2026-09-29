@@ -14,23 +14,22 @@ class DashboardProjectStatus:
 
 
 PROJECT_STATUS = DashboardProjectStatus(
-    current_milestone_number=23,
-    current_milestone_title="End-to-End Equity Research Factory Acceptance",
+    current_milestone_number=25,
+    current_milestone_title="Intraday Edge Discovery and Validation",
     current_milestone_status=(
-        "Factory mechanics, essential dashboard pages, real saved-result connections, "
-        "and the complete passive browser workflow are complete through Step 14. "
-        "Terry accepted the corrected Step 15 dashboard workflow; bounded beta use is "
-        "active at Step 16."
+        "Backend edge discovery is active. The reusable screening, out-of-sample, "
+        "walk-forward, robustness, Monte Carlo, persistence, and filter-handoff "
+        "infrastructure is retained rather than rebuilt."
     ),
     strategy_status=(
-        "New candidate and edge research remain paused during beta; use saved results "
-        "to find and correct demonstrated workflow defects first."
+        "The next research step is one genuinely new, bounded short-duration "
+        "S&P/Nasdaq directional hypothesis using existing validated data where sufficient."
     ),
     workspace_status=(
-        "Protected-data inspection, promotion, deployment, paper execution, and live "
-        "trading remain blocked; their later authority and evidence gates still apply. "
-        "The selected-run workflow is owner-accepted on the private review service, not "
-        "production-deployed and not a claim of a trading edge."
+        "Historical dashboard evidence is retained, but the owner does not consider the "
+        "current interface sufficiently intuitive for long-term operation. Non-blocking UI "
+        "repair, deployment, paper execution, and live trading are deferred behind the "
+        "current research phase and their later gates."
     ),
-    home_subtitle="Your strategy research workspace.",
+    home_subtitle="Find and validate a defensible trading edge.",
 )

@@ -1,6 +1,6 @@
 # Credential Gateway Runbook
 
-> **Deferred under Decision 294:** Credential-gateway runtime work is not the
+> **Deferred under Decision 307:** Credential-gateway runtime work is not the
 > current research queue. Use this procedure when an approved authenticated
 > integration or qualified paper candidate requires it; all isolation and
 > fail-closed requirements remain authoritative.

@@ -1,140 +1,110 @@
 # Quant Factory Documentation Governance
 
-Repository documentation is durable project memory. Chat, external notes,
-runtime output, and recovery snapshots are not substitutes for accepted
-repository authorities.
+Repository documentation is durable project memory. The purpose of governance
+is to keep Codex from reconstructing current direction from sprawling historical
+material.
 
 ## Closed authority map
 
 The Tier 1 set is closed to additions:
 
-1. `AGENTS.md` — operating contract and work allocation.
-2. `docs/MILESTONES.md` — product direction, current status, ordered work,
-   milestone scope, and acceptance.
-3. `docs/DECISIONS.md` — accepted owner decisions and supersessions.
+1. `AGENTS.md` — stable operating contract and orchestration rules.
+2. `docs/MILESTONES.md` — **only** authority for current goal, phase, active
+   queue, sequencing, blockers, next action, and milestone status.
+3. `docs/DECISIONS.md` — append-only accepted owner decisions,
+   supersessions, and the current-effective decision index.
 
-Changing this set requires an explicit owner decision. Supporting documents
-have these roles:
+Changing this set requires an explicit owner decision.
 
-| Information | Primary authority | Supporting document |
+## Supporting documents
+
+Supporting documents may explain a mechanism, requirement, procedure, or
+historical evidence. They **must not maintain a competing current queue or
+project-status narrative**.
+
+| Information | Authority | Supporting role |
 |---|---|---|
-| Agent and repository rules | `AGENTS.md` | `docs/ai-programming-agent-policy.md` |
-| Product order, status, and acceptance | `docs/MILESTONES.md` | accepted ADRs and milestone records |
-| Accepted decisions | `docs/DECISIONS.md` | accepted ADRs |
-| Architecture rationale | accepted ADR | decision summary |
-| Startup navigation | `docs/CHAT_HANDOFF.md` | Tier 1 links only |
-| Public orientation | `README.md` | links only |
-| Domain procedure | named specification or runbook | relevant ADR/milestone |
+| Agent behavior/orchestration | `AGENTS.md` | `docs/ai-programming-agent-policy.md` |
+| Current goal/status/order/next action | `docs/MILESTONES.md` | none |
+| Accepted decisions/supersessions | `docs/DECISIONS.md` | ADR rationale where relevant |
+| Architecture | accepted ADR | implementation rationale only |
+| Product requirements | named specification | requirements only |
+| Historical acceptance/incidents | milestone record | evidence only |
+| Dataset/provider facts | data catalog/source policy | facts/provenance only |
+| Startup navigation | `docs/CHAT_HANDOFF.md` | links to Tier 1 |
+| Public orientation | `README.md` | concise purpose and links |
 
-When documents conflict, the primary authority wins and the contradiction must
-be corrected. Do not create parallel roadmap, status, decision, outcome, or
-handoff authorities.
+When a supporting document contains historical status language that could be
+mistaken for current direction, place a short banner at the top pointing to
+`docs/MILESTONES.md`. Do not continually synchronize long current-status
+sections across supporting documents.
 
-## Supporting-document lifecycle
+## Lifecycle and cleanup rules
 
-- Operating procedures elaborate `AGENTS.md`; they cannot create new mandate.
-- ADRs, specifications, runbooks, and data catalogs explain mechanisms; they
-  do not establish implementation or acceptance status.
-- Investigations and unaccepted ideas are clearly labelled and are retired
-  after their useful findings move to the proper authority.
-- Historical acceptance and incident records remain readable and separate from
-  current work.
-- Conceptual documents display `Status: CONCEPTUAL / NOT AUTHORIZED`.
-- README and CHAT_HANDOFF remain orientation, never competing status.
+- Preserve accepted decisions, test evidence, incident history, and useful
+  research history. Cleanup does not mean deleting evidence.
+- Retire duplicated plans by marking them historical/supporting or replacing
+  their current-status prose with a Tier 1 pointer.
+- ADRs describe architecture and rationale, not the active queue.
+- Specifications describe requirements, not completion status.
+- README and CHAT_HANDOFF remain short orientation documents.
+- Investigations and rejected proposals remain discoverable but cannot silently
+  reactivate work.
+- Conceptual documents are labelled `CONCEPTUAL / NOT AUTHORIZED`.
+- Do not create a new roadmap, status, handoff, or decision-summary file when
+  Tier 1 can hold the information.
 
 ## Evidence and ratification
 
-- Distinguish proposed, implemented, tested, merged, deployed, and explicitly
-  accepted work.
-- Current-state claims cite a dated repository revision, runtime observation,
-  or acceptance record. Old test output is not a fresh pass.
-- Correct verified factual drift without another permission request, but do
-  not silently change mandate, architecture, scope, or acceptance.
-- Only the project owner ratifies product mandate, approval policy,
-  architecture, and milestone acceptance. An agent's proposal, commit, or
-  merge is not owner ratification.
-- Attribute agent-chosen cuts or deferrals and explain why. Trace unattributed
-  constraints; ask the owner if evidence cannot establish their authority.
-- Use plain-language impact first and retain the technical evidence in the
-  relevant record.
+Distinguish proposed, implemented, tested, merged, deployed, and explicitly
+accepted. Current-state claims require current repository/runtime evidence where
+material.
+
+Only the owner changes mandate, product priority, milestone acceptance,
+deployment authority, or paper/live capital authority. Agent proposals, commits,
+tests, and merges do not create owner acceptance.
+
+Correct factual drift without inventing scope. If an older supporting document
+conflicts with Tier 1, Tier 1 wins and the supporting document is corrected or
+marked historical.
 
 ## Executable documentation controls
 
-`tools/check_documentation.py` enforces:
+`tools/check_documentation.py` enforces the milestone active-work structure,
+size and selected historical-record constraints. Preserve its marker-delimited
+active-work table and append-only incident history.
 
-- `docs/MILESTONES.md` is at most 100,000 UTF-8 bytes;
-- one marker-delimited active-work table with columns `ID`, `Priority`,
-  `Status`, `Depends`, and `Evidence`;
-- unique IDs and positive priorities, valid statuses, resolvable acyclic
-  dependencies, and nonempty evidence;
-- optional dated owner decisions in the exact declared format;
-- one nonempty, linked, append-only incident-history section in
-  `docs/milestones/milestone-23-acceptance.md` when a resolvable base revision
-  is provided.
-
-`AGENTS.md` is a curated contract and is exempt from the milestone byte cap.
-Completed incidents move to readable history before active work is pruned.
-Unknown evidence remains unknown; malformed or partial checks do not establish
-product defects or completion.
-
-CI execution is not merge enforcement and CI is not target-environment proof.
-Required enforcement needs a controlled failing check that blocks merging and
-a restored green path. Runtime changes need separate loading, startup, and
-behavior proof in the target environment.
-
-## Decision states
-
-Classify a change before documentation is updated:
-
-1. **Idea** — exploratory and not authoritative.
-2. **Investigation** — evidence gathering in a subordinate note.
-3. **Accepted decision** — explicitly approved or directly instructed by the
-   project owner.
-4. **Implemented decision** — reflected in code, configuration, deployment, or
-   operating procedure.
-5. **Superseded decision** — retained with an explicit pointer to its
-   replacement.
+CI execution is not target-environment proof. Runtime/deployment claims require
+the applicable target proof separately.
 
 ## Documentation-impact assessment
 
-For every accepted decision, roadmap change, milestone completion,
-architecture change, deployment decision, venue decision, or permanent
-workflow change, answer every row:
+For a durable change, evaluate:
 
-| Question | Required action when yes |
+| Change | Required authority |
 |---|---|
-| Does permanent agent behavior or allocation change? | Update `AGENTS.md` and the agent policy. |
-| Does direction, order, scope, status, or acceptance change? | Update `docs/MILESTONES.md`. |
-| Is this a durable decision or supersession? | Append to `docs/DECISIONS.md`. |
-| Does architecture, deployment, security, data flow, or integration change? | Create or amend an ADR. |
-| Must future chats know this immediately? | Update `docs/CHAT_HANDOFF.md`. |
-| Would public orientation become misleading? | Update `README.md`. |
-| Does operator, recovery, migration, or incident procedure change? | Update the named runbook/specification. |
-| Does a milestone-completion fact change? | Record commit, validation, and status in `docs/MILESTONES.md`. |
+| permanent agent behavior/allocation | `AGENTS.md` and agent policy |
+| current direction/order/status/acceptance | `docs/MILESTONES.md` |
+| accepted owner decision/supersession | append `docs/DECISIONS.md` |
+| architecture/security/data-flow integration | relevant ADR |
+| startup navigation | `docs/CHAT_HANDOFF.md` |
+| public orientation | `README.md` |
+| operator/recovery/migration procedure | named runbook/spec |
+| dashboard-displayed project status | align `dashboard/project_status.py` |
 
-Each row is marked updated or not applicable with a reason.
+Do not update unrelated supporting documents merely to restate the same current
+status.
 
 ## Completion gate
 
-Documentation is complete only when the change is classified, the impact
-assessment is recorded, authorities are synchronized, supersessions remain
-explicit, supporting links resolve, contradictions are removed, Git history
-contains the change, and the completion report identifies each authority as
-updated or not applicable.
+Documentation cleanup is complete when:
 
-Required report:
+- Tier 1 agrees internally;
+- supporting docs do not claim a conflicting active queue;
+- supersessions are explicit;
+- historical evidence remains discoverable;
+- documentation checks pass;
+- the change is committed through the normal branch/PR process.
 
-```text
-Decision classification
-Documentation impact
-- AGENTS.md: updated / not applicable — reason
-- MILESTONES.md: updated / not applicable — reason
-- DECISIONS.md: updated / not applicable — reason
-- ADR: updated / not applicable — reason
-- CHAT_HANDOFF.md: updated / not applicable — reason
-- README.md: updated / not applicable — reason
-- Runbook/specification: updated / not applicable — reason
-Consistency check
-Commits
-Local/remote reconciliation warning
-```
+Completion reporting should identify the decision classification, files changed,
+checks run, PR/commit state, and any unresolved contradiction.

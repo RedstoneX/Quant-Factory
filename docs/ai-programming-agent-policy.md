@@ -2,153 +2,133 @@
 
 - **Status:** Accepted
 - **Scope:** Codex work in the canonical public repository
+- **Authority:** Supports `AGENTS.md`; it does not create product priority or
+  current status.
 
-This procedure supports `AGENTS.md`; it does not create product direction or
-current status. Tier 1 remains authoritative.
-
-Current sequencing and owner checkpoints come only from
-`docs/MILESTONES.md`. Do not infer the next task from an older decision or
-supporting document when the milestone record has superseded its order.
+Current sequencing comes only from `docs/MILESTONES.md`. Do not infer the next
+task from an older decision, ADR, specification, README, or historical milestone
+record.
 
 ## Roles
 
 The owner controls mandate, priority, milestone acceptance, deployment,
-paper/live authority, and capital. The Codex lead is the sole owner-facing
-coordinator. It defines slices, may complete small routine bounded work
-directly, delegates only when proportionate, validates critical evidence
-independently, integrates reviewed work, and keeps the owner informed in plain
-language.
+paper/live authority, and capital.
 
-Workers receive no project ownership. They do not contact the owner, expand
-scope, spawn descendants, or treat unverified findings as decisions. A worker
-stops and reports when its boundaries conflict, required authority is absent,
-or decisive validation cannot be completed.
+The Codex lead is the sole owner-facing coordinator. It plans the minimum
+sufficient slices, orchestrates parallel work, resolves conflicts, validates
+load-bearing evidence, integrates reviewed changes, and keeps the owner informed
+concisely.
 
-## Bounded delegation
+Workers/subagents own only their assigned scope. They do not expand scope,
+contact the owner, create new product requirements, or treat findings as
+accepted decisions.
 
-Decision 294 supersedes Decisions 270 and 290 only where they require workers
-for every task. Delegate when parallelism, lower cost, or specialist skill
-creates a clear net benefit. Do not delegate routine work merely to satisfy a
-process, and do not create duplicate drafts. Match worker and review effort to
-the cost and risk of the slice.
+## Parallel-first allocation
 
-Every worker prompt states:
+Default to parallel work when tasks are independent and doing so improves
+elapsed time without compromising evidence or repository safety.
 
-- objective and reason the slice advances current Tier 1 work;
-- canonical repository, base revision, branch, and owned worktree;
-- authorities and evidence to read;
-- owned paths and allowed actions;
-- explicit exclusions and stop conditions;
-- required validation and final report; and
-- whether owner contact or descendant workers are prohibited.
+Good parallel candidates include:
 
-Concurrent writers use separate worktrees or directories. The lead checks the
-base revision, ownership, diff, validation output, and reported uncertainty
-rather than accepting a worker summary at face value.
+- read-only documentation/code inventories;
+- independent source research;
+- test execution on independent scopes;
+- data/provider cost or capability checks;
+- non-overlapping implementation paths;
+- independent review after the implementation diff is stable.
 
-## Preflight and adversary
+Serialize when tasks:
 
-Before delegated candidate or strategy-family research, implementation, raw-
-data inspection, or execution, the lead first performs a cheap read-only
-history check and applies one work-delta gate:
+- depend on an earlier result;
+- write overlapping files or shared mutable state;
+- transition protected evidence or promotion state;
+- touch credentials, deployment, orders, or capital where ordering is part of
+  the safety boundary.
 
-1. Name the unresolved requirement from current Tier 1, an owner instruction,
-   an acceptance criterion, or a measured blocker.
-2. Cite why existing code, evidence, research or an owner decision does not
-   already close it.
-3. Name the cheapest sufficient action and the evidence that will close it.
+Choose the cheapest/faster available model that can reliably perform the task.
+Use stronger reasoning capability for architecture, strategy/evidence judgment,
+hard debugging, security, or costly-to-reverse work. Do not hard-code model
+names into durable project policy.
 
-If any answer is absent, do not commission the work. Reuse the prior result or
-report that no new work is justified. A changed symbol, dataset, wrapper,
-wording, presentation, or fresh proposal does not by itself establish a new
-requirement. Do not ask the owner to repeat an approval already recorded or
-convert a completed factory-mechanics test into another candidate test.
-Symbol or dataset changes qualify only for an owner-approved replication need
-or genuinely independent evidence required by the source hypothesis. A
-materially new source-attributed hypothesis and a predeclared next evidence
-stage remain valid new work. Routine defect fixes, factual documentation, and
-already-approved mechanical work continue under their normal proportional
-checks rather than this candidate gate.
+Every delegated task states:
 
-Before commissioning candidate research or material implementation, check Tier
-1 and repository history for completed or withdrawn work. Reconcile a prior
-candidate investigation rather than proposing it again; meaningful
-investigations must be recorded in `docs/MILESTONES.md` with their status and
-reason. Before compaction or handoff, verify that completed research and the
-exact next action are durable in Tier 1 rather than relying on chat history.
+- objective and why it advances the active milestone;
+- repository/base and owned paths or explicit read-only scope;
+- exact authorities/evidence to read;
+- allowed actions and exclusions;
+- expected output;
+- token/cost discipline;
+- decisive validation;
+- stop condition.
 
-Before material executable, runtime, configuration, schema, dependency,
-dashboard-behavior, or scope changes, apply
-`.agents/skills/implementation-preflight/SKILL.md`. The result bounds the
-smallest change, reuse, exclusions, stop conditions, validation, and
-documentation impact before implementation starts.
+Do not commission duplicate implementations or duplicate research. A second
+agent on the same question is justified only for explicit independent review or
+a materially different bounded specialty.
 
-Routine factual documentation, copy, and presentation corrections use a short
-scope-and-reuse check instead of the full preflight.
+The lead consumes worker results instead of repeating their work. Independently
+verify only the load-bearing facts needed to integrate or decide.
 
-Before a material proposal or closure claim, apply
-`.agents/skills/quant-factory-adversary/SKILL.md`. Material triggers include
-priority or scope changes; architecture, framework, or dependency choices;
-custom build over reuse; changes to strategy parameters or evidence,
-protected-data, ranking, or promotion boundaries; production deployment;
-paper/live authority; and beta, milestone, or edge-readiness claims.
+## Work-delta and prior-work gate
 
-When delegation is available, the adversary is a separate read-only Codex
-subagent. It argues against the proposal and returns no verdict. The lead
-dispositions each material objection as `CHANGED` with evidence or `REJECTED`
-with reasons before proceeding. Routine status, factual read-only work,
-housekeeping, verified factual corrections, and already approved mechanical
-execution without scope change are exempt.
+Before candidate research, material implementation, raw-data acquisition, or
+execution work:
 
-## Implementation and review
+1. name the unresolved requirement from Tier 1 or explicit owner instruction;
+2. show why existing code/evidence does not close it;
+3. identify the cheapest sufficient action and decisive evidence;
+4. check repository history for completed or withdrawn equivalent work.
 
-An implementation slice owns only the paths named in its prompt. Preserve
-unrelated work. Use dedicated branches and pull requests; never push directly
-to `main`, force-push, blanket-stage the tree, use destructive Git, or weaken a
-test or acceptance criterion to obtain a pass.
+If the delta is absent, stop. A different ticker, dataset, wrapper, wording, or
+presentation does not by itself justify new work.
 
-Run focused tests for the changed path and one focused browser check for an
-affected UI. Broaden to browser lifecycle, recovery, device, or target proof
-only for a concrete remaining risk, an actual runtime/deployment change,
-explicit milestone closure, a qualified candidate approaching paper, or an
-owner request. Expensive backtests are not repeated when inputs and relevant
-implementation are unchanged.
+Routine factual documentation and mechanical corrections use a brief
+scope/reuse check. Material executable, runtime, configuration, schema,
+dependency, or dashboard-behavior work uses
+`.agents/skills/implementation-preflight/SKILL.md`.
 
-Use an independent reviewer for material changes to evidence, data, ranking,
-protected-data boundaries, migrations, credentials, deployment, orders or
-capital, and for costly-to-reverse work. Routine documentation, copy, and
-layout use focused checks and the lead's exact-diff review. Review is bounded
-to scope compliance, load-bearing evidence, and decisive checks; it is not a
-second implementation or an open-ended audit.
+Material proposals and closure claims use
+`.agents/skills/quant-factory-adversary/SKILL.md`. The adversary argues
+against the proposal; the lead dispositions objections and remains responsible
+for the decision within owner authority.
 
-The lead resolves review findings, confirms required checks, and integrates
-only reviewed work whose evidence matches its claim. Overlapping or dependent
-pull requests integrate serially and are retested on resulting `main`.
-Independent green pull requests follow Decision 276 and do not rebuild merely
-because another independent pull request merged.
+## Implementation and integration
 
-## Evidence and target validation
+Substantive changes use dedicated branches and pull requests. Preserve
+unrelated work. Concurrent writers use separate branches/worktrees and
+non-overlapping paths. Never push directly to `main`, force-push, blanket
+stage, weaken acceptance criteria to obtain a pass, or alter historical
+evidence.
+
+Prefer existing project code, licensed dependencies, approved designs, and
+mature maintained components. Custom code must close a verified project-specific
+gap.
+
+Run the narrowest decisive tests for the changed path. Add browser lifecycle,
+recovery, target, or device proof only when the changed risk requires it, an
+actual deployment occurs, a milestone is being closed, or the owner requests
+it. Do not rerun expensive backtests with unchanged relevant inputs.
+
+Independent review is required for material evidence/data/ranking/protected-
+data changes, migrations, credentials, deployment, orders/capital, and
+costly-to-reverse work. Routine documentation/copy/layout uses focused checks
+and exact-diff review.
+
+Overlapping or dependent PRs integrate serially and retest on resulting
+`main`. Independent green PRs follow Decision 276 and do not rebuild merely
+because another independent PR merged.
+
+## Evidence and safety
 
 Distinguish proposed, implemented, tested, merged, deployed, and accepted.
-Label measured, inferred, and unknown claims. Check the single load-bearing
-claim behind a proposal or completion report independently.
-
-CI execution is not merge enforcement and neither is target-environment
-proof. Required enforcement needs a controlled failing check that blocks
-merge followed by a restored green path. After an actual authorized deployment
-or target environment-input change, prove startup and the changed flow on that
-target. Never deploy merely to prove deployment. Do not place orders or expose
-secrets during validation.
-
-## Safety and integration
+Label measured, inferred, and unknown.
 
 Research cannot submit venue orders. Open-ended optimization, protected-test
 inspection, automatic promotion, paper activation, live work, and capital
 changes remain unavailable without their Tier 1 gates and owner authority.
-Credentials remain isolated, least-privilege, auditable, and absent from
-prompts, repository content, logs, tests, and evidence.
 
-Before completion, review the exact diff, run documentation checks, update the
-authoritative record required by `docs/DOCUMENTATION_GOVERNANCE.md`, and report
-local/remote reconciliation honestly. A commit, pull request, merge, or agent
-statement cannot by itself establish milestone completion or owner acceptance.
+Credentials remain least-privilege, isolated, auditable, and absent from
+prompts, repository content, logs, tests, and artifacts.
+
+Before completion, review the exact diff, run required documentation/focused
+checks, update the authoritative record required by documentation governance,
+and report repository state honestly.

@@ -1,29 +1,26 @@
 # Quant Factory Chat Handoff
 
-This page is navigation only. It does not define project status, scope, or
-acceptance.
+This page is navigation only. It never defines project status or priority.
 
 ## Start here
 
-Read the closed Tier 1 authority set:
+1. Read [`AGENTS.md`](../AGENTS.md).
+2. Read the **Current phase**, **Active work**, and **Operating sequence** in
+   [`docs/MILESTONES.md`](MILESTONES.md).
+3. Read the **Current effective decision index** at the top of
+   [`docs/DECISIONS.md`](DECISIONS.md), then only the decisions relevant to
+   the active task.
 
-1. [`AGENTS.md`](../AGENTS.md) — Codex operating contract.
-2. [`MILESTONES.md`](MILESTONES.md) — current direction, ordered work, status,
-   and acceptance.
-3. [`DECISIONS.md`](DECISIONS.md) — accepted owner decisions and
-   supersessions.
-
-Resume from the highest-priority active row in `MILESTONES.md`, then read only
-the decisions and task-specific material needed for that work. Do not copy
-current status into this page.
+Do not read the decision log chronologically to infer current work. Do not use
+README, ADRs, dashboard specifications, historical milestone records, or review
+packages as a competing roadmap.
 
 ## Procedures
 
 - [Documentation governance](DOCUMENTATION_GOVERNANCE.md)
 - [Codex agent policy](ai-programming-agent-policy.md)
 - [Implementation preflight](../.agents/skills/implementation-preflight/SKILL.md)
-- [Adversarial proposal check](../.agents/skills/quant-factory-adversary/SKILL.md)
+- [Material-proposal adversary](../.agents/skills/quant-factory-adversary/SKILL.md)
 
-Load an ADR, specification, runbook, code, tests, data catalog, or manifest
-only when the task requires it. `README.md` and this page are navigation, not
-competing authorities.
+Load code, tests, ADRs, specifications, data records, and historical evidence
+only when the active task requires them.

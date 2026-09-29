@@ -1,11 +1,21 @@
 # Milestone 23 Acceptance
 
-> **Current sequencing (Decisions 298 and 303):** Essential dashboard work and
-> the real-saved-result browser workflow are accepted through Step 15. Step 16
-> bounded beta use is active. Never deploy merely to prove deployment.
+> **Historical/supporting record:** This file preserves Milestone 23 acceptance,
+> browser, integrity, and incident evidence. Decision 307 (2026-09-29) defers
+> formal M23 closure, withdraws any current claim that the implemented dashboard
+> is sufficiently intuitive/viable, and makes backend edge discovery active.
+> Historical technical evidence remains valid for what it proved. Relevant
+> operability and safety gates still apply before paper operation. Current work
+> is defined only in `docs/MILESTONES.md`.
 
-Milestone 23 proves the complete equity research workflow before any strategy
-can advance toward paper activation. Decision 287 narrowly permits controlled,
+
+> **Historical sequencing snapshot:** Decisions 298 and 303 recorded Step 15
+> acceptance and bounded beta entry in September 2026. Decision 307 supersedes
+> that sequence as current work. Never deploy merely to prove deployment.
+
+Milestone 23 records the complete equity research workflow acceptance model.
+Decision 307 defers formal closure and makes the applicable pre-paper
+operability/safety gates in current MILESTONES controlling. Decision 287 narrowly permits controlled,
 bounded research for an owner-approved, source-attributed hypothesis with
 predeclared evidence boundaries before this milestone closes. It does not waive
 this checklist or authorize open-ended optimization or data mining,
