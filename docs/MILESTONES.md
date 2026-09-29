@@ -11,10 +11,10 @@ create a competing queue.
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
 | Phase | **Edge discovery and candidate selection.** |
-| Active work | Obtain the owner's explicit accept/reject decision on the single predeclared modern SPY turn-of-month development-screen proposal. Do not execute it merely because an environment becomes available. |
-| Existing assets | The generic candidate runtime is complete. A prior-work audit confirmed that turn-of-month was previously inventoried but never selected or executed; the proposed rule, development dates, costs, inference, and stop conditions are fixed in `docs/strategies/spy-turn-of-month.md`. |
-| Verified gap | No candidate is owner-approved, the proposed screen has not run, and no result exists. This checkout also lacks VectorBT Pro; the fixed SPY Yahoo slice was deliberately not downloaded. |
-| Next action | The owner accepts or rejects the named proposal and its fixed boundaries. Only after acceptance, and only in an environment with licensed VectorBT Pro, may the bounded data acquisition and single development run begin. |
+| Active work | Select and predeclare one genuinely new **intraday/day-trading** S&P/Nasdaq directional hypothesis that fits the current mission, then bring that single candidate to the owner approval gate. |
+| Existing assets | The generic candidate runtime is complete. Validated MES/MNQ intraday history and the existing research/validation pipeline can support economical first-stage discovery where appropriate. The owner confirms licensed VectorBT Pro exists for this project; absence from a checkout-local virtual environment is not by itself a project blocker. |
+| Verified gap | No current candidate is owner-approved. The SPY turn-of-month proposal is retained as a legitimate but **out-of-scope multi-day swing/calendar idea** for the present intraday mandate and must not be run under R11. |
+| Next action | Perform the prior-work check and predeclare one best-justified intraday candidate with fixed entry/exit, holding horizon, session boundary, parameters, costs, data boundary, and pass/fail evidence. It must be flat by the defined session boundary and require no overnight or multi-day carry. |
 | Deferred | Paid options data, broad dashboard repair, deployment, broker expansion, paper activation, and live work until a bounded experiment or qualified edge creates the requirement. |
 | Hard boundaries | No protected-test execution, automatic promotion, open-ended optimization, blind data mining, unbounded data acquisition, paper/live orders, or capital exposure during this phase. |
 
@@ -23,7 +23,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R11 | 1 | blocked | none | The modern SPY turn-of-month proposal is fully predeclared after prior-work and adversary review, but Decision 306 retains the owner's candidate-approval gate. This machine also lacks licensed VectorBT Pro. No data was acquired and no evidence was fabricated. |
+| R11 | 1 | in_progress | none | Backend completion is recorded. Current candidate selection is restricted to same-session intraday/day-trading strategies; the turn-of-month proposal is retained but rejected for current mission fit. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
@@ -65,13 +65,18 @@ profitability, or the licensed engine itself.
 
 ### Edge research — ACTIVE
 
-The proposed first slice is the fixed modern SPY turn-of-month development
-screen in `docs/strategies/spy-turn-of-month.md`. If the owner accepts it, it
-would activate a previously inventoried but never executed alternative; it is
-not a symbol transfer or variant of the concluded ORB, intraday-momentum,
-Donchian, or RSI work. A pass would only retain the hypothesis for later
-validation. It would not qualify an options edge; any later 0DTE claim requires
-defensible historical option quote/execution data.
+The current mandate is **day trading / intraday directional edge discovery**.
+A candidate must enter and exit within one defined trading session, with an
+expected holding period measured in minutes to hours and no overnight or
+multi-day carry. Swing, turn-of-month, seasonal, and other calendar-hold
+strategies are not current R11 candidates unless the owner explicitly changes
+the mandate.
+
+Initial research focuses on S&P 500 and Nasdaq-100 behavior. Existing MES/MNQ
+intraday history should be reused for cheap first-stage screening where it can
+answer the hypothesis. A surviving signal must later be validated on the
+intended SPY/QQQ/index underlying before any options edge is claimed, and 0DTE
+implementation requires defensible historical option quote/execution evidence.
 
 ### Dashboard
 
@@ -95,7 +100,7 @@ fail-closed gates. Live remains far future and requires separate owner approval.
 - MES ORB is concluded and rejected as an edge candidate.
 - MSFT ORB transfer work was withdrawn.
 - SPYM momentum and SPY Donchian/RSI work are historical evidence, not current candidates.
-- Turn-of-month was previously source-attributed and shortlisted but never selected or tested; its single fixed SPY development-screen proposal awaits owner acceptance and must not be expanded into a calendar-anomaly search.
+- Turn-of-month was previously source-attributed and bounded, but its multi-day holding period fails the current intraday/day-trading mission-fit gate. Retain it for possible future swing research; do not backtest it under R11.
 - Dashboard design research succeeded as UX research; its custom implementation path was shelved.
 
 ## Supporting records
