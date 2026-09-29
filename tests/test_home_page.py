@@ -240,7 +240,7 @@ def test_home_recent_failure_takes_precedence_over_active_run() -> None:
     )
 
 
-def test_home_shows_factory_to_beta_boundary_while_milestone_23_is_pending() -> None:
+def test_home_shows_backend_first_edge_discovery_status() -> None:
     model = build_home_view_model(
         recent_runs=(_run("first", "succeeded"), _run("second", "succeeded")),
         as_of=NOW,
@@ -248,23 +248,16 @@ def test_home_shows_factory_to_beta_boundary_while_milestone_23_is_pending() -> 
     page = layout(model)
     discovery = _text(_component(page, "home-discovery-gate"))
 
-    assert model.milestone.startswith("Milestone 23")
+    assert model.milestone.startswith("Milestone 25")
     assert model.milestone_status == (
-        "Factory mechanics, essential dashboard pages, real saved-result connections, "
-        "and the complete passive browser workflow are complete through Step 14. "
-        "Terry accepted the corrected Step 15 dashboard workflow; bounded beta use is "
-        "active at Step 16."
+        "Backend edge discovery is active. The reusable screening, out-of-sample, "
+        "walk-forward, robustness, Monte Carlo, persistence, and filter-handoff "
+        "infrastructure is retained rather than rebuilt."
     )
-    assert (
-        "complete passive browser workflow are complete through Step 14"
-        in discovery
-    )
-    assert "Terry accepted the corrected Step 15 dashboard workflow" in discovery
-    assert "New candidate and edge research remain paused during beta" in discovery
-    assert (
-        "Protected-data inspection, promotion, deployment, paper execution, and live "
-        "trading remain blocked"
-        in discovery
-    )
+    assert "Backend edge discovery is active" in discovery
+    assert "one genuinely new, bounded short-duration" in discovery
+    assert "does not consider the current interface sufficiently intuitive" in discovery
+    assert "paper execution, and live trading are deferred" in discovery
     assert model.action.label == "Continue to Compare"
     assert "discover" not in model.action.label.lower()
+
