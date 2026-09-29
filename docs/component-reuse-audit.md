@@ -1,5 +1,12 @@
 # Quant Factory Component Reuse Audit
 
+> **Current status:** Retained reuse evidence, not an active dashboard project.
+> Decision 307 preserves reuse-before-custom as a governing rule but defers
+> dashboard repair until a promising edge exists or a measured UI blocker
+> appears. The approved prototype is a UX reference, not implementation code.
+> See `docs/MILESTONES.md` for current work.
+
+
 - **Status:** Supporting inventory; Decision 285 and `AGENTS.md` are
   authoritative.
 - **Current-use rule:** Revalidate candidate fit, license, security,
