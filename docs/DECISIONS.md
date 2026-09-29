@@ -13,7 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **308** | **Backend completion correction:** finish the missing generic candidate-to-validation runtime path before selecting another strategy; one decisive fixture proof closes the backend phase. |
+| **308** | **Backend completion correction satisfied:** the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under its existing bounds. |
 | 307 | Backend-first product reset remains in force, but Decision 308 corrects its premature activation of edge discovery. Dashboard repair still follows a promising edge or measured UI blocker; parallel-first orchestration and consolidated authority remain. |
 | 306 | Prevent duplicate candidate/strategy-family work; a symbol or wrapper change is not a new requirement. |
 | 294 | Single-operator proportionality and evidence-truthful MVP rules remain, except Decision 307 supersedes its active sequencing. |

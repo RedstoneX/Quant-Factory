@@ -240,7 +240,7 @@ def test_home_recent_failure_takes_precedence_over_active_run() -> None:
     )
 
 
-def test_home_shows_backend_completion_status() -> None:
+def test_home_shows_edge_discovery_status() -> None:
     model = build_home_view_model(
         recent_runs=(_run("first", "succeeded"), _run("second", "succeeded")),
         as_of=NOW,
@@ -248,15 +248,15 @@ def test_home_shows_backend_completion_status() -> None:
     page = layout(model)
     discovery = _text(_component(page, "home-discovery-gate"))
 
-    assert model.milestone.startswith("Milestone 25")
+    assert model.milestone.startswith("Milestone 26")
     assert model.milestone_status == (
-        "Backend completion is active. Existing screening, out-of-sample, walk-forward, "
-        "robustness, Monte Carlo, persistence, durable launch, and filter-chain services "
-        "are being connected into one generic runtime path before new strategy research."
+        "Backend completion is recorded. Current work is to select and bound one genuinely "
+        "new short-duration S&P/Nasdaq hypothesis, then run only the cheapest sufficient "
+        "first-stage discovery test."
     )
-    assert "Backend completion is active" in discovery
-    assert "New candidate selection is deferred" in discovery
-    assert "does not consider the current interface sufficiently intuitive" in discovery
+    assert "Backend completion is recorded" in discovery
+    assert "No candidate is currently qualified" in discovery
+    assert "not accepted as the long-term operator interface" in discovery
     assert "paper execution, and live trading remain deferred" in discovery
     assert model.action.label == "Continue to Compare"
     assert "discover" not in model.action.label.lower()

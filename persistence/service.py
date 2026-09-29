@@ -1372,6 +1372,77 @@ class PersistenceService:
             )
             return self.runs.transition(run.run_id, RunStatus.SUCCEEDED)
 
+    def persist_experiment_inputs_on_run(
+        self,
+        *,
+        run_id: str,
+        config: ExperimentConfig,
+        result: ExperimentResult,
+        execution_assumptions: dict[str, Any],
+        include_parameter_results: bool,
+    ) -> None:
+        """Attach real experiment lineage and optional screening rows to an active run.
+
+        Durable candidate launch creates its run before computation. This bounded
+        adapter keeps that identity instead of creating the fixture-oriented run
+        used by :meth:`persist_experiment_result`.
+        """
+        with transaction(self.connection):
+            run = self.runs.get(run_id)
+            if run is None:
+                raise KeyError(f"unknown run {run_id}")
+            if run.status != RunStatus.RUNNING:
+                raise ValueError(f"run {run_id} is not active")
+            if (
+                run.strategy_id != result.strategy_id
+                or run.strategy_version != result.strategy_version
+            ):
+                raise ValueError("experiment result disagrees with persisted run identity")
+            configuration = self.configurations.get(run.configuration_id)
+            if configuration is None:
+                raise ValueError("persisted run configuration is missing")
+            saved = json.loads(configuration.canonical_config_json)
+            expected = configuration_document_from_experiment_config(
+                config,
+                strategy_version=result.strategy_version,
+            )
+            if any(
+                canonical_json(saved.get(key)) != canonical_json(value)
+                for key, value in expected.items()
+            ):
+                raise ValueError("experiment config disagrees with persisted run configuration")
+            if result.experiment_id != expected["experiment_id"]:
+                raise ValueError("experiment result disagrees with persisted experiment identity")
+            if canonical_json(execution_assumptions) != canonical_json(expected["execution"]):
+                raise ValueError("execution assumptions disagree with persisted configuration")
+            audit = result.market_data_audit
+            market_identity = {
+                "symbol": audit.symbol,
+                "provider": audit.provider,
+                "provider_implementation": audit.provider_implementation,
+                "interval": audit.interval,
+                "requested_start": audit.requested_start,
+                "adjusted": audit.prices_adjusted,
+            }
+            if any(
+                canonical_json(saved["market_data"].get(key)) != canonical_json(value)
+                for key, value in market_identity.items()
+            ):
+                raise ValueError("experiment data disagrees with persisted configuration")
+            if self.results.get_data_provenance(run_id) is not None:
+                raise ValueError(f"run {run_id} already has persisted experiment inputs")
+            if include_parameter_results:
+                if self.results.list_parameter_results(run_id):
+                    raise ValueError(f"run {run_id} already has persisted parameter rows")
+                self._persist_rows(run_id, result)
+            self.results.set_data_provenance(_provenance_from_result(run_id, result))
+            self.results.set_execution_assumptions(
+                ExecutionAssumptionsRecord(
+                    run_id=run_id,
+                    assumptions_json=canonical_json(execution_assumptions),
+                )
+            )
+
     def _persist_rows(self, run_id: str, result: ExperimentResult) -> None:
         screening_by_id = {
             item.parameter_row_id: item for item in result.screening_results

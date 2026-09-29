@@ -270,8 +270,9 @@ class ValidationEvidenceArtifactService:
                 "out-of-sample run must contain exactly one valid source-lock artifact"
             )
         source_lock = source_locks[0]
-        parameters = self._effective_strategy_parameters(document.get("parameters"))
-        if canonical_json(parameters) != canonical_json(source_lock.locked_parameters):
+        if not self._configuration_allows_locked_parameters(
+            document.get("parameters"), source_lock.locked_parameters
+        ):
             raise ValueError("source-lock parameters do not match the run configuration")
         return source_lock
 
@@ -457,6 +458,27 @@ class ValidationEvidenceArtifactService:
             raise ValueError("target fixture strategy parameters are missing or malformed")
         return dict(strategy_parameters)
 
+    @classmethod
+    def _configuration_allows_locked_parameters(
+        cls,
+        parameters: object,
+        locked_parameters: object,
+    ) -> bool:
+        """Require a lock to be one immutable configured parameter choice."""
+        if not isinstance(locked_parameters, Mapping) or not locked_parameters:
+            return False
+        if isinstance(parameters, (list, tuple)):
+            if not parameters or any(not isinstance(item, Mapping) for item in parameters):
+                raise ValueError(
+                    "target configuration parameter combinations are malformed"
+                )
+            return any(
+                canonical_json(dict(item)) == canonical_json(dict(locked_parameters))
+                for item in parameters
+            )
+        effective = cls._effective_strategy_parameters(parameters)
+        return canonical_json(effective) == canonical_json(dict(locked_parameters))
+
     def _retrieve_validated_source_lock(
         self,
         *,
@@ -509,10 +531,9 @@ class ValidationEvidenceArtifactService:
         target_configuration: dict[str, Any],
         target_source: dict[str, Any],
     ) -> None:
-        parameters = self._effective_strategy_parameters(
-            target_configuration.get("parameters")
-        )
-        if canonical_json(parameters) != canonical_json(source_lock.locked_parameters):
+        if not self._configuration_allows_locked_parameters(
+            target_configuration.get("parameters"), source_lock.locked_parameters
+        ):
             raise ValueError("target parameter lock mismatch")
         if source_lock.strategy_id != target_source.get("strategy_id"):
             raise ValueError("target strategy identity mismatch")

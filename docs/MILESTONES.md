@@ -10,23 +10,23 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Phase | **Finish the research backend before selecting another strategy.** |
-| Active work | Complete the missing generic runtime wiring so an already-approved candidate can move from durable screening launch through screening, OOS, walk-forward, robustness/regime, Monte Carlo, and stop at the protected-test gate without test-only adapters or manual stage assembly. |
-| Existing assets | The research engines, persistence, evidence artifacts, durable candidate launch claims, and filter-chain coordinator already exist and must be reused. |
-| Verified gap | The current candidate service and filter chain are coordination seams that still depend on injected screening/stage adapters; existing full-chain proof uses deterministic/test seams rather than one finished production backend path. |
-| Next action | Inspect the existing runners/services and implement only the missing generic runtime adapters/wiring; then prove that path once end-to-end with a deterministic non-profitability fixture. |
-| Deferred | New strategy selection/backtests, paid data, broad dashboard repair, deployment, broker expansion, paper activation, and live work until backend completion is accepted or a measured blocker requires them. |
-| Hard boundaries | No new edge research, protected-test execution, automatic promotion, paid data, paper/live orders, or capital exposure during this phase. |
+| Phase | **Edge discovery and candidate selection.** |
+| Active work | Select one genuinely new short-duration S&P/Nasdaq hypothesis, predeclare its rationale, parameter boundaries, execution assumptions, data boundary, and first-stage pass/fail evidence, then run only the cheapest sufficient discovery test. |
+| Existing assets | The generic candidate runtime now composes durable screening launch, real screening and validation engines, persisted evidence decisions, idempotent replay, and a fail-closed stop at the protected-test gate. Existing validated MES/MNQ data may support a cheap first-stage discovery test where appropriate. |
+| Verified gap | No current candidate hypothesis has yet passed a bounded first-stage discovery test. Historical MES ORB, MSFT ORB, SPYM momentum, and SPY Donchian/RSI work do not supply a new candidate. |
+| Next action | Perform the cheap prior-work check, choose one genuinely new hypothesis with a named rationale, and define the minimum experiment and data required before running it. |
+| Deferred | Paid options data, broad dashboard repair, deployment, broker expansion, paper activation, and live work until a bounded experiment or qualified edge creates the requirement. |
+| Hard boundaries | No protected-test execution, automatic promotion, open-ended optimization, blind data mining, unbounded data acquisition, paper/live orders, or capital exposure during this phase. |
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R10 | 1 | in_progress | none | Owner correction on 2026-09-29: backend operational completion precedes candidate selection. Existing engines remain; complete only the verified runtime gap and prove it once. |
+| R11 | 1 | in_progress | none | Backend completion is recorded. Select and bound one genuinely new short-duration S&P/Nasdaq hypothesis after a cheap prior-work check; do not repeat withdrawn or concluded strategy work. |
 <!-- active-work:end -->
 
-## Backend completion acceptance
+## Backend completion acceptance — completed 2026-09-29
 
 The backend is ready for edge research when an already-approved candidate can
 be carried through the existing research pipeline without inventing another
@@ -43,19 +43,29 @@ orchestration layer or manually composing every stage:
 Use one decisive deterministic proof after implementation. Do not turn backend
 completion into repeated fixture testing or another planning exercise.
 
+R10 is complete. `CandidatePipelineRuntime` reuses the durable candidate claim,
+actual Prefect flow identity, experiment runner, OOS, walk-forward,
+robustness/regime, Monte Carlo, evidence services, and filter-chain coordinator.
+The deterministic non-profitability proof reaches protected-test-ready while
+the protected state remains gated, persists a failing stop, and proves both
+screening and validation-stage failures cannot be reinvoked. The fixture
+replaces only the unavailable licensed VectorBT Pro boundary; it proves the
+generic runtime orchestration and real validation engines, not deployment,
+profitability, or the licensed engine itself.
+
 ## Operating sequence
 
-1. **Backend completion — ACTIVE**
-2. Edge discovery and candidate selection
+1. Backend completion — COMPLETE
+2. **Edge discovery and candidate selection — ACTIVE**
 3. Validation of surviving edge
 4. Execution-vehicle comparison
 5. Trader-usable dashboard repair
 6. Paper operation
 7. Live operation later
 
-### Edge research — NEXT, NOT ACTIVE
+### Edge research — ACTIVE
 
-After backend completion is recorded, select one genuinely new short-duration
+Select one genuinely new short-duration
 S&P/Nasdaq hypothesis. Existing validated MES/MNQ data may be used for cheap
 first-stage discovery where appropriate. A futures result does not by itself
 qualify a SPY/QQQ/SPXW options edge; surviving signals must later be validated
