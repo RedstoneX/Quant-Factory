@@ -1,5 +1,13 @@
 # Quant Factory Dashboard Product Requirements
 
+> **Current status:** Retained product requirements, not the active queue.
+> Decision 307 records that the implemented dashboard is not currently accepted
+> as sufficiently intuitive/viable for long-term operation. Dashboard repair is
+> deferred until a promising edge exists or a measured UI blocker appears. The
+> successful chart-first UX direction remains design input. See
+> `docs/MILESTONES.md` for current work.
+
+
 > **Current sequencing (Decisions 298 and 303):** Essential dashboard work and
 > the real-saved-result browser workflow are accepted through Step 15. Step 16
 > bounded beta use is active. This does not authorize deployment, broad polish,
