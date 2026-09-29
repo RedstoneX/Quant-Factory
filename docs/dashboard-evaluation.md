@@ -1,5 +1,13 @@
 # Dashboard Foundation Evaluation
 
+> **Historical foundation evaluation:** This document records early framework
+> selection evidence. It is not the current dashboard implementation plan.
+> Decision 307 defers dashboard repair behind edge discovery unless the UI
+> becomes a measured blocker. The approved chart-first prototype is the UX
+> reference and reuse-before-custom remains mandatory. See
+> `docs/MILESTONES.md` for current work.
+
+
 ## Executive recommendation
 
 Quant Factory should **assemble a minimal custom dashboard on Plotly Dash**, using VectorBT Pro and Plotly figures as the visualization engine, the existing `ExperimentResult`/CSV output as the first data contract, and selected reporting ideas from QuantStats. It should not adopt another complete dashboard substantially as-is.
