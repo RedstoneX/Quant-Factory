@@ -19,7 +19,7 @@ as the long-term operating interface. Its successful chart-first prototype and
 Find & Compare research remain UX references. Dashboard repair resumes after a
 promising edge exists or sooner if the UI becomes a measured research blocker.
 
-Current research focuses on selecting and bounding one genuinely new short-duration directional hypothesis in S&P 500 or Nasdaq-100 markets. Existing validated MES/MNQ data can support a cheap first-stage discovery test; surviving signals must later be validated on the intended underlying/index before an options edge is claimed.
+Current research has predeclared one fixed, source-inspired modern SPY turn-of-month development-screen proposal after reconciling prior work. Its rule, costs, data cutoff, inference, and pass/fail thresholds are fixed, but it awaits the owner's explicit candidate approval and a licensed VectorBT Pro environment. A future pass would still require independent validation before any options edge is claimed.
 
 No paid market-data acquisition, options execution adapter, futures broker
 stack, deployment, paper activation, or live-capital work is justified until a

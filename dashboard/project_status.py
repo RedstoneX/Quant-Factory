@@ -15,13 +15,12 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=26,
     current_milestone_title="Edge Discovery and Candidate Selection",
     current_milestone_status=(
-        "Backend completion is recorded. Current work is to select and bound one genuinely "
-        "new short-duration S&P/Nasdaq hypothesis, then run only the cheapest sufficient "
-        "first-stage discovery test."
+        "Backend completion is recorded. One fixed modern SPY turn-of-month development-screen "
+        "proposal is predeclared and awaits explicit owner acceptance before execution."
     ),
     strategy_status=(
-        "No candidate is currently qualified. Historical MES ORB, MSFT ORB, SPYM momentum, "
-        "and SPY Donchian/RSI work do not substitute for a new predeclared hypothesis."
+        "The turn-of-month hypothesis is proposed but untested. It has no result, no qualified "
+        "edge status, and no authority to acquire data, run, or progress automatically."
     ),
     workspace_status=(
         "The current dashboard is not accepted as the long-term operator interface. "

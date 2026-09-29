@@ -11,10 +11,10 @@ create a competing queue.
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
 | Phase | **Edge discovery and candidate selection.** |
-| Active work | Select one genuinely new short-duration S&P/Nasdaq hypothesis, predeclare its rationale, parameter boundaries, execution assumptions, data boundary, and first-stage pass/fail evidence, then run only the cheapest sufficient discovery test. |
-| Existing assets | The generic candidate runtime now composes durable screening launch, real screening and validation engines, persisted evidence decisions, idempotent replay, and a fail-closed stop at the protected-test gate. Existing validated MES/MNQ data may support a cheap first-stage discovery test where appropriate. |
-| Verified gap | No current candidate hypothesis has yet passed a bounded first-stage discovery test. Historical MES ORB, MSFT ORB, SPYM momentum, and SPY Donchian/RSI work do not supply a new candidate. |
-| Next action | Perform the cheap prior-work check, choose one genuinely new hypothesis with a named rationale, and define the minimum experiment and data required before running it. |
+| Active work | Obtain the owner's explicit accept/reject decision on the single predeclared modern SPY turn-of-month development-screen proposal. Do not execute it merely because an environment becomes available. |
+| Existing assets | The generic candidate runtime is complete. A prior-work audit confirmed that turn-of-month was previously inventoried but never selected or executed; the proposed rule, development dates, costs, inference, and stop conditions are fixed in `docs/strategies/spy-turn-of-month.md`. |
+| Verified gap | No candidate is owner-approved, the proposed screen has not run, and no result exists. This checkout also lacks VectorBT Pro; the fixed SPY Yahoo slice was deliberately not downloaded. |
+| Next action | The owner accepts or rejects the named proposal and its fixed boundaries. Only after acceptance, and only in an environment with licensed VectorBT Pro, may the bounded data acquisition and single development run begin. |
 | Deferred | Paid options data, broad dashboard repair, deployment, broker expansion, paper activation, and live work until a bounded experiment or qualified edge creates the requirement. |
 | Hard boundaries | No protected-test execution, automatic promotion, open-ended optimization, blind data mining, unbounded data acquisition, paper/live orders, or capital exposure during this phase. |
 
@@ -23,7 +23,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R11 | 1 | in_progress | none | Backend completion is recorded. Select and bound one genuinely new short-duration S&P/Nasdaq hypothesis after a cheap prior-work check; do not repeat withdrawn or concluded strategy work. |
+| R11 | 1 | blocked | none | The modern SPY turn-of-month proposal is fully predeclared after prior-work and adversary review, but Decision 306 retains the owner's candidate-approval gate. This machine also lacks licensed VectorBT Pro. No data was acquired and no evidence was fabricated. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
@@ -65,12 +65,13 @@ profitability, or the licensed engine itself.
 
 ### Edge research — ACTIVE
 
-Select one genuinely new short-duration
-S&P/Nasdaq hypothesis. Existing validated MES/MNQ data may be used for cheap
-first-stage discovery where appropriate. A futures result does not by itself
-qualify a SPY/QQQ/SPXW options edge; surviving signals must later be validated
-on the intended underlying/index and, for 0DTE execution, on defensible
-historical option quote/execution data.
+The proposed first slice is the fixed modern SPY turn-of-month development
+screen in `docs/strategies/spy-turn-of-month.md`. If the owner accepts it, it
+would activate a previously inventoried but never executed alternative; it is
+not a symbol transfer or variant of the concluded ORB, intraday-momentum,
+Donchian, or RSI work. A pass would only retain the hypothesis for later
+validation. It would not qualify an options edge; any later 0DTE claim requires
+defensible historical option quote/execution data.
 
 ### Dashboard
 
@@ -94,6 +95,7 @@ fail-closed gates. Live remains far future and requires separate owner approval.
 - MES ORB is concluded and rejected as an edge candidate.
 - MSFT ORB transfer work was withdrawn.
 - SPYM momentum and SPY Donchian/RSI work are historical evidence, not current candidates.
+- Turn-of-month was previously source-attributed and shortlisted but never selected or tested; its single fixed SPY development-screen proposal awaits owner acceptance and must not be expanded into a calendar-anomaly search.
 - Dashboard design research succeeded as UX research; its custom implementation path was shelved.
 
 ## Supporting records
@@ -104,4 +106,5 @@ Read only when needed:
 - [`docs/milestones/milestone-23-acceptance.md`](milestones/milestone-23-acceptance.md) — historical M23 evidence and [incident history](milestones/milestone-23-acceptance.md#incident-history)
 - `docs/QUANT_FACTORY_DASHBOARD_UI_DIRECTION.md`
 - strategy specifications under `docs/strategies/`
+- `docs/strategies/spy-turn-of-month.md`
 - relevant accepted ADRs and tests
