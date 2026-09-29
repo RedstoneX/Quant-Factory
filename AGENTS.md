@@ -128,6 +128,12 @@ credentials, deployments, orders/capital, or costly-to-reverse work.
 
 ## Research and evidence
 
+- **Current edge-discovery mandate is day trading / intraday only.** Candidate
+  strategies must express a directional edge within one defined trading
+  session, with expected holding periods measured in minutes to hours and no
+  position carried beyond that strategy's session boundary. Multi-day swing,
+  overnight-carry, turn-of-month, seasonal, and other calendar-hold strategies
+  are out of scope unless the owner explicitly changes the mandate.
 - Fixtures and previously inspected data prove infrastructure, not a trading
   edge or independent profitability evidence.
 - Every executable candidate must have a named hypothesis, source/rationale,
@@ -138,6 +144,11 @@ credentials, deployments, orders/capital, or costly-to-reverse work.
 - Keep signal discovery separate from the execution vehicle. Delta, liquidity,
   spreads, contract selection, or futures leverage describe how an edge is
   expressed; they do not substitute for the underlying edge.
+- Initial discovery should prefer S&P 500 / Nasdaq-100 intraday behavior that
+  can be screened economically on existing MES/MNQ data where appropriate and
+  later validated on the intended SPY/QQQ/index underlying before any options
+  claim. A candidate that requires overnight or multi-day holding fails current
+  mission fit before backtesting.
 - Before buying or downloading market data, identify the exact experiment and
   minimum data required. Compare provider cost only for that bounded need.
 - Do not rerun expensive research when relevant inputs are unchanged.
