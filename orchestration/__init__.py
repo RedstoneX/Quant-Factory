@@ -11,6 +11,7 @@ from orchestration.run_service import (
 from orchestration.filter_chain import (
     FILTER_HANDOFF_ENVIRONMENT_KEY,
     FactoryFilterChainService,
+    FilterChainReplayIncompleteError,
     FilterChainOutcome,
     FilterStageInvocationUnknownError,
     FilterStageContext,
@@ -43,9 +44,18 @@ from orchestration.candidate_run_service import (
     CandidateScreeningAdapter,
     CandidateScreeningLaunchResult,
 )
+from orchestration.candidate_pipeline_runtime import (
+    CandidatePipelineDefinition,
+    CandidatePipelineLaunchResult,
+    CandidatePipelineReplayIncompleteError,
+    CandidatePipelineRuntime,
+    CandidateValidationPlan,
+    VALIDATION_RUNTIME_KEY,
+)
 
 __all__ = [
     "FactoryFilterChainService",
+    "FilterChainReplayIncompleteError",
     "FILTER_HANDOFF_ENVIRONMENT_KEY",
     "FilterChainOutcome",
     "FilterStageInvocationUnknownError",
@@ -80,4 +90,10 @@ __all__ = [
     "CandidateRunService",
     "CandidateScreeningAdapter",
     "CandidateScreeningLaunchResult",
+    "CandidatePipelineDefinition",
+    "CandidatePipelineLaunchResult",
+    "CandidatePipelineReplayIncompleteError",
+    "CandidatePipelineRuntime",
+    "CandidateValidationPlan",
+    "VALIDATION_RUNTIME_KEY",
 ]

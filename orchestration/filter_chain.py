@@ -89,6 +89,10 @@ class FilterStageInvocationUnknownError(RuntimeError):
     """Raised when a reserved filter stage may have started but did not finish."""
 
 
+class FilterChainReplayIncompleteError(RuntimeError):
+    """Raised when a read-only replay reaches a stage that was never reserved."""
+
+
 class FactoryFilterChainService:
     """Invoke persisted filters in order and derive every decision from evidence."""
 
@@ -107,6 +111,21 @@ class FactoryFilterChainService:
         *,
         screening_run_id: str,
         stage_adapters: Mapping[RunStage, StageAdapter],
+    ) -> FilterChainOutcome:
+        return self._run(
+            screening_run_id=screening_run_id,
+            stage_adapters=stage_adapters,
+        )
+
+    def reopen(self, *, screening_run_id: str) -> FilterChainOutcome:
+        """Rebuild one persisted terminal outcome without reserving or invoking work."""
+        return self._run(screening_run_id=screening_run_id, stage_adapters=None)
+
+    def _run(
+        self,
+        *,
+        screening_run_id: str,
+        stage_adapters: Mapping[RunStage, StageAdapter] | None,
     ) -> FilterChainOutcome:
         screening = self._persistence.runs.get(screening_run_id)
         if screening is None:
@@ -134,7 +153,8 @@ class FactoryFilterChainService:
                 reasons=reasons or ("No screening result qualified for later filters.",),
             )
 
-        self._require_complete_adapters(stage_adapters)
+        if stage_adapters is not None:
+            self._require_complete_adapters(stage_adapters)
         references: list[PersistedStageReference] = []
         completed: list[FilterStageHandoff] = []
         source_lock: Any | None = None
@@ -154,14 +174,32 @@ class FactoryFilterChainService:
                 run_id=expected_run_id,
                 previous=tuple(references),
             )
-            reserved = self._reserve_stage_run(
-                screening_run_id=screening_run_id,
-                stage=expected_stage,
-                run_id=expected_run_id,
-                source_run_id=previous_run_id,
+            existing_stage = self._persistence.runs.get(expected_run_id)
+            if stage_adapters is None and existing_stage is None:
+                raise FilterChainReplayIncompleteError(
+                    f"persisted filter chain is incomplete at {expected_stage.value}"
+                )
+            if (
+                stage_adapters is None
+                and existing_stage is not None
+                and existing_stage.status != RunStatus.SUCCEEDED
+            ):
+                raise FilterChainReplayIncompleteError(
+                    f"persisted {expected_stage.value} stage is {existing_stage.status.value}"
+                )
+            reserved = (
+                self._reserve_stage_run(
+                    screening_run_id=screening_run_id,
+                    stage=expected_stage,
+                    run_id=expected_run_id,
+                    source_run_id=previous_run_id,
+                )
+                if existing_stage is None
+                else False
             )
             if reserved:
                 try:
+                    assert stage_adapters is not None
                     reference = stage_adapters[expected_stage](context)
                 except Exception as exc:
                     persisted = self._persistence.runs.get(expected_run_id)

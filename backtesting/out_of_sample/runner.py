@@ -174,9 +174,11 @@ def _json_scalar(value: object) -> object:
 def _report_execution(config: ExperimentConfig) -> dict[str, object]:
     execution = config.execution
     return {
+        "mode": execution.mode,
         "execution_mode": execution.mode,
         "signal_timing": execution.signal_timing,
         "execution_price": execution.execution_price_field,
+        "execution_price_field": execution.execution_price_field,
         "initial_cash": _json_scalar(execution.initial_cash),
         "fees": _json_scalar(execution.fees),
         "slippage": _json_scalar(execution.slippage),

@@ -9,9 +9,9 @@ an operator surface, not the purpose of the project.
 
 The active sequence is:
 
-**backend completion -> edge discovery -> validation -> execution-vehicle comparison -> dashboard repair -> paper operation -> live operation later.**
+**edge discovery -> validation -> execution-vehicle comparison -> dashboard repair -> paper operation -> live operation later.**
 
-Backend completion is the current priority. The existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable launch, and filter-handoff infrastructure should be reused; only the missing generic runtime wiring should be completed before new strategy research begins.
+Backend completion is recorded. The generic candidate runtime now reuses the existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable-launch, and filter-handoff infrastructure. It stops at the protected-test gate and does not expand protected-data authority.
 
 The current dashboard retains useful technical and historical acceptance
 evidence, but the owner no longer considers it sufficiently intuitive or viable
@@ -19,7 +19,7 @@ as the long-term operating interface. Its successful chart-first prototype and
 Find & Compare research remain UX references. Dashboard repair resumes after a
 promising edge exists or sooner if the UI becomes a measured research blocker.
 
-After backend completion, research will focus on short-duration directional behavior in S&P 500 and Nasdaq-100 markets. Existing validated MES/MNQ data can support cheap first-stage discovery; surviving signals must later be validated on the intended underlying/index before an options edge is claimed.
+Current research focuses on selecting and bounding one genuinely new short-duration directional hypothesis in S&P 500 or Nasdaq-100 markets. Existing validated MES/MNQ data can support a cheap first-stage discovery test; surviving signals must later be validated on the intended underlying/index before an options edge is claimed.
 
 No paid market-data acquisition, options execution adapter, futures broker
 stack, deployment, paper activation, or live-capital work is justified until a
@@ -57,7 +57,7 @@ The repository already contains:
 - VectorBT Pro experiment execution;
 - screening, OOS, walk-forward, robustness, and Monte Carlo engines;
 - durable run claims, persistence, artifacts, lineage, and review records;
-- a connected persisted filter-chain coordinator;
+- a generic durable candidate runtime connected to the persisted filter-chain coordinator;
 - Plotly Dash Results and Find & Compare work;
 - broker-neutral execution contracts and conservative Alpaca paper preparation.
 
