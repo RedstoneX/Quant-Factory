@@ -9,12 +9,9 @@ an operator surface, not the purpose of the project.
 
 The active sequence is:
 
-**edge discovery -> validation -> execution-vehicle comparison -> dashboard
-repair -> paper operation -> live operation later.**
+**backend completion -> edge discovery -> validation -> execution-vehicle comparison -> dashboard repair -> paper operation -> live operation later.**
 
-Backend edge discovery is the current priority. The existing screening, OOS,
-walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage,
-and filter-handoff infrastructure should be reused rather than rebuilt.
+Backend completion is the current priority. The existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable launch, and filter-handoff infrastructure should be reused; only the missing generic runtime wiring should be completed before new strategy research begins.
 
 The current dashboard retains useful technical and historical acceptance
 evidence, but the owner no longer considers it sufficiently intuitive or viable
@@ -22,11 +19,7 @@ as the long-term operating interface. Its successful chart-first prototype and
 Find & Compare research remain UX references. Dashboard repair resumes after a
 promising edge exists or sooner if the UI becomes a measured research blocker.
 
-Initial active research is focused on short-duration directional behavior in
-S&P 500 and Nasdaq-100 markets. Existing validated MES/MNQ data should be reused
-where it can answer the question. A surviving edge may later be compared through
-MES/MNQ and capital-efficient long 0DTE implementations such as SPY, QQQ, or
-SPXW. Execution-vehicle details do not substitute for finding the edge.
+After backend completion, research will focus on short-duration directional behavior in S&P 500 and Nasdaq-100 markets. Existing validated MES/MNQ data can support cheap first-stage discovery; surviving signals must later be validated on the intended underlying/index before an options edge is claimed.
 
 No paid market-data acquisition, options execution adapter, futures broker
 stack, deployment, paper activation, or live-capital work is justified until a
