@@ -8,16 +8,12 @@
 > Current work is defined only in `docs/MILESTONES.md`.
 
 
-- **Status:** Essential surfaces and the real-saved-result browser workflow are
-  owner-accepted through Step 15; Step 16 bounded beta use is active
+- **Status:** Retained owner-approved UX direction and historical implementation
+  evidence; inactive under Decision 307
 - **Owner direction accepted:** 2026-09-18
-- **Objective implementation and browser evidence:** Focused Step 11 evidence
-  and the Steps 13–14 real-saved-result browser proof passed; PR #90's final
-  presentation corrections passed on the private review page and Step 15 is accepted
-
-> **Current sequencing (Decisions 298 and 303):** Essential-page work and the
-> real-saved-result browser workflow are accepted through Step 15. Step 16
-> bounded beta use is active; candidate research remains paused.
+- **Historical evidence:** Focused Step 11 evidence and the Steps 13–14
+  real-saved-result browser proof passed; PR #90's presentation corrections
+  passed on the private review page and Step 15 was accepted at that time
 
 ## Purpose and authority
 
