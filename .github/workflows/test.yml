@@ -73,6 +73,17 @@ jobs:
           tests/test_mes_orb_durable_screening.py
           tests/test_results_model.py
           tests/test_results_beta_layout.py
+          tests/test_parameter_variant_evidence.py
+          tests/test_parameter_variant_explorer.py
+          tests/test_dashboard_candidate_artifact_normalization.py
+          tests/test_operator_intake_setup.py
+          tests/test_operator_run_operations.py
+          tests/test_results_deep_link.py
+          tests/test_dashboard.py::test_all_callback_components_exist_in_full_mounted_layout
+          tests/test_dashboard.py::test_dashboard_state_ownership_contract_names_callback_owners
+          tests/test_dashboard.py::test_dashboard_reconciles_selected_unknown_submission_with_prefect_identity
+          tests/test_dashboard.py::test_dashboard_abandons_selected_unknown_submission_only_with_evidence
+          tests/test_milestone23_acceptance.py::test_milestone23_controlled_failure_is_diagnosable_without_false_success
           tests/test_research_launch_claims.py
           tests/test_run_stale_recovery.py
           tests/test_execution_contracts.py

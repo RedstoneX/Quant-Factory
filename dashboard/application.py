@@ -8,7 +8,7 @@ import json
 import math
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlencode
 
 import dash_ag_grid as dag
@@ -547,6 +547,10 @@ def _ranked_column_definitions(
         "accumulate",
         "validation_gate_count",
         "parameter_row_id",
+        "variant_key",
+        "__run_id",
+        "__parameters",
+        "__metrics",
         "screening_passed_rule_count",
         "screening_failed_rule_count",
     }
@@ -1728,6 +1732,272 @@ def _result_summary(summary: ResultSummaryView) -> Any:
     )
 
 
+def _parameter_variant_selection(
+    rows: tuple[dict[str, Any], ...] | list[dict[str, Any]],
+) -> Any:
+    """Render exact persisted row-level evidence for up to four variants."""
+
+    selected = tuple(rows)
+    if not selected:
+        return html.Div(
+            [
+                html.Strong("No parameter variant selected"),
+                html.P(
+                    "Select one row for its exact settings and evidence, or up to four rows for a side-by-side metric comparison."
+                ),
+            ],
+            className="operator-message operator-message-info",
+        )
+    if len(selected) > 4:
+        return html.Div(
+            [
+                html.Strong("Select up to four variants"),
+                html.P(
+                    "The grid selection is preserved, but the comparison stays bounded so the evidence remains readable."
+                ),
+            ],
+            className="operator-message operator-message-warning",
+        )
+
+    cards: list[Any] = []
+    for row in selected:
+        parameters = row.get("__parameters")
+        metrics = row.get("__metrics")
+        run_id = str(row.get("__run_id") or "")
+        row_id = str(row.get("parameter_row_id") or "")
+        exact_href = (
+            "/research/backtest-results?"
+            + urlencode({"run_id": run_id, "parameter_row_id": row_id})
+            if run_id and row_id
+            else None
+        )
+        parameter_fields = tuple(
+            DetailField(
+                str(name).replace("_", " ").title(),
+                format_metric(str(name), value),
+            )
+            for name, value in (
+                parameters.items() if isinstance(parameters, dict) else ()
+            )
+        )
+        metric_fields = tuple(
+            DetailField(
+                str(name).replace("_", " ").title(),
+                format_metric(str(name), value),
+            )
+            for name, value in (metrics.items() if isinstance(metrics, dict) else ())
+        )
+        cards.append(
+            html.Article(
+                [
+                    html.Div(
+                        [
+                            html.Strong(
+                                f"Rank {row.get('ranking_position', 'Unavailable')}"
+                            ),
+                            html.Span(
+                                str(row.get("screening_status") or "Not recorded"),
+                                className="artifact-status",
+                            ),
+                        ],
+                        className="artifact-card-heading",
+                    ),
+                    _detail_subsection(
+                        "Parameters",
+                        _detail_fields(
+                            parameter_fields,
+                            empty="No persisted parameters are available for this variant.",
+                        ),
+                        "run-detail-nested",
+                    ),
+                    _detail_subsection(
+                        "Metrics",
+                        _detail_fields(
+                            metric_fields,
+                            empty="No persisted metrics are available for this variant.",
+                        ),
+                        "run-detail-nested",
+                    ),
+                    html.P(
+                        str(row.get("screening_reason") or "No rejection reason recorded."),
+                        className="field-help",
+                    ),
+                    dcc.Link(
+                        "Open exact variant link",
+                        href=exact_href,
+                        className="secondary-action",
+                    )
+                    if exact_href
+                    else None,
+                ],
+                className="artifact-card parameter-variant-card",
+            )
+        )
+
+    return html.Div(
+        [
+            html.P(
+                (
+                    "This comparison uses only the persisted row-level settings and metrics. "
+                    "The run-level chart, trades, and equity evidence are not attributed to non-top variants."
+                ),
+                className="fixture-disclaimer",
+            ),
+            html.Div(cards, className="parameter-variant-selection-grid"),
+        ]
+    )
+
+
+def _parameter_variants_explorer(
+    summary: ResultSummaryView,
+    *,
+    selected_parameter_row_id: str | None = None,
+) -> Any:
+    """Use the existing AG Grid to explore every persisted study variant."""
+
+    frame = (
+        pd.DataFrame(summary.table_rows)
+        if summary.table_rows
+        else pd.DataFrame(
+            columns=("ranking_position", "screening_status", "screening_reason")
+        )
+    )
+    selected_rows = [
+        row
+        for row in summary.table_rows
+        if selected_parameter_row_id
+        and row.get("parameter_row_id") == selected_parameter_row_id
+    ]
+    requested_variant_missing = bool(selected_parameter_row_id and not selected_rows)
+    evidence_message = getattr(summary, "evidence_message", "") or summary.message
+    evidence_state = getattr(summary, "evidence_state", "database_persisted")
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.H3("Parameter variants"),
+                            html.P(
+                                "Filter and sort the variants inside this one saved study. These controls change only the view; they never rerun, rerank, edit, or promote a strategy.",
+                                className="field-help",
+                            ),
+                        ]
+                    ),
+                    html.Span(
+                        evidence_state.replace("_", " ").replace("-", " ").title(),
+                        className=(
+                            "artifact-status artifact-status-success"
+                            if evidence_state == "artifact-validated"
+                            else "artifact-status artifact-status-error"
+                            if evidence_state == "evidence-invalid"
+                            else "artifact-status artifact-status-warning"
+                        ),
+                    ),
+                ],
+                className="run-section-heading parameter-variants-heading",
+            ),
+            html.P(evidence_message, className="field-help"),
+            (
+                html.P(
+                    summary.message,
+                    className=(
+                        "empty-state-copy error-state"
+                        if summary.status == "invalid"
+                        else "empty-state-copy"
+                    ),
+                )
+                if not summary.table_rows
+                else None
+            ),
+            (
+                html.Div(
+                    [
+                        html.Strong("Requested variant was not found in this run."),
+                        html.P(
+                            "No other variant was substituted. Clear the parameter_row_id from the link or choose a row below."
+                        ),
+                    ],
+                    className="operator-message operator-message-warning",
+                )
+                if requested_variant_missing
+                else None
+            ),
+            html.Div(
+                [
+                    html.Label(
+                        [
+                            html.Span("Quick search", className="field-label"),
+                            dcc.Input(
+                                id="parameter-variant-search",
+                                type="search",
+                                placeholder="Search settings, metrics, status, or reason",
+                                debounce=True,
+                                persistence=True,
+                                persistence_type="session",
+                                className="text-input",
+                            ),
+                        ]
+                    ),
+                    html.Button(
+                        "Reset view",
+                        id="parameter-variant-reset-view",
+                        n_clicks=0,
+                        className="secondary-action",
+                    ),
+                    html.P(
+                        f"{len(summary.table_rows):,} matched · {len(selected_rows):,} selected",
+                        id="parameter-variant-grid-count",
+                        className="field-help compact-field-help",
+                        **{"aria-live": "polite"},
+                    ),
+                ],
+                className="page-actions parameter-variant-actions",
+            ),
+            dag.AgGrid(
+                id="parameter-results-grid",
+                columnDefs=_ranked_column_definitions(frame),
+                rowData=list(summary.table_rows),
+                defaultColDef={
+                    "sortable": True,
+                    "filter": True,
+                    "resizable": True,
+                    "wrapHeaderText": True,
+                    "autoHeaderHeight": True,
+                },
+                dashGridOptions={
+                    "animateRows": False,
+                    "pagination": True,
+                    "paginationPageSize": 50,
+                    "suppressColumnVirtualisation": False,
+                    "rowSelection": {
+                        "mode": "multiRow",
+                        "checkboxes": True,
+                        "headerCheckbox": False,
+                        "enableClickSelection": True,
+                    },
+                },
+                getRowId="params.data.variant_key",
+                selectedRows=selected_rows,
+                persistence=True,
+                persistence_type="session",
+                persisted_props=["filterModel", "columnState"],
+                columnSize="responsiveSizeToFit",
+                columnSizeOptions={"defaultMinWidth": 84},
+                className="ag-theme-alpine qf-data-grid",
+                style={"height": "520px", "width": "100%"},
+            ),
+            html.Div(
+                _parameter_variant_selection(selected_rows),
+                id="parameter-variant-selection-detail",
+                className="parameter-variant-selection-detail",
+                **{"aria-live": "polite"},
+            ),
+        ],
+        className="results-report-panel parameter-variants-panel",
+    )
+
+
 def _artifact_column_definition(key: str, *, profile: str | None = None) -> dict[str, Any]:
     header = key.replace("_", " ").replace(" Id", " ID").title()
     definition = _grid_profile_definition(
@@ -2656,7 +2926,11 @@ def _results_metrics_report(detail: SelectedRunDetailView | None) -> Any:
     )
 
 
-def _results_report_tabs(detail: SelectedRunDetailView | None) -> dcc.Tabs:
+def _results_report_tabs(
+    detail: SelectedRunDetailView | None,
+    *,
+    selected_parameter_row_id: str | None = None,
+) -> dcc.Tabs:
     return dcc.Tabs(
         [
             _run_detail_analysis_tab(
@@ -2675,9 +2949,25 @@ def _results_report_tabs(detail: SelectedRunDetailView | None) -> dcc.Tabs:
                     className="results-report-panel",
                 ),
             ),
+            _run_detail_analysis_tab(
+                label="Variants",
+                value="variants",
+                children=_parameter_variants_explorer(
+                    (
+                        detail.result_summary
+                        if detail is not None
+                        else ResultSummaryView(
+                            status="empty",
+                            message="No persisted parameter variants are available for this run.",
+                            rows=(),
+                        )
+                    ),
+                    selected_parameter_row_id=selected_parameter_row_id,
+                ),
+            ),
         ],
         id="results-report-tabs",
-        value="metrics",
+        value="variants" if selected_parameter_row_id else "metrics",
         className="run-analysis-tabs results-report-tabs",
         parent_style={"display": "flex", "gap": "8px"},
     )
@@ -3235,6 +3525,7 @@ def _run_detail_panel(
     events: tuple[RunEvent, ...] = (),
     *,
     detail: SelectedRunDetailView | None = None,
+    selected_parameter_row_id: str | None = None,
 ) -> html.Section:
     if run is None:
         return html.Section(
@@ -3387,7 +3678,10 @@ def _run_detail_panel(
                                 ],
                                 className="run-section-heading",
                             ),
-                            _results_report_tabs(detail),
+                            _results_report_tabs(
+                                detail,
+                                selected_parameter_row_id=selected_parameter_row_id,
+                            ),
                         ],
                         className="results-report-region",
                     ),
@@ -3833,6 +4127,70 @@ def _runs_page(
                                         ],
                                         className="panel stale-recovery-panel",
                                     ),
+                                    html.Section(
+                                        [
+                                            html.H3("Unknown submission reconciliation"),
+                                            html.P(
+                                                (
+                                                    "Use this only when the selected run has an unknown "
+                                                    "submission outcome. Bind a confirmed Prefect flow, or "
+                                                    "abandon the claim with a durable evidence reference."
+                                                ),
+                                                className="field-help",
+                                            ),
+                                            html.Label(
+                                                "Confirmed Prefect flow run ID",
+                                                htmlFor="reconcile-prefect-flow-id",
+                                                className="field-label",
+                                            ),
+                                            dcc.Input(
+                                                id="reconcile-prefect-flow-id",
+                                                type="text",
+                                                placeholder="Prefect flow run UUID",
+                                                debounce=True,
+                                            ),
+                                            html.Label(
+                                                "Prefect API URL (optional)",
+                                                htmlFor="reconcile-prefect-api-url",
+                                                className="field-label",
+                                            ),
+                                            dcc.Input(
+                                                id="reconcile-prefect-api-url",
+                                                type="text",
+                                                placeholder="http://127.0.0.1:4200/api",
+                                                debounce=True,
+                                            ),
+                                            html.Button(
+                                                "Bind confirmed Prefect run",
+                                                id="reconcile-unknown-run",
+                                                n_clicks=0,
+                                                className="secondary-action",
+                                            ),
+                                            html.Label(
+                                                "No-submission evidence reference",
+                                                htmlFor="abandon-evidence-reference",
+                                                className="field-label",
+                                            ),
+                                            dcc.Input(
+                                                id="abandon-evidence-reference",
+                                                type="text",
+                                                placeholder="operator-reconciliation:case-reference",
+                                                debounce=True,
+                                            ),
+                                            html.Button(
+                                                "Abandon unknown claim",
+                                                id="abandon-unknown-run",
+                                                n_clicks=0,
+                                                className="secondary-action destructive-action",
+                                            ),
+                                            html.Div(
+                                                "Select an unknown run and provide reconciliation evidence.",
+                                                id="claim-recovery-message",
+                                                className="stale-recovery-message",
+                                            ),
+                                        ],
+                                        className="panel claim-recovery-panel",
+                                    ),
                                     html.Div(
                                         _recent_events_panel(recent_events),
                                         id="recent-events-monitor",
@@ -4163,12 +4521,13 @@ def page_for_path(
     if route == "/research/ideas":
         from dashboard.pages.ideas import layout as ideas_layout
 
-        return ideas_layout()
+        return ideas_layout(database=dashboard_database)
     if route == "/research/setup":
         from dashboard.pages.setup import layout as setup_layout
 
         return setup_layout(
             configurations=configurations,
+            database=dashboard_database,
             catalog_snapshot=catalog_snapshot,
         )
     if route == "/research/run-test":
@@ -4341,6 +4700,10 @@ def create_app(
     catalog_checked_at: datetime | None = None,
     health_stale_after: timedelta = timedelta(minutes=15),
     health_refresh_interval_ms: int = 30_000,
+    approved_configuration_launcher: Callable[..., object] | None = None,
+    reproduce_run: Callable[..., object] | None = None,
+    cancel_run: Callable[[str], RunSummary] | None = None,
+    run_operation_eligibility: Callable[[str, RunSummary], tuple[bool, str]] | None = None,
 ) -> Dash:
     # Mounted pages read persisted runs. Opening the dashboard must never
     # download prices or run the legacy RSI parameter grid as a side effect.
@@ -4485,8 +4848,12 @@ def create_app(
 
     register_routing_callbacks(app)
     register_health_callbacks(app)
-    register_ideas_callbacks(app)
-    register_setup_callbacks(app, readiness_by_id=readiness_by_id)
+    register_ideas_callbacks(app, database=dashboard_database)
+    register_setup_callbacks(
+        app,
+        readiness_by_id=readiness_by_id,
+        database=dashboard_database,
+    )
     register_backtest_results_callbacks(
         app,
         runs=runs,
@@ -4496,6 +4863,10 @@ def create_app(
         dashboard_database=dashboard_database,
         artifact_root=artifact_root,
         research_launches=research_launches,
+        approved_configuration_launcher=approved_configuration_launcher,
+        reproduce_run=reproduce_run,
+        cancel_run=cancel_run,
+        run_operation_eligibility=run_operation_eligibility,
     )
     register_trade_explorer_callbacks(app, detail_adapter=detail_adapter)
     register_compare_backtests_callbacks(

@@ -202,7 +202,13 @@ def test_v3_artifact_rows_migrate_forward_and_remain_readable(tmp_path: Path) ->
 
     migrated = initialize_database(path)
     try:
-        assert migrated.execute("SELECT schema_version FROM schema_metadata").fetchone()["schema_version"] == LATEST_SCHEMA_VERSION == 5
+        assert (
+            migrated.execute("SELECT schema_version FROM schema_metadata").fetchone()[
+                "schema_version"
+            ]
+            == LATEST_SCHEMA_VERSION
+            == 6
+        )
         assert migrated.execute(
             "SELECT run_id FROM experiment_runs WHERE run_id='legacy-run'"
         ).fetchone()["run_id"] == "legacy-run"

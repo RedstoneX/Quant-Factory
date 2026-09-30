@@ -160,6 +160,19 @@ class ConfigurationRecord:
 
 
 @dataclass(frozen=True)
+class IdeaDraftRecord:
+    draft_id: str
+    title: str
+    description: str
+    source_url: str
+    attribution: str
+    notes: str
+    configuration_id: str | None
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class ExperimentRunRecord:
     run_id: str
     configuration_id: str

@@ -43,6 +43,7 @@ from persistence.models import (
     ExecutionAssumptionsRecord,
     EventSeverity,
     ExperimentRunRecord,
+    IdeaDraftRecord,
     NormalizationLineage,
     ReviewRecord,
     ReviewState,
@@ -61,6 +62,7 @@ from persistence.models import (
 )
 from persistence.repositories import (
     ConfigurationRepository,
+    IdeaDraftRepository,
     ResultRepository,
     RunEventRepository,
     ReviewRepository,
@@ -491,6 +493,7 @@ class PersistenceService:
         self.connection = initialize_database(path)
         self.strategies = StrategyRepository(self.connection)
         self.configurations = ConfigurationRepository(self.connection)
+        self.idea_drafts = IdeaDraftRepository(self.connection)
         self.runs = RunRepository(self.connection)
         self.events = RunEventRepository(self.connection)
         self.results = ResultRepository(self.connection)
@@ -1014,6 +1017,56 @@ class PersistenceService:
     def upsert_configuration(self, document: dict[str, Any]) -> ConfigurationRecord:
         with transaction(self.connection):
             return self.configurations.upsert(document)
+
+    def save_idea_draft(
+        self,
+        *,
+        title: str,
+        description: str = "",
+        source_url: str = "",
+        attribution: str = "",
+        notes: str = "",
+        draft_id: str | None = None,
+    ) -> IdeaDraftRecord:
+        identity = draft_id or f"idea_{uuid4().hex}"
+        with transaction(self.connection):
+            return self.idea_drafts.save(
+                draft_id=identity,
+                title=title,
+                description=description,
+                source_url=source_url,
+                attribution=attribution,
+                notes=notes,
+            )
+
+    def delete_idea_draft(self, draft_id: str) -> bool:
+        with transaction(self.connection):
+            return self.idea_drafts.delete(draft_id)
+
+    def link_idea_configuration(
+        self,
+        *,
+        draft_id: str,
+        configuration_id: str,
+    ) -> IdeaDraftRecord:
+        with transaction(self.connection):
+            return self.idea_drafts.link_configuration(draft_id, configuration_id)
+
+    def upsert_idea_configuration(
+        self,
+        *,
+        draft_id: str,
+        document: dict[str, Any],
+    ) -> tuple[IdeaDraftRecord, ConfigurationRecord]:
+        """Persist immutable setup and its draft link in one transaction."""
+
+        with transaction(self.connection):
+            configuration = self.configurations.upsert(document)
+            draft = self.idea_drafts.link_configuration(
+                draft_id,
+                configuration.configuration_id,
+            )
+            return draft, configuration
 
     def create_run(
         self,

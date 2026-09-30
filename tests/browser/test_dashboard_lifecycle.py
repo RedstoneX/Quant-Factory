@@ -20,6 +20,7 @@ from dashboard.routing import (
     navigation_link_id,
 )
 from orchestration import FixtureRunService
+from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from persistence import (
     DataProvenanceRecord,
     ExecutionAssumptionsRecord,
@@ -771,7 +772,7 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
             page.locator("#idea-source-url").fill("https://example.invalid/source")
             page.locator("#save-idea-draft").click()
             expect(page.locator("#idea-draft-status")).to_contain_text(
-                "Draft saved in this browser session at"
+                "Draft saved locally at"
             )
             assert external_requests == []
 
@@ -1092,12 +1093,14 @@ def test_launch_spym_and_diagnose_controlled_failure(dashboard_server, tmp_path)
     database = server_log.parent / "state" / "browser-fixture.sqlite3"
     service = FixtureRunService(database=database, fixture_launcher=_launcher)
     initial = service.get_run(initial_run_id)
-    failure = service.launch_fixture(
-        configuration_id=initial.configuration_id,
-        run_id="browser_controlled_failure",
-        fail_after_run_start=True,
-    )
-    assert failure.run.status == "failed"
+    with pytest.raises(ResearchLaunchInvocationError):
+        service.launch_fixture(
+            configuration_id=initial.configuration_id,
+            run_id="browser_controlled_failure",
+            fail_after_run_start=True,
+        )
+    failure = service.get_run("browser_controlled_failure")
+    assert failure.status == "failed"
     events = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
@@ -1107,6 +1110,7 @@ def test_launch_spym_and_diagnose_controlled_failure(dashboard_server, tmp_path)
         try:
             page.goto(base_url + "/research/setup", wait_until="networkidle")
             _select(page, "configuration-selector", SPYM_OPTION_TEXT)
+            _wait_for_callbacks_to_settle(page, pending)
             selected_configuration = page.locator(
                 "#configuration-preview .configuration-identity"
             ).inner_text()
@@ -1127,7 +1131,10 @@ def test_launch_spym_and_diagnose_controlled_failure(dashboard_server, tmp_path)
             ).to_have_text(selected_configuration)
             expect(page.locator("#launch-run")).to_be_enabled()
             page.locator("#launch-run").click()
-            expect(page.locator("#launch-message")).to_contain_text("Status: succeeded", timeout=60000)
+            expect(page.locator("#launch-message")).to_contain_text(
+                "Run status: Succeeded",
+                timeout=60000,
+            )
             expect(page.locator("#run-test-operator-context")).to_contain_text(
                 "Succeeded"
             )
@@ -1149,14 +1156,21 @@ def test_launch_spym_and_diagnose_controlled_failure(dashboard_server, tmp_path)
             _wait_for_callbacks_to_settle(page, pending)
             _select(page, "selected-run-selector", "Infrastructure Fixture · Fixture backtest · Failed")
             _wait_for_callbacks_to_settle(page, pending)
-            error = page.locator("#selected-run-detail").get_by_text(failure.run.error_summary, exact=True)
+            error = page.locator("#selected-run-detail").get_by_text(
+                failure.error_summary,
+                exact=True,
+            )
             expect(error.first).to_be_visible(timeout=10000)
             page.screenshot(path=tmp_path / "controlled-failure.png", full_page=True)
             _wait_for_callbacks_to_settle(page, pending)
             page.reload(wait_until="networkidle")
             _select(page, "selected-run-selector", "Infrastructure Fixture · Fixture backtest · Failed")
             _wait_for_callbacks_to_settle(page, pending)
-            expect(page.locator("#selected-run-detail").get_by_text(failure.run.error_summary, exact=True).first).to_be_visible()
+            expect(
+                page.locator("#selected-run-detail")
+                .get_by_text(failure.error_summary, exact=True)
+                .first
+            ).to_be_visible()
             _wait_for_callbacks_to_settle(page, pending)
             _assert_no_browser_errors(events)
         except Exception:

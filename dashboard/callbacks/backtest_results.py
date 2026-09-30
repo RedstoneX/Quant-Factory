@@ -7,7 +7,7 @@ import hashlib
 import re
 from inspect import Parameter, signature
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import parse_qsl
 
 from dash import Dash, Input, Output, State, ctx, html, no_update
@@ -24,18 +24,22 @@ from dashboard.application import (
     _callback_triggered_id,
     _configuration_is_launchable,
     _operator_message,
+    _parameter_variant_selection,
     _empty_price_marker_figure,
     _price_marker_figure,
     _preferred_backtest_id,
     _recent_events_panel,
     _recent_runs_panel,
-    _run_action_availability,
     _run_detail_panel,
     _results_report_tabs,
     _results_operator_context,
     _selector_options,
 )
-from dashboard.run_adapter import ConfigurationReadinessView, SavedConfigurationView
+from dashboard.run_adapter import (
+    ConfigurationReadinessView,
+    SavedConfigurationView,
+    list_saved_configurations,
+)
 from dashboard.callbacks.review_state import load_durable_review
 from dashboard.run_detail_adapter import (
     ResultSummaryView,
@@ -53,7 +57,12 @@ from orchestration import (
     RunSummary,
     new_research_launch_key,
 )
-from persistence import ResearchLaunchOperation, ResearchSubmissionState, canonical_json
+from persistence import (
+    PersistenceService,
+    ResearchLaunchOperation,
+    ResearchSubmissionState,
+    canonical_json,
+)
 
 
 OWNED_STATE = {
@@ -67,6 +76,7 @@ OWNED_STATE = {
 _INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _MAX_RESULTS_QUERY_LENGTH = 2_048
 _MAX_RUN_ID_LENGTH = 256
+_MAX_PARAMETER_ROW_ID_LENGTH = 256
 _LAUNCH_KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
 # A NUL cannot occur in a syntactically valid Results run ID. Keeping the
 # malformed-request state distinct from ``None`` prevents the mounted page
@@ -450,6 +460,42 @@ def _requested_results_run_id(search: str | None) -> tuple[bool, str | None]:
     return True, run_id
 
 
+def _requested_results_parameter_row_id(
+    search: str | None,
+) -> tuple[bool, str | None]:
+    """Return whether Results was asked to open one safe parameter-row ID."""
+
+    if not search:
+        return False, None
+    query = search[1:] if search.startswith("?") else search
+    if len(query) > _MAX_RESULTS_QUERY_LENGTH or _INVALID_PERCENT_ESCAPE.search(query):
+        return True, None
+    try:
+        pairs = parse_qsl(
+            query,
+            keep_blank_values=True,
+            strict_parsing=True,
+            encoding="utf-8",
+            errors="strict",
+            max_num_fields=20,
+        )
+    except (UnicodeDecodeError, ValueError):
+        return True, None
+    values = [value for key, value in pairs if key == "parameter_row_id"]
+    if not values:
+        return False, None
+    if len(values) != 1:
+        return True, None
+    row_id = values[0]
+    if (
+        not row_id.strip()
+        or len(row_id) > _MAX_PARAMETER_ROW_ID_LENGTH
+        or any(ord(character) < 32 or ord(character) == 127 for character in row_id)
+    ):
+        return True, None
+    return True, row_id
+
+
 def _callback_triggered_ids() -> frozenset[str]:
     """Return every component that triggered the current Dash callback."""
 
@@ -476,9 +522,137 @@ def register_backtest_results_callbacks(
     readiness_by_id: dict[str, ConfigurationReadinessView],
     dashboard_database: str | Path,
     artifact_root: Path,
-    research_launches: DurableResearchLaunchService,
+    research_launches: DurableResearchLaunchService | None = None,
+    approved_configuration_launcher: Callable[..., object] | None = None,
+    reproduce_run: Callable[..., object] | None = None,
+    cancel_run: Callable[[str], RunSummary] | None = None,
+    run_operation_eligibility: Callable[[str, RunSummary], tuple[bool, str]] | None = None,
 ) -> None:
     """Register Run test and Results callbacks within their page boundaries."""
+
+    research_launches = research_launches or DurableResearchLaunchService(
+        database=dashboard_database
+    )
+
+    app.clientside_callback(
+        """
+        function (value, options) {
+            const next = Object.assign({}, options || {});
+            next.quickFilterText = value || '';
+            return next;
+        }
+        """,
+        Output("parameter-results-grid", "dashGridOptions"),
+        Input("parameter-variant-search", "value"),
+        State("parameter-results-grid", "dashGridOptions"),
+        prevent_initial_call=False,
+    )
+
+    @app.callback(
+        Output("parameter-variant-search", "value"),
+        Output("parameter-results-grid", "filterModel"),
+        Output("parameter-results-grid", "resetColumnState"),
+        Input("parameter-variant-reset-view", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def reset_parameter_variant_view(_clicks: int):
+        return "", {}, True
+
+    @app.callback(
+        Output("parameter-variant-grid-count", "children"),
+        Input("parameter-results-grid", "virtualRowData"),
+        Input("parameter-results-grid", "rowData"),
+        Input("parameter-results-grid", "selectedRows"),
+    )
+    def parameter_variant_counts(
+        visible_rows: list[dict[str, object]] | None,
+        all_rows: list[dict[str, object]] | None,
+        selected_rows: list[dict[str, object]] | None,
+    ) -> str:
+        matched = len(visible_rows) if visible_rows is not None else len(all_rows or ())
+        selected = len(selected_rows or ())
+        return f"{matched:,} matched · {selected:,} selected"
+
+    @app.callback(
+        Output("parameter-variant-selection-detail", "children"),
+        Input("parameter-results-grid", "selectedRows"),
+        State("selected-run-state", "data"),
+        State("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def inspect_parameter_variants(
+        selected_rows: list[dict[str, Any]] | None,
+        run_id: str | None,
+        pathname: str | None,
+    ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
+        run_id = _persisted_selected_run_id(run_id)
+        if not run_id or not selected_rows:
+            return _parameter_variant_selection(())
+        if any(
+            str(row.get("__run_id") or "") != run_id
+            or str(row.get("variant_key") or "")
+            != f"{run_id}:{row.get('parameter_row_id')}"
+            for row in selected_rows
+        ):
+            return _operator_message(
+                "Variant selection no longer matches this run.",
+                "No stale or cross-run row was substituted. Choose the variant again from this study.",
+                tone="warning",
+            )
+        try:
+            summary = detail_adapter.selected_run_detail(run_id).result_summary
+        except (KeyError, RuntimeError, ValueError) as exc:
+            return _operator_message(
+                "Variant evidence could not be reopened.",
+                str(exc),
+                tone="warning",
+            )
+        requested_ids = [
+            str(row.get("parameter_row_id"))
+            for row in selected_rows
+            if row.get("parameter_row_id") not in (None, "")
+        ]
+        persisted_by_id = {
+            str(row.get("parameter_row_id")): row
+            for row in summary.table_rows
+            if row.get("parameter_row_id") not in (None, "")
+        }
+        exact_rows = tuple(
+            persisted_by_id[row_id]
+            for row_id in requested_ids
+            if row_id in persisted_by_id
+        )
+        if len(exact_rows) != len(requested_ids):
+            return _operator_message(
+                "Variant selection no longer matches this run.",
+                "No stale or cross-run row was substituted. Choose the variant again from this study.",
+                tone="warning",
+            )
+        return _parameter_variant_selection(exact_rows)
+
+    def operation_eligibility(operation: str, run: RunSummary | None) -> tuple[bool, str]:
+        if run is None:
+            return False, "Select a persisted run first."
+        if run_operation_eligibility is not None:
+            allowed, reason = run_operation_eligibility(operation, run)
+            if allowed and operation == "reproduce" and run.stage == "screening":
+                service = PersistenceService(dashboard_database)
+                try:
+                    rows = service.results.list_parameter_results(run.run_id)
+                finally:
+                    service.close()
+                if rows and all(row.screening_status == "screened_out" for row in rows):
+                    return False, "Terminal rejected screening runs cannot be reproduced."
+            return bool(allowed), str(reason)
+        if run.stage != "fixture":
+            return False, "This run type has no connected operator action."
+        if operation == "reproduce":
+            return run.status == "succeeded", "Only succeeded fixture runs can be reproduced."
+        if operation == "cancel":
+            return run.status == "running", "Only running fixture runs can be cancelled."
+        return False, "Unsupported run operation."
 
     @app.callback(
         Output("run-configuration-preview", "children"),
@@ -506,7 +680,7 @@ def register_backtest_results_callbacks(
         Input("launch-run", "n_clicks"),
         Input("selected-configuration-state", "data"),
         State("run-test-launch-state", "data"),
-        State("url", "pathname"),
+        Input("url", "pathname"),
         running=[
             (Output("launch-run", "disabled"), True, True),
             (Output("launch-run", "children"), "Starting test...", "Run test"),
@@ -525,17 +699,22 @@ def register_backtest_results_callbacks(
             explicit_action = True
         if explicit_action and not _active_route(pathname, "/research/run-test"):
             raise PreventUpdate
-        selected = next(
-            (
-                configuration
-                for configuration in configurations
-                if configuration.configuration_id == configuration_id
-            ),
-            None,
+        current_configurations = {
+            configuration.configuration_id: configuration
+            for configuration in configurations
+        }
+        current_configurations.update(
+            {
+                configuration.configuration_id: configuration
+                for configuration in list_saved_configurations(dashboard_database)
+            }
         )
+        selected = current_configurations.get(configuration_id or "")
         readiness = readiness_by_id.get(selected.configuration_id) if selected else None
         allowed = selected is not None and readiness is not None and readiness.ready
-        supported = _durable_launch_supported(runs, ResearchLaunchOperation.RUN_TEST.value)
+        supported = approved_configuration_launcher is not None or _durable_launch_supported(
+            runs, ResearchLaunchOperation.RUN_TEST.value
+        )
         store, store_error = _launch_store(
             launch_state,
             operation=ResearchLaunchOperation.RUN_TEST.value,
@@ -573,17 +752,24 @@ def register_backtest_results_callbacks(
                 store_error = "No valid prepared run ticket is available."
             else:
                 try:
-                    runs.launch_fixture(
-                        configuration_id=selected.configuration_id,
-                        idempotency_key=intent["idempotency_key"],
-                        operation=ResearchLaunchOperation.RUN_TEST,
-                        source_run_id=None,
-                        source_lineage=None,
-                    )
+                    if approved_configuration_launcher is not None:
+                        approved_configuration_launcher(
+                            configuration_id=selected.configuration_id,
+                            idempotency_key=intent["idempotency_key"],
+                        )
+                    else:
+                        runs.launch_fixture(
+                            configuration_id=selected.configuration_id,
+                            idempotency_key=intent["idempotency_key"],
+                            operation=ResearchLaunchOperation.RUN_TEST,
+                            source_run_id=None,
+                            source_lineage=None,
+                        )
                 except (
                     ResearchLaunchError,
                     KeyError,
                     ValueError,
+                    RuntimeError,
                     RunServiceError,
                 ) as exc:
                     launch_error = exc
@@ -595,6 +781,13 @@ def register_backtest_results_callbacks(
                 if claimed_submission is not None:
                     store = _record_claimed_intent(store, intent)
                     submission = claimed_submission
+                    if submission.state in {
+                        ResearchSubmissionState.CLAIMED,
+                        ResearchSubmissionState.INVOKING,
+                    }:
+                        launch_error = ResearchLaunchError(
+                            "The launcher returned before durable Prefect acknowledgement."
+                        )
                 elif launch_error is None:
                     launch_error = ResearchLaunchError(
                         "The launcher returned without creating a durable claim."
@@ -617,17 +810,25 @@ def register_backtest_results_callbacks(
             title = store_error
             label = "Run ticket conflict"
         elif submission is not None:
-            message = _durable_launch_summary(submission, run)
-            message_class = (
-                "save-message error-state"
-                if submission.state
-                in {
-                    ResearchSubmissionState.SUBMISSION_UNKNOWN,
-                    ResearchSubmissionState.FAILED_BEFORE_SUBMISSION,
-                    ResearchSubmissionState.ABANDONED,
-                }
-                else "save-message"
-            )
+            if launch_error is not None:
+                message = _operator_message(
+                    "Run launch acknowledgement is incomplete.",
+                    str(launch_error),
+                    tone="warning",
+                )
+                message_class = "save-message warning-state"
+            else:
+                message = _durable_launch_summary(submission, run)
+                message_class = (
+                    "save-message error-state"
+                    if submission.state
+                    in {
+                        ResearchSubmissionState.SUBMISSION_UNKNOWN,
+                        ResearchSubmissionState.FAILED_BEFORE_SUBMISSION,
+                        ResearchSubmissionState.ABANDONED,
+                    }
+                    else "save-message"
+                )
         elif launch_error is not None:
             message = _operator_message(
                 "Run launch did not start.",
@@ -858,10 +1059,12 @@ def register_backtest_results_callbacks(
             source_run = None
         configuration_id = source_run.configuration_id if source_run else None
         source_submission = research_launches.get_for_run(run_id) if run_id else None
-        allowed = source_run is not None and source_run.status == "succeeded"
+        allowed, eligibility_reason = operation_eligibility("reproduce", source_run)
         if source_submission is not None and source_submission.state == ResearchSubmissionState.SUBMISSION_UNKNOWN:
             allowed = False
-        supported = _durable_launch_supported(runs, ResearchLaunchOperation.REPRODUCTION.value)
+        supported = reproduce_run is not None or _durable_launch_supported(
+            runs, ResearchLaunchOperation.REPRODUCTION.value
+        )
         store, store_error = _launch_store(
             launch_state,
             operation=ResearchLaunchOperation.REPRODUCTION.value,
@@ -898,7 +1101,8 @@ def register_backtest_results_callbacks(
                 store_error = "No valid prepared reproduction ticket is available."
             else:
                 try:
-                    runs.reproduce_fixture_run(
+                    launcher = reproduce_run or runs.reproduce_fixture_run
+                    launcher(
                         run_id,
                         artifact_root=artifact_root,
                         idempotency_key=intent["idempotency_key"],
@@ -950,7 +1154,7 @@ def register_backtest_results_callbacks(
             message = "Durable reproduction is unavailable; the legacy launcher is disabled."
             message_class = "reproduction-message error-state"
         elif not allowed:
-            message = "Select a succeeded persisted run before requesting reproduction."
+            message = eligibility_reason
             message_class = "reproduction-message"
         else:
             message = "Reproduction creates one durable run ticket linked to the original."
@@ -1036,16 +1240,7 @@ def register_backtest_results_callbacks(
     ):
         run_id = _persisted_selected_run_id(run_id)
         run = runs.get_run(run_id) if run_id else None
-        availability = _run_action_availability(
-            run,
-            (
-                run is not None
-                and _configuration_is_launchable(
-                    run.configuration_id,
-                    configurations,
-                )
-            ),
-        )
+        cancel_allowed, cancel_reason = operation_eligibility("cancel", run)
         if run is not None:
             submission = research_launches.get_for_run(run.run_id)
             if (
@@ -1056,7 +1251,9 @@ def register_backtest_results_callbacks(
                     True,
                     "Submission outcome is unknown. Reconcile it before cancellation.",
                 )
-        return availability[4], availability[5]
+        return (not cancel_allowed), (
+            "Cancel the selected running run." if cancel_allowed else cancel_reason
+        )
 
     @app.callback(
         Output("recent-runs-monitor", "children"),
@@ -1271,6 +1468,7 @@ def register_backtest_results_callbacks(
         Input("cancellation-message", "children", allow_optional=True),
         Input("stale-recovery-message", "children"),
         Input("url", "pathname"),
+        Input("url", "search"),
     )
     def inspect_run(
         stored_run_id: str | None,
@@ -1280,6 +1478,7 @@ def register_backtest_results_callbacks(
         ___: int,
         ____: int,
         pathname: str | None = "/research/backtest-results",
+        search: str | None = None,
     ):
         if not _active_route(pathname, "/research/backtest-results"):
             raise PreventUpdate
@@ -1364,10 +1563,16 @@ def register_backtest_results_callbacks(
                 warnings=(f"Run detail retrieval failed: {exc}",),
             )
 
+        variant_requested, parameter_row_id = _requested_results_parameter_row_id(
+            search
+        )
+        if variant_requested and parameter_row_id is None:
+            parameter_row_id = "\x00invalid-parameter-row-id"
         return _run_detail_panel(
             run,
             runs.events_for_run(run_id),
             detail=detail_view,
+            selected_parameter_row_id=parameter_row_id,
         )
 
     @app.callback(
@@ -1503,7 +1708,15 @@ def register_backtest_results_callbacks(
             )
 
         try:
-            run = runs.request_fixture_cancellation(run_id)
+            selected_run = runs.get_run(run_id)
+            allowed, reason = operation_eligibility("cancel", selected_run)
+            if not allowed:
+                raise ValueError(reason)
+            run = (
+                cancel_run(run_id)
+                if cancel_run is not None
+                else runs.request_fixture_cancellation(run_id)
+            )
         except (KeyError, ValueError, RunServiceError) as exc:
             return (
                 f"Cancellation request failed: {exc}",
@@ -1546,3 +1759,73 @@ def register_backtest_results_callbacks(
             "Age-only recovery is disabled. A timestamp does not prove whether a durable submission started; use claim-aware reconciliation.",
             "stale-recovery-message error-state",
         )
+
+    @app.callback(
+        Output("claim-recovery-message", "children"),
+        Output("claim-recovery-message", "className"),
+        Input("reconcile-unknown-run", "n_clicks"),
+        Input("abandon-unknown-run", "n_clicks"),
+        State("selected-run-state", "data"),
+        State("reconcile-prefect-flow-id", "value"),
+        State("reconcile-prefect-api-url", "value"),
+        State("abandon-evidence-reference", "value"),
+        State("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def reconcile_unknown_submission(
+        reconcile_clicks: int | None,
+        abandon_clicks: int | None,
+        run_id: str | None,
+        prefect_flow_run_id: str | None,
+        prefect_api_url: str | None,
+        resolution_evidence_reference: str | None,
+        pathname: str | None = "/research/backtest-results",
+    ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
+        triggered_id = _callback_triggered_id()
+        if triggered_id is None:
+            if reconcile_clicks and not abandon_clicks:
+                triggered_id = "reconcile-unknown-run"
+            elif abandon_clicks and not reconcile_clicks:
+                triggered_id = "abandon-unknown-run"
+        run_id = _persisted_selected_run_id(run_id)
+        if not run_id:
+            return (
+                "Select the exact unknown run before reconciliation.",
+                "stale-recovery-message error-state",
+            )
+        try:
+            if triggered_id == "reconcile-unknown-run" and reconcile_clicks:
+                flow_id = (prefect_flow_run_id or "").strip()
+                if not flow_id:
+                    raise ValueError("A confirmed Prefect flow run ID is required.")
+                submission = research_launches.reconcile_unknown_for_run(
+                    run_id=run_id,
+                    prefect_flow_run_id=flow_id,
+                    prefect_api_url=(prefect_api_url or "").strip() or None,
+                )
+                return (
+                    f"Submission reconciled and bound to Prefect flow {submission.prefect_flow_run_id}.",
+                    "stale-recovery-message success-state",
+                )
+            if triggered_id == "abandon-unknown-run" and abandon_clicks:
+                evidence = (resolution_evidence_reference or "").strip()
+                if not evidence:
+                    raise ValueError(
+                        "A durable no-submission evidence reference is required."
+                    )
+                research_launches.abandon_unknown_for_run(
+                    run_id=run_id,
+                    resolution_evidence_reference=evidence,
+                )
+                return (
+                    "Unknown submission was abandoned with the recorded evidence reference; it will not be retried automatically.",
+                    "stale-recovery-message success-state",
+                )
+        except (KeyError, ValueError, ResearchLaunchError) as exc:
+            return (
+                f"Claim-aware reconciliation failed: {exc}",
+                "stale-recovery-message error-state",
+            )
+        raise PreventUpdate

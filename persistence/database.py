@@ -8,7 +8,7 @@ import os
 import sqlite3
 from typing import Iterator
 
-LATEST_SCHEMA_VERSION = 5
+LATEST_SCHEMA_VERSION = 6
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE_PATH = Path("state") / "quant_factory.sqlite3"
 ENV_DATABASE_PATH = "QUANT_FACTORY_DB_PATH"
@@ -278,6 +278,28 @@ MIGRATION_005_STATEMENTS = (
     """,
 )
 
+MIGRATION_006_STATEMENTS = (
+    """
+    CREATE TABLE idea_drafts (
+        draft_id TEXT NOT NULL PRIMARY KEY
+            CHECK (length(draft_id) BETWEEN 8 AND 80)
+            CHECK (draft_id NOT GLOB '*[^A-Za-z0-9_-]*'),
+        title TEXT NOT NULL CHECK (length(title) BETWEEN 1 AND 120),
+        description TEXT NOT NULL CHECK (length(description) <= 2000),
+        source_url TEXT NOT NULL CHECK (length(source_url) <= 2048),
+        attribution TEXT NOT NULL CHECK (length(attribution) <= 240),
+        notes TEXT NOT NULL CHECK (length(notes) <= 2000),
+        configuration_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (configuration_id)
+            REFERENCES experiment_configurations(configuration_id)
+            ON DELETE RESTRICT
+    )
+    """,
+    "CREATE INDEX idx_idea_drafts_updated ON idea_drafts(updated_at DESC, draft_id)",
+)
+
 
 class DatabaseError(RuntimeError):
     """Raised when the local experiment database is unusable."""
@@ -364,6 +386,9 @@ def initialize_database(path: str | Path | None = None) -> sqlite3.Connection:
             elif current == 4:
                 _migrate_v4_to_v5(connection)
                 current = 5
+            elif current == 5:
+                _migrate_v5_to_v6(connection)
+                current = 6
             else:
                 raise SchemaVersionError(
                     f"database schema {current} cannot be migrated by this version"
@@ -431,4 +456,14 @@ def _migrate_v4_to_v5(connection: sqlite3.Connection) -> None:
         connection.execute(
             "UPDATE schema_metadata SET schema_version=?, migration_id=?",
             (5, "005_durable_research_launch_claims"),
+        )
+
+
+def _migrate_v5_to_v6(connection: sqlite3.Connection) -> None:
+    with transaction(connection):
+        for statement in MIGRATION_006_STATEMENTS:
+            connection.execute(statement)
+        connection.execute(
+            "UPDATE schema_metadata SET schema_version=?, migration_id=?",
+            (6, "006_operator_idea_drafts"),
         )

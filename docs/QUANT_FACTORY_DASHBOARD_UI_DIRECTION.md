@@ -215,8 +215,8 @@ States:
 
 ### Set up — `/research/setup`
 
-**Purpose:** inspect and choose an approved immutable fixture configuration
-before any work starts.
+**Purpose:** turn a saved idea into a bounded research setup draft, or inspect
+and choose an already approved runnable configuration before work starts.
 
 Show:
 
@@ -228,10 +228,15 @@ Show:
 - a persistent warning that fixture results prove infrastructure, not profit;
 - a read-only summary of the exact configuration that will be used.
 
-The operator may edit a page-local setup draft. **Save configuration** creates
-or selects an immutable persisted configuration through existing service
-boundaries. The forward action is **Review test**, linking to Run test with the
-persisted configuration identity. Set up does not launch a run.
+The operator may edit a page-local setup draft. **Save setup draft** creates an
+immutable persisted record through existing service boundaries, but it does
+not supply research approval or concrete data binding. Those new drafts remain
+blocked from Run test. After the owner accepts a named candidate, Codex supplies
+the candidate's strategy-specific implementation and exact data binding through
+the existing controlled backend seam; the dashboard is not a universal idea-to-
+code converter. Separately, an already approved configuration with concrete
+data can expose **Review test**, linking to Run test with the persisted
+configuration identity. Set up does not launch a run.
 
 States:
 
@@ -299,6 +304,19 @@ constraints below, and the detailed selected-run Results specification:
   the chart context;
 - keep searchable/filterable run history as a secondary **Change run** surface,
   not a large table above or before the primary chart; and
+- treat one saved run as one study and expose all of its persisted parameter
+  variants in a dedicated **Variants** report tab with quick search, native
+  numeric/text/status filters, multi-sort, matched/selected counts, reset,
+  exact row identity, and a bounded comparison of up to four rows;
+- preserve original rank, screening status and rejection reasons while the
+  operator changes only the presentation; filtering and selection never
+  rerun, rerank, edit or promote research;
+- distinguish artifact-validated parameter evidence from durable database-only
+  rows and hide the normal variant grid and headline metrics when a registered
+  parameter-results artifact is corrupt, disagrees with persistence, or is
+  listed by the immutable manifest but missing from the registry; and
+- never attribute the selected/top row's charts, trades or equity evidence to
+  another variant when equivalent row-linked artifacts were not persisted; and
 - use TradingView's backtesting Strategy Report for interaction hierarchy and
   QAMC only for panel, resizing and linked-selection mechanics.
 

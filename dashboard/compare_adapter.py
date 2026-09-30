@@ -339,6 +339,10 @@ class CompareDashboardAdapter:
             detail = None
         snapshot.detail = detail
         if detail is not None:
+            if detail.result_summary.evidence_state == "evidence-invalid":
+                snapshot.metrics = {}
+                snapshot.metric_basis = "Ranked metrics hidden · Parameter-result evidence is invalid"
+                snapshot.errors.append(detail.result_summary.evidence_message)
             for warning in detail.warnings:
                 target = (
                     snapshot.errors

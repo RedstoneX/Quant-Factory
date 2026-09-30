@@ -193,13 +193,13 @@ def test_initialize_schema_requires_an_explicit_boolean(tmp_path: Path) -> None:
         )
 
 
-def test_fresh_schema_five_and_v4_to_v5_migration_preserve_existing_rows(tmp_path: Path) -> None:
+def test_fresh_schema_and_v4_to_latest_migration_preserve_existing_rows(tmp_path: Path) -> None:
     fresh = _database(tmp_path, "fresh.sqlite3")
     connection = initialize_database(fresh)
     try:
         assert connection.execute(
             "SELECT schema_version FROM schema_metadata"
-        ).fetchone()["schema_version"] == LATEST_SCHEMA_VERSION == 5
+        ).fetchone()["schema_version"] == LATEST_SCHEMA_VERSION == 6
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='research_run_submissions'"
         ).fetchone() is not None
@@ -229,7 +229,7 @@ def test_fresh_schema_five_and_v4_to_v5_migration_preserve_existing_rows(tmp_pat
     try:
         assert upgraded.execute(
             "SELECT schema_version FROM schema_metadata"
-        ).fetchone()["schema_version"] == 5
+        ).fetchone()["schema_version"] == 6
         assert upgraded.execute(
             "SELECT display_name FROM strategies WHERE strategy_id='fixture'"
         ).fetchone()["display_name"] == "Fixture"
@@ -997,6 +997,63 @@ def test_failed_before_submission_and_abandoned_are_atomic_idempotent_terminal_o
             ]
     finally:
         persistence.close()
+
+
+def test_unknown_submission_has_exact_run_scoped_reconcile_and_abandon_actions(
+    tmp_path: Path,
+) -> None:
+    path = _database(tmp_path, "operator-actions.sqlite3")
+    configuration_id = _configuration(path)
+    service = DurableResearchLaunchService(database=path)
+
+    reconcile = service.claim(
+        idempotency_key=_key("run-reconcile"), request=_request(configuration_id)
+    )
+    dispatcher = new_dispatcher_instance_id()
+    service.begin_dispatch(
+        idempotency_key=reconcile.submission.idempotency_key,
+        dispatcher_instance_id=dispatcher,
+    )
+    service.mark_invocation_unknown(
+        idempotency_key=reconcile.submission.idempotency_key,
+        dispatcher_instance_id=dispatcher,
+    )
+    acknowledged = service.reconcile_unknown_for_run(
+        run_id=reconcile.run.run_id,
+        prefect_flow_run_id="prefect-reconciled-flow",
+        prefect_api_url="http://127.0.0.1:4200/api",
+    )
+    assert acknowledged.state == ResearchSubmissionState.ACKNOWLEDGED
+    assert service.reconcile_unknown_for_run(
+        run_id=reconcile.run.run_id,
+        prefect_flow_run_id="prefect-reconciled-flow",
+        prefect_api_url="http://127.0.0.1:4200/api",
+    ) == acknowledged
+
+    abandon = service.claim(
+        idempotency_key=_key("run-abandon"), request=_request(configuration_id)
+    )
+    dispatcher = new_dispatcher_instance_id()
+    service.begin_dispatch(
+        idempotency_key=abandon.submission.idempotency_key,
+        dispatcher_instance_id=dispatcher,
+    )
+    service.mark_invocation_unknown(
+        idempotency_key=abandon.submission.idempotency_key,
+        dispatcher_instance_id=dispatcher,
+    )
+    abandoned = service.abandon_unknown_for_run(
+        run_id=abandon.run.run_id,
+        resolution_evidence_reference="operator-reconciliation:no-prefect-run-found",
+    )
+    assert abandoned.state == ResearchSubmissionState.ABANDONED
+    assert service.get_for_run(abandon.run.run_id) == abandoned
+
+    with pytest.raises(ResearchLaunchConflictError, match="cannot reconcile"):
+        service.reconcile_unknown_for_run(
+            run_id=abandon.run.run_id,
+            prefect_flow_run_id="late-flow",
+        )
 
 
 @pytest.mark.parametrize("terminal_action", ["fail_before", "abandon"])

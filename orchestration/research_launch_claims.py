@@ -639,6 +639,59 @@ class DurableResearchLaunchService:
         with self._connection() as connection:
             return ResearchRunSubmissionRepository(connection).get_for_run(run_id)
 
+    def reconcile_unknown_for_run(
+        self,
+        *,
+        run_id: str,
+        prefect_flow_run_id: str,
+        prefect_api_url: str | None = None,
+    ) -> ResearchRunSubmissionRecord:
+        """Bind operator-confirmed Prefect identity to one unknown submission.
+
+        The persisted canonical request is reused verbatim; callers cannot
+        substitute configuration or launch identity during reconciliation.
+        """
+
+        submission = self.get_for_run(run_id)
+        if submission is None:
+            raise KeyError(f"run {run_id} has no durable research submission")
+        if submission.state not in {
+            ResearchSubmissionState.SUBMISSION_UNKNOWN,
+            ResearchSubmissionState.ACKNOWLEDGED,
+        }:
+            raise ResearchLaunchConflictError(
+                f"cannot reconcile a {submission.state.value} submission"
+            )
+        return self.bind_prefect_identity(
+            idempotency_key=submission.idempotency_key,
+            run_id=submission.run_id,
+            configuration_id=submission.configuration_id,
+            canonical_request_json=submission.canonical_request_json,
+            request_fingerprint=submission.request_fingerprint,
+            prefect_flow_run_id=prefect_flow_run_id,
+            prefect_api_url=prefect_api_url,
+        )
+
+    def abandon_unknown_for_run(
+        self,
+        *,
+        run_id: str,
+        resolution_evidence_reference: str,
+        error_summary: str = (
+            "Submission was abandoned without accepted result evidence after explicit reconciliation."
+        ),
+    ) -> ResearchRunSubmissionRecord:
+        """Resolve one operator-selected unknown claim without an age heuristic."""
+
+        submission = self.get_for_run(run_id)
+        if submission is None:
+            raise KeyError(f"run {run_id} has no durable research submission")
+        return self.abandon_unknown(
+            idempotency_key=submission.idempotency_key,
+            resolution_evidence_reference=resolution_evidence_reference,
+            error_summary=error_summary,
+        )
+
     def _validate_persisted_claim(
         self,
         connection: sqlite3.Connection,

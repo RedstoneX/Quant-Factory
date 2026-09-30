@@ -26,7 +26,7 @@ STATE_OWNERS = {
     "idea_draft": {
         "source": "idea-draft-store.data",
         "owner": "dashboard.callbacks.ideas",
-        "rule": "Ideas stores operator-authored text in the browser session only and never retrieves or executes it.",
+        "rule": "Ideas persists operator-authored text in the local dashboard database; the session store mirrors only the selected durable draft and never retrieves or executes it.",
     },
     "selected_configuration": {
         "source": "selected-configuration-state.data",
@@ -44,6 +44,11 @@ STATE_OWNERS = {
         "store": "selected-run-state.data",
         "owner": "dashboard.callbacks.backtest_results",
         "rule": "Explicit selector changes win over passive refresh and hydration callbacks.",
+    },
+    "selected_parameter_variants": {
+        "source": "parameter-results-grid.selectedRows",
+        "owner": "dashboard.callbacks.backtest_results",
+        "rule": "Results binds variant selection to the selected persisted run and exact parameter-row identities; filtering, sorting, and selection never rerank, mutate, rerun, or promote research.",
     },
     "historical_relaunch": {
         "source": "historical-launch-state.data",

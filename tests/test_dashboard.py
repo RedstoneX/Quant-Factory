@@ -610,7 +610,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 35
+    assert len(app.callback_map) == 43
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -664,7 +664,11 @@ def test_all_callback_components_exist_in_full_mounted_layout(tmp_path: Path) ->
     app = create_app(context, tmp_path / "reviews.json")
     mounted_ids = set(_component_ids(_resolved_layout(app)))
 
-    missing = sorted(_callback_ref_ids(app) - mounted_ids)
+    missing = sorted(
+        reference
+        for reference in _callback_ref_ids(app) - mounted_ids
+        if '"ALL"' not in reference
+    )
 
     assert "refresh-comparisons" in mounted_ids
     assert missing == []
@@ -713,6 +717,10 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
     # Trade evidence must populate on Home -> Backtest Results navigation while
     # retaining the URL/navigation output restrictions below.
     passive_route_refresh_keys = {
+            "..run-test-launch-state.data...launch-message.children..."
+            "launch-message.className...run-test-operator-context.children..."
+            "run-test-operator-context.className...launch-run.disabled..."
+            "launch-run.title...launch-run.children..",
         "..selected-trade-grid.rowData...trade-explorer-summary.children..."
         "selected-trade-grid.selectedRows..",
         "find-compare-grid.rowData",
@@ -1438,7 +1446,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
             assert active[0].href == pathname
 
 
-def test_ideas_page_is_browser_session_text_only() -> None:
+def test_ideas_page_is_durable_local_text_only() -> None:
     from dashboard.callbacks.ideas import (
         _idea_draft_transition,
         _valid_source_url,
@@ -1451,10 +1459,11 @@ def test_ideas_page_is_browser_session_text_only() -> None:
         for component in _walk_components(page)
     }
 
-    assert "Draft only — nothing will run" in rendered
+    assert "Intake only — nothing will run" in rendered
     assert "will not open, preview, download, summarize, approve, or execute" in rendered
     assert {
         "idea-draft-store",
+        "idea-draft-selector",
         "idea-title",
         "idea-description",
         "idea-source-url",
@@ -2305,8 +2314,9 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             "source": "idea-draft-store.data",
             "owner": "dashboard.callbacks.ideas",
             "rule": (
-                "Ideas stores operator-authored text in the browser session only "
-                "and never retrieves or executes it."
+                "Ideas persists operator-authored text in the local dashboard "
+                "database; the session store mirrors only the selected durable "
+                "draft and never retrieves or executes it."
             ),
         },
         "selected_configuration": {
@@ -2334,6 +2344,15 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             "rule": (
                 "Explicit selector changes win over passive refresh and hydration "
                 "callbacks."
+            ),
+        },
+        "selected_parameter_variants": {
+            "source": "parameter-results-grid.selectedRows",
+            "owner": "dashboard.callbacks.backtest_results",
+            "rule": (
+                "Results binds variant selection to the selected persisted run "
+                "and exact parameter-row identities; filtering, sorting, and "
+                "selection never rerank, mutate, rerun, or promote research."
             ),
         },
         "historical_relaunch": {
@@ -2540,6 +2559,8 @@ def test_recent_run_and_event_histories_collapse_overflow() -> None:
 class _DashboardResearchLaunches:
     def __init__(self) -> None:
         self.by_key: dict[str, ResearchRunSubmissionRecord] = {}
+        self.reconciliations: list[tuple[str, str, str | None]] = []
+        self.abandonments: list[tuple[str, str]] = []
 
     def acknowledge(
         self,
@@ -2592,6 +2613,47 @@ class _DashboardResearchLaunches:
             (record for record in self.by_key.values() if record.run_id == run_id),
             None,
         )
+
+    def reconcile_unknown_for_run(
+        self,
+        *,
+        run_id: str,
+        prefect_flow_run_id: str,
+        prefect_api_url: str | None = None,
+    ) -> ResearchRunSubmissionRecord:
+        record = self.get_for_run(run_id)
+        if record is None or record.state != ResearchSubmissionState.SUBMISSION_UNKNOWN:
+            raise ResearchLaunchConflictError("selected run is not submission-unknown")
+        self.reconciliations.append((run_id, prefect_flow_run_id, prefect_api_url))
+        resolved = replace(
+            record,
+            state=ResearchSubmissionState.ACKNOWLEDGED,
+            prefect_flow_run_id=prefect_flow_run_id,
+            prefect_api_url=prefect_api_url,
+            acknowledged_at="2026-07-13T12:01:00Z",
+            resolved_at="2026-07-13T12:01:00Z",
+        )
+        self.by_key[record.idempotency_key] = resolved
+        return resolved
+
+    def abandon_unknown_for_run(
+        self,
+        *,
+        run_id: str,
+        resolution_evidence_reference: str,
+    ) -> ResearchRunSubmissionRecord:
+        record = self.get_for_run(run_id)
+        if record is None or record.state != ResearchSubmissionState.SUBMISSION_UNKNOWN:
+            raise ResearchLaunchConflictError("selected run is not submission-unknown")
+        self.abandonments.append((run_id, resolution_evidence_reference))
+        resolved = replace(
+            record,
+            state=ResearchSubmissionState.ABANDONED,
+            resolved_at="2026-07-13T12:01:00Z",
+            resolution_evidence_reference=resolution_evidence_reference,
+        )
+        self.by_key[record.idempotency_key] = resolved
+        return resolved
 
 
 class _DashboardRunService:
@@ -6473,6 +6535,11 @@ def test_selected_run_detail_dash_endpoint_renders_with_absent_detail_controls(
                     "property": "pathname",
                     "value": "/research/backtest-results",
                 },
+                    {
+                        "id": "url",
+                        "property": "search",
+                        "value": "",
+                    },
             ],
             "state": [],
         },
@@ -6804,11 +6871,9 @@ def test_dashboard_does_not_claim_terminal_run_was_cancelled(
     cancel = _callback_function(app, "cancellation-message")
     message, class_name = cancel(1, "run_dashboard_fixture")
 
-    assert service.cancellation_requests == ["run_dashboard_fixture"]
-    assert message == (
-        "Run is already succeeded; no cancellation request was applied."
-    )
-    assert class_name == "cancellation-message"
+    assert service.cancellation_requests == []
+    assert message == "Cancellation request failed: Only running fixture runs can be cancelled."
+    assert class_name == "cancellation-message error-state"
 
 def test_dashboard_requires_explicit_stale_recovery_cutoff(
     tmp_path: Path,
@@ -6950,3 +7015,101 @@ def test_dashboard_reports_stale_recovery_failure(
     assert service.stale_recovery_requests == []
     assert "Age-only recovery is disabled" in message
     assert class_name == "stale-recovery-message error-state"
+
+
+def _submission_unknown_dashboard_app(tmp_path: Path, monkeypatch):
+    configuration = _saved_configuration()
+    monkeypatch.setattr(
+        "dashboard.app.list_saved_configurations",
+        lambda database=None: (configuration,),
+    )
+    service = _DashboardRunService(run_status="running")
+    run = service.get_run("run_dashboard_fixture")
+    assert run is not None
+    record = service.research_launch_service.acknowledge(
+        "unknown-operator-claim-0001",
+        run,
+        operation=ResearchLaunchOperation.RUN_TEST,
+        source_run_id=None,
+    )
+    service.research_launch_service.by_key[record.idempotency_key] = replace(
+        record,
+        state=ResearchSubmissionState.SUBMISSION_UNKNOWN,
+        prefect_flow_run_id=None,
+        prefect_api_url=None,
+        acknowledged_at=None,
+        unknown_at="2026-07-13T12:00:30Z",
+        unknown_evidence_reference="process-exit:confirmed",
+        resolved_at=None,
+    )
+    data = _data()
+    app = create_app(
+        DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data)),
+        tmp_path / "reviews.sqlite3",
+        run_service=service,
+    )
+    return app, service
+
+
+def test_dashboard_reconciles_selected_unknown_submission_with_prefect_identity(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    app, service = _submission_unknown_dashboard_app(tmp_path, monkeypatch)
+    recover = _callback_function(app, "claim-recovery-message")
+
+    message, class_name = recover(
+        1,
+        0,
+        "run_dashboard_fixture",
+        "prefect-confirmed-123",
+        "http://127.0.0.1:4200/api",
+        None,
+    )
+
+    assert service.research_launch_service.reconciliations == [
+        (
+            "run_dashboard_fixture",
+            "prefect-confirmed-123",
+            "http://127.0.0.1:4200/api",
+        )
+    ]
+    assert "Submission reconciled" in message
+    assert class_name == "stale-recovery-message success-state"
+
+
+def test_dashboard_abandons_selected_unknown_submission_only_with_evidence(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    app, service = _submission_unknown_dashboard_app(tmp_path, monkeypatch)
+    recover = _callback_function(app, "claim-recovery-message")
+
+    missing_message, missing_class = recover(
+        0,
+        1,
+        "run_dashboard_fixture",
+        None,
+        None,
+        "",
+    )
+    assert service.research_launch_service.abandonments == []
+    assert "evidence reference is required" in missing_message
+    assert missing_class == "stale-recovery-message error-state"
+
+    message, class_name = recover(
+        0,
+        1,
+        "run_dashboard_fixture",
+        None,
+        None,
+        "operator-reconciliation:no-prefect-run-found",
+    )
+    assert service.research_launch_service.abandonments == [
+        (
+            "run_dashboard_fixture",
+            "operator-reconciliation:no-prefect-run-found",
+        )
+    ]
+    assert "was abandoned" in message
+    assert class_name == "stale-recovery-message success-state"
