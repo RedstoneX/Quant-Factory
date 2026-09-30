@@ -2004,6 +2004,39 @@ input {
   justify-content: space-between;
 }
 
+.parameter-variants-panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.parameter-variants-heading,
+.parameter-variant-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.parameter-variant-actions .text-input {
+  min-width: min(360px, 100%);
+}
+
+.parameter-variant-selection-detail {
+  margin-top: 4px;
+}
+
+.parameter-variant-selection-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+.parameter-variant-card {
+  min-width: 0;
+}
+
 .artifact-status {
   border-radius: 999px;
   font-size: 0.75rem;

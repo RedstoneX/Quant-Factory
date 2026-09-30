@@ -45,6 +45,11 @@ STATE_OWNERS = {
         "owner": "dashboard.callbacks.backtest_results",
         "rule": "Explicit selector changes win over passive refresh and hydration callbacks.",
     },
+    "selected_parameter_variants": {
+        "source": "parameter-results-grid.selectedRows",
+        "owner": "dashboard.callbacks.backtest_results",
+        "rule": "Results binds variant selection to the selected persisted run and exact parameter-row identities; filtering, sorting, and selection never rerank, mutate, rerun, or promote research.",
+    },
     "historical_relaunch": {
         "source": "historical-launch-state.data",
         "owner": "dashboard.callbacks.backtest_results",

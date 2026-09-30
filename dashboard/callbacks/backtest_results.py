@@ -24,6 +24,7 @@ from dashboard.application import (
     _callback_triggered_id,
     _configuration_is_launchable,
     _operator_message,
+    _parameter_variant_selection,
     _empty_price_marker_figure,
     _price_marker_figure,
     _preferred_backtest_id,
@@ -71,6 +72,7 @@ OWNED_STATE = {
 _INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _MAX_RESULTS_QUERY_LENGTH = 2_048
 _MAX_RUN_ID_LENGTH = 256
+_MAX_PARAMETER_ROW_ID_LENGTH = 256
 _LAUNCH_KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
 # A NUL cannot occur in a syntactically valid Results run ID. Keeping the
 # malformed-request state distinct from ``None`` prevents the mounted page
@@ -454,6 +456,42 @@ def _requested_results_run_id(search: str | None) -> tuple[bool, str | None]:
     return True, run_id
 
 
+def _requested_results_parameter_row_id(
+    search: str | None,
+) -> tuple[bool, str | None]:
+    """Return whether Results was asked to open one safe parameter-row ID."""
+
+    if not search:
+        return False, None
+    query = search[1:] if search.startswith("?") else search
+    if len(query) > _MAX_RESULTS_QUERY_LENGTH or _INVALID_PERCENT_ESCAPE.search(query):
+        return True, None
+    try:
+        pairs = parse_qsl(
+            query,
+            keep_blank_values=True,
+            strict_parsing=True,
+            encoding="utf-8",
+            errors="strict",
+            max_num_fields=20,
+        )
+    except (UnicodeDecodeError, ValueError):
+        return True, None
+    values = [value for key, value in pairs if key == "parameter_row_id"]
+    if not values:
+        return False, None
+    if len(values) != 1:
+        return True, None
+    row_id = values[0]
+    if (
+        not row_id.strip()
+        or len(row_id) > _MAX_PARAMETER_ROW_ID_LENGTH
+        or any(ord(character) < 32 or ord(character) == 127 for character in row_id)
+    ):
+        return True, None
+    return True, row_id
+
+
 def _callback_triggered_ids() -> frozenset[str]:
     """Return every component that triggered the current Dash callback."""
 
@@ -491,6 +529,93 @@ def register_backtest_results_callbacks(
     research_launches = research_launches or DurableResearchLaunchService(
         database=dashboard_database
     )
+
+    app.clientside_callback(
+        """
+        function (value, options) {
+            const next = Object.assign({}, options || {});
+            next.quickFilterText = value || '';
+            return next;
+        }
+        """,
+        Output("parameter-results-grid", "dashGridOptions"),
+        Input("parameter-variant-search", "value"),
+        State("parameter-results-grid", "dashGridOptions"),
+        prevent_initial_call=False,
+    )
+
+    @app.callback(
+        Output("parameter-variant-search", "value"),
+        Output("parameter-results-grid", "filterModel"),
+        Output("parameter-results-grid", "resetColumnState"),
+        Input("parameter-variant-reset-view", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def reset_parameter_variant_view(_clicks: int):
+        return "", {}, True
+
+    @app.callback(
+        Output("parameter-variant-grid-count", "children"),
+        Input("parameter-results-grid", "virtualRowData"),
+        Input("parameter-results-grid", "rowData"),
+        Input("parameter-results-grid", "selectedRows"),
+    )
+    def parameter_variant_counts(
+        visible_rows: list[dict[str, object]] | None,
+        all_rows: list[dict[str, object]] | None,
+        selected_rows: list[dict[str, object]] | None,
+    ) -> str:
+        matched = len(visible_rows) if visible_rows is not None else len(all_rows or ())
+        selected = len(selected_rows or ())
+        return f"{matched:,} matched · {selected:,} selected"
+
+    @app.callback(
+        Output("parameter-variant-selection-detail", "children"),
+        Input("parameter-results-grid", "selectedRows"),
+        State("selected-run-state", "data"),
+        State("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def inspect_parameter_variants(
+        selected_rows: list[dict[str, Any]] | None,
+        run_id: str | None,
+        pathname: str | None,
+    ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
+        run_id = _persisted_selected_run_id(run_id)
+        if not run_id or not selected_rows:
+            return _parameter_variant_selection(())
+        try:
+            summary = detail_adapter.selected_run_detail(run_id).result_summary
+        except (KeyError, RuntimeError, ValueError) as exc:
+            return _operator_message(
+                "Variant evidence could not be reopened.",
+                str(exc),
+                tone="warning",
+            )
+        requested_ids = [
+            str(row.get("parameter_row_id"))
+            for row in selected_rows
+            if row.get("parameter_row_id") not in (None, "")
+        ]
+        persisted_by_id = {
+            str(row.get("parameter_row_id")): row
+            for row in summary.table_rows
+            if row.get("parameter_row_id") not in (None, "")
+        }
+        exact_rows = tuple(
+            persisted_by_id[row_id]
+            for row_id in requested_ids
+            if row_id in persisted_by_id
+        )
+        if len(exact_rows) != len(requested_ids):
+            return _operator_message(
+                "Variant selection no longer matches this run.",
+                "No stale or cross-run row was substituted. Choose the variant again from this study.",
+                tone="warning",
+            )
+        return _parameter_variant_selection(exact_rows)
 
     def operation_eligibility(operation: str, run: RunSummary | None) -> tuple[bool, str]:
         if run is None:
@@ -1325,6 +1450,7 @@ def register_backtest_results_callbacks(
         Input("cancellation-message", "children", allow_optional=True),
         Input("stale-recovery-message", "children"),
         Input("url", "pathname"),
+        Input("url", "search"),
     )
     def inspect_run(
         stored_run_id: str | None,
@@ -1334,6 +1460,7 @@ def register_backtest_results_callbacks(
         ___: int,
         ____: int,
         pathname: str | None = "/research/backtest-results",
+        search: str | None = None,
     ):
         if not _active_route(pathname, "/research/backtest-results"):
             raise PreventUpdate
@@ -1418,10 +1545,16 @@ def register_backtest_results_callbacks(
                 warnings=(f"Run detail retrieval failed: {exc}",),
             )
 
+        variant_requested, parameter_row_id = _requested_results_parameter_row_id(
+            search
+        )
+        if variant_requested and parameter_row_id is None:
+            parameter_row_id = "\x00invalid-parameter-row-id"
         return _run_detail_panel(
             run,
             runs.events_for_run(run_id),
             detail=detail_view,
+            selected_parameter_row_id=parameter_row_id,
         )
 
     @app.callback(

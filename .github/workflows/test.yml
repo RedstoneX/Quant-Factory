@@ -72,7 +72,15 @@ jobs:
           tests/test_mes_overnight_gap_reversal_durable.py
           tests/test_mes_orb_durable_screening.py
           tests/test_results_model.py
+          tests/test_dashboard.py
           tests/test_results_beta_layout.py
+          tests/test_parameter_variant_evidence.py
+          tests/test_parameter_variant_explorer.py
+          tests/test_dashboard_candidate_artifact_normalization.py
+          tests/test_operator_intake_setup.py
+          tests/test_operator_run_operations.py
+          tests/test_results_deep_link.py
+          tests/test_milestone23_acceptance.py
           tests/test_research_launch_claims.py
           tests/test_run_stale_recovery.py
           tests/test_execution_contracts.py

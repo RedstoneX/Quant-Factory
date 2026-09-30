@@ -257,6 +257,7 @@ def _result_summary(
                 **metrics,
                 "parameter_row_id": row["row_id"],
                 "variant_key": f"{run_id}:{row['row_id']}",
+                "__run_id": run_id,
                 "__parameters": normalized,
                 "__metrics": metrics,
                 "ranking_position": row.get("ranking_position"),

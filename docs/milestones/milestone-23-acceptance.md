@@ -57,6 +57,7 @@ or add an unreviewed cache design as a Milestone 23 acceptance criterion.
 | Shell and routing | Direct links, refresh, back/forward, sidebar and home navigation, active state, unknown route, and no renderer errors |
 | Launch and monitoring | Approved saved configuration launches once, status is visible, refresh preserves identity, and inactive pages cannot mutate state |
 | Results | The selected-run truthful price chart is primary; separate Bars (`1m`/`5m`/`15m`/`1D`) and View (`Full run`/`1D`/`1W`/`1M`) controls preserve the immutable backtest period and exact trade events; persisted entry/exit markers map to containing bars and link to the grouped trade ledger; equity, drawdown, benchmark, assumptions, lineage, review, and validation outcomes remain reachable and render only from persisted evidence |
+| Study variants | One saved run remains one study while every persisted parameter variant is available in a bounded grid with quick search, numeric/text/status filters, multi-sort, reset, total/matched/selected counts, stable row identity, exact row detail and up-to-four row-level comparison; the controls cannot rerun, rerank, edit or promote research, and non-top variants never inherit top-row chart/trade/equity evidence |
 | Run analysis, compare and reproduce | Hundreds or thousands of persisted runs can be aggregated, sliced, ranked, filtered and selected by maximum drawdown, total return, profitable-trade measures and other useful evidence dimensions; one run opens in Results, multiple selected runs can feed Compare; compatible runs compare; a reproduced run retains parent/configuration identity and creates a distinct run record |
 | Review | Human decision and rationale persist durably and conflicts fail before mutation |
 | Failure and recovery | Controlled failure, retry, timeout, cancellation, stale recovery, restart, missing artifact, and corrupt lineage are understandable and fail closed |
@@ -101,6 +102,11 @@ research-computation behavior is not misrepresented as a completed cache.
 - [ ] Trade typography is visibly larger and more readable without hiding
       required evidence or causing page-level horizontal overflow; the validated
       preview's two-CSS-pixel increase is evidence, not a fixed acceptance value.
+- [x] A selected study exposes every persisted parameter variant with stable
+      identity, complete dynamic parameter/metric columns, quick search,
+      filtering, sorting, reset, counts, exact detail and bounded row-level
+      comparison. A deterministic 2,000-row browser case passes without
+      renderer/server diagnostics; registered artifact mismatches fail closed.
 - [ ] Focused and complete relevant automated tests pass.
 - [ ] Browser lifecycle checks pass for every registered route.
 - [ ] The operator completes launch → monitor → inspect → compare → reproduce →
@@ -153,6 +159,29 @@ research-computation behavior is not misrepresented as a completed cache.
 - Deployment, target validation, final owner acceptance, and beta completion
   remain pending. Decision 298 resumed only the factory-to-beta sequence. The
   image review does not establish the full workflow or Milestone 23 acceptance.
+
+### Current-revision study-variant evidence — 2026-09-30
+
+- The existing Results report now treats one persisted run as one study and
+  renders all durable `parameter_results` rows in the existing Dash AG Grid;
+  no schema, strategy runner, orchestration layer, research execution, or new
+  frontend was added.
+- A deterministic 2,000-row browser fixture proves quick search, combined
+  numeric and screening-status filters, reset, total/matched/selected counts,
+  exact variant selection, and exact `(run_id, parameter_row_id)` links with
+  clean browser and server diagnostics.
+- Selecting up to four variants compares only their persisted settings,
+  metrics, original rank, screening state and rejection reason. Run-level
+  price, trade and equity evidence remains explicitly separate and is never
+  attributed to a non-top row.
+- A registered parameter-results artifact is displayed as artifact-validated
+  only after checksum validation and complete reconciliation against durable
+  database rows. Missing artifacts are labelled database-persisted; corrupt,
+  duplicate or mismatched artifacts produce a fail-closed invalid state with
+  no normal variant rows.
+- This is current-branch product evidence pending normal pull-request review
+  and required CI. It is not owner handoff acceptance, deployment, strategy
+  research, profitability evidence, or authority for paper/live trading.
 
 ### Decision 298 Steps 10–11 evidence — 2026-09-21
 

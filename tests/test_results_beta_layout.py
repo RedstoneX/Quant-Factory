@@ -283,9 +283,10 @@ def test_results_report_reuses_existing_metrics_and_trade_explorer() -> None:
     report = _results_report_tabs(_detail())
     rendered = str(report)
 
-    assert [tab.label for tab in report.children] == ["Metrics", "Trades"]
+    assert [tab.label for tab in report.children] == ["Metrics", "Trades", "Variants"]
     assert rendered.count("id='selected-trade-grid'") == 1
     assert rendered.count("id='trade-explorer-summary'") == 1
+    assert "Parameter variants" in rendered
 
 
 def test_trade_selection_linkage_is_scoped_and_grid_uses_normal_page_flow() -> None:

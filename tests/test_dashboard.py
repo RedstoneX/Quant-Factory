@@ -610,7 +610,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 39
+    assert len(app.callback_map) == 43
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -2344,6 +2344,15 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             "rule": (
                 "Explicit selector changes win over passive refresh and hydration "
                 "callbacks."
+            ),
+        },
+        "selected_parameter_variants": {
+            "source": "parameter-results-grid.selectedRows",
+            "owner": "dashboard.callbacks.backtest_results",
+            "rule": (
+                "Results binds variant selection to the selected persisted run "
+                "and exact parameter-row identities; filtering, sorting, and "
+                "selection never rerank, mutate, rerun, or promote research."
             ),
         },
         "historical_relaunch": {
@@ -6526,6 +6535,11 @@ def test_selected_run_detail_dash_endpoint_renders_with_absent_detail_controls(
                     "property": "pathname",
                     "value": "/research/backtest-results",
                 },
+                    {
+                        "id": "url",
+                        "property": "search",
+                        "value": "",
+                    },
             ],
             "state": [],
         },

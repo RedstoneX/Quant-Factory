@@ -153,6 +153,7 @@ def register_results_review_callbacks(
                     _operator_message(
                         "Terminal screening rejection verified.",
                         "Record Reject with a durable rationale; advancement decisions remain gated.",
+                        tone="warning",
                     ),
                 )
         return (
@@ -245,5 +246,6 @@ def register_results_review_callbacks(
             summary = _operator_message(
                 "Terminal screening rejection saved.",
                 f"Decision identity: {decision.decision_identity}",
+                tone="warning",
             )
         return summary, _review_history(snapshot)

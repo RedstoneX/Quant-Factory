@@ -40,6 +40,7 @@ from tests.browser.test_dashboard_lifecycle import _wait_for_callbacks_to_settle
 
 
 RUN_ID = "portable-r07-screening-run"
+VARIANT_COUNT = 2_000
 ENTRY_TIME = "2026-01-02T14:40:00+00:00"
 EXIT_TIME = "2026-01-02T15:35:00+00:00"
 
@@ -143,13 +144,13 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
                     ),
                 )
             )
-            for rank in range(1, 16):
+            for rank in range(1, VARIANT_COUNT + 1):
                 service.results.add_parameter_result(
                     run_id=RUN_ID,
                     row_id=f"portable-r07-row-{rank}",
                     normalized_parameters={
-                        "range_minutes": (5, 15, 30, 45, 60)[(rank - 1) // 3],
-                        "breakout_offset_ticks": (rank - 1) % 3,
+                        "range_minutes": (5, 15, 30, 45, 60)[(rank - 1) % 5],
+                        "breakout_offset_ticks": (rank - 1) % 12,
                     },
                     metrics={
                         "total_return": 0.0542477 if rank == 1 else 0.04 - rank / 1000,
@@ -161,7 +162,11 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
                     },
                     ranking_position=rank,
                     screening_status="screened_out",
-                    rejection_reasons=f"R07 threshold rejection {rank}",
+                    rejection_reasons=(
+                        "unique-zebra-variant rejection"
+                        if rank == 1999
+                        else f"R07 threshold rejection {rank}"
+                    ),
                 )
 
         start = datetime(2026, 1, 2, 14, 30, tzinfo=timezone.utc)
@@ -279,9 +284,9 @@ def _seed_results_beta_run(database: Path, artifact_root: Path) -> None:
                 "promotion_eligible": False,
                 "promotion_blockers": ["All bounded variants screened out."],
                 "screening": {
-                    "evaluated_combinations": 15,
+                    "evaluated_combinations": VARIANT_COUNT,
                     "passed": 0,
-                    "screened_out": 15,
+                    "screened_out": VARIANT_COUNT,
                 },
             },
         )
@@ -562,6 +567,68 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
             expect(page.locator("#selected-run-detail")).to_contain_text(
                 "R07 threshold rejection 15"
             )
+            page.locator("#results-report-tabs .tab", has_text="Variants").click()
+            _wait_for_callbacks_to_settle(page, pending)
+            variants = page.locator("#parameter-results-grid")
+            expect(variants).to_be_visible()
+            expect(page.locator("#parameter-variant-grid-count")).to_have_text(
+                "2,000 matched · 0 selected"
+            )
+            assert page.evaluate(
+                """
+                async () => (await window.dash_ag_grid.getApiAsync("parameter-results-grid"))
+                  .getDisplayedRowCount()
+                """
+            ) == VARIANT_COUNT
+
+            search = page.locator("#parameter-variant-search")
+            search.fill("unique-zebra-variant")
+            search.press("Enter")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page.locator("#parameter-variant-grid-count")).to_have_text(
+                "1 matched · 0 selected"
+            )
+            page.locator("#parameter-variant-reset-view").click()
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page.locator("#parameter-variant-grid-count")).to_have_text(
+                "2,000 matched · 0 selected"
+            )
+
+            page.evaluate(
+                """
+                async () => {
+                  const api = await window.dash_ag_grid.getApiAsync("parameter-results-grid");
+                  api.setFilterModel({
+                    number_of_trades: {filterType: "number", type: "equals", filter: 2100},
+                    screening_status: {filterType: "text", type: "equals", filter: "screened_out"}
+                  });
+                  api.onFilterChanged();
+                }
+                """
+            )
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page.locator("#parameter-variant-grid-count")).to_have_text(
+                "1 matched · 0 selected"
+            )
+            only_variant = page.locator(
+                "#parameter-results-grid .ag-center-cols-container .ag-row"
+            ).first
+            only_variant.click()
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page.locator("#parameter-variant-grid-count")).to_have_text(
+                "1 matched · 1 selected"
+            )
+            expect(page.locator("#parameter-variant-selection-detail")).to_contain_text(
+                "Rank 2000"
+            )
+            expect(
+                page.get_by_role("link", name="Open exact variant link")
+            ).to_have_attribute(
+                "href",
+                f"{BACKTEST_PATH}?{urlencode({'run_id': RUN_ID, 'parameter_row_id': 'portable-r07-row-2000'})}",
+            )
+            page.locator("#parameter-variant-reset-view").click()
+            _wait_for_callbacks_to_settle(page, pending)
             page.locator("#results-report-tabs .tab", has_text="Trades").click()
 
             initial_dimensions = _dimensions(page)

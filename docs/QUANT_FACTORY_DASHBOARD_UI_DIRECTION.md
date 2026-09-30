@@ -299,6 +299,18 @@ constraints below, and the detailed selected-run Results specification:
   the chart context;
 - keep searchable/filterable run history as a secondary **Change run** surface,
   not a large table above or before the primary chart; and
+- treat one saved run as one study and expose all of its persisted parameter
+  variants in a dedicated **Variants** report tab with quick search, native
+  numeric/text/status filters, multi-sort, matched/selected counts, reset,
+  exact row identity, and a bounded comparison of up to four rows;
+- preserve original rank, screening status and rejection reasons while the
+  operator changes only the presentation; filtering and selection never
+  rerun, rerank, edit or promote research;
+- distinguish artifact-validated parameter evidence from durable database-only
+  rows and hide the normal variant grid when a registered parameter-results
+  artifact is corrupt or disagrees with persistence; and
+- never attribute the selected/top row's charts, trades or equity evidence to
+  another variant when equivalent row-linked artifacts were not persisted; and
 - use TradingView's backtesting Strategy Report for interaction hierarchy and
   QAMC only for panel, resizing and linked-selection mechanics.
 
