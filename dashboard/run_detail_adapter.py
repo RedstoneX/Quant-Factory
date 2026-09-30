@@ -10,8 +10,9 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from persistence import ArtifactAvailability, PersistenceService
+from persistence import ArtifactAvailability, ArtifactType, PersistenceService
 from persistence.database import database_path
+from persistence.serialization import canonical_json
 from dashboard.formatting import format_metric
 from dashboard.results_model import ResultsDataError, validate_ohlc_rows
 
@@ -46,6 +47,8 @@ class ResultSummaryView:
     message: str
     rows: tuple[tuple[DetailField, ...], ...]
     table_rows: tuple[dict[str, Any], ...] = ()
+    evidence_state: str = "not-available"
+    evidence_message: str = ""
 
 
 @dataclass(frozen=True)
@@ -188,14 +191,57 @@ def _artifact_view(artifact, validation_by_id: dict[int, Any]) -> ArtifactInvent
 def _result_summary(
     detail: dict[str, Any] | None,
     *,
+    run_id: str,
+    registered_artifacts: tuple[Any, ...],
+    retrieval: Any | None,
+    artifact_root: Path,
+    warnings: list[str],
     evidence_classification: str | None = None,
 ) -> ResultSummaryView:
     parameters = (detail or {}).get("parameters") or ()
     rows = []
     table_rows: list[dict[str, Any]] = []
-    for row in parameters:
-        metrics = json.loads(row.get("metrics_json", "{}"))
-        normalized = json.loads(row.get("normalized_parameters_json", "{}"))
+    persisted_rows: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = []
+    try:
+        for row in parameters:
+            if not isinstance(row, dict):
+                raise ValueError("a persisted parameter row is not an object")
+            metrics = json.loads(row.get("metrics_json", "{}"))
+            normalized = json.loads(row.get("normalized_parameters_json", "{}"))
+            if not isinstance(metrics, dict) or not isinstance(normalized, dict):
+                raise ValueError("persisted parameter or metric data is not an object")
+            if not isinstance(row.get("row_id"), str) or not row["row_id"].strip():
+                raise ValueError("a persisted parameter row has no stable row identity")
+            persisted_rows.append((row, normalized, metrics))
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        message = f"Parameter-result evidence is invalid: {exc}. Results are hidden."
+        warnings.append(message)
+        return ResultSummaryView(
+            status="invalid",
+            message=message,
+            rows=(),
+            evidence_state="evidence-invalid",
+            evidence_message=message,
+        )
+
+    evidence_state, evidence_message = _parameter_result_evidence_state(
+        persisted_rows,
+        registered_artifacts=registered_artifacts,
+        retrieval=retrieval,
+        artifact_root=artifact_root,
+    )
+    if evidence_state == "evidence-invalid":
+        message = f"Parameter-result evidence is invalid: {evidence_message} Results are hidden."
+        warnings.append(message)
+        return ResultSummaryView(
+            status="invalid",
+            message=message,
+            rows=(),
+            evidence_state=evidence_state,
+            evidence_message=evidence_message,
+        )
+
+    for row, normalized, metrics in persisted_rows:
         fields = [
             DetailField("Rank", _display(row.get("ranking_position"))),
             DetailField("Screening", _display(row.get("screening_status"))),
@@ -207,9 +253,13 @@ def _result_summary(
         rows.append(tuple(fields))
         table_rows.append(
             {
-                "ranking_position": row.get("ranking_position"),
                 **normalized,
                 **metrics,
+                "parameter_row_id": row["row_id"],
+                "variant_key": f"{run_id}:{row['row_id']}",
+                "__parameters": normalized,
+                "__metrics": metrics,
+                "ranking_position": row.get("ranking_position"),
                 "screening_status": row.get("screening_status"),
                 "screening_reason": row.get("rejection_reasons") or "",
             }
@@ -219,6 +269,8 @@ def _result_summary(
             status="empty",
             message="No persisted parameter result summary is available for this run.",
             rows=(),
+            evidence_state=evidence_state,
+            evidence_message=evidence_message,
         )
     run_document = (detail or {}).get("run")
     message = (
@@ -228,12 +280,174 @@ def _result_summary(
     )
     if evidence_classification:
         message = f"Persisted ranked screening results. {evidence_classification}."
+    message = f"{message} {evidence_message}"
     return ResultSummaryView(
         status="available",
         message=message,
         rows=tuple(rows),
         table_rows=tuple(table_rows),
+        evidence_state=evidence_state,
+        evidence_message=evidence_message,
     )
+
+
+_PARAMETER_RESULT_METRICS = (
+    "total_return",
+    "annualized_return",
+    "sharpe_ratio",
+    "max_drawdown",
+    "number_of_trades",
+    "win_rate",
+)
+
+
+def _parameter_result_evidence_state(
+    persisted_rows: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]],
+    *,
+    registered_artifacts: tuple[Any, ...],
+    retrieval: Any | None,
+    artifact_root: Path,
+) -> tuple[str, str]:
+    artifacts = tuple(
+        artifact
+        for artifact in registered_artifacts
+        if artifact.logical_name == "parameter_results"
+    )
+    if not artifacts:
+        return (
+            "database-persisted",
+            "Variants are shown from durable database rows; no parameter-results artifact is registered.",
+        )
+    if len(artifacts) != 1:
+        return (
+            "evidence-invalid",
+            f"expected exactly one registered parameter-results artifact, found {len(artifacts)}.",
+        )
+    if retrieval is None:
+        return (
+            "evidence-invalid",
+            "the registered parameter-results artifact could not be retrieved and validated.",
+        )
+
+    artifact = artifacts[0]
+    if artifact.artifact_type != ArtifactType.PARAMETER_RESULTS:
+        return (
+            "evidence-invalid",
+            "the registered parameter-results artifact has the wrong artifact type.",
+        )
+    validation = next(
+        (
+            item
+            for item in retrieval.validations
+            if item.artifact_id == artifact.artifact_id
+        ),
+        None,
+    )
+    if validation is None or not validation.valid:
+        reason = validation.reason if validation is not None else "validation_not_run"
+        return (
+            "evidence-invalid",
+            f"the registered parameter-results artifact is not valid ({reason}).",
+        )
+    if artifact.format != "json":
+        return (
+            "evidence-invalid",
+            "the registered parameter-results artifact is not JSON.",
+        )
+
+    try:
+        path = _safe_artifact_path(artifact_root, artifact.location)
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        return (
+            "evidence-invalid",
+            f"the registered parameter-results artifact cannot be read ({exc}).",
+        )
+    if not isinstance(document, dict):
+        return "evidence-invalid", "the parameter-results artifact is not an object."
+    ranked_results = document.get("ranked_results")
+    if not isinstance(ranked_results, list) or not all(
+        isinstance(row, dict) for row in ranked_results
+    ):
+        return (
+            "evidence-invalid",
+            "the parameter-results artifact ranked_results field is not a row list.",
+        )
+    if len(ranked_results) != len(persisted_rows):
+        return (
+            "evidence-invalid",
+            "artifact and database parameter-result row counts do not match.",
+        )
+
+    for index, ((persisted, normalized, metrics), artifact_row) in enumerate(
+        zip(persisted_rows, ranked_results, strict=True),
+        start=1,
+    ):
+        mismatch = _parameter_result_row_mismatch(
+            persisted,
+            normalized,
+            metrics,
+            artifact_row,
+        )
+        if mismatch is not None:
+            return (
+                "evidence-invalid",
+                f"artifact row {index} does not reconcile with its database row: {mismatch}.",
+            )
+    return (
+        "artifact-validated",
+        "Variants are reconciled row-for-row with the validated parameter-results artifact.",
+    )
+
+
+def _parameter_result_row_mismatch(
+    persisted: dict[str, Any],
+    normalized: dict[str, Any],
+    metrics: dict[str, Any],
+    artifact_row: dict[str, Any],
+) -> str | None:
+    for identity_key in ("parameter_row_id", "row_id"):
+        if identity_key in artifact_row and not _same_json_value(
+            artifact_row[identity_key], persisted["row_id"]
+        ):
+            return f"{identity_key} differs"
+    if "ranking_position" in artifact_row and not _same_json_value(
+        artifact_row["ranking_position"], persisted.get("ranking_position")
+    ):
+        return "ranking_position differs"
+    for key, expected in normalized.items():
+        if key not in artifact_row:
+            return f"parameter {key!r} is missing"
+        if not _same_json_value(artifact_row[key], expected):
+            return f"parameter {key!r} differs"
+    for key in _PARAMETER_RESULT_METRICS:
+        if key not in metrics:
+            return f"database metric {key!r} is missing"
+        if key not in artifact_row:
+            return f"metric {key!r} is missing"
+        if not _same_json_value(artifact_row[key], metrics[key]):
+            return f"metric {key!r} differs"
+    if "screening_status" in artifact_row and not _same_json_value(
+        artifact_row["screening_status"], persisted.get("screening_status")
+    ):
+        return "screening_status differs"
+    for reason_key in (
+        "screening_rejection_reasons",
+        "rejection_reasons",
+        "screening_reason",
+    ):
+        if reason_key in artifact_row and not _same_json_value(
+            artifact_row[reason_key], persisted.get("rejection_reasons") or ""
+        ):
+            return f"{reason_key} differs"
+    return None
+
+
+def _same_json_value(left: Any, right: Any) -> bool:
+    try:
+        return canonical_json(left) == canonical_json(right)
+    except (TypeError, ValueError):
+        return False
 
 
 def _empty_evidence() -> RunEvidenceView:
@@ -924,6 +1138,17 @@ class RunDetailDashboardAdapter:
             persisted_manifest = (
                 service.read_persisted_run_manifest(run_id) if succeeded else None
             )
+            parameter_result_fingerprint = tuple(
+                (
+                    row.row_id,
+                    row.normalized_parameters_json,
+                    row.metrics_json,
+                    row.ranking_position,
+                    row.screening_status,
+                    row.rejection_reasons,
+                )
+                for row in service.results.list_parameter_results(run_id)
+            )
             artifact_fingerprint: list[tuple[Any, ...]] = []
             if succeeded:
                 for artifact in service.list_run_artifacts(run_id):
@@ -956,6 +1181,7 @@ class RunDetailDashboardAdapter:
                 run_id,
                 run.completed_at if run is not None else None,
                 persisted_manifest,
+                parameter_result_fingerprint,
                 tuple(artifact_fingerprint),
             )
         finally:
@@ -999,6 +1225,7 @@ class RunDetailDashboardAdapter:
                 except (ValueError, TypeError) as exc:
                     warnings.append(f"The persisted run manifest is invalid: {exc}")
 
+            registered_artifacts = service.list_run_artifacts(run_id)
             artifacts: tuple[ArtifactInventoryView, ...]
             retrieval = None
             try:
@@ -1030,7 +1257,7 @@ class RunDetailDashboardAdapter:
                         reason=str(exc),
                         severity="error",
                     )
-                    for artifact in service.list_run_artifacts(run_id)
+                    for artifact in registered_artifacts
                 )
 
             detail = None
@@ -1068,6 +1295,11 @@ class RunDetailDashboardAdapter:
                 artifacts=artifacts,
                 result_summary=_result_summary(
                     detail,
+                    run_id=run_id,
+                    registered_artifacts=registered_artifacts,
+                    retrieval=retrieval,
+                    artifact_root=self.artifact_root,
+                    warnings=warnings,
                     evidence_classification=evidence.evidence_classification,
                 ),
                 evidence=evidence,
