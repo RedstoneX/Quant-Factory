@@ -10,21 +10,21 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Complete and hand off the single-user Quant Factory research product so Terry can initiate or accept controlled candidate work and operate approved strategy configurations through the dashboard. |
-| Phase | **Owner walkthrough and handoff acceptance.** |
-| Active work | Objective implementation and deterministic current-revision evidence are complete. No further product build or strategy work is active while Terry performs the final operator walkthrough. |
+| Immediate objective | Begin the next owner-initiated controlled candidate only after Terry names or explicitly accepts one bounded, source-attributed intraday hypothesis. |
+| Phase | **Owner-initiated candidate research intake.** |
+| Active work | The operator-product handoff is accepted. No candidate is active yet; the next executable research slice waits for Terry to name or approve its hypothesis and fixed evidence contract. |
 | Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Terry has not yet completed the current-revision walkthrough or explicitly accepted the product handoff. No private review endpoint is deployed or authorized. |
-| Next action | Terry chooses the walkthrough method. If he wants a browser URL, he explicitly authorizes a temporary private review deployment; otherwise Codex provides a guided local walkthrough. Terry then accepts the handoff or reports a concrete defect. |
-| Deferred | All new strategy selection, proposals, optimization, screening, and profitability tests until handoff; also paid data, external deployment, broker expansion, paper activation, live work, and capital exposure until separately authorized. |
-| Hard boundaries | Product verification may use deterministic fixtures and already accepted evidence only. The already-approved SPYM infrastructure fixture may be exercised solely as deterministic product proof, never as new profitability evidence. No new candidate result, paid data, protected-test execution, deployment, paper/live orders, or capital exposure is authorized. |
+| Verified gap | No next candidate hypothesis or fixed evidence contract has been named and accepted. The rejected MES overnight-gap reversal may not be tuned or rerun. |
+| Next action | Terry names a candidate or asks Codex to present bounded, source-attributed intraday options, then explicitly accepts one hypothesis and its evidence contract before execution. |
+| Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
+| Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Technical pass; ready for owner walkthrough; owner handoff acceptance pending.** The single-user workflow is implemented and proven with deterministic fixtures and accepted evidence. R11 concluded with no surviving edge and creates no requirement for another strategy screen before handoff. |
+| R13 | 1 | pending | none | **Operator product accepted; next candidate not yet selected.** Terry accepted the deployed Research Atlas and authorized continuation on 2026-09-30. Execution waits for a named or explicitly accepted bounded intraday hypothesis and evidence contract. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
@@ -59,20 +59,19 @@ profitability, or the licensed engine itself.
 1. Backend completion — COMPLETE
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
 3. Dashboard and operator-product completion — TECHNICAL PASS
-4. **Owner walkthrough and handoff acceptance — ACTIVE OWNER GATE**
-5. Owner-initiated candidate research
+4. Owner walkthrough and handoff acceptance — COMPLETE
+5. **Owner-initiated candidate research — ACTIVE; CANDIDATE SELECTION PENDING**
 6. Validation of a surviving edge
 7. Execution-vehicle comparison
 8. Paper operation
 9. Live operation later
 
-### Edge research — PAUSED UNTIL OPERATOR HANDOFF
+### Edge research — AWAITING AN OWNER-NAMED OR OWNER-ACCEPTED CANDIDATE
 
-No new candidate may be selected, proposed, optimized, screened, or
-profitability-tested before operator handoff. Deterministic fixtures and
-already accepted evidence may exercise strategy-shaped behavior only to verify
-the product. After handoff, the current mandate remains **day trading /
-intraday directional edge discovery** unless the owner explicitly changes it.
+The operator handoff is complete. No candidate is active until Terry names one
+or explicitly accepts a bounded, source-attributed proposal and its fixed
+evidence contract. The current mandate remains **day trading / intraday
+directional edge discovery** unless the owner explicitly changes it.
 The fixed MES overnight-gap reversal development screen in
 `docs/strategies/mes-overnight-gap-reversal.md` completed and was rejected. It
 observed the prior cash-session close and current cash open, entered at 09:35
@@ -111,7 +110,7 @@ answer the hypothesis. A surviving signal must later be validated on the
 intended SPY/QQQ/index underlying before any options edge is claimed, and 0DTE
 implementation requires defensible historical option quote/execution evidence.
 
-### Dashboard and operator product — READY FOR OWNER WALKTHROUGH
+### Dashboard and operator product — OWNER ACCEPTED 2026-09-30
 
 The existing Plotly Dash product now covers the full single-owner workflow:
 idea and configuration setup; approved configuration launch and status;
@@ -127,8 +126,14 @@ The implementation reused the existing application, mature components,
 chart-first UX, backend and accepted evidence; it added no second frontend,
 generic arbitrary-strategy builder, orchestration layer, paid-data dependency,
 deployment, or trading authority. The objective technical gate is a pass.
-Terry's current-revision walkthrough and explicit handoff acceptance remain
-required before R12 completes or candidate research resumes.
+The Research Atlas implementation merged at revision
+`dbb94148712cdffae04f00ff7b0544ede869c718`, was deployed to the existing
+private review service with a verified pre-deployment database backup, and
+passed revision, health, and private reachability checks. Terry accepted the
+rendered current-revision dashboard and authorized continuation on 2026-09-30.
+R12 and the operator-product handoff gate are complete. This acceptance does
+not qualify an edge or authorize paid data, protected testing, paper/live
+operation, orders, or capital exposure.
 
 ### Paper and live
 
