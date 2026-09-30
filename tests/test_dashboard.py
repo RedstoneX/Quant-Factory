@@ -910,7 +910,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
 
     expected_titles = {
         "/": "Home",
-        "/research/ideas": "Ideas",
+        "/research/ideas": "New research idea",
         "/research/setup": "Set up a test",
         "/research/run-test": "Run test",
         "/research/market-data": "Market Data",
@@ -1527,10 +1527,9 @@ def test_ideas_page_is_durable_local_text_only() -> None:
     assert confirm is True
 
 
-def test_every_workflow_page_has_same_active_six_step_progress() -> None:
+def test_legacy_workflow_pages_keep_progress_while_ideas_uses_sidebar() -> None:
     paths = (
         "/",
-        "/research/ideas",
         "/research/setup",
         "/research/run-test",
         "/research/backtest-results",
@@ -1539,7 +1538,6 @@ def test_every_workflow_page_has_same_active_six_step_progress() -> None:
     expected_labels = ["Home", "Ideas", "Set up", "Run test", "Results", "Compare"]
     expected_identities = [
         "Home",
-        "Ideas",
         "Set up a test",
         "Run test",
         "Results",
@@ -1573,6 +1571,13 @@ def test_every_workflow_page_has_same_active_six_step_progress() -> None:
         assert [card.children[1].children for card in cards] == expected_labels
         assert [card.href for card in active] == [pathname]
         assert active[0].title == f"Current step: {active[0].children[1].children}"
+
+    ideas_page = page_for_path("/research/ideas", None, ())
+    assert not any(
+        getattr(component, "className", None) == "strategy-research-path"
+        for component in _walk_components(ideas_page)
+    )
+    assert "Idea history" in _component_text(ideas_page)
 
 
 def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> None:

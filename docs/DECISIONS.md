@@ -13,9 +13,10 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **315** | **Operator-product handoff accepted:** Terry accepted the deployed Research Atlas and authorized continuation. R12 is complete; controlled candidate intake is now active, but no candidate may execute until Terry names or explicitly accepts its bounded intraday hypothesis and evidence contract. |
+| **316** | **Research Atlas screen acceptance is not product handoff:** Terry accepted the overview design only. R12 remains active until the working operator interface is complete and accepted; no candidate research is active. |
+| 315 | Historical overstatement of the 2026-09-30 screen approval. Decision 316 corrects its handoff and sequencing claims. |
 | **314** | **Direct Mode is the default operating policy for the private single-user MVP:** outcome -> reuse -> smallest implementation -> decisive proof -> deliver -> stop. Escalated Mode is reserved for genuinely difficult-to-reverse or high-consequence changes. |
-| 313 | The operator-product completion sequence and pre-handoff research pause are satisfied by Decision 315; its reuse, product-scope, and post-handoff candidate-authority boundaries remain effective. |
+| **313** | **Complete and hand off the working single-user operator product before further strategy research.** Its reuse, product-scope, and candidate-authority boundaries remain effective. |
 | **312** | **Quant Factory unattended credential standard finalized:** Bitwarden Secrets Manager is the durable machine-access source of truth; the `Codex` machine account is scoped to the `Quant Factory` project and accessed through the official `bws` CLI with a host-encrypted token. This supersedes Decision 311's selection of Password Manager plus Agent Access as the current mechanism. |
 | 311 | Historical correction that Quant Factory uses Bitwarden is retained; Decision 312 supersedes its Password Manager plus Agent Access mechanism. |
 | 310 | MES screen was accepted, executed once, independently audited, and **rejected** after negative total/annualized return and Sharpe below 0.5. It is inactive and must not be tuned or rerun; Decision 313 defers any next candidate until after operator handoff. |
@@ -1676,3 +1677,24 @@ superseded.
      to `docs/MILESTONES.md`, this decision and its effective index, and the
      dashboard-displayed project status. No ADR, schema, data record, runbook,
      credential, or trading-authority change applies.
+
+316. **Correct Research Atlas screen acceptance; continue operator-product
+     implementation (accepted 2026-09-30).** Terry clarifies that he accepted
+     the Research Atlas overview screen, not the unfinished dashboard workflow
+     and not the operator-product handoff. Decision 315 incorrectly broadened
+     that screen approval and advanced the queue to candidate research.
+
+     R12 remains active. Complete the working interface Terry needs to capture
+     and develop an idea, prepare and launch an approved configuration, and
+     inspect the resulting evidence himself. Reuse the existing Plotly Dash
+     application, durable persistence, completed backend, and accepted visual
+     direction. Do not create a second frontend or backend, and do not run or
+     propose another strategy merely to verify already-completed engine work.
+
+     The accepted Research Atlas screen remains valid and should not be
+     redesigned. Actual product handoff requires Terry to use and accept the
+     connected operator workflow. Until then, Decision 313's pre-handoff
+     research pause remains in force. Documentation impact is limited to the
+     active milestone, this correction, and dashboard-displayed project status;
+     architecture, evidence, data, credentials, and trading authority do not
+     change.

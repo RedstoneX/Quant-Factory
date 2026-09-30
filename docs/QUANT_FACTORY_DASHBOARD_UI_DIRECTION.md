@@ -145,7 +145,8 @@ Every workflow page uses the same shell and page-heading pattern:
 1. eyebrow showing **RESEARCH / [STEP]**;
 2. one unambiguous page identity heading;
 3. one sentence explaining what the operator can decide here;
-4. a compact workflow progress indicator with the current step labelled;
+4. workflow position communicated by the persistent sidebar; do not repeat it
+   as a row of numbered stage cards inside each page;
 5. page-local primary action at the right on wide screens and below the heading
    on narrow screens;
 6. user-readable loading, empty, blocked and failed states in the content area.
