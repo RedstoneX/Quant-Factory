@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-import re
+from collections import Counter
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -17,13 +17,16 @@ from persistence import PersistenceService
 from tests.browser.test_backtest_results_spym_stability import BACKTEST_PATH
 from tests.browser.test_dashboard_lifecycle import (
     _assert_no_browser_errors,
-    _attach_diagnostics,
     _select,
     _wait_for_callbacks_to_settle,
     _write_lifecycle_failure_artifacts,
     mounted_workflow_server,
     reproduction_browser_server,
     review_compare_server,
+)
+from tests.browser.dashboard_diagnostics import (
+    attach_browser_diagnostics,
+    parse_callback_statuses,
 )
 from tests.browser.test_dashboard_responsive_acceptance import (
     _assert_document_contained,
@@ -61,13 +64,36 @@ def _assert_runtime_clean(
         and "/_dash-update-component" in event["url"]
         for event in request_failures
     ), request_failures
-    callback_204s = re.findall(
-        r"POST /_dash-update-component HTTP/1\.1.* 204 -",
-        server_log.read_text(encoding="utf-8", errors="replace"),
+    server_204s = Counter(
+        (status.get("output"), status.get("pathname"), status.get("search"))
+        for status in parse_callback_statuses((server_log,))
+        if status.get("status") == 204
     )
-    assert len(callback_204s) == len(request_failures), {
-        "request_failures": request_failures,
-        "callback_204_count": len(callback_204s),
+    browser_aborts: Counter[tuple[object, object, object]] = Counter()
+    for event in request_failures:
+        body = json.loads(event["request_body"])
+        values = (*body.get("inputs", ()), *body.get("state", ()))
+
+        def value(component_id: str, prop: str):
+            return next(
+                (
+                    item.get("value")
+                    for item in values
+                    if item.get("id") == component_id and item.get("property") == prop
+                ),
+                None,
+            )
+
+        browser_aborts[
+            (
+                body.get("output"),
+                value("url", "pathname"),
+                value("url", "search"),
+            )
+        ] += 1
+    assert not (browser_aborts - server_204s), {
+        "browser_aborts": browser_aborts,
+        "server_204s": server_204s,
     }
     assert page.locator("._dash-error-card").count() == 0
     assert page.locator("#_dash-error-container .dash-error-card").count() == 0
@@ -133,7 +159,7 @@ def test_launch_action_preserves_selected_setup_at_each_viewport(
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport=viewport)
-        pending = _attach_diagnostics(page, events, action)
+        pending = attach_browser_diagnostics(page, events, action)
         try:
             page.goto(base_url + "/research/setup", wait_until="networkidle")
             _select(
@@ -224,7 +250,7 @@ def test_inspect_review_and_compare_actions_work_at_each_viewport(
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport=viewport)
-        pending = _attach_diagnostics(page, events, action)
+        pending = attach_browser_diagnostics(page, events, action)
         try:
             page.goto(
                 f"{base_url}{BACKTEST_PATH}?run_id={target_run_id}",
@@ -331,7 +357,7 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport=viewport)
-        pending = _attach_diagnostics(page, events, action)
+        pending = attach_browser_diagnostics(page, events, action)
         try:
             page.goto(
                 f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}",
@@ -394,6 +420,7 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
             expect(
                 page.locator("#reproduction-message [data-run-id]")
             ).to_have_attribute("data-run-id", reproduced_id)
+            _wait_for_callbacks_to_settle(page, pending)
 
             action["name"] = f"{viewport_name} refresh reproduction source"
             page.reload(wait_until="networkidle")

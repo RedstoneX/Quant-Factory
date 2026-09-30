@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sqlite3
+from typing import Any
 
 import pytest
 
@@ -64,6 +65,7 @@ def _persist_run(
     adjusted: bool = True,
     checksum: str = "shared-dataset-checksum",
     stage: RunStage = RunStage.FIXTURE,
+    parameter_plan: dict[str, Any] | list[dict[str, Any]] | None = None,
 ) -> Path:
     service = PersistenceService(database)
     try:
@@ -77,7 +79,11 @@ def _persist_run(
                     "symbol": "SPY",
                     "interval": "1d",
                 },
-                parameters={"window": parameter_window, "threshold": 25},
+                parameters=(
+                    parameter_plan
+                    if parameter_plan is not None
+                    else {"window": parameter_window, "threshold": 25}
+                ),
                 execution={
                     "fill_model": "next_open",
                     "fees": fee,
@@ -277,6 +283,45 @@ def test_comparable_runs_build_aligned_metrics_normalized_curves_and_differences
     }
     assert model.directly_comparable is True
     assert any(finding.code == "execution_differences" for finding in model.findings)
+
+
+def test_candidate_parameter_grids_remain_bounded_and_exact_in_compare(
+    tmp_path: Path,
+) -> None:
+    database, artifact_root = _comparison_stack(tmp_path)
+    first_plan = [
+        {"window": value, "direction": "long"} for value in range(1, 13)
+    ]
+    second_plan = [dict(item) for item in first_plan]
+    second_plan[1]["window"] = 99
+    for run_id, plan in (("grid-a", first_plan), ("grid-b", second_plan)):
+        _persist_run(
+            database,
+            artifact_root,
+            run_id=run_id,
+            equity_values=(100.0, 101.0),
+            metrics={"total_return": 0.01},
+            parameter_plan=plan,
+        )
+
+    model = CompareDashboardAdapter(
+        database,
+        artifact_root=artifact_root,
+    ).compare(("grid-a", "grid-b"))
+
+    assert _field(model, "parameters", "combination_count").state == "equal"
+    assert _field(model, "parameters", "parameter_values.direction").state == (
+        "equal"
+    )
+    windows = _field(model, "parameters", "parameter_values.window")
+    assert windows.state == "changed"
+    assert [value.value for value in windows.values] == [
+        "1, 2, 3, 4, 5, 6, 7, 8, +4 more",
+        "1, 99, 3, 4, 5, 6, 7, 8, +4 more",
+    ]
+    plan_identity = _field(model, "parameters", "plan_identity")
+    assert plan_identity.state == "changed"
+    assert plan_identity.values[0].value != plan_identity.values[1].value
 
 
 def test_incompatible_metric_basis_and_data_windows_are_explicit(

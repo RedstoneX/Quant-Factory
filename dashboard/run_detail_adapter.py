@@ -105,9 +105,35 @@ def _display(value: Any) -> str:
     return str(value)
 
 
-def _fields(document: dict[str, Any] | None) -> tuple[DetailField, ...]:
+def _fields(
+    document: dict[str, Any] | list[dict[str, Any]] | None,
+) -> tuple[DetailField, ...]:
     if not document:
         return ()
+    if isinstance(document, list):
+        fields = [DetailField("Parameter Combinations", f"{len(document):,}")]
+        names = sorted({str(name) for row in document for name in row})
+        for name in names:
+            rendered: list[str] = []
+            for row in document:
+                if name not in row:
+                    continue
+                value = _display(row[name])
+                if value not in rendered:
+                    rendered.append(value)
+            visible = rendered[:8]
+            suffix = (
+                f", +{len(rendered) - len(visible):,} more"
+                if len(rendered) > len(visible)
+                else ""
+            )
+            fields.append(
+                DetailField(
+                    name.replace("_", " ").title(),
+                    ", ".join(visible) + suffix if visible else MISSING,
+                )
+            )
+        return tuple(fields)
     return tuple(
         DetailField(str(key).replace("_", " ").title(), _display(document[key]))
         for key in sorted(document)

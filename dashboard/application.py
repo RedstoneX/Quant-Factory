@@ -59,6 +59,7 @@ from dashboard.routing import (  # noqa: E402
 )
 from dashboard.run_adapter import (  # noqa: E402
     CatalogSnapshot,
+    ConfigurationReadinessView,
     SavedConfigurationView,
     configuration_readiness_by_id,
     list_saved_configurations,
@@ -89,7 +90,12 @@ from orchestration import (  # noqa: E402
     RunServiceError,
     RunSummary,
 )
-from persistence import ArtifactType, PersistenceService, ReviewState  # noqa: E402
+from persistence import (  # noqa: E402
+    ArtifactType,
+    PersistenceService,
+    ResearchLaunchOperation,
+    ReviewState,
+)
 from persistence.database import database_path  # noqa: E402
 from persistence.evidence_service import ValidationEvidenceArtifactService  # noqa: E402
 from strategies import get_strategy  # noqa: E402
@@ -4502,6 +4508,7 @@ def page_for_path(
     dashboard_database: Path | None = None,
     artifact_root: Path | None = None,
     catalog_snapshot: tuple | None = None,
+    readiness_by_id: dict[str, ConfigurationReadinessView] | None = None,
     home_health_readings: tuple[HomeHealthReading, ...] = (),
     health_stale_after: timedelta = timedelta(minutes=15),
     health_refresh_interval_ms: int = 30_000,
@@ -4529,6 +4536,7 @@ def page_for_path(
             configurations=configurations,
             database=dashboard_database,
             catalog_snapshot=catalog_snapshot,
+            readiness_by_id=readiness_by_id,
         )
     if route == "/research/run-test":
         from dashboard.pages.run_test import layout as run_test_layout
@@ -4536,6 +4544,7 @@ def page_for_path(
         return run_test_layout(
             configurations=configurations,
             catalog_snapshot=catalog_snapshot,
+            readiness_by_id=readiness_by_id,
         )
     if route == "/research/market-data":
         from dashboard.pages.market_data import layout as market_data_layout
@@ -4648,6 +4657,7 @@ def create_layout(
     all_runs: tuple[RunSummary, ...] = (),
     history_rows: tuple[dict[str, object], ...] = (),
     catalog_snapshot: CatalogSnapshot | None = None,
+    readiness_by_id: dict[str, ConfigurationReadinessView] | None = None,
     catalog_checked_at: datetime | None = None,
     health_stale_after: timedelta = timedelta(minutes=15),
     health_refresh_interval_ms: int = 30_000,
@@ -4675,6 +4685,7 @@ def create_layout(
             dashboard_database=resolved_database,
             artifact_root=resolved_artifact_root,
             catalog_snapshot=resolved_catalog_snapshot,
+            readiness_by_id=readiness_by_id,
             home_health_readings=home_health_readings,
             health_stale_after=health_stale_after,
             health_refresh_interval_ms=health_refresh_interval_ms,
@@ -4729,6 +4740,31 @@ def create_app(
         database=dashboard_database
     )
     artifact_root = getattr(detail_adapter, "artifact_root", Path.cwd())
+    candidate_launcher = approved_configuration_launcher
+    if candidate_launcher is None:
+        from orchestration import CandidatePipelineRuntime
+
+        def candidate_launcher(
+            *,
+            configuration_id: str,
+            idempotency_key: str,
+            operation: ResearchLaunchOperation,
+            source_run_id: str | None,
+            source_lineage: dict[str, str] | None,
+        ) -> object:
+            runtime = CandidatePipelineRuntime.from_saved_configuration(
+                database=dashboard_database,
+                artifact_root=artifact_root,
+                configuration_id=configuration_id,
+                cache_only=True,
+            )
+            return runtime.launch(
+                idempotency_key=idempotency_key,
+                operation=operation,
+                source_run_id=source_run_id,
+                source_lineage=source_lineage,
+            )
+
     compare_adapter = compare_dashboard_adapter or CompareDashboardAdapter(
         database=dashboard_database,
         artifact_root=artifact_root,
@@ -4795,6 +4831,7 @@ def create_app(
         "all_runs": all_run_records,
         "history_rows": history_records,
         "catalog_snapshot": resolved_catalog_snapshot,
+        "readiness_by_id": readiness_by_id,
         "catalog_checked_at": resolved_catalog_checked_at,
         "health_stale_after": health_stale_after,
         "health_refresh_interval_ms": health_refresh_interval_ms,
@@ -4863,7 +4900,7 @@ def create_app(
         dashboard_database=dashboard_database,
         artifact_root=artifact_root,
         research_launches=research_launches,
-        approved_configuration_launcher=approved_configuration_launcher,
+        approved_configuration_launcher=candidate_launcher,
         reproduce_run=reproduce_run,
         cancel_run=cancel_run,
         run_operation_eligibility=run_operation_eligibility,

@@ -13,13 +13,13 @@ The active sequence is:
 
 Backend completion is recorded. The generic candidate runtime now reuses the existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable-launch, and filter-handoff infrastructure. It stops at the protected-test gate and does not expand protected-data authority.
 
-Dashboard and operator-workflow completion are active. Existing technical and
-historical evidence, the approved chart-first UX, Find & Compare, the completed
-backend, and the audited MES run are reused to finish the practical single-user
-product and prepare Terry's final operator walkthrough. After handoff, Terry
-initiates or accepts controlled candidate work and operates approved strategy
-configurations through the product; this is not an arbitrary code-free strategy
-builder.
+The objective dashboard and operator-workflow implementation is ready for
+Terry's final walkthrough; explicit handoff acceptance remains pending.
+Existing technical and historical evidence, the approved chart-first UX, Find
+& Compare, the completed backend, and the audited MES run were reused for the
+practical single-user product. After handoff, Terry initiates or accepts
+controlled candidate work and operates approved strategy configurations
+through the product; this is not an arbitrary code-free strategy builder.
 
 The fixed Decision 310 MES overnight-gap reversal screen completed and was
 rejected after negative total and annualized returns and Sharpe below 0.5. No

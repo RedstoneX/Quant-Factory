@@ -1,4 +1,4 @@
-"""Final fixture review and explicit launch page for Milestone 23."""
+"""Final approved-research review and explicit launch page."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from dashboard.components.operator_context import operator_context
 from dashboard.pages.common import page_heading
 from dashboard.run_adapter import (
     CatalogSnapshot,
+    ConfigurationReadinessView,
     SavedConfigurationView,
     configuration_readiness_by_id,
     list_saved_configurations,
@@ -19,9 +20,10 @@ def layout(
     *,
     configurations: tuple[SavedConfigurationView, ...] | None = None,
     catalog_snapshot: CatalogSnapshot | None = None,
+    readiness_by_id: dict[str, ConfigurationReadinessView] | None = None,
     loading: bool = False,
 ) -> html.Div:
-    """Render one explicit, route-gated fixture launch control."""
+    """Render one explicit, route-gated research launch control."""
 
     available = (
         list_saved_configurations()
@@ -30,7 +32,16 @@ def layout(
     )
     from dashboard.application import _strategy_research_path
 
-    readiness_by_id = configuration_readiness_by_id(available, catalog_snapshot)
+    readiness_by_id = dict(readiness_by_id or {})
+    missing_readiness = tuple(
+        configuration
+        for configuration in available
+        if configuration.configuration_id not in readiness_by_id
+    )
+    if missing_readiness:
+        readiness_by_id.update(
+            configuration_readiness_by_id(missing_readiness, catalog_snapshot)
+        )
     selected = next(
         (
             configuration
@@ -64,9 +75,9 @@ def layout(
             ),
             html.Div(
                 [
-                    html.Span("Fixture-only test", className="pending-state-badge"),
+                    html.Span("Approved research test", className="pending-state-badge"),
                     html.P(
-                        "This action launches research infrastructure only. It cannot submit paper or live orders.",
+                        "This action launches only the persisted approved research configuration. It cannot submit paper or live orders.",
                         className="field-help",
                     ),
                 ],

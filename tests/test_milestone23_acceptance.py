@@ -312,7 +312,7 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
     assert store["submitted"]["source_run_id"] == "m23-spym-success"
     assert class_name == "reproduction-message"
     rendered_message = str(message)
-    assert "Fixture acknowledged" in rendered_message
+    assert "Research run acknowledged" in rendered_message
     assert "Submission: Acknowledged" in rendered_message
     assert "Run status: Succeeded" in rendered_message
     assert disabled is False

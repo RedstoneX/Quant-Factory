@@ -119,10 +119,10 @@ def navigation(pathname: str = "/") -> html.Nav:
             html.Div(groups, className="sidebar-navigation-groups"),
             html.Div(
                 [
-                    html.Span("DO", className="sidebar-user-avatar"),
+                    html.Span("T", className="sidebar-user-avatar"),
                     html.Div(
                         [
-                            html.Strong("Demo Operator"),
+                            html.Strong("Terry"),
                             html.Small("Operator"),
                         ],
                         className="sidebar-user-copy",

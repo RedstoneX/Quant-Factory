@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -76,6 +77,7 @@ from dashboard.app import create_app
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService
 from tests.test_dashboard import _reproduction_launcher
+from tests.browser.dashboard_diagnostics import install_callback_status_recorder
 
 database = Path(sys.argv[1])
 artifact_root = Path(sys.argv[2])
@@ -91,6 +93,7 @@ app = create_app(
         artifact_root=artifact_root,
     ),
 )
+install_callback_status_recorder(app.server)
 app.run(host="127.0.0.1", port=port, debug=False)
 """
     env = dict(os.environ)
@@ -450,7 +453,15 @@ def _wait_for_callbacks_to_settle(page, pending_requests):
     loading_ids = page.locator('[data-dash-is-loading="true"]').evaluate_all(
         "elements => elements.map(element => element.id || element.className)"
     )
-    raise AssertionError(f"Dash callbacks did not settle before navigation: pending={len(pending_requests)}, loading={loading_ids}")
+    pending_outputs = (
+        pending_requests.callback_outputs()
+        if hasattr(pending_requests, "callback_outputs")
+        else ()
+    )
+    raise AssertionError(
+        "Dash callbacks did not settle before navigation: "
+        f"pending={len(pending_requests)}, outputs={pending_outputs}, loading={loading_ids}"
+    )
 
 
 def _research_submission_snapshots(database: Path) -> dict[str, tuple[object, ...]]:
@@ -990,6 +1001,11 @@ def test_results_owns_reproduction_without_mutating_compare_selection(
             original_compare_ids = page.locator(".compare-run-card").evaluate_all(
                 "cards => cards.map((card) => card.dataset.runId)"
             )
+            compare_url = page.url
+            assert parse_qs(urlsplit(compare_url).query).get("run_id") == [
+                source_run_id,
+                "browser_comparison_peer",
+            ]
 
             action["name"] = "dispatch stale reproduction event while Results is inactive"
             page.locator("#reproduce-selected-run").evaluate(
@@ -1056,7 +1072,7 @@ def test_results_owns_reproduction_without_mutating_compare_selection(
             )
 
             action["name"] = "return to independently selected Compare runs"
-            page.go_back(wait_until="networkidle")
+            page.goto(compare_url, wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
             expect(page.locator(".compare-run-card")).to_have_count(2, timeout=10000)
             assert page.locator(".compare-run-card").evaluate_all(

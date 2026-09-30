@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import json
 from pathlib import Path
 from typing import Any, TypeAlias
+
+import pandas as pd
 
 from dashboard.health import DatasetHealth
 from market_data.catalog import DataLocations
@@ -80,17 +82,23 @@ class SavedConfigurationView:
     strategy_name: str
     lifecycle: str
     active: bool
-    parameters: dict[str, Any]
+    parameters: dict[str, Any] | list[dict[str, Any]]
     execution: dict[str, Any]
     market_data: dict[str, Any]
     config_hash: str
+    document: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @property
     def launchable(self) -> bool:
-        return (
-            self.active
-            and self.lifecycle == StrategyLifecycle.INFRASTRUCTURE_FIXTURE.value
-        )
+        if not self.active:
+            return False
+        if self.lifecycle == StrategyLifecycle.INFRASTRUCTURE_FIXTURE.value:
+            return True
+        if self.lifecycle == StrategyLifecycle.CANDIDATE.value:
+            from orchestration import VALIDATION_RUNTIME_KEY
+
+            return VALIDATION_RUNTIME_KEY in self.document
+        return False
 
     @property
     def label(self) -> str:
@@ -337,7 +345,11 @@ def list_saved_configurations(
                 market_data = document.get("market_data", {})
                 if not isinstance(experiment_id, str) or not experiment_id.strip():
                     continue
-                if not isinstance(parameters, Mapping):
+                if not isinstance(parameters, (Mapping, list)):
+                    continue
+                if isinstance(parameters, list) and any(
+                    not isinstance(item, Mapping) for item in parameters
+                ):
                     continue
                 if not isinstance(execution, Mapping):
                     continue
@@ -351,10 +363,15 @@ def list_saved_configurations(
                     strategy_name=strategy.display_name,
                     lifecycle=strategy.lifecycle.value,
                     active=strategy.active,
-                    parameters=dict(parameters),
+                    parameters=(
+                        [dict(item) for item in parameters]
+                        if isinstance(parameters, list)
+                        else dict(parameters)
+                    ),
                     execution=dict(execution),
                     market_data=dict(market_data),
                     config_hash=configuration.config_hash,
+                    document=dict(document),
                 )
             except (json.JSONDecodeError, TypeError, ValueError):
                 continue
@@ -383,7 +400,7 @@ def configuration_readiness(
 
     market_data = configuration.market_data
     data_free = _text(market_data.get("kind")).casefold() == "none"
-    parameters = _mapping_fields(configuration.parameters)
+    parameters = _parameter_fields(configuration.parameters)
     execution = _mapping_fields(configuration.execution)
     blockers: list[ConfigurationBlocker] = []
 
@@ -396,12 +413,15 @@ def configuration_readiness(
                 "/research/setup",
             )
         )
-    if configuration.lifecycle != StrategyLifecycle.INFRASTRUCTURE_FIXTURE.value:
+    if configuration.lifecycle not in {
+        StrategyLifecycle.INFRASTRUCTURE_FIXTURE.value,
+        StrategyLifecycle.CANDIDATE.value,
+    }:
         blockers.append(
             _blocker(
                 "lifecycle_unsupported",
-                "Only an infrastructure fixture can run during Milestone 23.",
-                "Return to Set up and choose an approved infrastructure fixture.",
+                "This strategy lifecycle is not connected to the research launcher.",
+                "Return to Set up and choose an approved fixture or candidate.",
                 "/research/setup",
             )
         )
@@ -413,6 +433,77 @@ def configuration_readiness(
                 "Return to Set up and choose a saved setup with explicit execution assumptions.",
                 "/research/setup",
             )
+        )
+
+    if configuration.lifecycle == StrategyLifecycle.CANDIDATE.value:
+        definition = None
+        try:
+            from market_data import load_market_data
+            from orchestration import CandidatePipelineDefinition
+
+            definition = CandidatePipelineDefinition.from_configuration_document(
+                configuration.document
+            )
+            market = load_market_data(
+                definition.experiment.market_data,
+                now=(
+                    pd.Timestamp(definition.validation.data_as_of)
+                    if definition.validation.data_as_of is not None
+                    else None
+                ),
+                allow_download=False,
+            )
+        except (KeyError, RuntimeError, TypeError, ValueError) as exc:
+            blockers.append(
+                _blocker(
+                    "candidate_runtime_unavailable",
+                    f"This approved candidate is not ready to run: {exc}",
+                    "Have Codex complete or repair the approved strategy and local data binding.",
+                    "/research/setup",
+                )
+            )
+            market = None
+        audit = market.audit if market is not None else None
+        requested_end = (
+            definition.validation.data_as_of
+            if definition is not None and definition.validation.data_as_of
+            else _text(configuration.market_data.get("end_date_policy"))
+        )
+        return ConfigurationReadinessView(
+            configuration_id=configuration.configuration_id,
+            experiment_id=configuration.experiment_id,
+            strategy_name=configuration.strategy_name,
+            strategy_identity=(
+                f"{configuration.strategy_id}@{configuration.strategy_version}"
+            ),
+            lifecycle=configuration.lifecycle,
+            config_hash=configuration.config_hash,
+            provider=_text(configuration.market_data.get("provider")) or "Not recorded",
+            dataset=(
+                Path(_text(configuration.market_data.get("cache_path"))).name
+                if _text(configuration.market_data.get("cache_path"))
+                else "Not recorded"
+            ),
+            instrument=_text(configuration.market_data.get("symbol")) or "Not recorded",
+            timeframe=_text(configuration.market_data.get("interval")) or "Not recorded",
+            requested_coverage=(
+                f"{_text(configuration.market_data.get('requested_start'))} to {requested_end}"
+                if requested_end
+                else _text(configuration.market_data.get("requested_start")) or "Not recorded"
+            ),
+            actual_coverage=(
+                f"{audit.actual_first_row_date} to {audit.actual_last_row_date}"
+                if audit is not None
+                else "Unavailable"
+            ),
+            local_availability=("Available" if audit is not None else "Unavailable"),
+            local_validation=(
+                audit.cache_decision_reason if audit is not None else "Not validated"
+            ),
+            parameters=parameters,
+            execution_assumptions=execution,
+            blockers=tuple(blockers),
+            state="ready" if not blockers else "data_unavailable",
         )
 
     if data_free:
@@ -634,6 +725,36 @@ def _mapping_fields(values: Mapping[str, Any]) -> tuple[ConfigurationField, ...]
         ConfigurationField(_label(key), _display(value))
         for key, value in sorted(values.items(), key=lambda item: str(item[0]))
     )
+
+
+def _parameter_fields(
+    values: Mapping[str, Any] | list[dict[str, Any]],
+) -> tuple[ConfigurationField, ...]:
+    if isinstance(values, Mapping):
+        return _mapping_fields(values)
+    fields = [ConfigurationField("Parameter Combinations", f"{len(values):,}")]
+    names = sorted({str(name) for row in values for name in row})
+    for name in names:
+        rendered: list[str] = []
+        for row in values:
+            if name not in row:
+                continue
+            value = _display(row[name])
+            if value not in rendered:
+                rendered.append(value)
+        visible = rendered[:8]
+        suffix = (
+            f", +{len(rendered) - len(visible):,} more"
+            if len(rendered) > len(visible)
+            else ""
+        )
+        fields.append(
+            ConfigurationField(
+                _label(name),
+                ", ".join(visible) + suffix if visible else "Not recorded",
+            )
+        )
+    return tuple(fields)
 
 
 def _label(value: object) -> str:

@@ -48,6 +48,7 @@ from dashboard.run_detail_adapter import (
     SelectedRunDetailView,
 )
 from orchestration import (
+    CANDIDATE_SCREENING_LAUNCH_CONTRACT,
     DurableResearchLaunchService,
     FixtureRunService,
     ResearchLaunchConflictError,
@@ -61,6 +62,7 @@ from persistence import (
     PersistenceService,
     ResearchLaunchOperation,
     ResearchSubmissionState,
+    StrategyLifecycle,
     canonical_json,
 )
 
@@ -325,8 +327,8 @@ def _submission_is_terminal(submission: Any, run: RunSummary | None) -> bool:
 def _submission_heading(state: ResearchSubmissionState) -> str:
     return {
         ResearchSubmissionState.CLAIMED: "Starting test",
-        ResearchSubmissionState.INVOKING: "Invoking fixture",
-        ResearchSubmissionState.ACKNOWLEDGED: "Fixture acknowledged",
+        ResearchSubmissionState.INVOKING: "Invoking research run",
+        ResearchSubmissionState.ACKNOWLEDGED: "Research run acknowledged",
         ResearchSubmissionState.SUBMISSION_UNKNOWN: "Submission outcome unknown",
         ResearchSubmissionState.FAILED_BEFORE_SUBMISSION: "Submission did not start",
         ResearchSubmissionState.ABANDONED: "Unknown submission abandoned",
@@ -392,7 +394,7 @@ def _launch_button_state(
     if not allowed:
         return True, "This persisted selection is not launchable.", base_label
     if submission is None:
-        return False, "Start one durable fixture submission.", base_label
+        return False, "Start one durable research submission.", base_label
     return False, "Start a new durable run ticket.", f"{base_label} again"
 
 
@@ -533,6 +535,90 @@ def register_backtest_results_callbacks(
     research_launches = research_launches or DurableResearchLaunchService(
         database=dashboard_database
     )
+    candidate_research_launches = DurableResearchLaunchService(
+        database=dashboard_database,
+        launch_contract=CANDIDATE_SCREENING_LAUNCH_CONTRACT,
+    )
+
+    configured_by_id = {
+        configuration.configuration_id: configuration
+        for configuration in configurations
+    }
+
+    def configuration_for_id(configuration_id: str | None) -> SavedConfigurationView | None:
+        if not configuration_id:
+            return None
+        configured = configured_by_id.get(configuration_id)
+        if configured is not None:
+            return configured
+        return next(
+            (
+                configuration
+                for configuration in list_saved_configurations(dashboard_database)
+                if configuration.configuration_id == configuration_id
+            ),
+            None,
+        )
+
+    def candidate_configuration(configuration_id: str | None) -> bool:
+        configuration = configuration_for_id(configuration_id)
+        return bool(
+            configuration is not None
+            and configuration.lifecycle == StrategyLifecycle.CANDIDATE.value
+        )
+
+    def launch_supported(
+        configuration_id: str | None,
+        operation: ResearchLaunchOperation,
+    ) -> bool:
+        if candidate_configuration(configuration_id):
+            return approved_configuration_launcher is not None
+        return _durable_launch_supported(runs, operation.value)
+
+    def candidate_source_launch_blocker(run: RunSummary | None) -> str | None:
+        if run is None or run.stage != "screening" or run.status != "succeeded":
+            return None
+        service = PersistenceService(dashboard_database)
+        try:
+            rows = service.results.list_parameter_results(run.run_id)
+        finally:
+            service.close()
+        if not rows:
+            return "This screening run has no complete parameter evidence and cannot be rerun."
+        statuses = {row.screening_status for row in rows}
+        if not statuses.issubset({"passed", "screened_out"}):
+            return "This screening run has invalid parameter evidence and cannot be rerun."
+        if "passed" not in statuses:
+            return "This screening result is a terminal rejection and cannot be rerun."
+        return None
+
+    def candidate_run_configuration_blocker(run: RunSummary | None) -> str | None:
+        if run is None or run.stage != "screening":
+            return None
+        configuration = configuration_for_id(run.configuration_id)
+        if configuration is None:
+            return "The candidate's saved configuration is unavailable."
+        if (
+            not configuration.active
+            or configuration.lifecycle != StrategyLifecycle.CANDIDATE.value
+            or not configuration.launchable
+        ):
+            return "The candidate configuration is no longer active and launchable."
+        readiness = readiness_by_id.get(configuration.configuration_id)
+        if readiness is None or not readiness.ready:
+            return "The candidate configuration no longer passes launch preflight."
+        return None
+
+    def launch_claims_for_run(run_id: str) -> DurableResearchLaunchService:
+        try:
+            run = runs.get_run(run_id)
+        except (KeyError, ValueError, RunServiceError):
+            run = None
+        return (
+            candidate_research_launches
+            if run is not None and run.stage == "screening"
+            else research_launches
+        )
 
     app.clientside_callback(
         """
@@ -637,22 +723,39 @@ def register_backtest_results_callbacks(
             return False, "Select a persisted run first."
         if run_operation_eligibility is not None:
             allowed, reason = run_operation_eligibility(operation, run)
-            if allowed and operation == "reproduce" and run.stage == "screening":
-                service = PersistenceService(dashboard_database)
-                try:
-                    rows = service.results.list_parameter_results(run.run_id)
-                finally:
-                    service.close()
-                if rows and all(row.screening_status == "screened_out" for row in rows):
-                    return False, "Terminal rejected screening runs cannot be reproduced."
-            return bool(allowed), str(reason)
-        if run.stage != "fixture":
+        elif run.stage == "fixture":
+            if operation == "reproduce":
+                allowed, reason = (
+                    run.status == "succeeded",
+                    "Only succeeded fixture runs can be reproduced.",
+                )
+            elif operation == "cancel":
+                allowed, reason = (
+                    run.status == "running",
+                    "Only running fixture runs can be cancelled.",
+                )
+            else:
+                allowed, reason = False, "Unsupported run operation."
+        elif run.stage == "screening" and approved_configuration_launcher is not None:
+            configuration_blocker = candidate_run_configuration_blocker(run)
+            if configuration_blocker is not None:
+                return False, configuration_blocker
+            if operation == "reproduce":
+                allowed, reason = (
+                    run.status == "succeeded",
+                    "Only succeeded candidate screening runs can be reproduced.",
+                )
+            else:
+                allowed, reason = (
+                    False,
+                    "Candidate cancellation is not connected to the operator product.",
+                )
+        else:
             return False, "This run type has no connected operator action."
-        if operation == "reproduce":
-            return run.status == "succeeded", "Only succeeded fixture runs can be reproduced."
-        if operation == "cancel":
-            return run.status == "running", "Only running fixture runs can be cancelled."
-        return False, "Unsupported run operation."
+        evidence_blocker = candidate_source_launch_blocker(run)
+        if allowed and operation == "reproduce" and evidence_blocker is not None:
+            return False, evidence_blocker
+        return bool(allowed), str(reason)
 
     @app.callback(
         Output("run-configuration-preview", "children"),
@@ -712,8 +815,9 @@ def register_backtest_results_callbacks(
         selected = current_configurations.get(configuration_id or "")
         readiness = readiness_by_id.get(selected.configuration_id) if selected else None
         allowed = selected is not None and readiness is not None and readiness.ready
-        supported = approved_configuration_launcher is not None or _durable_launch_supported(
-            runs, ResearchLaunchOperation.RUN_TEST.value
+        supported = launch_supported(
+            selected.configuration_id if selected is not None else None,
+            ResearchLaunchOperation.RUN_TEST,
         )
         store, store_error = _launch_store(
             launch_state,
@@ -753,10 +857,22 @@ def register_backtest_results_callbacks(
             else:
                 try:
                     if approved_configuration_launcher is not None:
-                        approved_configuration_launcher(
-                            configuration_id=selected.configuration_id,
-                            idempotency_key=intent["idempotency_key"],
-                        )
+                        if candidate_configuration(selected.configuration_id):
+                            approved_configuration_launcher(
+                                configuration_id=selected.configuration_id,
+                                idempotency_key=intent["idempotency_key"],
+                                operation=ResearchLaunchOperation.RUN_TEST,
+                                source_run_id=None,
+                                source_lineage=None,
+                            )
+                        else:
+                            runs.launch_fixture(
+                                configuration_id=selected.configuration_id,
+                                idempotency_key=intent["idempotency_key"],
+                                operation=ResearchLaunchOperation.RUN_TEST,
+                                source_run_id=None,
+                                source_lineage=None,
+                            )
                     else:
                         runs.launch_fixture(
                             configuration_id=selected.configuration_id,
@@ -914,16 +1030,29 @@ def register_backtest_results_callbacks(
         except (KeyError, ValueError, RunServiceError):
             selected_run = None
         configuration_id = selected_run.configuration_id if selected_run else None
+        candidate_path = selected_run is not None and selected_run.stage == "screening"
         allowed = selected_run is not None and _configuration_is_launchable(
             configuration_id or "", configurations
         )
+        candidate_blocker = (
+            candidate_run_configuration_blocker(selected_run)
+            or candidate_source_launch_blocker(selected_run)
+            if candidate_path
+            else None
+        )
+        if candidate_blocker is not None:
+            allowed = False
         source_submission = (
             research_launches.get_for_run(run_id) if run_id else None
         )
         if source_submission is not None and source_submission.state == ResearchSubmissionState.SUBMISSION_UNKNOWN:
             allowed = False
-        supported = _durable_launch_supported(
-            runs, ResearchLaunchOperation.HISTORICAL_RELAUNCH.value
+        supported = (
+            approved_configuration_launcher is not None
+            if candidate_path
+            else _durable_launch_supported(
+                runs, ResearchLaunchOperation.HISTORICAL_RELAUNCH.value
+            )
         )
         store, store_error = _launch_store(
             launch_state,
@@ -961,13 +1090,26 @@ def register_backtest_results_callbacks(
                 store_error = "No valid prepared historical run ticket is available."
             else:
                 try:
-                    runs.launch_fixture(
-                        configuration_id=configuration_id,
-                        idempotency_key=intent["idempotency_key"],
-                        operation=ResearchLaunchOperation.HISTORICAL_RELAUNCH,
-                        source_run_id=run_id,
-                        source_lineage=None,
-                    )
+                    if candidate_path:
+                        if approved_configuration_launcher is None:
+                            raise ResearchLaunchError(
+                                "Approved candidate launch support is unavailable."
+                            )
+                        approved_configuration_launcher(
+                            configuration_id=configuration_id,
+                            idempotency_key=intent["idempotency_key"],
+                            operation=ResearchLaunchOperation.HISTORICAL_RELAUNCH,
+                            source_run_id=run_id,
+                            source_lineage=None,
+                        )
+                    else:
+                        runs.launch_fixture(
+                            configuration_id=configuration_id,
+                            idempotency_key=intent["idempotency_key"],
+                            operation=ResearchLaunchOperation.HISTORICAL_RELAUNCH,
+                            source_run_id=run_id,
+                            source_lineage=None,
+                        )
                 except (ResearchLaunchError, KeyError, ValueError, RunServiceError) as exc:
                     launch_error = exc
                 try:
@@ -1013,7 +1155,9 @@ def register_backtest_results_callbacks(
             message = "Durable historical relaunch is unavailable; the legacy launcher is disabled."
             message_class = "historical-launch-message error-state"
         elif not allowed:
-            message = "Select a launchable persisted run before creating a new run ticket."
+            message = candidate_blocker or (
+                "Select a launchable persisted run before creating a new run ticket."
+            )
             message_class = "historical-launch-message"
         else:
             message = "This creates a durable run ticket from the selected run's configuration."
@@ -1058,12 +1202,16 @@ def register_backtest_results_callbacks(
         except (KeyError, ValueError, RunServiceError):
             source_run = None
         configuration_id = source_run.configuration_id if source_run else None
+        candidate_path = source_run is not None and source_run.stage == "screening"
         source_submission = research_launches.get_for_run(run_id) if run_id else None
         allowed, eligibility_reason = operation_eligibility("reproduce", source_run)
         if source_submission is not None and source_submission.state == ResearchSubmissionState.SUBMISSION_UNKNOWN:
             allowed = False
-        supported = reproduce_run is not None or _durable_launch_supported(
-            runs, ResearchLaunchOperation.REPRODUCTION.value
+        supported = (
+            approved_configuration_launcher is not None
+            if candidate_path
+            else reproduce_run is not None
+            or _durable_launch_supported(runs, ResearchLaunchOperation.REPRODUCTION.value)
         )
         store, store_error = _launch_store(
             launch_state,
@@ -1101,12 +1249,25 @@ def register_backtest_results_callbacks(
                 store_error = "No valid prepared reproduction ticket is available."
             else:
                 try:
-                    launcher = reproduce_run or runs.reproduce_fixture_run
-                    launcher(
-                        run_id,
-                        artifact_root=artifact_root,
-                        idempotency_key=intent["idempotency_key"],
-                    )
+                    if candidate_path:
+                        if approved_configuration_launcher is None:
+                            raise ResearchLaunchError(
+                                "Approved candidate launch support is unavailable."
+                            )
+                        approved_configuration_launcher(
+                            configuration_id=configuration_id,
+                            idempotency_key=intent["idempotency_key"],
+                            operation=ResearchLaunchOperation.REPRODUCTION,
+                            source_run_id=run_id,
+                            source_lineage=None,
+                        )
+                    else:
+                        launcher = reproduce_run or runs.reproduce_fixture_run
+                        launcher(
+                            run_id,
+                            artifact_root=artifact_root,
+                            idempotency_key=intent["idempotency_key"],
+                        )
                 except (
                     ResearchLaunchError,
                     KeyError,
@@ -1796,11 +1957,12 @@ def register_backtest_results_callbacks(
                 "stale-recovery-message error-state",
             )
         try:
+            selected_launches = launch_claims_for_run(run_id)
             if triggered_id == "reconcile-unknown-run" and reconcile_clicks:
                 flow_id = (prefect_flow_run_id or "").strip()
                 if not flow_id:
                     raise ValueError("A confirmed Prefect flow run ID is required.")
-                submission = research_launches.reconcile_unknown_for_run(
+                submission = selected_launches.reconcile_unknown_for_run(
                     run_id=run_id,
                     prefect_flow_run_id=flow_id,
                     prefect_api_url=(prefect_api_url or "").strip() or None,
@@ -1815,7 +1977,7 @@ def register_backtest_results_callbacks(
                     raise ValueError(
                         "A durable no-submission evidence reference is required."
                     )
-                research_launches.abandon_unknown_for_run(
+                selected_launches.abandon_unknown_for_run(
                     run_id=run_id,
                     resolution_evidence_reference=evidence,
                 )

@@ -11,11 +11,11 @@ create a competing queue.
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
 | Immediate objective | Complete and hand off the single-user Quant Factory research product so Terry can initiate or accept controlled candidate work and operate approved strategy configurations through the dashboard. |
-| Phase | **Dashboard and operator-product completion.** |
-| Active work | Audit and complete the existing end-to-end operator workflow: idea and configuration setup; launch and status; results, charts, trades, assumptions, and evidence; saved-test comparison; review and decision recording; reproduction and failure recovery; navigation and understandable operator language. |
+| Phase | **Owner walkthrough and handoff acceptance.** |
+| Active work | Objective implementation and deterministic current-revision evidence are complete. No further product build or strategy work is active while Terry performs the final operator walkthrough. |
 | Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Historical dashboard and browser evidence is substantial, but the complete current-revision single-user workflow has not yet been reconciled against the Milestone 23 acceptance record and handed to the owner as a practical operator product. |
-| Next action | Reconcile existing evidence, reproduce only genuine product gaps, complete the existing dashboard workflow, prove it with deterministic unit/integration/browser tests, and stop for Terry's final operator walkthrough and handoff acceptance. |
+| Verified gap | Terry has not yet completed the current-revision walkthrough or explicitly accepted the product handoff. No private review endpoint is deployed or authorized. |
+| Next action | Terry chooses the walkthrough method. If he wants a browser URL, he explicitly authorizes a temporary private review deployment; otherwise Codex provides a guided local walkthrough. Terry then accepts the handoff or reports a concrete defect. |
 | Deferred | All new strategy selection, proposals, optimization, screening, and profitability tests until handoff; also paid data, external deployment, broker expansion, paper activation, live work, and capital exposure until separately authorized. |
 | Hard boundaries | Product verification may use deterministic fixtures and already accepted evidence only. The already-approved SPYM infrastructure fixture may be exercised solely as deterministic product proof, never as new profitability evidence. No new candidate result, paid data, protected-test execution, deployment, paper/live orders, or capital exposure is authorized. |
 
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | Complete and prove the existing single-user dashboard/operator workflow using deterministic fixtures and already accepted evidence, then stop for Terry's final walkthrough and handoff acceptance. R11 concluded with no surviving edge and creates no requirement for another strategy screen before handoff. |
+| R12 | 1 | in_progress | none | **Technical pass; ready for owner walkthrough; owner handoff acceptance pending.** The single-user workflow is implemented and proven with deterministic fixtures and accepted evidence. R11 concluded with no surviving edge and creates no requirement for another strategy screen before handoff. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
@@ -58,8 +58,8 @@ profitability, or the licensed engine itself.
 
 1. Backend completion — COMPLETE
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
-3. **Dashboard and operator-product completion — ACTIVE**
-4. Owner walkthrough and handoff acceptance
+3. Dashboard and operator-product completion — TECHNICAL PASS
+4. **Owner walkthrough and handoff acceptance — ACTIVE OWNER GATE**
 5. Owner-initiated candidate research
 6. Validation of a surviving edge
 7. Execution-vehicle comparison
@@ -111,24 +111,24 @@ answer the hypothesis. A surviving signal must later be validated on the
 intended SPY/QQQ/index underlying before any options edge is claimed, and 0DTE
 implementation requires defensible historical option quote/execution evidence.
 
-### Dashboard and operator product — ACTIVE
+### Dashboard and operator product — READY FOR OWNER WALKTHROUGH
 
-Complete the existing Plotly Dash product and the full single-owner workflow:
-idea and configuration setup; test launch and status; results, charts, trades,
-assumptions, and evidence; saved-test comparison; review and decision recording;
-reproduction and failure recovery; and clear navigation and language. Reconcile
-the historical Milestone 23 evidence before implementing changes, and repair
-only reproduced gaps. Use the approved chart-first work as the UX reference,
-mature maintained components, thin Quant Factory adapters, and the existing
-backend. Do not build a second application, a generic arbitrary-strategy
-builder, a new orchestration layer, or enterprise-scale infrastructure.
+The existing Plotly Dash product now covers the full single-owner workflow:
+idea and configuration setup; approved configuration launch and status;
+results, charts, trades, assumptions, evidence and all persisted parameter
+variants; saved-test comparison; review and decision recording; reproduction
+and failure recovery; and clear navigation and operator language. Approved
+candidate configurations connect through the completed generic runtime using
+exact persisted configuration reconstruction and cache-only local data.
 
-Current-revision deterministic unit, integration, and browser evidence must
-prove the operator workflow without creating a new candidate result. The
-already-approved SPYM infrastructure fixture may be exercised solely as
-deterministic product proof and must not be represented as profitability
-evidence. Stop when the product is ready for Terry's final walkthrough and
-handoff acceptance.
+Deterministic unit, integration, and browser evidence proves the current
+operator workflow without creating a new candidate or profitability result.
+The implementation reused the existing application, mature components,
+chart-first UX, backend and accepted evidence; it added no second frontend,
+generic arbitrary-strategy builder, orchestration layer, paid-data dependency,
+deployment, or trading authority. The objective technical gate is a pass.
+Terry's current-revision walkthrough and explicit handoff acceptance remain
+required before R12 completes or candidate research resumes.
 
 ### Paper and live
 

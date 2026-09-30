@@ -39,6 +39,19 @@ class PendingCallbackRequests:
     def __len__(self) -> int:
         return sum(self._counts.values())
 
+    def callback_outputs(self) -> tuple[str, ...]:
+        """Return pending Dash output identities without retaining request objects."""
+
+        outputs: list[str] = []
+        for (_method, _url, post_data), count in self._counts.items():
+            try:
+                body = json.loads(post_data or "{}")
+                output = body.get("output") if isinstance(body, dict) else None
+            except (json.JSONDecodeError, TypeError):
+                output = None
+            outputs.extend([str(output or "<unknown>")] * count)
+        return tuple(sorted(outputs))
+
 
 def install_callback_status_recorder(server: Any) -> None:
     """Record enough server evidence to classify browser-side Dash aborts."""
