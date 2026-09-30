@@ -610,7 +610,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 35
+    assert len(app.callback_map) == 38
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -664,7 +664,11 @@ def test_all_callback_components_exist_in_full_mounted_layout(tmp_path: Path) ->
     app = create_app(context, tmp_path / "reviews.json")
     mounted_ids = set(_component_ids(_resolved_layout(app)))
 
-    missing = sorted(_callback_ref_ids(app) - mounted_ids)
+    missing = sorted(
+        reference
+        for reference in _callback_ref_ids(app) - mounted_ids
+        if '"ALL"' not in reference
+    )
 
     assert "refresh-comparisons" in mounted_ids
     assert missing == []
@@ -1438,7 +1442,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
             assert active[0].href == pathname
 
 
-def test_ideas_page_is_browser_session_text_only() -> None:
+def test_ideas_page_is_durable_local_text_only() -> None:
     from dashboard.callbacks.ideas import (
         _idea_draft_transition,
         _valid_source_url,
@@ -1451,10 +1455,11 @@ def test_ideas_page_is_browser_session_text_only() -> None:
         for component in _walk_components(page)
     }
 
-    assert "Draft only — nothing will run" in rendered
+    assert "Intake only — nothing will run" in rendered
     assert "will not open, preview, download, summarize, approve, or execute" in rendered
     assert {
         "idea-draft-store",
+        "idea-draft-selector",
         "idea-title",
         "idea-description",
         "idea-source-url",

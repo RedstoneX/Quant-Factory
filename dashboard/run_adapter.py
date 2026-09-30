@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 from typing import Any, TypeAlias
@@ -12,6 +12,8 @@ from dashboard.health import DatasetHealth
 from market_data.catalog import DataLocations
 from persistence import PersistenceService, StrategyLifecycle
 from persistence.database import database_path
+from persistence.models import normalized_configuration_document
+from strategies import get_strategy, validate_parameter_plan
 
 
 CatalogSnapshot: TypeAlias = tuple[
@@ -98,6 +100,215 @@ class SavedConfigurationView:
             f"{self.configuration_id[:10]}"
         )
 
+
+@dataclass(frozen=True)
+class IdeaDraftView:
+    """Durable local operator intake without research authority."""
+
+    draft_id: str
+    title: str
+    description: str
+    source_url: str
+    attribution: str
+    notes: str
+    configuration_id: str | None
+    created_at: str
+    updated_at: str
+
+    def to_store(self) -> dict[str, str | None]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class SetupParameterView:
+    name: str
+    label: str
+    description: str
+    allowed_values: tuple[Any, ...]
+    default: Any
+
+
+@dataclass(frozen=True)
+class SetupStrategyView:
+    """Approved persisted strategy specification available for bounded setup."""
+
+    strategy_id: str
+    strategy_version: str
+    name: str
+    description: str
+    lifecycle: str
+    parameters: tuple[SetupParameterView, ...]
+
+    @property
+    def identity(self) -> str:
+        return f"{self.strategy_id}@{self.strategy_version}"
+
+
+def _idea_view(record: Any) -> IdeaDraftView:
+    return IdeaDraftView(**asdict(record))
+
+
+def list_idea_drafts(
+    database: str | Path,
+) -> tuple[IdeaDraftView, ...]:
+    service = PersistenceService(database_path(database))
+    try:
+        return tuple(_idea_view(record) for record in service.idea_drafts.list())
+    finally:
+        service.close()
+
+
+def save_idea_draft(
+    values: Mapping[str, str],
+    *,
+    draft_id: str | None = None,
+    database: str | Path,
+) -> IdeaDraftView:
+    service = PersistenceService(database_path(database))
+    try:
+        return _idea_view(
+            service.save_idea_draft(
+                draft_id=draft_id,
+                title=values.get("title", ""),
+                description=values.get("description", ""),
+                source_url=values.get("source_url", ""),
+                attribution=values.get("attribution", ""),
+                notes=values.get("notes", ""),
+            )
+        )
+    finally:
+        service.close()
+
+
+def delete_idea_draft(
+    draft_id: str,
+    *,
+    database: str | Path,
+) -> bool:
+    service = PersistenceService(database_path(database))
+    try:
+        return service.delete_idea_draft(draft_id)
+    finally:
+        service.close()
+
+
+def _setup_strategies(service: PersistenceService) -> tuple[SetupStrategyView, ...]:
+    available: list[SetupStrategyView] = []
+    for record in service.strategies.list(active=True):
+        if record.lifecycle not in {
+            StrategyLifecycle.INFRASTRUCTURE_FIXTURE,
+            StrategyLifecycle.CANDIDATE,
+            StrategyLifecycle.WATCHLIST,
+        }:
+            continue
+        try:
+            implementation = get_strategy(record.strategy_id)
+        except KeyError:
+            continue
+        specification = implementation.spec
+        if (
+            specification.identity.version != record.strategy_version
+            or specification.approval_state != "approved"
+        ):
+            continue
+        try:
+            validate_parameter_plan(specification, require_approved=True)
+        except (TypeError, ValueError):
+            continue
+        if any(not definition.allowed_values for definition in specification.parameters):
+            continue
+        available.append(
+            SetupStrategyView(
+                strategy_id=record.strategy_id,
+                strategy_version=record.strategy_version,
+                name=specification.identity.name,
+                description=specification.identity.description,
+                lifecycle=record.lifecycle.value,
+                parameters=tuple(
+                    SetupParameterView(
+                        name=definition.name,
+                        label=_label(definition.name),
+                        description=definition.description,
+                        allowed_values=definition.allowed_values or (),
+                        default=definition.default,
+                    )
+                    for definition in specification.parameters
+                ),
+            )
+        )
+    return tuple(sorted(available, key=lambda item: (item.name.casefold(), item.identity)))
+
+
+def list_setup_strategies(
+    database: str | Path,
+) -> tuple[SetupStrategyView, ...]:
+    service = PersistenceService(database_path(database))
+    try:
+        return _setup_strategies(service)
+    finally:
+        service.close()
+
+
+def persist_bounded_idea_configuration(
+    *,
+    draft_id: str,
+    strategy_identity: str,
+    parameters: Mapping[str, Any],
+    database: str | Path,
+) -> str:
+    """Persist one immutable, non-executing setup from approved specification facts."""
+
+    service = PersistenceService(database_path(database))
+    try:
+        draft = service.idea_drafts.get(draft_id)
+        if draft is None:
+            raise ValueError("Choose a saved idea draft before creating a setup.")
+        strategy_view = next(
+            (
+                candidate
+                for candidate in _setup_strategies(service)
+                if candidate.identity == strategy_identity
+            ),
+            None,
+        )
+        if strategy_view is None:
+            raise ValueError("Choose an active approved strategy specification.")
+        implementation = get_strategy(strategy_view.strategy_id)
+        specification = implementation.spec
+        expected_names = {definition.name for definition in specification.parameters}
+        if set(parameters) != expected_names:
+            raise ValueError("Every approved parameter must have exactly one selected value.")
+        for definition in specification.parameters:
+            value = parameters[definition.name]
+            if definition.allowed_values is None or value not in definition.allowed_values:
+                raise ValueError(
+                    f"{definition.name} must use a pre-approved allowed value."
+                )
+            definition.validate(value)
+        normalized = implementation.validate_parameters(dict(parameters))
+        if set(normalized) != expected_names:
+            raise ValueError("Strategy validation changed the approved parameter boundary.")
+
+        document = normalized_configuration_document(
+            experiment_id=f"operator_{draft.draft_id}_{strategy_view.strategy_id}",
+            strategy_id=strategy_view.strategy_id,
+            strategy_version=strategy_view.strategy_version,
+            market_data={
+                "kind": "strategy_specification_requirements",
+                "requirements": asdict(specification.data),
+            },
+            parameters=normalized,
+            execution=asdict(specification.assumptions),
+            ranking={},
+            screening={},
+        )
+        _linked, configuration = service.upsert_idea_configuration(
+            draft_id=draft.draft_id,
+            document=document,
+        )
+        return configuration.configuration_id
+    finally:
+        service.close()
 
 def list_saved_configurations(
     database: str | Path | None = None,

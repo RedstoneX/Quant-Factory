@@ -771,7 +771,7 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
             page.locator("#idea-source-url").fill("https://example.invalid/source")
             page.locator("#save-idea-draft").click()
             expect(page.locator("#idea-draft-status")).to_contain_text(
-                "Draft saved in this browser session at"
+                "Draft saved locally at"
             )
             assert external_requests == []
 

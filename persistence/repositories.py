@@ -17,6 +17,7 @@ from persistence.models import (
     ExecutionAssumptionsRecord,
     EventSeverity,
     ExperimentRunRecord,
+    IdeaDraftRecord,
     ParameterResultRecord,
     ReviewRecord,
     ReviewState,
@@ -57,6 +58,12 @@ def _configuration(row: sqlite3.Row | None) -> ConfigurationRecord | None:
     if row is None:
         return None
     return ConfigurationRecord(**dict(row))
+
+
+def _idea_draft(row: sqlite3.Row | None) -> IdeaDraftRecord | None:
+    if row is None:
+        return None
+    return IdeaDraftRecord(**dict(row))
 
 
 def _run(row: sqlite3.Row | None) -> ExperimentRunRecord | None:
@@ -351,6 +358,142 @@ class ConfigurationRepository:
             params.append(strategy_id)
         sql += " ORDER BY created_at, configuration_id"
         return tuple(_configuration(row) for row in self.connection.execute(sql, params))
+
+
+class IdeaDraftRepository:
+    """Mutable operator-authored intake, separate from immutable research evidence."""
+
+    _LIMITS = {
+        "title": 120,
+        "description": 2000,
+        "source_url": 2048,
+        "attribution": 240,
+        "notes": 2000,
+    }
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def save(
+        self,
+        *,
+        draft_id: str,
+        title: str,
+        description: str = "",
+        source_url: str = "",
+        attribution: str = "",
+        notes: str = "",
+    ) -> IdeaDraftRecord:
+        if not (
+            8 <= len(draft_id) <= 80
+            and draft_id.isascii()
+            and all(character.isalnum() or character in "_-" for character in draft_id)
+        ):
+            raise ValueError("idea draft identity is invalid")
+        values = {
+            "title": title.strip(),
+            "description": description.strip(),
+            "source_url": source_url.strip(),
+            "attribution": attribution.strip(),
+            "notes": notes.strip(),
+        }
+        if not values["title"]:
+            raise ValueError("idea title must not be empty")
+        for name, limit in self._LIMITS.items():
+            if len(values[name]) > limit:
+                raise ValueError(f"idea {name} must be at most {limit} characters")
+        now = utc_now()
+        existing = self.get(draft_id)
+        if existing is None:
+            self.connection.execute(
+                """
+                INSERT INTO idea_drafts
+                (draft_id, title, description, source_url, attribution, notes,
+                 configuration_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
+                """,
+                (
+                    draft_id,
+                    values["title"],
+                    values["description"],
+                    values["source_url"],
+                    values["attribution"],
+                    values["notes"],
+                    now,
+                    now,
+                ),
+            )
+        else:
+            self.connection.execute(
+                """
+                UPDATE idea_drafts
+                SET title=?, description=?, source_url=?, attribution=?, notes=?,
+                    updated_at=?
+                WHERE draft_id=?
+                """,
+                (
+                    values["title"],
+                    values["description"],
+                    values["source_url"],
+                    values["attribution"],
+                    values["notes"],
+                    now,
+                    draft_id,
+                ),
+            )
+        record = self.get(draft_id)
+        assert record is not None
+        return record
+
+    def link_configuration(
+        self,
+        draft_id: str,
+        configuration_id: str,
+    ) -> IdeaDraftRecord:
+        existing = self.get(draft_id)
+        if existing is None:
+            raise KeyError(f"unknown idea draft {draft_id}")
+        if existing.configuration_id not in (None, configuration_id):
+            raise ValueError("idea draft is already linked to an immutable configuration")
+        self.connection.execute(
+            """
+            UPDATE idea_drafts
+            SET configuration_id=?, updated_at=?
+            WHERE draft_id=?
+            """,
+            (configuration_id, utc_now(), draft_id),
+        )
+        record = self.get(draft_id)
+        assert record is not None
+        return record
+
+    def get(self, draft_id: str) -> IdeaDraftRecord | None:
+        return _idea_draft(
+            self.connection.execute(
+                "SELECT * FROM idea_drafts WHERE draft_id=?",
+                (draft_id,),
+            ).fetchone()
+        )
+
+    def list(self) -> tuple[IdeaDraftRecord, ...]:
+        return tuple(
+            _idea_draft(row)
+            for row in self.connection.execute(
+                "SELECT * FROM idea_drafts ORDER BY updated_at DESC, draft_id"
+            )
+        )
+
+    def delete(self, draft_id: str) -> bool:
+        cursor = self.connection.execute(
+            "DELETE FROM idea_drafts WHERE draft_id=? AND configuration_id IS NULL",
+            (draft_id,),
+        )
+        if cursor.rowcount:
+            return True
+        existing = self.get(draft_id)
+        if existing is not None and existing.configuration_id is not None:
+            raise ValueError("an idea linked to an immutable configuration cannot be discarded")
+        return False
 
 
 def configuration_hash_json(canonical: str) -> str:

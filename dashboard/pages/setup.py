@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from dash import dcc, html
 
 from dashboard.components.configuration_summary import configuration_summary
@@ -9,23 +11,32 @@ from dashboard.pages.common import page_heading
 from dashboard.run_adapter import (
     CatalogSnapshot,
     SavedConfigurationView,
+    SetupStrategyView,
     configuration_readiness_by_id,
     list_saved_configurations,
+    list_setup_strategies,
 )
 
 
 def layout(
     *,
     configurations: tuple[SavedConfigurationView, ...] | None = None,
+    setup_strategies: tuple[SetupStrategyView, ...] | None = None,
+    database: str | Path | None = None,
     catalog_snapshot: CatalogSnapshot | None = None,
     loading: bool = False,
 ) -> html.Div:
     """Select and inspect an immutable approved configuration without launching it."""
 
     available = (
-        list_saved_configurations()
-        if configurations is None
-        else configurations
+        list_saved_configurations(database)
+        if database is not None
+        else configurations or ()
+    )
+    approved_strategies = (
+        list_setup_strategies(database)
+        if setup_strategies is None and database is not None
+        else setup_strategies or ()
     )
     from dashboard.application import _strategy_research_path
 
@@ -96,6 +107,58 @@ def layout(
                 id="selected-configuration-state",
                 data=first.configuration_id if first else None,
                 storage_type="session",
+            ),
+            dcc.Store(id="created-configuration-state", storage_type="session"),
+            html.Section(
+                [
+                    html.H2("Create setup from saved idea"),
+                    html.P(
+                        "Selected idea: choose and save a draft on Ideas first.",
+                        id="setup-idea-title",
+                        className="field-help",
+                    ),
+                    html.Label(
+                        "Approved strategy specification",
+                        htmlFor="setup-strategy-selector",
+                        className="field-label",
+                    ),
+                    dcc.Dropdown(
+                        id="setup-strategy-selector",
+                        options=[
+                            {
+                                "label": f"{strategy.name} · {strategy.lifecycle}",
+                                "value": strategy.identity,
+                            }
+                            for strategy in approved_strategies
+                        ],
+                        value=(approved_strategies[0].identity if approved_strategies else None),
+                        clearable=False,
+                        placeholder="No active approved specification is available",
+                        disabled=not approved_strategies,
+                    ),
+                    html.Div(id="setup-parameter-controls"),
+                    html.P(
+                        (
+                            "Only values already allowed by the approved strategy "
+                            "specification are offered. Saving creates an immutable setup "
+                            "record; it does not approve research or launch a test."
+                        ),
+                        className="field-help",
+                    ),
+                    html.Button(
+                        "Save immutable setup",
+                        id="save-idea-configuration",
+                        n_clicks=0,
+                        disabled=not approved_strategies,
+                        className="primary-action",
+                    ),
+                    html.Div(
+                        "No setup has been created from the selected idea.",
+                        id="idea-configuration-status",
+                        className="save-message",
+                    ),
+                ],
+                className="panel idea-configuration-panel",
             ),
             html.Div(
                 [
