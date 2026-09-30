@@ -1,20 +1,23 @@
 # Paper Worker and Read-Only Observer
 
-> **Deferred under Decision 307:** Paper-runtime work is dormant until a
-> qualified edge, a minimum usable operator path, and the applicable paper
-> gates activate it. The procedure and safety requirements below remain
-> authoritative when that occurs.
+> **Historical implementation / do not deploy:** Paper-runtime work is dormant.
+> The existing worker and `deployment/paper` stack use the superseded ADR 0010
+> transport and are retained only as implementation evidence. Their safety
+> requirements remain inputs, but a new ADR 0012-compatible credential and
+> isolation design must be reviewed before a paper milestone can activate any
+> worker.
 
 ## Security boundary
 
-The paper worker is independently deployable and paper-only. It has separate
-identity, fixed paper endpoint, credentials, state, network policy, journal,
-and audit evidence. Research processes cannot call the broker or mutate worker
-state directly.
+The retained design required an independently deployable, paper-only worker
+with separate identity, fixed paper endpoint, credentials, state, network
+policy, journal, and audit evidence. Any replacement must prevent research
+processes from calling the broker or mutating worker state directly.
 
-The first deployed capability is a read-only observer permitting only the
-declared paper account and positions GET operations. It cannot submit, replace,
-cancel, or list orders. Health output contains only sanitized state.
+The first planned capability was a read-only observer permitting only the
+declared paper account and positions GET operations. A replacement must not
+submit, replace, cancel, or list orders, and its health output must contain only
+sanitized state.
 
 ## Required configuration
 
@@ -27,6 +30,13 @@ cancel, or list orders. Health output contains only sanitized state.
 
 No credential value, account identifier, response body, or private gateway
 coordinate belongs in Git, logs, health output, or evidence artifacts.
+
+Future paper credentials remain in dedicated paper items in the Quant Factory
+Bitwarden vault. Because Agent Access pairings are not item-scoped, paper use
+requires a separately proven provider/vault-access and OS privilege boundary
+plus a service identity that prevents the research client from querying paper
+or live items. The Decision 310 research pairing cannot establish paper or live
+isolation.
 
 ## Acceptance
 

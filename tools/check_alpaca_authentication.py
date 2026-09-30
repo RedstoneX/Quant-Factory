@@ -1,9 +1,9 @@
-"""One-shot operator diagnostic; never an order worker or vault-value reader.
+"""Historical OneCLI diagnostic; superseded and not approved for current use.
 
-Run only under the explicit, bounded operator authorization for this diagnostic.
-This does not adopt OneCLI or satisfy ADR 0010. The admin endpoint is local
-operator access. Only a newly created identity is changed; the stored Dedicated
-Paper Account pair and existing agents are never modified.
+Decision 311 and ADR 0012 replaced the credential architecture. Do not run this
+against real credentials. It remains only as evidence of the earlier bounded
+diagnostic; it is not an order worker, vault-value reader, or current deployment
+procedure.
 """
 from __future__ import annotations
 

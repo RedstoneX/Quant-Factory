@@ -1,7 +1,7 @@
-"""Run only a fresh, disposable credential-proof canary stack.
+"""Historical OneCLI credential proof; superseded and not approved to run.
 
-Requires root on the approved target. Prints a redacted report, never child output.
-No existing OneCLI state, credentials, or management endpoints are consulted.
+Decision 311 and ADR 0012 replaced the credential architecture. Retained only
+as synthetic historical evidence; do not deploy or use with real credentials.
 """
 import base64
 from datetime import datetime, timezone
