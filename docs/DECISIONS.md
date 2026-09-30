@@ -13,32 +13,36 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **314** | **Direct Mode is the default operating policy for the private single-user MVP:** outcome -> reuse -> smallest implementation -> decisive proof -> deliver -> stop. Escalated Mode is reserved for genuinely difficult-to-reverse or high-consequence changes. |
 | **313** | **Operator-product completion restored as the active sequence:** complete and prove the existing single-user dashboard workflow, then stop for Terry's final walkthrough and handoff acceptance. No additional strategy selection, proposal, optimization, screening, or profitability testing occurs before handoff. |
 | **312** | **Quant Factory unattended credential standard finalized:** Bitwarden Secrets Manager is the durable machine-access source of truth; the `Codex` machine account is scoped to the `Quant Factory` project and accessed through the official `bws` CLI with a host-encrypted token. This supersedes Decision 311's selection of Password Manager plus Agent Access as the current mechanism. |
 | 311 | Historical correction that Quant Factory uses Bitwarden is retained; Decision 312 supersedes its Password Manager plus Agent Access mechanism. |
 | 310 | MES screen was accepted, executed once, independently audited, and **rejected** after negative total/annualized return and Sharpe below 0.5. It is inactive and must not be tuned or rerun; Decision 313 defers any next candidate until after operator handoff. |
 | **309** | **Intraday mission clarification:** active edge discovery is day trading only—same-session entry/exit, minutes-to-hours holding, no overnight or multi-day carry. Turn-of-month is retained but out of scope. Existing licensed VectorBT Pro must be located/reused before treating a checkout-local absence as a blocker. |
 | 308 | Backend completion correction satisfied: the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under Decision 309's intraday bounds. |
-| 307 | Historical backend-first reset and dashboard-deferral rationale is retained; Decision 313 supersedes its active priority and sequencing. Parallel-first orchestration and consolidated authority remain. |
+| 307 | Historical backend-first reset and dashboard-deferral rationale is retained; Decision 313 supersedes its active priority and sequencing, and Decision 314 supersedes its parallel-first orchestration rule. |
 | 306 | Prevent duplicate candidate/strategy-family work; a symbol or wrapper change is not a new requirement. |
 | 294 | Single-operator proportionality and evidence-truthful MVP rules remain; Decision 313 controls active sequencing. |
-| 290 | Codex remains the sole active project agent toolchain; Decision 307 supersedes serial/worker-selection wording where it conflicts with parallel-first orchestration. |
+| 290 | Codex remains the sole active project agent toolchain; Decision 314 supersedes earlier serial and parallel-first allocation rules with Direct Mode by default. |
 | 285 | Reuse mature components before custom implementation. |
 | 283 | Exact-repeat computation caching remains a deferred requirement, not active work. |
 | 282 | The chart-first Results prototype remains the approved UX reference for Decision 313 operator-product completion; it does not by itself establish current-revision workflow acceptance. |
 | 276 | Independent green pull requests may proceed without strict up-to-date rebuilding; overlapping/dependent work remains serialized. |
 | 275 | `RedstoneX/Quant-Factory` is the canonical forward repository. |
 
-Decision 313 controls current priority, sequencing, and dashboard/product
-handoff scope. Decision 312 controls credential source and machine access, superseding
+Decision 314 controls working mode, orchestration, proportional proof, and
+owner-authorization continuity. Decision 313 controls current priority,
+sequencing, and dashboard/product handoff scope. Decision 312 controls
+credential source and machine access, superseding
 Decision 311's Agent Access selection, Decision 269, ADR 0012, and ADR 0010 as
 current architecture while retaining their evidence as history. Where an older
 decision conflicts with Decision 309 on research mission fit or VectorBT-Pro
 availability handling, Decision 309 controls. Decision 308 controls backend
-completion. Decision 307's parallel-first orchestration and evidence/reuse constraints
-remain effective, but Decision 313 supersedes its priority, sequencing, and
-dashboard-deferral language. Older technical evidence and safety constraints
-remain valid unless explicitly superseded.
+completion. Decision 307's evidence/reuse constraints remain effective, but
+Decision 314 supersedes its parallel-first orchestration rule and Decision 313
+supersedes its priority, sequencing, and dashboard-deferral language. Older
+technical evidence and safety constraints remain valid unless explicitly
+superseded.
 
 ## Stable retained principles
 
@@ -1605,3 +1609,41 @@ remain valid unless explicitly superseded.
      proportional reuse, preflight, review, and repository governance.
      `docs/CHAT_HANDOFF.md` needs no change because it is navigation-only and
      already routes startup to the Tier 1 authorities.
+
+314. **Direct execution is the default working mode for the private single-user
+     MVP (accepted 2026-09-30).** Quant Factory work follows: outcome -> reuse
+     -> smallest implementation -> decisive proof -> deliver -> stop.
+
+     Direct Mode covers routine implementation, bug fixes, UI work,
+     configuration, private operations, redeploys, and other reversible work
+     that reuses established architecture. Work directly: no adversary, no
+     implementation preflight, no broad audit, no speculative architecture,
+     no adjacent cleanup, no repeated unrelated testing, and no delegation
+     unless genuinely independent substantial work clearly saves more time or
+     cost than coordination consumes. Ordinary consequences of already-
+     authorized work do not create another owner gate.
+
+     Escalated Mode is the exception and applies only to a genuinely difficult-
+     to-reverse or high-consequence change involving a new architecture,
+     service, or framework; persistent data or schema migration; paid
+     resources; credential or secret authority expansion; public network
+     exposure; protected evidence or data boundaries; broker or order
+     capability; paper/live activation; capital or risk controls; or
+     destructive or costly-to-reverse state. File count, diff size, the words
+     `runtime` or `deployment`, and touching production-like infrastructure do
+     not by themselves make work material.
+
+     Proof is proportional: an operational change needs revision, health, and
+     reachability; an isolated code or UI change needs focused affected tests;
+     a shared-core change needs relevant integration tests; and a full suite is
+     reserved for core/shared behavior changes, required CI, or cases where
+     focused proof is insufficient. Do not duplicate required CI merely for
+     reassurance.
+
+     Owner authorization persists throughout the authorized task. Ask again
+     only for a genuinely new product choice, cost, irreversible action,
+     security-authority expansion, trading or capital authority, or materially
+     changed outcome. Adjacent observations that do not block the requested
+     owner-visible result remain out of scope. This decision supersedes
+     Decision 307 and supporting policy only where they require parallel-first
+     execution or treat routine reversible work as material.

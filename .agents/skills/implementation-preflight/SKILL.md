@@ -1,15 +1,16 @@
 ---
 name: implementation-preflight
-description: Bound material Quant Factory implementation before coding. Use for material executable, runtime, configuration, schema, dependency, dashboard-behavior, or scope changes; skip read-only work and routine factual, copy, or presentation corrections.
+description: Bound Escalated Mode Quant Factory implementation before coding. Use only for genuinely difficult-to-reverse or high-consequence executable, architecture, migration, paid-resource, authority, public-exposure, protected-evidence, trading, capital, or destructive changes. Do not use for Direct Mode routine implementation, bug fixes, UI work, configuration, private operations, redeploys, or other reversible reuse of established architecture.
 ---
 
 # Implementation Preflight
 
-Produce a short implementation boundary before editing executable behavior.
+Produce a short implementation boundary before editing Escalated Mode behavior.
 Do not implement while performing this preflight.
 
-Routine factual documentation, copy, and presentation corrections need only a
-brief scope-and-reuse check, not this full procedure.
+Direct Mode work never uses this procedure. File count, diff size, the words
+`runtime` or `deployment`, and production-like infrastructure do not by
+themselves make a change material.
 
 1. Confirm the canonical repository, accepted `main` base, branch, clean owned
    worktree, and exact owned paths.

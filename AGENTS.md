@@ -51,10 +51,61 @@ accepted evidence when needed to verify product behavior. After handoff, the
 owner initiates or accepts candidate work; the current intraday evidence
 boundaries then apply unless the owner changes them.
 
-## Work-delta gate
+## Default working mode
 
-Before candidate research, implementation, data acquisition, execution work,
-or material delegation, state in no more than six short bullets:
+Quant Factory is a private single-user MVP. The default working sequence is:
+
+**outcome -> reuse -> smallest implementation -> decisive proof -> deliver ->
+stop**
+
+### Direct Mode — default
+
+Use Direct Mode for routine implementation, bug fixes, UI work,
+configuration, private operations, redeploys, and other reversible work that
+reuses established architecture.
+
+In Direct Mode:
+
+- work directly;
+- do not use an adversary or implementation preflight;
+- do not delegate unless genuinely independent substantial work will save more
+  time and cost than coordination consumes;
+- do not perform broad audits, speculative architecture, adjacent cleanup, or
+  repeated unrelated testing;
+- do not create another owner gate for ordinary consequences of already-
+  authorized work; and
+- deliver and stop as soon as decisive evidence proves the requested owner-
+  visible outcome.
+
+### Escalated Mode — exception
+
+Use heavier preflight, review, or independent challenge only when the task
+introduces a genuinely difficult-to-reverse or high-consequence change involving
+one or more of:
+
+- a new architecture, service, or framework;
+- a persistent data or schema migration;
+- paid resources;
+- expansion of credential or secret authority;
+- public network exposure;
+- protected evidence or data boundaries;
+- broker or order capability;
+- paper or live activation;
+- capital or risk controls; or
+- destructive or costly-to-reverse state.
+
+File count, diff size, the words `runtime` or `deployment`, and touching
+production-like infrastructure do not by themselves make work material or move
+it into Escalated Mode.
+
+Owner authorization persists through the authorized task. Ask again only for a
+genuinely new product choice, cost, irreversible action, security-authority
+expansion, trading or capital authority, or materially changed outcome. Do not
+turn adjacent observations into work; if they do not block the requested
+owner-visible result, leave them alone.
+
+Before candidate research, data acquisition, execution work, or other
+Escalated Mode work, state in no more than six short bullets:
 
 - current phase;
 - exact unresolved requirement;
@@ -81,15 +132,18 @@ waiting—not dashboard repair, deployment, broker integration, paper/live work,
 or another candidate family—unless the active milestone explicitly authorizes
 that parallel work or the owner gives a new instruction.
 
-## Parallel-first orchestration
+## Direct-first orchestration
 
-The lead is the sole owner-facing coordinator, but it should **parallelize by
-default when dependencies allow**.
+The lead is the sole owner-facing coordinator and executes directly by
+default. Parallelize only when genuinely independent substantial work produces
+a clear net time or cost benefit after coordination overhead.
 
-- Split independent read-only analysis, audits, research, testing, and bounded
-  implementation into concurrent streams when this reduces wall-clock time.
-- Serialize only genuine dependencies, overlapping writes/state, protected
-  evidence transitions, or work where parallelism would increase risk.
+- Do not delegate simple operations, routine implementation, focused checks,
+  or work the lead can complete faster directly.
+- Split only substantial independent work with non-overlapping scope and a
+  measured reason that parallel execution is beneficial.
+- Serialize dependencies, overlapping writes/state, protected evidence
+  transitions, and work where parallelism would increase risk.
 - Use the cheapest/faster available subagent model that can reliably complete
   each bounded task. Escalate to stronger reasoning models for architecture,
   strategy/evidence judgment, difficult debugging, security, or costly-to-
@@ -102,9 +156,8 @@ default when dependencies allow**.
   independent review is required.
 - Reuse worker findings; the lead must not redo completed analysis merely to
   produce its own version.
-- Optimize for **correctness, wall-clock completion, and token/cost efficiency**
-  together. Do not minimize agent count at the expense of serial bottlenecks,
-  and do not create an uncontrolled agent swarm.
+- Optimize for correctness, owner-visible completion, wall-clock time, and
+  token/cost efficiency together. Coordination is work and must justify itself.
 
 Follow `docs/ai-programming-agent-policy.md` for the detailed procedure.
 
@@ -125,7 +178,7 @@ Follow `docs/ai-programming-agent-policy.md` for the detailed procedure.
 
 ## Reuse before custom implementation
 
-Before material executable, runtime, configuration, schema, dependency, or
+For Escalated Mode executable, runtime, configuration, schema, dependency, or
 dashboard-behavior changes, use
 `.agents/skills/implementation-preflight/SKILL.md`.
 
@@ -139,10 +192,21 @@ an implementation mandate**. Reproduce the required experience using mature
 components and thin adapters; do not rebuild generic charting, grid, docking,
 layout, or component systems.
 
-For a material proposal or closure claim, use
+For an Escalated Mode proposal or closure claim, use
 `.agents/skills/quant-factory-adversary/SKILL.md`. Independent review remains
 required for material evidence/data/ranking/protected-data changes, migrations,
-credentials, deployments, orders/capital, or costly-to-reverse work.
+credential-authority expansion, public exposure, orders/capital, or other
+costly-to-reverse work. Routine private operations and redeploys remain Direct
+Mode.
+
+## Proportional proof
+
+- Operational change: verify revision, health, and reachability.
+- Isolated code or UI change: run focused affected tests.
+- Shared core change: run relevant integration tests.
+- Run the full suite only when core/shared behavior changed, CI requires it, or
+  focused proof is insufficient.
+- Do not duplicate already-required CI merely for reassurance.
 
 ## Research and evidence
 

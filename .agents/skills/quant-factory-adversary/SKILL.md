@@ -1,12 +1,16 @@
 ---
 name: quant-factory-adversary
-description: Challenge a material Quant Factory proposal or closure claim for goal drift, unsupported evidence, excess cost, and missed reuse. Use for priority, scope, architecture, dependency, strategy/evidence boundary, deployment, trading-authority, beta, milestone, or edge-readiness decisions; not routine facts or housekeeping.
+description: Challenge an Escalated Mode Quant Factory proposal or closure claim for goal drift, unsupported evidence, excess cost, and missed reuse. Use only for genuinely difficult-to-reverse or high-consequence architecture, migration, paid-resource, credential-authority, public-exposure, protected-evidence, broker/order, paper/live, capital/risk, destructive-state, milestone, or edge-readiness decisions. Do not use for Direct Mode routine implementation, bug fixes, UI work, configuration, private operations, redeploys, or reversible reuse of established architecture.
 ---
 
 # Quant Factory Adversary
 
 Argue against the proposal before it proceeds. Return argument, never a
 verdict, approval, rejection, score, implementation, or new gate.
+
+Direct Mode work does not invoke this skill. File count, diff size, the words
+`runtime` or `deployment`, and touching production-like infrastructure do not
+by themselves make work material.
 
 When delegation is available, the lead assigns this check to a separate
 read-only Codex subagent. The adversary does not contact the owner or spawn
