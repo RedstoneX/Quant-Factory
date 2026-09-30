@@ -285,6 +285,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                                     figure=_research_landscape_figure(rows),
                                     config=_GRAPH_CONFIG,
                                     className="atlas-graph atlas-graph-large",
+                                    style={"height": "320px"},
                                 ),
                                 panel_class="atlas-landscape-panel atlas-panel-dark",
                             ),
@@ -295,6 +296,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                                     figure=_generalization_figure(rows),
                                     config=_GRAPH_CONFIG,
                                     className="atlas-graph atlas-graph-large",
+                                    style={"height": "320px"},
                                 ),
                             ),
                         ],
@@ -317,6 +319,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                                     figure=_evidence_survival_figure(rows),
                                     config=_GRAPH_CONFIG,
                                     className="atlas-graph atlas-graph-compact",
+                                    style={"height": "235px"},
                                 ),
                             ),
                             _readiness_panel(model.datasets, model.health, model.as_of),
@@ -913,6 +916,7 @@ def _readiness_panel(
                 figure=_data_readiness_figure(datasets, as_of),
                 config=_GRAPH_CONFIG,
                 className="atlas-graph atlas-readiness-graph",
+                style={"height": "172px"},
             ),
             html.Div(
                 [
@@ -1034,6 +1038,7 @@ def _research_stops_panel(
                 figure=_research_stops_figure(rows),
                 config=_GRAPH_CONFIG,
                 className="atlas-graph atlas-stops-graph",
+                style={"height": "145px"},
             ),
             html.Div(
                 [html.Div([html.H3("Needs You"), html.Span(str(_needs_count(model)))], className="atlas-needs-heading"), *actions],
