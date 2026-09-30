@@ -428,6 +428,104 @@ def _table_rows(document: Any, key: str) -> tuple[dict[str, Any], ...]:
     return tuple(row for row in rows if isinstance(row, dict))
 
 
+def _candidate_trade_rows(document: Any) -> tuple[dict[str, Any], ...]:
+    """Normalize canonical and preserved candidate trade ledgers for the UI."""
+
+    canonical = _table_rows(document, "trades")
+    if canonical or not isinstance(document, dict) or "trades" in document:
+        return canonical
+
+    manual = _table_rows(document, "manual_trades")
+    if manual or "manual_trades" in document:
+        contract_count = document.get("contract_count")
+        normalized: list[dict[str, Any]] = []
+        for row in manual:
+            aliases = {
+                "Entry Index": row.get("entry_timestamp"),
+                "Exit Index": row.get("exit_timestamp"),
+                "Avg Entry Price": row.get("entry_fill"),
+                "Avg Exit Price": row.get("exit_fill"),
+                "Entry Fees": row.get("fee_per_side"),
+                "Exit Fees": row.get("fee_per_side"),
+                "PnL": row.get("net_pnl"),
+                "Direction": row.get("direction"),
+                "Status": "Closed",
+                "Size": contract_count,
+            }
+            normalized.append(
+                {
+                    **row,
+                    **{
+                        key: value
+                        for key, value in aliases.items()
+                        if value not in (None, "")
+                    },
+                }
+            )
+        return tuple(normalized)
+
+    return _table_rows(document, "vectorbt_trades")
+
+
+def _candidate_order_rows(document: Any) -> tuple[dict[str, Any], ...]:
+    """Normalize canonical and preserved VectorBT candidate order ledgers."""
+
+    canonical = _table_rows(document, "orders")
+    if canonical or not isinstance(document, dict) or "orders" in document:
+        return canonical
+    return _table_rows(document, "vectorbt_orders")
+
+
+def _validated_equity_curve(
+    document: Any,
+    *,
+    warnings: list[str],
+) -> tuple[dict[str, Any], ...]:
+    """Return validated equity rows with the dashboard's canonical ``value`` key."""
+
+    if not isinstance(document, dict) or "equity_curve" not in document:
+        return ()
+    rows = document.get("equity_curve")
+    if not isinstance(rows, list):
+        warnings.append("Artifact equity_curve field equity_curve is not a list.")
+        return ()
+
+    normalized: list[dict[str, Any]] = []
+    for index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            warnings.append(
+                f"Artifact equity_curve field equity_curve row {index} is not an object."
+            )
+            return ()
+        if not _valid_timestamp(row.get("timestamp")):
+            warnings.append(
+                f"Artifact equity_curve field equity_curve row {index} has an invalid timestamp."
+            )
+            return ()
+
+        canonical_value = row.get("value")
+        preserved_value = row.get("equity")
+        if canonical_value is not None and preserved_value is not None:
+            if (
+                not _valid_number(canonical_value)
+                or not _valid_number(preserved_value)
+                or float(canonical_value) != float(preserved_value)
+            ):
+                warnings.append(
+                    "Artifact equity_curve field equity_curve row "
+                    f"{index} has conflicting value and equity."
+                )
+                return ()
+        value = canonical_value if canonical_value is not None else preserved_value
+        if not _valid_number(value):
+            warnings.append(
+                f"Artifact equity_curve field equity_curve row {index} has invalid value."
+            )
+            return ()
+        normalized.append({**row, "value": value})
+    return tuple(normalized)
+
+
 def _valid_timestamp(value: Any) -> bool:
     if not isinstance(value, str) or not value.strip():
         return False
@@ -668,7 +766,7 @@ def _evidence_view(
     source_interval = _canonical_interval(
         provenance_doc.get("interval") if isinstance(provenance_doc, dict) else None
     )
-    equity_curve = _table_rows(equity_doc, "equity_curve")
+    equity_curve = _validated_equity_curve(equity_doc, warnings=warnings)
     price_series = _validated_series_rows(
         equity_doc,
         "price_series",
@@ -785,8 +883,8 @@ def _evidence_view(
                 else None
             ),
         ),
-        trades=_table_rows(trades_doc, "trades"),
-        orders=_table_rows(trades_doc, "orders"),
+        trades=_candidate_trade_rows(trades_doc),
+        orders=_candidate_order_rows(trades_doc),
         equity_curve=equity_curve,
         drawdown_curve=_drawdown_curve(equity_curve),
         validation_outcome=validation_outcome,
