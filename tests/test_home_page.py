@@ -251,10 +251,11 @@ def test_home_shows_edge_discovery_status() -> None:
     assert model.milestone.startswith("Milestone 26")
     assert model.milestone_status == (
         "Backend completion is recorded. One fixed 09:35–10:00 MES overnight-gap reversal "
-        "proposal is predeclared and awaits explicit owner acceptance before execution."
+        "development screen is owner-accepted and implemented but has not run."
     )
     assert "Backend completion is recorded" in discovery
-    assert "MES proposal is untested" in discovery
+    assert "MES screen has no result" in discovery
+    assert "credentialed symbology preflight" in discovery
     assert "out of scope for the current day-trading mandate" in discovery
     assert "not accepted as the long-term operator interface" in discovery
     assert "paper execution, and live trading remain deferred" in discovery

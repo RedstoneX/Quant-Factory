@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **310** | **MES screen accepted:** execute the fixed, parameterless 09:35–10:00 MES overnight-gap reversal development screen exactly once under its predeclared data, mapping, cost, accounting, and pass/fail boundaries; stop after the result without automatic promotion. |
 | **309** | **Intraday mission clarification:** active edge discovery is day trading only—same-session entry/exit, minutes-to-hours holding, no overnight or multi-day carry. Turn-of-month is retained but out of scope. Existing licensed VectorBT Pro must be located/reused before treating a checkout-local absence as a blocker. |
 | 308 | Backend completion correction satisfied: the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under Decision 309's intraday bounds. |
 | 307 | Backend-first product reset remains in force, but Decision 308 corrects its premature activation of edge discovery. Dashboard repair still follows a promising edge or measured UI blocker; parallel-first orchestration and consolidated authority remain. |
@@ -1422,3 +1423,32 @@ superseded.
      turn-of-month proposal status are updated to remove ambiguity. No strategy
      code, data acquisition, backtest, protected evidence, broker capability,
      deployment, credential, paper order, or capital authority changes here.
+
+
+310. **Accept the fixed MES overnight-gap reversal development screen
+     (accepted 2026-09-29).** Terry accepts the single bounded R11 proposal in
+     `docs/strategies/mes-overnight-gap-reversal.md` exactly as predeclared.
+     Codex is authorized to implement and execute that one development screen
+     using the project's verified existing VectorBT Pro runtime and owned MES
+     data under the existing Tier 1 authority and evidence boundaries.
+
+     The hypothesis, parameterlessness, 2019-05-06 through 2023-12-29
+     development sessions, predicate-bounded pre-2024 data load, complete
+     Databento `MES.c.0` mapping requirement, roll and early-close exclusions,
+     09:35 entry, 10:00 exit, one-contract sizing, fees, one-tick-per-side
+     slippage, daily accounting, and conjunctive pass/fail criteria are fixed.
+     They must not be changed in response to the result.
+
+     The screen stops after either outcome. A rejection ends this candidate.
+     A pass only retains it for a separately predeclared chronological
+     validation decision; it does not automatically start OOS, walk-forward,
+     robustness, Monte Carlo, protected testing, execution-vehicle work,
+     deployment, paper/live orders, or capital exposure. No result is accepted
+     by this decision because the screen had not yet run.
+
+     Documentation impact: `docs/MILESTONES.md`, README.md,
+     `dashboard/project_status.py`, the MES proposal, and focused status tests
+     are aligned with the acceptance. Candidate-local strategy, bounded data
+     loading, licensed-engine cross-check, durable screening-only launch, and
+     evidence persistence may be implemented without a generic runtime,
+     schema, dependency, dashboard, broker, deployment, or capital change.

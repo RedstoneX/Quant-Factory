@@ -16,11 +16,12 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_title="Intraday Edge Discovery and Candidate Selection",
     current_milestone_status=(
         "Backend completion is recorded. One fixed 09:35–10:00 MES overnight-gap reversal "
-        "proposal is predeclared and awaits explicit owner acceptance before execution."
+        "development screen is owner-accepted and implemented but has not run."
     ),
     strategy_status=(
-        "The MES proposal is untested and has no edge status or authority to run. The SPY "
-        "turn-of-month proposal remains out of scope for the current day-trading mandate."
+        "The MES screen has no result and awaits its externally credentialed symbology "
+        "preflight. The SPY turn-of-month proposal remains out of scope for the current "
+        "day-trading mandate."
     ),
     workspace_status=(
         "The current dashboard is not accepted as the long-term operator interface. "

@@ -68,6 +68,8 @@ jobs:
           --junitxml=portable-test-results.xml
           tests/test_ci_portable_imports.py
           tests/test_candidate_pipeline_runtime.py
+          tests/test_mes_overnight_gap_reversal.py
+          tests/test_mes_overnight_gap_reversal_durable.py
           tests/test_mes_orb_durable_screening.py
           tests/test_results_model.py
           tests/test_results_beta_layout.py

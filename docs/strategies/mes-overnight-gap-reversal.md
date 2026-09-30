@@ -10,8 +10,8 @@ not another opening-range breakout, late-day momentum transfer, RSI/Donchian
 variant, or calendar hold. The repository prior-work audit found no earlier
 Quant Factory overnight-gap reversal proposal, implementation, or result.
 
-The experiment has not run and has no result. This specification does not
-satisfy the owner's candidate-approval gate. A future development pass would
+Decision 310 records the owner's acceptance of this exact single development
+screen. The experiment has not run and has no result. A development pass would
 only retain the candidate for separately predeclared chronological validation;
 it would not establish an edge, spend protected evidence, qualify an options
 implementation, or authorize deployment, paper/live orders, or capital.
@@ -151,9 +151,9 @@ coverage. No win-rate threshold applies. Any failure rejects the candidate and
 stops. A pass does not automatically start OOS, walk-forward, robustness,
 Monte Carlo, protected testing, execution-vehicle work, or trading.
 
-## Reuse boundary after owner approval
+## Reuse boundary under owner approval
 
-Only after explicit owner acceptance may implementation reuse the verified
+Decision 310 authorizes implementation to reuse the verified
 licensed VectorBT Pro 2026.4.7 environment, manifest validation, NYSE calendar,
 screening, durable persistence, and generic candidate runtime. Custom work is
 limited to a candidate-local predicate-bounded loader, signal/price adapter,

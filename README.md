@@ -19,7 +19,7 @@ as the long-term operating interface. Its successful chart-first prototype and
 Find & Compare research remain UX references. Dashboard repair resumes after a
 promising edge exists or sooner if the UI becomes a measured research blocker.
 
-Current research is restricted to **intraday/day-trading directional edges** in S&P 500 and Nasdaq-100 markets: minutes-to-hours holding, flat by the strategy's defined session boundary, and no overnight or multi-day carry. One fixed 09:35–10:00 MES overnight-gap reversal development-screen proposal now awaits explicit owner acceptance; it has not been implemented or run. The SPY turn-of-month idea remains out of scope. Existing MES/MNQ data and the located licensed VectorBT Pro runtime should be reused, with any surviving signal later validated on the intended SPY/QQQ/index underlying.
+Current research is restricted to **intraday/day-trading directional edges** in S&P 500 and Nasdaq-100 markets: minutes-to-hours holding, flat by the strategy's defined session boundary, and no overnight or multi-day carry. Decision 310 accepts one fixed 09:35–10:00 MES overnight-gap reversal development screen. Its candidate-local screening-only adapter is implemented, but the screen has not run and awaits its required externally credentialed symbology preflight. The SPY turn-of-month idea remains out of scope. Existing MES/MNQ data and the located licensed VectorBT Pro runtime must be reused, with any surviving signal later validated on the intended SPY/QQQ/index underlying.
 
 No paid market-data acquisition, options execution adapter, futures broker
 stack, deployment, paper activation, or live-capital work is justified until a
