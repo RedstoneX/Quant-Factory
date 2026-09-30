@@ -19,6 +19,7 @@ remain outside Git.
 
 ## Public service references
 
+- Bitwarden Agent Access: <https://github.com/bitwarden/agent-access>
 - Plotly Dash: <https://dash.plotly.com/>
 - Plotly: <https://plotly.com/python/>
 - Prefect: <https://docs.prefect.io/>
@@ -28,8 +29,18 @@ remain outside Git.
 
 ## Credentials
 
-Only variable names and public templates belong in the repository. The current
-paper examples use `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`; values must be
-injected through the approved external gateway. Paper and live credentials are
-separate, agents never receive unrestricted vault access, and withdrawal
-permissions are prohibited.
+The dedicated owner-controlled Quant Factory Bitwarden Password Manager vault
+is the credential source of truth. Only variable names and public templates
+belong in the repository. Official Bitwarden Agent Access (`aac`) selects an
+exact approved item and injects mapped fields into a reviewed child process
+with `aac run`; it must not return unrestricted vault output or persist a value
+in a dotenv file. The client receives the selected full record transiently, and
+pairing is not restricted to one item or command, so the client/provider is a
+vault-reading trust boundary rather than a per-item capability.
+
+Current provider examples use `DATABENTO_API_KEY`. Dormant paper examples use
+`APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`. Their values remain separate vault
+items. Research, paper, and live use are separate authority domains and require
+separately proven provider/vault-access and OS privilege boundaries before
+activation. Withdrawal permissions are prohibited.
+See [`operations/bitwarden-agent-access.md`](operations/bitwarden-agent-access.md).

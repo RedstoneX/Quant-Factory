@@ -81,8 +81,9 @@ the observation and revoked identity under one correlation fingerprint. The
 module has no live transport or process capability. Its deterministic evidence
 schema excludes raw identities and credentials and cannot convert observer
 health into reconciliation or deployment readiness.
-The operator-controlled OneCLI bootstrap, dedicated paper-credential import and
-reviewed target adapter remain external prerequisites.
+An operator-controlled Bitwarden Agent Access paper provider with separately
+scoped vault access and OS privilege, exact item selection, and a reviewed
+target adapter remain external prerequisites.
 
 Runtime publication is Linux-specific and requires
 `renameat2(RENAME_NOREPLACE)`. Missing or unsupported support fails closed;
@@ -150,8 +151,8 @@ The required `PaperDeploymentBinding` is checked against journal metadata and
 intent scope. These checks are local assertions; the attestation reference
 only identifies external evidence and is not verified here. They do not verify
 the actual broker account, destination, credential isolation, or authority to
-trade. ADR 0010 proof and execution-ownership checks remain required before
-credential use or actual broker access.
+trade. ADR 0012 Agent Access proof and execution-ownership checks remain
+required before credential use or actual broker access.
 
 Before creating or claiming an intent, the boundary rejects unsupported inputs.
 Exact decimal strings retain all supplied digits independently of arithmetic

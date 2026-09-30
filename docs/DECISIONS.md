@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **311** | **Quant Factory credential authority corrected:** the dedicated owner-controlled Bitwarden Password Manager vault is the durable source of truth, and official Bitwarden Agent Access (`aac`) is the selected agent access mechanism. This supersedes Decision 269 and ADR 0010 as current architecture. |
 | **310** | **MES screen accepted:** execute the fixed, parameterless 09:35–10:00 MES overnight-gap reversal development screen exactly once under its predeclared data, mapping, cost, accounting, and pass/fail boundaries; stop after the result without automatic promotion. |
 | **309** | **Intraday mission clarification:** active edge discovery is day trading only—same-session entry/exit, minutes-to-hours holding, no overnight or multi-day carry. Turn-of-month is retained but out of scope. Existing licensed VectorBT Pro must be located/reused before treating a checkout-local absence as a blocker. |
 | 308 | Backend completion correction satisfied: the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under Decision 309's intraday bounds. |
@@ -26,7 +27,9 @@ only when a task needs their evidence or rationale.
 | 276 | Independent green pull requests may proceed without strict up-to-date rebuilding; overlapping/dependent work remains serialized. |
 | 275 | `RedstoneX/Quant-Factory` is the canonical forward repository. |
 
-Where an older decision conflicts with Decision 309 on active research mission fit or VectorBT-Pro availability handling, Decision 309 controls. Decision 308 controls backend-completion sequencing. Otherwise Decision 307 controls priority, dashboard usability status, and orchestration as previously recorded. Older
+Decision 311 controls credential source and agent access, superseding Decision
+269 and ADR 0010 as current architecture while retaining their evidence as
+history. Where an older decision conflicts with Decision 309 on active research mission fit or VectorBT-Pro availability handling, Decision 309 controls. Decision 308 controls backend-completion sequencing. Otherwise Decision 307 controls priority, dashboard usability status, and orchestration as previously recorded. Older
 technical evidence and safety constraints remain valid unless explicitly
 superseded.
 
@@ -1452,3 +1455,53 @@ superseded.
      loading, licensed-engine cross-check, durable screening-only launch, and
      evidence persistence may be implemented without a generic runtime,
      schema, dependency, dashboard, broker, deployment, or capital change.
+
+
+311. **Restore Bitwarden as Quant Factory credential authority and select
+     official Agent Access (accepted 2026-09-30).** Terry corrects the retained
+     credential history and architecture: the owner-controlled Bitwarden vault
+     dedicated to Quant Factory is, and has been, the durable source of truth
+     for this project's provider, broker, and service credentials. It is not a
+     personal vault and must not be conflated with another project's credential
+     deployment.
+
+     Official Bitwarden Agent Access (`aac`) is the selected mechanism for
+     agent use of those Password Manager items. It is the Bitwarden-built agent
+     protocol and CLI originally used with OpenClaw: an owner-controlled trusted
+     provider pairs to the remote client, sessions are cached for reuse, exact
+     credentials can be selected by item ID or domain, and `aac run` injects
+     mapped fields into the approved child-process environment without printing
+     or writing the value. The client nevertheless receives the selected full
+     credential record transiently, pairing does not restrict it to one item or
+     command, and it can query other items visible to the provider when the
+     provider approves. Interactive `bw` unlock sessions, Bitwarden
+     Secrets Manager migration, repository or host dotenv files, and unrelated
+     credential gateways are not current Quant Factory substitutes.
+
+     Implementation must pin and verify the upstream release; initialize
+     `~/.access-protocol` under `umask 077`; enforce directory mode `0700` and
+     file mode `0600`; confine cached session/key material to that private state;
+     keep master passwords, `BW_SESSION`, pairing tokens, item values, and
+     unrestricted vault output out of prompts, Git, logs, and artifacts; prefer
+     exact item IDs in external config; use field-to-environment injection for
+     the reviewed command; and fail closed when the trusted provider, pairing,
+     item, or field is unavailable. Research, paper, and live use remain
+     separate authority domains. Because a pairing is not an item-scoped
+     capability, paper/live activation requires a separately proven
+     provider/vault-access boundary rather than reusing the research pairing as
+     technical isolation.
+
+     Agent Access is currently upstream early-preview software. Cached pairing
+     is persistent access state, but it does not make the trusted provider
+     permanently available or eliminate provider-side approval behavior.
+     Release or protocol upgrades require source/version verification and
+     focused regression proof. No claim of unattended or reboot-persistent
+     access may be made until the deployed provider lifecycle proves it.
+
+     This decision supersedes Decision 269, ADR 0010, and statements that
+     exclude the dedicated Quant Factory Bitwarden vault from project
+     architecture. Their implementation and security evidence remains
+     historical. It authorizes the bounded documentation and host integration
+     needed to restore Agent Access and use the existing Databento item for
+     Decision 310's free symbology preflight. It does not authorize paid data,
+     a strategy change, paper/live activation, orders, or capital exposure.

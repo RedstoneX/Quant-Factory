@@ -1,5 +1,10 @@
 # Isolated OneCLI v2.4 configuration proof
 
+> **HISTORICAL / SUPERSEDED — DO NOT DEPLOY FOR QUANT FACTORY.** Decision 311
+> and ADR 0012 select the dedicated Quant Factory Bitwarden vault and official
+> Bitwarden Agent Access. This directory remains only as historical synthetic
+> proof evidence.
+
 This directory defines a fresh synthetic OneCLI stack for ADR 0010 testing. It
 is not an upgrade procedure, does not attach existing state, and does not
 authorize real credential use, broker access, orders, or agent activation.

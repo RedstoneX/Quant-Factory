@@ -1,15 +1,17 @@
-# Credential Gateway Runbook
+# Historical Credential-Gateway Evidence
 
-> **Deferred under Decision 307:** Credential-gateway runtime work is not the
-> current research queue. Use this procedure when an approved authenticated
-> integration or qualified paper candidate requires it; all isolation and
-> fail-closed requirements remain authoritative.
+> **Superseded by Decision 311 and ADR 0012. Do not deploy this gateway for
+> Quant Factory.** This file preserves earlier evaluation requirements and
+> evidence only. Current credential procedure is
+> [`bitwarden-agent-access.md`](bitwarden-agent-access.md); current work and
+> status remain in [`docs/MILESTONES.md`](../MILESTONES.md).
 
 ## Boundary
 
-OneCLI is the selected first credential gateway, subject to ADR 0010. This
-runbook never accepts raw secret values. Use only public templates, restricted
-identities, fixed destinations and operations, and value-free evidence.
+The text below describes the superseded ADR 0010 gateway proof. It never
+authorizes current deployment or real credential use. Its general requirements
+for least privilege, fail-closed behavior, redacted evidence, and separate
+paper/live credentials remain useful historical security evidence.
 
 Required flow:
 

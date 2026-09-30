@@ -1,4 +1,9 @@
-"""Independently runnable, read-only paper account observer and private health API."""
+"""Historical OneCLI paper observer; superseded and not approved to deploy.
+
+Decision 311 and ADR 0012 replaced its credential transport. Retain this dormant
+implementation as evidence only until the paper milestone provides and reviews a
+replacement Bitwarden Agent Access boundary.
+"""
 from __future__ import annotations
 
 import argparse

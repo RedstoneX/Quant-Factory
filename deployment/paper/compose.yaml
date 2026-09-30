@@ -1,3 +1,4 @@
+# HISTORICAL / SUPERSEDED: do not deploy; see deployment/paper/README.md.
 name: quant-factory-paper-observer
 services:
   paper-observer:

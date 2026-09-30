@@ -157,6 +157,26 @@ credentials, deployments, orders/capital, or costly-to-reverse work.
 
 ## Credentials, execution, and capital
 
+The dedicated owner-controlled Quant Factory Bitwarden Password Manager vault
+is the durable source of truth for project credentials. Official Bitwarden
+Agent Access (`aac`) is the standard agent access path: use a pinned verified
+release, an owner-controlled trusted credential provider, a cached paired
+session, exact item-ID selection where available, and `aac run` field-to-
+environment injection into a reviewed child process. Pairing is not an item- or
+command-scoped authorization boundary: the client transiently receives the full
+selected credential record and can query any item the trusted provider can
+access when the provider approves. Initialize Agent Access state under `umask
+077`, require its directory and files—including cached key material—to remain
+private, and fail closed if the provider, pairing, item match, or requested
+field is unavailable. Only cached Agent Access session/PSK material may persist
+in that protected state. A Bitwarden master password, `BW_SESSION`, pairing
+token, credential value, and unrestricted vault output must never persist there
+or elsewhere and may exist only in the process-memory boundary that requires
+them. Interactive Password Manager CLI sessions, repository or host dotenv
+files, and another project's credential gateway are not substitutes for this
+standard. Agent Access is early-preview software, so upgrades require pinned
+source/version verification and focused regression proof before use.
+
 Paper activation requires a qualified edge plus the current account,
 credential, endpoint, worker, idempotency, reconciliation, recovery, capacity,
 audit, and fail-closed gates. Paper and live credentials/state/deployments stay

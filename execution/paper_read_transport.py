@@ -1,4 +1,9 @@
-"""GET-only paper observations through an explicit restricted OneCLI capability."""
+"""Historical OneCLI paper transport; superseded and not deployment authority.
+
+Decision 311 and ADR 0012 replaced the credential architecture. Do not run this
+transport against real credentials. Retain it only as dormant implementation
+evidence until the paper milestone defines and reviews a replacement boundary.
+"""
 from __future__ import annotations
 
 import base64
