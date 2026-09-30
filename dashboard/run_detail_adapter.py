@@ -338,6 +338,11 @@ def _parameter_result_evidence_state(
                 "evidence-invalid",
                 "the immutable manifest expects a parameter-results artifact that is missing from the registry.",
             )
+        if not persisted_rows:
+            return (
+                "database-persisted",
+                "No persisted parameter-result rows or artifacts are recorded for this run.",
+            )
         if retrieval is None:
             return (
                 "evidence-invalid",
