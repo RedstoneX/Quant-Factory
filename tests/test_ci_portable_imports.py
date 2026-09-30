@@ -46,6 +46,7 @@ def test_stored_evidence_interfaces_import_without_vectorbtpro() -> None:
                 "from dashboard import SelectedPortfolioData; "
                 "from persistence import PersistenceService; "
                 "from backtesting.experiments import ExperimentConfig; "
+                "from backtesting.run_mes_overnight_gap_reversal_durable import launch_mes_screen; "
                 "from strategies import get_strategy; "
                 "assert 'vectorbtpro' not in sys.modules"
             ),
