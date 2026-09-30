@@ -66,6 +66,12 @@ genuinely new hypothesis or independent-evidence need.
 Stop a slice when the decisive question is answered. More possible work is not
 a reason to continue.
 
+When `docs/MILESTONES.md` records an explicit owner gate or blocked owner
+decision, **stop there**. Do not substitute deferred or later-phase work while
+waiting—not dashboard repair, deployment, broker integration, paper/live work,
+or another candidate family—unless the active milestone explicitly authorizes
+that parallel work or the owner gives a new instruction.
+
 ## Parallel-first orchestration
 
 The lead is the sole owner-facing coordinator, but it should **parallelize by
