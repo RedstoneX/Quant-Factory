@@ -725,8 +725,16 @@ def _evidence_survival_figure(rows: tuple[dict[str, object], ...]) -> go.Figure:
         go.Sankey(
             arrangement="snap",
             node={"label": labels, "color": colors, "pad": 13, "thickness": 13, "line": {"color": "#ffffff", "width": 1}},
-            link={"source": sources, "target": targets, "value": values, "color": link_colors},
-            hovertemplate="%{source.label} → %{target.label}<br>%{value} candidate(s)<extra></extra>",
+            link={
+                "source": sources,
+                "target": targets,
+                "value": values,
+                "color": link_colors,
+                "hovertemplate": (
+                    "%{source.label} → %{target.label}<br>"
+                    "%{value} candidate(s)<extra></extra>"
+                ),
+            },
         )
     )
     return figure
