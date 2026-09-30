@@ -7,7 +7,7 @@ import hashlib
 import re
 from inspect import Parameter, signature
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import parse_qsl
 
 from dash import Dash, Input, Output, State, ctx, html, no_update
@@ -29,7 +29,6 @@ from dashboard.application import (
     _preferred_backtest_id,
     _recent_events_panel,
     _recent_runs_panel,
-    _run_action_availability,
     _run_detail_panel,
     _results_report_tabs,
     _results_operator_context,
@@ -53,7 +52,12 @@ from orchestration import (
     RunSummary,
     new_research_launch_key,
 )
-from persistence import ResearchLaunchOperation, ResearchSubmissionState, canonical_json
+from persistence import (
+    PersistenceService,
+    ResearchLaunchOperation,
+    ResearchSubmissionState,
+    canonical_json,
+)
 
 
 OWNED_STATE = {
@@ -476,9 +480,39 @@ def register_backtest_results_callbacks(
     readiness_by_id: dict[str, ConfigurationReadinessView],
     dashboard_database: str | Path,
     artifact_root: Path,
-    research_launches: DurableResearchLaunchService,
+    research_launches: DurableResearchLaunchService | None = None,
+    approved_configuration_launcher: Callable[..., object] | None = None,
+    reproduce_run: Callable[..., object] | None = None,
+    cancel_run: Callable[[str], RunSummary] | None = None,
+    run_operation_eligibility: Callable[[str, RunSummary], tuple[bool, str]] | None = None,
 ) -> None:
     """Register Run test and Results callbacks within their page boundaries."""
+
+    research_launches = research_launches or DurableResearchLaunchService(
+        database=dashboard_database
+    )
+
+    def operation_eligibility(operation: str, run: RunSummary | None) -> tuple[bool, str]:
+        if run is None:
+            return False, "Select a persisted run first."
+        if run_operation_eligibility is not None:
+            allowed, reason = run_operation_eligibility(operation, run)
+            if allowed and operation == "reproduce" and run.stage == "screening":
+                service = PersistenceService(dashboard_database)
+                try:
+                    rows = service.results.list_parameter_results(run.run_id)
+                finally:
+                    service.close()
+                if rows and all(row.screening_status == "screened_out" for row in rows):
+                    return False, "Terminal rejected screening runs cannot be reproduced."
+            return bool(allowed), str(reason)
+        if run.stage != "fixture":
+            return False, "This run type has no connected operator action."
+        if operation == "reproduce":
+            return run.status == "succeeded", "Only succeeded fixture runs can be reproduced."
+        if operation == "cancel":
+            return run.status == "running", "Only running fixture runs can be cancelled."
+        return False, "Unsupported run operation."
 
     @app.callback(
         Output("run-configuration-preview", "children"),
@@ -507,6 +541,7 @@ def register_backtest_results_callbacks(
         Input("selected-configuration-state", "data"),
         State("run-test-launch-state", "data"),
         State("url", "pathname"),
+        Input("refresh-runs", "n_clicks"),
         running=[
             (Output("launch-run", "disabled"), True, True),
             (Output("launch-run", "children"), "Starting test...", "Run test"),
@@ -517,6 +552,7 @@ def register_backtest_results_callbacks(
         configuration_id: str | None,
         launch_state: object = None,
         pathname: str | None = "/research/run-test",
+        _refresh_n_clicks: int | None = None,
     ):
         triggered_id = _callback_triggered_id()
         explicit_action = triggered_id == "launch-run" and bool(n_clicks)
@@ -535,7 +571,9 @@ def register_backtest_results_callbacks(
         )
         readiness = readiness_by_id.get(selected.configuration_id) if selected else None
         allowed = selected is not None and readiness is not None and readiness.ready
-        supported = _durable_launch_supported(runs, ResearchLaunchOperation.RUN_TEST.value)
+        supported = approved_configuration_launcher is not None or _durable_launch_supported(
+            runs, ResearchLaunchOperation.RUN_TEST.value
+        )
         store, store_error = _launch_store(
             launch_state,
             operation=ResearchLaunchOperation.RUN_TEST.value,
@@ -573,17 +611,24 @@ def register_backtest_results_callbacks(
                 store_error = "No valid prepared run ticket is available."
             else:
                 try:
-                    runs.launch_fixture(
-                        configuration_id=selected.configuration_id,
-                        idempotency_key=intent["idempotency_key"],
-                        operation=ResearchLaunchOperation.RUN_TEST,
-                        source_run_id=None,
-                        source_lineage=None,
-                    )
+                    if approved_configuration_launcher is not None:
+                        approved_configuration_launcher(
+                            configuration_id=selected.configuration_id,
+                            idempotency_key=intent["idempotency_key"],
+                        )
+                    else:
+                        runs.launch_fixture(
+                            configuration_id=selected.configuration_id,
+                            idempotency_key=intent["idempotency_key"],
+                            operation=ResearchLaunchOperation.RUN_TEST,
+                            source_run_id=None,
+                            source_lineage=None,
+                        )
                 except (
                     ResearchLaunchError,
                     KeyError,
                     ValueError,
+                    RuntimeError,
                     RunServiceError,
                 ) as exc:
                     launch_error = exc
@@ -595,6 +640,13 @@ def register_backtest_results_callbacks(
                 if claimed_submission is not None:
                     store = _record_claimed_intent(store, intent)
                     submission = claimed_submission
+                    if submission.state in {
+                        ResearchSubmissionState.CLAIMED,
+                        ResearchSubmissionState.INVOKING,
+                    }:
+                        launch_error = ResearchLaunchError(
+                            "The launcher returned before durable Prefect acknowledgement."
+                        )
                 elif launch_error is None:
                     launch_error = ResearchLaunchError(
                         "The launcher returned without creating a durable claim."
@@ -617,17 +669,25 @@ def register_backtest_results_callbacks(
             title = store_error
             label = "Run ticket conflict"
         elif submission is not None:
-            message = _durable_launch_summary(submission, run)
-            message_class = (
-                "save-message error-state"
-                if submission.state
-                in {
-                    ResearchSubmissionState.SUBMISSION_UNKNOWN,
-                    ResearchSubmissionState.FAILED_BEFORE_SUBMISSION,
-                    ResearchSubmissionState.ABANDONED,
-                }
-                else "save-message"
-            )
+            if launch_error is not None:
+                message = _operator_message(
+                    "Run launch acknowledgement is incomplete.",
+                    str(launch_error),
+                    tone="warning",
+                )
+                message_class = "save-message warning-state"
+            else:
+                message = _durable_launch_summary(submission, run)
+                message_class = (
+                    "save-message error-state"
+                    if submission.state
+                    in {
+                        ResearchSubmissionState.SUBMISSION_UNKNOWN,
+                        ResearchSubmissionState.FAILED_BEFORE_SUBMISSION,
+                        ResearchSubmissionState.ABANDONED,
+                    }
+                    else "save-message"
+                )
         elif launch_error is not None:
             message = _operator_message(
                 "Run launch did not start.",
@@ -858,10 +918,12 @@ def register_backtest_results_callbacks(
             source_run = None
         configuration_id = source_run.configuration_id if source_run else None
         source_submission = research_launches.get_for_run(run_id) if run_id else None
-        allowed = source_run is not None and source_run.status == "succeeded"
+        allowed, eligibility_reason = operation_eligibility("reproduce", source_run)
         if source_submission is not None and source_submission.state == ResearchSubmissionState.SUBMISSION_UNKNOWN:
             allowed = False
-        supported = _durable_launch_supported(runs, ResearchLaunchOperation.REPRODUCTION.value)
+        supported = reproduce_run is not None or _durable_launch_supported(
+            runs, ResearchLaunchOperation.REPRODUCTION.value
+        )
         store, store_error = _launch_store(
             launch_state,
             operation=ResearchLaunchOperation.REPRODUCTION.value,
@@ -898,7 +960,8 @@ def register_backtest_results_callbacks(
                 store_error = "No valid prepared reproduction ticket is available."
             else:
                 try:
-                    runs.reproduce_fixture_run(
+                    launcher = reproduce_run or runs.reproduce_fixture_run
+                    launcher(
                         run_id,
                         artifact_root=artifact_root,
                         idempotency_key=intent["idempotency_key"],
@@ -950,7 +1013,7 @@ def register_backtest_results_callbacks(
             message = "Durable reproduction is unavailable; the legacy launcher is disabled."
             message_class = "reproduction-message error-state"
         elif not allowed:
-            message = "Select a succeeded persisted run before requesting reproduction."
+            message = eligibility_reason
             message_class = "reproduction-message"
         else:
             message = "Reproduction creates one durable run ticket linked to the original."
@@ -1036,16 +1099,7 @@ def register_backtest_results_callbacks(
     ):
         run_id = _persisted_selected_run_id(run_id)
         run = runs.get_run(run_id) if run_id else None
-        availability = _run_action_availability(
-            run,
-            (
-                run is not None
-                and _configuration_is_launchable(
-                    run.configuration_id,
-                    configurations,
-                )
-            ),
-        )
+        cancel_allowed, cancel_reason = operation_eligibility("cancel", run)
         if run is not None:
             submission = research_launches.get_for_run(run.run_id)
             if (
@@ -1056,7 +1110,9 @@ def register_backtest_results_callbacks(
                     True,
                     "Submission outcome is unknown. Reconcile it before cancellation.",
                 )
-        return availability[4], availability[5]
+        return (not cancel_allowed), (
+            "Cancel the selected running run." if cancel_allowed else cancel_reason
+        )
 
     @app.callback(
         Output("recent-runs-monitor", "children"),
@@ -1503,7 +1559,15 @@ def register_backtest_results_callbacks(
             )
 
         try:
-            run = runs.request_fixture_cancellation(run_id)
+            selected_run = runs.get_run(run_id)
+            allowed, reason = operation_eligibility("cancel", selected_run)
+            if not allowed:
+                raise ValueError(reason)
+            run = (
+                cancel_run(run_id)
+                if cancel_run is not None
+                else runs.request_fixture_cancellation(run_id)
+            )
         except (KeyError, ValueError, RunServiceError) as exc:
             return (
                 f"Cancellation request failed: {exc}",

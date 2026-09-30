@@ -20,6 +20,8 @@ from dashboard.application import (
 from dashboard.callbacks.review_state import (
     DurableReviewSnapshot,
     load_durable_review,
+    persist_screening_rejection_review,
+    screening_rejection_available,
 )
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService
@@ -138,8 +140,21 @@ def register_results_review_callbacks(
                     artifact_root=artifact_root,
                 )
             except (KeyError, RuntimeError, ValueError) as exc:
-                message = _review_context_failure_message(exc)
-                return True, message, _operator_message(message, tone="warning")
+                try:
+                    screening_rejection_available(
+                        service, identity, artifact_root=artifact_root
+                    )
+                except (KeyError, RuntimeError, ValueError):
+                    message = _review_context_failure_message(exc)
+                    return True, message, _operator_message(message, tone="warning")
+                return (
+                    False,
+                    "This terminal screening outcome may only be recorded as Reject.",
+                    _operator_message(
+                        "Terminal screening rejection verified.",
+                        "Record Reject with a durable rationale; advancement decisions remain gated.",
+                    ),
+                )
         return (
             False,
             "Persist a durable evidence decision for the selected run.",
@@ -189,21 +204,46 @@ def register_results_review_callbacks(
                     reviewer=REVIEWER,
                     artifact_root=artifact_root,
                 )
-            except (KeyError, RuntimeError, ValueError) as exc:
-                return (
-                    _operator_message(
-                        _review_context_failure_message(exc),
-                        (
-                            "No review change was saved. Refresh the selected run and "
-                            "inspect its existing decision before retrying."
+            except (KeyError, RuntimeError, ValueError) as gate_exc:
+                if review_state == ReviewState.REJECT:
+                    try:
+                        decision = persist_screening_rejection_review(
+                            service,
+                            run_id=identity,
+                            review_reason=reason,
+                            reviewer=REVIEWER,
+                            artifact_root=artifact_root,
+                        )
+                    except (KeyError, RuntimeError, ValueError) as exc:
+                        failure = exc
+                    else:
+                        failure = None
+                else:
+                    failure = gate_exc
+                if failure is None:
+                    pass
+                else:
+                    return (
+                        _operator_message(
+                            _review_context_failure_message(failure),
+                            (
+                                "No review change was saved. Refresh the selected run and "
+                                "inspect its existing decision before retrying."
+                            ),
+                            tone="warning",
                         ),
-                        tone="warning",
-                    ),
-                    no_update,
-                )
+                        no_update,
+                    )
         snapshot = load_durable_review(
             dashboard_database,
             artifact_root,
             identity,
         )
-        return _decision_summary(decision), _review_history(snapshot)
+        if "lockbox_gate" in decision.document["decision"]:
+            summary = _decision_summary(decision)
+        else:
+            summary = _operator_message(
+                "Terminal screening rejection saved.",
+                f"Decision identity: {decision.decision_identity}",
+            )
+        return summary, _review_history(snapshot)

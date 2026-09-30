@@ -999,6 +999,63 @@ def test_failed_before_submission_and_abandoned_are_atomic_idempotent_terminal_o
         persistence.close()
 
 
+def test_unknown_submission_has_exact_run_scoped_reconcile_and_abandon_actions(
+    tmp_path: Path,
+) -> None:
+    path = _database(tmp_path, "operator-actions.sqlite3")
+    configuration_id = _configuration(path)
+    service = DurableResearchLaunchService(database=path)
+
+    reconcile = service.claim(
+        idempotency_key=_key("run-reconcile"), request=_request(configuration_id)
+    )
+    dispatcher = new_dispatcher_instance_id()
+    service.begin_dispatch(
+        idempotency_key=reconcile.submission.idempotency_key,
+        dispatcher_instance_id=dispatcher,
+    )
+    service.mark_invocation_unknown(
+        idempotency_key=reconcile.submission.idempotency_key,
+        dispatcher_instance_id=dispatcher,
+    )
+    acknowledged = service.reconcile_unknown_for_run(
+        run_id=reconcile.run.run_id,
+        prefect_flow_run_id="prefect-reconciled-flow",
+        prefect_api_url="http://127.0.0.1:4200/api",
+    )
+    assert acknowledged.state == ResearchSubmissionState.ACKNOWLEDGED
+    assert service.reconcile_unknown_for_run(
+        run_id=reconcile.run.run_id,
+        prefect_flow_run_id="prefect-reconciled-flow",
+        prefect_api_url="http://127.0.0.1:4200/api",
+    ) == acknowledged
+
+    abandon = service.claim(
+        idempotency_key=_key("run-abandon"), request=_request(configuration_id)
+    )
+    dispatcher = new_dispatcher_instance_id()
+    service.begin_dispatch(
+        idempotency_key=abandon.submission.idempotency_key,
+        dispatcher_instance_id=dispatcher,
+    )
+    service.mark_invocation_unknown(
+        idempotency_key=abandon.submission.idempotency_key,
+        dispatcher_instance_id=dispatcher,
+    )
+    abandoned = service.abandon_unknown_for_run(
+        run_id=abandon.run.run_id,
+        resolution_evidence_reference="operator-reconciliation:no-prefect-run-found",
+    )
+    assert abandoned.state == ResearchSubmissionState.ABANDONED
+    assert service.get_for_run(abandon.run.run_id) == abandoned
+
+    with pytest.raises(ResearchLaunchConflictError, match="cannot reconcile"):
+        service.reconcile_unknown_for_run(
+            run_id=abandon.run.run_id,
+            prefect_flow_run_id="late-flow",
+        )
+
+
 @pytest.mark.parametrize("terminal_action", ["fail_before", "abandon"])
 def test_terminal_submission_resolution_revalidates_full_persisted_identity(
     tmp_path: Path,
