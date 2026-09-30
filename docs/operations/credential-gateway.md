@@ -1,9 +1,9 @@
 # Historical Credential-Gateway Evidence
 
-> **Superseded by Decision 311 and ADR 0012. Do not deploy this gateway for
+> **Superseded by Decision 312 and ADR 0013. Do not deploy this gateway for
 > Quant Factory.** This file preserves earlier evaluation requirements and
 > evidence only. Current credential procedure is
-> [`bitwarden-agent-access.md`](bitwarden-agent-access.md); current work and
+> [`bitwarden-secrets-manager.md`](bitwarden-secrets-manager.md); current work and
 > status remain in [`docs/MILESTONES.md`](../MILESTONES.md).
 
 ## Boundary

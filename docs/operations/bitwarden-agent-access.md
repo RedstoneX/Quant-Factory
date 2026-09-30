@@ -1,9 +1,9 @@
-# Bitwarden Agent Access Runbook
+# Historical Bitwarden Agent Access Runbook
 
-> This runbook implements Decision 311 and ADR 0012. Current implementation
-> status and sequencing come only from [`docs/MILESTONES.md`](../MILESTONES.md).
-> The existence of this procedure does not prove that Agent Access is installed,
-> paired, persistent, or ready.
+> **Superseded by Decision 312 and ADR 0013. Do not use Agent Access as the
+> Quant Factory machine credential path.** Current procedure is
+> [`bitwarden-secrets-manager.md`](bitwarden-secrets-manager.md); current status
+> remains in [`docs/MILESTONES.md`](../MILESTONES.md).
 
 ## Authority and boundary
 

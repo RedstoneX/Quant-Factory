@@ -1,6 +1,6 @@
 # ADR 0010: Agent Credential Gateway
 
-> **Superseded by Decision 311 and ADR 0012.** This document is retained only
+> **Superseded by Decision 312 and ADR 0013.** This document is retained only
 > as historical evaluation and implementation evidence. It is not current
 > Quant Factory credential architecture or deployment authority.
 

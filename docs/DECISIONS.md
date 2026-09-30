@@ -13,7 +13,8 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **311** | **Quant Factory credential authority corrected:** the dedicated owner-controlled Bitwarden Password Manager vault is the durable source of truth, and official Bitwarden Agent Access (`aac`) is the selected agent access mechanism. This supersedes Decision 269 and ADR 0010 as current architecture. |
+| **312** | **Quant Factory unattended credential standard finalized:** Bitwarden Secrets Manager is the durable machine-access source of truth; the `Codex` machine account is scoped to the `Quant Factory` project and accessed through the official `bws` CLI with a host-encrypted token. This supersedes Decision 311's selection of Password Manager plus Agent Access as the current mechanism. |
+| 311 | Historical correction that Quant Factory uses Bitwarden is retained; Decision 312 supersedes its Password Manager plus Agent Access mechanism. |
 | **310** | **MES screen accepted:** execute the fixed, parameterless 09:35–10:00 MES overnight-gap reversal development screen exactly once under its predeclared data, mapping, cost, accounting, and pass/fail boundaries; stop after the result without automatic promotion. |
 | **309** | **Intraday mission clarification:** active edge discovery is day trading only—same-session entry/exit, minutes-to-hours holding, no overnight or multi-day carry. Turn-of-month is retained but out of scope. Existing licensed VectorBT Pro must be located/reused before treating a checkout-local absence as a blocker. |
 | 308 | Backend completion correction satisfied: the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under Decision 309's intraday bounds. |
@@ -27,9 +28,9 @@ only when a task needs their evidence or rationale.
 | 276 | Independent green pull requests may proceed without strict up-to-date rebuilding; overlapping/dependent work remains serialized. |
 | 275 | `RedstoneX/Quant-Factory` is the canonical forward repository. |
 
-Decision 311 controls credential source and agent access, superseding Decision
-269 and ADR 0010 as current architecture while retaining their evidence as
-history. Where an older decision conflicts with Decision 309 on active research mission fit or VectorBT-Pro availability handling, Decision 309 controls. Decision 308 controls backend-completion sequencing. Otherwise Decision 307 controls priority, dashboard usability status, and orchestration as previously recorded. Older
+Decision 312 controls credential source and machine access, superseding
+Decision 311's Agent Access selection, Decision 269, ADR 0012, and ADR 0010 as
+current architecture while retaining their evidence as history. Where an older decision conflicts with Decision 309 on active research mission fit or VectorBT-Pro availability handling, Decision 309 controls. Decision 308 controls backend-completion sequencing. Otherwise Decision 307 controls priority, dashboard usability status, and orchestration as previously recorded. Older
 technical evidence and safety constraints remain valid unless explicitly
 superseded.
 
@@ -1505,3 +1506,36 @@ superseded.
      needed to restore Agent Access and use the existing Databento item for
      Decision 310's free symbology preflight. It does not authorize paid data,
      a strategy change, paper/live activation, orders, or capital exposure.
+
+312. **Use Bitwarden Secrets Manager for persistent Quant Factory machine
+     access (accepted 2026-09-30).** Terry selects the existing Bitwarden
+     organization as the continuing credential system and Bitwarden Secrets
+     Manager as the standard unattended machine path. The machine account is
+     named `Codex`; its current project is named `Quant Factory`. Another
+     project's credential deployment is unrelated and must not be reused or
+     conflated with this one.
+
+     Use the pinned official `bws` CLI with a machine-account access token
+     granted only to the required Secrets Manager project. On the Quant Factory
+     VPS, persist that token only as a root-owned host-encrypted systemd
+     credential and expose it only to the short-lived `bws` process. Retrieve
+     named secrets without printing values or unrestricted project output. The
+     `qf-bws` launcher is a general project-scoped CLI wrapper, not a technical
+     named-secret boundary; exact-name and uniqueness checks are mandatory
+     caller policy.
+     Long-running workers must obtain required credentials during service
+     startup and keep them in process memory; an order path must never wait on
+     Bitwarden. Repository files, dotenv files, shell history, command
+     arguments, prompts, logs, artifacts, and dashboard output must not contain
+     a token or secret value.
+
+     This supersedes Decision 311's selection of Password Manager plus Agent
+     Access as the current machine mechanism, ADR 0012, Decision 269, and ADR
+     0010 while preserving their evidence as history. Password Manager and the
+     installed Agent Access proof are not current runtime dependencies. The
+     official Password Manager CLI may be used only for an explicitly bounded
+     owner-assisted recovery or migration, never as unattended runtime state.
+     Research, paper, and live remain separate authority domains and require
+     separate project/grant and OS/service isolation before activation. This
+     decision changes credential architecture only; it does not authorize paid
+     data, deployment, paper/live activation, orders, or capital exposure.

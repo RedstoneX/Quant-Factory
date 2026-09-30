@@ -11,10 +11,10 @@ create a competing queue.
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
 | Phase | **Edge discovery and candidate selection.** |
-| Active work | Execute the Decision 310 fixed MES overnight-gap reversal development screen exactly once, then record its pass or rejection and stop without automatic promotion. |
-| Existing assets | The generic candidate runtime is complete. Decision 310 accepts the fixed 09:35–10:00 MES proposal. Its candidate-local strategy, predicate-bounded loader, exact daily accounting, licensed VectorBT Pro cross-check, durable screening-only claim, and evidence persistence are implemented and focused-tested. The owned checksum-matching MES file and existing licensed VectorBT Pro 2026.4.7 runtime are verified for reuse. The owner confirms that the dedicated Quant Factory Bitwarden vault is the credential source of truth and already contains the Databento credential. |
-| Verified gap | The screen has no result. Official Bitwarden Agent Access is now the selected access path, but its pinned VPS client, protected cached pairing state, approved relay, trusted provider connection, and Databento item selection have not yet been installed and verified. Agent Access pairing is a provider-approved vault-reading boundary, not per-item authorization. The required complete Databento `MES.c.0` symbology resolution therefore has not run; no credential, mapping substitute, or vault output belongs in Git. The SPY turn-of-month proposal remains a legitimate but **out-of-scope multi-day swing/calendar idea** for the present intraday mandate. |
-| Next action | Install and verify the official pinned Bitwarden Agent Access client and synthetic fail-closed proof. Then pair it privately with the owner-controlled Quant Factory provider, select the exact Databento item, inject its password field into the fixed external preflight, execute the free symbology resolution and one durable development screen from clean canonical `main`, independently audit the persisted result, and stop at its predeclared pass/fail gate. The first owner-required gate is private provider pairing/approval after the synthetic proof. |
+| Active work | **Owner gate:** the fixed MES overnight-gap reversal candidate is rejected. Do not begin another candidate-family screen until the owner accepts a new same-session intraday proposal. |
+| Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
+| Verified gap | No active intraday candidate is owner-accepted after the MES reversal rejection. The SPY turn-of-month proposal remains a legitimate but **out-of-scope multi-day swing/calendar idea** for the present intraday mandate. Paper, deployment, dashboard, and execution-vehicle work remain unjustified without a surviving edge. |
+| Next action | Stop at the explicit owner gate. The owner must accept the next fixed same-session intraday candidate before implementation, data acquisition, or execution. Do not rerun or tune the rejected MES rule. |
 | Deferred | Paid options data, broad dashboard repair, deployment, broker expansion, paper activation, and live work until a bounded experiment or qualified edge creates the requirement. |
 | Hard boundaries | No protected-test execution, automatic promotion, open-ended optimization, blind data mining, unbounded data acquisition, paper/live orders, or capital exposure during this phase. |
 
@@ -23,7 +23,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R11 | 1 | in_progress | none | Decision 310 accepts the fixed proposal and its candidate-local screening-only implementation is tested. Decision 311 restores the dedicated Quant Factory Bitwarden vault and official Agent Access as the credential path. Pinned-client installation and synthetic proof can proceed before the owner-required private pairing/approval gate. No screen or price-data load has run, and preflight must obtain the complete free `MES.c.0` mapping before the single durable claim. |
+| R11 | 1 | blocked | none | The Decision 310 MES screen is complete and independently audited. Its sole result-bearing run screened out on negative total return, negative annualized return, and Sharpe below 0.5; the candidate is rejected and inactive. Decision 312 establishes Bitwarden Secrets Manager as the machine credential standard. The next candidate requires explicit owner acceptance. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
@@ -66,13 +66,37 @@ profitability, or the licensed engine itself.
 ### Edge research — ACTIVE
 
 The current mandate is **day trading / intraday directional edge discovery**.
-The accepted first slice is the fixed MES overnight-gap reversal development
-screen in `docs/strategies/mes-overnight-gap-reversal.md`. It observes the
-prior cash-session close and current cash open, enters at 09:35 opposite the
-gap, and exits at 10:00; the position never crosses a session boundary. It
-has a candidate-local implementation but no result. Swing, turn-of-month,
-seasonal, and other calendar-hold strategies are not current R11 candidates
-unless the owner explicitly changes the mandate.
+The fixed MES overnight-gap reversal development screen in
+`docs/strategies/mes-overnight-gap-reversal.md` completed and was rejected. It
+observed the prior cash-session close and current cash open, entered at 09:35
+opposite the gap, and exited at 10:00; no position crossed a session boundary.
+Swing, turn-of-month, seasonal, and other calendar-hold strategies are not
+current R11 candidates unless the owner explicitly changes the mandate.
+
+### R11 MES development result — rejected 2026-09-30
+
+The sole result-bearing recovery run `run_f7ce514979d64ad0b39b7f933eea7e67`
+used the exact Decision 310 configuration, owned checksum-matching MES data, a
+complete gap-free 20-interval `MES.c.0` mapping, and VectorBT Pro 2026.4.7. An
+earlier durable v1 attempt failed on a loader implementation defect before
+producing any result; it remains preserved with zero result evidence. The fixed
+v2 recovery is the only accepted candidate evaluation.
+
+- 1,114 completed 25-minute same-session trades across 1,173 sessions;
+- 59 exclusions: 43 missing bars, 9 prior early closes, 6 zero gaps, and 1
+  missing prior boundary;
+- total return: **-4.16386%**;
+- annualized return: **-0.90953%**;
+- daily Sharpe: **-1.03455**;
+- maximum drawdown: **-4.73226%**;
+- win rate: **47.2172%**.
+
+Trade count and drawdown passed their gates. Total return, annualized return,
+and Sharpe failed, so the conjunctive screen rejected the candidate. All eight
+persisted artifacts, the manifest, trade timing, fills, costs, P&L, final
+equity, and VectorBT order/trade counts independently validated. No tuning,
+rerun, validation, protected-data use, promotion, deployment, or trading is
+authorized.
 
 Initial research focuses on S&P 500 and Nasdaq-100 behavior. Existing MES/MNQ
 intraday history should be reused for cheap first-stage screening where it can
@@ -102,7 +126,7 @@ fail-closed gates. Live remains far future and requires separate owner approval.
 - MES ORB is concluded and rejected as an edge candidate.
 - MSFT ORB transfer work was withdrawn.
 - SPYM momentum and SPY Donchian/RSI work are historical evidence, not current candidates.
-- MES overnight-gap reversal is the Decision 310 accepted, fixed 25-minute transfer screen. Its adapter is implemented; the development screen has not run.
+- MES overnight-gap reversal is the Decision 310 fixed 25-minute transfer screen. Its audited development result failed the return and Sharpe gates; the candidate is rejected and must not be rerun or tuned.
 - Turn-of-month was previously source-attributed and bounded, but its multi-day holding period fails the current intraday/day-trading mission-fit gate. Retain it for possible future swing research; do not backtest it under R11.
 - Dashboard design research succeeded as UX research; its custom implementation path was shelved.
 

@@ -19,7 +19,7 @@ packages as a competing roadmap.
 
 - [Documentation governance](DOCUMENTATION_GOVERNANCE.md)
 - [Codex agent policy](ai-programming-agent-policy.md)
-- [Bitwarden Agent Access runbook](operations/bitwarden-agent-access.md)
+- [Bitwarden Secrets Manager runbook](operations/bitwarden-secrets-manager.md)
 - [Implementation preflight](../.agents/skills/implementation-preflight/SKILL.md)
 - [Material-proposal adversary](../.agents/skills/quant-factory-adversary/SKILL.md)
 

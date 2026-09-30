@@ -3,7 +3,7 @@
 > **Historical implementation / do not deploy:** Paper-runtime work is dormant.
 > The existing worker and `deployment/paper` stack use the superseded ADR 0010
 > transport and are retained only as implementation evidence. Their safety
-> requirements remain inputs, but a new ADR 0012-compatible credential and
+> requirements remain inputs, but a new ADR 0013-compatible credential and
 > isolation design must be reviewed before a paper milestone can activate any
 > worker.
 
@@ -31,12 +31,12 @@ sanitized state.
 No credential value, account identifier, response body, or private gateway
 coordinate belongs in Git, logs, health output, or evidence artifacts.
 
-Future paper credentials remain in dedicated paper items in the Quant Factory
-Bitwarden vault. Because Agent Access pairings are not item-scoped, paper use
-requires a separately proven provider/vault-access and OS privilege boundary
-plus a service identity that prevents the research client from querying paper
-or live items. The Decision 310 research pairing cannot establish paper or live
-isolation.
+Future paper credentials remain in a separately scoped Bitwarden Secrets
+Manager project. Paper use requires a distinct project grant, machine/service
+identity, and OS privilege boundary that prevents the research client from
+querying paper or live secrets. The current research project grant cannot
+establish paper or live isolation. A worker loads its credentials at service
+startup; order handling never queries Bitwarden.
 
 ## Acceptance
 

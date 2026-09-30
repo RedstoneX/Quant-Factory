@@ -1,9 +1,13 @@
 # ADR 0012: Bitwarden Agent Access
 
-- **Status:** Accepted
+- **Status:** Superseded by Decision 312 and ADR 0013
 - **Date:** 2026-09-30
 - **Authority:** Decision 311
 - **Supersedes:** ADR 0010 as current Quant Factory credential architecture
+
+> Historical evidence only. Bitwarden Secrets Manager is the current machine
+> credential standard. See
+> [`0013-bitwarden-secrets-manager.md`](0013-bitwarden-secrets-manager.md).
 
 ## Context
 

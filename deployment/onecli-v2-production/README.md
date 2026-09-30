@@ -1,8 +1,8 @@
 # OneCLI v2.4 production deployment mechanism
 
-> **HISTORICAL / SUPERSEDED — DO NOT DEPLOY FOR QUANT FACTORY.** Decision 311
-> and ADR 0012 select the dedicated Quant Factory Bitwarden vault and official
-> Bitwarden Agent Access. This directory remains only as historical deployment
+> **HISTORICAL / SUPERSEDED — DO NOT DEPLOY FOR QUANT FACTORY.** Decision 312
+> and ADR 0013 select the Quant Factory Bitwarden Secrets Manager project and
+> machine account. This directory remains only as historical deployment
 > evidence and has no current credential authority.
 
 This directory prepares a credentialless, reviewable deployment of the

@@ -137,10 +137,10 @@ class DocumentationGovernanceTests(unittest.TestCase):
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
         decisions = (root / "docs/DECISIONS.md").read_text(encoding="utf-8")
         milestones = (root / "docs/MILESTONES.md").read_text(encoding="utf-8")
-        current_adr = (root / "docs/architecture/0012-bitwarden-agent-access.md").read_text(encoding="utf-8")
-        old_adr = (root / "docs/architecture/0010-agent-credential-gateway.md").read_text(encoding="utf-8")
-        current_runbook = (root / "docs/operations/bitwarden-agent-access.md").read_text(encoding="utf-8")
-        old_runbook = (root / "docs/operations/credential-gateway.md").read_text(encoding="utf-8")
+        current_adr = (root / "docs/architecture/0013-bitwarden-secrets-manager.md").read_text(encoding="utf-8")
+        old_adr = (root / "docs/architecture/0012-bitwarden-agent-access.md").read_text(encoding="utf-8")
+        current_runbook = (root / "docs/operations/bitwarden-secrets-manager.md").read_text(encoding="utf-8")
+        old_runbook = (root / "docs/operations/bitwarden-agent-access.md").read_text(encoding="utf-8")
         historical_programs = (
             root / "execution/paper_read_transport.py",
             root / "execution/paper_worker.py",
@@ -150,17 +150,17 @@ class DocumentationGovernanceTests(unittest.TestCase):
 
         for document in (agents, decisions, milestones, current_adr, current_runbook):
             self.assertIn("Bitwarden", document)
-            self.assertIn("Agent Access", document)
-        self.assertIn("| **311** |", decisions)
+            self.assertIn("Secrets Manager", document)
+        self.assertIn("| **312** |", decisions)
         self.assertIn("- **Status:** Accepted", current_adr)
         self.assertIn("- **Status:** Superseded", old_adr)
-        self.assertIn("Do not deploy", old_runbook)
-        self.assertIn("does not prove that Agent Access is installed", current_runbook)
-        self.assertIn("full credential record", current_adr)
-        self.assertIn("not an Agent Access authorization", current_adr)
-        self.assertIn("persists cached session and pre-shared-key", current_adr)
-        self.assertIn("stale", current_runbook)
-        self.assertIn("relay", current_runbook)
+        self.assertIn("Do not use Agent Access", old_runbook)
+        self.assertIn("`Codex`", current_adr)
+        self.assertIn("`Quant Factory`", current_adr)
+        self.assertIn("root-owned systemd encrypted credential", current_adr)
+        self.assertIn("never performs a Bitwarden network call", current_adr)
+        self.assertIn("without echo or a plaintext staging file", current_runbook)
+        self.assertIn("LoadCredentialEncrypted=", current_runbook)
         for program in historical_programs:
             header = program.read_text(encoding="utf-8")[:500]
             self.assertIn("Historical", header)

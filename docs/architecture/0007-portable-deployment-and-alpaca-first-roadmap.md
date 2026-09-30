@@ -155,7 +155,7 @@ The main Quant Factory Core and research dashboard will be hosted on a US-based
 Linux VPS under Decision 266 after the migration checks pass. That host becomes
 the authoritative runtime for routine research, backtests, dashboard
 operation, and orchestration. Broker-connected services remain separately
-gated by Milestone 24 and ADR 0012. VPS geography is an infrastructure choice,
+gated by the active milestone and ADR 0013. VPS geography is an infrastructure choice,
 not evidence of account eligibility or residence, and must never be used to
 bypass an eligibility restriction.
 
@@ -181,7 +181,7 @@ Persistent state remains outside container images:
 /srv/quant-factory/deploy/
 ├── compose.yaml
 ├── config/
-├── credential-bindings/  # private Bitwarden item IDs/fields; never values or Git
+├── credential-bindings/  # private Bitwarden secret names/grants; never values or Git
 └── data/
     ├── database/
     ├── artifacts/
@@ -189,9 +189,9 @@ Persistent state remains outside container images:
     └── backups/
 ```
 
-Credential values remain in the dedicated Quant Factory Bitwarden Password
-Manager vault and are injected only into the approved process through official
-Bitwarden Agent Access. Agent Access state and item bindings remain external,
+Credential values remain in the dedicated Quant Factory Bitwarden Secrets
+Manager project and are loaded only into the approved process through the
+project-scoped machine account. The machine token and secret bindings remain external,
 private, and separately scoped for research, paper, and live use.
 
 SQLite remains acceptable while the factory is a single-writer deployment. It must be stopped or consistently snapshotted before migration. PostgreSQL is introduced only if independently deployed services require concurrent database access that SQLite cannot safely provide.
