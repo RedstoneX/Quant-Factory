@@ -15,16 +15,16 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=23,
     current_milestone_title="Research Product Completion and Handoff",
     current_milestone_status=(
-        "The backend and audited MES run are complete. Dashboard and operator-workflow "
-        "completion are now active for Terry's final handoff."
+        "The objective research workflow has passed its technical gate and is ready "
+        "for Terry's final walkthrough. Handoff acceptance is not yet recorded."
     ),
     strategy_status=(
         "No new strategy selection, screening, optimization, or performance evaluation occurs "
         "before handoff. Product verification uses deterministic fixtures and accepted evidence."
     ),
     workspace_status=(
-        "Complete the existing single-user workflow and prepare the final operator walkthrough. "
-        "Paid data, external deployment, paper execution, and live trading remain deferred."
+        "The remaining R12 gate is Terry's walkthrough and explicit handoff acceptance. "
+        "Private deployment, new research, paid data, paper execution, and live trading remain unauthorized."
     ),
     home_subtitle="Your strategy research workspace.",
 )

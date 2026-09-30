@@ -1,4 +1,4 @@
-"""Approved fixture configuration selection for Milestone 23."""
+"""Approved research-configuration selection for the operator product."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from dashboard.components.configuration_summary import configuration_summary
 from dashboard.pages.common import page_heading
 from dashboard.run_adapter import (
     CatalogSnapshot,
+    ConfigurationReadinessView,
     SavedConfigurationView,
     SetupStrategyView,
     configuration_readiness_by_id,
@@ -24,6 +25,7 @@ def layout(
     setup_strategies: tuple[SetupStrategyView, ...] | None = None,
     database: str | Path | None = None,
     catalog_snapshot: CatalogSnapshot | None = None,
+    readiness_by_id: dict[str, ConfigurationReadinessView] | None = None,
     loading: bool = False,
 ) -> html.Div:
     """Select and inspect an immutable approved configuration without launching it."""
@@ -40,7 +42,16 @@ def layout(
     )
     from dashboard.application import _strategy_research_path
 
-    readiness_by_id = configuration_readiness_by_id(available, catalog_snapshot)
+    readiness_by_id = dict(readiness_by_id or {})
+    missing_readiness = tuple(
+        configuration
+        for configuration in available
+        if configuration.configuration_id not in readiness_by_id
+    )
+    if missing_readiness:
+        readiness_by_id.update(
+            configuration_readiness_by_id(missing_readiness, catalog_snapshot)
+        )
     first = next(
         (
             configuration
@@ -89,7 +100,7 @@ def layout(
             loading=loading,
             empty_title="No approved choices",
             empty_message=(
-                "An approved saved fixture configuration is required before a test can be reviewed or run."
+                "An approved saved research configuration is required before a test can be reviewed or run."
             ),
         )
 
@@ -186,7 +197,7 @@ def layout(
                                 className="field-help",
                             ),
                             html.P(
-                                "Only approved infrastructure fixtures are available during Milestone 23.",
+                                "Runnable choices are limited to active fixtures and owner-approved candidates with complete local data and runtime bindings.",
                                 className="field-help",
                             ),
                         ],
@@ -196,9 +207,9 @@ def layout(
                     ),
                     html.Section(
                         [
-                            html.Strong("Infrastructure fixture — not profit evidence"),
+                            html.Strong("Research test — not trading authority"),
                             html.P(
-                                "A successful test proves the workflow and evidence path; it does not qualify a strategy for paper or live trading.",
+                                "This runs the selected approved configuration. Fixture results prove mechanics; candidate results require evidence review. Neither authorizes paper or live trading.",
                                 className="field-help",
                             ),
                             dcc.Link(

@@ -1,10 +1,9 @@
 # Milestone 23 Acceptance
 
-> **Active supporting acceptance record:** Decision 313 restores completion of
-> the existing dashboard and operator workflow as current work. This file
-> preserves the detailed Milestone 23 requirements and historical evidence;
-> `docs/MILESTONES.md` remains the only authority for the active queue and gate.
-> Reconcile and reuse the evidence below before adding implementation work.
+> **Active supporting acceptance record:** Decision 313 restored completion of
+> the existing dashboard and operator workflow. The objective technical
+> evidence is reconciled below; `docs/MILESTONES.md` remains the only authority
+> for the active queue, status, and owner gate.
 
 
 > **Sequencing record:** Decisions 298 and 303 recorded Step 15 acceptance and
@@ -81,25 +80,26 @@ research-computation behavior is not misrepresented as a completed cache.
 
 - [x] The detailed responsive chart-first selected-run Results specification
       is explicitly approved under Decision 282.
-- [ ] The approved selected-run Results specification is implemented within
+- [x] The approved selected-run Results specification is implemented within
       ADR 0008.
-      A bounded Decision 291 slice now implements truthful R07 five-minute
-      rendering, linked MES trades, complete ranked rejection rows, evidence
-      limits and an exact-run reopen link; the full criterion remains open.
+      Current-revision browser evidence covers truthful persisted charting,
+      linked trades, complete ranked rows, evidence limits, exact-run and
+      exact-variant reopening, refresh, back/forward navigation and responsive
+      operation.
 - [x] A bounded design is reviewed for the required scalable multi-run
       aggregation, slicing, ranking, filtering and selection surface; one run
       opens in Results and multiple selected runs can feed Compare.
       Decision 293 fulfills this review for the bounded Find & Compare surface;
       its implementation/testing evidence merged through PR #74. Deployment,
       target validation and final owner acceptance remain pending.
-- [ ] Bars and View controls remain distinct; truthful aggregation produces the
+- [x] Bars and View controls remain distinct; truthful aggregation produces the
       expected persisted-fixture counts and preserves exact trade-event
       timestamps and prices while markers map to containing bars.
 - [x] Desktop chart/report edges resize and reset without losing selected state;
       Metrics and Trades have no nested vertical scrolling, the page retains
       comfortable bottom breathing room, and responsive layouts stack chart
       then report.
-- [ ] Trade typography is visibly larger and more readable without hiding
+- [x] Trade typography is visibly larger and more readable without hiding
       required evidence or causing page-level horizontal overflow; the validated
       preview's two-CSS-pixel increase is evidence, not a fixed acceptance value.
 - [x] A selected study exposes every persisted parameter variant with stable
@@ -107,17 +107,21 @@ research-computation behavior is not misrepresented as a completed cache.
       filtering, sorting, reset, counts, exact detail and bounded row-level
       comparison. A deterministic 2,000-row browser case passes without
       renderer/server diagnostics; registered artifact mismatches fail closed.
-- [ ] Focused and complete relevant automated tests pass.
-- [ ] Browser lifecycle checks pass for every registered route.
-- [ ] The operator completes launch → monitor → inspect → compare → reproduce →
+- [x] Focused and complete relevant automated tests pass.
+- [x] Browser lifecycle checks pass for every registered route.
+- [x] The operator completes launch → monitor → inspect → compare → reproduce →
       review without Python, terminal, raw JSON/CSV, or SQLite.
-- [ ] Failures explain impact and the next safe action.
-- [ ] Documentation and `dashboard/project_status.py` agree.
+- [x] Failures explain impact and the next safe action.
+- [x] Documentation and `dashboard/project_status.py` agree.
 - [x] The project owner explicitly accepts the implemented replacement
       Results-page experience after the detailed-design, browser, and workflow
       evidence is available.
-- [ ] The Milestone 23 gate result is recorded after every remaining objective
-      criterion passes or fails.
+      This historical Results-page acceptance is not Decision 313 full-product
+      handoff acceptance.
+- [x] The objective technical gate result is recorded as **PASS** for the
+      current handoff revision and its deterministic evidence.
+- [ ] Terry completes the current-revision walkthrough and explicitly accepts
+      the product handoff.
 
 ### Decision 291 bounded Results evidence — 2026-09-20
 
@@ -183,9 +187,41 @@ research-computation behavior is not misrepresented as a completed cache.
   in Results, Find, or Compare.
 - Exact variant links reopen the requested study and row directly on the
   Variants tab and preserve that identity through refresh and browser back.
-- This is current-branch product evidence pending normal pull-request review
-  and required CI. It is not owner handoff acceptance, deployment, strategy
-  research, profitability evidence, or authority for paper/live trading.
+- These study-variant changes merged through PR #109 at
+  `8185375fc6c349f66cf2e3fbcd08f7aa6bf299ac`. All required GitHub checks
+  passed. The PR recorded 231 integrated unit/integration checks, eight
+  dashboard lifecycle browser scenarios, two Results browser scenarios and
+  the unknown-submission restart scenario; Portable tests collected 721 tests
+  with zero failures, errors, or skips. This is not owner handoff acceptance,
+  deployment, strategy research, profitability evidence, or authority for
+  paper/live trading.
+
+### Current-revision R12 operator-product evidence — 2026-09-30
+
+- PR #109 established the complete fixture-backed operator journey: durable
+  idea capture and setup; launch/status; chart-first Results with assumptions,
+  evidence, trades and 2,000 persisted parameter variants; full-history Find &
+  Compare; review; reproduction; cancellation; and fail-closed recovery.
+- The handoff correction reuses `CandidatePipelineRuntime` to connect active,
+  owner-approved saved candidate configurations to the same dashboard. It
+  reconstructs the exact typed persisted configuration, verifies its strategy
+  identity and hash, requires a compatible owned local cache, disables provider
+  download on the operator path, preserves candidate-stage lineage for relaunch
+  and reproduction, and fails closed for incomplete or rejected screening
+  evidence.
+- Focused backend, dashboard callback and real-browser evidence exercises the
+  candidate connection only with deterministic fixtures. It creates no new
+  candidate, market observation, parameter choice, profitability result,
+  protected-test use, paid data request, deployment, broker action, paper/live
+  activation, or capital exposure.
+- Independent review challenged lifecycle routing, source evidence, claim
+  recovery, cache/configuration races, operator wording and coverage. The
+  resulting corrections keep failed post-acknowledgement screening runs from
+  remaining falsely active and prove candidate launch, relaunch, reproduction,
+  rejection guards and recovery through the operator surface.
+- Objective technical result: **PASS — ready for Terry's walkthrough.** Terry's
+  explicit full-product handoff acceptance remains open, and no review URL is
+  implied or deployed.
 
 ### Decision 298 Steps 10–11 evidence — 2026-09-21
 
@@ -310,8 +346,8 @@ the unchecked criteria above.
   when run in a licensed environment; the browser suite adds the required
   real-browser evidence. Neither was rerun during this read-only audit.
 
-If an actual deployment, explicit Milestone 23 closure, or owner request later
-activates target proof, the retained procedure is to freeze the applicable
+If a separately authorized deployment or owner-requested licensed-target proof
+later activates target work, the retained procedure is to freeze the applicable
 public revision and build a disposable OVH candidate/test runner using the
 existing authorized private VectorBT Pro build input. Mount the hash-matched
 SPYM data read-only and use fresh isolated state. First run

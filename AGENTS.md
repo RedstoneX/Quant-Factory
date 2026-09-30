@@ -35,11 +35,14 @@ Follow the queue in `docs/MILESTONES.md`. The current sequence is:
 research -> validation -> execution-vehicle comparison -> paper operation ->
 live operation later.**
 
-Dashboard and operator-workflow completion are active. Reuse the completed
-generic backend, audited MES run, approved chart-first UX work, licensed
-VectorBT Pro, mature components, and existing tests. Do not rebuild the backend,
-create a second frontend or orchestration layer, or introduce enterprise-scale
-infrastructure for this private single-user product.
+Complete objective dashboard and operator-workflow criteria before the owner
+handoff gate. Reuse the completed generic backend, audited MES run, approved
+chart-first UX work, licensed VectorBT Pro, mature components, and existing
+tests. Do not rebuild the backend, create a second frontend or orchestration
+layer, or introduce enterprise-scale infrastructure for this private
+single-user product. When `docs/MILESTONES.md` records the technical pass, stop
+at the owner walkthrough and explicit handoff-acceptance gate unless Terry
+reports a product defect or changes the mandate.
 
 Before the owner accepts the completed operator product, do not select,
 propose, optimize, screen, or profitability-test another strategy. Strategy and

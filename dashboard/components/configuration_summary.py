@@ -185,7 +185,11 @@ def _preflight(readiness: ConfigurationReadinessView) -> html.Section:
         body = html.Ul(
             [
                 html.Li("Saved immutable configuration found."),
-                html.Li("Strategy is an active Milestone 23 infrastructure fixture."),
+                html.Li(
+                    "Strategy is an active owner-approved candidate with a connected runtime."
+                    if readiness.lifecycle == "candidate"
+                    else "Strategy is an active deterministic infrastructure fixture."
+                ),
                 html.Li(
                     "Required local data checks passed."
                     if readiness.dataset != "No market data"

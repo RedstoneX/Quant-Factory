@@ -18,12 +18,14 @@ from orchestration import (
 )
 from persistence import (
     PersistenceService,
+    ResearchLaunchOperation,
     ResearchSubmissionState,
     RunStage,
     RunStatus,
     StrategyLifecycle,
 )
 from persistence.models import normalized_configuration_document
+from tests.test_run_lineage import _service_with_lineage_run
 
 
 def _candidate_configuration(path: Path, *, suffix: str = "one") -> str:
@@ -70,6 +72,53 @@ def _acknowledging_adapter(calls: list[str]):
         )
 
     return adapter
+
+
+def _candidate_source_with_lineage(
+    tmp_path: Path,
+    *,
+    result_status: str | None = "passed",
+    source_status: RunStatus = RunStatus.SUCCEEDED,
+) -> tuple[Path, str, str]:
+    source_run_id = "candidate-source-screening"
+    persistence, configuration_id = _service_with_lineage_run(
+        tmp_path,
+        run_id=source_run_id,
+    )
+    database = tmp_path / "state" / f"{source_run_id}.sqlite3"
+    try:
+        persistence.update_strategy_lifecycle(
+            "fixture_strategy",
+            "1.0.0",
+            lifecycle=StrategyLifecycle.CANDIDATE,
+            active=True,
+        )
+        persistence.connection.execute(
+            "UPDATE experiment_runs SET stage=? WHERE run_id=?",
+            (RunStage.SCREENING.value, source_run_id),
+        )
+        persistence.connection.commit()
+        if result_status is not None:
+            persistence.results.add_parameter_result(
+                run_id=source_run_id,
+                row_id="source-variant",
+                normalized_parameters={"window": 10},
+                metrics={"total_return": 0.1 if result_status == "passed" else -0.1},
+                ranking_position=1,
+                screening_status=result_status,
+                rejection_reasons=(
+                    "" if result_status == "passed" else "deterministic rejection"
+                ),
+            )
+            persistence.connection.commit()
+        persistence.transition_run(source_run_id, RunStatus.RUNNING)
+        persistence.transition_run(source_run_id, source_status)
+        persistence.persist_run_manifest(
+            persistence.build_run_manifest(source_run_id)
+        )
+    finally:
+        persistence.close()
+    return database, configuration_id, source_run_id
 
 
 def test_candidate_screening_claim_is_distinct_and_replays_one_adapter_invocation(
@@ -229,3 +278,149 @@ def test_candidate_service_rejects_fixture_claim_service(tmp_path: Path) -> None
             claim_service=DurableResearchLaunchService(database=database),
             screening_adapter=_acknowledging_adapter([]),
         )
+
+
+@pytest.mark.parametrize(
+    "operation",
+    (
+        ResearchLaunchOperation.HISTORICAL_RELAUNCH,
+        ResearchLaunchOperation.REPRODUCTION,
+    ),
+)
+def test_candidate_service_forwards_supported_operation_and_screening_source(
+    tmp_path: Path,
+    operation: ResearchLaunchOperation,
+) -> None:
+    database, configuration_id, source_run_id = _candidate_source_with_lineage(
+        tmp_path
+    )
+    calls: list[str] = []
+    service = CandidateRunService(
+        database=database,
+        screening_adapter=_acknowledging_adapter(calls),
+        dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
+    )
+
+    result = service.launch_screening(
+        idempotency_key=_key(operation.value),
+        configuration_id=configuration_id,
+        operation=operation,
+        source_run_id=source_run_id,
+    )
+
+    request = json.loads(result.claim.submission.canonical_request_json)
+    assert request["operation_kind"] == operation.value
+    assert request["source_run_id"] == source_run_id
+    assert result.claim.run.stage == RunStage.SCREENING
+    assert result.dispatch.invoked is True
+    assert calls == [result.claim.run.run_id]
+
+
+@pytest.mark.parametrize(
+    "operation",
+    (
+        ResearchLaunchOperation.HISTORICAL_RELAUNCH,
+        ResearchLaunchOperation.REPRODUCTION,
+    ),
+)
+def test_candidate_service_rejects_terminal_all_screened_out_source_before_claim(
+    tmp_path: Path,
+    operation: ResearchLaunchOperation,
+) -> None:
+    database, configuration_id, source_run_id = _candidate_source_with_lineage(
+        tmp_path,
+        result_status="screened_out",
+    )
+    calls: list[str] = []
+    service = CandidateRunService(
+        database=database,
+        screening_adapter=_acknowledging_adapter(calls),
+        dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
+    )
+
+    with pytest.raises(ResearchLaunchError, match="at least one passing variant"):
+        service.launch_screening(
+            idempotency_key=_key(f"reject-{operation.value}"),
+            configuration_id=configuration_id,
+            operation=operation,
+            source_run_id=source_run_id,
+        )
+
+    assert calls == []
+    persistence = PersistenceService(database)
+    try:
+        assert tuple(run.run_id for run in persistence.runs.list()) == (source_run_id,)
+        assert persistence.connection.execute(
+            "SELECT COUNT(*) FROM research_run_submissions"
+        ).fetchone()[0] == 0
+    finally:
+        persistence.close()
+
+
+@pytest.mark.parametrize(
+    "operation",
+    (
+        ResearchLaunchOperation.HISTORICAL_RELAUNCH,
+        ResearchLaunchOperation.REPRODUCTION,
+    ),
+)
+@pytest.mark.parametrize("result_status", (None, "unexpected_status"))
+def test_candidate_service_rejects_incomplete_or_malformed_succeeded_source_before_claim(
+    tmp_path: Path,
+    operation: ResearchLaunchOperation,
+    result_status: str | None,
+) -> None:
+    database, configuration_id, source_run_id = _candidate_source_with_lineage(
+        tmp_path,
+        result_status=result_status,
+    )
+    calls: list[str] = []
+    service = CandidateRunService(
+        database=database,
+        screening_adapter=_acknowledging_adapter(calls),
+        dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
+    )
+
+    with pytest.raises(ResearchLaunchError, match="nonempty, valid"):
+        service.launch_screening(
+            idempotency_key=_key(f"invalid-{operation.value}-{result_status}"),
+            configuration_id=configuration_id,
+            operation=operation,
+            source_run_id=source_run_id,
+        )
+
+    assert calls == []
+    persistence = PersistenceService(database)
+    try:
+        assert tuple(run.run_id for run in persistence.runs.list()) == (source_run_id,)
+        assert persistence.connection.execute(
+            "SELECT COUNT(*) FROM research_run_submissions"
+        ).fetchone()[0] == 0
+    finally:
+        persistence.close()
+
+
+def test_candidate_historical_relaunch_keeps_failed_technical_source_recoverable(
+    tmp_path: Path,
+) -> None:
+    database, configuration_id, source_run_id = _candidate_source_with_lineage(
+        tmp_path,
+        result_status=None,
+        source_status=RunStatus.FAILED,
+    )
+    calls: list[str] = []
+    service = CandidateRunService(
+        database=database,
+        screening_adapter=_acknowledging_adapter(calls),
+        dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
+    )
+
+    result = service.launch_screening(
+        idempotency_key=_key("failed-technical-relaunch"),
+        configuration_id=configuration_id,
+        operation=ResearchLaunchOperation.HISTORICAL_RELAUNCH,
+        source_run_id=source_run_id,
+    )
+
+    assert result.dispatch.invoked is True
+    assert calls == [result.claim.run.run_id]

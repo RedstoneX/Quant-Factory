@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from copy import deepcopy
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID
@@ -16,6 +18,7 @@ import orchestration.candidate_pipeline_runtime as candidate_runtime_module
 import strategies.rsi_mean_reversion as rsi_strategy
 from backtesting.experiments import ExecutionConfig, ExperimentConfig
 from backtesting.monte_carlo import MonteCarloConfig
+from backtesting.monte_carlo.models import ExecutionCostScenario
 from backtesting.out_of_sample import ChronologicalSplitConfig
 from backtesting.robustness import (
     NeighborhoodConfig,
@@ -32,13 +35,16 @@ from orchestration import (
     CandidatePipelineRuntime,
     CandidateValidationPlan,
     ResearchLaunchInvocationError,
+    VALIDATION_RUNTIME_KEY,
 )
 from persistence import (
     PersistenceService,
+    ResearchLaunchOperation,
     ResearchSubmissionState,
     RunStage,
     RunStatus,
     StrategyLifecycle,
+    canonical_json,
 )
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
 
@@ -289,6 +295,144 @@ def _runtime(
     )
 
 
+def test_saved_definition_strictly_reconstructs_typed_nested_contract(
+    tmp_path: Path,
+) -> None:
+    original = _definition(tmp_path)
+    experiment = replace(
+        original.experiment,
+        market_data=replace(
+            original.experiment.market_data,
+            legacy_cache_paths=(tmp_path / "legacy-one.csv", tmp_path / "legacy-two.csv"),
+        ),
+        parameter_output_names=(("window", "Window"),),
+    )
+    validation = replace(
+        original.validation,
+        monte_carlo=replace(
+            original.validation.monte_carlo,
+            execution_cost_scenarios=(
+                ExecutionCostScenario(
+                    name="wider fills",
+                    fee_increase=0.25,
+                    slippage_increase=0.5,
+                    execution_price_penalty=0.125,
+                ),
+            ),
+        ),
+    )
+    definition = replace(original, experiment=experiment, validation=validation)
+    document = json.loads(canonical_json(definition.configuration_document()))
+
+    restored = CandidatePipelineDefinition.from_configuration_document(document)
+
+    assert canonical_json(restored.configuration_document()) == canonical_json(document)
+    assert restored.experiment.parameter_combinations == experiment.parameter_combinations
+    assert isinstance(restored.experiment.market_data.cache_path, Path)
+    assert restored.experiment.market_data.legacy_cache_paths == (
+        tmp_path / "legacy-one.csv",
+        tmp_path / "legacy-two.csv",
+    )
+    assert restored.experiment.parameter_output_names == (("window", "Window"),)
+    assert restored.validation.monte_carlo.execution_cost_scenarios == (
+        ExecutionCostScenario(
+            name="wider fills",
+            fee_increase=0.25,
+            slippage_increase=0.5,
+            execution_price_penalty=0.125,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing_nested", "extra_nested", "wrong_list_type", "version_mismatch"),
+)
+def test_saved_definition_rejects_non_exact_documents(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    document = deepcopy(
+        json.loads(canonical_json(_definition(tmp_path).configuration_document()))
+    )
+    if mutation == "missing_nested":
+        del document[VALIDATION_RUNTIME_KEY]["monte_carlo"]["persist_paths"]
+    elif mutation == "extra_nested":
+        document[VALIDATION_RUNTIME_KEY]["robustness"]["regimes"]["surprise"] = 1
+    elif mutation == "wrong_list_type":
+        document["ranking"]["columns"] = "total_return"
+    else:
+        document["strategy_version"] = "999.0.0"
+
+    with pytest.raises(ValueError):
+        CandidatePipelineDefinition.from_configuration_document(document)
+
+
+def test_runtime_reconstructs_saved_configuration_in_cache_only_mode(
+    tmp_path: Path,
+) -> None:
+    persisted = _runtime(tmp_path)
+
+    restored = CandidatePipelineRuntime.from_saved_configuration(
+        database=persisted.database,
+        artifact_root=persisted.artifact_root,
+        configuration_id=persisted.configuration_id,
+        dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
+    )
+
+    assert restored.cache_only is True
+    assert restored.configuration_id == persisted.configuration_id
+    assert (
+        canonical_json(restored.definition.configuration_document())
+        == canonical_json(persisted.definition.configuration_document())
+    )
+
+
+def test_runtime_forwards_operator_operation_and_source_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = _runtime(tmp_path)
+    captured: dict[str, object] = {}
+    expected_chain = object()
+
+    class FakeCandidateService:
+        def __init__(self, **kwargs):
+            captured["constructor"] = kwargs
+
+        def launch_screening(self, **kwargs):
+            captured["launch"] = kwargs
+            return SimpleNamespace(
+                dispatch=SimpleNamespace(invoked=False),
+                claim=SimpleNamespace(run=SimpleNamespace(run_id="new-screening-run")),
+            )
+
+    monkeypatch.setattr(
+        candidate_runtime_module,
+        "CandidateRunService",
+        FakeCandidateService,
+    )
+    monkeypatch.setattr(
+        runtime,
+        "_reopen_completed_chain",
+        lambda run_id: expected_chain if run_id == "new-screening-run" else None,
+    )
+
+    result = runtime.launch(
+        idempotency_key="candidate_operation_forwarding",
+        operation=ResearchLaunchOperation.REPRODUCTION,
+        source_run_id="source-screening-run",
+        source_lineage={"reproduction_of_run_id": "source-screening-run"},
+    )
+
+    assert result.chain is expected_chain
+    assert captured["launch"]["operation"] == ResearchLaunchOperation.REPRODUCTION
+    assert captured["launch"]["source_run_id"] == "source-screening-run"
+    assert captured["launch"]["source_lineage"] == {
+        "reproduction_of_run_id": "source-screening-run"
+    }
+
+
 def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
     tmp_path: Path,
     monkeypatch,
@@ -399,6 +543,35 @@ def test_post_ack_screening_failure_is_terminal_and_never_reinvoked(
             (runs[0].run_id,),
         ).fetchone()
         assert submission["state"] == ResearchSubmissionState.ACKNOWLEDGED.value
+    finally:
+        persistence.close()
+
+
+def test_post_ack_cache_failure_marks_screening_run_failed(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime = _runtime(tmp_path)
+
+    def fail_cache_load(*_args, **_kwargs):
+        raise RuntimeError("controlled cache-only load failure")
+
+    monkeypatch.setattr(
+        candidate_runtime_module,
+        "load_market_data",
+        fail_cache_load,
+    )
+
+    with pytest.raises(ResearchLaunchInvocationError):
+        runtime.launch(idempotency_key="candidate_cache_failure_after_ack")
+
+    persistence = PersistenceService(runtime.database)
+    try:
+        runs = persistence.runs.list()
+        assert len(runs) == 1
+        assert runs[0].stage == RunStage.SCREENING
+        assert runs[0].status == RunStatus.FAILED
+        assert runs[0].error_summary == "controlled cache-only load failure"
     finally:
         persistence.close()
 

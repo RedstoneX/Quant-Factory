@@ -250,13 +250,14 @@ def test_home_shows_operator_product_handoff_status() -> None:
 
     assert model.milestone.startswith("Milestone 23")
     assert model.milestone_status == (
-        "The backend and audited MES run are complete. Dashboard and operator-workflow "
-        "completion are now active for Terry's final handoff."
+        "The objective research workflow has passed its technical gate and is ready "
+        "for Terry's final walkthrough. Handoff acceptance is not yet recorded."
     )
-    assert "backend and audited MES run are complete" in discovery
+    assert "passed its technical gate" in discovery
     assert "No new strategy selection" in discovery
     assert "deterministic fixtures and accepted evidence" in discovery
-    assert "final operator walkthrough" in discovery
-    assert "external deployment, paper execution, and live trading remain deferred" in discovery
+    assert "Terry's walkthrough and explicit handoff acceptance" in discovery
+    assert "Private deployment" in discovery
+    assert "live trading remain unauthorized" in discovery
     assert model.action.label == "Continue to Compare"
     assert "discover" not in model.action.label.lower()

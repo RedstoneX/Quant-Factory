@@ -373,6 +373,7 @@ class DurableResearchLaunchService:
         *,
         operation: ResearchLaunchOperation,
         source_run_id: str | None,
+        source_stage: RunStage,
         configuration_id: str,
         strategy_id: str,
         strategy_version: str,
@@ -385,9 +386,9 @@ class DurableResearchLaunchService:
             raise ResearchLaunchIntegrityError(
                 f"source run {source_run_id} does not exist"
             )
-        if source.stage != RunStage.FIXTURE:
+        if source.stage != source_stage:
             raise ResearchLaunchIntegrityError(
-                f"source run {source_run_id} is not a fixture run"
+                f"source run {source_run_id} is not a {source_stage.value} run"
             )
         if (
             source.configuration_id != configuration_id
@@ -519,6 +520,7 @@ class DurableResearchLaunchService:
             connection,
             operation=operation,
             source_run_id=source_run_id,
+            source_stage=self._launch_contract.stage,
             configuration_id=configuration.configuration_id,
             strategy_id=configuration.strategy_id,
             strategy_version=configuration.strategy_version,
@@ -812,6 +814,7 @@ class DurableResearchLaunchService:
             connection,
             operation=operation,
             source_run_id=source_run_id,
+            source_stage=self._launch_contract.stage,
             configuration_id=configuration.configuration_id,
             strategy_id=configuration.strategy_id,
             strategy_version=configuration.strategy_version,

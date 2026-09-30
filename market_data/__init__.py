@@ -99,8 +99,12 @@ def _build_audit(
 def load_market_data(
     config: MarketDataConfig,
     now: pd.Timestamp | None = None,
+    *,
+    allow_download: bool = True,
 ) -> MarketDataResult:
     """Load clean market data from a compatible cache or supported provider."""
+    if not isinstance(allow_download, bool):
+        raise ValueError("allow_download must be a boolean")
     if config.provider != "Yahoo Finance":
         raise ValueError(f"Unsupported market-data provider: {config.provider}")
     now = resolve_now(config, now)
@@ -140,6 +144,12 @@ def load_market_data(
     elif any(path.is_file() for path in config.legacy_cache_paths):
         cache_action = "replaced"
         cache_reason = "legacy cache is incompatible with the active request"
+
+    if not allow_download:
+        raise DatasetUnavailableError(
+            "no compatible local market-data cache is available and downloads are disabled: "
+            f"{cache_reason}"
+        )
 
     raw, provider_warnings = download_yahoo_data(config, completed_through)
     cleaned, _ = clean_and_validate_data(

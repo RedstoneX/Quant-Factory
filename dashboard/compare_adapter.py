@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 from dashboard.callbacks.review_state import load_durable_review
 from dashboard.formatting import format_metric
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter, SelectedRunDetailView
-from persistence import PersistenceService
+from persistence import PersistenceService, canonical_json, configuration_hash
 from persistence.database import database_path
 
 
@@ -255,7 +255,9 @@ class CompareDashboardAdapter:
                 )
             except ValueError as exc:
                 snapshot.errors.append(str(exc))
-        snapshot.parameters = _mapping(configuration_document.get("parameters"))
+        snapshot.parameters = _parameter_mapping(
+            configuration_document.get("parameters")
+        )
         configured_execution = _mapping(configuration_document.get("execution"))
         configured_market_data = _mapping(configuration_document.get("market_data"))
 
@@ -795,6 +797,40 @@ def _json_object(value: str, *, label: str) -> dict[str, Any]:
 
 def _mapping(value: Any) -> dict[str, Any]:
     return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _parameter_mapping(value: Any) -> dict[str, Any]:
+    """Retain a bounded, exact identity for mapping- or grid-shaped plans."""
+
+    if isinstance(value, Mapping):
+        return dict(value)
+    if not isinstance(value, list) or any(
+        not isinstance(item, Mapping) for item in value
+    ):
+        return {}
+    combinations = [dict(item) for item in value]
+    parameter_values: dict[str, list[Any]] = {}
+    for name in sorted({str(name) for row in combinations for name in row}):
+        distinct: list[Any] = []
+        identities: set[str] = set()
+        for row in combinations:
+            if name not in row:
+                continue
+            item = row[name]
+            identity = canonical_json(item)
+            if identity in identities:
+                continue
+            identities.add(identity)
+            distinct.append(item)
+        visible = distinct[:8]
+        if len(distinct) > len(visible):
+            visible.append(f"+{len(distinct) - len(visible):,} more")
+        parameter_values[name] = visible
+    return {
+        "combination_count": len(combinations),
+        "plan_identity": configuration_hash(combinations),
+        "parameter_values": parameter_values,
+    }
 
 
 def _detail_fields(fields: Iterable[Any]) -> dict[str, str]:

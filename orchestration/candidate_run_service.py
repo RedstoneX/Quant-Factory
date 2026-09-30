@@ -17,10 +17,17 @@ from orchestration.research_launch_claims import (
     DurableResearchLaunchService,
     ResearchDispatchResult,
     ResearchLaunchClaim,
+    ResearchLaunchError,
     ResearchLaunchRequest,
     new_dispatcher_instance_id,
 )
-from persistence.models import ResearchLaunchOperation, ResearchRunSubmissionRecord
+from persistence import PersistenceService
+from persistence.models import (
+    ResearchLaunchOperation,
+    ResearchRunSubmissionRecord,
+    RunStage,
+    RunStatus,
+)
 
 
 T = TypeVar("T")
@@ -72,14 +79,29 @@ class CandidateRunService:
         idempotency_key: str,
         configuration_id: str,
         environment: Mapping[str, Any] | None = None,
+        operation: ResearchLaunchOperation = ResearchLaunchOperation.RUN_TEST,
+        source_run_id: str | None = None,
+        source_lineage: Mapping[str, str] | None = None,
     ) -> CandidateScreeningLaunchResult:
         """Claim and dispatch one explicit candidate screening invocation once."""
+
+        try:
+            normalized_operation = ResearchLaunchOperation(operation)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("unsupported candidate launch operation") from exc
+        if normalized_operation in {
+            ResearchLaunchOperation.HISTORICAL_RELAUNCH,
+            ResearchLaunchOperation.REPRODUCTION,
+        }:
+            self._validate_candidate_source_before_claim(source_run_id)
 
         claim = self._claims.claim(
             idempotency_key=idempotency_key,
             request=ResearchLaunchRequest(
-                operation=ResearchLaunchOperation.RUN_TEST,
+                operation=normalized_operation,
                 configuration_id=configuration_id,
+                source_run_id=source_run_id,
+                source_lineage=source_lineage,
             ),
             environment=environment,
         )
@@ -89,3 +111,33 @@ class CandidateRunService:
             invoke=lambda submission: self._screening_adapter(submission, self._claims),
         )
         return CandidateScreeningLaunchResult(claim=claim, dispatch=dispatch)
+
+    def _validate_candidate_source_before_claim(
+        self,
+        source_run_id: str | None,
+    ) -> None:
+        if source_run_id is None:
+            return
+        persistence = PersistenceService(self._claims.database_path)
+        try:
+            source = persistence.runs.get(source_run_id)
+            if (
+                source is None
+                or source.stage != RunStage.SCREENING
+                or source.status != RunStatus.SUCCEEDED
+            ):
+                return
+            rows = persistence.results.list_parameter_results(source_run_id)
+            statuses = {row.screening_status for row in rows}
+            if (
+                not rows
+                or not statuses.issubset({"passed", "screened_out"})
+                or "passed" not in statuses
+            ):
+                raise ResearchLaunchError(
+                    "succeeded candidate screening sources require nonempty, valid "
+                    "parameter results with at least one passing variant before "
+                    "relaunch or reproduction"
+                )
+        finally:
+            persistence.close()
