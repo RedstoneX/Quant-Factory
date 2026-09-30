@@ -6,6 +6,7 @@ import sqlite3
 
 import pytest
 
+from dashboard.app import create_app
 from dashboard.callbacks.setup import _parameter_controls
 from dashboard.pages.ideas import layout as ideas_layout
 from dashboard.run_adapter import (
@@ -37,6 +38,14 @@ def _register_fixture(path) -> None:
         )
     finally:
         service.close()
+
+
+def _callback(app, output_fragment: str):
+    entry = next(
+        value for key, value in app.callback_map.items() if output_fragment in key
+    )
+    callback = entry["callback"]
+    return getattr(callback, "__wrapped__", callback)
 
 
 def test_v5_database_migrates_idea_drafts_once(tmp_path) -> None:
@@ -181,3 +190,44 @@ def test_ideas_layout_hydrates_latest_durable_draft_without_source_fetch() -> No
     )
     assert store.data["draft_id"] == draft.draft_id
     assert store.data["source_url"] == "https://example.com/text-only"
+
+
+def test_new_setup_draft_is_known_to_run_preflight_without_server_restart(
+    tmp_path,
+) -> None:
+    path = tmp_path / "operator.sqlite3"
+    _register_fixture(path)
+    draft = save_idea_draft({"title": "Fresh draft"}, database=path)
+    app = create_app(
+        review_database=path,
+        catalog_snapshot=(None, (), None),
+    )
+
+    save_setup = _callback(app, "created-configuration-state.data")
+    _, _, created, _, selected_id = save_setup(
+        1,
+        draft.to_store(),
+        "spym_rsi_mean_reversion_fixture@1.0.0",
+        [
+            {"type": "setup-parameter", "name": "window"},
+            {"type": "setup-parameter", "name": "entry_threshold"},
+            {"type": "setup-parameter", "name": "exit_threshold"},
+        ],
+        [
+            SPYM_RSI_WINDOW,
+            SPYM_RSI_ENTRY_THRESHOLD,
+            SPYM_RSI_EXIT_THRESHOLD,
+        ],
+    )
+    assert created["configuration_id"] == selected_id
+
+    launch = _callback(app, "launch-message.children")
+    _, message, _, _, _, disabled, _, _ = launch(
+        1,
+        selected_id,
+        None,
+        "/research/run-test",
+    )
+    assert "did not pass preflight" in str(message)
+    assert "could not be found" not in str(message)
+    assert disabled is True

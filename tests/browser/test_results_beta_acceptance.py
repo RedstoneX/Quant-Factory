@@ -621,11 +621,17 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
             expect(page.locator("#parameter-variant-selection-detail")).to_contain_text(
                 "Rank 2000"
             )
-            expect(
-                page.get_by_role("link", name="Open exact variant link")
-            ).to_have_attribute(
+            exact_variant_link = page.get_by_role(
+                "link",
+                name="Open exact variant link",
+            )
+            variant_href = (
+                f"{BACKTEST_PATH}?"
+                f"{urlencode({'run_id': RUN_ID, 'parameter_row_id': 'portable-r07-row-2000'})}"
+            )
+            expect(exact_variant_link).to_have_attribute(
                 "href",
-                f"{BACKTEST_PATH}?{urlencode({'run_id': RUN_ID, 'parameter_row_id': 'portable-r07-row-2000'})}",
+                variant_href,
             )
             page.locator("#parameter-variant-reset-view").click()
             _wait_for_callbacks_to_settle(page, pending)
@@ -699,6 +705,62 @@ def test_selected_run_results_beta_browser_contract(results_beta_server) -> None
 
             assert not pending
             assert external_requests == []
+            assert_browser_diagnostics_clean(page, events, (server_log,))
+        finally:
+            browser.close()
+
+
+def test_exact_parameter_variant_link_opens_refreshes_and_navigates_back(
+    results_beta_server,
+) -> None:
+    base_url, server_log = results_beta_server
+    run_url = f"{base_url}{BACKTEST_PATH}?{urlencode({'run_id': RUN_ID})}"
+    variant_url = (
+        f"{run_url}&"
+        f"{urlencode({'parameter_row_id': 'portable-r07-row-2000'})}"
+    )
+    events: list[dict[str, object]] = []
+    action = {"name": "open exact parameter variant"}
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        pending = attach_browser_diagnostics(page, events, action)
+        try:
+            page.goto(run_url, wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            page.goto(variant_url, wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page.locator("#results-report-tabs .tab--selected")).to_have_text(
+                "Variants"
+            )
+            expect(page.locator("#parameter-variant-selection-detail")).to_contain_text(
+                "Rank 2000"
+            )
+
+            action["name"] = "refresh exact parameter variant"
+            page.reload(wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page).to_have_url(variant_url)
+            expect(page.locator("#results-report-tabs .tab--selected")).to_have_text(
+                "Variants"
+            )
+            expect(page.locator("#parameter-variant-selection-detail")).to_contain_text(
+                "Rank 2000"
+            )
+
+            page.set_viewport_size({"width": 390, "height": 844})
+            page.wait_for_timeout(200)
+            _assert_no_horizontal_overflow(page)
+            action["name"] = "navigate back from exact parameter variant"
+            page.go_back(wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
+            expect(page).to_have_url(run_url)
+            expect(page.locator("#results-report-tabs .tab--selected")).to_have_text(
+                "Metrics"
+            )
+            _assert_no_horizontal_overflow(page)
+            assert not pending
             assert_browser_diagnostics_clean(page, events, (server_log,))
         finally:
             browser.close()

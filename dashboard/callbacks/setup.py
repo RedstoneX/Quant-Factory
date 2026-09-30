@@ -192,8 +192,8 @@ def register_setup_callbacks(
         readiness_by_id[configuration_id] = configuration_readiness(created, None)
         return (
             (
-                f"Immutable setup saved as {configuration_id[:12]}. It remains non-running "
-                "until every existing readiness and owner-authority gate passes."
+                f"Research setup draft saved as {configuration_id[:12]}. Approval and "
+                "concrete data binding are required before it can run."
             ),
             "save-message save-message-success",
             {"configuration_id": configuration_id, "draft_id": draft_id},

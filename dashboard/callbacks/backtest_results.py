@@ -35,7 +35,11 @@ from dashboard.application import (
     _results_operator_context,
     _selector_options,
 )
-from dashboard.run_adapter import ConfigurationReadinessView, SavedConfigurationView
+from dashboard.run_adapter import (
+    ConfigurationReadinessView,
+    SavedConfigurationView,
+    list_saved_configurations,
+)
 from dashboard.callbacks.review_state import load_durable_review
 from dashboard.run_detail_adapter import (
     ResultSummaryView,
@@ -586,6 +590,17 @@ def register_backtest_results_callbacks(
         run_id = _persisted_selected_run_id(run_id)
         if not run_id or not selected_rows:
             return _parameter_variant_selection(())
+        if any(
+            str(row.get("__run_id") or "") != run_id
+            or str(row.get("variant_key") or "")
+            != f"{run_id}:{row.get('parameter_row_id')}"
+            for row in selected_rows
+        ):
+            return _operator_message(
+                "Variant selection no longer matches this run.",
+                "No stale or cross-run row was substituted. Choose the variant again from this study.",
+                tone="warning",
+            )
         try:
             summary = detail_adapter.selected_run_detail(run_id).result_summary
         except (KeyError, RuntimeError, ValueError) as exc:
@@ -684,14 +699,17 @@ def register_backtest_results_callbacks(
             explicit_action = True
         if explicit_action and not _active_route(pathname, "/research/run-test"):
             raise PreventUpdate
-        selected = next(
-            (
-                configuration
-                for configuration in configurations
-                if configuration.configuration_id == configuration_id
-            ),
-            None,
+        current_configurations = {
+            configuration.configuration_id: configuration
+            for configuration in configurations
+        }
+        current_configurations.update(
+            {
+                configuration.configuration_id: configuration
+                for configuration in list_saved_configurations(dashboard_database)
+            }
         )
+        selected = current_configurations.get(configuration_id or "")
         readiness = readiness_by_id.get(selected.configuration_id) if selected else None
         allowed = selected is not None and readiness is not None and readiness.ready
         supported = approved_configuration_launcher is not None or _durable_launch_supported(

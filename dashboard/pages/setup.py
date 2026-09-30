@@ -100,7 +100,10 @@ def layout(
             page_heading(
                 "RESEARCH / SET UP",
                 "Set up a test",
-                "Choose and inspect an approved immutable fixture configuration before any work starts.",
+                (
+                    "Turn an idea into a bounded research setup draft, or choose an "
+                    "already approved runnable setup."
+                ),
             ),
             _strategy_research_path("/research/setup"),
             dcc.Store(
@@ -111,7 +114,7 @@ def layout(
             dcc.Store(id="created-configuration-state", storage_type="session"),
             html.Section(
                 [
-                    html.H2("Create setup from saved idea"),
+                    html.H2("Create a research setup draft from a saved idea"),
                     html.P(
                         "Selected idea: choose and save a draft on Ideas first.",
                         id="setup-idea-title",
@@ -140,13 +143,16 @@ def layout(
                     html.P(
                         (
                             "Only values already allowed by the approved strategy "
-                            "specification are offered. Saving creates an immutable setup "
-                            "record; it does not approve research or launch a test."
+                            "specification are offered. Saving creates an immutable draft; "
+                            "approval and concrete data binding are still required before "
+                            "Run test becomes available. After you accept a named candidate, "
+                            "Codex implements and binds that exact strategy; this page does "
+                            "not turn a free-form idea into trading code."
                         ),
                         className="field-help",
                     ),
                     html.Button(
-                        "Save immutable setup",
+                        "Save setup draft",
                         id="save-idea-configuration",
                         n_clicks=0,
                         disabled=not approved_strategies,
@@ -171,6 +177,14 @@ def layout(
                                 className="field-label",
                             ),
                             selector,
+                            html.P(
+                                (
+                                    "Run test uses an already approved setup with concrete "
+                                    "data. New idea-based drafts stay blocked until those "
+                                    "requirements are supplied under the existing authority."
+                                ),
+                                className="field-help",
+                            ),
                             html.P(
                                 "Only approved infrastructure fixtures are available during Milestone 23.",
                                 className="field-help",

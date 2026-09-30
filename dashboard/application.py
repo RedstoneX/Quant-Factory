@@ -2967,7 +2967,7 @@ def _results_report_tabs(
             ),
         ],
         id="results-report-tabs",
-        value="metrics",
+        value="variants" if selected_parameter_row_id else "metrics",
         className="run-analysis-tabs results-report-tabs",
         parent_style={"display": "flex", "gap": "8px"},
     )

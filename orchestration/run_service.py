@@ -255,12 +255,19 @@ def _evidence_outcome_status(
     return _registered_evidence_status(artifacts)
 
 
-def _manifest_status(service: PersistenceService, run_id: str) -> str:
+def _manifest_status(
+    service: PersistenceService,
+    run_id: str,
+    *,
+    artifact_root: str | Path | None = None,
+) -> str:
     if service.read_persisted_run_manifest(run_id) is None:
         return "Manifest missing"
     try:
         service.read_persisted_run_manifest_document(run_id)
-    except (KeyError, TypeError, ValueError) as exc:
+        if artifact_root is not None:
+            service.retrieve_run_artifacts(run_id, artifact_root=artifact_root)
+    except (KeyError, RuntimeError, TypeError, ValueError) as exc:
         return f"Manifest invalid: {exc}"
     return "Manifest persisted"
 
@@ -596,7 +603,17 @@ class FixtureRunService:
                 review = service.reviews.get_current("run", run.run_id)
                 results = service.results.list_parameter_results(run.run_id)
                 artifacts = service.results.list_artifact_contracts(run.run_id)
+                reproducibility = _manifest_status(
+                    service,
+                    run.run_id,
+                    artifact_root=artifact_root,
+                )
                 metrics, metric_basis = _top_ranked_metrics(results)
+                if reproducibility.startswith(("Manifest invalid:", "Manifest missing")):
+                    metrics = {name: None for name in metrics}
+                    metric_basis = (
+                        "Top-ranked variation unavailable · Manifest/artifact evidence is invalid"
+                    )
                 evidence = (
                     f"Evidence invalid: {configuration_issue}"
                     if configuration_issue is not None
@@ -607,11 +624,8 @@ class FixtureRunService:
                         artifact_root=artifact_root,
                     )
                 )
-                reproducibility = (
-                    f"Configuration invalid: {configuration_issue}"
-                    if configuration_issue is not None
-                    else _manifest_status(service, run.run_id)
-                )
+                if configuration_issue is not None:
+                    reproducibility = f"Configuration invalid: {configuration_issue}"
                 rows.append({
                     "run_id": run.run_id,
                     "created_at": run.created_at,

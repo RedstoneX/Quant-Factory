@@ -2020,11 +2020,19 @@ input {
 }
 
 .parameter-variant-actions .text-input {
-  min-width: min(360px, 100%);
+  box-sizing: border-box;
+  flex: 1 1 280px;
+  max-width: 360px;
+  min-width: 0;
+  width: 100%;
 }
 
 .parameter-variant-selection-detail {
   margin-top: 4px;
+}
+
+#parameter-results-grid {
+  width: auto !important;
 }
 
 .parameter-variant-selection-grid {
@@ -2700,13 +2708,23 @@ input {
   gap: 12px;
 }
 
+#selected-run-detail {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
 .results-beta-workspace {
   --qf-results-chart-height: 520px;
   --qf-results-report-min-height: 320px;
   background: #ffffff;
   border: 1px solid #dfe7f1;
   border-radius: 8px;
+  box-sizing: border-box;
   margin-bottom: 16px;
+  max-width: 100%;
+  min-width: 0;
   padding: 18px;
 }
 

@@ -11,6 +11,7 @@ from dash import Dash
 from dashboard.application import (
     _parameter_variant_selection,
     _parameter_variants_explorer,
+    _results_report_tabs,
 )
 from dashboard.callbacks.backtest_results import (
     _requested_results_parameter_row_id,
@@ -113,6 +114,14 @@ def test_explorer_keeps_all_two_thousand_rows_in_one_bounded_grid() -> None:
     }.issubset(displayed_fields)
 
 
+def test_exact_variant_request_opens_variants_tab() -> None:
+    assert _results_report_tabs(None).value == "metrics"
+    assert (
+        _results_report_tabs(None, selected_parameter_row_id="row-0001").value
+        == "variants"
+    )
+
+
 def test_variant_selection_is_exact_bounded_and_links_to_the_same_run_row() -> None:
     rows = tuple(_row(index) for index in range(5))
     one = str(_parameter_variant_selection(rows[:1]))
@@ -178,17 +187,28 @@ def test_variant_callbacks_count_reset_and_reject_cross_run_selection(
     assert reset(1) == ("", {}, True)
     assert "Rank 1" in str(
         inspect(
-            [{"parameter_row_id": "row-0000"}],
+            [
+                {
+                    "parameter_row_id": "row-0000",
+                    "__run_id": "run-many",
+                    "variant_key": "run-many:row-0000",
+                }
+            ],
             "run-many",
             "/research/backtest-results",
         )
     )
     stale = str(
         inspect(
-            [{"parameter_row_id": "row-from-another-run"}],
+            [
+                {
+                    "parameter_row_id": "row-0000",
+                    "__run_id": "another-run",
+                    "variant_key": "another-run:row-0000",
+                }
+            ],
             "run-many",
             "/research/backtest-results",
         )
     )
     assert "No stale or cross-run row was substituted" in stale
-

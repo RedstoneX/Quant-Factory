@@ -8,7 +8,9 @@ from typing import Any
 
 import pytest
 
+from dashboard.compare_adapter import CompareDashboardAdapter
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from orchestration import FixtureRunService
 from persistence import (
     ArtifactType,
     DataProvenanceRecord,
@@ -217,6 +219,89 @@ def test_database_variants_have_stable_composite_identity_and_source_payloads(
     assert first["ranking_position"] == 1
     assert first["screening_status"] == "passed"
     assert first["screening_reason"] == ""
+
+
+def test_missing_manifest_listed_variant_artifact_fails_closed_everywhere(
+    tmp_path: Path,
+) -> None:
+    database, artifact_root, run_id = _persist_run(
+        tmp_path,
+        artifact_rows=_variant_rows(),
+    )
+    service = PersistenceService(database)
+    try:
+        service.connection.execute(
+            "DELETE FROM artifact_references WHERE run_id=? AND logical_name=?",
+            (run_id, "parameter_results"),
+        )
+        service.connection.commit()
+    finally:
+        service.close()
+
+    detail = RunDetailDashboardAdapter(
+        database,
+        artifact_root=artifact_root,
+    ).selected_run_detail(run_id)
+    assert detail.result_summary.status == "invalid"
+    assert detail.result_summary.evidence_state == "evidence-invalid"
+    assert detail.result_summary.table_rows == ()
+    assert "immutable manifest expects" in detail.result_summary.evidence_message
+
+    history = FixtureRunService(database=database).all_history(
+        artifact_root=artifact_root
+    )
+    assert history[0]["total_return"] is None
+    assert history[0]["max_drawdown"] is None
+    assert str(history[0]["reproducibility"]).startswith("Manifest invalid:")
+
+    comparison = CompareDashboardAdapter(
+        database,
+        artifact_root=artifact_root,
+    ).compare((run_id,))
+    assert all(row.values[0].raw_value is None for row in comparison.metric_rows)
+    assert "evidence is invalid" in comparison.metric_rows[0].values[0].basis
+
+
+@pytest.mark.parametrize("manifest_state", ("tampered", "missing"))
+def test_database_only_variants_require_a_valid_manifest(
+    tmp_path: Path,
+    manifest_state: str,
+) -> None:
+    database, artifact_root, run_id = _persist_run(
+        tmp_path,
+        artifact_rows=None,
+    )
+    service = PersistenceService(database)
+    try:
+        if manifest_state == "tampered":
+            service.connection.execute(
+                "UPDATE run_manifests SET manifest_json=? WHERE run_id=?",
+                ('{"tampered":true}', run_id),
+            )
+        else:
+            service.connection.execute(
+                "DELETE FROM run_manifests WHERE run_id=?",
+                (run_id,),
+            )
+        service.connection.commit()
+    finally:
+        service.close()
+
+    detail = RunDetailDashboardAdapter(
+        database,
+        artifact_root=artifact_root,
+    ).selected_run_detail(run_id)
+    assert detail.result_summary.status == "invalid"
+    assert detail.result_summary.table_rows == ()
+    assert "could not be retrieved and validated" in (
+        detail.result_summary.evidence_message
+    )
+
+    comparison = CompareDashboardAdapter(
+        database,
+        artifact_root=artifact_root,
+    ).compare((run_id,))
+    assert all(row.values[0].raw_value is None for row in comparison.metric_rows)
 
 
 def test_valid_registered_artifact_reconciles_every_variant(tmp_path: Path) -> None:

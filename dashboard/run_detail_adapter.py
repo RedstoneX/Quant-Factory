@@ -196,6 +196,7 @@ def _result_summary(
     retrieval: Any | None,
     artifact_root: Path,
     warnings: list[str],
+    manifest_document: dict[str, Any] | None = None,
     evidence_classification: str | None = None,
 ) -> ResultSummaryView:
     parameters = (detail or {}).get("parameters") or ()
@@ -229,6 +230,7 @@ def _result_summary(
         registered_artifacts=registered_artifacts,
         retrieval=retrieval,
         artifact_root=artifact_root,
+        manifest_document=manifest_document,
     )
     if evidence_state == "evidence-invalid":
         message = f"Parameter-result evidence is invalid: {evidence_message} Results are hidden."
@@ -308,6 +310,7 @@ def _parameter_result_evidence_state(
     registered_artifacts: tuple[Any, ...],
     retrieval: Any | None,
     artifact_root: Path,
+    manifest_document: dict[str, Any] | None,
 ) -> tuple[str, str]:
     artifacts = tuple(
         artifact
@@ -315,6 +318,31 @@ def _parameter_result_evidence_state(
         if artifact.logical_name == "parameter_results"
     )
     if not artifacts:
+        manifest_artifacts = (
+            manifest_document.get("artifacts")
+            if isinstance(manifest_document, dict)
+            else None
+        )
+        manifest_parameter_results = (
+            [
+                artifact
+                for artifact in manifest_artifacts
+                if isinstance(artifact, dict)
+                and artifact.get("logical_name") == "parameter_results"
+            ]
+            if isinstance(manifest_artifacts, list)
+            else []
+        )
+        if manifest_parameter_results:
+            return (
+                "evidence-invalid",
+                "the immutable manifest expects a parameter-results artifact that is missing from the registry.",
+            )
+        if retrieval is None:
+            return (
+                "evidence-invalid",
+                "the immutable manifest and registered artifacts could not be retrieved and validated.",
+            )
         return (
             "database-persisted",
             "Variants are shown from durable database rows; no parameter-results artifact is registered.",
@@ -327,9 +355,8 @@ def _parameter_result_evidence_state(
     if retrieval is None:
         return (
             "evidence-invalid",
-            "the registered parameter-results artifact could not be retrieved and validated.",
+            "the immutable manifest and registered artifacts could not be retrieved and validated.",
         )
-
     artifact = artifacts[0]
     if artifact.artifact_type != ArtifactType.PARAMETER_RESULTS:
         return (
@@ -1301,6 +1328,7 @@ class RunDetailDashboardAdapter:
                     retrieval=retrieval,
                     artifact_root=self.artifact_root,
                     warnings=warnings,
+                    manifest_document=manifest_document,
                     evidence_classification=evidence.evidence_classification,
                 ),
                 evidence=evidence,

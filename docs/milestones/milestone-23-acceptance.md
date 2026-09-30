@@ -176,9 +176,13 @@ research-computation behavior is not misrepresented as a completed cache.
   attributed to a non-top row.
 - A registered parameter-results artifact is displayed as artifact-validated
   only after checksum validation and complete reconciliation against durable
-  database rows. Missing artifacts are labelled database-persisted; corrupt,
-  duplicate or mismatched artifacts produce a fail-closed invalid state with
-  no normal variant rows.
+  database rows. Database-only rows are labelled database-persisted only when
+  the immutable manifest also records no parameter-results artifact. Corrupt,
+  duplicate, mismatched, or manifest-listed-but-unregistered artifacts produce
+  a fail-closed invalid state with no normal variant rows or headline metrics
+  in Results, Find, or Compare.
+- Exact variant links reopen the requested study and row directly on the
+  Variants tab and preserve that identity through refresh and browser back.
 - This is current-branch product evidence pending normal pull-request review
   and required CI. It is not owner handoff acceptance, deployment, strategy
   research, profitability evidence, or authority for paper/live trading.
