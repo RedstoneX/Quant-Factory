@@ -673,6 +673,8 @@ def _overview_page(
     health_readings: tuple[HomeHealthReading, ...] = (),
     health_stale_after: timedelta = timedelta(minutes=15),
     health_refresh_interval_ms: int = 30_000,
+    history_rows: tuple[dict[str, object], ...] = (),
+    catalog_snapshot: CatalogSnapshot | None = None,
     project_status: DashboardProjectStatus = PROJECT_STATUS,
 ) -> html.Div:
     from dashboard.pages.home import build_home_view_model, layout as home_layout
@@ -685,6 +687,8 @@ def _overview_page(
             selected_run_id=selected_run_id,
             stale_after=health_stale_after,
             health_refresh_interval_ms=health_refresh_interval_ms,
+            history_rows=history_rows,
+            catalog_snapshot=catalog_snapshot,
             project_status=project_status,
         )
     )
@@ -4237,6 +4241,9 @@ def _history_row(run: RunSummary) -> dict[str, object]:
         "annualized_return": None,
         "sharpe_ratio": None,
         "number_of_trades": None,
+        "max_drawdown": None,
+        "win_rate": None,
+        "rejection_reasons": "",
         "metric_basis": "No persisted ranked result",
         "artifact_status": "Unverified",
         "reproducibility": "Unverified",
@@ -4524,6 +4531,8 @@ def page_for_path(
             health_readings=home_health_readings,
             health_stale_after=health_stale_after,
             health_refresh_interval_ms=health_refresh_interval_ms,
+            history_rows=history_rows,
+            catalog_snapshot=catalog_snapshot,
         )
     if route == "/research/ideas":
         from dashboard.pages.ideas import layout as ideas_layout

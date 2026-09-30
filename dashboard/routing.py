@@ -6,6 +6,7 @@ NAVIGATION_GROUPS = (
     (
         "Research workflow",
         (
+            ("/", "Dashboard"),
             ("/research/ideas", "Ideas"),
             ("/research/setup", "Set up"),
             ("/research/run-test", "Run test"),
@@ -46,7 +47,7 @@ NAVIGATION_LINKS = tuple(
     for _, links in NAVIGATION_GROUPS
     for path, label in links
 )
-NAVIGATION_ITEMS = (("/", "Home"), *NAVIGATION_LINKS)
+NAVIGATION_ITEMS = NAVIGATION_LINKS
 
 ROUTE_REGISTRY = (
     ("/", "route-home"),
