@@ -89,13 +89,7 @@ def navigation(pathname: str = "/") -> html.Nav:
                 dcc.Link(
                     [
                         html.Span("QF", className="sidebar-logo"),
-                        html.Div(
-                            [
-                                html.P("QUANT", className="sidebar-title-line"),
-                                html.P("FACTORY", className="sidebar-title-line"),
-                            ],
-                            className="sidebar-title-lockup",
-                        ),
+                        html.Span("Quant Factory", className="sidebar-brand-name"),
                         html.Span(
                             "Current page",
                             className="navigation-current-label",

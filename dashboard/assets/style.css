@@ -3553,6 +3553,31 @@ input {
 }
 
 /* Research Atlas dashboard */
+.sidebar-brand {
+  gap: 10px;
+}
+
+.sidebar-brand .sidebar-logo {
+  background: transparent;
+  border-radius: 0;
+  color: #2583f7;
+  display: inline;
+  font-size: 1.78rem;
+  height: auto;
+  letter-spacing: -0.09em;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(37, 131, 247, 0.28);
+  width: auto;
+}
+
+.sidebar-brand-name {
+  color: #f6f8fc;
+  font-size: 0.98rem;
+  font-weight: 780;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+
 .research-atlas-page {
   box-sizing: border-box;
   max-width: 1800px;
