@@ -19,7 +19,7 @@ PROJECT_STATUS = DashboardProjectStatus(
         "completion are now active for Terry's final handoff."
     ),
     strategy_status=(
-        "No new strategy selection, screening, optimization, or profitability testing occurs "
+        "No new strategy selection, screening, optimization, or performance evaluation occurs "
         "before handoff. Product verification uses deterministic fixtures and accepted evidence."
     ),
     workspace_status=(
