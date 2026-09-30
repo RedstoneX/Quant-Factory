@@ -127,11 +127,11 @@ inspection, automatic promotion, paper activation, live work, and capital
 changes remain unavailable without their Tier 1 gates and owner authority.
 
 Credentials remain least-privilege, isolated, auditable, and absent from
-prompts, repository content, logs, tests, and artifacts. The dedicated Quant
-Factory Bitwarden Password Manager vault is the source of truth; official
-Bitwarden Agent Access is the standard injection path. Do not substitute an
-interactive vault session, dotenv file, unrestricted vault output, or another
-project's credential system.
+prompts, repository content, logs, tests, and artifacts. Bitwarden Secrets
+Manager is the Quant Factory source of truth; the project-scoped `Codex`
+machine account and official `bws` CLI are the standard machine path. Do not
+substitute an interactive vault session, dotenv file, unrestricted project
+output, Password Manager workflow, or another project's credential system.
 
 Before completion, review the exact diff, run required documentation/focused
 checks, update the authoritative record required by documentation governance,

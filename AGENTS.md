@@ -31,9 +31,12 @@ approves paper/live trading and capital exposure.
 
 Follow the queue in `docs/MILESTONES.md`. The default sequence is:
 
-**backend completion -> edge discovery -> validation -> execution-vehicle comparison -> dashboard repair -> paper operation -> live operation later.**
+**edge discovery -> validation -> execution-vehicle comparison -> dashboard
+repair -> paper operation -> live operation later.**
 
-Complete the verified generic backend runtime gap before new candidate selection. Do not reopen broad infrastructure, dashboard, deployment, or broker work unless a measured blocker requires it. Once backend completion is recorded, do not keep testing the factory instead of moving into edge research.
+Do not make dashboard completion, deployment, broker integration, portability,
+or generic infrastructure a prerequisite for edge research unless a measured
+blocker proves that it is one.
 
 The current dashboard's historical technical evidence is retained, but the
 owner does not consider the present interface sufficiently intuitive or viable
@@ -55,7 +58,7 @@ or material delegation, state in no more than six short bullets:
 If any item is missing, do not invent work. Reuse existing evidence or report
 that no new work is justified.
 
-While backend completion is active, do not select or research a new candidate. After backend completion is recorded, perform a cheap read-only prior-work check before new candidate-family work.
+Before new candidate-family work, perform a cheap read-only prior-work check.
 A new symbol, dataset, wrapper, wording, or presentation is not by itself a new
 requirement. Do not repeat completed or withdrawn strategy work without a
 genuinely new hypothesis or independent-evidence need.
@@ -157,25 +160,20 @@ credentials, deployments, orders/capital, or costly-to-reverse work.
 
 ## Credentials, execution, and capital
 
-The dedicated owner-controlled Quant Factory Bitwarden Password Manager vault
-is the durable source of truth for project credentials. Official Bitwarden
-Agent Access (`aac`) is the standard agent access path: use a pinned verified
-release, an owner-controlled trusted credential provider, a cached paired
-session, exact item-ID selection where available, and `aac run` field-to-
-environment injection into a reviewed child process. Pairing is not an item- or
-command-scoped authorization boundary: the client transiently receives the full
-selected credential record and can query any item the trusted provider can
-access when the provider approves. Initialize Agent Access state under `umask
-077`, require its directory and files—including cached key material—to remain
-private, and fail closed if the provider, pairing, item match, or requested
-field is unavailable. Only cached Agent Access session/PSK material may persist
-in that protected state. A Bitwarden master password, `BW_SESSION`, pairing
-token, credential value, and unrestricted vault output must never persist there
-or elsewhere and may exist only in the process-memory boundary that requires
-them. Interactive Password Manager CLI sessions, repository or host dotenv
-files, and another project's credential gateway are not substitutes for this
-standard. Agent Access is early-preview software, so upgrades require pinned
-source/version verification and focused regression proof before use.
+Bitwarden Secrets Manager is the durable credential source of truth and
+machine-access standard for Quant Factory. Use the `Codex` machine account,
+scoped to the `Quant Factory` project, through the pinned official `bws` CLI.
+Its access token must remain outside Git and shell history, encrypted at rest
+as a root-owned systemd credential, and exposed only to the short-lived `bws`
+child process. Retrieve only a named secret for an authorized operation; never
+print or persist secret values or unrestricted project output. Long-running
+workers load required credentials once at service startup rather than querying
+Bitwarden on an order path. Fail closed if the machine token, project grant,
+named secret, or CLI verification is unavailable. Password Manager, Agent
+Access, interactive `bw` sessions, dotenv files, and another project's
+credential gateway are not the standard machine path. Research, paper, and
+live credentials still require separate Bitwarden project/grant and OS/service
+boundaries before those domains activate.
 
 Paper activation requires a qualified edge plus the current account,
 credential, endpoint, worker, idempotency, reconciliation, recovery, capacity,

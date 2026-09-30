@@ -5,16 +5,25 @@
 
 ## Proposal and evidence boundary
 
-This is one fixed, source-inspired development-screen proposal for R11. It is
+This was one fixed, source-inspired development-screen proposal for R11. It is
 not another opening-range breakout, late-day momentum transfer, RSI/Donchian
 variant, or calendar hold. The repository prior-work audit found no earlier
 Quant Factory overnight-gap reversal proposal, implementation, or result.
 
 Decision 310 records the owner's acceptance of this exact single development
-screen. The experiment has not run and has no result. A development pass would
-only retain the candidate for separately predeclared chronological validation;
-it would not establish an edge, spend protected evidence, qualify an options
-implementation, or authorize deployment, paper/live orders, or capital.
+screen. The audited development result screened out and the candidate is
+rejected. It did not establish an edge, spend protected evidence, qualify an
+options implementation, or authorize deployment, paper/live orders, or capital.
+
+## Recorded outcome
+
+The sole result-bearing run completed on 2026-09-30 with 1,114 trades: total
+return -4.16386%, annualized return -0.90953%, daily Sharpe -1.03455, maximum
+drawdown -4.73226%, and win rate 47.2172%. Trade count and drawdown passed;
+total return, annualized return, and Sharpe failed. The conjunctive screen
+therefore rejected the candidate. The immutable result and full audit summary
+are recorded in [`docs/MILESTONES.md`](../MILESTONES.md). Do not tune, rerun, or
+advance this rule.
 
 ## Named rationale and transfer limitation
 

@@ -19,7 +19,7 @@ remain outside Git.
 
 ## Public service references
 
-- Bitwarden Agent Access: <https://github.com/bitwarden/agent-access>
+- Bitwarden Secrets Manager CLI: <https://github.com/bitwarden/sdk-sm/tree/main/crates/bws>
 - Plotly Dash: <https://dash.plotly.com/>
 - Plotly: <https://plotly.com/python/>
 - Prefect: <https://docs.prefect.io/>
@@ -29,18 +29,15 @@ remain outside Git.
 
 ## Credentials
 
-The dedicated owner-controlled Quant Factory Bitwarden Password Manager vault
-is the credential source of truth. Only variable names and public templates
-belong in the repository. Official Bitwarden Agent Access (`aac`) selects an
-exact approved item and injects mapped fields into a reviewed child process
-with `aac run`; it must not return unrestricted vault output or persist a value
-in a dotenv file. The client receives the selected full record transiently, and
-pairing is not restricted to one item or command, so the client/provider is a
-vault-reading trust boundary rather than a per-item capability.
+Bitwarden Secrets Manager is the Quant Factory credential source of truth.
+Only variable names and public templates belong in the repository. The
+project-scoped `Codex` machine account uses the official `bws` CLI through the
+host's encrypted-credential launcher; neither the machine token nor a secret
+value may be returned as output or persisted in a dotenv file.
 
 Current provider examples use `DATABENTO_API_KEY`. Dormant paper examples use
 `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`. Their values remain separate vault
 items. Research, paper, and live use are separate authority domains and require
-separately proven provider/vault-access and OS privilege boundaries before
+separately proven project/grant and OS privilege boundaries before
 activation. Withdrawal permissions are prohibited.
-See [`operations/bitwarden-agent-access.md`](operations/bitwarden-agent-access.md).
+See [`operations/bitwarden-secrets-manager.md`](operations/bitwarden-secrets-manager.md).
