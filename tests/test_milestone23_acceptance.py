@@ -337,19 +337,18 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
         persistence.close()
 
     comparison_panel, comparison_class = _callback_function(app, "run-comparison-output")(
-        1,
         0,
         "/research/compare-backtests",
-        None,
-        ["m23-spym-success", reproduced.run_id],
+        f"?run_id=m23-spym-success&run_id={reproduced.run_id}",
     )
     assert comparison_class == "run-comparison-output"
     rendered_comparison = str(comparison_panel)
-    assert "Configuration hash" in rendered_comparison
-    assert "Dataset identity" in rendered_comparison
-    assert "Runtime identity" in rendered_comparison
-    assert "Number Of Trades" not in rendered_comparison
-    assert "Number of trades: 366" in rendered_comparison
+    assert "Persisted run context" in rendered_comparison
+    assert "m23-spym-success" in rendered_comparison
+    assert reproduced.run_id in rendered_comparison
+    assert "Can these tests be compared?" in rendered_comparison
+    assert "Aligned headline metrics" in rendered_comparison
+    assert "What changed between tests?" in rendered_comparison
 
     review_context, sealed_manifest_before_review = _persist_spym_review_prerequisites(
         database,
@@ -365,7 +364,7 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
     status, note, history = load_review(review_target)
     assert status == ReviewState.UNREVIEWED.value
     assert note == ""
-    assert "No durable decision" in str(history)
+    assert "durable review state exists without a validated evidence decision artifact" in str(history)
     save_disabled, save_title, availability = refresh_review_context(review_target)
     assert save_disabled is False
     assert "durable evidence decision" in save_title
@@ -410,7 +409,6 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
     retry_message = save_review(
         2,
         review_target,
-        parameters,
         ReviewState.WATCHLIST.value,
         "Milestone 23 durable review",
     )
@@ -434,11 +432,12 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
         FixtureRunService(database=database, fixture_launcher=_spym_launcher),
         RunDetailDashboardAdapter(database=database, artifact_root=tmp_path),
     )
-    restarted_status, restarted_note = _callback_function(restarted, "review-status")(
-        review_target
-    )
+    restarted_status, restarted_note, restarted_history = _callback_function(
+        restarted, "review-status"
+    )(review_target)
     assert restarted_status == ReviewState.WATCHLIST.value
     assert restarted_note == "Milestone 23 durable review"
+    assert "dashboard-operator" in str(restarted_history)
     restarted_disabled, _, restarted_availability = _callback_function(
         restarted, "save-review"
     )(review_target)
@@ -508,8 +507,9 @@ def test_milestone23_controlled_failure_is_diagnosable_without_false_success(
     run_id = service.recent_runs(limit=1)[0].run_id
     rendered = _render_selected(app, run_id)
 
-    assert class_name == "save-message"
-    assert "failed" in str(content).lower()
+    assert class_name == "save-message warning-state"
+    assert "acknowledgement is incomplete" in str(content).lower()
+    assert "reported an error" in str(content).lower()
     assert context_class == "operator-context"
     assert "Review failure" in str(context)
     assert "controlled Prefect fixture failure" in rendered

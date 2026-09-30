@@ -540,8 +540,7 @@ def register_backtest_results_callbacks(
         Input("launch-run", "n_clicks"),
         Input("selected-configuration-state", "data"),
         State("run-test-launch-state", "data"),
-        State("url", "pathname"),
-        Input("refresh-runs", "n_clicks"),
+        Input("url", "pathname"),
         running=[
             (Output("launch-run", "disabled"), True, True),
             (Output("launch-run", "children"), "Starting test...", "Run test"),
@@ -552,7 +551,6 @@ def register_backtest_results_callbacks(
         configuration_id: str | None,
         launch_state: object = None,
         pathname: str | None = "/research/run-test",
-        _refresh_n_clicks: int | None = None,
     ):
         triggered_id = _callback_triggered_id()
         explicit_action = triggered_id == "launch-run" and bool(n_clicks)
@@ -1610,3 +1608,73 @@ def register_backtest_results_callbacks(
             "Age-only recovery is disabled. A timestamp does not prove whether a durable submission started; use claim-aware reconciliation.",
             "stale-recovery-message error-state",
         )
+
+    @app.callback(
+        Output("claim-recovery-message", "children"),
+        Output("claim-recovery-message", "className"),
+        Input("reconcile-unknown-run", "n_clicks"),
+        Input("abandon-unknown-run", "n_clicks"),
+        State("selected-run-state", "data"),
+        State("reconcile-prefect-flow-id", "value"),
+        State("reconcile-prefect-api-url", "value"),
+        State("abandon-evidence-reference", "value"),
+        State("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def reconcile_unknown_submission(
+        reconcile_clicks: int | None,
+        abandon_clicks: int | None,
+        run_id: str | None,
+        prefect_flow_run_id: str | None,
+        prefect_api_url: str | None,
+        resolution_evidence_reference: str | None,
+        pathname: str | None = "/research/backtest-results",
+    ):
+        if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
+        triggered_id = _callback_triggered_id()
+        if triggered_id is None:
+            if reconcile_clicks and not abandon_clicks:
+                triggered_id = "reconcile-unknown-run"
+            elif abandon_clicks and not reconcile_clicks:
+                triggered_id = "abandon-unknown-run"
+        run_id = _persisted_selected_run_id(run_id)
+        if not run_id:
+            return (
+                "Select the exact unknown run before reconciliation.",
+                "stale-recovery-message error-state",
+            )
+        try:
+            if triggered_id == "reconcile-unknown-run" and reconcile_clicks:
+                flow_id = (prefect_flow_run_id or "").strip()
+                if not flow_id:
+                    raise ValueError("A confirmed Prefect flow run ID is required.")
+                submission = research_launches.reconcile_unknown_for_run(
+                    run_id=run_id,
+                    prefect_flow_run_id=flow_id,
+                    prefect_api_url=(prefect_api_url or "").strip() or None,
+                )
+                return (
+                    f"Submission reconciled and bound to Prefect flow {submission.prefect_flow_run_id}.",
+                    "stale-recovery-message success-state",
+                )
+            if triggered_id == "abandon-unknown-run" and abandon_clicks:
+                evidence = (resolution_evidence_reference or "").strip()
+                if not evidence:
+                    raise ValueError(
+                        "A durable no-submission evidence reference is required."
+                    )
+                research_launches.abandon_unknown_for_run(
+                    run_id=run_id,
+                    resolution_evidence_reference=evidence,
+                )
+                return (
+                    "Unknown submission was abandoned with the recorded evidence reference; it will not be retried automatically.",
+                    "stale-recovery-message success-state",
+                )
+        except (KeyError, ValueError, ResearchLaunchError) as exc:
+            return (
+                f"Claim-aware reconciliation failed: {exc}",
+                "stale-recovery-message error-state",
+            )
+        raise PreventUpdate

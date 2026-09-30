@@ -26,7 +26,7 @@ STATE_OWNERS = {
     "idea_draft": {
         "source": "idea-draft-store.data",
         "owner": "dashboard.callbacks.ideas",
-        "rule": "Ideas stores operator-authored text in the browser session only and never retrieves or executes it.",
+        "rule": "Ideas persists operator-authored text in the local dashboard database; the session store mirrors only the selected durable draft and never retrieves or executes it.",
     },
     "selected_configuration": {
         "source": "selected-configuration-state.data",

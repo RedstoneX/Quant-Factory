@@ -8,7 +8,7 @@ import json
 import math
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlencode
 
 import dash_ag_grid as dag
@@ -3833,6 +3833,70 @@ def _runs_page(
                                         ],
                                         className="panel stale-recovery-panel",
                                     ),
+                                    html.Section(
+                                        [
+                                            html.H3("Unknown submission reconciliation"),
+                                            html.P(
+                                                (
+                                                    "Use this only when the selected run has an unknown "
+                                                    "submission outcome. Bind a confirmed Prefect flow, or "
+                                                    "abandon the claim with a durable evidence reference."
+                                                ),
+                                                className="field-help",
+                                            ),
+                                            html.Label(
+                                                "Confirmed Prefect flow run ID",
+                                                htmlFor="reconcile-prefect-flow-id",
+                                                className="field-label",
+                                            ),
+                                            dcc.Input(
+                                                id="reconcile-prefect-flow-id",
+                                                type="text",
+                                                placeholder="Prefect flow run UUID",
+                                                debounce=True,
+                                            ),
+                                            html.Label(
+                                                "Prefect API URL (optional)",
+                                                htmlFor="reconcile-prefect-api-url",
+                                                className="field-label",
+                                            ),
+                                            dcc.Input(
+                                                id="reconcile-prefect-api-url",
+                                                type="text",
+                                                placeholder="http://127.0.0.1:4200/api",
+                                                debounce=True,
+                                            ),
+                                            html.Button(
+                                                "Bind confirmed Prefect run",
+                                                id="reconcile-unknown-run",
+                                                n_clicks=0,
+                                                className="secondary-action",
+                                            ),
+                                            html.Label(
+                                                "No-submission evidence reference",
+                                                htmlFor="abandon-evidence-reference",
+                                                className="field-label",
+                                            ),
+                                            dcc.Input(
+                                                id="abandon-evidence-reference",
+                                                type="text",
+                                                placeholder="operator-reconciliation:case-reference",
+                                                debounce=True,
+                                            ),
+                                            html.Button(
+                                                "Abandon unknown claim",
+                                                id="abandon-unknown-run",
+                                                n_clicks=0,
+                                                className="secondary-action destructive-action",
+                                            ),
+                                            html.Div(
+                                                "Select an unknown run and provide reconciliation evidence.",
+                                                id="claim-recovery-message",
+                                                className="stale-recovery-message",
+                                            ),
+                                        ],
+                                        className="panel claim-recovery-panel",
+                                    ),
                                     html.Div(
                                         _recent_events_panel(recent_events),
                                         id="recent-events-monitor",
@@ -4163,12 +4227,13 @@ def page_for_path(
     if route == "/research/ideas":
         from dashboard.pages.ideas import layout as ideas_layout
 
-        return ideas_layout()
+        return ideas_layout(database=dashboard_database)
     if route == "/research/setup":
         from dashboard.pages.setup import layout as setup_layout
 
         return setup_layout(
             configurations=configurations,
+            database=dashboard_database,
             catalog_snapshot=catalog_snapshot,
         )
     if route == "/research/run-test":
@@ -4341,6 +4406,10 @@ def create_app(
     catalog_checked_at: datetime | None = None,
     health_stale_after: timedelta = timedelta(minutes=15),
     health_refresh_interval_ms: int = 30_000,
+    approved_configuration_launcher: Callable[..., object] | None = None,
+    reproduce_run: Callable[..., object] | None = None,
+    cancel_run: Callable[[str], RunSummary] | None = None,
+    run_operation_eligibility: Callable[[str, RunSummary], tuple[bool, str]] | None = None,
 ) -> Dash:
     # Mounted pages read persisted runs. Opening the dashboard must never
     # download prices or run the legacy RSI parameter grid as a side effect.
@@ -4485,8 +4554,12 @@ def create_app(
 
     register_routing_callbacks(app)
     register_health_callbacks(app)
-    register_ideas_callbacks(app)
-    register_setup_callbacks(app, readiness_by_id=readiness_by_id)
+    register_ideas_callbacks(app, database=dashboard_database)
+    register_setup_callbacks(
+        app,
+        readiness_by_id=readiness_by_id,
+        database=dashboard_database,
+    )
     register_backtest_results_callbacks(
         app,
         runs=runs,
@@ -4496,6 +4569,10 @@ def create_app(
         dashboard_database=dashboard_database,
         artifact_root=artifact_root,
         research_launches=research_launches,
+        approved_configuration_launcher=approved_configuration_launcher,
+        reproduce_run=reproduce_run,
+        cancel_run=cancel_run,
+        run_operation_eligibility=run_operation_eligibility,
     )
     register_trade_explorer_callbacks(app, detail_adapter=detail_adapter)
     register_compare_backtests_callbacks(
