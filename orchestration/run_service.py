@@ -609,6 +609,9 @@ class FixtureRunService:
                     artifact_root=artifact_root,
                 )
                 metrics, metric_basis = _top_ranked_metrics(results)
+                rejection_reasons = (
+                    getattr(results[0], "rejection_reasons", "") if results else ""
+                )
                 if reproducibility.startswith(("Manifest invalid:", "Manifest missing")):
                     metrics = {name: None for name in metrics}
                     metric_basis = (
@@ -651,6 +654,7 @@ class FixtureRunService:
                     "metric": metrics["total_return"],
                     "metric_basis": metric_basis,
                     **metrics,
+                    "rejection_reasons": rejection_reasons,
                     "artifact_status": _registered_artifact_status(artifacts),
                     "reproducibility": reproducibility,
                 })

@@ -18,10 +18,7 @@ from dashboard.routing import (
 )
 
 
-RESPONSIVE_PAGE_LABELS = {
-    "/": "Home",
-    **dict(NAVIGATION_LINKS),
-}
+RESPONSIVE_PAGE_LABELS = dict(NAVIGATION_LINKS)
 
 
 def responsive_page_label(pathname: str | None) -> str:
@@ -105,16 +102,11 @@ def navigation(pathname: str = "/") -> html.Nav:
                         ),
                     ],
                     href="/",
-                    title="Quant Factory Home",
+                    title="Quant Factory Dashboard",
                     className="sidebar-brand",
                 ),
-                id=navigation_item_id("/"),
-                className="sidebar-brand-item navigation-item",
-                **(
-                    {"aria-current": "page"}
-                    if active_path == "/"
-                    else {}
-                ),
+                id="sidebar-brand-item",
+                className="sidebar-brand-item",
             ),
             html.Div(groups, className="sidebar-navigation-groups"),
             html.Div(
