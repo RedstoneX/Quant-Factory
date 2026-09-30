@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID
@@ -306,6 +307,8 @@ def test_preflight_requires_credential_before_creating_any_claim_or_run(
 def test_operator_entrypoint_hard_pins_identity_and_requires_canonical_main(
     monkeypatch,
 ) -> None:
+    assert durable.FAILED_ATTEMPT_IDEMPOTENCY_KEY == "r11_mes_gap_20190506_20231229_v1"
+    assert durable.FIXED_IDEMPOTENCY_KEY == "r11_mes_gap_20190506_20231229_v2"
     assert tuple(inspect.signature(durable.launch_mes_screen).parameters) == (
         "locations_path",
     )
@@ -440,6 +443,7 @@ def test_screened_out_launch_persists_one_successful_screen_and_replay_is_noop(
     second = runtime.launch()
 
     assert first.claim.created is True
+    assert first.claim.submission.idempotency_key == durable.FIXED_IDEMPOTENCY_KEY
     assert first.dispatch.invoked is True
     assert isinstance(first.dispatch.value, durable.MESDurableScreenOutcome)
     assert first.dispatch.value.screening_status == "screened_out"
@@ -461,6 +465,9 @@ def test_screened_out_launch_persists_one_successful_screen_and_replay_is_noop(
         assert len(runs) == 1
         assert runs[0].stage == RunStage.SCREENING
         assert runs[0].status == RunStatus.SUCCEEDED
+        environment = json.loads(runs[0].environment_json)
+        assert environment["recovery_of"] == durable.FAILED_ATTEMPT_IDEMPOTENCY_KEY
+        assert environment["recovery_reason"] == "predicate_loader_index_contract"
         strategy = service.strategies.get(
             MES_OVERNIGHT_GAP_REVERSAL_SPEC.identity.strategy_id,
             MES_OVERNIGHT_GAP_REVERSAL_SPEC.identity.version,

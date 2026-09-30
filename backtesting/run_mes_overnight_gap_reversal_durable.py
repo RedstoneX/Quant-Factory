@@ -70,7 +70,8 @@ from strategies.mes_overnight_gap_reversal import (
 ARTIFACT_SCHEMA_VERSION = 1
 SOURCE = "r11_mes_overnight_gap_reversal"
 EXPECTED_VECTORBTPRO_VERSION = "2026.4.7"
-FIXED_IDEMPOTENCY_KEY = "r11_mes_gap_20190506_20231229_v1"
+FAILED_ATTEMPT_IDEMPOTENCY_KEY = "r11_mes_gap_20190506_20231229_v1"
+FIXED_IDEMPOTENCY_KEY = "r11_mes_gap_20190506_20231229_v2"
 EVIDENCE_SCOPE = "development_reference_only"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CANONICAL_REMOTE = "https://github.com/RedstoneX/Quant-Factory.git"
@@ -675,6 +676,8 @@ class _MESGapDurableRuntime:
                 "evidence_scope": EVIDENCE_SCOPE,
                 "mapping_checksum": self.preflight.mapping_checksum,
                 "canonical_git": self.preflight.canonical_git,
+                "recovery_of": FAILED_ATTEMPT_IDEMPOTENCY_KEY,
+                "recovery_reason": "predicate_loader_index_contract",
                 RUNTIME_LINEAGE_ENVIRONMENT_KEY: self.preflight.runtime_lineage,
             },
         )

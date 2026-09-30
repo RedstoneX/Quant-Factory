@@ -234,7 +234,8 @@ def load_mes_gap_inputs(
         **({"path": locations_path} if locations_path is not None else {})
     )
     path = verify_dataset_file(manifest, locations, require_validated=True)
-    columns = ["open", "high", "low", "close", "volume", "ts_event"]
+    value_columns = ["open", "high", "low", "close", "volume"]
+    columns = [*value_columns, "ts_event"]
     frame = pd.read_parquet(
         path,
         engine="pyarrow",
@@ -244,8 +245,11 @@ def load_mes_gap_inputs(
             ("ts_event", "<", DEVELOPMENT_END.to_pydatetime()),
         ],
     )
-    if tuple(frame.columns) != tuple(columns):
-        raise RuntimeError(f"MES predicate slice columns are invalid: {tuple(frame.columns)}")
+    if tuple(frame.columns) != tuple(value_columns) or frame.index.name != "ts_event":
+        raise RuntimeError(
+            "MES predicate slice schema is invalid: "
+            f"columns={tuple(frame.columns)}, index={frame.index.name!r}"
+        )
     if frame.empty:
         raise RuntimeError("MES predicate slice is empty")
     frame = frame.rename(
@@ -255,13 +259,13 @@ def load_mes_gap_inputs(
             "low": "Low",
             "close": "Close",
             "volume": "Volume",
-            "ts_event": "Timestamp",
         }
-    ).set_index("Timestamp")
+    )
     frame.index = pd.DatetimeIndex(frame.index)
     if frame.index.tz is None:
         raise RuntimeError("MES predicate slice timestamps must be timezone-aware")
     frame.index = frame.index.tz_convert("UTC")
+    frame.index.name = "Timestamp"
     if (
         frame.index[0] < DEVELOPMENT_START
         or frame.index[-1] >= DEVELOPMENT_END

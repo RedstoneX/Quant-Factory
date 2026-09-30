@@ -323,30 +323,46 @@ def test_predicate_loader_materializes_only_fixed_pre_2024_slice(monkeypatch, tm
         verify_sha256_before_use=True,
     )
     captured = {}
+    dataset_path = tmp_path / "MES.parquet"
+    pd.DataFrame(
+        {
+            "open": [99.0, 100.0, 101.0, 102.0],
+            "high": [100.0, 101.0, 102.0, 103.0],
+            "low": [98.0, 99.0, 100.0, 101.0],
+            "close": [99.5, 100.5, 101.5, 102.5],
+            "volume": [1, 2, 3, 4],
+        },
+        index=pd.DatetimeIndex(
+            [
+                "2019-05-05T23:55:00Z",
+                "2019-05-06T00:00:00Z",
+                "2023-12-29T23:55:00Z",
+                "2023-12-30T00:00:00Z",
+            ],
+            name="ts_event",
+        ),
+    ).to_parquet(dataset_path, engine="pyarrow")
+    real_read_parquet = pd.read_parquet
 
     def read_parquet(path, *, engine, columns, filters):
         captured.update(path=path, engine=engine, columns=columns, filters=filters)
-        return pd.DataFrame(
-            {
-                "open": [100.0, 101.0],
-                "high": [101.0, 102.0],
-                "low": [99.0, 100.0],
-                "close": [100.5, 101.5],
-                "volume": [1, 2],
-                "ts_event": pd.DatetimeIndex(
-                    ["2019-05-06T00:00:00Z", "2023-12-29T23:55:00Z"]
-                ),
-            }
+        return real_read_parquet(
+            path,
+            engine=engine,
+            columns=columns,
+            filters=filters,
         )
 
     monkeypatch.setattr(runner, "load_dataset_manifest", lambda *args, **kwargs: manifest)
     monkeypatch.setattr(runner, "load_data_locations", lambda *args, **kwargs: locations)
-    monkeypatch.setattr(runner, "verify_dataset_file", lambda *args, **kwargs: tmp_path / "MES.parquet")
+    monkeypatch.setattr(runner, "verify_dataset_file", lambda *args, **kwargs: dataset_path)
     monkeypatch.setattr(pd, "read_parquet", read_parquet)
     loaded = runner.load_mes_gap_inputs(mapping_response=_mapping_response())
 
     assert loaded.data.index.min() == runner.DEVELOPMENT_START
     assert loaded.data.index.max() < runner.DEVELOPMENT_END
+    assert tuple(loaded.data.columns) == ("Open", "High", "Low", "Close", "Volume")
+    assert loaded.data.index.name == "Timestamp"
     assert captured["engine"] == "pyarrow"
     assert captured["columns"][-1] == "ts_event"
     assert captured["filters"] == [
@@ -378,8 +394,9 @@ def test_loader_rejects_any_materialized_row_at_the_prospective_cutoff(monkeypat
     frame = pd.DataFrame(
         {
             "open": [100.0], "high": [101.0], "low": [99.0], "close": [100.5],
-            "volume": [1], "ts_event": pd.DatetimeIndex([runner.DEVELOPMENT_END]),
-        }
+            "volume": [1],
+        },
+        index=pd.DatetimeIndex([runner.DEVELOPMENT_END], name="ts_event"),
     )
     monkeypatch.setattr(pd, "read_parquet", lambda *args, **kwargs: frame)
     with pytest.raises(RuntimeError, match="fixed timestamp boundary"):
