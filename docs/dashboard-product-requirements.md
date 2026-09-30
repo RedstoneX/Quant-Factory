@@ -1,16 +1,14 @@
 # Quant Factory Dashboard Product Requirements
 
 > **Current status:** Retained product requirements, not the active queue.
-> Decision 307 records that the implemented dashboard is not currently accepted
-> as sufficiently intuitive/viable for long-term operation. Dashboard repair is
-> deferred until a promising edge exists or a measured UI blocker appears. The
-> successful chart-first UX direction remains design input. See
-> `docs/MILESTONES.md` for current work.
+> Decision 313 resumes completion of the existing single-user dashboard and
+> operator workflow. The approved chart-first UX and historical evidence remain
+> implementation input. See `docs/MILESTONES.md` for current work and status.
 
 
-> **Historical sequencing snapshot:** Decisions 298 and 303 recorded completion
-> through Step 15 and bounded beta entry in September 2026. Decision 307
-> supersedes that sequence as current work; the evidence remains historical.
+> **Sequencing record:** Decisions 298 and 303 recorded completion through Step
+> 15 and bounded beta entry; Decision 307 later displaced that sequence, and
+> Decision 313 now resumes operator-product completion and handoff.
 
 ## Product role
 
@@ -35,9 +33,8 @@ integrated, tested, deployed, and renewed operator-accepted application
 behavior.
 
 Historical Decisions 287, 292, and 298 progressively bounded the dashboard
-beta work. Their implementation evidence and reuse constraints remain useful,
-but Decision 307 supersedes them as the active sequence. When dashboard work
-resumes, preserve the approved chart-first Results experience, reuse the
+beta work. Their implementation evidence and reuse constraints remain useful.
+Under Decision 313, preserve the approved chart-first Results experience, reuse the
 existing VectorBT engine, persistence, evidence and dashboard, and prefer
 mature maintained components over custom infrastructure.
 

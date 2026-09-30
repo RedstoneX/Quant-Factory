@@ -9,21 +9,30 @@ an operator surface, not the purpose of the project.
 
 The active sequence is:
 
-**edge discovery -> validation -> execution-vehicle comparison -> dashboard repair -> paper operation -> live operation later.**
+**operator-product completion -> owner handoff -> owner-initiated candidate research -> validation -> execution-vehicle comparison -> paper operation -> live operation later.**
 
 Backend completion is recorded. The generic candidate runtime now reuses the existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable-launch, and filter-handoff infrastructure. It stops at the protected-test gate and does not expand protected-data authority.
 
-The current dashboard retains useful technical and historical acceptance
-evidence, but the owner no longer considers it sufficiently intuitive or viable
-as the long-term operating interface. Its successful chart-first prototype and
-Find & Compare research remain UX references. Dashboard repair resumes after a
-promising edge exists or sooner if the UI becomes a measured research blocker.
+Dashboard and operator-workflow completion are active. Existing technical and
+historical evidence, the approved chart-first UX, Find & Compare, the completed
+backend, and the audited MES run are reused to finish the practical single-user
+product and prepare Terry's final operator walkthrough. After handoff, Terry
+initiates or accepts controlled candidate work and operates approved strategy
+configurations through the product; this is not an arbitrary code-free strategy
+builder.
 
-Current research is restricted to **intraday/day-trading directional edges** in S&P 500 and Nasdaq-100 markets: minutes-to-hours holding, flat by the strategy's defined session boundary, and no overnight or multi-day carry. The fixed Decision 310 MES overnight-gap reversal screen completed and was rejected after negative total and annualized returns and Sharpe below 0.5. R11 is stopped at the owner gate for acceptance of the next fixed intraday candidate. The SPY turn-of-month idea remains out of scope. Existing MES/MNQ data and the located licensed VectorBT Pro runtime should be reused where they fit the next accepted hypothesis.
+The fixed Decision 310 MES overnight-gap reversal screen completed and was
+rejected after negative total and annualized returns and Sharpe below 0.5. No
+new strategy selection, proposal, optimization, screening, or profitability
+test occurs before operator handoff. After handoff, owner-initiated research is
+restricted to **intraday/day-trading directional edges** unless the owner
+changes the mandate: minutes-to-hours holding, flat by the strategy's defined
+session boundary, and no overnight or multi-day carry. The SPY turn-of-month
+idea remains out of scope under that mandate.
 
-No paid market-data acquisition, options execution adapter, futures broker
-stack, deployment, paper activation, or live-capital work is justified until a
-defined experiment or qualified edge creates the requirement.
+No paid market-data acquisition, external deployment, options execution
+adapter, futures broker stack, paper activation, or live-capital work is
+authorized by the current product-completion phase.
 
 ## Project authority
 

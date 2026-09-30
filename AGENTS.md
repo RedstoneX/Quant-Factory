@@ -29,19 +29,24 @@ approves paper/live trading and capital exposure.
 
 ## Current sequencing rule
 
-Follow the queue in `docs/MILESTONES.md`. The default sequence is:
+Follow the queue in `docs/MILESTONES.md`. The current sequence is:
 
-**edge discovery -> validation -> execution-vehicle comparison -> dashboard
-repair -> paper operation -> live operation later.**
+**operator-product completion -> owner handoff -> owner-initiated candidate
+research -> validation -> execution-vehicle comparison -> paper operation ->
+live operation later.**
 
-Do not make dashboard completion, deployment, broker integration, portability,
-or generic infrastructure a prerequisite for edge research unless a measured
-blocker proves that it is one.
+Dashboard and operator-workflow completion are active. Reuse the completed
+generic backend, audited MES run, approved chart-first UX work, licensed
+VectorBT Pro, mature components, and existing tests. Do not rebuild the backend,
+create a second frontend or orchestration layer, or introduce enterprise-scale
+infrastructure for this private single-user product.
 
-The current dashboard's historical technical evidence is retained, but the
-owner does not consider the present interface sufficiently intuitive or viable
-as the long-term operator product. Dashboard work is therefore deferred unless
-it blocks research or the active milestone explicitly resumes it.
+Before the owner accepts the completed operator product, do not select,
+propose, optimize, screen, or profitability-test another strategy. Strategy and
+market behavior may be exercised only with deterministic fixtures or already
+accepted evidence when needed to verify product behavior. After handoff, the
+owner initiates or accepts candidate work; the current intraday evidence
+boundaries then apply unless the owner changes them.
 
 ## Work-delta gate
 
@@ -58,7 +63,8 @@ or material delegation, state in no more than six short bullets:
 If any item is missing, do not invent work. Reuse existing evidence or report
 that no new work is justified.
 
-Before new candidate-family work, perform a cheap read-only prior-work check.
+After operator handoff and before new candidate-family work, perform a cheap
+read-only prior-work check.
 A new symbol, dataset, wrapper, wording, or presentation is not by itself a new
 requirement. Do not repeat completed or withdrawn strategy work without a
 genuinely new hypothesis or independent-evidence need.

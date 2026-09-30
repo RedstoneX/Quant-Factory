@@ -1,25 +1,23 @@
 # Milestone 23 Acceptance
 
-> **Historical/supporting record:** This file preserves Milestone 23 acceptance,
-> browser, integrity, and incident evidence. Decision 307 (2026-09-29) defers
-> formal M23 closure, withdraws any current claim that the implemented dashboard
-> is sufficiently intuitive/viable, and makes backend edge discovery active.
-> Historical technical evidence remains valid for what it proved. Relevant
-> operability and safety gates still apply before paper operation. Current work
-> is defined only in `docs/MILESTONES.md`.
+> **Active supporting acceptance record:** Decision 313 restores completion of
+> the existing dashboard and operator workflow as current work. This file
+> preserves the detailed Milestone 23 requirements and historical evidence;
+> `docs/MILESTONES.md` remains the only authority for the active queue and gate.
+> Reconcile and reuse the evidence below before adding implementation work.
 
 
-> **Historical sequencing snapshot:** Decisions 298 and 303 recorded Step 15
-> acceptance and bounded beta entry in September 2026. Decision 307 supersedes
-> that sequence as current work. Never deploy merely to prove deployment.
+> **Sequencing record:** Decisions 298 and 303 recorded Step 15 acceptance and
+> bounded beta entry in September 2026. Decision 307 later superseded that
+> sequence; Decision 313 now resumes product completion and final handoff while
+> preserving the rule never to deploy merely to prove deployment.
 
 Milestone 23 records the complete equity research workflow acceptance model.
-Decision 307 defers formal closure and makes the applicable pre-paper
-operability/safety gates in current MILESTONES controlling. Decision 287 narrowly permits controlled,
-bounded research for an owner-approved, source-attributed hypothesis with
-predeclared evidence boundaries before this milestone closes. It does not waive
-this checklist or authorize open-ended optimization or data mining,
-protected-test inspection, automatic promotion, paper orders, or live work.
+Decision 313 resumes its objective product and operator-workflow criteria while
+the active status and exact next action remain controlled by MILESTONES.
+Decision 313 supersedes Decision 287's permission for candidate research before
+this milestone closes. No new candidate selection, proposal, optimization,
+screening, or profitability testing occurs before handoff.
 
 Decision 279 supersedes Decision 277's acceptance for the former Results-page
 experience. Decisions 280–281 establish the chart-first direction and validated
@@ -64,10 +62,12 @@ or add an unreviewed cache design as a Milestone 23 acceptance criterion.
 | Failure and recovery | Controlled failure, retry, timeout, cancellation, stale recovery, restart, missing artifact, and corrupt lineage are understandable and fail closed |
 | Responsive operation | Desktop exposes three resettable chart/report resize edges while Metrics and Trades grow in normal page flow without nested vertical scrolling and retain comfortable bottom breathing room; tablet and mobile stack chart then report; every size preserves navigation, hierarchy, selected state, visibly larger and readable trade typography, and complete operator actions |
 
-The successful integrated proof uses the real SPYM VectorBT Pro fixture.
-Deterministic synthetic fixtures remain appropriate for failure and recovery
-scenarios. No scenario may fabricate metrics, reconstruct missing evidence, or
-weaken protected-data boundaries.
+The successful integrated proof may exercise the already-approved SPYM
+VectorBT Pro infrastructure fixture solely as deterministic product proof. It
+does not create a new candidate or profitability result. Deterministic
+synthetic fixtures remain appropriate for failure and recovery scenarios. No
+scenario may fabricate metrics, reconstruct missing evidence, or weaken
+protected-data boundaries.
 
 If computation-cache work is sequenced into Milestone 23 after bounded design,
 its evidence must prove exact input isolation, protected-data partitioning,

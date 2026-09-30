@@ -2,9 +2,8 @@
 
 > **Historical foundation evaluation:** This document records early framework
 > selection evidence. It is not the current dashboard implementation plan.
-> Decision 307 defers dashboard repair behind edge discovery unless the UI
-> becomes a measured blocker. The approved chart-first prototype is the UX
-> reference and reuse-before-custom remains mandatory. See
+> Decision 313 resumes operator-product completion. The approved chart-first
+> prototype is the UX reference and reuse-before-custom remains mandatory. See
 > `docs/MILESTONES.md` for current work.
 
 
