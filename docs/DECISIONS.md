@@ -13,8 +13,9 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **315** | **Operator-product handoff accepted:** Terry accepted the deployed Research Atlas and authorized continuation. R12 is complete; controlled candidate intake is now active, but no candidate may execute until Terry names or explicitly accepts its bounded intraday hypothesis and evidence contract. |
 | **314** | **Direct Mode is the default operating policy for the private single-user MVP:** outcome -> reuse -> smallest implementation -> decisive proof -> deliver -> stop. Escalated Mode is reserved for genuinely difficult-to-reverse or high-consequence changes. |
-| **313** | **Operator-product completion restored as the active sequence:** complete and prove the existing single-user dashboard workflow, then stop for Terry's final walkthrough and handoff acceptance. No additional strategy selection, proposal, optimization, screening, or profitability testing occurs before handoff. |
+| 313 | The operator-product completion sequence and pre-handoff research pause are satisfied by Decision 315; its reuse, product-scope, and post-handoff candidate-authority boundaries remain effective. |
 | **312** | **Quant Factory unattended credential standard finalized:** Bitwarden Secrets Manager is the durable machine-access source of truth; the `Codex` machine account is scoped to the `Quant Factory` project and accessed through the official `bws` CLI with a host-encrypted token. This supersedes Decision 311's selection of Password Manager plus Agent Access as the current mechanism. |
 | 311 | Historical correction that Quant Factory uses Bitwarden is retained; Decision 312 supersedes its Password Manager plus Agent Access mechanism. |
 | 310 | MES screen was accepted, executed once, independently audited, and **rejected** after negative total/annualized return and Sharpe below 0.5. It is inactive and must not be tuned or rerun; Decision 313 defers any next candidate until after operator handoff. |
@@ -1647,3 +1648,31 @@ superseded.
      owner-visible result remain out of scope. This decision supersedes
      Decision 307 and supporting policy only where they require parallel-first
      execution or treat routine reversible work as material.
+
+315. **Accept the deployed Research Atlas and complete operator-product
+     handoff (accepted 2026-09-30).** Terry accepts the rendered and deployed
+     Research Atlas and authorizes Quant Factory to continue beyond the R12
+     owner gate. The accepted implementation is merged at revision
+     `dbb94148712cdffae04f00ff7b0544ede869c718` and runs on the existing private
+     review service. Before restart, Codex retained a checksum-matching database
+     backup; the deployed service then passed revision, health, and private
+     reachability checks. This closes R12 and satisfies Decision 313's required
+     product-handoff sequence.
+
+     The next phase is owner-initiated controlled candidate research. No
+     candidate is active merely because the handoff gate closed. Terry must
+     name a candidate or explicitly accept one bounded, source-attributed
+     same-session intraday hypothesis and its fixed evidence contract before
+     execution. The rejected MES overnight-gap reversal remains inactive and
+     may not be tuned or rerun. Existing prior-work, data-provenance,
+     protected-evidence, reproducibility, and fail-closed rules remain in
+     force.
+
+     This acceptance does not qualify an edge, authorize open-ended
+     optimization, paid data, protected-test execution, execution-vehicle
+     selection, broker orders, paper/live activation, or capital exposure.
+     It records the owner-visible product outcome and advances the active queue
+     only to the candidate-selection boundary. Documentation impact is limited
+     to `docs/MILESTONES.md`, this decision and its effective index, and the
+     dashboard-displayed project status. No ADR, schema, data record, runbook,
+     credential, or trading-authority change applies.

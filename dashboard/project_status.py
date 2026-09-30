@@ -12,19 +12,19 @@ class DashboardProjectStatus:
     home_subtitle: str
 
 PROJECT_STATUS = DashboardProjectStatus(
-    current_milestone_number=23,
-    current_milestone_title="Research Product Completion and Handoff",
+    current_milestone_number=25,
+    current_milestone_title="Controlled Candidate Research",
     current_milestone_status=(
-        "The objective research workflow has passed its technical gate and is ready "
-        "for Terry's final walkthrough. Handoff acceptance is not yet recorded."
+        "The operator product and deployed Research Atlas are accepted. The next "
+        "candidate waits for Terry to name or explicitly approve its hypothesis."
     ),
     strategy_status=(
-        "No new strategy selection, screening, optimization, or performance evaluation occurs "
-        "before handoff. Product verification uses deterministic fixtures and accepted evidence."
+        "No candidate is active. The MES overnight-gap reversal is rejected and may "
+        "not be tuned or rerun; the current research mandate remains same-session intraday."
     ),
     workspace_status=(
-        "The remaining R12 gate is Terry's walkthrough and explicit handoff acceptance. "
-        "Private deployment, new research, paid data, paper execution, and live trading remain unauthorized."
+        "R12 and the handoff gate are complete. Candidate execution, paid data, "
+        "protected testing, paper operation, and live trading require their applicable owner gates."
     ),
     home_subtitle="Your strategy research workspace.",
 )
