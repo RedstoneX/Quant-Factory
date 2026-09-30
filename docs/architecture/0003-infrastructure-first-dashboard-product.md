@@ -1,9 +1,9 @@
 # ADR 0003: Infrastructure-first dashboard product
 
-> **Current sequencing:** Decision 307 supersedes this ADR's infrastructure-first
-> and dashboard-first language as an active work order. The retained architecture,
-> evidence boundaries, and paper/live safety gates remain useful. Backend edge
-> discovery is now active; current work is defined only in `docs/MILESTONES.md`.
+> **Current sequencing:** Decision 313 restores operator-product completion and
+> handoff before further candidate research. The retained architecture,
+> evidence boundaries, and paper/live safety gates remain useful. Current work
+> is defined only in `docs/MILESTONES.md`.
 
 
 - Status: Accepted
@@ -13,7 +13,7 @@
 - Superseded in part: Decision 287 replaces dashboard-first active sequencing
   and the blanket prohibition on controlled pre-Milestone-23 research. The
   dashboard/product architecture and all paper/live gates remain accepted.
-- Narrow candidate exception: Decision 288 selects the existing MES ORB
+- Historical narrow candidate exception: Decision 288 selected the existing MES ORB
   specification for the first controlled Decision 287 research path. Prior MES
   ORB results remain historical fixture evidence; futures order execution and all
   paper/live gates remain unchanged.
@@ -33,8 +33,8 @@ The owner does not intend to operate Quant Factory by editing Python, reading ra
    profitability candidates. Decision 288 later makes MES ORB the narrow first
    controlled candidate without converting its earlier results into
    profitability evidence.
-4. Decision 287 authorizes controlled, bounded, source-attributed candidate
-   intake, discovery and research/backtesting before Milestone 23 passes;
+4. Decision 287 historically authorized controlled, bounded, source-attributed
+   candidate research before Milestone 23; Decision 313 supersedes that timing;
    open-ended optimization or data mining, protected-test evaluation, automatic
    promotion, paper orders and live work remain blocked.
 5. The infrastructure dependency order remains persistence/registry,

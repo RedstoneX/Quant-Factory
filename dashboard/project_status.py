@@ -12,20 +12,19 @@ class DashboardProjectStatus:
     home_subtitle: str
 
 PROJECT_STATUS = DashboardProjectStatus(
-    current_milestone_number=26,
-    current_milestone_title="Intraday Edge Discovery and Candidate Selection",
+    current_milestone_number=23,
+    current_milestone_title="Research Product Completion and Handoff",
     current_milestone_status=(
-        "Backend completion is recorded. The fixed 09:35–10:00 MES overnight-gap reversal "
-        "development screen completed and the candidate was rejected."
+        "The backend and audited MES run are complete. Dashboard and operator-workflow "
+        "completion are now active for Terry's final handoff."
     ),
     strategy_status=(
-        "The MES candidate screened out on negative return and Sharpe below 0.5. R11 is "
-        "at the owner gate for the next fixed intraday candidate; SPY turn-of-month remains "
-        "out of scope for the current day-trading mandate."
+        "No new strategy selection, screening, optimization, or performance evaluation occurs "
+        "before handoff. Product verification uses deterministic fixtures and accepted evidence."
     ),
     workspace_status=(
-        "The current dashboard is not accepted as the long-term operator interface. "
-        "Non-blocking UI repair, deployment, paper execution, and live trading remain deferred."
+        "Complete the existing single-user workflow and prepare the final operator walkthrough. "
+        "Paid data, external deployment, paper execution, and live trading remain deferred."
     ),
-    home_subtitle="Find and validate a same-session intraday trading edge.",
+    home_subtitle="Your strategy research workspace.",
 )

@@ -240,7 +240,7 @@ def test_home_recent_failure_takes_precedence_over_active_run() -> None:
     )
 
 
-def test_home_shows_edge_discovery_status() -> None:
+def test_home_shows_operator_product_handoff_status() -> None:
     model = build_home_view_model(
         recent_runs=(_run("first", "succeeded"), _run("second", "succeeded")),
         as_of=NOW,
@@ -248,16 +248,15 @@ def test_home_shows_edge_discovery_status() -> None:
     page = layout(model)
     discovery = _text(_component(page, "home-discovery-gate"))
 
-    assert model.milestone.startswith("Milestone 26")
+    assert model.milestone.startswith("Milestone 23")
     assert model.milestone_status == (
-        "Backend completion is recorded. The fixed 09:35–10:00 MES overnight-gap reversal "
-        "development screen completed and the candidate was rejected."
+        "The backend and audited MES run are complete. Dashboard and operator-workflow "
+        "completion are now active for Terry's final handoff."
     )
-    assert "Backend completion is recorded" in discovery
-    assert "MES candidate screened out" in discovery
-    assert "owner gate for the next fixed intraday candidate" in discovery
-    assert "out of scope for the current day-trading mandate" in discovery
-    assert "not accepted as the long-term operator interface" in discovery
-    assert "paper execution, and live trading remain deferred" in discovery
+    assert "backend and audited MES run are complete" in discovery
+    assert "No new strategy selection" in discovery
+    assert "deterministic fixtures and accepted evidence" in discovery
+    assert "final operator walkthrough" in discovery
+    assert "external deployment, paper execution, and live trading remain deferred" in discovery
     assert model.action.label == "Continue to Compare"
     assert "discover" not in model.action.label.lower()

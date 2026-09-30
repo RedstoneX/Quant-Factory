@@ -1,8 +1,8 @@
 # ADR 0007: Portable deployment and Alpaca-first execution roadmap
 
-> **Current sequencing:** Decision 307 (2026-09-29) supersedes this ADR's
-> older active-order language. Backend edge discovery is active before formal
-> Milestone 23 closure. Alpaca-first architecture is retained, but listed
+> **Current sequencing:** Decision 313 (2026-09-30) supersedes this ADR's
+> older active-order language. Operator-product completion and handoff are
+> active before further candidate research. Alpaca-first architecture is retained, but listed
 > options are not categorically deferred when a qualified edge requires them.
 > Futures research remains allowed; futures broker infrastructure remains
 > deferred until evidence creates that execution requirement. Current work is
@@ -50,7 +50,10 @@ Broker-connected deployment, strategy profitability search, paper orders, and
 live-capital work remain gated; this parallel preparation does not complete
 Milestone 24.
 
-Controlled edge research now precedes formal Milestone 23 closure under Decision 307. Completed deployment/execution preparation is retained; authenticated paper/deployment work remains deferred until a qualified edge and its execution requirements justify resumption.
+Decision 313 restores Milestone 23 operator-product completion and handoff
+before further candidate research. Completed deployment/execution preparation
+is retained; authenticated paper/deployment work remains deferred until a
+qualified edge and its execution requirements justify resumption.
 
 ### 2. Alpaca is the first execution venue
 
@@ -226,8 +229,8 @@ Loss of Sentinel communication blocks new entries according to policy. Position 
 
 ### 10. Roadmap after Milestone 23
 
-**Historical sequencing:** Decision 294 supersedes the active/parallel timing
-below. Research-candidate selection is current; deployment, migration,
+**Historical sequencing:** Decisions 294 and 313 supersede the active/parallel timing
+below. Operator-product completion and handoff are current; deployment, migration,
 portability, and paper-runtime preparation are dormant until their recorded
 trigger occurs.
 

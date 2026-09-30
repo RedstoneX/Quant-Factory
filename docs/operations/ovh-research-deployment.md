@@ -1,6 +1,6 @@
 # Research Deployment Runbook
 
-> **Deferred under Decision 307:** This procedure is not current work. Use it
+> **Deferred under Decision 313:** This procedure is not current work. Use it
 > only after an authorized actual deployment or persistent-install request;
 > never deploy merely to prove deployment. Its backup, rollback, startup, and
 > changed-flow checks remain authoritative when activated.

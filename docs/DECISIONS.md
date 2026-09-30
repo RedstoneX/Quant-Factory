@@ -13,26 +13,32 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **313** | **Operator-product completion restored as the active sequence:** complete and prove the existing single-user dashboard workflow, then stop for Terry's final walkthrough and handoff acceptance. No additional strategy selection, proposal, optimization, screening, or profitability testing occurs before handoff. |
 | **312** | **Quant Factory unattended credential standard finalized:** Bitwarden Secrets Manager is the durable machine-access source of truth; the `Codex` machine account is scoped to the `Quant Factory` project and accessed through the official `bws` CLI with a host-encrypted token. This supersedes Decision 311's selection of Password Manager plus Agent Access as the current mechanism. |
 | 311 | Historical correction that Quant Factory uses Bitwarden is retained; Decision 312 supersedes its Password Manager plus Agent Access mechanism. |
 | 310 | MES screen was accepted, executed once, independently audited, and **rejected** after negative total/annualized return and Sharpe below 0.5. It is inactive and must not be tuned or rerun; R11 now waits at the owner gate for a new fixed intraday candidate. |
 | **309** | **Intraday mission clarification:** active edge discovery is day trading only—same-session entry/exit, minutes-to-hours holding, no overnight or multi-day carry. Turn-of-month is retained but out of scope. Existing licensed VectorBT Pro must be located/reused before treating a checkout-local absence as a blocker. |
 | 308 | Backend completion correction satisfied: the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under Decision 309's intraday bounds. |
-| 307 | Backend-first product reset remains in force, but Decision 308 corrects its premature activation of edge discovery. Dashboard repair still follows a promising edge or measured UI blocker; parallel-first orchestration and consolidated authority remain. |
+| 307 | Historical backend-first reset and dashboard-deferral rationale is retained; Decision 313 supersedes its active priority and sequencing. Parallel-first orchestration and consolidated authority remain. |
 | 306 | Prevent duplicate candidate/strategy-family work; a symbol or wrapper change is not a new requirement. |
-| 294 | Single-operator proportionality and evidence-truthful MVP rules remain, except Decision 307 supersedes its active sequencing. |
+| 294 | Single-operator proportionality and evidence-truthful MVP rules remain; Decision 313 controls active sequencing. |
 | 290 | Codex remains the sole active project agent toolchain; Decision 307 supersedes serial/worker-selection wording where it conflicts with parallel-first orchestration. |
 | 285 | Reuse mature components before custom implementation. |
 | 283 | Exact-repeat computation caching remains a deferred requirement, not active work. |
-| 282 | The chart-first Results prototype remains an approved UX reference; this is not current acceptance of the implemented dashboard as sufficiently usable. |
+| 282 | The chart-first Results prototype remains the approved UX reference for Decision 313 operator-product completion; it does not by itself establish current-revision workflow acceptance. |
 | 276 | Independent green pull requests may proceed without strict up-to-date rebuilding; overlapping/dependent work remains serialized. |
 | 275 | `RedstoneX/Quant-Factory` is the canonical forward repository. |
 
-Decision 312 controls credential source and machine access, superseding
+Decision 313 controls current priority, sequencing, and dashboard/product
+handoff scope. Decision 312 controls credential source and machine access, superseding
 Decision 311's Agent Access selection, Decision 269, ADR 0012, and ADR 0010 as
-current architecture while retaining their evidence as history. Where an older decision conflicts with Decision 309 on active research mission fit or VectorBT-Pro availability handling, Decision 309 controls. Decision 308 controls backend-completion sequencing. Otherwise Decision 307 controls priority, dashboard usability status, and orchestration as previously recorded. Older
-technical evidence and safety constraints remain valid unless explicitly
-superseded.
+current architecture while retaining their evidence as history. Where an older
+decision conflicts with Decision 309 on research mission fit or VectorBT-Pro
+availability handling, Decision 309 controls. Decision 308 controls backend
+completion. Decision 307's parallel-first orchestration and evidence/reuse constraints
+remain effective, but Decision 313 supersedes its priority, sequencing, and
+dashboard-deferral language. Older technical evidence and safety constraints
+remain valid unless explicitly superseded.
 
 ## Stable retained principles
 
@@ -1539,3 +1545,63 @@ superseded.
      separate project/grant and OS/service isolation before activation. This
      decision changes credential architecture only; it does not authorize paid
      data, deployment, paper/live activation, orders, or capital exposure.
+
+313. **Complete and hand off the single-user operator product before further
+     strategy research (accepted 2026-09-30).** Terry corrects the active
+     sequence. The immediate objective is to complete the existing Quant
+     Factory research product and dashboard so Terry can later initiate or
+     accept controlled candidate work and operate approved strategy
+     configurations through a practical operator experience. This does not
+     promise arbitrary code-free strategy authoring: Codex may implement and
+     run owner-accepted strategy logic within fixed evidence rules. Dashboard
+     and operator-workflow completion are active; final owner walkthrough and
+     handoff acceptance are the next owner-required gate.
+
+     R11 concluded after its one accepted MES overnight-gap reversal screen.
+     The candidate was rejected and no edge survived. The completed generic
+     backend and audited MES run provide sufficient backend and real-run proof
+     for product completion; they do not create a requirement for another
+     candidate. Before handoff, Codex must not select, propose, optimize,
+     screen, or profitability-test another strategy. Deterministic fixtures
+     and already accepted evidence may exercise strategy-shaped behavior only
+     as product-verification inputs, not as new edge research or profitability
+     evidence.
+
+     Complete and prove the existing single-owner workflow: idea and
+     configuration setup; test launch and status; results, charts, trades,
+     assumptions, and evidence; saved-test comparison; review and decision
+     recording; reproduction and failure recovery; and clear navigation and
+     understandable language. Reconcile and reuse the historical Milestone 23
+     evidence before changing code. Reuse the existing Plotly Dash product,
+     approved chart-first UX, licensed VectorBT Pro, mature maintained
+     components, completed backend, and existing tests. Do not rebuild the
+     backend, add a second frontend or orchestration layer, create a generic
+     arbitrary-strategy builder, or introduce enterprise-scale architecture.
+
+     After handoff, Terry initiates or accepts controlled candidate work and
+     Codex may assist within the fixed evidence boundaries. Decision 309's
+     same-session intraday restriction remains effective for that later work
+     unless Terry explicitly changes it. The SPY turn-of-month proposal remains
+     out of scope under that mandate. This decision supersedes Decisions
+     307–310 only where they make edge discovery or another candidate gate
+     precede dashboard completion and handoff. Their backend-completion,
+     historical MES result, evidence, reuse, orchestration, and safety records
+     remain valid.
+
+     Product verification uses deterministic unit, integration, and browser
+     tests. The already-approved SPYM infrastructure fixture may be exercised
+     solely as deterministic current-revision product proof and must not be
+     treated as a new candidate or profitability result. This decision does not authorize paid data acquisition, protected
+     testing, external deployment, broker orders, paper/live activation, or
+     capital exposure. A private review endpoint may support the final owner
+     walkthrough only when separately authorized; handoff does not silently
+     create production-deployment authority.
+
+     Documentation impact: `AGENTS.md`, `docs/MILESTONES.md`, this decision and
+     its effective index, README, dashboard-displayed status, the focused Home
+     status test, and supporting dashboard/acceptance/architecture banners are
+     aligned. `docs/ai-programming-agent-policy.md` needs no rule change because
+     it already delegates active sequencing to MILESTONES and already requires
+     proportional reuse, preflight, review, and repository governance.
+     `docs/CHAT_HANDOFF.md` needs no change because it is navigation-only and
+     already routes startup to the Tier 1 authorities.

@@ -1,15 +1,13 @@
 # Quant Factory Dashboard UI Direction
 
-> **Current status:** Retained UX specification and historical design evidence.
-> Decision 307 withdraws any present claim that the implemented dashboard is
-> sufficiently usable, while preserving the approved chart-first prototype as
-> the UX reference. When UI work resumes, reproduce the UX with mature reusable
-> components and thin adapters rather than custom prototype infrastructure.
-> Current work is defined only in `docs/MILESTONES.md`.
+> **Current status:** Active supporting UX specification under Decision 313.
+> Reuse the approved chart-first experience, mature components, and thin
+> adapters while completing the existing operator product. Current work and
+> acceptance status are defined only in `docs/MILESTONES.md`.
 
 
-- **Status:** Retained owner-approved UX direction and historical implementation
-  evidence; inactive under Decision 307
+- **Status:** Owner-approved UX direction and reusable implementation evidence
+  for the active operator-product completion
 - **Owner direction accepted:** 2026-09-18
 - **Historical evidence:** Focused Step 11 evidence and the Steps 13–14
   real-saved-result browser proof passed; PR #90's presentation corrections
