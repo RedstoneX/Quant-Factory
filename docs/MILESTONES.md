@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Begin the next owner-initiated controlled candidate only after Terry names or explicitly accepts one bounded, source-attributed intraday hypothesis. |
-| Phase | **Owner-initiated candidate research intake.** |
-| Active work | The operator-product handoff is accepted. No candidate is active yet; the next executable research slice waits for Terry to name or approve its hypothesis and fixed evidence contract. |
+| Immediate objective | Complete the working dashboard interface Terry needs to capture an idea, prepare an approved setup, launch it, and inspect the result without terminal or raw-file use. |
+| Phase | **Operator-product completion and owner handoff.** |
+| Active work | The Research Atlas overview screen is accepted. The full operator product is not: the working intake and connected operator workflow remain active implementation. No candidate research is active. |
 | Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | No next candidate hypothesis or fixed evidence contract has been named and accepted. The rejected MES overnight-gap reversal may not be tuned or rerun. |
-| Next action | Terry names a candidate or asks Codex to present bounded, source-attributed intraday options, then explicitly accepts one hypothesis and its evidence contract before execution. |
+| Verified gap | Terry cannot yet operate the complete workflow through the dashboard. The existing Ideas experience is a form rather than the agreed unified workbench, and screen acceptance was incorrectly recorded as product handoff. |
+| Next action | Reuse the existing Dash product, durable draft storage, setup/run/results connections, and accepted unified-workbench direction to complete the operator-facing workflow, then return to Terry for actual use and handoff acceptance. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | pending | none | **Operator product accepted; next candidate not yet selected.** Terry accepted the deployed Research Atlas and authorized continuation on 2026-09-30. Execution waits for a named or explicitly accepted bounded intraday hypothesis and evidence contract. |
+| R12 | 1 | in_progress | none | **Research Atlas screen accepted; operator product not yet handed off.** Complete the working operator interface, beginning with the agreed Ideas workbench and its connection to existing setup/run/results surfaces. No new strategy test is authorized. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
@@ -58,18 +58,19 @@ profitability, or the licensed engine itself.
 
 1. Backend completion — COMPLETE
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
-3. Dashboard and operator-product completion — TECHNICAL PASS
-4. Owner walkthrough and handoff acceptance — COMPLETE
-5. **Owner-initiated candidate research — ACTIVE; CANDIDATE SELECTION PENDING**
+3. **Dashboard and operator-product completion — ACTIVE; RESEARCH ATLAS SCREEN ACCEPTED**
+4. Owner walkthrough and handoff acceptance — PENDING
+5. Owner-initiated candidate research
 6. Validation of a surviving edge
 7. Execution-vehicle comparison
 8. Paper operation
 9. Live operation later
 
-### Edge research — AWAITING AN OWNER-NAMED OR OWNER-ACCEPTED CANDIDATE
+### Edge research — PAUSED UNTIL OPERATOR-PRODUCT HANDOFF
 
-The operator handoff is complete. No candidate is active until Terry names one
-or explicitly accepts a bounded, source-attributed proposal and its fixed
+No candidate is active, and no additional strategy test is justified before
+Terry accepts the working operator product. After handoff, Terry must name one
+or explicitly accept a bounded, source-attributed proposal and its fixed
 evidence contract. The current mandate remains **day trading / intraday
 directional edge discovery** unless the owner explicitly changes it.
 The fixed MES overnight-gap reversal development screen in
@@ -110,9 +111,9 @@ answer the hypothesis. A surviving signal must later be validated on the
 intended SPY/QQQ/index underlying before any options edge is claimed, and 0DTE
 implementation requires defensible historical option quote/execution evidence.
 
-### Dashboard and operator product — OWNER ACCEPTED 2026-09-30
+### Dashboard and operator product — ACTIVE; OVERVIEW SCREEN ACCEPTED 2026-09-30
 
-The existing Plotly Dash product now covers the full single-owner workflow:
+The existing Plotly Dash product contains the backend connections for the single-owner workflow:
 idea and configuration setup; approved configuration launch and status;
 results, charts, trades, assumptions, evidence and all persisted parameter
 variants; saved-test comparison; review and decision recording; reproduction
@@ -130,8 +131,9 @@ The Research Atlas implementation merged at revision
 `dbb94148712cdffae04f00ff7b0544ede869c718`, was deployed to the existing
 private review service with a verified pre-deployment database backup, and
 passed revision, health, and private reachability checks. Terry accepted the
-rendered current-revision dashboard and authorized continuation on 2026-09-30.
-R12 and the operator-product handoff gate are complete. This acceptance does
+rendered current-revision **overview screen** and authorized continuation on
+2026-09-30. That was not acceptance of the unfinished operator workflow.
+R12 and the operator-product handoff gate remain active. This acceptance does
 not qualify an edge or authorize paid data, protected testing, paper/live
 operation, orders, or capital exposure.
 

@@ -10,6 +10,8 @@ from dash import Dash, Input, Output, State, ctx, no_update
 from dash.exceptions import PreventUpdate
 
 from dashboard.routing import active_route
+from dashboard.pages.ideas import _draft_options as _workbench_draft_options
+from dashboard.pages.ideas import _readable_time
 from dashboard.run_adapter import (
     delete_idea_draft,
     list_idea_drafts,
@@ -136,17 +138,8 @@ def _idea_draft_transition(
     )
 
 
-def _draft_options(database: str | Path) -> list[dict[str, str]]:
-    return [
-        {
-            "label": (
-                f"{draft.title} · {draft.updated_at}"
-                + (" · setup saved" if draft.configuration_id else "")
-            ),
-            "value": draft.draft_id,
-        }
-        for draft in list_idea_drafts(database)
-    ]
+def _draft_options(database: str | Path) -> list[dict[str, object]]:
+    return _workbench_draft_options(list_idea_drafts(database))
 
 
 def register_ideas_callbacks(
@@ -164,8 +157,10 @@ def register_ideas_callbacks(
         Output("idea-draft-selector", "options"),
         Output("idea-draft-selector", "value"),
         Output("continue-idea-to-setup", "href"),
+        Output("continue-idea-to-setup", "className"),
         Input("save-idea-draft", "n_clicks"),
         Input("discard-idea-draft", "n_clicks"),
+        Input("new-idea-draft", "n_clicks"),
         Input("confirm-discard-idea-draft", "submit_n_clicks"),
         Input("idea-draft-selector", "value"),
         Input("idea-title", "value"),
@@ -180,6 +175,7 @@ def register_ideas_callbacks(
     def update_idea_draft(
         _save_clicks: int | None,
         _discard_clicks: int | None,
+        _new_clicks: int | None,
         _confirm_clicks: int | None,
         selected_draft_id: str | None,
         title: str | None,
@@ -211,6 +207,7 @@ def register_ideas_callbacks(
                     no_update,
                     None,
                     None,
+                    "primary-action action-disabled",
                 )
             return (
                 selected.to_store(),
@@ -220,9 +217,34 @@ def register_ideas_callbacks(
                 no_update,
                 selected.draft_id,
                 "/research/setup",
+                "primary-action",
             )
 
         values = _draft_values(title, description, source_url, attribution, notes)
+        if triggered_id == "new-idea-draft":
+            stored = stored_draft or {}
+            stored_values = {key: stored.get(key, "") for key in values}
+            if values != stored_values:
+                return (
+                    no_update,
+                    "Save or discard the current changes before starting a new idea.",
+                    "save-message unsaved-state",
+                    False,
+                    no_update,
+                    no_update,
+                    no_update,
+                    no_update,
+                )
+            return (
+                {},
+                "New draft — add a title and hypothesis before saving locally.",
+                "save-message",
+                False,
+                no_update,
+                None,
+                None,
+                "primary-action action-disabled",
+            )
         transition = _idea_draft_transition(
             triggered_id,
             values,
@@ -245,6 +267,7 @@ def register_ideas_callbacks(
                     no_update,
                     no_update,
                     no_update,
+                    no_update,
                 )
             return (
                 saved.to_store(),
@@ -254,6 +277,7 @@ def register_ideas_callbacks(
                 _draft_options(database),
                 saved.draft_id,
                 "/research/setup",
+                "primary-action",
             )
         if triggered_id == "confirm-discard-idea-draft":
             draft_id = (stored_draft or {}).get("draft_id")
@@ -269,6 +293,7 @@ def register_ideas_callbacks(
                         no_update,
                         no_update,
                         "/research/setup",
+                        "primary-action",
                     )
             remaining = list_idea_drafts(database)
             selected = remaining[0] if remaining else None
@@ -280,7 +305,13 @@ def register_ideas_callbacks(
                 _draft_options(database),
                 selected.draft_id if selected else None,
                 "/research/setup" if selected else None,
+                "primary-action" if selected else "primary-action action-disabled",
             )
+        stored_values = {
+            key: (stored_draft or {}).get(key, "")
+            for key in values
+        }
+        dirty = values != stored_values
         return (
             store,
             message,
@@ -288,8 +319,99 @@ def register_ideas_callbacks(
             confirm,
             no_update,
             no_update,
-            no_update,
+            None if dirty else no_update,
+            "primary-action action-disabled" if dirty else no_update,
         )
+
+    @app.callback(
+        Output("idea-workbench-title", "children"),
+        Output("idea-workbench-state", "children"),
+        Output("idea-workbench-state", "className"),
+        Output("idea-workbench-meta", "children"),
+        Output("idea-source-state", "children"),
+        Output("idea-brief-hypothesis", "children"),
+        Output("idea-brief-source", "children"),
+        Output("idea-brief-questions", "children"),
+        Output("idea-brief-setup", "children"),
+        Output("idea-brief-state", "children"),
+        Output("idea-brief-state", "className"),
+        Output("idea-next-action-copy", "children"),
+        Input("idea-title", "value"),
+        Input("idea-description", "value"),
+        Input("idea-source-url", "value"),
+        Input("idea-attribution", "value"),
+        Input("idea-notes", "value"),
+        Input("idea-draft-store", "data"),
+    )
+    def update_workbench_brief(
+        title: str | None,
+        description: str | None,
+        source_url: str | None,
+        attribution: str | None,
+        notes: str | None,
+        stored_draft: dict[str, str] | None,
+    ):
+        values = _draft_values(title, description, source_url, attribution, notes)
+        stored = stored_draft or {}
+        stored_values = {key: stored.get(key, "") for key in values}
+        dirty = values != stored_values
+        saved = bool(stored.get("draft_id")) and not dirty
+
+        if dirty:
+            state = "Unsaved changes"
+            state_class = "idea-state-badge idea-state-unsaved"
+            meta = "Save to retain this version"
+        elif saved:
+            state = "Draft saved"
+            state_class = "idea-state-badge idea-state-saved"
+            updated = stored.get("updated_at") or stored.get("saved_at") or ""
+            meta = f"Updated {_readable_time(updated)}" if updated else "Saved locally"
+        else:
+            state = "New draft"
+            state_class = "idea-state-badge"
+            meta = "Nothing runs until you deliberately continue"
+
+        source_parts = [part for part in (values["attribution"], values["source_url"]) if part]
+        formed = bool(values["title"] and values["description"])
+        if formed:
+            brief_state = "Draft formed"
+            brief_class = "idea-brief-badge idea-brief-badge-ready"
+        else:
+            brief_state = "Needs your input"
+            brief_class = "idea-brief-badge"
+
+        if not formed:
+            next_action = "Add a title and hypothesis, then save the draft."
+        elif dirty or not stored.get("draft_id"):
+            next_action = "Save this version before continuing."
+        elif stored.get("configuration_id"):
+            next_action = "Open Set up to review the saved bounded configuration."
+        else:
+            next_action = "Continue to Set up and choose an approved specification."
+
+        return (
+            values["title"] or "New research idea",
+            state,
+            state_class,
+            meta,
+            "Source linked" if values["source_url"] else "Owner-authored",
+            values["description"] or "Describe the behavior you want to investigate.",
+            " · ".join(source_parts) or "No source or owner observation recorded yet.",
+            values["notes"] or "Record the uncertainties that must be resolved before testing.",
+            "Bounded setup saved" if stored.get("configuration_id") else "Not prepared",
+            brief_state,
+            brief_class,
+            next_action,
+        )
+
+    @app.callback(
+        Output("idea-history-count", "children"),
+        Output("idea-history-empty", "style"),
+        Input("idea-draft-selector", "options"),
+    )
+    def update_history_state(options: list[dict[str, object]] | None):
+        count = len(options or ())
+        return str(count), ({"display": "none"} if count else {})
 
     @app.callback(
         Output("idea-title", "value"),
