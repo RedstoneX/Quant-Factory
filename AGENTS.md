@@ -31,7 +31,7 @@ approves paper/live trading and capital exposure.
 
 Follow the queue in `docs/MILESTONES.md`. The current sequence is:
 
-**operator-product completion -> owner handoff -> owner-initiated candidate
+**standardized non-executing intake -> owner handoff -> owner-approved candidate
 research -> validation -> execution-vehicle comparison -> paper operation ->
 live operation later.**
 
@@ -44,11 +44,16 @@ single-user product. When `docs/MILESTONES.md` records the technical pass, stop
 at the owner walkthrough and explicit handoff-acceptance gate unless Terry
 reports a product defect or changes the mandate.
 
-Before the owner accepts the completed operator product, do not select,
-propose, optimize, screen, or profitability-test another strategy. Strategy and
-market behavior may be exercised only with deterministic fixtures or already
-accepted evidence when needed to verify product behavior. After handoff, the
-owner initiates or accepts candidate work; the current intraday evidence
+QF Candidate v1 is the accepted provider-neutral intake boundary. During the
+standardized-intake milestone, Quant Factory may parse, validate, persist,
+display, edit, import, and export Candidate packets, but it must not fetch
+external sources, choose an LLM provider, implement a candidate, launch a
+backtest, or profitability-test another strategy unless Tier 1 is separately
+advanced. External LLMs and a future optional built-in analyzer must produce
+the same Candidate contract; no model is a required dependency.
+
+Before candidate research begins, the owner explicitly accepts one bounded
+Candidate packet and its evidence contract. The current intraday evidence
 boundaries then apply unless the owner changes them.
 
 ## Default working mode
