@@ -24,12 +24,14 @@ def test_research_context_carries_current_mandate_and_prior_work() -> None:
     assert context["candidate_output_contract"]["schema"] == "qf_candidate_v1"
 
     prior = {
-        (item["family"], item["instrument"], item["status"])
+        (item["family"], item["instrument"]): item
         for item in context["prior_work"]
     }
-    assert ("opening_range_breakout", "MES", "rejected") in prior
-    assert ("overnight_gap_reversal", "MES", "rejected") in prior
-    assert ("turn_of_month", "SPY", "out_of_scope") in prior
+    assert prior[("opening_range_breakout", "MES")]["family_exhausted"] is False
+    assert prior[("opening_range_breakout", "MES")]["tested_hypothesis_status"] == "screened_out"
+    assert "Shallow baseline only" in prior[("opening_range_breakout", "MES")]["tested_scope"]
+    assert prior[("overnight_gap_reversal", "MES")]["family_exhausted"] is False
+    assert prior[("turn_of_month", "SPY")]["family_status"] == "out_of_current_mandate"
 
 
 def test_research_context_references_existing_qf_evidence() -> None:
@@ -62,3 +64,14 @@ def test_external_research_context_has_no_execution_authority() -> None:
     assert "do not" in instruction and "implement" in instruction
     assert "rank a winner" in instruction
     assert "owner approval" in context["candidate_output_contract"]["import_authority"].lower()
+
+
+def test_prior_work_never_closes_family_without_explicit_authority() -> None:
+    context = build_research_context()
+
+    for item in context["prior_work"]:
+        assert item["family_exhausted"] is False
+
+    instruction = context["external_research_instruction"].lower()
+    assert "do not discard a family" in instruction
+    assert "exact-hypothesis" in instruction
