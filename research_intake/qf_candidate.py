@@ -371,7 +371,11 @@ def _plain(value: Any) -> Any:
         return [_plain(item) for item in value]
     if isinstance(value, list):
         return [_plain(item) for item in value]
-    if value is None or isinstance(value, (str, int, float, bool)):
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise CandidatePacketError("candidate packet cannot contain NaN or infinite values")
+        return value
+    if value is None or isinstance(value, (str, int, bool)):
         return value
     raise CandidatePacketError(f"candidate packet contains unsupported value type {type(value).__name__}")
 
