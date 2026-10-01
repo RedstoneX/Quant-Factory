@@ -229,3 +229,11 @@ def test_candidate_rejects_non_finite_values_cleanly() -> None:
 
     with pytest.raises(CandidatePacketError, match="NaN or infinite"):
         validate_candidate_packet(document)
+
+
+def test_imported_candidate_cannot_assert_owner_approval(tmp_path) -> None:
+    document = _candidate_document()
+    document["candidate"]["status"] = "owner_approved"
+
+    with pytest.raises(CandidatePacketError, match="cannot assert owner approval"):
+        import_candidate_as_idea(document, database=tmp_path / "qf.sqlite3")
