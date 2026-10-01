@@ -8,7 +8,7 @@ import os
 import sqlite3
 from typing import Iterator
 
-LATEST_SCHEMA_VERSION = 6
+LATEST_SCHEMA_VERSION = 7
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE_PATH = Path("state") / "quant_factory.sqlite3"
 ENV_DATABASE_PATH = "QUANT_FACTORY_DB_PATH"
@@ -300,6 +300,14 @@ MIGRATION_006_STATEMENTS = (
     "CREATE INDEX idx_idea_drafts_updated ON idea_drafts(updated_at DESC, draft_id)",
 )
 
+MIGRATION_007_STATEMENTS = (
+    """
+    ALTER TABLE idea_drafts
+    ADD COLUMN candidate_json TEXT NOT NULL DEFAULT ''
+        CHECK (length(candidate_json) <= 100000)
+    """,
+)
+
 
 class DatabaseError(RuntimeError):
     """Raised when the local experiment database is unusable."""
@@ -389,6 +397,9 @@ def initialize_database(path: str | Path | None = None) -> sqlite3.Connection:
             elif current == 5:
                 _migrate_v5_to_v6(connection)
                 current = 6
+            elif current == 6:
+                _migrate_v6_to_v7(connection)
+                current = 7
             else:
                 raise SchemaVersionError(
                     f"database schema {current} cannot be migrated by this version"
@@ -466,4 +477,14 @@ def _migrate_v5_to_v6(connection: sqlite3.Connection) -> None:
         connection.execute(
             "UPDATE schema_metadata SET schema_version=?, migration_id=?",
             (6, "006_operator_idea_drafts"),
+        )
+
+
+def _migrate_v6_to_v7(connection: sqlite3.Connection) -> None:
+    with transaction(connection):
+        for statement in MIGRATION_007_STATEMENTS:
+            connection.execute(statement)
+        connection.execute(
+            "UPDATE schema_metadata SET schema_version=?, migration_id=?",
+            (7, "007_qf_candidate_v1_intake"),
         )
