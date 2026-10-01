@@ -2,14 +2,25 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+from dataclasses import asdict
 from datetime import datetime, timezone
+import json
 from pathlib import Path
+import re
+from typing import Any
 from urllib.parse import urlsplit
 
-from dash import Dash, Input, Output, State, ctx, no_update
+from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 
 from dashboard.routing import active_route
+from dashboard.pages.ideas import _candidate_brief
+from dashboard.pages.ideas import _candidate_status
+from dashboard.pages.ideas import _candidate_status_prompt
+from dashboard.pages.ideas import _candidate_prompt
+from dashboard.pages.ideas import _candidate_validation_data
 from dashboard.pages.ideas import _draft_options as _workbench_draft_options
 from dashboard.pages.ideas import _readable_time
 from dashboard.run_adapter import (
@@ -17,9 +28,18 @@ from dashboard.run_adapter import (
     list_idea_drafts,
     save_idea_draft,
 )
+from research_intake import (
+    CandidatePacketError,
+    attach_candidate_to_idea,
+    export_candidate_packet,
+    import_candidate_as_idea,
+    parse_candidate_packet,
+    validate_candidate_packet,
+)
 
 
 IDEAS_PATH = "/research/ideas"
+MAX_CANDIDATE_UPLOAD_BYTES = 100_000
 
 
 def _valid_source_url(value: str) -> bool:
@@ -142,6 +162,65 @@ def _draft_options(database: str | Path) -> list[dict[str, object]]:
     return _workbench_draft_options(list_idea_drafts(database))
 
 
+def _setup_link_state(
+    draft: dict[str, Any] | None,
+    *,
+    dirty: bool = False,
+) -> tuple[str | None, str]:
+    value = draft or {}
+    allowed = bool(
+        value.get("draft_id")
+        and not dirty
+        and (value.get("configuration_id") or not value.get("candidate_json"))
+    )
+    return (
+        "/research/setup" if allowed else None,
+        "primary-action" if allowed else "primary-action action-disabled",
+    )
+
+
+def _decode_candidate_upload(contents: str | None, filename: str | None) -> str:
+    suffix = Path(filename or "").suffix.lower()
+    if suffix not in {".yaml", ".yml", ".json"}:
+        raise CandidatePacketError("choose a .yaml, .yml, or .json Candidate file")
+    if not contents or "," not in contents:
+        raise CandidatePacketError("the uploaded Candidate file could not be read")
+    _, encoded = contents.split(",", 1)
+    try:
+        payload = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise CandidatePacketError("the uploaded Candidate file is not valid base64") from exc
+    if len(payload) > MAX_CANDIDATE_UPLOAD_BYTES:
+        raise CandidatePacketError(
+            f"Candidate file exceeds {MAX_CANDIDATE_UPLOAD_BYTES:,} bytes"
+        )
+    try:
+        return payload.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise CandidatePacketError("Candidate files must be UTF-8 text") from exc
+
+
+def _candidate_error(message: str) -> html.Div:
+    return html.Div(
+        [html.Strong("Candidate needs correction"), html.P(message)],
+        className="candidate-validation candidate-validation-error",
+    )
+
+
+def _same_candidate(candidate_text: str, stored: dict[str, Any]) -> bool:
+    stored_json = str(stored.get("candidate_json") or "")
+    if not stored_json or not candidate_text.strip():
+        return False
+    try:
+        candidate = validate_candidate_packet(parse_candidate_packet(candidate_text))
+        persisted = validate_candidate_packet(
+            parse_candidate_packet(stored_json, format_hint="json")
+        )
+    except ValueError:
+        return False
+    return candidate.canonical_json == persisted.canonical_json
+
+
 def register_ideas_callbacks(
     app: Dash,
     *,
@@ -209,6 +288,7 @@ def register_ideas_callbacks(
                     None,
                     "primary-action action-disabled",
                 )
+            setup_href, setup_class = _setup_link_state(selected.to_store())
             return (
                 selected.to_store(),
                 f"Draft saved locally at {selected.updated_at}. Nothing was retrieved or run.",
@@ -216,8 +296,8 @@ def register_ideas_callbacks(
                 False,
                 no_update,
                 selected.draft_id,
-                "/research/setup",
-                "primary-action",
+                setup_href,
+                setup_class,
             )
 
         values = _draft_values(title, description, source_url, attribution, notes)
@@ -269,15 +349,17 @@ def register_ideas_callbacks(
                     no_update,
                     no_update,
                 )
+            saved_store = saved.to_store()
+            setup_href, setup_class = _setup_link_state(saved_store)
             return (
-                saved.to_store(),
+                saved_store,
                 f"Draft saved locally at {saved.updated_at}. Nothing was retrieved or run.",
                 class_name,
                 confirm,
                 _draft_options(database),
                 saved.draft_id,
-                "/research/setup",
-                "primary-action",
+                setup_href,
+                setup_class,
             )
         if triggered_id == "confirm-discard-idea-draft":
             draft_id = (stored_draft or {}).get("draft_id")
@@ -297,21 +379,24 @@ def register_ideas_callbacks(
                     )
             remaining = list_idea_drafts(database)
             selected = remaining[0] if remaining else None
+            selected_store = selected.to_store() if selected else {}
+            setup_href, setup_class = _setup_link_state(selected_store)
             return (
-                selected.to_store() if selected else {},
+                selected_store,
                 message,
                 class_name,
                 confirm,
                 _draft_options(database),
                 selected.draft_id if selected else None,
-                "/research/setup" if selected else None,
-                "primary-action" if selected else "primary-action action-disabled",
+                setup_href,
+                setup_class,
             )
         stored_values = {
             key: (stored_draft or {}).get(key, "")
             for key in values
         }
         dirty = values != stored_values
+        setup_href, setup_class = _setup_link_state(stored_draft, dirty=dirty)
         return (
             store,
             message,
@@ -319,8 +404,8 @@ def register_ideas_callbacks(
             confirm,
             no_update,
             no_update,
-            None if dirty else no_update,
-            "primary-action action-disabled" if dirty else no_update,
+            setup_href,
+            setup_class,
         )
 
     @app.callback(
@@ -386,6 +471,11 @@ def register_ideas_callbacks(
             next_action = "Save this version before continuing."
         elif stored.get("configuration_id"):
             next_action = "Open Set up to review the saved bounded configuration."
+        elif stored.get("candidate_json"):
+            next_action = (
+                "Candidate saved. Owner approval and deterministic implementation "
+                "are required before Set up can create a runnable test."
+            )
         else:
             next_action = "Continue to Set up and choose an approved specification."
 
@@ -432,3 +522,244 @@ def register_ideas_callbacks(
             values.get("attribution", ""),
             values.get("notes", ""),
         )
+
+    @app.callback(
+        Output("candidate-packet-input", "value"),
+        Output("candidate-upload-status", "children"),
+        Output("candidate-upload-status", "className"),
+        Output("candidate-editor-draft-id", "data"),
+        Input("candidate-file-upload", "contents"),
+        Input("idea-draft-store", "data"),
+        State("candidate-file-upload", "filename"),
+        State("candidate-packet-input", "value"),
+        State("candidate-editor-draft-id", "data"),
+        prevent_initial_call=True,
+    )
+    def load_candidate_editor(
+        upload_contents: str | None,
+        draft: dict[str, Any] | None,
+        upload_filename: str | None,
+        current_text: str | None,
+        editor_draft_id: str | None,
+    ):
+        triggered_id = str(ctx.triggered_id)
+        if triggered_id == "candidate-file-upload":
+            try:
+                uploaded = _decode_candidate_upload(upload_contents, upload_filename)
+            except CandidatePacketError as exc:
+                return (
+                    no_update,
+                    f"File not loaded. {exc}. Existing text is unchanged.",
+                    "field-help error-state",
+                    no_update,
+                )
+            return (
+                uploaded,
+                f"Loaded {upload_filename}. Validate before saving.",
+                "field-help save-message-success",
+                no_update,
+            )
+
+        stored = draft or {}
+        next_draft_id = stored.get("draft_id")
+        candidate_json = str(stored.get("candidate_json") or "")
+        if next_draft_id == editor_draft_id:
+            if candidate_json and not _same_candidate(current_text or "", stored):
+                document = parse_candidate_packet(candidate_json, format_hint="json")
+                return (
+                    json.dumps(document, indent=2, ensure_ascii=False, sort_keys=True),
+                    "Loaded the Candidate saved on this idea.",
+                    "field-help save-message-success",
+                    next_draft_id,
+                )
+            return no_update, no_update, no_update, no_update
+        if candidate_json:
+            document = parse_candidate_packet(candidate_json, format_hint="json")
+            return (
+                json.dumps(document, indent=2, ensure_ascii=False, sort_keys=True),
+                "Loaded the Candidate saved on this idea.",
+                "field-help save-message-success",
+                next_draft_id,
+            )
+        return (
+            "",
+            "No Candidate is attached to this idea.",
+            "field-help",
+            next_draft_id,
+        )
+
+    @app.callback(
+        Output("candidate-validation-store", "data"),
+        Output("candidate-validation-status", "children"),
+        Output("candidate-brief-content", "children"),
+        Output("save-candidate-packet", "disabled"),
+        Output("export-candidate-yaml", "disabled"),
+        Output("export-candidate-json", "disabled"),
+        Input("validate-candidate-packet", "n_clicks"),
+        Input("candidate-packet-input", "n_blur"),
+        Input("idea-draft-store", "data"),
+        State("candidate-packet-input", "value"),
+        prevent_initial_call=True,
+    )
+    def validate_candidate_editor(
+        _validate_clicks: int | None,
+        _packet_blurs: int | None,
+        draft: dict[str, Any] | None,
+        candidate_text: str | None,
+    ):
+        triggered_id = str(ctx.triggered_id)
+        text = (candidate_text or "").strip()
+        stored = draft or {}
+        if triggered_id == "idea-draft-store" and stored.get("candidate_json"):
+            text = str(stored["candidate_json"])
+        if not text:
+            return (
+                {},
+                _candidate_status_prompt(),
+                _candidate_prompt(),
+                True,
+                True,
+                True,
+            )
+        try:
+            validation = validate_candidate_packet(parse_candidate_packet(text))
+        except CandidatePacketError as exc:
+            return {}, _candidate_error(str(exc)), _candidate_prompt(), True, True, True
+        enabled = validation.valid
+        return (
+            _candidate_validation_data(validation),
+            _candidate_status(
+                validation,
+                saved=_same_candidate(text, stored),
+            ),
+            _candidate_brief(validation.document, validation),
+            not enabled,
+            not enabled,
+            not enabled,
+        )
+
+    @app.callback(
+        Output("idea-draft-store", "data", allow_duplicate=True),
+        Output("idea-draft-selector", "options", allow_duplicate=True),
+        Output("idea-draft-selector", "value", allow_duplicate=True),
+        Output("candidate-action-status", "children"),
+        Output("candidate-action-status", "className"),
+        Output("continue-idea-to-setup", "href", allow_duplicate=True),
+        Output("continue-idea-to-setup", "className", allow_duplicate=True),
+        Input("save-candidate-packet", "n_clicks"),
+        State("candidate-packet-input", "value"),
+        State("idea-draft-store", "data"),
+        State("idea-title", "value"),
+        State("idea-description", "value"),
+        State("idea-source-url", "value"),
+        State("idea-attribution", "value"),
+        State("idea-notes", "value"),
+        State("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def save_candidate_packet(
+        _save_clicks: int | None,
+        candidate_text: str | None,
+        stored_draft: dict[str, Any] | None,
+        title: str | None,
+        description: str | None,
+        source_url: str | None,
+        attribution: str | None,
+        notes: str | None,
+        pathname: str | None,
+    ):
+        if not active_route(pathname, IDEAS_PATH):
+            raise PreventUpdate
+        text = (candidate_text or "").strip()
+        if not text:
+            return (
+                no_update,
+                no_update,
+                no_update,
+                "Candidate not saved. Paste or upload a packet first.",
+                "field-help error-state",
+                no_update,
+                no_update,
+            )
+        stored = stored_draft or {}
+        if stored.get("draft_id"):
+            current_values = _draft_values(
+                title, description, source_url, attribution, notes
+            )
+            stored_values = {key: stored.get(key, "") for key in current_values}
+            if current_values != stored_values:
+                return (
+                    no_update,
+                    no_update,
+                    no_update,
+                    "Candidate not saved. Save or discard the ordinary draft changes first; nothing was lost.",
+                    "field-help error-state",
+                    no_update,
+                    no_update,
+                )
+        try:
+            if stored.get("draft_id"):
+                imported = attach_candidate_to_idea(
+                    text,
+                    draft_id=str(stored["draft_id"]),
+                    database=database,
+                )
+            else:
+                imported = import_candidate_as_idea(text, database=database)
+        except (CandidatePacketError, KeyError, ValueError) as exc:
+            return (
+                no_update,
+                no_update,
+                no_update,
+                f"Candidate not saved. {exc}. Submitted content is unchanged.",
+                "field-help error-state",
+                no_update,
+                no_update,
+            )
+        saved_store = asdict(imported.draft)
+        setup_href, setup_class = _setup_link_state(saved_store)
+        high_questions = sum(
+            1
+            for question in imported.validation.document.get("open_questions", []) or []
+            if isinstance(question, dict)
+            and str(question.get("importance", "")).lower() == "high"
+        )
+        unresolved = (
+            f" {high_questions} high-importance question{'s remain' if high_questions != 1 else ' remains'} unresolved."
+            if high_questions
+            else ""
+        )
+        return (
+            saved_store,
+            _draft_options(database),
+            imported.draft.draft_id,
+            "Candidate saved durably on this idea. It is not approved, implemented, or runnable."
+            + unresolved,
+            "field-help save-message-success",
+            setup_href,
+            setup_class,
+        )
+
+    @app.callback(
+        Output("candidate-download", "data"),
+        Input("export-candidate-yaml", "n_clicks"),
+        Input("export-candidate-json", "n_clicks"),
+        State("candidate-validation-store", "data"),
+        prevent_initial_call=True,
+    )
+    def download_candidate_packet(
+        _yaml_clicks: int | None,
+        _json_clicks: int | None,
+        validation_data: dict[str, Any] | None,
+    ):
+        data = validation_data or {}
+        document = data.get("document")
+        if not data.get("valid") or not isinstance(document, dict):
+            raise PreventUpdate
+        format_name = "json" if str(ctx.triggered_id) == "export-candidate-json" else "yaml"
+        rendered = export_candidate_packet(document, format=format_name)
+        candidate = document.get("candidate") if isinstance(document.get("candidate"), dict) else {}
+        title = str(candidate.get("title") or "qf-candidate")
+        slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:60]
+        filename = f"{slug or 'qf-candidate'}.{format_name}"
+        return dcc.send_string(rendered, filename)

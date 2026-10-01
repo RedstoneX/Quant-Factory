@@ -7,6 +7,7 @@ import pytest
 from persistence import LATEST_SCHEMA_VERSION, PersistenceService, StrategyLifecycle
 from research_intake import (
     CandidatePacketError,
+    attach_candidate_to_idea,
     export_candidate_packet,
     import_candidate_as_idea,
     parse_candidate_packet,
@@ -237,3 +238,29 @@ def test_imported_candidate_cannot_assert_owner_approval(tmp_path) -> None:
 
     with pytest.raises(CandidatePacketError, match="cannot assert owner approval"):
         import_candidate_as_idea(document, database=tmp_path / "qf.sqlite3")
+
+
+def test_candidate_attaches_to_existing_idea_without_overwriting_owner_text(tmp_path) -> None:
+    path = tmp_path / "qf.sqlite3"
+    service = PersistenceService(path)
+    try:
+        draft = service.save_idea_draft(
+            title="Owner wording",
+            description="Preserve this context",
+            notes="Keep this uncertainty",
+        )
+    finally:
+        service.close()
+
+    attached = attach_candidate_to_idea(
+        _candidate_document(),
+        draft_id=draft.draft_id,
+        database=path,
+    )
+
+    assert attached.validation.valid is True
+    assert attached.draft.draft_id == draft.draft_id
+    assert attached.draft.title == "Owner wording"
+    assert attached.draft.description == "Preserve this context"
+    assert attached.draft.notes == "Keep this uncertainty"
+    assert json.loads(attached.draft.candidate_json)["schema"] == "qf_candidate_v1"

@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Establish the provider-neutral QF Candidate v1 intake backend so ideas from Terry, external LLMs, or a future optional built-in analyzer enter Quant Factory through one readable, validated, non-executable contract. |
+| Immediate objective | Complete the private owner walkthrough of the browser-based QF Candidate v1 intake: paste/upload, validate, review, persist, and export without creating execution authority. |
 | Phase | **Standardized strategy intake backend; candidate research remains paused.** |
-| Active work | R12 has a technical pass and remains available for Terry's walkthrough. Per owner direction, non-executing intake plumbing may proceed now: validate/import/export QF Candidate v1 packets and attach them durably to idea drafts. No source retrieval, LLM provider selection, candidate implementation, backtest, or profitability research is active. |
+| Active work | QF Candidate v1 backend and Ideas-workbench integration have a focused technical pass and are ready for private deployment and Terry's walkthrough. R12 remains available for its broader handoff. No source retrieval, LLM provider selection, candidate implementation, backtest, or profitability research is active. |
 | Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | The dashboard has durable idea capture, but the backend previously lacked one portable structured contract for ideas produced by Terry, ChatGPT/Claude/Grok/Gemini, or other research tools. Built-in public-source retrieval/LLM analysis remains optional and is not required for standardized intake. |
-| Next action | Complete and merge the minimal QF Candidate v1 backend slice: deterministic YAML/JSON validation, durable attachment to idea drafts, import/export helpers, focused migration/tests, and documentation. Then connect that contract to the Ideas workbench in a bounded UI slice before any new strategy research. |
+| Verified gap | Terry has not yet used and accepted the current-revision Candidate intake in the private browser environment. Built-in public-source retrieval/LLM analysis remains optional and is not part of R13. |
+| Next action | Deploy the merged revision through the existing private review service after a schema-v7-safe backup, then have Terry walk through Candidate paste/upload, validation, readable review, durable save, export, and the truthful blocked Setup boundary. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | **Standardized intake, not strategy research.** QF Candidate v1 is the provider-neutral, non-executable interchange contract. Implement/import/persist/export it and then expose it through the existing Ideas workbench. No LLM provider, source retrieval, candidate implementation, or backtest is authorized by this milestone. |
+| R13 | 1 | in_progress | none | **Technical pass; private owner walkthrough pending.** Ideas accepts pasted/uploaded QF Candidate v1, validates it, preserves errors/content, renders a readable brief, persists it on the idea draft, and exports YAML/JSON. Import never approves, implements, unlocks Setup, or executes the Candidate. |
 | R12 | 2 | blocked | none | **Connected operator workflow has a technical pass; owner handoff remains available/pending.** This owner gate does not block the explicitly authorized non-executing R13 intake plumbing. |
 <!-- active-work:end -->
 
@@ -60,7 +60,7 @@ profitability, or the licensed engine itself.
 1. Backend completion — COMPLETE
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
 3. Dashboard and operator-product implementation — TECHNICAL PASS; OWNER HANDOFF AVAILABLE
-4. **Standardized QF Candidate v1 intake — ACTIVE; NON-EXECUTING**
+4. **Standardized QF Candidate v1 intake — TECHNICAL PASS; OWNER WALKTHROUGH PENDING**
 5. Owner walkthrough / handoff acceptance — PENDING
 6. Owner-approved candidate research
 7. Validation of a surviving edge

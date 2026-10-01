@@ -15,16 +15,16 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=23,
     current_milestone_title="Operator Product Completion",
     current_milestone_status=(
-        "The connected operator workflow has a technical pass and is ready for "
-        "the owner walkthrough; handoff acceptance is still pending."
+        "QF Candidate v1 standardized browser intake has a technical pass and is "
+        "ready for the owner walkthrough; acceptance is still pending."
     ),
     strategy_status=(
         "No candidate research is active. The MES overnight-gap reversal is rejected "
         "and may not be tuned or rerun."
     ),
     workspace_status=(
-        "R12 remains active until Terry operates and accepts the complete dashboard "
-        "workflow. Concrete walkthrough defects are repaired before strategy testing resumes."
+        "R13 provides validated, non-executing Candidate intake. R12 remains active "
+        "for the broader dashboard handoff; strategy testing stays paused."
     ),
     home_subtitle="Your strategy research workspace.",
 )

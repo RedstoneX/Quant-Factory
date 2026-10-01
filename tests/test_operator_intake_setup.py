@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import base64
 import json
 import sqlite3
 
@@ -8,6 +9,7 @@ import pytest
 
 from dashboard.app import create_app
 from dashboard.callbacks.setup import _parameter_controls
+from dashboard.callbacks.ideas import _decode_candidate_upload
 from dashboard.pages.ideas import layout as ideas_layout
 from dashboard.run_adapter import (
     IdeaDraftView,
@@ -22,6 +24,16 @@ from strategies.spym_rsi_mean_reversion_fixture import (
     SPYM_RSI_MEAN_REVERSION_FIXTURE_SPEC,
     SPYM_RSI_WINDOW,
 )
+
+
+def _walk(component):
+    yield component
+    children = getattr(component, "children", None)
+    if isinstance(children, (list, tuple)):
+        for child in children:
+            yield from _walk(child)
+    elif children is not None and not isinstance(children, (str, int, float)):
+        yield from _walk(children)
 
 
 def _register_fixture(path) -> None:
@@ -190,6 +202,82 @@ def test_ideas_layout_hydrates_latest_durable_draft_without_source_fetch() -> No
     )
     assert store.data["draft_id"] == draft.draft_id
     assert store.data["source_url"] == "https://example.com/text-only"
+
+
+def test_candidate_upload_and_saved_packet_render_as_readable_brief() -> None:
+    candidate = {
+        "schema": "qf_candidate_v1",
+        "candidate": {"title": "Readable Candidate", "status": "draft"},
+        "sources": [{"type": "owner_observation"}],
+        "hypothesis": {
+            "behavior": "An intraday behavior may persist.",
+            "failure_theory": ["The effect may be noise."],
+        },
+        "market": {"holding_style": "intraday", "overnight_positions": False},
+        "rules": {"entry": ["Use a fixed intraday trigger."]},
+        "fixed": {"flat_by_close": True},
+        "variables": {"lookback": {"values": [5, 10]}},
+        "variants": [{"id": "base", "difference": "Base logic."}],
+        "open_questions": [
+            {"question": "Which completed bar confirms entry?", "importance": "high"}
+        ],
+        "data_needs": {"minimum_resolution": "5m"},
+        "exclusions": ["No overnight holding."],
+        "prior_work": {"possible_duplicates": ["Prior fixture"]},
+        "evaluation": {"use_qf_standard_screen": True},
+    }
+    draft = IdeaDraftView(
+        draft_id="idea_candidate",
+        title="Owner wording",
+        description="Owner context",
+        source_url="",
+        attribution="Owner",
+        notes="",
+        configuration_id=None,
+        created_at="2026-10-01T12:00:00Z",
+        updated_at="2026-10-01T12:01:00Z",
+        candidate_json=json.dumps(candidate),
+    )
+
+    page = ideas_layout(drafts=(draft,))
+    rendered = str(page)
+
+    for expected in (
+        "Readable Candidate",
+        "Source attribution",
+        "Source rules",
+        "QF interpretation",
+        "Market & session",
+        "Testable rules",
+        "Fixed rules",
+        "VectorBT sweep variables",
+        "Structural variants",
+        "Open questions",
+        "Data needs",
+        "Exclusions",
+        "Prior-work claims",
+        "Evaluation boundary",
+    ):
+        assert expected in rendered
+    assert "Continue to Set up" in rendered
+    continue_link = next(
+        component
+        for component in _walk(page)
+        if getattr(component, "id", None) == "continue-idea-to-setup"
+    )
+    assert continue_link.href is None
+    assert "action-disabled" in continue_link.className
+
+    yaml_text = "schema: qf_candidate_v1\n"
+    encoded = base64.b64encode(yaml_text.encode()).decode()
+    assert _decode_candidate_upload(
+        f"data:text/yaml;base64,{encoded}", "candidate.yaml"
+    ) == yaml_text
+
+    with pytest.raises(ValueError, match=".yaml, .yml, or .json"):
+        _decode_candidate_upload(
+            f"data:text/plain;base64,{encoded}", "candidate.txt"
+        )
 
 
 def test_new_setup_draft_is_known_to_run_preflight_without_server_restart(
