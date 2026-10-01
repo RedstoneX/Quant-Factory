@@ -152,10 +152,10 @@ fail-closed gates. Live remains far future and requires separate owner approval.
 
 ## Prior work that must not be repeated blindly
 
-- MES ORB is concluded and rejected as an edge candidate.
-- MSFT ORB transfer work was withdrawn.
-- SPYM momentum and SPY Donchian/RSI work are historical evidence, not current candidates.
-- MES overnight-gap reversal is the Decision 310 fixed 25-minute transfer screen. Its audited development result failed the return and Sharpe gates; the candidate is rejected and must not be rerun or tuned.
+- MES ORB prior work covers only the documented shallow baseline matrix (range length × breakout offset × direction, session-close exit, no stop/target/retest/volume/volatility confirmation). That tested matrix screened out; the broader ORB family remains open to materially different hypotheses.
+- MSFT ORB transfer work was withdrawn; it does not close the ORB family.
+- SPYM momentum, SPY Donchian, and RSI fixture work are scoped historical implementations/evidence. They do not exhaust the broader momentum, intraday channel-breakout, or mean-reversion families.
+- MES overnight-gap reversal Decision 310 rejected one exact 09:35→10:00 opposite-gap rule. Do not tune or rerun that rule, but do not infer that the entire gap-reversal family is exhausted.
 - Turn-of-month was previously source-attributed and bounded, but its multi-day holding period fails the current intraday/day-trading mission-fit gate. Retain it for possible future swing research; do not backtest it under R11.
 - Dashboard design research succeeded as UX research; its custom implementation path was shelved.
 
