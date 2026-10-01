@@ -614,17 +614,18 @@ def test_registered_layout_mounts_one_truthful_local_snapshot_on_home_and_system
     assert "Available" in _component_text(home_cache)
     assert "Available" in _component_text(home_artifact)
     for area in ("worker", "provider", "credential"):
-        text = _component_text(by_id[f"home-health-{area}"])
+        component = by_id[f"home-health-{area}"]
+        text = _component_text(component)
         assert "Not checked" in text
-        assert "Last checked: Not checked" in text
+        assert "Last checked: Not checked" in component.title
 
     system_text = _component_text(by_id["route-system"])
     assert "Research database Available" in system_text
     assert "Artifact storage Available" in system_text
     assert "Local data Available" in system_text
-    assert home_database.children[-1].children in system_text
-    assert home_cache.children[-1].children in system_text
-    assert home_artifact.children[-1].children in system_text
+    assert home_database.title.split("Last checked: ", 1)[-1] in system_text
+    assert home_cache.title.split("Last checked: ", 1)[-1] in system_text
+    assert home_artifact.title.split("Last checked: ", 1)[-1] in system_text
     assert catalog_checked_at.isoformat().replace("+00:00", "Z") in system_text
 
 

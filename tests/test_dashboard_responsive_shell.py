@@ -67,7 +67,7 @@ def test_responsive_shell_mounts_one_location_and_accessible_drawer_controls() -
 def test_responsive_page_labels_cover_registered_routes_and_unknowns() -> None:
     labels = {path: responsive_page_label(path) for path, _ in ROUTE_REGISTRY}
 
-    assert labels["/"] == "Home"
+    assert labels["/"] == "Dashboard"
     assert all(label != "Page not found" for label in labels.values())
     assert responsive_page_label("/genuinely-unknown") == "Page not found"
     assert responsive_page_label("/research/strategy-review") == "Page not found"

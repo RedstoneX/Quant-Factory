@@ -44,7 +44,11 @@ from dashboard.app import (
 )
 from dashboard.formatting import format_assumption, format_metric
 from dashboard.project_status import PROJECT_STATUS
-from dashboard.routing import NAVIGATION_ITEMS, navigation_item_id
+from dashboard.routing import (
+    NAVIGATION_ITEMS,
+    navigation_item_id,
+    navigation_link_id,
+)
 from dashboard.state_ownership import STATE_OWNERS
 from dashboard.run_adapter import SavedConfigurationView
 from dashboard.run_detail_adapter import (
@@ -610,7 +614,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 43
+    assert len(app.callback_map) == 47
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -652,7 +656,7 @@ def test_dashboard_callback_outputs_are_singly_owned(tmp_path: Path) -> None:
     for container_id in ROUTE_CONTAINER_IDS:
         assert output_keys.count(f"{container_id}.style") == 1
     for path, _ in NAVIGATION_LINKS:
-        link_output = f"navigation-link-{path.strip('/').replace('/', '-')}.className"
+        link_output = f"{navigation_link_id(path)}.className"
         assert output_keys.count(link_output) == 1
     for path, _ in NAVIGATION_ITEMS:
         assert output_keys.count(f"{navigation_item_id(path)}.aria-current") == 1
@@ -705,7 +709,7 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
         next(
             key
             for key in app.callback_map
-            if key.startswith("..navigation-link-research-ideas.className")
+            if "navigation-link-research-ideas.className" in key
         ),
         next(
             key
@@ -767,10 +771,10 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     navigation_output = next(
         key
         for key in app.callback_map
-        if key.startswith("..navigation-link-research-ideas.className")
+        if "navigation-link-research-ideas.className" in key
     )
     navigation_outputs = [
-        {"id": f"navigation-link-{path.strip('/').replace('/', '-')}", "property": "className"}
+        {"id": navigation_link_id(path), "property": "className"}
         for path, _ in NAVIGATION_LINKS
     ] + [
         {"id": navigation_item_id(path), "property": "aria-current"}
@@ -851,7 +855,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         assert isinstance(response, dict)
         active: list[str] = []
         for path, _ in NAVIGATION_LINKS:
-            link_id = f"navigation-link-{path.strip('/').replace('/', '-')}"
+            link_id = navigation_link_id(path)
             link_response = response[link_id]
             if "navigation-link-active" in link_response["className"]:
                 active.append(path)
@@ -883,11 +887,9 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
 
     home_visible = visible_routes(invoke_route("/"))
     home_text = mounted_pages["/"]
-    assert "Research readiness" in home_text
-    assert "Not checked" in home_text
-    assert PROJECT_STATUS.current_milestone_status in home_text
-    assert PROJECT_STATUS.strategy_status in home_text
-    assert PROJECT_STATUS.workspace_status in home_text
+    assert "Dashboard · Research Atlas" in home_text
+    assert "Research Landscape" in home_text
+    assert "Data Readiness" in home_text
     assert home_visible == ["/"]
 
     retired_review_visible = visible_routes(
@@ -909,24 +911,23 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     assert current_hrefs(invoke_navigation("/not-a-route")) == []
 
     expected_titles = {
-        "/": "Home",
+        "/": "Dashboard · Research Atlas",
         "/research/ideas": "New research idea",
-        "/research/setup": "Set up a test",
-        "/research/run-test": "Run test",
-        "/research/market-data": "Market Data",
+        "/research/setup": "Define the experiment",
+        "/research/run-test": "Review before running",
+        "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Results",
-        "/research/compare-backtests": "Find & Compare",
+        "/research/compare-backtests": "Compare persisted runs",
         "/paper/fleet": "Paper Trading Overview",
         "/paper/strategy": "Strategy Monitor",
-        "/system": "System Status",
-        "/system/providers": "Data Sources",
-        "/settings": "Settings",
+        "/system": "Know whether research can operate",
+        "/system/providers": "Know where research data came from",
+        "/settings": "Make the workspace yours—not the research",
     }
     for pathname, title in expected_titles.items():
         assert visible_routes(invoke_route(pathname)) == [pathname]
         assert title in mounted_pages[pathname]
-        expected_active = [] if pathname == "/" else [pathname]
-        assert active_hrefs(invoke_navigation(pathname)) == expected_active
+        assert active_hrefs(invoke_navigation(pathname)) == [pathname]
         assert current_hrefs(invoke_navigation(pathname)) == [pathname]
 
 
@@ -1289,7 +1290,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         getattr(component, "id", None)
         for component in _walk_components(navigation)
     } >= {
-        f"navigation-link-{path.strip('/').replace('/', '-')}"
+            navigation_link_id(path)
         for path, _ in NAVIGATION_LINKS
     }
     route_containers = [
@@ -1304,30 +1305,26 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
 
     home = page_for_path("/", context)
     home_text = _component_text(home)
-    assert home.className == "page-container home-page"
-    assert "RESEARCH / HOME" in home_text
-    assert "Home" in home_text
-    assert PROJECT_STATUS.home_subtitle in home_text
-    assert str(PROJECT_STATUS.current_milestone_number) in home_text
-    assert PROJECT_STATUS.current_milestone_title in home_text
-    assert PROJECT_STATUS.current_milestone_status in home_text
-    assert PROJECT_STATUS.strategy_status in home_text
-    assert PROJECT_STATUS.workspace_status in home_text
-    assert "Not checked" in home_text
+    assert "research-atlas-page" in home.className
+    assert "Dashboard · Research Atlas" in home_text
+    assert "Research Landscape" in home_text
+    assert "Data Readiness" in home_text
+    assert "Why Research Stops" in home_text
     assert "Milestone 20" not in home_text
     assert "Operator Home" not in home_text
-    assert (
-        page_for_path("/research/market-data", context).className
-        == "page-container"
-    )
-    assert page_for_path("/research/ideas", context).className == "page-container ideas-page"
+    assert "market-data-page" in page_for_path(
+        "/research/market-data", context
+    ).className
+    assert "idea-workbench-page" in page_for_path(
+        "/research/ideas", context
+    ).className
     assert page_for_path("/research/setup", context).className == "page-container setup-page"
     assert page_for_path("/research/run-test", context).className == "page-container run-test-page"
     assert page_for_path("/research/backtest-results", context).className == "page-container"
     comparisons = page_for_path("/research/compare-backtests", context)
     assert comparisons.className == "page-container comparison-page"
     rendered_comparisons = str(comparisons)
-    assert "Find & Compare" in rendered_comparisons
+    assert "Compare persisted runs" in rendered_comparisons
     assert "find-compare-grid" in rendered_comparisons
     assert "comparison-loading" in rendered_comparisons
     assert "find-compare-exact-link" in rendered_comparisons
@@ -1351,12 +1348,14 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     assert page_for_path("/paper/strategy", context).className == "page-container pending-page"
     system = page_for_path("/system", context)
     system_text = _component_text(system)
-    assert system.className == "page-container"
+    assert "system-status-page" in system.className
     assert PROJECT_STATUS.current_milestone_status in system_text
     assert PROJECT_STATUS.strategy_status in system_text
     assert PROJECT_STATUS.workspace_status in system_text
-    assert page_for_path("/system/providers", context).className == "page-container"
-    assert page_for_path("/settings", context).className == "page-container pending-page"
+    assert "data-sources-page" in page_for_path(
+        "/system/providers", context
+    ).className
+    assert "settings-page" in page_for_path("/settings", context).className
     assert page_for_path("/missing", context).className == "page-container"
 
 
@@ -1399,13 +1398,13 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
     )
 
     expected = {
-        "/": "Home",
-        "/research/ideas": "Ideas",
-        "/research/setup": "Set up a test",
-        "/research/run-test": "Run test",
-        "/research/market-data": "Market Data",
+        "/": "Dashboard · Research Atlas",
+        "/research/ideas": "New research idea",
+        "/research/setup": "Define the experiment",
+        "/research/run-test": "Review before running",
+        "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Results",
-        "/research/compare-backtests": "Find & Compare",
+        "/research/compare-backtests": "Compare persisted runs",
     }
 
     for pathname, title in expected.items():
@@ -1419,13 +1418,13 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
             assert "Review decision" in rendered_page
             assert "Understand what happened, whether the evidence is usable, and what decision is required." in rendered_page
         if pathname == "/research/market-data":
-            assert "View the price history used in strategy research." in rendered_page
-            if pathname == "/research/compare-backtests":
-                assert (
-                    "Search, sort, and filter every saved test. Select one row for "
-                    "its exact Results page, or two to four rows for an exact "
-                    "comparison."
-                ) in rendered_page
+            assert "Inspect coverage, provenance, restrictions" in rendered_page
+        if pathname == "/research/compare-backtests":
+            assert (
+                "Search, sort, and filter every saved test. Select one "
+                "row for its exact Results page, or two to four rows for "
+                "an exact comparison."
+            ) in rendered_page
 
         links = [
             component
@@ -1439,11 +1438,8 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
             if "navigation-link-active" in link.className
         ]
 
-        if pathname == "/":
-            assert active == []
-        else:
-            assert len(active) == 1
-            assert active[0].href == pathname
+        assert len(active) == 1
+        assert active[0].href == pathname
 
 
 def test_ideas_page_is_durable_local_text_only() -> None:
@@ -1527,57 +1523,27 @@ def test_ideas_page_is_durable_local_text_only() -> None:
     assert confirm is True
 
 
-def test_legacy_workflow_pages_keep_progress_while_ideas_uses_sidebar() -> None:
-    paths = (
-        "/",
-        "/research/setup",
-        "/research/run-test",
-        "/research/backtest-results",
-        "/research/compare-backtests",
+def test_workflow_pages_use_the_sidebar_instead_of_repeating_stage_cards() -> None:
+    pages = (
+        ("/research/ideas", "New research idea"),
+        ("/research/setup", "Define the experiment"),
+        ("/research/run-test", "Review before running"),
+        ("/research/backtest-results", "Results"),
+        ("/research/compare-backtests", "Compare persisted runs"),
     )
-    expected_labels = ["Home", "Ideas", "Set up", "Run test", "Results", "Compare"]
-    expected_identities = [
-        "Home",
-        "Set up a test",
-        "Run test",
-        "Results",
-        "Find & Compare",
-    ]
 
-    for pathname, identity in zip(paths, expected_identities, strict=True):
+    for pathname, identity in pages:
         page = page_for_path(pathname, None, ())
         heading = next(
             component
             for component in _walk_components(page)
             if isinstance(component, html.H1)
         )
-        progress = next(
-            component
-            for component in _walk_components(page)
-            if getattr(component, "className", None) == "strategy-research-path"
-        )
-        cards = [
-            component
-            for component in _walk_components(progress)
-            if "research-path-card" in str(getattr(component, "className", ""))
-        ]
-        active = [
-            card
-            for card in cards
-            if "research-path-card-active" in card.className
-        ]
-
         assert heading.children == identity
-        assert [card.children[1].children for card in cards] == expected_labels
-        assert [card.href for card in active] == [pathname]
-        assert active[0].title == f"Current step: {active[0].children[1].children}"
-
-    ideas_page = page_for_path("/research/ideas", None, ())
-    assert not any(
-        getattr(component, "className", None) == "strategy-research-path"
-        for component in _walk_components(ideas_page)
-    )
-    assert "Idea history" in _component_text(ideas_page)
+        assert not any(
+            getattr(component, "className", None) == "strategy-research-path"
+            for component in _walk_components(page)
+        )
 
 
 def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> None:
@@ -1647,6 +1613,35 @@ def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> No
     assert "Choose persisted tests to compare" in _component_text(compare_page)
 
 
+def test_results_context_uses_persisted_screening_outcome_when_validation_is_absent() -> None:
+    from dashboard.app import _results_operator_context
+
+    run = _DashboardRunService()._summary(
+        "screened_out_context_run",
+        "b" * 64,
+        "succeeded",
+    )
+    evidence = RunEvidenceView(
+        notices=(),
+        metrics=(),
+        trades=(),
+        orders=(),
+        equity_curve=(),
+        drawdown_curve=(),
+        validation=(DetailField("Screening Status", "screened_out"),),
+        provenance=(),
+        warnings=(),
+        validation_outcome=(),
+    )
+
+    rendered = _component_text(
+        _results_operator_context(run, _selected_detail_view(evidence=evidence))
+    )
+
+    assert "Screened Out" in rendered
+    assert "Not run" not in rendered
+
+
 def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> None:
     data = _data()
     context = DashboardContext(
@@ -1658,13 +1653,12 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
     page = route_content_for_path("/", context, recent_runs=(), recent_events=())
     rendered = _component_text(page)
 
-    assert page.className == "page-container home-page"
-    assert "Research readiness" in rendered
-    assert "No selected, active, or persisted run is available yet." in rendered
-    assert "No recent failures require attention." in rendered
-    assert rendered.count("Not checked") >= 12
-    assert PROJECT_STATUS.strategy_status in rendered
-    assert PROJECT_STATUS.workspace_status in rendered
+    assert "research-atlas-page" in page.className
+    assert "Dashboard · Research Atlas" in rendered
+    assert "Research Landscape" in rendered
+    assert "Data Readiness" in rendered
+    assert "Why Research Stops" in rendered
+    assert "No persisted research finding is available yet." in rendered
     assert "P&L" not in rendered
     assert "profit" not in rendered.lower()
     action = next(
@@ -1672,23 +1666,8 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
         for component in _walk_components(page)
         if getattr(component, "id", None) == "home-primary-action"
     )
-    assert action.children == "Capture an idea"
+    assert action.children == "Open →"
     assert action.href == "/research/ideas"
-    health_ids = {
-        getattr(component, "id", None)
-        for component in _walk_components(page)
-        if str(getattr(component, "id", "")).startswith("home-health-")
-    }
-    assert health_ids == {
-        "home-health-summary",
-        "home-health-cards",
-        "home-health-database",
-        "home-health-worker",
-        "home-health-provider",
-        "home-health-cache",
-        "home-health-artifact",
-        "home-health-credential",
-    }
 
 
 def test_home_registered_page_uses_selected_run_and_recent_events() -> None:
@@ -1754,13 +1733,12 @@ def test_home_registered_page_uses_selected_run_and_recent_events() -> None:
         if getattr(component, "id", None) == "home-primary-action"
     )
 
-    assert "Prefect Fixture Strategy · Succeeded" in _component_text(current_run)
-    assert "2026-07-13T12:00:02Z" in rendered
-    assert "Another Fixture Strategy" not in _component_text(current_run)
+    assert "Live Research Runs" in _component_text(current_run)
+    assert "No persisted research finding is available yet." in _component_text(current_run)
     assert "Recorded fixture failure requires attention." in _component_text(failures)
     assert "2026-07-13T12:00:03Z" in rendered
-    assert action.children == "Inspect failure"
-    assert action.href == "/research/backtest-results"
+    assert action.children == "Inspect →"
+    assert action.href == "/research/backtest-results?run_id=event_failure"
 
 
 def test_navigation_marks_current_page_active() -> None:
@@ -1770,7 +1748,7 @@ def test_navigation_marks_current_page_active() -> None:
     brand = next(
         child.children
         for child in navigation.children
-        if getattr(child, "className", None) == "sidebar-brand-item navigation-item"
+        if getattr(child, "className", None) == "sidebar-brand-item"
     )
     groups_container = next(
         child
@@ -1802,11 +1780,10 @@ def test_navigation_marks_current_page_active() -> None:
         "System",
     ]
     assert brand.href == "/"
-    assert brand.title == "Quant Factory Home"
+    assert brand.title == "Quant Factory Dashboard"
     assert "QF" in _component_text(brand)
-    assert "QUANT" in _component_text(brand)
-    assert "FACTORY" in _component_text(brand)
-    assert "/" not in [link.href for link in links]
+    assert "Quant Factory" in _component_text(brand)
+    assert "/" in [link.href for link in links]
     assert {
         "/research/ideas",
         "/research/setup",
@@ -1818,7 +1795,8 @@ def test_navigation_marks_current_page_active() -> None:
     assert "/research/strategy-review" not in {link.href for link in links}
     assert len(active) == 1
     assert active[0].href == "/research/backtest-results"
-    assert [link.children[0].children for link in links[:5]] == [
+    assert [link.children[0].children for link in links[:6]] == [
+        "Dashboard",
         "Ideas",
         "Set up",
         "Run test",

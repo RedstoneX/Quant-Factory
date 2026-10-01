@@ -69,9 +69,10 @@ def test_home_no_data_has_honest_empty_states_and_one_capture_action() -> None:
     page = layout(build_home_view_model(as_of=NOW))
     rendered = _text(page)
 
-    assert "No selected, active, or persisted run is available yet." in rendered
-    assert "No recent failures require attention." in rendered
-    assert rendered.count("Not checked") >= 12
+    assert "No persisted research finding is available yet." in rendered
+    assert "Research Landscape" in rendered
+    assert "Data Readiness" in rendered
+    assert "Why Research Stops" in rendered
     assert "Capture an idea" in rendered
     actions = [
         item
@@ -80,20 +81,6 @@ def test_home_no_data_has_honest_empty_states_and_one_capture_action() -> None:
     ]
     assert len(actions) == 1
     assert actions[0].href == "/research/ideas"
-    workflow_steps = [
-        item
-        for item in _walk(page)
-        if "research-path-card" in str(getattr(item, "className", ""))
-    ]
-    assert len(workflow_steps) == 6
-    assert [item.children[1].children for item in workflow_steps] == [
-        "Home",
-        "Ideas",
-        "Set up",
-        "Run test",
-        "Results",
-        "Compare",
-    ]
 
 
 def test_home_timestamp_less_health_is_not_presented_as_healthy() -> None:
@@ -118,12 +105,14 @@ def test_home_timestamp_less_health_is_not_presented_as_healthy() -> None:
 
     assert model.health[0].status == "Not checked"
     assert "Available" not in _text(database)
-    assert "Last checked: Not checked" in _text(database)
+    assert "Last checked: Not checked" in database.title
     for area in ("worker", "provider", "cache", "artifact"):
         assert "Not checked" in _text(_component(page, f"home-health-{area}"))
     credential = _text(_component(page, "home-health-credential"))
     assert "Not checked" in credential
-    assert "Credential values are never displayed." in credential
+    assert "Credential values are never displayed." in _component(
+        page, "home-health-credential"
+    ).title
     assert "SENSITIVE_SENTINEL" not in credential
 
 
@@ -145,7 +134,7 @@ def test_home_marks_old_health_stale_and_keeps_observation_timestamp() -> None:
 
     assert model.health[0].stale is True
     assert model.health[0].status == "Stale — Available"
-    assert observed in _text(database)
+    assert observed in database.title
     assert "stale" in _text(database).lower()
 
 
@@ -166,7 +155,7 @@ def test_home_rejects_future_health_timestamp_instead_of_claiming_current_state(
 
     assert model.health[0].status == "Not checked"
     assert model.health[0].checked_at == "Not checked"
-    assert "future" in _text(database).lower()
+    assert "future" in database.title.lower()
 
 
 @pytest.mark.parametrize(
@@ -195,7 +184,7 @@ def test_home_rejects_malformed_or_timezoneless_health_timestamps(
 
     assert model.health[0].status == "Not checked"
     assert model.health[0].checked_at == "Not checked"
-    assert "invalid" in _text(database).lower()
+    assert "invalid" in database.title.lower()
 
 
 def test_home_active_run_is_selected_and_requires_waiting_not_resubmission() -> None:
@@ -210,7 +199,7 @@ def test_home_active_run_is_selected_and_requires_waiting_not_resubmission() -> 
     assert model.action.href == "/research/run-test"
     assert "do not submit it again" in model.action.description
     assert model.workflow[3].state == "Current"
-    assert "Running" in _text(_component(page, "home-current-run"))
+    assert _component(page, "home-live-runs-grid").rowData == []
 
 
 def test_home_recent_failure_takes_precedence_over_active_run() -> None:

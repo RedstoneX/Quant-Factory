@@ -199,6 +199,11 @@ def create_dashboard_layout(
                 data=False,
                 storage_type="memory",
             ),
+            dcc.Store(
+                id="display-preferences",
+                data={"theme": "light", "density": "comfortable"},
+                storage_type="local",
+            ),
             html.Div(
                 [
                     html.Header(

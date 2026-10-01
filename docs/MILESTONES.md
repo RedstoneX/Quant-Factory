@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Complete the working dashboard interface Terry needs to capture an idea, prepare an approved setup, launch it, and inspect the result without terminal or raw-file use. |
+| Immediate objective | Complete the owner walkthrough and handoff of the connected dashboard workflow for idea capture, approved setup, launch, results, comparison, decision, and recovery. |
 | Phase | **Operator-product completion and owner handoff.** |
-| Active work | The Research Atlas overview screen is accepted. The full operator product is not: the working intake and connected operator workflow remain active implementation. No candidate research is active. |
+| Active work | The connected operator workflow has passed focused implementation checks and is ready for the owner walkthrough. The operator product is not handed off until Terry accepts it. No candidate research is active. |
 | Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Terry cannot yet operate the complete workflow through the dashboard. The existing Ideas experience is a form rather than the agreed unified workbench, and screen acceptance was incorrectly recorded as product handoff. |
-| Next action | Reuse the existing Dash product, durable draft storage, setup/run/results connections, and accepted unified-workbench direction to complete the operator-facing workflow, then return to Terry for actual use and handoff acceptance. |
+| Verified gap | Terry has not yet operated and accepted the complete current-revision workflow. Idea capture is intentionally local and does not yet retrieve sources or perform LLM-backed ingestion. |
+| Next action | Present the privately deployed connected workflow for Terry's walkthrough; repair concrete product defects if reported, otherwise record explicit handoff acceptance and stop. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Research Atlas screen accepted; operator product not yet handed off.** Complete the working operator interface, beginning with the agreed Ideas workbench and its connection to existing setup/run/results surfaces. No new strategy test is authorized. |
+| R12 | 1 | in_progress | none | **Connected operator workflow has a technical pass; owner handoff is pending.** Walk through idea capture, approved setup, launch/status, results, comparison, decision, reproduction, and recovery. No new strategy test is authorized. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
@@ -58,7 +58,7 @@ profitability, or the licensed engine itself.
 
 1. Backend completion — COMPLETE
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
-3. **Dashboard and operator-product completion — ACTIVE; RESEARCH ATLAS SCREEN ACCEPTED**
+3. **Dashboard and operator-product implementation — TECHNICAL PASS; OWNER HANDOFF PENDING**
 4. Owner walkthrough and handoff acceptance — PENDING
 5. Owner-initiated candidate research
 6. Validation of a surviving edge
@@ -111,9 +111,9 @@ answer the hypothesis. A surviving signal must later be validated on the
 intended SPY/QQQ/index underlying before any options edge is claimed, and 0DTE
 implementation requires defensible historical option quote/execution evidence.
 
-### Dashboard and operator product — ACTIVE; OVERVIEW SCREEN ACCEPTED 2026-09-30
+### Dashboard and operator product — TECHNICAL PASS; OWNER HANDOFF PENDING
 
-The existing Plotly Dash product contains the backend connections for the single-owner workflow:
+The current Plotly Dash product contains the backend connections and owner-facing surfaces for the single-owner workflow:
 idea and configuration setup; approved configuration launch and status;
 results, charts, trades, assumptions, evidence and all persisted parameter
 variants; saved-test comparison; review and decision recording; reproduction
@@ -121,7 +121,7 @@ and failure recovery; and clear navigation and operator language. Approved
 candidate configurations connect through the completed generic runtime using
 exact persisted configuration reconstruction and cache-only local data.
 
-Deterministic unit, integration, and browser evidence proves the current
+Focused unit, integration, and rendered-browser evidence proves the current
 operator workflow without creating a new candidate or profitability result.
 The implementation reused the existing application, mature components,
 chart-first UX, backend and accepted evidence; it added no second frontend,
@@ -133,7 +133,10 @@ private review service with a verified pre-deployment database backup, and
 passed revision, health, and private reachability checks. Terry accepted the
 rendered current-revision **overview screen** and authorized continuation on
 2026-09-30. That was not acceptance of the unfinished operator workflow.
-R12 and the operator-product handoff gate remain active. This acceptance does
+The connected workflow implementation now has a technical pass. R12 and the
+operator-product handoff gate remain active until Terry completes the walkthrough
+and explicitly accepts it. Idea capture remains local-only; source retrieval and
+LLM-backed ingestion are deferred. This acceptance does
 not qualify an edge or authorize paid data, protected testing, paper/live
 operation, orders, or capital exposure.
 
