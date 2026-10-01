@@ -7,7 +7,6 @@ from typing import Any
 from dash import ClientsideFunction, Dash, Input, Output, State, html
 from dash.exceptions import PreventUpdate
 
-from dashboard.application import _active_route
 from dashboard.components.trade_explorer import (
     filter_trade_rows,
     normalize_trade_rows,
@@ -15,6 +14,7 @@ from dashboard.components.trade_explorer import (
     selected_trade_detail,
 )
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from dashboard.routing import active_route as _active_route
 
 
 def register_trade_explorer_callbacks(

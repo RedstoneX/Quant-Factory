@@ -8,12 +8,12 @@ import sqlite3
 from dash import Dash, Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from dashboard.application import _active_route
 from dashboard.compare_adapter import CompareDashboardAdapter
 from dashboard.compare_query import compare_query_href, parse_compare_search
 from dashboard.components.compare_results import compare_empty, compare_failure, compare_results
 from dashboard.pages.compare_backtests import results_query_href
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from dashboard.routing import active_route as _active_route
 from orchestration import FixtureRunService
 
 

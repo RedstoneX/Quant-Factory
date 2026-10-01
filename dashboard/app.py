@@ -11,7 +11,6 @@ for _name in dir(_application):
 
 def _sync_compatibility_overrides() -> None:
     _application.list_saved_configurations = globals()["list_saved_configurations"]
-    _application._callback_triggered_id = globals()["_callback_triggered_id"]
 
 
 def create_app(*args, **kwargs):

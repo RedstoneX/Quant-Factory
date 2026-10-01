@@ -205,7 +205,7 @@ def build_home_view_model(
 def layout(view_model: HomeViewModel | None = None) -> html.Div:
     """Render the chart-first Research Atlas from already-read state."""
 
-    from dashboard.application import _strategy_research_path
+    from dashboard.components.research_path import strategy_research_path
 
     model = view_model or build_home_view_model()
     rows = _ordered_history(model.history_rows)
@@ -247,7 +247,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                 ],
                 className="atlas-header",
             ),
-            html.Div(_strategy_research_path("/"), className="atlas-contract-only"),
+            html.Div(strategy_research_path("/"), className="atlas-contract-only"),
             html.Div(
                 f"{model.milestone}. {model.milestone_status}. {model.discovery_gate}",
                 id="home-discovery-gate",

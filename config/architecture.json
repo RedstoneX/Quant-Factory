@@ -35,7 +35,7 @@
       "allowed_dependencies": ["backtesting", "dashboard_models", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
     },
     "dashboard_models": {
-      "patterns": ["dashboard.adapter", "dashboard.compare_adapter", "dashboard.compare_query", "dashboard.formatting", "dashboard.health", "dashboard.project_status", "dashboard.results_model", "dashboard.run_adapter", "dashboard.run_detail_adapter", "dashboard.state_ownership"],
+      "patterns": ["dashboard.adapter", "dashboard.callbacks.review_state", "dashboard.compare_adapter", "dashboard.compare_query", "dashboard.formatting", "dashboard.health", "dashboard.project_status", "dashboard.results_contracts", "dashboard.results_model", "dashboard.run_adapter", "dashboard.run_detail_adapter", "dashboard.state_ownership"],
       "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
     },
     "dashboard_support": {
