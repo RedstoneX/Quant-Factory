@@ -58,6 +58,12 @@ dispositions, relevant data snapshot, deduplication rules, and Candidate output
 contract. It is a supporting snapshot rather than Tier-1 authority; Quant
 Factory still re-checks current Tier-1 and local evidence before research.
 
+For external research, use QF Research Context v1 as the portable companion to
+QF Candidate v1. The context supplies the current mandate, prior-work
+dispositions, relevant data snapshot, deduplication rules, and Candidate output
+contract. It is a supporting snapshot rather than Tier-1 authority; Quant
+Factory still re-checks current Tier-1 and local evidence before research.
+
 Before candidate research begins, the owner explicitly accepts one bounded
 Candidate packet and its evidence contract. The current intraday evidence
 boundaries then apply unless the owner changes them.
