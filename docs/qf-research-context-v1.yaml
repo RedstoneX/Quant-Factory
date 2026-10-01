@@ -31,7 +31,7 @@ mandate:
 research_rules:
 - Treat a symbol, wrapper, source repository, or parameter change as insufficient
   by itself to create a new hypothesis.
-- Deduplicate against prior Quant Factory strategy families before proposing a Candidate.
+- Compare against prior Quant Factory work, but reject only exact or economically equivalent hypotheses; never infer that an entire strategy family is exhausted unless Tier-1 explicitly says so.
 - Separate structural strategy variants from bounded variables VectorBT may sweep.
 - Do not invent missing source rules silently; preserve them as open_questions.
 - Do not run backtests, optimize parameters, claim profitability, or implement QF
@@ -43,39 +43,59 @@ research_rules:
 prior_work:
 - family: opening_range_breakout
   instrument: MES
-  status: rejected
-  disposition: do_not_repeat_without_genuinely_new_hypothesis
+  family_status: open_for_new_hypotheses
+  tested_hypothesis_status: screened_out
+  tested_scope: 'Shallow baseline only: 5/15/30/45/60-minute opening range x 0/1/2-tick breakout offset x long/short; next-bar-open entry; session-close exit; no stop, target, trailing stop, retest, volume filter, volatility filter, or other confirmation.'
+  disposition: Do not repeat the same baseline matrix, but actively allow materially different ORB hypotheses and structural variants.
+  family_exhausted: false
   reference: docs/strategies/mes-opening-range-breakout.md
 - family: overnight_gap_reversal
   instrument: MES
-  status: rejected
-  disposition: do_not_rerun_or_tune
+  family_status: open_for_new_hypotheses
+  tested_hypothesis_status: rejected
+  tested_scope: 'One exact rule only: prior 15:55 close to current 09:30 open gap, opposite-gap entry at 09:35, exit at 10:00, no threshold/filter/stop/target.'
+  disposition: Do not tune or rerun that exact rule; materially different gap-reversal hypotheses remain eligible for research.
+  family_exhausted: false
   reference: docs/strategies/mes-overnight-gap-reversal.md
 - family: opening_range_breakout
   instrument: MSFT
-  status: withdrawn
-  disposition: historical_only
+  family_status: open_for_new_hypotheses
+  tested_hypothesis_status: withdrawn
+  tested_scope: One five-minute ORB transfer effort; not evidence against the ORB family.
+  disposition: Use as overlap history only.
+  family_exhausted: false
   reference: docs/strategies/msft-five-minute-orb-transfer.md
 - family: intraday_momentum
   instrument: SPYM
-  status: historical
-  disposition: not_current_candidate
+  family_status: open_for_new_hypotheses
+  tested_hypothesis_status: historical_screen
+  tested_scope: One fixed transfer rule from prior-session 15:59/current 09:59 direction to a 15:30-15:59 trade; no parameter exploration.
+  disposition: Do not equate this one transfer rule with the intraday-momentum family.
+  family_exhausted: false
   reference: docs/strategies/spym-intraday-momentum.md
-- family: donchian_trend_breakout
+- family: channel_breakout
   instrument: SPY
-  status: historical
-  disposition: not_current_candidate
+  family_status: open_for_intraday_hypotheses
+  tested_hypothesis_status: historical_daily_work
+  tested_scope: Daily Donchian close breakout with daily-channel exits.
+  disposition: Current mandate excludes the daily holding formulation, but intraday channel-breakout hypotheses remain open.
+  family_exhausted: false
   reference: docs/strategies/spy-donchian-trend-breakout.md
-- family: rsi_mean_reversion
+- family: mean_reversion
   instrument: SPYM
-  status: historical_fixture
-  disposition: infrastructure_or_prior_work_not_new_edge
+  family_status: open_for_new_hypotheses
+  tested_hypothesis_status: infrastructure_fixture
+  tested_scope: RSI mean-reversion fixture used for infrastructure/evidence-path testing.
+  disposition: Not evidence that RSI or mean-reversion families lack an edge.
+  family_exhausted: false
   reference: strategies/spym_rsi_mean_reversion_fixture.py
 - family: turn_of_month
   instrument: SPY
-  status: out_of_scope
-  disposition: retain_for_possible_future_swing_research
+  family_status: out_of_current_mandate
+  tested_hypothesis_status: not_currently_eligible
+  disposition: retain_for_possible_future swing research
   reason: multi-day holding conflicts with current intraday mandate
+  family_exhausted: false
   reference: docs/strategies/spy-turn-of-month.md
 relevant_data_snapshot:
 - dataset: futures_MES_5m_databento
@@ -150,7 +170,10 @@ candidate_output_contract:
   import_authority: External packets may be draft, needs_clarification, or ready_for_review
     only; they cannot assert owner approval or execution authority.
 external_research_instruction: Use this context before researching. Survey the requested
-  sources or strategy universe, deduplicate against prior_work, exclude mandate conflicts,
-  and return QF Candidate v1 packets only for genuinely distinct hypotheses. Preserve
-  uncertainties. Do not backtest, optimize, implement, or rank a winner unless the
-  owner separately requests that work.
+  sources or strategy universe and compare against prior_work at the exact-hypothesis
+  level. Do not discard a family merely because QF tested one shallow or different
+  variant. Exclude only exact/economically equivalent repeats or current mandate conflicts.
+  Return QF Candidate v1 packets for genuinely distinct hypotheses, including materially
+  different variants within previously touched families. Preserve uncertainties. Do
+  not backtest, optimize, implement, or rank a winner unless the owner separately requests
+  that work.
