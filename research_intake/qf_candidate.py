@@ -311,16 +311,9 @@ def import_candidate_as_idea(
 
     document = parse_candidate_packet(payload, format_hint=format_hint)
     validation = validate_candidate_packet(document)
-    if not validation.valid:
-        detail = "; ".join(f"{issue.path}: {issue.message}" for issue in validation.errors)
-        raise CandidatePacketError(f"candidate packet failed validation: {detail}")
+    _require_importable(validation)
 
     candidate = _mapping(document.get("candidate"))
-    imported_status = _text(candidate.get("status")) or "draft"
-    if imported_status not in {"draft", "needs_clarification", "ready_for_review"}:
-        raise CandidatePacketError(
-            "imported candidate cannot assert owner approval, implementation, rejection, or retirement"
-        )
     hypothesis = _mapping(document.get("hypothesis"))
     sources = document.get("sources") if isinstance(document.get("sources"), list) else []
     first_source = next((source for source in sources if isinstance(source, Mapping)), {})
@@ -351,6 +344,30 @@ def import_candidate_as_idea(
         service.close()
 
 
+def attach_candidate_to_idea(
+    payload: str | Mapping[str, Any],
+    *,
+    draft_id: str,
+    database: str | Path | None = None,
+    format_hint: str | None = None,
+) -> CandidateImportResult:
+    """Attach one valid, import-safe Candidate packet to an existing draft."""
+
+    document = parse_candidate_packet(payload, format_hint=format_hint)
+    validation = validate_candidate_packet(document)
+    _require_importable(validation)
+
+    service = PersistenceService(database)
+    try:
+        draft = service.set_idea_candidate_packet(
+            draft_id=draft_id,
+            candidate_json=validation.canonical_json,
+        )
+        return CandidateImportResult(draft=draft, validation=validation)
+    finally:
+        service.close()
+
+
 def export_candidate_packet(
     document: Mapping[str, Any],
     *,
@@ -367,6 +384,21 @@ def export_candidate_packet(
     if format in {"yaml", "yml"}:
         return yaml.safe_dump(validation.document, sort_keys=False, allow_unicode=True)
     raise CandidatePacketError(f"unsupported export format {format!r}")
+
+
+def _require_importable(validation: CandidateValidation) -> None:
+    if not validation.valid:
+        detail = "; ".join(
+            f"{issue.path}: {issue.message}" for issue in validation.errors
+        )
+        raise CandidatePacketError(f"candidate packet failed validation: {detail}")
+    candidate = _mapping(validation.document.get("candidate"))
+    imported_status = _text(candidate.get("status")) or "draft"
+    if imported_status not in {"draft", "needs_clarification", "ready_for_review"}:
+        raise CandidatePacketError(
+            "imported candidate cannot assert owner approval, implementation, "
+            "rejection, or retirement"
+        )
 
 
 def _plain(value: Any) -> Any:

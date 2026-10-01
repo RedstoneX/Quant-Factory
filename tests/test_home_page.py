@@ -239,11 +239,11 @@ def test_home_shows_operator_product_handoff_status() -> None:
 
     assert model.milestone.startswith("Milestone 23")
     assert model.milestone_status == (
-        "The Research Atlas overview is accepted. The connected operator interface "
-        "is still being completed before handoff."
+        "QF Candidate v1 standardized browser intake has a technical pass and is "
+        "ready for the owner walkthrough; acceptance is still pending."
     )
     assert "No candidate research is active" in discovery
     assert "R12 remains active" in discovery
-    assert "Strategy testing resumes only after that handoff" in discovery
+    assert "strategy testing stays paused" in discovery
     assert model.action.label == "Continue to Compare"
     assert "discover" not in model.action.label.lower()

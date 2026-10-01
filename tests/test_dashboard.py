@@ -614,7 +614,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 47
+    assert len(app.callback_map) == 51
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -2297,9 +2297,10 @@ def test_dashboard_state_ownership_contract_names_callback_owners() -> None:
             "source": "idea-draft-store.data",
             "owner": "dashboard.callbacks.ideas",
             "rule": (
-                "Ideas persists operator-authored text in the local dashboard "
-                "database; the session store mirrors only the selected durable "
-                "draft and never retrieves or executes it."
+                "Ideas persists operator-authored text and an optional canonical "
+                "QF Candidate v1 packet in the local dashboard database; the "
+                "session store mirrors only the selected durable draft and never "
+                "retrieves sources, approves logic, or executes it."
             ),
         },
         "selected_configuration": {

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 from pathlib import Path
+from typing import Any, Mapping
 
 from dash import dcc, html
 
 from dashboard.run_adapter import IdeaDraftView, list_idea_drafts
+from research_intake import CandidateValidation, parse_candidate_packet, validate_candidate_packet
 
 
 def _readable_time(value: str) -> str:
@@ -27,7 +30,13 @@ def _draft_options(drafts: tuple[IdeaDraftView, ...]) -> list[dict[str, object]]
                     html.Div(
                         [
                             html.Span(
-                                "Setup saved" if draft.configuration_id else "Draft",
+                                (
+                                    "Setup saved"
+                                    if draft.configuration_id
+                                    else "Candidate"
+                                    if draft.candidate_json
+                                    else "Draft"
+                                ),
                                 className=(
                                     "idea-history-state idea-history-state-ready"
                                     if draft.configuration_id
@@ -54,6 +63,277 @@ def _brief_value(value: str | None, empty: str) -> str:
     return value.strip() if value and value.strip() else empty
 
 
+def _candidate_validation_data(validation: CandidateValidation) -> dict[str, Any]:
+    return {
+        "document": validation.document,
+        "canonical_json": validation.canonical_json,
+        "issues": [
+            {
+                "severity": issue.severity,
+                "code": issue.code,
+                "path": issue.path,
+                "message": issue.message,
+            }
+            for issue in validation.issues
+        ],
+        "valid": validation.valid,
+        "review_ready": validation.review_ready,
+        "parameter_combinations": validation.parameter_combinations,
+    }
+
+
+def _stored_candidate_state(
+    candidate_json: str,
+) -> tuple[str, dict[str, Any], Any, Any]:
+    if not candidate_json:
+        return "", {}, _candidate_prompt(), _candidate_status_prompt()
+    try:
+        document = parse_candidate_packet(candidate_json, format_hint="json")
+        validation = validate_candidate_packet(document)
+    except ValueError:
+        return candidate_json, {}, _candidate_prompt(), html.Div(
+            [
+                html.Strong("Saved Candidate cannot be read"),
+                html.P("The stored packet needs repair before it can be reviewed or exported."),
+            ],
+            className="candidate-validation candidate-validation-error",
+        )
+    return (
+        json.dumps(validation.document, indent=2, ensure_ascii=False, sort_keys=True),
+        _candidate_validation_data(validation),
+        _candidate_brief(validation.document, validation),
+        _candidate_status(validation, saved=True),
+    )
+
+
+def _candidate_status(
+    validation: CandidateValidation,
+    *,
+    saved: bool = False,
+) -> html.Div:
+    errors = len(validation.errors)
+    warnings = len(validation.warnings)
+    high_questions = sum(
+        1
+        for question in validation.document.get("open_questions", []) or []
+        if isinstance(question, Mapping)
+        and str(question.get("importance", "")).lower() == "high"
+    )
+    if errors:
+        headline = f"{errors} validation error{'s' if errors != 1 else ''}"
+        tone = "error"
+    elif high_questions:
+        headline = f"Valid packet · {high_questions} high-importance question{'s' if high_questions != 1 else ''} unresolved"
+        tone = "warning"
+    else:
+        headline = "Valid Candidate · ready for owner review"
+        tone = "success"
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Strong(("Saved · " if saved else "") + headline),
+                    html.Span(
+                        f"{validation.parameter_combinations:,} bounded sweep combinations",
+                        className="candidate-validation-count",
+                    ),
+                ],
+                className="candidate-validation-heading",
+            ),
+            html.P(
+                "Validation never approves, implements, launches, or tests this Candidate.",
+                className="field-help",
+            ),
+            html.Ul(
+                [
+                    html.Li(
+                        [
+                            html.Strong(f"{issue.path}: "),
+                            issue.message,
+                        ],
+                        className=f"candidate-issue candidate-issue-{issue.severity}",
+                    )
+                    for issue in validation.issues
+                ]
+                or [html.Li("No validation warnings or errors.")],
+                className="candidate-issue-list",
+            ),
+        ],
+        className=f"candidate-validation candidate-validation-{tone}",
+    )
+
+
+def _candidate_status_prompt() -> html.Div:
+    return html.Div(
+        [
+            html.Strong("No Candidate validated"),
+            html.P("Paste or upload QF Candidate v1, then validate it locally."),
+        ],
+        className="candidate-validation candidate-validation-neutral",
+    )
+
+
+def _candidate_prompt() -> html.Div:
+    return html.Div(
+        [
+            html.Strong("The readable Candidate brief will appear here."),
+            html.P(
+                "Ordinary idea capture above remains available. Candidate import is an optional standardized intake path."
+            ),
+        ],
+        className="candidate-empty-state",
+    )
+
+
+def _candidate_brief(
+    document: Mapping[str, Any],
+    validation: CandidateValidation,
+) -> html.Div:
+    candidate = _mapping(document.get("candidate"))
+    hypothesis = _mapping(document.get("hypothesis"))
+    questions = document.get("open_questions", []) or []
+    high_questions = sum(
+        1
+        for question in questions
+        if isinstance(question, Mapping)
+        and str(question.get("importance", "")).lower() == "high"
+    )
+    variables = _mapping(document.get("variables"))
+    variants = document.get("variants", []) or []
+    status = str(candidate.get("status") or "draft").replace("_", " ").title()
+    return html.Div(
+        [
+            html.Header(
+                [
+                    html.Div(
+                        [
+                            html.P("QF CANDIDATE V1", className="page-eyebrow"),
+                            html.H2(str(candidate.get("title") or "Untitled Candidate")),
+                            html.P(
+                                str(candidate.get("one_line") or hypothesis.get("behavior") or "No one-line summary supplied."),
+                                className="candidate-brief-lede",
+                            ),
+                        ]
+                    ),
+                    html.Div(
+                        [
+                            html.Span(status, className="candidate-status-pill"),
+                            html.Span(
+                                "Owner review ready" if validation.review_ready else "Clarification required",
+                                className=(
+                                    "candidate-status-pill candidate-status-ready"
+                                    if validation.review_ready
+                                    else "candidate-status-pill candidate-status-warning"
+                                ),
+                            ),
+                        ],
+                        className="candidate-status-group",
+                    ),
+                ],
+                className="candidate-brief-header",
+            ),
+            html.Div(
+                [
+                    _candidate_metric("Sweep dimensions", str(len(variables)), "VectorBT-bounded variables"),
+                    _candidate_metric("Combinations", f"{validation.parameter_combinations:,}", "Declared grid only"),
+                    _candidate_metric("Structural variants", str(len(variants) if isinstance(variants, list) else 0), "Never invented automatically"),
+                    _candidate_metric("High questions", str(high_questions), "Must remain visible"),
+                ],
+                className="candidate-metric-strip",
+            ),
+            html.Div(
+                [
+                    _candidate_section("Hypothesis", "Why it might work—and fail", hypothesis),
+                    _candidate_section("Source attribution", "Original producers and references", document.get("sources", [])),
+                    _candidate_section("Source rules", "What the source actually states", document.get("source_rules", {})),
+                    _candidate_section("QF interpretation", "Explicit interpretation, never silently inferred", document.get("qf_interpretation", {}), warning=not bool(document.get("qf_interpretation"))),
+                    _candidate_section("Market & session", "Trader-readable scope and holding boundary", document.get("market", {})),
+                    _candidate_section("Testable rules", "Structured English; never executable code", document.get("rules", {})),
+                    _candidate_section("Fixed rules", "Candidate identity; never swept", document.get("fixed", {})),
+                    _candidate_section("VectorBT sweep variables", "Only these bounded dimensions may be enumerated", variables, accent="sweep"),
+                    _candidate_section("Structural variants", "Different logic paths; support or implementation required", variants, accent="variant"),
+                    _candidate_section("Open questions", "Unresolved means unresolved", questions, warning=bool(high_questions)),
+                    _candidate_section("Data needs", "Requirements, not an availability claim", document.get("data_needs", {})),
+                    _candidate_section("Exclusions", "Explicitly outside this Candidate", document.get("exclusions", [])),
+                    _candidate_section("Prior-work claims", "Imported claims remain unverified by QF", document.get("prior_work", {}), warning=bool(document.get("prior_work"))),
+                    _candidate_section("Evaluation boundary", "Evidence contract, not profitability", document.get("evaluation", {})),
+                ],
+                className="candidate-brief-grid",
+            ),
+            html.Div(
+                [
+                    html.Strong("Intake boundary"),
+                    html.P(
+                        "Saving this Candidate records a research proposal only. It does not approve or implement logic, create a runnable configuration, launch VectorBT, inspect protected data, promote a strategy, or submit an order."
+                    ),
+                ],
+                className="candidate-boundary-callout",
+            ),
+        ],
+        className="candidate-readable-brief",
+    )
+
+
+def _candidate_metric(label: str, value: str, detail: str) -> html.Div:
+    return html.Div([html.Span(label), html.Strong(value), html.Small(detail)], className="candidate-metric")
+
+
+def _candidate_section(
+    title: str,
+    subtitle: str,
+    value: Any,
+    *,
+    warning: bool = False,
+    accent: str = "",
+) -> html.Section:
+    classes = "candidate-brief-section"
+    if warning:
+        classes += " candidate-brief-section-warning"
+    if accent:
+        classes += f" candidate-brief-section-{accent}"
+    return html.Section(
+        [
+            html.Div([html.H3(title), html.P(subtitle)], className="candidate-section-heading"),
+            _readable_candidate_value(value),
+        ],
+        className=classes,
+    )
+
+
+def _readable_candidate_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        if not value:
+            return html.P("Not specified.", className="candidate-empty-value")
+        return html.Dl(
+            [
+                html.Div(
+                    [
+                        html.Dt(str(key).replace("_", " ").title()),
+                        html.Dd(_readable_candidate_value(item)),
+                    ]
+                )
+                for key, item in value.items()
+            ],
+            className="candidate-readable-map",
+        )
+    if isinstance(value, list):
+        if not value:
+            return html.P("None recorded.", className="candidate-empty-value")
+        return html.Ul(
+            [html.Li(_readable_candidate_value(item)) for item in value],
+            className="candidate-readable-list",
+        )
+    if value is None or value == "":
+        return html.Span("Not specified", className="candidate-empty-value")
+    if isinstance(value, bool):
+        return html.Span("Yes" if value else "No")
+    return html.Span(str(value))
+
+
+def _mapping(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
 def layout(
     *,
     database: str | Path | None = None,
@@ -68,6 +348,13 @@ def layout(
     )
     selected = available[0] if available else None
     selected_data = selected.to_store() if selected else {}
+    candidate_text, candidate_validation, candidate_brief, candidate_status = (
+        _stored_candidate_state(selected.candidate_json if selected else "")
+    )
+    can_continue = bool(
+        selected
+        and (selected.configuration_id or not selected.candidate_json)
+    )
 
     return html.Div(
         [
@@ -76,6 +363,17 @@ def layout(
                 data=selected_data,
                 storage_type="session",
             ),
+            dcc.Store(
+                id="candidate-validation-store",
+                data=candidate_validation,
+                storage_type="memory",
+            ),
+            dcc.Store(
+                id="candidate-editor-draft-id",
+                data=selected.draft_id if selected else None,
+                storage_type="memory",
+            ),
+            dcc.Download(id="candidate-download"),
             dcc.ConfirmDialog(
                 id="confirm-discard-idea-draft",
                 message="Delete this unlinked idea draft from local Quant Factory storage?",
@@ -134,6 +432,7 @@ def layout(
                     html.Div(
                         [
                             html.Span("Local draft", className="idea-context-chip"),
+                            html.Span("QF Candidate v1", className="idea-context-chip"),
                             html.Span("No automatic execution", className="idea-context-chip"),
                         ],
                         className="idea-context-chips",
@@ -290,7 +589,7 @@ def layout(
                                         [
                                             html.H2("Research brief"),
                                             html.P(
-                                                "A scannable view of the draft that will move into setup.",
+                                                "Operator-authored context that remains alongside an optional Candidate.",
                                                 className="idea-panel-description",
                                             ),
                                         ]
@@ -371,6 +670,139 @@ def layout(
                 ],
                 className="idea-workbench-grid",
             ),
+            html.Section(
+                [
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.P("STANDARDIZED INTAKE", className="page-eyebrow"),
+                                    html.H2("Import QF Candidate v1"),
+                                    html.P(
+                                        "Paste or upload a provider-neutral Candidate packet. Validation is local and deterministic; the submitted content stays editable even when errors are found.",
+                                        className="idea-panel-description",
+                                    ),
+                                ]
+                            ),
+                            html.Span("Non-executing contract", className="surface-badge"),
+                        ],
+                        className="candidate-intake-heading",
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.Label(
+                                        "Candidate YAML or JSON",
+                                        htmlFor="candidate-packet-input",
+                                        className="field-label",
+                                    ),
+                                    dcc.Textarea(
+                                        id="candidate-packet-input",
+                                        value=candidate_text,
+                                        placeholder="schema: qf_candidate_v1\ncandidate:\n  title: ...",
+                                        className="candidate-packet-input",
+                                    ),
+                                    dcc.Upload(
+                                        id="candidate-file-upload",
+                                        accept=".yaml,.yml,.json,application/json,application/yaml,text/yaml",
+                                        multiple=False,
+                                        children=html.Div(
+                                            [
+                                                html.Strong("Drop a .yaml, .yml, or .json file here"),
+                                                html.Span(" or choose a file"),
+                                            ]
+                                        ),
+                                        className="candidate-upload",
+                                    ),
+                                    html.Div(
+                                        "No file selected.",
+                                        id="candidate-upload-status",
+                                        className="field-help",
+                                    ),
+                                ],
+                                className="candidate-editor",
+                            ),
+                            html.Aside(
+                                [
+                                    html.Div(candidate_status, id="candidate-validation-status"),
+                                    html.Div(
+                                        [
+                                            html.Button(
+                                                "Validate packet",
+                                                id="validate-candidate-packet",
+                                                n_clicks=0,
+                                                className="primary-action",
+                                            ),
+                                            html.Button(
+                                                "Save Candidate to idea",
+                                                id="save-candidate-packet",
+                                                n_clicks=0,
+                                                disabled=not bool(candidate_validation.get("valid")),
+                                                className="secondary-action",
+                                            ),
+                                        ],
+                                        className="candidate-primary-actions",
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Button(
+                                                "Download YAML",
+                                                id="export-candidate-yaml",
+                                                n_clicks=0,
+                                                disabled=not bool(candidate_validation.get("valid")),
+                                                className="secondary-action",
+                                            ),
+                                            html.Button(
+                                                "Download JSON",
+                                                id="export-candidate-json",
+                                                n_clicks=0,
+                                                disabled=not bool(candidate_validation.get("valid")),
+                                                className="secondary-action",
+                                            ),
+                                        ],
+                                        className="candidate-export-actions",
+                                    ),
+                                    html.Div(
+                                        (
+                                            "Validated Candidate is saved on this idea. It remains non-executable."
+                                            if selected and selected.candidate_json
+                                            else "Validate first; saving records the Candidate but grants no approval or execution authority."
+                                        ),
+                                        id="candidate-action-status",
+                                        className="field-help candidate-action-status",
+                                    ),
+                                ],
+                                className="candidate-control-rail",
+                            ),
+                        ],
+                        className="candidate-intake-grid",
+                    ),
+                ],
+                className="idea-workbench-panel candidate-intake-panel",
+            ),
+            html.Section(
+                [
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.P("OPERATOR VIEW", className="page-eyebrow"),
+                                    html.H2("Candidate research brief"),
+                                    html.P(
+                                        "The portable packet rendered as research decisions—not raw serialization.",
+                                        className="idea-panel-description",
+                                    ),
+                                ]
+                            ),
+                            html.Span("Readable contract", className="surface-badge"),
+                        ],
+                        className="candidate-intake-heading",
+                    ),
+                    html.Div(candidate_brief, id="candidate-brief-content"),
+                ],
+                className="idea-workbench-panel candidate-brief-panel-v1",
+            ),
             html.Footer(
                 [
                     html.Div(
@@ -387,8 +819,8 @@ def layout(
                     dcc.Link(
                         "Continue to Set up →",
                         id="continue-idea-to-setup",
-                        href="/research/setup" if selected else None,
-                        className="primary-action" if selected else "primary-action action-disabled",
+                        href="/research/setup" if can_continue else None,
+                        className="primary-action" if can_continue else "primary-action action-disabled",
                     ),
                 ],
                 className="idea-action-bar",
