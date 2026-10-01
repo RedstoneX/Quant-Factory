@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from persistence import LATEST_SCHEMA_VERSION, PersistenceService
+from persistence import LATEST_SCHEMA_VERSION, PersistenceService, StrategyLifecycle
 from research_intake import (
     CandidatePacketError,
     export_candidate_packet,
@@ -171,7 +171,7 @@ def test_linked_idea_candidate_packet_is_frozen(tmp_path) -> None:
             strategy_version="1.0.0",
             display_name="Fixture",
             description="Fixture only",
-            lifecycle="infrastructure_fixture",
+            lifecycle=StrategyLifecycle.INFRASTRUCTURE_FIXTURE,
             active=True,
         )
         configuration = service.upsert_configuration(
