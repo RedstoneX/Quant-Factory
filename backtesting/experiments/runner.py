@@ -17,14 +17,13 @@ from backtesting.experiments.models import (
     ExperimentResult,
     RejectedParameters,
 )
-from backtesting.validation import (
-    ValidationResult,
+from backtesting.validation.gates import (
     normalize_signals,
-    raise_for_blocking_failures,
     validate_execution,
     validate_market_data,
     validate_signals,
 )
+from backtesting.validation.models import ValidationResult, raise_for_blocking_failures
 from backtesting.screening import ScreeningResult, screen_metrics
 from backtesting.vectorbt_runtime import require_vectorbtpro
 

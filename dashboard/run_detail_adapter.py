@@ -888,7 +888,7 @@ def _validation_outcome_fields(
     run_id: str,
     artifact_root: Path,
 ) -> tuple[DetailField, ...]:
-    from persistence.evidence_service import ValidationEvidenceArtifactService
+    from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 
     outcome = ValidationEvidenceArtifactService(service).stage_outcome(
         run_id,

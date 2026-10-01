@@ -3320,7 +3320,7 @@ def _review_context_stack(
             screening_status="passed",
         )
     service.persist_run_manifest(service.build_run_manifest("review_context_target"))
-    from persistence.evidence_service import ValidationEvidenceArtifactService
+    from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 
     source_lock_artifact_id = _source_lock_artifact(
         service,

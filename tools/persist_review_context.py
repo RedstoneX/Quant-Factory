@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 
 from persistence import PersistenceService
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 
 
 def build_parser() -> argparse.ArgumentParser:

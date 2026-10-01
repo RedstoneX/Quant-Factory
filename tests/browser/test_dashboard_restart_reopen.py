@@ -28,7 +28,7 @@ from persistence import (
     canonical_json,
 )
 from persistence.database import transaction
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from tests.browser.test_backtest_results_spym_stability import (
     REPOSITORY_ROOT,
     _free_port,

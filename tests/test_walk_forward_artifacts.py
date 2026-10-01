@@ -12,6 +12,7 @@ import pytest
 
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
 from backtesting.validation import WalkForwardWindowRules
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from backtesting.validation.walk_forward_artifacts import (
     WALK_FORWARD_EVIDENCE_LOGICAL_NAME,
     build_walk_forward_evidence_document,
@@ -35,9 +36,12 @@ from persistence import (
     canonical_json,
 )
 from persistence.database import transaction
-from persistence.evidence_service import ValidationEvidenceArtifactService
 from persistence.models import normalized_configuration_document
 from backtesting.out_of_sample.models import ParameterLock
+
+
+def _evidence(service: PersistenceService) -> ValidationEvidenceArtifactService:
+    return ValidationEvidenceArtifactService(service)
 
 
 def _rules(*, step_size: int = 5, mode: str = "rolling") -> WalkForwardWindowRules:
@@ -251,14 +255,14 @@ def test_walk_forward_evidence_persists_and_retrieves(tmp_path: Path) -> None:
     service = _service_with_walk_forward_run(tmp_path)
     root = tmp_path / "artifacts"
     try:
-        persisted = service.persist_walk_forward_evidence(
+        persisted = _evidence(service).persist_walk_forward(
             run_id="wf-run",
             result=_result(tmp_path),
             rules=_rules(),
             artifact_root=root,
         )
 
-        retrieved = service.retrieve_walk_forward_evidence(
+        retrieved = _evidence(service).retrieve_walk_forward(
             "wf-run",
             artifact_root=root,
         )
@@ -273,12 +277,12 @@ def test_walk_forward_evidence_persists_and_retrieves(tmp_path: Path) -> None:
         service.close()
 
 
-def test_validation_evidence_service_matches_public_source_wrapper(
+def test_validation_evidence_service_builds_source_from_persistence_contract(
     tmp_path: Path,
 ) -> None:
     service = _service_with_walk_forward_run(tmp_path)
     try:
-        extracted = ValidationEvidenceArtifactService(service)
+        extracted = _evidence(service)
         source = extracted.source_document("wf-run")
         manifest = service.build_run_manifest("wf-run")
         assert manifest.lineage is not None
@@ -297,7 +301,6 @@ def test_validation_evidence_service_matches_public_source_wrapper(
         }
 
         assert canonical_json(source) == canonical_json(expected)
-        assert source == service.walk_forward_evidence_source_document("wf-run")
     finally:
         service.close()
 
@@ -308,7 +311,7 @@ def test_validation_evidence_service_persists_and_retrieves_directly(
     service = _service_with_walk_forward_run(tmp_path)
     root = tmp_path / "artifacts"
     try:
-        evidence = ValidationEvidenceArtifactService(service)
+        evidence = _evidence(service)
         persisted = evidence.persist_walk_forward(
             run_id="wf-run",
             result=_result(tmp_path),
@@ -333,13 +336,13 @@ def test_walk_forward_evidence_identity_is_deterministic_for_identical_reruns(
     first = _service_with_walk_forward_run(tmp_path, run_id="wf-run-a")
     second = _service_with_walk_forward_run(tmp_path, run_id="wf-run-b")
     try:
-        one = first.persist_walk_forward_evidence(
+        one = _evidence(first).persist_walk_forward(
             run_id="wf-run-a",
             result=_result(tmp_path),
             rules=_rules(),
             artifact_root=root,
         )
-        two = second.persist_walk_forward_evidence(
+        two = _evidence(second).persist_walk_forward(
             run_id="wf-run-b",
             result=_result(tmp_path),
             rules=_rules(),
@@ -356,7 +359,7 @@ def test_walk_forward_evidence_preserves_failed_fold(tmp_path: Path) -> None:
     service = _service_with_walk_forward_run(tmp_path)
     root = tmp_path / "artifacts"
     try:
-        persisted = service.persist_walk_forward_evidence(
+        persisted = _evidence(service).persist_walk_forward(
             run_id="wf-run",
             result=_result(tmp_path, failed_fold_id="fold_002"),
             rules=_rules(),
@@ -379,7 +382,7 @@ def test_walk_forward_evidence_retrieval_fails_for_missing_or_corrupt_artifact(
     service = _service_with_walk_forward_run(tmp_path)
     root = tmp_path / "artifacts"
     try:
-        persisted = service.persist_walk_forward_evidence(
+        persisted = _evidence(service).persist_walk_forward(
             run_id="wf-run",
             result=_result(tmp_path),
             rules=_rules(),
@@ -388,11 +391,11 @@ def test_walk_forward_evidence_retrieval_fails_for_missing_or_corrupt_artifact(
         path = root / persisted.artifact.location
         path.unlink()
         with pytest.raises(ValueError, match="artifact_missing"):
-            service.retrieve_walk_forward_evidence("wf-run", artifact_root=root)
+            _evidence(service).retrieve_walk_forward("wf-run", artifact_root=root)
 
         path.write_text("{}", encoding="utf-8")
         with pytest.raises(ValueError, match="artifact_.*mismatch"):
-            service.retrieve_walk_forward_evidence("wf-run", artifact_root=root)
+            _evidence(service).retrieve_walk_forward("wf-run", artifact_root=root)
     finally:
         service.close()
 
@@ -405,7 +408,7 @@ def test_walk_forward_evidence_retrieval_rejects_mismatched_source_lineage(
     try:
         document = build_walk_forward_evidence_document(
             run_id="wf-run",
-            source=service.walk_forward_evidence_source_document("wf-run"),
+            source=_evidence(service).source_document("wf-run"),
             result=_result(tmp_path),
             rules=_rules(),
         )
@@ -418,7 +421,7 @@ def test_walk_forward_evidence_retrieval_rejects_mismatched_source_lineage(
         )
 
         with pytest.raises(ValueError, match="source run mismatch"):
-            service.retrieve_walk_forward_evidence("wf-run", artifact_root=root)
+            _evidence(service).retrieve_walk_forward("wf-run", artifact_root=root)
     finally:
         service.close()
 
@@ -431,7 +434,7 @@ def test_walk_forward_evidence_retrieval_rejects_mismatched_lineage_identity(
     try:
         document = build_walk_forward_evidence_document(
             run_id="wf-run",
-            source=service.walk_forward_evidence_source_document("wf-run"),
+            source=_evidence(service).source_document("wf-run"),
             result=_result(tmp_path),
             rules=_rules(),
         )
@@ -444,7 +447,7 @@ def test_walk_forward_evidence_retrieval_rejects_mismatched_lineage_identity(
         )
 
         with pytest.raises(ValueError, match="source lineage mismatch"):
-            service.retrieve_walk_forward_evidence("wf-run", artifact_root=root)
+            _evidence(service).retrieve_walk_forward("wf-run", artifact_root=root)
     finally:
         service.close()
 
@@ -457,7 +460,7 @@ def test_walk_forward_evidence_retrieval_rejects_missing_fold_fields(
     try:
         document = build_walk_forward_evidence_document(
             run_id="wf-run",
-            source=service.walk_forward_evidence_source_document("wf-run"),
+            source=_evidence(service).source_document("wf-run"),
             result=_result(tmp_path),
             rules=_rules(),
         )
@@ -471,7 +474,7 @@ def test_walk_forward_evidence_retrieval_rejects_missing_fold_fields(
         )
 
         with pytest.raises(ValueError, match="fold missing fields"):
-            service.retrieve_walk_forward_evidence("wf-run", artifact_root=root)
+            _evidence(service).retrieve_walk_forward("wf-run", artifact_root=root)
     finally:
         service.close()
 
@@ -484,7 +487,7 @@ def test_walk_forward_evidence_retrieval_rejects_inconsistent_declared_rules(
     try:
         document = build_walk_forward_evidence_document(
             run_id="wf-run",
-            source=service.walk_forward_evidence_source_document("wf-run"),
+            source=_evidence(service).source_document("wf-run"),
             result=_result(tmp_path),
             rules=_rules(),
         )
@@ -500,7 +503,7 @@ def test_walk_forward_evidence_retrieval_rejects_inconsistent_declared_rules(
         )
 
         with pytest.raises(ValueError, match="declared walk-forward rules"):
-            service.retrieve_walk_forward_evidence("wf-run", artifact_root=root)
+            _evidence(service).retrieve_walk_forward("wf-run", artifact_root=root)
     finally:
         service.close()
 
@@ -513,7 +516,7 @@ def test_walk_forward_evidence_retrieval_rejects_missing_parameter_lock(
     try:
         document = build_walk_forward_evidence_document(
             run_id="wf-run",
-            source=service.walk_forward_evidence_source_document("wf-run"),
+            source=_evidence(service).source_document("wf-run"),
             result=_result(tmp_path),
             rules=_rules(),
         )
@@ -527,7 +530,7 @@ def test_walk_forward_evidence_retrieval_rejects_missing_parameter_lock(
         )
 
         with pytest.raises(ValueError, match="lacks a parameter lock"):
-            service.retrieve_walk_forward_evidence("wf-run", artifact_root=root)
+            _evidence(service).retrieve_walk_forward("wf-run", artifact_root=root)
     finally:
         service.close()
 
@@ -540,7 +543,7 @@ def test_walk_forward_evidence_retrieval_rejects_normalized_reason_mismatch(
     try:
         document = build_walk_forward_evidence_document(
             run_id="wf-run",
-            source=service.walk_forward_evidence_source_document("wf-run"),
+            source=_evidence(service).source_document("wf-run"),
             result=_result(tmp_path, failed_fold_id="fold_002"),
             rules=_rules(),
         )
@@ -554,7 +557,7 @@ def test_walk_forward_evidence_retrieval_rejects_normalized_reason_mismatch(
         )
 
         with pytest.raises(ValueError, match="normalized evidence does not match"):
-            service.retrieve_walk_forward_evidence("wf-run", artifact_root=root)
+            _evidence(service).retrieve_walk_forward("wf-run", artifact_root=root)
     finally:
         service.close()
 
@@ -564,7 +567,7 @@ def test_run_service_exposes_walk_forward_evidence(tmp_path: Path) -> None:
     service = _service_with_walk_forward_run(tmp_path)
     root = tmp_path / "artifacts"
     try:
-        service.persist_walk_forward_evidence(
+        _evidence(service).persist_walk_forward(
             run_id="wf-run",
             result=_result(tmp_path),
             rules=_rules(),
@@ -703,7 +706,7 @@ def test_walk_forward_evidence_does_not_promote_progression(tmp_path: Path) -> N
     service = _service_with_walk_forward_run(tmp_path)
     root = tmp_path / "artifacts"
     try:
-        persisted = service.persist_walk_forward_evidence(
+        persisted = _evidence(service).persist_walk_forward(
             run_id="wf-run",
             result=_result(tmp_path),
             rules=_rules(),

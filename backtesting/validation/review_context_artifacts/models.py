@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from persistence.artifact_contracts import REVIEW_CONTEXT_LOGICAL_NAME
 from persistence.models import ArtifactContractRecord
 
-REVIEW_CONTEXT_LOGICAL_NAME = "review_context"
 REVIEW_CONTEXT_SCHEMA_VERSION = 1
 
 

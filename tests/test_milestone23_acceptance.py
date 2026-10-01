@@ -23,7 +23,7 @@ from persistence import (
     RunStatus,
 )
 from persistence.database import transaction
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from prefect_spike.fixture_flow import (
     ControlledFixtureCancellation,
     PrefectFixtureResult,

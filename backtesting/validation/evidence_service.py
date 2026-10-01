@@ -6,10 +6,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from persistence.manifest import run_manifest_document
-from persistence.models import ReviewState, RunStage
+from persistence.models import ArtifactType, ReviewState, RunStage
 from persistence.serialization import canonical_json
 
 
@@ -26,6 +26,30 @@ class ValidationStageOutcome:
     eligible_to_progress: bool
 
 
+class ValidationPersistence(Protocol):
+    """Storage operations required by validation-evidence coordination."""
+
+    runs: Any
+    configurations: Any
+    reviews: Any
+
+    def build_run_manifest(self, run_id: str) -> Any: ...
+
+    def get_artifact_metadata(self, artifact_id: int) -> Any: ...
+
+    def list_run_artifacts(self, run_id: str) -> tuple[Any, ...]: ...
+
+    def retrieve_run_artifacts(
+        self, run_id: str, *, artifact_root: str | Path
+    ) -> Any: ...
+
+    def update_review(self, **kwargs: Any) -> Any: ...
+
+    def validate_artifact(
+        self, artifact_id: int, *, artifact_root: str | Path
+    ) -> Any: ...
+
+
 def _missing_evidence_status(message: str) -> str:
     lower = message.lower()
     if (
@@ -40,7 +64,7 @@ def _missing_evidence_status(message: str) -> str:
 class ValidationEvidenceArtifactService:
     """Coordinate validation evidence artifacts using the persistence facade."""
 
-    def __init__(self, service: Any) -> None:
+    def __init__(self, service: ValidationPersistence) -> None:
         self._service = service
 
     def source_document(self, run_id: str) -> dict[str, Any]:
@@ -730,8 +754,6 @@ class ValidationEvidenceArtifactService:
             EVIDENCE_DECISION_LOGICAL_NAME,
             persist_evidence_decision_artifact,
         )
-        from persistence import ArtifactType
-
         source = self.source_document(run_id)
         existing = tuple(
             artifact
