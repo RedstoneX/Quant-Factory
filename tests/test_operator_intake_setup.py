@@ -319,3 +319,16 @@ def test_new_setup_draft_is_known_to_run_preflight_without_server_restart(
     assert "did not pass preflight" in str(message)
     assert "could not be found" not in str(message)
     assert disabled is True
+
+
+def test_ideas_layout_exposes_external_research_context_downloads() -> None:
+    page = ideas_layout(drafts=())
+    ids = {
+        getattr(component, "id", None)
+        for component in _walk(page)
+        if getattr(component, "id", None)
+    }
+
+    assert "research-context-download" in ids
+    assert "export-research-context-yaml" in ids
+    assert "export-research-context-json" in ids
