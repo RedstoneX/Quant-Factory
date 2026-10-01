@@ -11,7 +11,7 @@ The context contains:
 
 - the current same-session intraday mandate;
 - the current first-stage MES/MNQ focus;
-- prior Quant Factory strategy families and their dispositions;
+- prior Quant Factory tested hypotheses and their scoped dispositions;
 - a compact snapshot of relevant catalogued data;
 - deduplication and research boundaries;
 - the QF Candidate v1 output contract; and
@@ -52,6 +52,12 @@ owner review
 
 An external model may research broadly, but it must not claim a Candidate is
 approved merely because it generated the packet.
+
+A prior test does not automatically close a strategy family. The context must
+distinguish the exact rule/parameter space that was tested from the broader
+family. For example, the shallow historical MES ORB baseline matrix screened
+out, but materially different ORB hypotheses remain eligible. Only an explicit
+Tier-1 owner decision can mark a whole family exhausted.
 
 ## Maintenance
 
