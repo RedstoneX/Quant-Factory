@@ -21,6 +21,13 @@ def test_runtime_requirements_are_exact_direct_pins():
     assert not any("vectorbtpro" in requirement.lower() for requirement in pins)
 
 
+def test_container_context_includes_candidate_intake_package():
+    dockerignore = (ROOT / ".dockerignore").read_text().splitlines()
+
+    assert "!research_intake/" in dockerignore
+    assert "!research_intake/**" in dockerignore
+
+
 def test_compose_binds_dashboard_only_to_loopback_and_uses_external_root():
     compose = (ROOT / "compose.yaml").read_text()
     assert '"127.0.0.1:8050:8050"' in compose
