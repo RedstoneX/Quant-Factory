@@ -13,7 +13,7 @@ create a competing queue.
 | Immediate objective | Complete the private owner walkthrough of the browser-based QF Candidate v1 intake: paste/upload, validate, review, persist, and export without creating execution authority. |
 | Phase | **Standardized strategy intake backend; candidate research remains paused.** |
 | Active work | QF Candidate v1 backend and Ideas-workbench integration have a focused technical pass. R13 is adding a portable QF Research Context v1 export so external LLMs receive the current mandate/prior-work/data snapshot before producing Candidate packets. R12 remains available for its broader handoff. No source retrieval, LLM provider selection, candidate implementation, backtest, or profitability research is active. |
-| Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
+| Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
 | Verified gap | Terry has not yet used and accepted the current-revision Candidate intake in the private browser environment. Built-in public-source retrieval/LLM analysis remains optional and is not part of R13. |
 | Next action | Deploy the merged revision through the existing private review service after a schema-v7-safe backup, then have Terry walk through Candidate paste/upload, validation, readable review, durable save, export, and the truthful blocked Setup boundary. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
@@ -27,6 +27,26 @@ create a competing queue.
 | R13 | 1 | in_progress | none | **Candidate intake technical pass; portable external-research context being added.** Ideas accepts pasted/uploaded QF Candidate v1, validates/persists/exports it, and exposes QF Research Context v1 for external LLM/human research. Neither artifact approves, implements, unlocks Setup, or executes a Candidate. |
 | R12 | 2 | blocked | none | **Connected operator workflow has a technical pass; owner handoff remains available/pending.** This owner gate does not block the explicitly authorized non-executing R13 intake plumbing. |
 <!-- active-work:end -->
+
+## Architecture remediation — completed 2026-10-01
+
+The owner-authorized temporary feature freeze is removed. The remediation did
+not resume or perform feature development, strategy research, LLM integration,
+broker work, paper/live work, or unrelated cleanup; the pre-existing active
+queue above remains unchanged for a later authorized turn.
+
+Starting from canonical revision
+`fe7564eac1f5838dd35ec0acd85fa943aa5a063e`, the reproducible AST graph had
+three runtime strongly connected components, 90 cyclic runtime edges, and 21
+forbidden runtime directions. Sequential green remediation slices established
+the CI guard, inverted orchestration/Prefect ownership, removed dashboard
+back-imports into the composition root, and moved validation-evidence
+coordination behind an explicit persistence protocol. The final graph has zero
+runtime SCCs, zero cyclic runtime edges, and zero forbidden directions. ADR
+0014 records component ownership, dependency direction, independent
+construction contracts, and the secondary size-growth ratchet. No database,
+deployment, evidence, research, trading, or safety semantics intentionally
+changed.
 
 ## Backend completion acceptance — completed 2026-09-29
 

@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **319** | **Quant Factory's measured one-way component architecture is accepted and mechanically enforced:** runtime cycles and forbidden directions are eliminated; independent launcher, evidence-storage, and dashboard-presentation contracts replace reverse ownership. The temporary remediation feature freeze is removed, but no feature or strategy work resumes automatically. |
 | **318** | **Prior work is scoped to the tested hypothesis, not the entire family:** a screened/rejected/withdrawn Candidate closes only its explicit rules and bounded search space. ORB, momentum, mean reversion, channel breakout, gap reversal, and other broader families remain open unless Tier 1 contains an explicit owner decision closing that family. QF Research Context v1 carries this rule to external LLM/human research. |
 | **317** | **Standardized strategy intake is provider-neutral and non-executing:** QF Candidate v1 is the portable contract for owner-authored ideas, external LLM output, and any future optional built-in analyzer. The current milestone may validate/import/export/persist packets but does not choose an LLM provider, fetch sources, implement a strategy, or authorize a backtest. |
 | **316** | **Research Atlas screen acceptance is not product handoff:** Terry accepted the overview design only. R12 remains active until the working operator interface is complete and accepted; no candidate research is active. |
@@ -1781,3 +1782,39 @@ superseded.
      output contract. The context is subordinate to Tier 1 and creates no
      strategy execution, optimization, protected-data, broker, paper/live, or
      capital authority.
+
+
+319. **Accept and enforce the measured one-way component architecture
+     (accepted 2026-10-01).** Terry authorized autonomous architectural
+     remediation from current canonical `main`, with feature development frozen
+     until the work completed. The governing test was independent construction
+     and exercise, not file length or cosmetic splitting.
+
+     The committed standard-library AST guard now separates runtime and
+     `TYPE_CHECKING` imports, rejects new runtime cycles and forbidden component
+     directions, detects renamed/moved violations, and permits its exact
+     violation baseline only to shrink. The deliberate temporary-violation
+     proof failed as required and passed after reversion.
+
+     Sequential remediation established executor-neutral candidate and fixture
+     launcher contracts, removed orchestration's runtime ownership of Prefect,
+     injected explicit dashboard page/callback presentation collaborators,
+     removed dashboard back-imports to the application composition root, moved
+     validation-evidence coordination to the validation owner behind a
+     persistence protocol, and removed persistence runtime dependencies on
+     backtesting. Starting at revision
+     `fe7564eac1f5838dd35ec0acd85fa943aa5a063e`, the graph measured three runtime
+     SCCs, 90 cyclic runtime edges, and 21 forbidden runtime directions. The
+     completed graph measures zero for all three.
+
+     A secondary ratcheting size-growth backstop prevents already-large modules
+     from growing and prevents new modules from exceeding 1,000 physical lines
+     without an explicit policy change. It is not a component definition or a
+     mandate to split files.
+
+     The temporary feature freeze is removed because the acceptance criteria
+     are complete. This decision does not itself resume feature development or
+     strategy research, change the pre-existing active queue, alter product or
+     trading semantics, migrate data, deploy software, or create LLM, broker,
+     protected-data, paper/live, order, credential, or capital authority. ADR
+     0014 is the supporting architecture record.
