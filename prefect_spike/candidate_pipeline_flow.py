@@ -5,7 +5,7 @@ from __future__ import annotations
 from prefect import flow
 from prefect.context import FlowRunContext
 
-from orchestration.candidate_pipeline_runtime import CandidatePipelineRuntime
+from orchestration.candidate_pipeline_contracts import CandidatePipelineExecution
 from orchestration.filter_chain import FilterChainOutcome
 from persistence.models import ResearchRunSubmissionRecord
 
@@ -13,7 +13,7 @@ from persistence.models import ResearchRunSubmissionRecord
 @flow(name="quant-factory-candidate-pipeline", log_prints=True)
 def run_candidate_pipeline_flow(
     *,
-    runtime: CandidatePipelineRuntime,
+    runtime: CandidatePipelineExecution,
     submission: ResearchRunSubmissionRecord,
 ) -> FilterChainOutcome:
     """Bind the actual Prefect identity before executing candidate work."""

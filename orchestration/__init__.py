@@ -52,6 +52,11 @@ from orchestration.candidate_pipeline_runtime import (
     CandidateValidationPlan,
     VALIDATION_RUNTIME_KEY,
 )
+from orchestration.candidate_pipeline_contracts import (
+    CandidatePipelineExecution,
+    CandidatePipelineLauncher,
+)
+from orchestration.fixture_contracts import FixtureExecutionResult, FixtureLauncher
 
 __all__ = [
     "FactoryFilterChainService",
@@ -96,4 +101,8 @@ __all__ = [
     "CandidatePipelineRuntime",
     "CandidateValidationPlan",
     "VALIDATION_RUNTIME_KEY",
+    "CandidatePipelineExecution",
+    "CandidatePipelineLauncher",
+    "FixtureExecutionResult",
+    "FixtureLauncher",
 ]

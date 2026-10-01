@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass, replace
 import hashlib
 import json
@@ -34,9 +33,8 @@ from persistence import (
 from persistence.database import database_path
 from persistence.evidence_service import ValidationEvidenceArtifactService
 from persistence.service import capture_runtime_lineage_document
-from prefect_spike.fixture_flow import PrefectFixtureResult, run_prefect_fixture_flow
+from orchestration.fixture_contracts import FixtureExecutionResult, FixtureLauncher
 
-FixtureLauncher = Callable[..., PrefectFixtureResult]
 MAX_FIXTURE_TIMEOUT_SECONDS = 3_600.0
 _DISPATCHER_ID_LOCK = threading.Lock()
 _DISPATCHER_ID_PID: int | None = None
@@ -107,7 +105,7 @@ class RunLaunchResult:
     """Result returned after launching or observing a terminal fixture failure."""
 
     run: RunSummary
-    prefect_result: PrefectFixtureResult | None
+    prefect_result: FixtureExecutionResult | None
     submission: ResearchRunSubmissionRecord | None = None
     invoked: bool = True
 
@@ -301,7 +299,7 @@ class FixtureRunService:
         self,
         *,
         database: str | Path | None = None,
-        fixture_launcher: FixtureLauncher = run_prefect_fixture_flow,
+        fixture_launcher: FixtureLauncher | None = None,
         dispatcher_instance_id: str | None = None,
     ) -> None:
         self.database_path = database_path(database)
@@ -421,7 +419,7 @@ class FixtureRunService:
         except Exception as exc:
             raise RunServiceError("fixture launch preparation failed") from exc
 
-        def invoke(submission: ResearchRunSubmissionRecord) -> PrefectFixtureResult:
+        def invoke(submission: ResearchRunSubmissionRecord) -> FixtureExecutionResult:
             launch_kwargs: dict[str, object] = {
                 "database_path": self.database_path,
                 "idempotency_key": submission.idempotency_key,
@@ -875,7 +873,11 @@ class FixtureRunService:
         self,
         launch_kwargs: dict[str, object],
         timeout_seconds: float | None,
-    ) -> PrefectFixtureResult:
+    ) -> FixtureExecutionResult:
+        if self._fixture_launcher is None:
+            raise RunServiceError(
+                "fixture launcher must be injected by the application composition root"
+            )
         if timeout_seconds is None:
             return self._fixture_launcher(**launch_kwargs)
 
@@ -895,8 +897,8 @@ class FixtureRunService:
         if "error" in outcome:
             raise outcome["error"]  # type: ignore[misc]
         result = outcome.get("result")
-        if not isinstance(result, PrefectFixtureResult):
-            raise RunServiceError("fixture launcher returned no Prefect fixture result")
+        if not isinstance(result, FixtureExecutionResult):
+            raise RunServiceError("fixture launcher returned no fixture execution result")
         return result
 
     def _get_persisted_run(self, run_id: str) -> ExperimentRunRecord | None:

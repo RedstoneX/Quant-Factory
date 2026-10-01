@@ -40,25 +40,34 @@ import sys
 
 from dashboard.app import create_app
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
-from orchestration import CandidatePipelineRuntime, FixtureRunService
+from orchestration import (
+    CANDIDATE_SCREENING_LAUNCH_CONTRACT,
+    DurableResearchLaunchService,
+    FixtureRunService,
+)
 from tests.browser.dashboard_diagnostics import install_callback_status_recorder
 from tests.test_candidate_dashboard_runtime import deterministic_default_runtime_adapter
 
 database = Path(sys.argv[1])
 artifact_root = Path(sys.argv[2])
 port = int(sys.argv[3])
-def deterministic_adapter(self, submission, claims):
+def deterministic_adapter(*, runtime, submission):
+    claims = DurableResearchLaunchService(
+        database=runtime.database,
+        launch_contract=CANDIDATE_SCREENING_LAUNCH_CONTRACT,
+        initialize_schema=False,
+    )
     return deterministic_default_runtime_adapter(
-        self,
+        runtime,
         submission,
         claims,
         delay_seconds=4.0,
     )
 
-CandidatePipelineRuntime._prefect_adapter = deterministic_adapter
 app = create_app(
     review_database=database,
     run_service=FixtureRunService(database=database),
+    candidate_pipeline_launcher=deterministic_adapter,
     run_detail_adapter=RunDetailDashboardAdapter(
         database=database,
         artifact_root=artifact_root,

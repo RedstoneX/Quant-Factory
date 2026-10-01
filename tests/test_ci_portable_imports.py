@@ -59,6 +59,26 @@ def test_stored_evidence_interfaces_import_without_vectorbtpro() -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_orchestration_contracts_import_without_prefect_adapters() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import orchestration, sys; "
+                "from orchestration import CandidatePipelineRuntime, FixtureRunService; "
+                "assert not any(name == 'prefect_spike' or "
+                "name.startswith('prefect_spike.') for name in sys.modules)"
+            ),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_experiment_runner_type_hints_resolve_without_vectorbtpro() -> None:
     assert get_type_hints(experiment_runner._construct_portfolio)["return"] is Any
     assert get_type_hints(experiment_runner.build_portfolio)["return"] is Any

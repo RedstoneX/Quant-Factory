@@ -30,6 +30,7 @@ from prefect_spike.spym_vectorbt_fixture import (
     ensure_spym_21c_saved_configuration,
     spym_21c_saved_configuration_document,
 )
+from prefect_spike.fixture_flow import run_prefect_fixture_flow
 
 FIXTURE_LABEL = "m23_browser_acceptance"
 TARGET_LAUNCH_KEY = "launch_m23_browser_spym_target"
@@ -99,7 +100,7 @@ def prepare_milestone23_browser_fixture(
         configuration_id = ensure_spym_21c_saved_configuration(service)
         launch = FixtureRunService(
             database=database_path,
-            **({"fixture_launcher": fixture_launcher} if fixture_launcher else {}),
+            fixture_launcher=fixture_launcher or run_prefect_fixture_flow,
         ).launch_fixture(
             idempotency_key=TARGET_LAUNCH_KEY,
             configuration_id=configuration_id,

@@ -41,6 +41,7 @@ from orchestration.candidate_run_service import (
     CandidateRunService,
     CandidateScreeningLaunchResult,
 )
+from orchestration.candidate_pipeline_contracts import CandidatePipelineLauncher
 from orchestration.filter_chain import (
     FactoryFilterChainService,
     FilterChainOutcome,
@@ -808,6 +809,7 @@ class CandidatePipelineRuntime:
         artifact_root: str | Path,
         configuration_id: str,
         definition: CandidatePipelineDefinition,
+        pipeline_launcher: CandidatePipelineLauncher,
         dispatcher_instance_id: str | None = None,
         cache_only: bool = False,
     ) -> None:
@@ -817,6 +819,7 @@ class CandidatePipelineRuntime:
         self.artifact_root = Path(artifact_root)
         self.configuration_id = configuration_id
         self.definition = definition
+        self.pipeline_launcher = pipeline_launcher
         self.dispatcher_instance_id = dispatcher_instance_id
         self.cache_only = cache_only
 
@@ -827,6 +830,7 @@ class CandidatePipelineRuntime:
         database: str | Path,
         artifact_root: str | Path,
         configuration_id: str,
+        pipeline_launcher: CandidatePipelineLauncher,
         dispatcher_instance_id: str | None = None,
         cache_only: bool = True,
     ) -> "CandidatePipelineRuntime":
@@ -877,6 +881,7 @@ class CandidatePipelineRuntime:
             artifact_root=artifact_root,
             configuration_id=configuration_id,
             definition=definition,
+            pipeline_launcher=pipeline_launcher,
             dispatcher_instance_id=dispatcher_instance_id,
             cache_only=cache_only,
         )
@@ -891,7 +896,7 @@ class CandidatePipelineRuntime:
     ) -> CandidatePipelineLaunchResult:
         service = CandidateRunService(
             database=self.database,
-            screening_adapter=self._prefect_adapter,
+            screening_adapter=self._dispatch_adapter,
             dispatcher_instance_id=self.dispatcher_instance_id,
         )
         launch = service.launch_screening(
@@ -930,14 +935,12 @@ class CandidatePipelineRuntime:
         finally:
             persistence.close()
 
-    def _prefect_adapter(
+    def _dispatch_adapter(
         self,
         submission: ResearchRunSubmissionRecord,
         _claims: DurableResearchLaunchService,
     ) -> FilterChainOutcome:
-        from prefect_spike.candidate_pipeline_flow import run_candidate_pipeline_flow
-
-        return run_candidate_pipeline_flow(runtime=self, submission=submission)
+        return self.pipeline_launcher(runtime=self, submission=submission)
 
     def execute_flow(
         self,

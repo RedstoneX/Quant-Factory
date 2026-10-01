@@ -7,8 +7,6 @@
     "dashboard.compare_adapter -> dashboard.callbacks.review_state",
     "dashboard.pages.backtest_results -> dashboard.application",
     "dashboard.pages.home -> dashboard.application",
-    "orchestration.candidate_pipeline_runtime -> prefect_spike.candidate_pipeline_flow",
-    "orchestration.run_service -> prefect_spike.fixture_flow",
     "persistence.evidence_service -> backtesting.robustness",
     "persistence.evidence_service -> backtesting.validation.evidence_decision_artifacts",
     "persistence.evidence_service -> backtesting.validation.lockbox_gate",
@@ -100,7 +98,6 @@
     "dashboard.callbacks.trade_explorer -> dashboard.application",
     "dashboard.pages.backtest_results -> dashboard.application",
     "dashboard.pages.home -> dashboard.application",
-    "orchestration.candidate_pipeline_runtime -> prefect_spike.candidate_pipeline_flow",
     "persistence -> persistence.service",
     "persistence.evidence_service -> backtesting.robustness",
     "persistence.evidence_service -> backtesting.validation.evidence_decision_artifacts",
@@ -111,8 +108,7 @@
     "persistence.evidence_service -> backtesting.validation.walk_forward_artifacts",
     "persistence.evidence_service -> persistence",
     "persistence.service -> backtesting.validation.evidence_decision_artifacts",
-    "persistence.service -> persistence.evidence_service",
-    "prefect_spike.candidate_pipeline_flow -> orchestration.candidate_pipeline_runtime"
+    "persistence.service -> persistence.evidence_service"
   ],
   "schema_version": 1
 }

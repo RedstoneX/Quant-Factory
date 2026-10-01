@@ -20,6 +20,7 @@ from orchestration import FixtureRunService
 from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from persistence import PersistenceService, RunStatus, StrategyLifecycle
 from persistence.models import normalized_configuration_document
+from prefect_spike.fixture_flow import run_prefect_fixture_flow
 
 
 @dataclass(frozen=True)
@@ -134,7 +135,10 @@ def run_live_verification(
         )
     database = Path(database_path)
     configuration_id = _prepare_configuration(database, configuration_id_seed=run_id)
-    launched = FixtureRunService(database=database).launch_fixture(
+    launched = FixtureRunService(
+        database=database,
+        fixture_launcher=run_prefect_fixture_flow,
+    ).launch_fixture(
         idempotency_key=_live_launch_key("success", run_id),
         configuration_id=configuration_id,
         run_id=run_id,
@@ -177,7 +181,10 @@ def run_live_timeout_verification(
         )
     database = Path(database_path)
     configuration_id = _prepare_configuration(database, configuration_id_seed=run_id)
-    launch_service = FixtureRunService(database=database)
+    launch_service = FixtureRunService(
+        database=database,
+        fixture_launcher=run_prefect_fixture_flow,
+    )
     try:
         launch_service.launch_fixture(
             idempotency_key=_live_launch_key("timeout", run_id),
