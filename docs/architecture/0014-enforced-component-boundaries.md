@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-01
-- **Authority:** Decision 319
+- **Authority:** Decision 319, as governance-corrected by Decision 320
 
 ## Context
 
@@ -64,3 +64,12 @@ and zero forbidden runtime directions. Routes, component IDs, database schema,
 deployment behavior, evidence/provenance rules, and trading/research semantics
 were intentionally preserved. This decision creates no strategy, execution,
 broker, paper/live, credential, protected-data, or capital authority.
+
+## Governance status
+
+Technical completion of this ADR does not lift the owner-controlled
+development freeze. Normal feature and research development remains paused
+until Terry personally and explicitly approves lifting it. The completed
+architecture therefore authorizes no QF Candidate work, research, dashboard
+feature work, LLM/provider work, broker work, paper/live work, deployment, or
+unrelated development. Decision 320 controls this authority boundary.

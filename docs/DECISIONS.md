@@ -13,7 +13,8 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **319** | **Quant Factory's measured one-way component architecture is accepted and mechanically enforced:** runtime cycles and forbidden directions are eliminated; independent launcher, evidence-storage, and dashboard-presentation contracts replace reverse ownership. The temporary remediation feature freeze is removed, but no feature or strategy work resumes automatically. |
+| **320** | **Architecture completion does not lift the development freeze:** remediation is technically complete, but all normal feature/research development remains paused until Terry personally and explicitly authorizes lifting the freeze. The pre-freeze queue is preserved but blocked. |
+| **319** | **Quant Factory's measured one-way component architecture is accepted and mechanically enforced:** runtime cycles and forbidden directions are eliminated; independent launcher, evidence-storage, and dashboard-presentation contracts replace reverse ownership. Decision 320 corrects Decision 319's erroneous freeze-authority conclusion. |
 | **318** | **Prior work is scoped to the tested hypothesis, not the entire family:** a screened/rejected/withdrawn Candidate closes only its explicit rules and bounded search space. ORB, momentum, mean reversion, channel breakout, gap reversal, and other broader families remain open unless Tier 1 contains an explicit owner decision closing that family. QF Research Context v1 carries this rule to external LLM/human research. |
 | **317** | **Standardized strategy intake is provider-neutral and non-executing:** QF Candidate v1 is the portable contract for owner-authored ideas, external LLM output, and any future optional built-in analyzer. The current milestone may validate/import/export/persist packets but does not choose an LLM provider, fetch sources, implement a strategy, or authorize a backtest. |
 | **316** | **Research Atlas screen acceptance is not product handoff:** Terry accepted the overview design only. R12 remains active until the working operator interface is complete and accepted; no candidate research is active. |
@@ -1812,9 +1813,33 @@ superseded.
      without an explicit policy change. It is not a component definition or a
      mandate to split files.
 
-     The temporary feature freeze is removed because the acceptance criteria
-     are complete. This decision does not itself resume feature development or
-     strategy research, change the pre-existing active queue, alter product or
-     trading semantics, migrate data, deploy software, or create LLM, broker,
-     protected-data, paper/live, order, credential, or capital authority. ADR
-     0014 is the supporting architecture record.
+     **Governance correction:** the original closure record incorrectly treated
+     satisfaction of the architecture acceptance criteria as authority to lift
+     the temporary development freeze. Decision 320 supersedes that conclusion.
+     The architecture remains accepted and complete, but normal development
+     remains frozen pending Terry's personal and explicit approval. ADR 0014 is
+     the supporting architecture record.
+
+
+320. **Keep normal development frozen pending explicit owner approval
+     (accepted 2026-10-01).** Independent review accepts the architectural
+     remediation at revision
+     `9ae22d6abc62d7c681f050d9bbec5aeedce8966c` as technically complete. All
+     architecture acceptance criteria remain satisfied, and Decision 319's
+     technical architecture, contracts, enforcement, measurements, and
+     compatibility conclusions remain in force.
+
+     Decision 319 contained one governance error: completion of the technical
+     acceptance criteria was not automatic authority to remove the
+     owner-controlled development freeze. Only Terry may personally and
+     explicitly lift it. Until that occurs, normal Quant Factory feature and
+     research development remains paused.
+
+     The pre-freeze product queue is preserved without reprioritization, but it
+     is blocked awaiting that owner authorization. Architecture completion does
+     not authorize QF Candidate work, strategy research, dashboard feature work,
+     LLM or provider work, broker work, paper/live work, deployment, unrelated
+     cleanup, or any other normal development. This correction changes
+     governance status only; it does not modify the completed architecture,
+     product behavior, data, evidence, credentials, trading authority, or
+     capital boundaries.
