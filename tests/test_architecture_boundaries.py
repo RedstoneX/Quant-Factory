@@ -7,7 +7,9 @@ from pathlib import Path
 
 from tools.check_architecture import (
     Edge,
+    SizeBackstop,
     analyze_repository,
+    check_size_backstop,
     main,
     write_baseline,
 )
@@ -88,6 +90,28 @@ def test_guard_rejects_then_accepts_a_temporary_forbidden_dependency(
             str(baseline),
         ]
     ) == 0
+
+
+def test_size_backstop_blocks_growth_without_treating_size_as_a_split_rule(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "a.py"
+    source.write_text("ONE = 1\nTWO = 2\nTHREE = 3\n", encoding="utf-8")
+    (tmp_path / "b.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (tmp_path / "c.py").write_text("VALUE = 2\n", encoding="utf-8")
+    policy = _write_policy(tmp_path, a_allows_b=True)
+    backstop = SizeBackstop(max_lines=2, grandfathered_modules={"a": 3})
+
+    analysis, errors = analyze_repository(tmp_path, policy)
+    assert errors == [] and analysis is not None
+    assert check_size_backstop(backstop, analysis) == []
+
+    source.write_text("ONE = 1\nTWO = 2\nTHREE = 3\nFOUR = 4\n", encoding="utf-8")
+    analysis, errors = analyze_repository(tmp_path, policy)
+    assert errors == [] and analysis is not None
+    assert check_size_backstop(backstop, analysis) == [
+        "oversized module grew beyond its recorded backstop: a (4 > 3)"
+    ]
 
 
 def test_current_repository_matches_its_ratcheting_baseline() -> None:

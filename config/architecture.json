@@ -1,5 +1,18 @@
 {
   "schema_version": 1,
+  "size_growth_backstop": {
+    "max_lines": 1000,
+    "grandfathered_modules": {
+      "dashboard.application": 4830,
+      "dashboard.callbacks.backtest_results": 2000,
+      "dashboard.pages.home": 1328,
+      "dashboard.run_detail_adapter": 1369,
+      "orchestration.candidate_pipeline_runtime": 1280,
+      "orchestration.research_launch_claims": 1353,
+      "persistence.repositories": 1223,
+      "persistence.service": 1757
+    }
+  },
   "components": {
     "licensed_engine": {"patterns": ["backtesting.vectorbt_runtime"], "allowed_dependencies": []},
     "strategies": {"patterns": ["strategies.*"], "allowed_dependencies": ["licensed_engine"]},

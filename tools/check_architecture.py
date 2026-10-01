@@ -62,6 +62,15 @@ class Analysis:
     strongly_connected_components: tuple[tuple[str, ...], ...]
     cyclic_edges: frozenset[Edge]
     forbidden_edges: frozenset[Edge]
+    source_lines: Mapping[str, int]
+
+
+@dataclass(frozen=True)
+class SizeBackstop:
+    """Secondary guard against renewed responsibility accumulation."""
+
+    max_lines: int
+    grandfathered_modules: Mapping[str, int]
 
 
 class ImportCollector(ast.NodeVisitor):
@@ -375,9 +384,126 @@ def analyze_repository(root: Path, policy_path: Path) -> tuple[Analysis | None, 
             strongly_connected_components=sccs,
             cyclic_edges=frozenset(cyclic_edges),
             forbidden_edges=frozenset(forbidden),
+            source_lines={
+                module: len(path.read_text(encoding="utf-8").splitlines())
+                for module, (path, _) in modules.items()
+            },
         ),
         [],
     )
+
+
+def load_size_backstop(path: Path) -> tuple[SizeBackstop | None, list[str]]:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return None, [f"cannot load architecture policy {path}: {exc}"]
+    raw = document.get("size_growth_backstop")
+    if raw is None:
+        return None, []
+    if not isinstance(raw, dict):
+        return None, ["size_growth_backstop must be an object"]
+    max_lines = raw.get("max_lines")
+    grandfathered = raw.get("grandfathered_modules")
+    errors: list[str] = []
+    if not isinstance(max_lines, int) or isinstance(max_lines, bool) or max_lines < 1:
+        errors.append("size_growth_backstop max_lines must be a positive integer")
+    if not isinstance(grandfathered, dict) or not all(
+        isinstance(module, str)
+        and module
+        and isinstance(limit, int)
+        and not isinstance(limit, bool)
+        and limit > 0
+        for module, limit in (grandfathered.items() if isinstance(grandfathered, dict) else ())
+    ):
+        errors.append(
+            "size_growth_backstop grandfathered_modules must map modules to positive integers"
+        )
+    if errors:
+        return None, errors
+    return SizeBackstop(max_lines=max_lines, grandfathered_modules=grandfathered), []
+
+
+def check_size_backstop(backstop: SizeBackstop, analysis: Analysis) -> list[str]:
+    """Keep oversized legacy modules from growing; this is not a split heuristic."""
+
+    errors: list[str] = []
+    for module, line_count in sorted(analysis.source_lines.items()):
+        recorded = backstop.grandfathered_modules.get(module)
+        if line_count <= backstop.max_lines:
+            if recorded is not None:
+                errors.append(
+                    f"stale size exception for {module}: {line_count} <= {backstop.max_lines}"
+                )
+            continue
+        if recorded is None:
+            errors.append(
+                f"module exceeds {backstop.max_lines}-line size backstop: "
+                f"{module} ({line_count})"
+            )
+        elif line_count > recorded:
+            errors.append(
+                f"oversized module grew beyond its recorded backstop: "
+                f"{module} ({line_count} > {recorded})"
+            )
+        elif line_count < recorded:
+            errors.append(
+                f"stale size exception for {module}: record reduced size {line_count}"
+            )
+    for module in sorted(set(backstop.grandfathered_modules) - set(analysis.source_lines)):
+        errors.append(f"stale size exception for missing module: {module}")
+    return errors
+
+
+def check_size_backstop_history(
+    root: Path, policy_path: Path, base_ref: str | None
+) -> list[str]:
+    """Prevent limits or the grandfathered set from expanding after establishment."""
+
+    if not base_ref:
+        return []
+    try:
+        relative = policy_path.resolve().relative_to(root).as_posix()
+    except ValueError:
+        return ["architecture policy must be inside the repository root"]
+    completed = subprocess.run(
+        ["git", "show", f"{base_ref}:{relative}"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        return []
+    try:
+        previous = json.loads(completed.stdout).get("size_growth_backstop")
+        current = json.loads(policy_path.read_text(encoding="utf-8")).get(
+            "size_growth_backstop"
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"cannot compare size backstop with {base_ref}: {exc}"]
+    if previous is None:
+        return []
+    if not isinstance(previous, dict) or not isinstance(current, dict):
+        return ["cannot compare malformed size_growth_backstop"]
+    errors: list[str] = []
+    old_max = previous.get("max_lines")
+    new_max = current.get("max_lines")
+    if isinstance(old_max, int) and isinstance(new_max, int) and new_max > old_max:
+        errors.append(f"size backstop max_lines may not grow: {new_max} > {old_max}")
+    old_modules = previous.get("grandfathered_modules")
+    new_modules = current.get("grandfathered_modules")
+    if not isinstance(old_modules, dict) or not isinstance(new_modules, dict):
+        return [*errors, "cannot compare malformed grandfathered_modules"]
+    for module in sorted(set(new_modules) - set(old_modules)):
+        errors.append(f"size backstop may not add a grandfathered module: {module}")
+    for module in sorted(set(new_modules) & set(old_modules)):
+        if new_modules[module] > old_modules[module]:
+            errors.append(
+                f"size exception may not grow for {module}: "
+                f"{new_modules[module]} > {old_modules[module]}"
+            )
+    return errors
 
 
 def _baseline_document(analysis: Analysis) -> dict[str, object]:
@@ -467,6 +593,7 @@ def report(analysis: Analysis) -> str:
         f"runtime SCCs: {len(analysis.strongly_connected_components)}",
         f"runtime cyclic edges: {len(analysis.cyclic_edges)}",
         f"forbidden runtime edges: {len(analysis.forbidden_edges)}",
+        f"largest module lines: {max(analysis.source_lines.values(), default=0)}",
     ]
     for index, component in enumerate(analysis.strongly_connected_components, start=1):
         lines.append(f"SCC {index} ({len(component)} modules): {', '.join(component)}")
@@ -490,12 +617,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
     print(report(analysis))
+    size_backstop, size_errors = load_size_backstop(policy)
+    if size_errors:
+        for error in size_errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
     if args.write_baseline:
         write_baseline(baseline, analysis)
         print(f"Wrote architecture baseline: {baseline.relative_to(root)}")
         return 0
     errors = check_baseline(baseline, analysis)
     errors.extend(check_baseline_history(root, baseline, args.base_ref))
+    if size_backstop is not None:
+        errors.extend(check_size_backstop(size_backstop, analysis))
+        errors.extend(check_size_backstop_history(root, policy, args.base_ref))
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
