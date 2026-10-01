@@ -94,78 +94,148 @@ def layout(
         ),
     )
     resolved_observed_at = observed_at or datetime.now(timezone.utc)
+    credential_reading = supplied.get(
+        "credential",
+        HomeHealthReading(
+            "credential",
+            "Not checked",
+            "Credential values are never displayed.",
+        ),
+    )
+    snapshot = tuple(
+        _truthful_reading(reading, resolved_observed_at, stale_after)
+        for reading in (
+            database_reading,
+            artifact_reading,
+            HomeHealthReading(
+                "catalog",
+                "Available" if datasets and configuration_error is None else "Not checked",
+                (
+                    f"{len(datasets)} committed manifests were inspected."
+                    if datasets and configuration_error is None
+                    else configuration_error or "No committed manifests were inspected."
+                ),
+                database_reading.checked_at,
+            ),
+            worker_reading,
+            cache_reading,
+            redact_credential_health_reading(credential_reading),
+        )
+    )
+    available_count = sum(reading.status == "Available" for reading in snapshot)
+    not_checked_count = sum(reading.status == "Not checked" for reading in snapshot)
+
     return html.Div(
         [
             page_heading(
                 "SYSTEM / INFRASTRUCTURE",
-                "System Status",
-                (
-                    "Read-only health for the current research milestone. "
-                    f"{PROJECT_STATUS.strategy_status} "
-                    f"{PROJECT_STATUS.workspace_status}"
-                ),
+                "Know whether research can operate",
+                "Read the latest available health evidence without mistaking unmeasured services for healthy ones.",
             ),
             html.Section(
-                health_metric_cards(
-                    (
-                        database_reading,
-                        artifact_reading,
-                        cache_reading,
-                        worker_reading,
-                        supplied.get(
-                            "credential",
-                            HomeHealthReading(
-                                "credential",
-                                "Not checked",
-                                "Credential values are never displayed.",
+                [
+                    html.Div(
+                        [
+                            html.Strong(
+                                "Research state is readable; launch readiness is not established"
+                                if not_checked_count
+                                else "The recorded research components are available"
                             ),
-                        ),
+                            html.P(
+                                "Every status below is tied to the evidence and observation time shown on this page.",
+                                className="section-description",
+                            ),
+                        ]
                     ),
-                    observed_at=resolved_observed_at,
-                    stale_after=stale_after,
-                ),
+                    html.Span(
+                        f"{available_count} available · {not_checked_count} not checked",
+                        className="support-summary-count",
+                    ),
+                ],
+                className="support-summary-banner",
+            ),
+            html.Section(
+                [_health_pulse(reading) for reading in snapshot],
                 id="system-health-summary",
-                className="summary-grid",
+                className="health-pulse-strip",
             ),
-            html.Section(
+            html.Div(
                 [
-                    html.H2("Milestone gate"),
-                    html.P(
-                        f"Milestone {PROJECT_STATUS.current_milestone_number}: "
-                        f"{PROJECT_STATUS.current_milestone_status}",
-                        className="summary-detail",
+                    html.Section(
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [
+                                            html.H2("Component health"),
+                                            html.P("Status, evidence, and observation time stay together.", className="section-description"),
+                                        ]
+                                    ),
+                                    html.Span("No inferred health", className="surface-badge"),
+                                ],
+                                className="surface-heading",
+                            ),
+                            html.Div(
+                                [_health_component(reading) for reading in snapshot],
+                                className="health-component-list",
+                            ),
+                        ],
+                        className="support-surface",
                     ),
-                    html.P(
-                        "Provider health is not implied by historical dataset files. "
-                        "See Data Sources for recorded provenance only.",
-                        className="summary-detail",
+                    html.Aside(
+                        [
+                            html.Div(
+                                [
+                                    html.H2("Operational meaning"),
+                                    html.P("What this snapshot permits you to conclude.", className="section-description"),
+                                ],
+                                className="surface-heading",
+                            ),
+                            html.Div(
+                                [
+                                    html.Strong(
+                                        f"Milestone {PROJECT_STATUS.current_milestone_number} · {PROJECT_STATUS.current_milestone_title}"
+                                    ),
+                                    html.P(PROJECT_STATUS.current_milestone_status, className="field-help"),
+                                    html.P(PROJECT_STATUS.workspace_status, className="field-help"),
+                                    html.P(PROJECT_STATUS.strategy_status, className="field-help"),
+                                ],
+                                className="operational-meaning-block",
+                            ),
+                            html.Div(
+                                [
+                                    html.H3("Safe now"),
+                                    html.Ul(
+                                        [
+                                            html.Li("Inspect persisted runs and artifacts."),
+                                            html.Li("Review committed market-data manifests."),
+                                            html.Li("Complete the owner workflow walkthrough."),
+                                        ]
+                                    ),
+                                ],
+                                className="operational-meaning-block",
+                            ),
+                            html.Div(
+                                [
+                                    html.H3("Requires a fresh check"),
+                                    html.Ul(
+                                        [
+                                            html.Li("Worker availability before launching research."),
+                                            html.Li("Cache identity and integrity before reuse."),
+                                            html.Li("Named credential authority before any authorized external operation."),
+                                        ]
+                                    ),
+                                ],
+                                className="operational-meaning-block",
+                            ),
+                        ],
+                        className="support-surface operational-meaning-panel",
                     ),
                 ],
-                className="panel",
-            ),
-            html.Section(
-                [
-                    html.H2("Data verification"),
-                    html.P(
-                        configuration_error
-                        or (
-                            f"{len(datasets)} committed manifests inspected against "
-                            "the configured local data root."
-                        )
-                    ),
-                    html.P(
-                        (
-                            "The configured data root is available for technical review."
-                            if locations
-                            else "No configured local data root was read."
-                        ),
-                        className="summary-detail",
-                    ),
-                ],
-                className="panel",
+                className="support-primary-grid",
             ),
         ],
-        className="page-container",
+        className="page-container support-page system-status-page",
     )
 
 
@@ -180,39 +250,217 @@ def provider_layout(
         if catalog_snapshot is not None
         else inspect_catalog(config_path=config_path, manifest_dir=manifest_dir)
     )
-    providers = sorted({item.manifest.provider for item in datasets})
+    validated_datasets = tuple(
+        item for item in datasets if item.manifest.status == "validated"
+    )
+    providers = sorted({item.manifest.provider for item in validated_datasets})
+    selected_provider = providers[0] if providers else None
+    selected_records = tuple(
+        item for item in validated_datasets if item.manifest.provider == selected_provider
+    )
     return html.Div(
         [
             page_heading(
-                "SYSTEM / PROVIDERS",
-                "Data Sources",
-                (
-                    "Recorded historical-data provenance. This page does not "
-                    "test live provider connectivity."
-                ),
+                "SYSTEM / DATA SOURCES",
+                "Know where research data came from",
+                "Trace committed datasets back to their recorded provider without confusing provenance with live access.",
             ),
             html.Section(
                 [
-                    html.H2("Recorded providers"),
-                    html.Ul(
-                        [html.Li(provider) for provider in providers]
-                        or [html.Li("No committed provider records were found.")]
+                    _provider_metric("Provider families", str(len(providers)), "Recorded in validated manifests"),
+                    _provider_metric("Validated provenance links", str(len(validated_datasets)), "One per validated dataset"),
+                    _provider_metric("Live connections checked", "0", "Not tested by this view"),
+                    _provider_metric("Credential grants checked", "0", "No secret values displayed"),
+                ],
+                className="support-metric-strip",
+            ),
+            html.Div(
+                [
+                    html.Section(
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [html.H2("Recorded lineage"), html.P("Saved provider identity and local evidence remain separate.", className="section-description")]
+                                    ),
+                                    html.Span("Connectivity not checked", className="surface-badge surface-badge-warning"),
+                                ],
+                                className="surface-heading",
+                            ),
+                            html.Div(
+                                [
+                                    html.Div([html.Span("Recorded provider"), html.Strong(selected_provider or "None")], className="lineage-step"),
+                                    html.Span("→", className="lineage-arrow", **{"aria-hidden": "true"}),
+                                    html.Div([html.Span("Validated manifests"), html.Strong(str(len(selected_records)))], className="lineage-step"),
+                                    html.Span("→", className="lineage-arrow", **{"aria-hidden": "true"}),
+                                    html.Div([html.Span("Local catalog"), html.Strong("Committed · read only")], className="lineage-step"),
+                                ],
+                                className="lineage-flow",
+                            ),
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [html.Strong(provider), html.Small(f"{sum(item.manifest.provider == provider for item in validated_datasets)} validated datasets"), html.Span("Not checked live")],
+                                        className=("provider-choice provider-choice-selected" if provider == selected_provider else "provider-choice"),
+                                    )
+                                    for provider in providers
+                                ]
+                                or [html.P("No committed provider records were found.", className="support-empty-state")],
+                                className="provider-choice-grid",
+                            ),
+                        ],
+                        className="support-surface",
                     ),
-                    html.P(
-                        "Connectivity and credential availability: Not checked. "
-                        "No credential values are displayed.",
-                        className="summary-detail",
-                    ),
-                    (
-                        html.P(configuration_error, className="error-state")
-                        if configuration_error
-                        else None
+                    html.Aside(
+                        [
+                            html.Div([html.H2("Selected source"), html.P("What the recorded evidence actually establishes.", className="section-description")], className="surface-heading"),
+                            html.Div([html.Strong(selected_provider or "No source"), html.Small("Historical market-data provider")], className="selected-record-title"),
+                            html.Dl(
+                                [
+                                    html.Div([html.Dt("Provenance status"), html.Dd("Present in committed manifests" if selected_provider else "Unavailable")]),
+                                    html.Div([html.Dt("Validated datasets"), html.Dd(str(len(selected_records)))]),
+                                    html.Div([html.Dt("Live connectivity"), html.Dd("Not checked")]),
+                                    html.Div([html.Dt("Credential grant"), html.Dd("Not checked")]),
+                                ],
+                                className="selected-record-facts",
+                            ),
+                            html.Div(
+                                [html.Strong("Recorded does not mean connected"), html.P("This page proves the saved data's recorded origin. It does not prove current entitlement, uptime, credential availability, or freshness.", className="field-help")],
+                                className="operator-message operator-message-warning selected-record-warning",
+                            ),
+                        ],
+                        className="support-surface selected-support-record",
                     ),
                 ],
-                className="panel",
+                className="support-primary-grid",
+            ),
+            html.Section(
+                [
+                    html.Div([html.H2("Validated provenance records"), html.P("Open Market data for coverage, restrictions, and local verification.", className="section-description")], className="surface-heading"),
+                    html.Div(_provenance_table(validated_datasets), className="support-table-scroll"),
+                    html.P(configuration_error, className="error-state") if configuration_error else None,
+                ],
+                className="support-surface",
             ),
         ],
-        className="page-container",
+        className="page-container support-page data-sources-page",
+    )
+
+
+def _provider_metric(label: str, value: str, detail: str) -> html.Div:
+    return html.Div([html.Span(label), html.Strong(value), html.Small(detail)], className="support-metric")
+
+
+def _provenance_table(datasets: tuple) -> html.Table:
+    return html.Table(
+        [
+            html.Thead(html.Tr([html.Th(label) for label in ("Dataset", "Recorded source", "Bars", "Recorded coverage", "Rows", "Provenance")])),
+            html.Tbody(
+                [
+                    html.Tr(
+                        [
+                            html.Td(item.manifest.symbol),
+                            html.Td(item.manifest.provider),
+                            html.Td(item.manifest.timeframe),
+                            html.Td(_provider_coverage(item)),
+                            html.Td(f"{item.manifest.row_count:,}"),
+                            html.Td("Recorded"),
+                        ]
+                    )
+                    for item in datasets
+                ]
+                or [html.Tr(html.Td("No validated provenance records were found.", colSpan=6))]
+            ),
+        ],
+        className="catalog-table support-table",
+    )
+
+
+def _provider_coverage(item) -> str:
+    metadata = item.manifest.metadata
+    start = metadata.get("earliest_timestamp") or metadata.get("coverage_start") or "Unknown"
+    end = metadata.get("latest_timestamp") or metadata.get("latest_completed_session") or "Unknown"
+    return f"{start} to {end}"
+
+
+def _health_pulse(
+    reading: HomeHealthReading,
+    *,
+    label: str | None = None,
+) -> html.Div:
+    state = reading.status.lower().replace(" ", "-")
+    resolved_label = label or {
+        "database": "Research database",
+        "artifact": "Artifact storage",
+        "catalog": "Data catalog",
+        "cache": "Local data",
+        "worker": "Orchestrator",
+        "credential": "Credentials",
+    }.get(reading.area, reading.area.replace("_", " ").title())
+    return html.Div(
+        [
+            html.Span(resolved_label),
+            html.Strong(reading.status, className=f"health-state health-state-{state}"),
+        ],
+        className="health-pulse",
+    )
+
+
+def health_pulse_cards(
+    readings: Iterable[HomeHealthReading],
+    *,
+    observed_at: datetime,
+    stale_after: timedelta,
+) -> list[html.Div]:
+    """Refresh the compact System status strip from its captured snapshot."""
+
+    supplied = {reading.area: reading for reading in readings}
+    specifications = (
+        ("Research database", "database"),
+        ("Artifact storage", "artifact"),
+        ("Data catalog", "catalog"),
+        ("Local data", "cache"),
+        ("Orchestrator", "worker"),
+        ("Credentials", "credential"),
+    )
+    cards: list[html.Div] = []
+    for label, area in specifications:
+        reading = supplied.get(
+            area,
+            HomeHealthReading(
+                area,
+                "Not checked",
+                f"No timestamped {label.lower()} snapshot was supplied.",
+            ),
+        )
+        if area == "credential":
+            reading = redact_credential_health_reading(reading)
+        cards.append(
+            _health_pulse(
+                _truthful_reading(reading, observed_at, stale_after),
+                label=label,
+            )
+        )
+    return cards
+
+
+def _health_component(reading: HomeHealthReading) -> html.Div:
+    label = {
+        "database": "Research database",
+        "artifact": "Artifact storage",
+        "catalog": "Data catalog",
+        "cache": "Local data",
+        "worker": "Orchestrator",
+        "credential": "Credentials",
+    }.get(reading.area, reading.area.replace("_", " ").title())
+    return html.Div(
+        [
+            html.Div([html.Strong(label), html.Small("Recorded component")]),
+            html.Strong(reading.status, className="health-component-state"),
+            html.P(reading.detail),
+            html.Time(f"Last checked: {reading.checked_at or 'Not checked'}"),
+        ],
+        className="health-component-row",
     )
 
 

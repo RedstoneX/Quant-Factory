@@ -82,7 +82,7 @@ def test_active_navigation_item_exposes_semantic_current_page_state() -> None:
     assert current_items[0].role == "listitem"
 
 
-def test_home_brand_exposes_one_current_item_and_accessible_current_text() -> None:
+def test_dashboard_navigation_exposes_one_current_item_and_accessible_current_text() -> None:
     layout = create_dashboard_layout(
         context=None,
         configurations=(),
@@ -93,7 +93,7 @@ def test_home_brand_exposes_one_current_item_and_accessible_current_text() -> No
     props = current.to_plotly_json()["props"]
 
     assert props["aria-current"] == "page"
-    assert current.children.className == "sidebar-brand"
+    assert current.children.className == "navigation-link navigation-link-active"
     assert "Current page" in [
         child.children for child in current.children.children
     ]

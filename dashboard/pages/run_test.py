@@ -30,8 +30,6 @@ def layout(
         if configurations is None
         else configurations
     )
-    from dashboard.application import _strategy_research_path
-
     readiness_by_id = dict(readiness_by_id or {})
     missing_readiness = tuple(
         configuration
@@ -64,10 +62,9 @@ def layout(
         [
             page_heading(
                 "RESEARCH / RUN TEST",
-                "Run test",
-                "Review the saved setup, launch exactly once, and observe the recorded outcome.",
+                "Review before running",
+                "Confirm the immutable setup, provenance, and launch boundary before starting exactly one recorded test.",
             ),
-            _strategy_research_path("/research/run-test"),
             operator_context(component_id="run-test-operator-context"),
             dcc.Store(
                 id="run-test-launch-state",
@@ -75,42 +72,114 @@ def layout(
             ),
             html.Div(
                 [
-                    html.Span("Approved research test", className="pending-state-badge"),
-                    html.P(
-                        "This action launches only the persisted approved research configuration. It cannot submit paper or live orders.",
-                        className="field-help",
+                    html.Section(
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [
+                                            html.H2("Immutable run contract"),
+                                            html.P(
+                                                "This is the exact persisted setup the engine will receive.",
+                                                className="section-description",
+                                            ),
+                                        ]
+                                    ),
+                                    html.Span("No hidden expansion", className="surface-badge"),
+                                ],
+                                className="surface-heading",
+                            ),
+                            preview,
+                            html.Div(
+                                [
+                                    html.Div([html.Span("Input"), html.Strong("1 persisted setup")], className="launch-flow-step"),
+                                    html.Span("→", className="launch-flow-arrow", **{"aria-hidden": "true"}),
+                                    html.Div([html.Span("Engine"), html.Strong("VectorBT research run")], className="launch-flow-step"),
+                                    html.Span("→", className="launch-flow-arrow", **{"aria-hidden": "true"}),
+                                    html.Div([html.Span("Persistence"), html.Strong("Run, artifacts, lineage")], className="launch-flow-step"),
+                                    html.Span("→", className="launch-flow-arrow", **{"aria-hidden": "true"}),
+                                    html.Div([html.Span("Destination"), html.Strong("Results")], className="launch-flow-step"),
+                                ],
+                                className="launch-flow",
+                            ),
+                        ],
+                        className="run-contract-workspace",
+                    ),
+                    html.Aside(
+                        [
+                            html.Section(
+                                [
+                                    html.Div(
+                                        [
+                                            html.H2("Launch gate"),
+                                            html.Span("Fail closed", className="surface-badge surface-badge-safe"),
+                                        ],
+                                        className="surface-heading",
+                                    ),
+                                    html.Ul(
+                                        [
+                                            html.Li("An immutable saved setup must be selected."),
+                                            html.Li("Its approved strategy implementation must be active."),
+                                            html.Li("Its exact local data binding must pass verification."),
+                                            html.Li("No earlier submission may remain unresolved."),
+                                        ],
+                                        className="launch-check-list",
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Strong("Research test only"),
+                                            html.P(
+                                                "This control cannot submit paper or live orders, change parameters, or promote a result.",
+                                                className="field-help",
+                                            ),
+                                        ],
+                                        className="operator-message operator-message-warning",
+                                    ),
+                                ],
+                                className="panel run-launch-gate",
+                            ),
+                            html.Section(
+                                [
+                                    html.Strong("Ready to start one run"),
+                                    html.P(
+                                        "The button disables immediately while the durable submission is unresolved.",
+                                        className="field-help",
+                                    ),
+                                    html.Button(
+                                        "Run test",
+                                        id="launch-run",
+                                        n_clicks=0,
+                                        disabled=launch_disabled,
+                                        title=launch_title,
+                                        className="primary-action run-launch-button",
+                                    ),
+                                    html.Div(
+                                        "No test has been started from this page.",
+                                        id="launch-message",
+                                        className="save-message",
+                                    ),
+                                    dcc.Link(
+                                        "Open Results",
+                                        href="/research/backtest-results",
+                                        className="secondary-action run-results-link",
+                                    ),
+                                ],
+                                className="panel run-launch-action",
+                            ),
+                        ],
+                        className="run-launch-rail",
                     ),
                 ],
-                className="operator-message operator-message-info",
+                className="run-review-grid",
             ),
-            preview,
-            html.Section(
+            html.Div(
                 [
-                    html.H2("Final review"),
-                    html.P(
-                        "The test uses the immutable saved setup shown above. Starting it requires this explicit click.",
-                        className="field-help",
-                    ),
-                    html.Button(
-                        "Run test",
-                        id="launch-run",
-                        n_clicks=0,
-                        disabled=launch_disabled,
-                        title=launch_title,
-                        className="primary-action",
-                    ),
-                    html.Div(
-                        "No test has been started from this page.",
-                        id="launch-message",
-                        className="save-message",
-                    ),
-                    dcc.Link(
-                        "View results",
-                        href="/research/backtest-results",
-                        className="secondary-action",
+                    html.Strong("After launch:"),
+                    html.Span(
+                        " this page keeps the same run visible through queued, running, retrying, failed, or succeeded states. Results remains the separate analysis step."
                     ),
                 ],
-                className="panel launch-controls-panel",
+                className="run-review-footer",
             ),
         ],
         className="page-container run-test-page",

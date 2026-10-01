@@ -1002,6 +1002,22 @@ def _validation_outcome_value(detail: SelectedRunDetailView | None) -> str:
     )
 
 
+def _evidence_outcome_value(detail: SelectedRunDetailView | None) -> str:
+    """Return the strongest persisted outcome without inventing validation."""
+
+    validation_outcome = _validation_outcome_value(detail)
+    if validation_outcome != "Not recorded":
+        return validation_outcome
+    screening_status = _detail_field_value(
+        detail.evidence.validation if detail else (),
+        "Screening Status",
+        "Screening status",
+    )
+    if screening_status:
+        return screening_status.replace("_", " ").title()
+    return "Not recorded"
+
+
 def _results_operator_context(
     run: RunSummary | None,
     detail: SelectedRunDetailView | None = None,
@@ -1013,9 +1029,7 @@ def _results_operator_context(
 
     if run is None:
         return operator_context(component_id=component_id)
-    evidence_outcome = _validation_outcome_value(detail)
-    if evidence_outcome in {"", "Not recorded", "Not available"}:
-        evidence_outcome = None
+    evidence_outcome = _evidence_outcome_value(detail)
     run_status = run.status.replace("_", " ").title()
     next_actions = {
         "created": "Wait for completion",
@@ -1189,7 +1203,7 @@ def _run_identity_strip(
         DetailField("Instrument", _display_or_dash(instrument)),
         DetailField("Timeframe", _display_or_dash(timeframe)),
         DetailField("Test period", _format_test_period(date_range)),
-        DetailField("Validation result", _display_or_dash(_validation_outcome_value(detail))),
+        DetailField("Evidence outcome", _display_or_dash(_evidence_outcome_value(detail))),
     )
     metadata_fields = (
         DetailField(
@@ -3606,14 +3620,14 @@ def _run_detail_panel(
                     html.Div(
                         [
                             _outcome_badge(
-                                _validation_outcome_value(detail),
+                                _evidence_outcome_value(detail),
                                 run.status,
                             ),
                             html.Span(
                                 run.status,
                                 className=f"run-status run-status-{run.status}",
                             ),
-                            html.Strong("Validation result"),
+                            html.Strong("Evidence outcome"),
                             html.Small("Traceability retained below"),
                         ],
                         className="run-status-badge-stack",
@@ -3922,7 +3936,6 @@ def _runs_page(
                 ],
                 className="page-heading page-heading-with-actions",
             ),
-            _strategy_research_path("/research/backtest-results"),
             _results_operator_context(initial_selected_run),
             dcc.Store(
                 id="selected-run-state",
@@ -4608,11 +4621,9 @@ def page_for_path(
 
         return provider_layout(catalog_snapshot=catalog_snapshot)
     if route == "/settings":
-        return _pending_page(
-            "GLOBAL / SETTINGS",
-            "Settings",
-            "Operator preferences and dashboard configuration.",
-        )
+        from dashboard.pages.settings import layout as settings_layout
+
+        return settings_layout()
     return _not_found_page(route)
 
 
@@ -4887,6 +4898,7 @@ def create_app(
     from dashboard.callbacks.health import register_health_callbacks
     from dashboard.callbacks.routing import register_routing_callbacks
     from dashboard.callbacks.setup import register_setup_callbacks
+    from dashboard.callbacks.settings import register_settings_callbacks
     from dashboard.callbacks.results_review import (
         register_results_review_callbacks,
     )
@@ -4900,6 +4912,7 @@ def create_app(
         readiness_by_id=readiness_by_id,
         database=dashboard_database,
     )
+    register_settings_callbacks(app)
     register_backtest_results_callbacks(
         app,
         runs=runs,

@@ -242,7 +242,10 @@ def _field_list(
 ) -> html.Dl | html.P:
     if not fields:
         return html.P(empty, className="empty-state-copy")
-    children = []
-    for field in fields:
-        children.extend((html.Dt(field.label), html.Dd(field.value)))
-    return html.Dl(children, className="run-detail-fields")
+    return html.Dl(
+        [
+            html.Div([html.Dt(field.label), html.Dd(field.value)])
+            for field in fields
+        ],
+        className="run-detail-fields",
+    )

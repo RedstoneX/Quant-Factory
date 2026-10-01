@@ -59,24 +59,6 @@ def find_compare_columns() -> list[dict[str, Any]]:
     ]
 
 
-def _compact_research_path() -> html.Div:
-    """Keep the six accepted workflow steps on one compact row on this page."""
-
-    from dashboard.application import _strategy_research_path
-
-    path = _strategy_research_path("/research/compare-backtests")
-    path.style = {**(path.style or {}), "flexWrap": "wrap", "gap": "6px"}
-    for child in path.children:
-        if isinstance(child, dcc.Link):
-            child.style = {
-                **(child.style or {}),
-                "flex": "1 1 110px",
-                "minWidth": "90px",
-                "padding": "10px",
-            }
-    return path
-
-
 def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
     """Mount the full-history selector and existing comparison output."""
 
@@ -87,7 +69,7 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
                     html.Div(
                         [
                             html.P("RESEARCH / FIND & COMPARE", className="page-eyebrow"),
-                            html.H1("Find & Compare", className="page-title"),
+                            html.H1("Compare persisted runs", className="page-title"),
                             html.P(
                                 "Search, sort, and filter every saved test. Select one "
                                 "row for its exact Results page, or two to four rows for "
@@ -113,7 +95,6 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
                 ],
                 className="page-heading page-heading-with-actions",
             ),
-            _compact_research_path(),
             html.Section(
                 [
                     html.Div(

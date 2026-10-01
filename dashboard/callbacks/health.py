@@ -10,7 +10,7 @@ from dash import Dash, Input, Output, State
 
 from dashboard.health import HomeHealthReading
 from dashboard.pages.home import health_cards_for_readings
-from dashboard.pages.system_health import health_metric_cards
+from dashboard.pages.system_health import health_pulse_cards
 
 
 DEFAULT_STALE_AFTER = timedelta(minutes=15)
@@ -31,7 +31,7 @@ def health_presentations(
             observed_at=resolved_observed_at,
             stale_after=stale_after,
         ),
-        health_metric_cards(
+        health_pulse_cards(
             readings,
             observed_at=resolved_observed_at,
             stale_after=stale_after,
