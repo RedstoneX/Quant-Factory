@@ -199,7 +199,9 @@ def test_home_active_run_is_selected_and_requires_waiting_not_resubmission() -> 
     assert model.action.href == "/research/run-test"
     assert "do not submit it again" in model.action.description
     assert model.workflow[3].state == "Current"
-    assert _component(page, "home-live-runs-grid").rowData == []
+    grid = _component(page, "home-live-runs-grid")
+    assert grid.rowData == []
+    assert "overlayNoRowsTemplate" not in grid.dashGridOptions
 
 
 def test_home_recent_failure_takes_precedence_over_active_run() -> None:

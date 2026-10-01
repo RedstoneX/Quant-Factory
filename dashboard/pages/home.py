@@ -773,7 +773,7 @@ def _runs_panel(rows: tuple[dict[str, object], ...]) -> html.Section:
             "domLayout": "autoHeight",
             "rowHeight": 40,
             "headerHeight": 35,
-            "overlayNoRowsTemplate": "No persisted research runs yet",
+            "suppressNoRowsOverlay": False,
             "suppressCellFocus": True,
         },
         className="ag-theme-quartz atlas-runs-grid",

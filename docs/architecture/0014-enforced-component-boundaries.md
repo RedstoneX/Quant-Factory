@@ -67,9 +67,9 @@ broker, paper/live, credential, protected-data, or capital authority.
 
 ## Governance status
 
-Technical completion of this ADR does not lift the owner-controlled
-development freeze. Normal feature and research development remains paused
-until Terry personally and explicitly approves lifting it. The completed
-architecture therefore authorizes no QF Candidate work, research, dashboard
-feature work, LLM/provider work, broker work, paper/live work, deployment, or
-unrelated development. Decision 320 controls this authority boundary.
+Technical completion of this ADR did not lift the owner-controlled development
+freeze. Decision 321 records Terry's separate explicit approval to resume only
+the preserved R13/R12 owner-walkthrough roadmap. The completed architecture
+still authorizes no strategy research, unrelated dashboard feature work,
+LLM/provider work, broker work, paper/live work, paid/protected-data work, or
+unrelated development. Decisions 320 and 321 control this authority boundary.
