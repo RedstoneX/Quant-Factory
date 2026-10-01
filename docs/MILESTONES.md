@@ -12,7 +12,7 @@ create a competing queue.
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
 | Immediate objective | Complete the private owner walkthrough of the browser-based QF Candidate v1 intake: paste/upload, validate, review, persist, and export without creating execution authority. |
 | Phase | **Standardized strategy intake backend; candidate research remains paused.** |
-| Active work | QF Candidate v1 backend and Ideas-workbench integration have a focused technical pass and are ready for private deployment and Terry's walkthrough. R12 remains available for its broader handoff. No source retrieval, LLM provider selection, candidate implementation, backtest, or profitability research is active. |
+| Active work | QF Candidate v1 backend and Ideas-workbench integration have a focused technical pass. R13 is adding a portable QF Research Context v1 export so external LLMs receive the current mandate/prior-work/data snapshot before producing Candidate packets. R12 remains available for its broader handoff. No source retrieval, LLM provider selection, candidate implementation, backtest, or profitability research is active. |
 | Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
 | Verified gap | Terry has not yet used and accepted the current-revision Candidate intake in the private browser environment. Built-in public-source retrieval/LLM analysis remains optional and is not part of R13. |
 | Next action | Deploy the merged revision through the existing private review service after a schema-v7-safe backup, then have Terry walk through Candidate paste/upload, validation, readable review, durable save, export, and the truthful blocked Setup boundary. |
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | **Technical pass; private owner walkthrough pending.** Ideas accepts pasted/uploaded QF Candidate v1, validates it, preserves errors/content, renders a readable brief, persists it on the idea draft, and exports YAML/JSON. Import never approves, implements, unlocks Setup, or executes the Candidate. |
+| R13 | 1 | in_progress | none | **Candidate intake technical pass; portable external-research context being added.** Ideas accepts pasted/uploaded QF Candidate v1, validates/persists/exports it, and exposes QF Research Context v1 for external LLM/human research. Neither artifact approves, implements, unlocks Setup, or executes a Candidate. |
 | R12 | 2 | blocked | none | **Connected operator workflow has a technical pass; owner handoff remains available/pending.** This owner gate does not block the explicitly authorized non-executing R13 intake plumbing. |
 <!-- active-work:end -->
 
@@ -152,10 +152,10 @@ fail-closed gates. Live remains far future and requires separate owner approval.
 
 ## Prior work that must not be repeated blindly
 
-- MES ORB is concluded and rejected as an edge candidate.
-- MSFT ORB transfer work was withdrawn.
-- SPYM momentum and SPY Donchian/RSI work are historical evidence, not current candidates.
-- MES overnight-gap reversal is the Decision 310 fixed 25-minute transfer screen. Its audited development result failed the return and Sharpe gates; the candidate is rejected and must not be rerun or tuned.
+- MES ORB prior work covers only the documented shallow baseline matrix (range length × breakout offset × direction, session-close exit, no stop/target/retest/volume/volatility confirmation). That tested matrix screened out; the broader ORB family remains open to materially different hypotheses.
+- MSFT ORB transfer work was withdrawn; it does not close the ORB family.
+- SPYM momentum, SPY Donchian, and RSI fixture work are scoped historical implementations/evidence. They do not exhaust the broader momentum, intraday channel-breakout, or mean-reversion families.
+- MES overnight-gap reversal Decision 310 rejected one exact 09:35→10:00 opposite-gap rule. Do not tune or rerun that rule, but do not infer that the entire gap-reversal family is exhausted.
 - Turn-of-month was previously source-attributed and bounded, but its multi-day holding period fails the current intraday/day-trading mission-fit gate. Retain it for possible future swing research; do not backtest it under R11.
 - Dashboard design research succeeded as UX research; its custom implementation path was shelved.
 

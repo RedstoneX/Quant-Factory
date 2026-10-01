@@ -52,6 +52,24 @@ backtest, or profitability-test another strategy unless Tier 1 is separately
 advanced. External LLMs and a future optional built-in analyzer must produce
 the same Candidate contract; no model is a required dependency.
 
+For external research, use QF Research Context v1 as the portable companion to
+QF Candidate v1. The context supplies the current mandate, prior-work
+dispositions, relevant data snapshot, deduplication rules, and Candidate output
+contract. It is a supporting snapshot rather than Tier-1 authority; Quant
+Factory still re-checks current Tier-1 and local evidence before research.
+
+Prior work is scoped evidence, not automatic family rejection. A tested or
+rejected Candidate closes only its explicit hypothesis/rules/parameter space.
+Do not infer that ORB, momentum, mean reversion, channel breakout, gap reversal,
+or any other broader family is exhausted unless Tier 1 contains an explicit
+owner decision closing that family.
+
+For external research, use QF Research Context v1 as the portable companion to
+QF Candidate v1. The context supplies the current mandate, prior-work
+dispositions, relevant data snapshot, deduplication rules, and Candidate output
+contract. It is a supporting snapshot rather than Tier-1 authority; Quant
+Factory still re-checks current Tier-1 and local evidence before research.
+
 Before candidate research begins, the owner explicitly accepts one bounded
 Candidate packet and its evidence contract. The current intraday evidence
 boundaries then apply unless the owner changes them.

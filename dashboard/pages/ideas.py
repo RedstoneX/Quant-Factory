@@ -374,6 +374,7 @@ def layout(
                 storage_type="memory",
             ),
             dcc.Download(id="candidate-download"),
+            dcc.Download(id="research-context-download"),
             dcc.ConfirmDialog(
                 id="confirm-discard-idea-draft",
                 message="Delete this unlinked idea draft from local Quant Factory storage?",
@@ -762,6 +763,36 @@ def layout(
                                             ),
                                         ],
                                         className="candidate-export-actions",
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.P(
+                                                "External research context",
+                                                className="field-label",
+                                            ),
+                                            html.P(
+                                                "Give this portable QF context to Grok, Claude, ChatGPT, Gemini, or another researcher before asking for Candidate packets.",
+                                                className="field-help",
+                                            ),
+                                            html.Div(
+                                                [
+                                                    html.Button(
+                                                        "QF context YAML",
+                                                        id="export-research-context-yaml",
+                                                        n_clicks=0,
+                                                        className="secondary-action",
+                                                    ),
+                                                    html.Button(
+                                                        "QF context JSON",
+                                                        id="export-research-context-json",
+                                                        n_clicks=0,
+                                                        className="secondary-action",
+                                                    ),
+                                                ],
+                                                className="candidate-export-actions",
+                                            ),
+                                        ],
+                                        className="candidate-context-export",
                                     ),
                                     html.Div(
                                         (

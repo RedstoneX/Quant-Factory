@@ -32,6 +32,7 @@ from research_intake import (
     CandidatePacketError,
     attach_candidate_to_idea,
     export_candidate_packet,
+    export_research_context,
     import_candidate_as_idea,
     parse_candidate_packet,
     validate_candidate_packet,
@@ -763,3 +764,25 @@ def register_ideas_callbacks(
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:60]
         filename = f"{slug or 'qf-candidate'}.{format_name}"
         return dcc.send_string(rendered, filename)
+
+
+    @app.callback(
+        Output("research-context-download", "data"),
+        Input("export-research-context-yaml", "n_clicks"),
+        Input("export-research-context-json", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def download_research_context(
+        _yaml_clicks: int | None,
+        _json_clicks: int | None,
+    ):
+        format_name = (
+            "json"
+            if str(ctx.triggered_id) == "export-research-context-json"
+            else "yaml"
+        )
+        rendered = export_research_context(format=format_name)
+        return dcc.send_string(
+            rendered,
+            f"qf-research-context-v1.{format_name}",
+        )

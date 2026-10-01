@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **318** | **Prior work is scoped to the tested hypothesis, not the entire family:** a screened/rejected/withdrawn Candidate closes only its explicit rules and bounded search space. ORB, momentum, mean reversion, channel breakout, gap reversal, and other broader families remain open unless Tier 1 contains an explicit owner decision closing that family. QF Research Context v1 carries this rule to external LLM/human research. |
 | **317** | **Standardized strategy intake is provider-neutral and non-executing:** QF Candidate v1 is the portable contract for owner-authored ideas, external LLM output, and any future optional built-in analyzer. The current milestone may validate/import/export/persist packets but does not choose an LLM provider, fetch sources, implement a strategy, or authorize a backtest. |
 | **316** | **Research Atlas screen acceptance is not product handoff:** Terry accepted the overview design only. R12 remains active until the working operator interface is complete and accepted; no candidate research is active. |
 | 315 | Historical overstatement of the 2026-09-30 screen approval. Decision 316 corrects its handoff and sequencing claims. |
@@ -1746,3 +1747,37 @@ superseded.
      Candidate JSON to an idea draft. No new service, orchestration layer,
      frontend framework, broker authority, paid data, protected-test authority,
      paper/live activation, or capital exposure is created.
+
+
+318. **Treat prior research as scoped hypothesis evidence, not family exhaustion
+     (accepted 2026-10-01).** A Quant Factory strategy family is not considered
+     rejected merely because one shallow implementation or bounded parameter
+     matrix screened out. A prior result closes only the explicit hypothesis,
+     rules, execution assumptions, and bounded search space that were actually
+     tested.
+
+     In particular, the historical MES opening-range-breakout work tested a
+     narrow baseline matrix: five opening-range lengths, three breakout
+     offsets, separate long/short directions, next-bar-open entry, and
+     session-close exit, with no stop, target, trailing stop, retest, volume
+     filter, volatility filter, or other confirmation. That matrix screened
+     out; it does not establish that the ORB family lacks an edge.
+
+     The same principle applies to momentum, mean reversion, channel breakout,
+     gap reversal, and any other family. Previously touched families remain
+     eligible when a new proposal has materially different behavioral logic,
+     structure, timing, filters, exits, or other independently justified
+     hypotheses. A symbol, wrapper, cosmetic parameter rename, or economically
+     equivalent rule does not create a new hypothesis.
+
+     Only an explicit Tier-1 owner decision may declare a broader strategy
+     family exhausted or closed. External research must therefore compare at
+     the exact/economically-equivalent hypothesis level rather than suppressing
+     entire families.
+
+     QF Research Context v1 is the portable supporting snapshot for external
+     LLM/human research. It carries the current mandate, scoped prior-work
+     evidence, relevant data snapshot, deduplication rule, and QF Candidate v1
+     output contract. The context is subordinate to Tier 1 and creates no
+     strategy execution, optimization, protected-data, broker, paper/live, or
+     capital authority.
