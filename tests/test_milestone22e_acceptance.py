@@ -10,7 +10,7 @@ from dashboard.app import _run_detail_panel
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import RunSummary
 from persistence import StrategyLifecycle
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from tests.test_lockbox_gate import (
     _persist_prerequisites,
     _service,

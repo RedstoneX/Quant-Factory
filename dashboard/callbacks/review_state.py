@@ -18,7 +18,7 @@ from persistence import (
     RunStage,
     RunStatus,
 )
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from persistence.repositories import utc_now
 from persistence.serialization import canonical_json
 

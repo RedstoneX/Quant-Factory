@@ -34,7 +34,7 @@ from persistence import (
     canonical_json,
 )
 from persistence.database import transaction
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from persistence.models import normalized_configuration_document
 
 

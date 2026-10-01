@@ -10,7 +10,7 @@ from backtesting.validation.review_context_artifacts import REVIEW_CONTEXT_LOGIC
 from persistence import ArtifactType, PersistenceService, RunStage, StrategyLifecycle
 from persistence import DataProvenanceRecord, ExecutionAssumptionsRecord, canonical_json
 from persistence.database import transaction
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from tests.test_lockbox_gate import _persist_prerequisites, _service
 from tools import persist_review_context as persist_review_context_cli
 

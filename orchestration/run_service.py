@@ -31,7 +31,7 @@ from persistence import (
     StrategyLifecycle,
 )
 from persistence.database import database_path
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from persistence.service import capture_runtime_lineage_document
 from orchestration.fixture_contracts import FixtureExecutionResult, FixtureLauncher
 
@@ -682,7 +682,7 @@ class FixtureRunService:
     ) -> object:
         service = PersistenceService(self.database_path)
         try:
-            return service.retrieve_walk_forward_evidence(
+            return ValidationEvidenceArtifactService(service).retrieve_walk_forward(
                 run_id,
                 artifact_root=artifact_root,
             )
@@ -699,7 +699,7 @@ class FixtureRunService:
     ) -> object:
         service = PersistenceService(self.database_path)
         try:
-            return service.persist_walk_forward_evidence(
+            return ValidationEvidenceArtifactService(service).persist_walk_forward(
                 run_id=run_id,
                 result=result,
                 rules=rules,

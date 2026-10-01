@@ -26,7 +26,7 @@ from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from dashboard.routing import active_route as _active_route
 from orchestration import FixtureRunService
 from persistence import ReviewState
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 
 
 OWNED_STATE = {

@@ -38,7 +38,7 @@ from backtesting.validation import WalkForwardWindowRules
 from backtesting.validation.lockbox_gate import evaluate_lockbox_prerequisites
 from backtesting.walk_forward import WalkForwardConfig, execute_walk_forward
 from market_data import DataAudit, MarketDataConfig
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from strategies import get_strategy
 from strategies.models import SignalResult
 from tests.test_lockbox_gate import _service

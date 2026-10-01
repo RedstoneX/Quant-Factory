@@ -14,16 +14,15 @@ import re
 import sqlite3
 import subprocess
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pandas as pd
 
-from backtesting.experiments.models import ExperimentConfig, ExperimentResult
-from backtesting.validation.evidence_decision_artifacts import (
+from persistence.artifact_contracts import (
     EVIDENCE_DECISION_LOGICAL_NAME,
+    REVIEW_CONTEXT_LOGICAL_NAME,
 )
-from backtesting.validation.review_context_artifacts import REVIEW_CONTEXT_LOGICAL_NAME
 from persistence.database import initialize_database, transaction
 from persistence.manifest import (
     PACKAGE_FINGERPRINT_ALGORITHM,
@@ -72,6 +71,9 @@ from persistence.repositories import (
     utc_now,
 )
 from persistence.serialization import canonical_json, configuration_hash
+
+if TYPE_CHECKING:
+    from backtesting.experiments.models import ExperimentConfig, ExperimentResult
 
 METRIC_COLUMNS = (
     "total_return",
@@ -760,41 +762,6 @@ class PersistenceService:
             manifest_checksum=manifest_checksum,
             artifacts=artifacts,
             validations=validations,
-        )
-
-    def walk_forward_evidence_source_document(self, run_id: str) -> dict[str, Any]:
-        from persistence.evidence_service import ValidationEvidenceArtifactService
-
-        return ValidationEvidenceArtifactService(self).source_document(run_id)
-
-    def persist_walk_forward_evidence(
-        self,
-        *,
-        run_id: str,
-        result: Any,
-        rules: Any,
-        artifact_root: str | Path,
-    ) -> Any:
-        from persistence.evidence_service import ValidationEvidenceArtifactService
-
-        return ValidationEvidenceArtifactService(self).persist_walk_forward(
-            run_id=run_id,
-            result=result,
-            rules=rules,
-            artifact_root=artifact_root,
-        )
-
-    def retrieve_walk_forward_evidence(
-        self,
-        run_id: str,
-        *,
-        artifact_root: str | Path,
-    ) -> Any:
-        from persistence.evidence_service import ValidationEvidenceArtifactService
-
-        return ValidationEvidenceArtifactService(self).retrieve_walk_forward(
-            run_id=run_id,
-            artifact_root=artifact_root,
         )
 
     def update_artifact_availability(

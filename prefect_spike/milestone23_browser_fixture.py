@@ -24,7 +24,7 @@ from backtesting.walk_forward.models import (
 from orchestration import FixtureRunService
 from persistence import ArtifactType, PersistenceService, RunStage, RunStatus, canonical_json
 from persistence.database import transaction
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from prefect_spike.spym_vectorbt_fixture import (
     SPYM_21C_FIXTURE_KIND,
     ensure_spym_21c_saved_configuration,

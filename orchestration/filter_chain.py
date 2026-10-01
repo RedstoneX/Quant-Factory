@@ -22,7 +22,7 @@ from persistence import (
     RunStage,
     RunStatus,
 )
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 
 
 ChainStatus = Literal["screened_out", "stopped", "ready_for_protected_test"]

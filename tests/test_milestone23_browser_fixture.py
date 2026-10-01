@@ -11,7 +11,7 @@ from backtesting.validation.evidence_decision_artifacts import (
     EVIDENCE_DECISION_LOGICAL_NAME,
 )
 from persistence import PersistenceService, ReviewState, RunStage, RunStatus
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from prefect_spike.fixture_flow import deterministic_fixture_body
 from prefect_spike.milestone23_browser_fixture import (
     MONTE_CARLO_RUN_ID,

@@ -62,7 +62,7 @@ from persistence import (
     RunStatus,
     canonical_json,
 )
-from persistence.evidence_service import ValidationEvidenceArtifactService
+from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from persistence.models import ResearchLaunchOperation, ResearchRunSubmissionRecord
 from persistence.service import (
     RUNTIME_LINEAGE_ENVIRONMENT_KEY,
