@@ -82,6 +82,7 @@ jobs:
           tests/test_dashboard_candidate_artifact_normalization.py
           tests/test_operator_intake_setup.py
           tests/test_qf_candidate_v1.py
+          tests/test_qf_research_context_v1.py
           tests/test_operator_run_operations.py
           tests/test_results_deep_link.py
           tests/test_dashboard.py::test_all_callback_components_exist_in_full_mounted_layout
