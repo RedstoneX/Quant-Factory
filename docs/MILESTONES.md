@@ -24,8 +24,8 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | R12 technical pass | **Standardized intake, not strategy research.** QF Candidate v1 is the provider-neutral, non-executable interchange contract. Implement/import/persist/export it and then expose it through the existing Ideas workbench. No LLM provider, source retrieval, candidate implementation, or backtest is authorized by this milestone. |
-| R12 | 2 | owner_gate | none | **Connected operator workflow has a technical pass; owner handoff remains available/pending.** This owner gate does not block the explicitly authorized non-executing R13 intake plumbing. |
+| R13 | 1 | in_progress | none | **Standardized intake, not strategy research.** QF Candidate v1 is the provider-neutral, non-executable interchange contract. Implement/import/persist/export it and then expose it through the existing Ideas workbench. No LLM provider, source retrieval, candidate implementation, or backtest is authorized by this milestone. |
+| R12 | 2 | blocked | none | **Connected operator workflow has a technical pass; owner handoff remains available/pending.** This owner gate does not block the explicitly authorized non-executing R13 intake plumbing. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
