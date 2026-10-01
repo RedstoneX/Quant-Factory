@@ -170,6 +170,7 @@ class IdeaDraftRecord:
     configuration_id: str | None
     created_at: str
     updated_at: str
+    candidate_json: str = ""
 
 
 @dataclass(frozen=True)
