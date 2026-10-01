@@ -16,6 +16,7 @@ from pathlib import Path
 import time
 from typing import Any, Mapping
 
+from orchestration.fixture_contracts import FixtureExecutionResult
 from persistence import (
     EventSeverity,
     PersistenceService,
@@ -65,16 +66,7 @@ class PrefectRunReference:
     api_url: str | None = None
 
 
-@dataclass(frozen=True)
-class PrefectFixtureResult:
-    """Separated Quant Factory and Prefect identities from a fixture run."""
-
-    quant_factory_run_id: str
-    prefect_flow_run_id: str
-    configuration_id: str
-    deterministic_value: int
-    attempt_count: int
-    prefect_api_url: str | None = None
+PrefectFixtureResult = FixtureExecutionResult
 
 
 class ControlledTransientFixtureError(RuntimeError):

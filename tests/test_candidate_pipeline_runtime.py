@@ -7,7 +7,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import numpy as np
 import pandas as pd
@@ -104,6 +104,15 @@ class _FakeRSI:
 
 
 FAKE_VECTORBT = SimpleNamespace(Portfolio=_FakePortfolio, RSI=_FakeRSI)
+
+
+def _direct_pipeline_launcher(*, runtime, submission):
+    """Exercise orchestration directly without importing or constructing Prefect."""
+
+    return runtime.execute_flow(
+        submission=submission,
+        prefect_flow_run_id=str(uuid4()),
+    )
 
 
 def _cached_market_data(tmp_path: Path) -> MarketDataConfig:
@@ -291,6 +300,7 @@ def _runtime(
         artifact_root=tmp_path / "artifacts",
         configuration_id=configuration.configuration_id,
         definition=definition,
+        pipeline_launcher=_direct_pipeline_launcher,
         dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
     )
 
@@ -377,6 +387,7 @@ def test_runtime_reconstructs_saved_configuration_in_cache_only_mode(
         database=persisted.database,
         artifact_root=persisted.artifact_root,
         configuration_id=persisted.configuration_id,
+        pipeline_launcher=_direct_pipeline_launcher,
         dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
     )
 
@@ -386,6 +397,39 @@ def test_runtime_reconstructs_saved_configuration_in_cache_only_mode(
         canonical_json(restored.definition.configuration_document())
         == canonical_json(persisted.definition.configuration_document())
     )
+
+
+def test_prefect_adapter_invokes_only_the_candidate_execution_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import prefect_spike.candidate_pipeline_flow as adapter
+
+    flow_run_id = uuid4()
+    submission = object()
+    expected = object()
+    captured: dict[str, object] = {}
+
+    class FakeExecution:
+        def execute_flow(self, **kwargs):
+            captured.update(kwargs)
+            return expected
+
+    monkeypatch.setattr(
+        adapter.FlowRunContext,
+        "get",
+        lambda: SimpleNamespace(flow_run=SimpleNamespace(id=flow_run_id)),
+    )
+
+    result = adapter.run_candidate_pipeline_flow.fn(
+        runtime=FakeExecution(),
+        submission=submission,
+    )
+
+    assert result is expected
+    assert captured == {
+        "submission": submission,
+        "prefect_flow_run_id": str(flow_run_id),
+    }
 
 
 def test_runtime_forwards_operator_operation_and_source_identity(

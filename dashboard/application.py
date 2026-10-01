@@ -4732,6 +4732,7 @@ def create_app(
     health_stale_after: timedelta = timedelta(minutes=15),
     health_refresh_interval_ms: int = 30_000,
     approved_configuration_launcher: Callable[..., object] | None = None,
+    candidate_pipeline_launcher: Callable[..., object] | None = None,
     reproduce_run: Callable[..., object] | None = None,
     cancel_run: Callable[[str], RunSummary] | None = None,
     run_operation_eligibility: Callable[[str, RunSummary], tuple[bool, str]] | None = None,
@@ -4750,7 +4751,15 @@ def create_app(
         configurations,
         resolved_catalog_snapshot,
     )
-    runs = run_service or FixtureRunService(database=dashboard_database)
+    if run_service is None:
+        from prefect_spike.fixture_flow import run_prefect_fixture_flow
+
+        runs = FixtureRunService(
+            database=dashboard_database,
+            fixture_launcher=run_prefect_fixture_flow,
+        )
+    else:
+        runs = run_service
     research_launches = (
         research_launch_service
         or getattr(runs, "research_launch_service", None)
@@ -4764,6 +4773,12 @@ def create_app(
     if candidate_launcher is None:
         from orchestration import CandidatePipelineRuntime
 
+        selected_pipeline_launcher = candidate_pipeline_launcher
+        if selected_pipeline_launcher is None:
+            from prefect_spike.candidate_pipeline_flow import run_candidate_pipeline_flow
+
+            selected_pipeline_launcher = run_candidate_pipeline_flow
+
         def candidate_launcher(
             *,
             configuration_id: str,
@@ -4776,6 +4791,7 @@ def create_app(
                 database=dashboard_database,
                 artifact_root=artifact_root,
                 configuration_id=configuration_id,
+                pipeline_launcher=selected_pipeline_launcher,
                 cache_only=True,
             )
             return runtime.launch(

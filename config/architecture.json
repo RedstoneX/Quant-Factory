@@ -20,7 +20,7 @@
     },
     "dashboard_composition": {
       "patterns": ["dashboard.application"],
-      "allowed_dependencies": ["backtesting", "dashboard_callbacks", "dashboard_components", "dashboard_models", "dashboard_pages", "dashboard_support", "licensed_engine", "market_data", "orchestration", "persistence", "research_entrypoints", "research_intake", "strategies"]
+      "allowed_dependencies": ["backtesting", "dashboard_callbacks", "dashboard_components", "dashboard_models", "dashboard_pages", "dashboard_support", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
     },
     "dashboard_pages": {
       "patterns": ["dashboard.pages.*"],
