@@ -122,6 +122,7 @@ class IdeaDraftView:
     configuration_id: str | None
     created_at: str
     updated_at: str
+    candidate_json: str = ""
 
     def to_store(self) -> dict[str, str | None]:
         return asdict(self)
