@@ -316,6 +316,11 @@ def import_candidate_as_idea(
         raise CandidatePacketError(f"candidate packet failed validation: {detail}")
 
     candidate = _mapping(document.get("candidate"))
+    imported_status = _text(candidate.get("status")) or "draft"
+    if imported_status not in {"draft", "needs_clarification", "ready_for_review"}:
+        raise CandidatePacketError(
+            "imported candidate cannot assert owner approval, implementation, rejection, or retirement"
+        )
     hypothesis = _mapping(document.get("hypothesis"))
     sources = document.get("sources") if isinstance(document.get("sources"), list) else []
     first_source = next((source for source in sources if isinstance(source, Mapping)), {})
