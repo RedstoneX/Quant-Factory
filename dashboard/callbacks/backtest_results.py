@@ -18,23 +18,8 @@ from dashboard.components.operator_context import (
     operator_context,
 )
 from dashboard.components.configuration_summary import configuration_summary
-from dashboard.application import (
-    _active_route,
-    _backtest_selector_label,
-    _callback_triggered_id,
-    _configuration_is_launchable,
-    _operator_message,
-    _parameter_variant_selection,
-    _empty_price_marker_figure,
-    _price_marker_figure,
-    _preferred_backtest_id,
-    _recent_events_panel,
-    _recent_runs_panel,
-    _run_detail_panel,
-    _results_report_tabs,
-    _results_operator_context,
-    _selector_options,
-)
+from dashboard.results_contracts import ResultsViewServices
+from dashboard.routing import active_route as _active_route
 from dashboard.run_adapter import (
     ConfigurationReadinessView,
     SavedConfigurationView,
@@ -86,6 +71,13 @@ _LAUNCH_KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
 # compact string contract for the shared session store.
 _INVALID_REQUESTED_RUN_STATE = "\x00invalid-results-run-id"
 _UNKNOWN_REQUESTED_RUN_PREFIX = "\x00unknown-results-run-id:"
+
+
+def _callback_triggered_id() -> str | None:
+    try:
+        return ctx.triggered_id
+    except Exception:
+        return None
 
 
 def _unknown_requested_run_state(run_id: str) -> str:
@@ -524,6 +516,7 @@ def register_backtest_results_callbacks(
     readiness_by_id: dict[str, ConfigurationReadinessView],
     dashboard_database: str | Path,
     artifact_root: Path,
+    view: ResultsViewServices,
     research_launches: DurableResearchLaunchService | None = None,
     approved_configuration_launcher: Callable[..., object] | None = None,
     reproduce_run: Callable[..., object] | None = None,
@@ -531,6 +524,20 @@ def register_backtest_results_callbacks(
     run_operation_eligibility: Callable[[str, RunSummary], tuple[bool, str]] | None = None,
 ) -> None:
     """Register Run test and Results callbacks within their page boundaries."""
+
+    _backtest_selector_label = view.backtest_selector_label
+    _configuration_is_launchable = view.configuration_is_launchable
+    _operator_message = view.operator_message
+    _parameter_variant_selection = view.parameter_variant_selection
+    _empty_price_marker_figure = view.empty_price_marker_figure
+    _price_marker_figure = view.price_marker_figure
+    _preferred_backtest_id = view.preferred_backtest_id
+    _recent_events_panel = view.recent_events_panel
+    _recent_runs_panel = view.recent_runs_panel
+    _run_detail_panel = view.run_detail_panel
+    _results_report_tabs = view.results_report_tabs
+    _results_operator_context = view.results_operator_context
+    _selector_options = view.selector_options
 
     research_launches = research_launches or DurableResearchLaunchService(
         database=dashboard_database

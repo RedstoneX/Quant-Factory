@@ -7,15 +7,14 @@ from pathlib import Path
 from dash import Dash, Input, Output, State, html, no_update
 from dash.exceptions import PreventUpdate
 
-from dashboard.application import (
-    REVIEWER,
+from dashboard.components.messages import operator_message as _operator_message
+from dashboard.components.results_review import (
+    DASHBOARD_REVIEWER as REVIEWER,
     REVIEW_CONTEXT_UNAVAILABLE_MESSAGE,
-    _active_route,
-    _dashboard_persistence,
-    _decision_summary,
-    _operator_message,
-    _review_context_failure_message,
-    _review_context_unavailable_notice,
+    dashboard_persistence as _dashboard_persistence,
+    decision_summary as _decision_summary,
+    review_context_failure_message as _review_context_failure_message,
+    review_context_unavailable_notice as _review_context_unavailable_notice,
 )
 from dashboard.callbacks.review_state import (
     DurableReviewSnapshot,
@@ -24,6 +23,7 @@ from dashboard.callbacks.review_state import (
     screening_rejection_available,
 )
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from dashboard.routing import active_route as _active_route
 from orchestration import FixtureRunService
 from persistence import ReviewState
 from persistence.evidence_service import ValidationEvidenceArtifactService

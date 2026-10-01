@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from dash import html
 
@@ -19,10 +19,11 @@ def layout(
     selected_run_id: str | None = None,
     all_runs: tuple[RunSummary, ...] = (),
     history_rows: tuple[dict[str, object], ...] = (),
+    renderer: Callable[..., html.Div],
 ) -> html.Div:
-    from dashboard.application import _runs_page
+    """Render through the explicit Results presenter supplied by composition."""
 
-    return _runs_page(
+    return renderer(
         configurations=configurations,
         recent_runs=recent_runs,
         recent_events=recent_events,

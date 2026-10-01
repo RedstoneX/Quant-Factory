@@ -73,6 +73,7 @@ jobs:
           --junitxml=portable-test-results.xml
           tests/test_ci_portable_imports.py
           tests/test_architecture_boundaries.py
+          tests/test_dashboard_component_boundaries.py
           tests/test_candidate_pipeline_runtime.py
           tests/test_candidate_run_service.py
           tests/test_candidate_dashboard_runtime.py

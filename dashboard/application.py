@@ -1,6 +1,5 @@
 """Plotly Dash entry point for local experiment review."""
 
-from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import partial
 from datetime import datetime, timedelta, timezone
@@ -15,7 +14,7 @@ import dash_ag_grid as dag
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
+from dash import Dash, Input, Output, State, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from tsdownsample import MinMaxLTTBDownsampler
 
@@ -40,6 +39,11 @@ from dashboard.components.operator_context import (  # noqa: E402
     OperatorContextViewModel,
     operator_context,
 )
+from dashboard.components.messages import operator_message as _operator_message  # noqa: E402
+from dashboard.components.results_review import (  # noqa: E402
+    REVIEW_CONTEXT_UNAVAILABLE_MESSAGE,
+    review_context_unavailable_notice as _review_context_unavailable_notice,
+)
 from dashboard.compare_adapter import CompareDashboardAdapter  # noqa: E402
 from dashboard.project_status import PROJECT_STATUS, DashboardProjectStatus  # noqa: E402
 from dashboard.health import (  # noqa: E402
@@ -51,7 +55,6 @@ from dashboard.routing import (  # noqa: E402
     NAVIGATION_LINKS,
     ROUTE_CONTAINER_IDS,
     ROUTE_REGISTRY,
-    active_route as _active_route,
     navigation_classes_for_path,
     navigation_link_id as _navigation_link_id,
     route_container_styles_for_path,
@@ -78,6 +81,7 @@ from dashboard.results_model import (  # noqa: E402
     map_event_to_bar,
     prepare_interval,
 )
+from dashboard.results_contracts import ResultsViewServices  # noqa: E402
 from market_data import DataAudit, load_market_data  # noqa: E402
 from market_data.equity_contract import (  # noqa: E402
     load_spym_manifest,
@@ -90,62 +94,15 @@ from orchestration import (  # noqa: E402
     RunServiceError,
     RunSummary,
 )
-from persistence import (  # noqa: E402
-    ArtifactType,
-    PersistenceService,
-    ResearchLaunchOperation,
-    ReviewState,
-)
+from persistence import ResearchLaunchOperation, ReviewState  # noqa: E402
 from persistence.database import database_path  # noqa: E402
-from persistence.evidence_service import ValidationEvidenceArtifactService  # noqa: E402
 from strategies import get_strategy  # noqa: E402
-from backtesting.validation.evidence_decision_artifacts import (  # noqa: E402
-    EVIDENCE_DECISION_LOGICAL_NAME,
-)
 from dashboard.shell import create_dashboard_layout, navigation as _navigation  # noqa: E402
 
-REVIEWER = "dashboard-operator"
 RECENT_RUN_DISPLAY_LIMIT = 4
 RECENT_EVENT_DISPLAY_LIMIT = 5
 INITIAL_PATH_COOKIE = "qf_dash_initial_pathname"
 
-RESEARCH_PATH_STYLE = {
-    "alignItems": "stretch",
-    "display": "flex",
-    "flexWrap": "wrap",
-    "gap": "10px",
-}
-RESEARCH_PATH_CARD_STYLE = {
-    "alignItems": "center",
-    "backgroundColor": "#ffffff",
-    "border": "1px solid #bfdbfe",
-    "borderRadius": "8px",
-    "boxShadow": "0 8px 20px rgba(15, 23, 42, 0.08)",
-    "display": "flex",
-    "flex": "1 1 180px",
-    "gap": "10px",
-    "minHeight": "64px",
-    "padding": "12px 14px",
-}
-RESEARCH_PATH_STEP_STYLE = {
-    "alignItems": "center",
-    "backgroundColor": "#2357d9",
-    "borderRadius": "999px",
-    "color": "#ffffff",
-    "display": "inline-flex",
-    "fontSize": "0.8rem",
-    "fontWeight": 800,
-    "height": "28px",
-    "justifyContent": "center",
-    "minWidth": "28px",
-}
-RESEARCH_PATH_CONNECTOR_STYLE = {
-    "alignItems": "center",
-    "color": "#2357d9",
-    "display": "inline-flex",
-    "fontWeight": 800,
-    "padding": "0 2px",
-}
 OPERATOR_LABEL_OVERRIDES = {
     "config_hash": "Configuration checksum",
     "configuration_id": "Configuration ID",
@@ -168,16 +125,6 @@ OPERATOR_VALUE_LABELS = {
     "same_bar_close": "Same-bar close",
     "screened_out": "Screened out",
 }
-
-
-@contextmanager
-def _dashboard_persistence(database: str | Path):
-    """Open a callback-local connection; Dash may invoke callbacks on another thread."""
-    service = PersistenceService(database)
-    try:
-        yield service
-    finally:
-        service.close()
 
 
 def _request_pathname_for_initial_layout() -> str:
@@ -620,52 +567,6 @@ def _fields_to_map(fields: tuple[DetailField, ...]) -> dict[str, str]:
     return {field.label: field.value for field in fields}
 
 
-def _strategy_research_path(current_path: str = "/") -> html.Div:
-    stages = (
-        ("Home", "/"),
-        ("Ideas", "/research/ideas"),
-        ("Set up", "/research/setup"),
-        ("Run test", "/research/run-test"),
-        ("Results", "/research/backtest-results"),
-        ("Compare", "/research/compare-backtests"),
-    )
-    children: list[Any] = []
-    for index, (stage, href) in enumerate(stages):
-        if index:
-            children.append(
-                html.Span(
-                    "->",
-                    className="research-path-connector",
-                    style=RESEARCH_PATH_CONNECTOR_STYLE,
-                )
-            )
-        children.append(
-            dcc.Link(
-                [
-                    html.Span(
-                        str(index + 1),
-                        className="research-path-step",
-                        style=RESEARCH_PATH_STEP_STYLE,
-                    ),
-                    html.Strong(stage),
-                ],
-                href=href,
-                className=(
-                    "research-path-card research-path-card-active"
-                    if href == current_path
-                    else "research-path-card"
-                ),
-                style=RESEARCH_PATH_CARD_STYLE,
-                title=(f"Current step: {stage}" if href == current_path else stage),
-            )
-        )
-    return html.Div(
-        children,
-        className="strategy-research-path",
-        style=RESEARCH_PATH_STYLE,
-    )
-
-
 def _overview_page(
     recent_runs: tuple[RunSummary, ...] = (),
     recent_events: tuple[RunEvent, ...] = (),
@@ -867,13 +768,6 @@ def _recent_events_panel(events: tuple[RunEvent, ...]) -> html.Section:
     )
 
 
-def _callback_triggered_id() -> str | None:
-    try:
-        return ctx.triggered_id
-    except Exception:
-        return None
-
-
 def _detail_fields(fields: tuple[DetailField, ...], *, empty: str) -> Any:
     if not fields:
         return html.P(empty, className="empty-state-copy")
@@ -955,16 +849,6 @@ def _operator_value(value: Any) -> Any:
     ):
         return _technical_value(value)
     return str(value)
-
-
-def _operator_message(summary: str, detail: str | None = None, *, tone: str) -> html.Div:
-    children: list[Any] = [html.Strong(summary)]
-    if detail:
-        children.append(html.P(detail, className="operator-message-detail"))
-    return html.Div(
-        children,
-        className=f"operator-message operator-message-{tone}",
-    )
 
 
 def _detail_subsection(title: str, content: Any, class_name: str = "") -> html.Div:
@@ -4435,46 +4319,23 @@ def _configuration_is_launchable(
     )
 
 
-REVIEW_CONTEXT_UNAVAILABLE_MESSAGE = (
-    "Durable decision unavailable: this backtest has no persisted review context "
-    "linking out-of-sample, walk-forward, Monte Carlo and robustness evidence."
-)
+def _results_view_services() -> ResultsViewServices:
+    """Return the explicit presentation collaborators for Results callbacks."""
 
-
-def _review_context_unavailable_notice() -> html.Div:
-    return _operator_message(
-        REVIEW_CONTEXT_UNAVAILABLE_MESSAGE,
-        tone="warning",
-    )
-
-
-def _review_context_failure_message(exc: BaseException) -> str:
-    message = str(exc) or REVIEW_CONTEXT_UNAVAILABLE_MESSAGE
-    if "review context artifact is missing" in message:
-        return REVIEW_CONTEXT_UNAVAILABLE_MESSAGE
-    return message
-
-
-def _decision_summary(decision: Any) -> html.Div:
-    review = decision.document["decision"]["review"]
-    gate = decision.document["decision"]["lockbox_gate"]
-    references = gate.get("referenced_artifacts", ())
-    return html.Div(
-        [
-            html.Strong("Evidence decision artifact validated."),
-            html.Dl(
-                [
-                    html.Div([html.Dt("Status"), html.Dd(review.get("state", "—"))]),
-                    html.Div([html.Dt("Reviewer"), html.Dd(review.get("reviewer", "—"))]),
-                    html.Div([html.Dt("Reason"), html.Dd(review.get("reason", "—"))]),
-                    html.Div([html.Dt("Gate"), html.Dd(gate.get("status", "—"))]),
-                    html.Div([html.Dt("Decision identity"), html.Dd(decision.decision_identity)]),
-                    html.Div([html.Dt("Referenced evidence"), html.Dd(str(len(references)))]),
-                ],
-                className="run-detail-fields",
-            ),
-        ],
-        className="operator-message operator-message-success",
+    return ResultsViewServices(
+        backtest_selector_label=_backtest_selector_label,
+        configuration_is_launchable=_configuration_is_launchable,
+        operator_message=_operator_message,
+        parameter_variant_selection=_parameter_variant_selection,
+        empty_price_marker_figure=_empty_price_marker_figure,
+        price_marker_figure=_price_marker_figure,
+        preferred_backtest_id=_preferred_backtest_id,
+        recent_events_panel=_recent_events_panel,
+        recent_runs_panel=_recent_runs_panel,
+        run_detail_panel=_run_detail_panel,
+        results_report_tabs=_results_report_tabs,
+        results_operator_context=_results_operator_context,
+        selector_options=_selector_options,
     )
 
 
@@ -4583,6 +4444,7 @@ def page_for_path(
             selected_run_id=selected_run_id,
             all_runs=all_runs,
             history_rows=history_rows,
+            renderer=_runs_page,
         )
     if route == "/research/compare-backtests":
         from dashboard.pages.compare_backtests import layout as compare_backtests_layout
@@ -4937,6 +4799,7 @@ def create_app(
         readiness_by_id=readiness_by_id,
         dashboard_database=dashboard_database,
         artifact_root=artifact_root,
+        view=_results_view_services(),
         research_launches=research_launches,
         approved_configuration_launcher=candidate_launcher,
         reproduce_run=reproduce_run,

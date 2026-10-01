@@ -11,6 +11,7 @@ from dashboard.callbacks.backtest_results import (
     _unknown_requested_run_state,
     register_backtest_results_callbacks,
 )
+from dashboard.application import _results_view_services
 from orchestration import DurableResearchLaunchService, RunSummary
 
 
@@ -86,6 +87,7 @@ def _app(tmp_path: Path) -> tuple[Dash, _Runs]:
         readiness_by_id={},
         dashboard_database=tmp_path / "state.sqlite3",
         artifact_root=tmp_path,
+        view=_results_view_services(),
         research_launches=DurableResearchLaunchService(
             database=tmp_path / "state.sqlite3"
         ),

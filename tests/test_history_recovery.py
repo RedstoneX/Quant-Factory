@@ -10,6 +10,7 @@ import pytest
 from dash import Dash, html
 
 from dashboard.app import DashboardContext, create_app
+from dashboard.application import _results_view_services
 from dashboard.callbacks.backtest_results import register_backtest_results_callbacks
 from dashboard.callbacks.compare_backtests import register_compare_backtests_callbacks
 from dashboard.run_adapter import SavedConfigurationView
@@ -167,6 +168,7 @@ def test_selected_run_actions_read_session_store_instead_of_stale_dropdown(
         readiness_by_id={},
         dashboard_database=database,
         artifact_root=tmp_path,
+        view=_results_view_services(),
     )
     register_compare_backtests_callbacks(
         app,

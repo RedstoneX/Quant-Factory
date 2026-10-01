@@ -12,6 +12,7 @@ from dashboard.application import (
     _parameter_variant_selection,
     _parameter_variants_explorer,
     _results_report_tabs,
+    _results_view_services,
 )
 from dashboard.callbacks.backtest_results import (
     _requested_results_parameter_row_id,
@@ -172,6 +173,7 @@ def test_variant_callbacks_count_reset_and_reject_cross_run_selection(
         readiness_by_id={},
         dashboard_database=tmp_path / "state.sqlite3",
         artifact_root=tmp_path,
+        view=_results_view_services(),
         research_launches=DurableResearchLaunchService(
             database=tmp_path / "state.sqlite3"
         ),
