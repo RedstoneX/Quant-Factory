@@ -221,3 +221,11 @@ def test_invalid_candidate_does_not_create_idea(tmp_path) -> None:
         assert service.idea_drafts.list() == ()
     finally:
         service.close()
+
+
+def test_candidate_rejects_non_finite_values_cleanly() -> None:
+    document = _candidate_document()
+    document["variables"]["target_r"]["values"] = [float("nan")]
+
+    with pytest.raises(CandidatePacketError, match="NaN or infinite"):
+        validate_candidate_packet(document)
