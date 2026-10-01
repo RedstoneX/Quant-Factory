@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Await Terry's explicit decision on whether to lift the post-remediation development freeze. The pre-freeze next product objective remains the private QF Candidate v1 owner walkthrough. |
-| Phase | **Architecture remediation complete; normal feature and research development paused pending explicit owner approval.** |
-| Active work | No product development is authorized while the owner-controlled freeze remains in force. The pre-freeze R13 and R12 queue is preserved below, awaiting explicit owner authorization; it has not resumed. |
+| Immediate objective | Prepare and deploy the current canonical revision through the existing private review path, then complete Terry's QF Candidate v1 and connected operator-workflow walkthrough. |
+| Phase | **Standardized strategy intake technical pass; private owner walkthrough pending. Candidate research remains paused.** |
+| Active work | The owner explicitly lifted the development freeze for the preserved R13/R12 roadmap only. Reconcile the current technical pass, back up schema-v7 state, deploy privately, verify revision/health/reachability, and stop at owner walkthrough acceptance. |
 | Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Terry has not explicitly approved lifting the development freeze. Separately, Terry has not yet used and accepted the current-revision Candidate intake in the private browser environment. |
-| Next action | Await Terry's explicit approval or rejection of lifting the development freeze. Do not deploy, resume the owner walkthrough, or start any product work before that decision. |
+| Verified gap | Terry has not yet used and accepted the current-revision Candidate intake and connected operator workflow in the private browser environment. |
+| Next action | Complete current-revision walkthrough proof, take the required schema-v7-safe backup, deploy through the existing private review path, and give Terry the exact owner walkthrough. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,20 +24,18 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | blocked | none | **Pre-freeze queue preserved; awaiting explicit owner approval to lift the development freeze.** Candidate intake and portable external-research context have a technical pass. No further Candidate, LLM/provider, or related product work is authorized by architecture completion. |
-| R12 | 2 | blocked | none | **Pre-freeze queue preserved; awaiting explicit owner approval to lift the development freeze.** The connected operator workflow has a technical pass, but deployment and owner handoff do not resume automatically. |
+| R13 | 1 | in_progress | none | **Technical pass; private owner walkthrough pending.** Candidate paste/upload, deterministic validation, readable review, durable save, YAML/JSON export, QF Research Context v1 export, and the truthful blocked Setup boundary are implemented. No provider, source retrieval, implementation, or execution authority is included. |
+| R12 | 2 | blocked | none | **Connected operator workflow technical pass; owner handoff acceptance pending after R13.** No candidate research or further product scope is authorized while the walkthrough gate remains open. |
 <!-- active-work:end -->
 
 ## Architecture remediation — completed 2026-10-01
 
-The architecture acceptance criteria are satisfied, but the owner-controlled
-development freeze remains in force until Terry personally and explicitly
-approves lifting it. Architecture completion is not that approval. Normal
-feature and research development therefore remains paused. No QF Candidate
-work, research, dashboard feature work, LLM/provider work, broker work,
-paper/live work, or unrelated development is authorized by this completion.
-The pre-freeze product queue is preserved above solely as work awaiting owner
-authorization.
+The architecture acceptance criteria are satisfied. Decision 321 records
+Terry's separate explicit approval to lift the development freeze and resume
+only the preserved R13/R12 roadmap. Architecture completion itself was not that
+approval and creates no broader authority. Strategy research, unrelated
+dashboard features, LLM/provider work, broker work, paper/live work, paid or
+protected-data work, and unrelated development remain paused.
 
 Starting from canonical revision
 `fe7564eac1f5838dd35ec0acd85fa943aa5a063e`, the reproducible AST graph had

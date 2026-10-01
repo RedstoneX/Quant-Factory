@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **321** | **The owner explicitly lifts the development freeze for the preserved R13/R12 roadmap only:** prepare and privately deploy the current QF Candidate v1/operator workflow for owner walkthrough. Strategy research, new product direction, LLM/provider work, broker work, paper/live work, paid/protected data, and unrelated development remain unauthorized. |
 | **320** | **Architecture completion does not lift the development freeze:** remediation is technically complete, but all normal feature/research development remains paused until Terry personally and explicitly authorizes lifting the freeze. The pre-freeze queue is preserved but blocked. |
 | **319** | **Quant Factory's measured one-way component architecture is accepted and mechanically enforced:** runtime cycles and forbidden directions are eliminated; independent launcher, evidence-storage, and dashboard-presentation contracts replace reverse ownership. Decision 320 corrects Decision 319's erroneous freeze-authority conclusion. |
 | **318** | **Prior work is scoped to the tested hypothesis, not the entire family:** a screened/rejected/withdrawn Candidate closes only its explicit rules and bounded search space. ORB, momentum, mean reversion, channel breakout, gap reversal, and other broader families remain open unless Tier 1 contains an explicit owner decision closing that family. QF Research Context v1 carries this rule to external LLM/human research. |
@@ -1843,3 +1844,28 @@ superseded.
      governance status only; it does not modify the completed architecture,
      product behavior, data, evidence, credentials, trading authority, or
      capital boundaries.
+
+
+321. **Lift the development freeze for the preserved R13/R12 owner-walkthrough
+     roadmap only (accepted 2026-10-01).** Terry personally and explicitly
+     lifts the freeze established and clarified by Decision 320. Work resumes
+     in the existing order: first reconcile and prepare QF Candidate v1 intake
+     and QF Research Context v1 for the current private owner walkthrough, then
+     complete the connected R12 operator-workflow handoff gate.
+
+     Reuse the existing implementation and private review path. Before
+     deployment, retain a schema-v7-safe verified backup. Then deploy the
+     current canonical revision privately and verify revision, health, private
+     reachability, Candidate paste/upload, deterministic validation, readable
+     review, durable save, export, already-scoped Research Context export, and
+     the truthful blocked Setup boundary. Fix only defects that prevent that
+     authorized walkthrough.
+
+     This decision preserves the accepted architecture and creates no new
+     product direction, architecture project, framework, strategy program, or
+     cleanup campaign. It does not authorize strategy discovery, a new trading
+     hypothesis, profitability testing, rejected-strategy reruns, an LLM
+     provider, source retrieval, paid or protected data, broker expansion,
+     paper/live trading, orders, credentials, capital, or unrelated feature
+     work. R13 and R12 remain open until Terry performs and explicitly accepts
+     the owner walkthrough.
