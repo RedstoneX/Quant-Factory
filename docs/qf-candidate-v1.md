@@ -597,6 +597,26 @@ contract.
 The built-in analyzer is only one producer. It is not required for the Candidate
 format and must not create a second research path.
 
+### External LLM research context
+
+Before asking an external LLM to discover strategies, give it QF Research
+Context v1 (`docs/qf-research-context-v1.yaml`). That context carries the
+current intraday mandate, scoped prior-work evidence, relevant data snapshot,
+and deduplication rule.
+
+Prior work is compared at the exact/economically-equivalent hypothesis level.
+A shallow or failed implementation must not cause an external researcher to
+discard the entire ORB, momentum, mean-reversion, channel-breakout, gap-reversal,
+or other family unless Tier 1 explicitly closes that family.
+
+The portable flow is:
+
+```text
+QF Research Context v1 + research directive -> external LLM -> QF Candidate v1
+```
+
+The Ideas workbench can download the context as YAML or JSON.
+
 ### External LLM prompt pattern
 
 A generic prompt can be:
