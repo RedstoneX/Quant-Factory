@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Complete the private owner walkthrough of the browser-based QF Candidate v1 intake: paste/upload, validate, review, persist, and export without creating execution authority. |
-| Phase | **Standardized strategy intake backend; candidate research remains paused.** |
-| Active work | QF Candidate v1 backend and Ideas-workbench integration have a focused technical pass. R13 is adding a portable QF Research Context v1 export so external LLMs receive the current mandate/prior-work/data snapshot before producing Candidate packets. R12 remains available for its broader handoff. No source retrieval, LLM provider selection, candidate implementation, backtest, or profitability research is active. |
+| Immediate objective | Await Terry's explicit decision on whether to lift the post-remediation development freeze. The pre-freeze next product objective remains the private QF Candidate v1 owner walkthrough. |
+| Phase | **Architecture remediation complete; normal feature and research development paused pending explicit owner approval.** |
+| Active work | No product development is authorized while the owner-controlled freeze remains in force. The pre-freeze R13 and R12 queue is preserved below, awaiting explicit owner authorization; it has not resumed. |
 | Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Terry has not yet used and accepted the current-revision Candidate intake in the private browser environment. Built-in public-source retrieval/LLM analysis remains optional and is not part of R13. |
-| Next action | Deploy the merged revision through the existing private review service after a schema-v7-safe backup, then have Terry walk through Candidate paste/upload, validation, readable review, durable save, export, and the truthful blocked Setup boundary. |
+| Verified gap | Terry has not explicitly approved lifting the development freeze. Separately, Terry has not yet used and accepted the current-revision Candidate intake in the private browser environment. |
+| Next action | Await Terry's explicit approval or rejection of lifting the development freeze. Do not deploy, resume the owner walkthrough, or start any product work before that decision. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,16 +24,20 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | **Candidate intake technical pass; portable external-research context being added.** Ideas accepts pasted/uploaded QF Candidate v1, validates/persists/exports it, and exposes QF Research Context v1 for external LLM/human research. Neither artifact approves, implements, unlocks Setup, or executes a Candidate. |
-| R12 | 2 | blocked | none | **Connected operator workflow has a technical pass; owner handoff remains available/pending.** This owner gate does not block the explicitly authorized non-executing R13 intake plumbing. |
+| R13 | 1 | blocked | none | **Pre-freeze queue preserved; awaiting explicit owner approval to lift the development freeze.** Candidate intake and portable external-research context have a technical pass. No further Candidate, LLM/provider, or related product work is authorized by architecture completion. |
+| R12 | 2 | blocked | none | **Pre-freeze queue preserved; awaiting explicit owner approval to lift the development freeze.** The connected operator workflow has a technical pass, but deployment and owner handoff do not resume automatically. |
 <!-- active-work:end -->
 
 ## Architecture remediation — completed 2026-10-01
 
-The owner-authorized temporary feature freeze is removed. The remediation did
-not resume or perform feature development, strategy research, LLM integration,
-broker work, paper/live work, or unrelated cleanup; the pre-existing active
-queue above remains unchanged for a later authorized turn.
+The architecture acceptance criteria are satisfied, but the owner-controlled
+development freeze remains in force until Terry personally and explicitly
+approves lifting it. Architecture completion is not that approval. Normal
+feature and research development therefore remains paused. No QF Candidate
+work, research, dashboard feature work, LLM/provider work, broker work,
+paper/live work, or unrelated development is authorized by this completion.
+The pre-freeze product queue is preserved above solely as work awaiting owner
+authorization.
 
 Starting from canonical revision
 `fe7564eac1f5838dd35ec0acd85fa943aa5a063e`, the reproducible AST graph had
