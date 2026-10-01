@@ -199,7 +199,7 @@ def test_fresh_schema_and_v4_to_latest_migration_preserve_existing_rows(tmp_path
     try:
         assert connection.execute(
             "SELECT schema_version FROM schema_metadata"
-        ).fetchone()["schema_version"] == LATEST_SCHEMA_VERSION == 6
+        ).fetchone()["schema_version"] == LATEST_SCHEMA_VERSION == 7
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='research_run_submissions'"
         ).fetchone() is not None
