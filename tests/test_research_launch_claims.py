@@ -229,7 +229,7 @@ def test_fresh_schema_and_v4_to_latest_migration_preserve_existing_rows(tmp_path
     try:
         assert upgraded.execute(
             "SELECT schema_version FROM schema_metadata"
-        ).fetchone()["schema_version"] == 6
+        ).fetchone()["schema_version"] == LATEST_SCHEMA_VERSION == 7
         assert upgraded.execute(
             "SELECT display_name FROM strategies WHERE strategy_id='fixture'"
         ).fetchone()["display_name"] == "Fixture"
