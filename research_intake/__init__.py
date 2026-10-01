@@ -3,6 +3,7 @@
 from research_intake.qf_candidate import (
     QF_CANDIDATE_SCHEMA,
     CandidateIssue,
+    CandidateImportResult,
     CandidatePacketError,
     CandidateValidation,
     export_candidate_packet,
@@ -14,6 +15,7 @@ from research_intake.qf_candidate import (
 __all__ = [
     "QF_CANDIDATE_SCHEMA",
     "CandidateIssue",
+    "CandidateImportResult",
     "CandidatePacketError",
     "CandidateValidation",
     "export_candidate_packet",
