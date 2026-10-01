@@ -49,6 +49,7 @@ jobs:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          fetch-depth: 0
           persist-credentials: false
       # actions/setup-python v7.0.0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
@@ -56,6 +57,10 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: requirements-ci.txt
+      - name: Enforce architecture dependency boundaries
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python tools/check_architecture.py --base-ref "$BASE_REF"
       - name: Install public test dependencies
         run: >-
           python -m pip install
@@ -67,6 +72,7 @@ jobs:
           python -m pytest -q
           --junitxml=portable-test-results.xml
           tests/test_ci_portable_imports.py
+          tests/test_architecture_boundaries.py
           tests/test_candidate_pipeline_runtime.py
           tests/test_candidate_run_service.py
           tests/test_candidate_dashboard_runtime.py
