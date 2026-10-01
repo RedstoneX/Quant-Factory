@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Complete the owner walkthrough and handoff of the connected dashboard workflow for idea capture, approved setup, launch, results, comparison, decision, and recovery. |
-| Phase | **Operator-product completion and owner handoff.** |
-| Active work | The connected operator workflow has passed focused implementation checks and is ready for the owner walkthrough. The operator product is not handed off until Terry accepts it. No candidate research is active. |
+| Immediate objective | Establish the provider-neutral QF Candidate v1 intake backend so ideas from Terry, external LLMs, or a future optional built-in analyzer enter Quant Factory through one readable, validated, non-executable contract. |
+| Phase | **Standardized strategy intake backend; candidate research remains paused.** |
+| Active work | R12 has a technical pass and remains available for Terry's walkthrough. Per owner direction, non-executing intake plumbing may proceed now: validate/import/export QF Candidate v1 packets and attach them durably to idea drafts. No source retrieval, LLM provider selection, candidate implementation, backtest, or profitability research is active. |
 | Existing assets | The generic candidate runtime is complete. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Terry has not yet operated and accepted the complete current-revision workflow. Idea capture is intentionally local and does not yet retrieve sources or perform LLM-backed ingestion. |
-| Next action | Present the privately deployed connected workflow for Terry's walkthrough; repair concrete product defects if reported, otherwise record explicit handoff acceptance and stop. |
+| Verified gap | The dashboard has durable idea capture, but the backend previously lacked one portable structured contract for ideas produced by Terry, ChatGPT/Claude/Grok/Gemini, or other research tools. Built-in public-source retrieval/LLM analysis remains optional and is not required for standardized intake. |
+| Next action | Complete and merge the minimal QF Candidate v1 backend slice: deterministic YAML/JSON validation, durable attachment to idea drafts, import/export helpers, focused migration/tests, and documentation. Then connect that contract to the Ideas workbench in a bounded UI slice before any new strategy research. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,7 +24,8 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Connected operator workflow has a technical pass; owner handoff is pending.** Walk through idea capture, approved setup, launch/status, results, comparison, decision, reproduction, and recovery. No new strategy test is authorized. |
+| R13 | 1 | in_progress | none | **Standardized intake, not strategy research.** QF Candidate v1 is the provider-neutral, non-executable interchange contract. Implement/import/persist/export it and then expose it through the existing Ideas workbench. No LLM provider, source retrieval, candidate implementation, or backtest is authorized by this milestone. |
+| R12 | 2 | blocked | none | **Connected operator workflow has a technical pass; owner handoff remains available/pending.** This owner gate does not block the explicitly authorized non-executing R13 intake plumbing. |
 <!-- active-work:end -->
 
 ## Backend completion acceptance — completed 2026-09-29
@@ -58,20 +59,23 @@ profitability, or the licensed engine itself.
 
 1. Backend completion — COMPLETE
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
-3. **Dashboard and operator-product implementation — TECHNICAL PASS; OWNER HANDOFF PENDING**
-4. Owner walkthrough and handoff acceptance — PENDING
-5. Owner-initiated candidate research
-6. Validation of a surviving edge
-7. Execution-vehicle comparison
-8. Paper operation
-9. Live operation later
+3. Dashboard and operator-product implementation — TECHNICAL PASS; OWNER HANDOFF AVAILABLE
+4. **Standardized QF Candidate v1 intake — ACTIVE; NON-EXECUTING**
+5. Owner walkthrough / handoff acceptance — PENDING
+6. Owner-approved candidate research
+7. Validation of a surviving edge
+8. Execution-vehicle comparison
+9. Paper operation
+10. Live operation later
 
-### Edge research — PAUSED UNTIL OPERATOR-PRODUCT HANDOFF
+### Edge research — PAUSED DURING STANDARDIZED INTAKE WORK
 
-No candidate is active, and no additional strategy test is justified before
-Terry accepts the working operator product. After handoff, Terry must name one
-or explicitly accept a bounded, source-attributed proposal and its fixed
-evidence contract. The current mandate remains **day trading / intraday
+No candidate is active, and standardized intake work does not authorize a
+strategy test. QF Candidate v1 may be produced by Terry, an external LLM, or a
+future optional built-in analyzer, but importing a packet never authorizes
+implementation or execution. Before research begins, Terry must explicitly
+accept a bounded, source-attributed Candidate packet and its fixed evidence
+contract. The current mandate remains **day trading / intraday
 directional edge discovery** unless the owner explicitly changes it.
 The fixed MES overnight-gap reversal development screen in
 `docs/strategies/mes-overnight-gap-reversal.md` completed and was rejected. It

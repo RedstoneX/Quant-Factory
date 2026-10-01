@@ -445,6 +445,32 @@ class IdeaDraftRepository:
         assert record is not None
         return record
 
+    def set_candidate_packet(
+        self,
+        draft_id: str,
+        candidate_json: str,
+    ) -> IdeaDraftRecord:
+        existing = self.get(draft_id)
+        if existing is None:
+            raise KeyError(f"unknown idea draft {draft_id}")
+        if existing.configuration_id is not None:
+            raise ValueError(
+                "an idea linked to an immutable configuration cannot change its candidate packet"
+            )
+        if len(candidate_json) > 100000:
+            raise ValueError("candidate packet must be at most 100000 characters")
+        self.connection.execute(
+            """
+            UPDATE idea_drafts
+            SET candidate_json=?, updated_at=?
+            WHERE draft_id=?
+            """,
+            (candidate_json, utc_now(), draft_id),
+        )
+        record = self.get(draft_id)
+        assert record is not None
+        return record
+
     def link_configuration(
         self,
         draft_id: str,

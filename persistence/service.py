@@ -1043,6 +1043,15 @@ class PersistenceService:
         with transaction(self.connection):
             return self.idea_drafts.delete(draft_id)
 
+    def set_idea_candidate_packet(
+        self,
+        *,
+        draft_id: str,
+        candidate_json: str,
+    ) -> IdeaDraftRecord:
+        with transaction(self.connection):
+            return self.idea_drafts.set_candidate_packet(draft_id, candidate_json)
+
     def link_idea_configuration(
         self,
         *,

@@ -67,7 +67,7 @@ def test_v5_database_migrates_idea_drafts_once(tmp_path) -> None:
         version = migrated.connection.execute(
             "SELECT schema_version FROM schema_metadata"
         ).fetchone()["schema_version"]
-        assert version == LATEST_SCHEMA_VERSION == 6
+        assert version == LATEST_SCHEMA_VERSION == 7
         assert migrated.idea_drafts.list() == ()
     finally:
         migrated.close()

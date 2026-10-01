@@ -765,6 +765,11 @@ A unified stage timeline must show:
 
 ### Strategy intake and hypothesis review
 
+QF Candidate v1 (`docs/qf-candidate-v1.md`) is the portable intake contract.
+The operator may author a packet directly or import one produced by an external
+LLM/research tool. Any future built-in analyzer is optional and must produce the
+same contract; no LLM provider is required by the dashboard.
+
 The operator must be able to submit an owner-authored strategy description
 or provide an attributed public source URL, including a Reddit post, YouTube
 video, or web page. Retain the original submitted text or source reference and
@@ -775,8 +780,11 @@ its source, assumptions, and uncertainties for clarification and human review.
 Require explicit operator approval before creating or launching any backtest;
 never run one automatically from submitted content. Intake does not approve a
 strategy for promotion or paper operation and cannot create or submit a paper
-order. Detailed interaction, schema, fetching, and review-state design remains
-pending the product specification worker.
+order. The accepted v1 backend deterministically validates and durably attaches the
+canonical packet to the existing idea draft. Public-source fetching and
+LLM-backed extraction remain separate optional work. Structural variants are
+distinct logic paths; bounded `variables` are the dimensions VectorBT may
+enumerate after an approved implementation exists.
 
 ### Artifacts and lineage
 

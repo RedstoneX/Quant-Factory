@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **317** | **Standardized strategy intake is provider-neutral and non-executing:** QF Candidate v1 is the portable contract for owner-authored ideas, external LLM output, and any future optional built-in analyzer. The current milestone may validate/import/export/persist packets but does not choose an LLM provider, fetch sources, implement a strategy, or authorize a backtest. |
 | **316** | **Research Atlas screen acceptance is not product handoff:** Terry accepted the overview design only. R12 remains active until the working operator interface is complete and accepted; no candidate research is active. |
 | 315 | Historical overstatement of the 2026-09-30 screen approval. Decision 316 corrects its handoff and sequencing claims. |
 | **314** | **Direct Mode is the default operating policy for the private single-user MVP:** outcome -> reuse -> smallest implementation -> decisive proof -> deliver -> stop. Escalated Mode is reserved for genuinely difficult-to-reverse or high-consequence changes. |
@@ -1698,3 +1699,50 @@ superseded.
      active milestone, this correction, and dashboard-displayed project status;
      architecture, evidence, data, credentials, and trading authority do not
      change.
+
+
+317. **Adopt QF Candidate v1 as the provider-neutral strategy-intake boundary
+     (accepted 2026-10-01).** Terry authorizes the next backend slice after the
+     connected operator workflow's technical pass. Quant Factory will use one
+     portable, human-readable Candidate contract for ideas created directly by
+     Terry, by an external LLM such as ChatGPT/Claude/Grok/Gemini, or by a
+     future optional built-in source analyzer.
+
+     QF Candidate v1 separates probabilistic idea generation from deterministic
+     research. It preserves source attribution, explicit source rules versus
+     interpretation, the falsifiable hypothesis and failure theory, market and
+     session constraints, fixed rules, bounded VectorBT sweep variables,
+     genuinely structural variants, open questions, data needs, exclusions,
+     prior-work claims, and the evaluation boundary. VectorBT may enumerate the
+     bounded values declared under variables; it does not invent structural
+     strategy variants.
+
+     The accepted backend slice is intentionally non-executing. It may parse
+     YAML/JSON, deterministically validate the current intraday mandate and
+     bounded search space, import/export the packet, and persist its canonical
+     representation with the existing durable idea draft. Importing a packet
+     does not register a strategy, create a runnable configuration, resolve
+     ambiguities, fetch a source, call an LLM, launch VectorBT, promote a
+     candidate, or authorize paper/live trading.
+
+     No LLM provider is selected by this decision. A future built-in analyzer
+     may use a thin provider such as Google Gemini direct, but it is optional and
+     must produce the same QF Candidate v1 contract as an external LLM. Do not
+     import QAMC's multi-agent routing, fallback ladder, benchmarking system, or
+     unrelated model-policy infrastructure into Quant Factory merely to support
+     intake.
+
+     R12's connected dashboard technical pass remains valid and the owner
+     walkthrough remains available. Terry explicitly authorizes this
+     non-executing intake work before final handoff acceptance; this does not
+     reopen strategy research. Candidate implementation and backtesting still
+     require later explicit owner acceptance of a bounded Candidate packet and
+     its evidence contract.
+
+     Documentation impact: `AGENTS.md`, `docs/MILESTONES.md`, this decision
+     and its effective index, `docs/qf-candidate-v1.md`, and the existing
+     dashboard product requirements are aligned. The implementation may add the
+     minimum schema migration and persistence field needed to attach canonical
+     Candidate JSON to an idea draft. No new service, orchestration layer,
+     frontend framework, broker authority, paid data, protected-test authority,
+     paper/live activation, or capital exposure is created.
