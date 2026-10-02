@@ -6,6 +6,11 @@ from pathlib import Path
 
 from dash import dcc, html
 
+from dashboard.candidate_workflow import candidate_configuration_binding
+from dashboard.components.candidate_setup import (
+    candidate_identity_summary,
+    candidate_implementation_boundary,
+)
 from dashboard.components.configuration_summary import configuration_summary
 from dashboard.run_adapter import (
     CatalogSnapshot,
@@ -13,8 +18,8 @@ from dashboard.run_adapter import (
     SavedConfigurationView,
     SetupStrategyView,
     configuration_readiness_by_id,
+    list_idea_drafts,
     list_saved_configurations,
-    list_setup_strategies,
 )
 
 
@@ -34,11 +39,6 @@ def layout(
         if database is not None
         else configurations or ()
     )
-    approved_strategies = (
-        list_setup_strategies(database)
-        if setup_strategies is None and database is not None
-        else setup_strategies or ()
-    )
     readiness_by_id = dict(readiness_by_id or {})
     missing_readiness = tuple(
         configuration
@@ -49,26 +49,27 @@ def layout(
         readiness_by_id.update(
             configuration_readiness_by_id(missing_readiness, catalog_snapshot)
         )
-    first = next(
-        (
-            configuration
-            for configuration in available
-            if readiness_by_id[configuration.configuration_id].ready
-        ),
-        available[0] if available else None,
-    )
+    selected_draft = None
+    binding = None
+    if database is not None:
+        drafts = list_idea_drafts(database)
+        selected_draft = drafts[0] if drafts else None
+        binding = candidate_configuration_binding(
+            selected_draft.draft_id if selected_draft else None,
+            database=database,
+        )
+    first = binding.configuration if binding is not None else None
     first_readiness = readiness_by_id.get(first.configuration_id) if first else None
 
-    if available:
+    if first is not None:
         selector = dcc.Dropdown(
             id="configuration-selector",
             options=[
                 {
-                    "label": configuration.label,
-                    "value": configuration.configuration_id,
-                    "disabled": not configuration.launchable,
+                    "label": first.label,
+                    "value": first.configuration_id,
+                    "disabled": not first.launchable,
                 }
-                for configuration in available
             ],
             value=first.configuration_id,
             disabled=loading,
@@ -97,7 +98,9 @@ def layout(
             loading=loading,
             empty_title="No approved choices",
             empty_message=(
-                "An approved saved research configuration is required before a test can be reviewed or run."
+                binding.blocker_reason
+                if binding is not None and binding.blocker_reason
+                else "Choose and accept a Candidate on Ideas before preparing a test."
             ),
         )
 
@@ -108,7 +111,9 @@ def layout(
         if first_readiness is not None and first_readiness.ready
         else "Setup blocked"
         if first_readiness is not None
-        else "No saved setup"
+        else "Implementation needed"
+        if binding is not None and binding.blocker_code == "implementation_required"
+        else "Candidate not ready"
     )
 
     return html.Div(
@@ -139,10 +144,7 @@ def layout(
                     html.Div(
                         [
                             html.Span("Selected idea", className="setup-state-label"),
-                            html.Strong(
-                                "Choose and save a draft on Ideas first.",
-                                id="setup-idea-title",
-                            ),
+                            candidate_identity_summary(selected_draft, binding),
                         ],
                         className="setup-campaign-item setup-campaign-item-primary",
                     ),
@@ -180,8 +182,8 @@ def layout(
                                 [
                                     html.Div(
                                         [
-                                            html.P("EXISTING SAVED SETUPS", className="page-eyebrow"),
-                                            html.H2("Review the exact saved test"),
+                                            html.P("CANDIDATE-BOUND SETUP", className="page-eyebrow"),
+                                            html.H2("Review this Candidate's exact test"),
                                             html.P(
                                                 "Every rule, cost, data choice and blocker remains visible before final review.",
                                                 className="section-description",
@@ -195,14 +197,14 @@ def layout(
                             html.Div(
                                 [
                                     html.Label(
-                                        "Saved setup",
+                                        "Candidate implementation",
                                         id="configuration-selector-label",
                                         htmlFor="configuration-selector",
                                         className="field-label",
                                     ),
                                     selector,
                                     html.P(
-                                        "Changing this selection only changes the preview. It does not run a test.",
+                                        "Only the implementation linked to this exact Candidate can appear here. No fixture or unrelated strategy can be substituted.",
                                         className="field-help",
                                     ),
                                 ],
@@ -214,115 +216,7 @@ def layout(
                         ],
                         className="setup-contract-workspace",
                     ),
-                    html.Details(
-                        [
-                            html.Summary(
-                                [
-                                    html.Div(
-                                        [
-                                            html.Span("OPTIONAL", className="setup-state-label"),
-                                            html.Strong("Create a new bounded setup"),
-                                            html.Small("Only from an implementation that already exists and is approved"),
-                                        ]
-                                    ),
-                                    html.Span("Open →", className="setup-disclosure-action"),
-                                ],
-                                className="setup-create-summary",
-                            ),
-                            html.Div(
-                                [
-                                    html.Div(
-                                        [
-                                            html.Div(
-                                                [
-                                                    html.H2("Create from an approved implementation"),
-                                                    html.P(
-                                                        "Use this only when the saved idea is the exact strategy represented by an implementation already registered in Quant Factory.",
-                                                        className="section-description",
-                                                    ),
-                                                ]
-                                            ),
-                                            html.Span("Specification-bound", className="surface-badge surface-badge-safe"),
-                                        ],
-                                        className="setup-section-heading setup-create-heading",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Div(
-                                                [
-                                                    html.Label(
-                                                        "Existing approved implementation",
-                                                        htmlFor="setup-strategy-selector",
-                                                        className="field-label",
-                                                    ),
-                                                    dcc.Dropdown(
-                                                        id="setup-strategy-selector",
-                                                        options=[
-                                                            {
-                                                                "label": f"{strategy.name} · {strategy.lifecycle}",
-                                                                "value": strategy.identity,
-                                                            }
-                                                            for strategy in approved_strategies
-                                                        ],
-                                                        value=(approved_strategies[0].identity if approved_strategies else None),
-                                                        clearable=False,
-                                                        placeholder="No approved implementation available",
-                                                        disabled=not approved_strategies,
-                                                    ),
-                                                    html.P(
-                                                        "An imported Candidate will not appear here until its strategy logic has been separately approved and implemented.",
-                                                        className="field-help",
-                                                    ),
-                                                ],
-                                                className="setup-create-field",
-                                            ),
-                                            html.Div(
-                                                [
-                                                    html.H3("Allowed choices"),
-                                                    html.P(
-                                                        "Only values declared by the approved strategy specification are available.",
-                                                        className="field-help",
-                                                    ),
-                                                    html.Div(id="setup-parameter-controls", className="setup-parameter-list"),
-                                                ],
-                                                className="setup-parameter-panel",
-                                            ),
-                                        ],
-                                        className="setup-create-grid",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Div(
-                                                "No setup has been created from the selected idea.",
-                                                id="idea-configuration-status",
-                                                className="save-message setup-save-status",
-                                            ),
-                                            html.Button(
-                                                "Save bounded setup",
-                                                id="save-idea-configuration",
-                                                n_clicks=0,
-                                                disabled=not approved_strategies,
-                                                className="primary-action",
-                                            ),
-                                        ],
-                                        className="setup-create-actions",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Strong("Why this may still be blocked"),
-                                            html.P(
-                                                "Saving records the permitted choices. Approval, a concrete data binding, and a passing readiness check are still required before Run test becomes available."
-                                            ),
-                                        ],
-                                        className="operator-message operator-message-warning setup-boundary-note",
-                                    ),
-                                ],
-                                className="setup-create-body",
-                            ),
-                        ],
-                        className="setup-create-disclosure",
-                        open=not available,
-                    ),
+                    candidate_implementation_boundary(open_boundary=first is None),
                     html.Section(
                         [
                             html.Div(

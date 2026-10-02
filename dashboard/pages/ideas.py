@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 from dash import dcc, html
 
+from dashboard.candidate_workflow import candidate_review_state
 from dashboard.components.idea_intake import candidate_research_guide, start_path_selector
 from dashboard.components.idea_review import idea_review_workspace
 from dashboard.run_adapter import IdeaDraftView, list_idea_drafts
@@ -360,10 +361,7 @@ def layout(
     candidate_text, candidate_validation, candidate_brief, candidate_status = (
         _stored_candidate_state(selected.candidate_json if selected else "")
     )
-    can_continue = bool(
-        selected
-        and (selected.configuration_id or not selected.candidate_json)
-    )
+    candidate_status_value, can_continue = candidate_review_state(selected)
 
     return html.Div(
         [
@@ -467,6 +465,7 @@ def layout(
                 selected=selected,
                 candidate_brief=candidate_brief,
                 candidate_valid=bool(candidate_validation.get("valid")),
+                candidate_status=candidate_status_value,
                 can_continue=can_continue,
             ),
             html.Div(id="idea-intake"),
@@ -590,6 +589,7 @@ def layout(
                             html.Div(
                                 [
                                     html.Button("Save draft", id="save-idea-draft", n_clicks=0, className="primary-action"),
+                                    html.Button("Discard", id="discard-idea-draft", n_clicks=0, className="secondary-action"),
                                 ],
                                 className="idea-editor-actions",
                             ),

@@ -386,6 +386,46 @@ def attach_candidate_to_idea(
         service.close()
 
 
+def record_candidate_decision(
+    *,
+    draft_id: str,
+    decision: str,
+    database: str | Path | None = None,
+) -> CandidateImportResult:
+    """Record an explicit owner approval or rejection without launching work."""
+
+    if decision not in {"owner_approved", "rejected"}:
+        raise CandidatePacketError("candidate decision must be owner_approved or rejected")
+    service = PersistenceService(database)
+    try:
+        draft = service.idea_drafts.get(draft_id)
+        if draft is None or not draft.candidate_json:
+            raise CandidatePacketError("choose a saved Candidate before recording a decision")
+        validation = validate_candidate_packet(
+            parse_candidate_packet(draft.candidate_json, format_hint="json")
+        )
+        if not validation.valid:
+            raise CandidatePacketError("the saved Candidate is invalid")
+        if decision == "owner_approved" and not validation.review_ready:
+            raise CandidatePacketError(
+                "resolve every high-importance question before accepting this Candidate"
+            )
+        document = dict(validation.document)
+        candidate = dict(document.get("candidate") or {})
+        candidate["status"] = decision
+        document["candidate"] = candidate
+        decided = validate_candidate_packet(document)
+        if not decided.valid:
+            raise CandidatePacketError("the owner decision produced an invalid Candidate")
+        saved = service.set_idea_candidate_packet(
+            draft_id=draft_id,
+            candidate_json=decided.canonical_json,
+        )
+        return CandidateImportResult(draft=saved, validation=decided)
+    finally:
+        service.close()
+
+
 def export_candidate_packet(
     document: Mapping[str, Any],
     *,

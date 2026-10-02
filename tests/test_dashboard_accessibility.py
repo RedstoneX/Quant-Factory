@@ -55,7 +55,7 @@ def test_setup_selector_is_exposed_as_a_named_control_group() -> None:
         and getattr(item, "aria-labelledby", None) == "configuration-selector-label"
     )
 
-    assert label.children == "Saved setup"
+    assert label.children == "Candidate implementation"
     assert label.htmlFor == "configuration-selector"
     assert _by_id(group, "configuration-selector").disabled is True
 

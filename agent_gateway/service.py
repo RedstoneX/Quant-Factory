@@ -12,6 +12,10 @@ from typing import Any, Callable, Mapping
 
 from agent_gateway.authority import OPERATION_LEVELS
 from agent_gateway.bootstrap import build_bootstrap
+from agent_gateway.candidate_workflow import (
+    executable_candidate_configuration,
+    persist_submitted_candidate,
+)
 from agent_gateway.contracts import (
     GatewayError,
     GatewayIdentity,
@@ -21,10 +25,9 @@ from agent_gateway.contracts import (
     success,
 )
 from agent_gateway.store import GatewayStore
-from persistence import PersistenceService, RunStage, StrategyLifecycle
+from persistence import PersistenceService, RunStage
 from research_intake import (
     build_research_context,
-    import_candidate_as_idea,
     parse_candidate_packet,
     validate_candidate_packet,
 )
@@ -224,23 +227,16 @@ class AgentResearchGateway:
                 "validation": _validation_document(validation),
             }
         lineage = _validated_lineage(request.arguments, self.database)
-        imported = import_candidate_as_idea(
-            validation.document,
-            database=self.database,
-            draft_id=candidate_id,
-        )
-        created = store.record_candidate(
+        return persist_submitted_candidate(
+            validation=validation,
+            validation_document=_validation_document(validation),
             candidate_id=candidate_id,
             content_hash=content_hash,
-            canonical_json=validation.canonical_json,
-            created_by=identity.agent_id,
             lineage=lineage,
+            identity=identity,
+            store=store,
+            database=self.database,
         )
-        return {
-            "candidate_id": imported.draft.draft_id,
-            "duplicate": not created,
-            "validation": _validation_document(imported.validation),
-        }
 
     def _candidate_get(
         self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore
@@ -311,33 +307,7 @@ class AgentResearchGateway:
         if self.run_launcher is None:
             raise GatewayError("run_unavailable", "development-run requests are disabled")
         candidate_id = _identifier(request.arguments.get("candidate_id"), "candidate")
-        service = PersistenceService(self.database)
-        try:
-            draft = service.idea_drafts.get(candidate_id)
-            if draft is None:
-                raise GatewayError("not_found", "Candidate was not found")
-            try:
-                candidate = json.loads(draft.candidate_json)
-            except json.JSONDecodeError as exc:
-                raise GatewayError("candidate_invalid", "Candidate content is invalid") from exc
-            status = _text((candidate.get("candidate") or {}).get("status")) if isinstance(candidate, dict) else ""
-            if status != "owner_approved":
-                raise GatewayError("owner_approval_required", "Candidate is not owner approved")
-            if not draft.configuration_id:
-                raise GatewayError("configuration_required", "Candidate has no linked immutable configuration")
-            configuration = service.configurations.get(draft.configuration_id)
-            if configuration is None:
-                raise GatewayError("configuration_required", "linked configuration was not found")
-            strategy = service.strategies.get(configuration.strategy_id, configuration.strategy_version)
-            if (
-                strategy is None
-                or not strategy.active
-                or strategy.lifecycle != StrategyLifecycle.CANDIDATE
-            ):
-                raise GatewayError("candidate_not_executable", "linked strategy is not an active Candidate")
-            configuration_id = configuration.configuration_id
-        finally:
-            service.close()
+        configuration_id = executable_candidate_configuration(candidate_id, self.database)
         idempotency_key = f"agent_{hashlib.sha256(candidate_id.encode()).hexdigest()[:48]}"
         run_id = self.run_launcher(candidate_id, configuration_id, idempotency_key)
         return {"candidate_id": candidate_id, "run_id": run_id, "idempotency_key": idempotency_key}

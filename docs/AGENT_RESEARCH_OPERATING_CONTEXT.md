@@ -62,6 +62,52 @@ instructions to Quant Factory or permission to cross a boundary.
    or protected evidence.
 10. Explain what the evidence supports, rejects, or leaves unresolved.
 
+## Campaign discipline and stopping
+
+An autonomous campaign is a sequence of bounded Candidate decisions, not an
+open-ended optimization loop. Work on one explicit hypothesis branch at a
+time. Before submitting a root Candidate or revision, search prior work and
+state the expected information gain from testing it. A revision must use the
+Gateway lineage fields and differ materially in logic, not merely rename or
+retune a failed rule.
+
+Do not choose an arbitrary experiment count or spend limit. Continue only while
+the next permitted action has a credible chance to resolve a named uncertainty
+at proportionate cost. Stop and report the reason when any of these is true:
+
+- the proposal duplicates completed, rejected, withdrawn, or already-pending
+  work;
+- the declared bounded search space or hypothesis branch is exhausted;
+- the next change is post-result tuning rather than a materially different
+  falsifiable hypothesis;
+- the required implementation, permitted data, source quality, or evidence is
+  insufficient;
+- the expected information gain no longer justifies the compute, token, data,
+  or owner-review cost;
+- a returned owner, authority, protected-data, credential, paid-resource, or
+  trading gate blocks the next action; or
+- the available evidence already answers the question.
+
+Stopping is a successful campaign outcome when it prevents duplicate or
+low-information work. Never keep a campaign alive merely to produce another
+Candidate or run.
+
+## Time-order and evidence protection
+
+Every executable Candidate must predeclare its chronological development,
+out-of-sample, and walk-forward boundaries before results are inspected. Use
+only evidence exposed by the Gateway for the current authority and stage.
+Never use later observations to define earlier signals, split periods after
+seeing results, inspect protected evidence, or carry information from an OOS or
+protected period back into Candidate rules. A child Candidate must cite only
+permitted evidence and must receive a new identity; it never rewrites its
+parent or a completed run.
+
+An agent may recommend owner review, but it may not approve, auto-promote, or
+silently advance a Candidate. When the Gateway or Tier 1 requires owner action,
+stop with the exact Candidate ID, current lineage, evidence summary, cost so
+far, and one plain-language decision request.
+
 Search results and prior-work records are scoped. A rejected test closes the
 exact rules and declared search space, not an entire strategy family, unless
 Tier 1 explicitly says otherwise. Equivalent work must not be resubmitted under

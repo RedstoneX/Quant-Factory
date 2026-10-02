@@ -256,8 +256,6 @@ def list_setup_strategies(
         return _setup_strategies(service)
     finally:
         service.close()
-
-
 def persist_bounded_idea_configuration(
     *,
     draft_id: str,
@@ -272,6 +270,8 @@ def persist_bounded_idea_configuration(
         draft = service.idea_drafts.get(draft_id)
         if draft is None:
             raise ValueError("Choose a saved idea draft before creating a setup.")
+        if draft.candidate_json:
+            raise ValueError("Imported Candidates require an exact implemented and bound strategy.")
         strategy_view = next(
             (
                 candidate

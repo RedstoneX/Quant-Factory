@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Complete the owner-controlled Grok connection proof for the operational provider-neutral Agent Research Gateway while the deployed R12 Setup correction awaits Terry's connected operator-product walkthrough. |
-| Phase | **R13 is accepted; corrected R12 Setup is deployed for owner review; Agent Research Gateway ARG-0 through ARG-6 plus provider-neutral bootstrap/onboarding are implemented and operational locally, with only the real Grok hosted connection blocked on an owner-supplied public key. Candidate research remains paused.** |
-| Active work | None that Codex can complete without owner input. The shared operating context, trusted provider/client identity registration, deterministic bootstrap, and separate Codex/Claude local proof are complete on the private target. The gateway still reuses the existing QF boundaries and exposes no public QF listener, model-provider dependency, second orchestration engine, protected evidence, or trading authority. |
+| Immediate objective | Complete and privately deploy the exact connected Candidate workflow for Terry's owner walkthrough, then stop at the first real Candidate/evidence-contract approval gate. |
+| Phase | **R13 remains accepted. R12 is active again because the owner walkthrough proved that an imported Candidate could disconnect after Ideas and an unrelated infrastructure fixture could appear and launch. Decision 326 authorizes the narrow connected-workflow repair and bounded agent-campaign preparation. Candidate research remains paused.** |
+| Active work | Connect one immutable Candidate identity/version and provenance through Ideas, Setup, Run Test, Results, and Compare; show a truthful implementation boundary when logic is absent; prevent all fixture substitution; add only the operating-context/launcher material needed to use the existing provider-neutral Gateway for bounded campaigns; run required non-browser CI; merge, back up, and deploy privately. |
 | Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | The real Grok-hosted connection cannot be proven until Terry provides the public half of a key generated in that hosted environment. The gateway implementation, local Codex/Claude path, forced-command SSH transport, denial controls, audit, deduplication, lineage, rollback, and target deployment are proven. |
-| Next action | Terry provides only the Grok-hosted public key; Codex installs it on the existing restricted `qf-research` identity and verifies one permitted remote command plus the fail-closed boundary. Separately, Terry completes the R12 connected operator walkthrough. |
+| Verified gap | The deployed UI persisted the imported Candidate correctly on Ideas but later defaulted Setup/Run Test to the first globally runnable saved configuration. That allowed a compatibility fixture to masquerade as the Candidate. Candidate implementation/readiness and downstream Results/Compare identity were not connected truthfully. |
+| Next action | Codex completes Decision 326 through review, merge, encrypted backup, tailnet-only deployment, and non-browser verification. Terry then walks the exact Candidate path in the browser and either accepts R12 or reports a product defect. The separate Grok-hosted proof remains blocked on Terry's public key and is not substituted while R12 is active. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,8 +24,8 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R14 | 1 | blocked | none | **Provider-neutral Agent Research Gateway, ARG-0 through ARG-6 plus shared onboarding/bootstrap, implemented and operational locally.** Decision 324 adds the shared operating context, trusted provider/client identity registry, and one bootstrap contract for Codex, Claude, and future clients without provider-specific QF logic. The private target proves distinct Codex and Claude identities use the same contract without a caller-controlled identity label. Only the actual Grok-hosted proof remains blocked as Decision 323 anticipated: Terry must provide the public key generated by that environment. No Candidate research was run or authorized. |
-| R12 | 2 | blocked | none | **Connected operator-product handoff.** The accepted Ideas workflow and corrected Setup presentation are deployed privately at revision `867f9ec774628e02bc19a50411137d3e0b05c069`. Technical correction is complete; only Terry's Setup and remaining operator walkthrough/explicit acceptance can close the owner gate. The gateway side mission does not alter R12 behavior or acceptance. |
+| R12 | 1 | in_progress | none | **Decision 326 exact connected-workflow correction.** Owner walkthrough disproved the prior technical-pass claim: an imported Candidate disconnected after Ideas and an unrelated fixture could appear and launch. Completion requires exact Candidate identity/version/provenance through Setup, Run Test, Results, and Compare; truthful implementation blocking; no fixture substitution; bounded provider-neutral agent launcher; required non-browser CI; merge, backup, private deployment, and a new Terry walkthrough. No real Candidate research is authorized. |
+| R14 | 2 | blocked | R12 | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
 
 ## Architecture remediation — completed 2026-10-01
@@ -137,7 +137,7 @@ answer the hypothesis. A surviving signal must later be validated on the
 intended SPY/QQQ/index underlying before any options edge is claimed, and 0DTE
 implementation requires defensible historical option quote/execution evidence.
 
-### Dashboard and operator product — TECHNICAL PASS; OWNER HANDOFF PENDING
+### Dashboard and operator product — CONNECTED-WORKFLOW CORRECTION IN PROGRESS
 
 The current Plotly Dash product contains the backend connections and owner-facing surfaces for the single-owner workflow:
 idea and configuration setup; approved configuration launch and status;
@@ -159,10 +159,13 @@ private review service with a verified pre-deployment database backup, and
 passed revision, health, and private reachability checks. Terry accepted the
 rendered current-revision **overview screen** and authorized continuation on
 2026-09-30. That was not acceptance of the unfinished operator workflow.
-The connected workflow implementation now has a technical pass. R12 and the
-operator-product handoff gate remain active until Terry completes the walkthrough
-and explicitly accepts it. Idea capture remains local-only; source retrieval and
-LLM-backed ingestion are deferred. This acceptance does
+The earlier connected-workflow technical-pass claim is superseded by Decision
+326. Terry's walkthrough proved that Candidate identity did not remain connected
+after Ideas and that an infrastructure fixture could be presented and launched
+instead. R12 remains active until the exact-object correction is merged,
+privately deployed, and Terry completes and explicitly accepts the new
+walkthrough. Idea capture remains local-only; agents use the removable Gateway
+rather than an embedded provider. This acceptance does
 not qualify an edge or authorize paid data, protected testing, paper/live
 operation, orders, or capital exposure.
 

@@ -45,6 +45,7 @@ from dashboard.components.results_review import (  # noqa: E402
     review_context_unavailable_notice as _review_context_unavailable_notice,
 )
 from dashboard.compare_adapter import CompareDashboardAdapter  # noqa: E402
+from dashboard.candidate_workflow import displayed_candidate_identity  # noqa: E402
 from dashboard.project_status import PROJECT_STATUS, DashboardProjectStatus  # noqa: E402
 from dashboard.health import (  # noqa: E402
     HomeHealthReading,
@@ -1029,17 +1030,12 @@ def _format_currency(value: str | None) -> str:
         return raw
     return f"${amount:,.2f}"
 
-
 def _run_identity_strip(
     run: RunSummary,
     detail: SelectedRunDetailView | None,
 ) -> html.Div:
     instrument = (
-        _detail_field_value(
-            detail.evidence.provenance if detail else (),
-            "Symbol",
-            "Data · Symbol",
-        )
+        _detail_field_value(detail.evidence.provenance if detail else (), "Symbol", "Data · Symbol")
         or _detail_field_value(detail.market_data if detail else (), "Symbol")
         or None
     )
@@ -1071,10 +1067,7 @@ def _run_identity_strip(
         )
         or None
     )
-    costs = (
-        _detail_field_value(detail.execution if detail else (), "Fees", "Fees Bps")
-        or None
-    )
+    costs = _detail_field_value(detail.execution if detail else (), "Fees", "Fees Bps") or None
     slippage = (
         _detail_field_value(
             detail.execution if detail else (),
@@ -1083,7 +1076,11 @@ def _run_identity_strip(
         )
         or None
     )
+    candidate_title, candidate_id, candidate_version = displayed_candidate_identity(
+        detail.configuration_fields if detail else ()
+    )
     primary_fields = (
+        DetailField("Candidate", _display_or_dash(candidate_title)),
         DetailField("Instrument", _display_or_dash(instrument)),
         DetailField("Timeframe", _display_or_dash(timeframe)),
         DetailField("Test period", _format_test_period(date_range)),
@@ -1107,6 +1104,8 @@ def _run_identity_strip(
         DetailField("Attempt", _display_or_dash(str(run.attempt_count))),
     )
     trace_fields = (
+        DetailField("Candidate ID", _display_or_dash(candidate_id)),
+        DetailField("Candidate version", _display_or_dash(candidate_version)),
         DetailField("Backtest ID", run.run_id),
         DetailField("Configuration ID", run.configuration_id),
     )
@@ -4426,6 +4425,7 @@ def page_for_path(
 
         return run_test_layout(
             configurations=configurations,
+            database=dashboard_database,
             catalog_snapshot=catalog_snapshot,
             readiness_by_id=readiness_by_id,
         )

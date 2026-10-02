@@ -73,8 +73,8 @@ def test_historical_fixture_decision_is_retained_without_overriding_current_queu
     normalized_milestones = _normalized("docs/MILESTONES.md")
 
     assert "SPYM momentum, SPY Donchian, and RSI fixture work are scoped historical" in normalized_milestones
-    assert "R13 is accepted" in milestones
-    assert "| R14 | 1 | blocked |" in milestones
-    assert "| R12 | 2 | blocked |" in milestones
+    assert "R13 remains accepted" in milestones
+    assert "| R12 | 1 | in_progress |" in milestones
+    assert "| R14 | 2 | blocked |" in milestones
     assert "Candidate research remains paused." in milestones
     assert "Fixtures and previously inspected data prove infrastructure, not an edge." in _normalized("docs/DECISIONS.md")
