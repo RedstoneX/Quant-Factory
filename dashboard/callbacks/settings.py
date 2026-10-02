@@ -38,11 +38,19 @@ def register_settings_callbacks(app: Dash) -> None:
         density: str | None,
     ):
         if ctx.triggered_id == "reset-display-preferences":
-            return dict(DEFAULTS), "Display defaults restored in this browser.", "save-message save-message-success"
+            return (
+                dict(DEFAULTS),
+                "Display defaults applied. This browser will retain them when local storage is available.",
+                "save-message save-message-success",
+            )
         if ctx.triggered_id != "save-display-preferences":
             return no_update, no_update, no_update
         preferences = _normalized_preferences({"theme": theme, "density": density})
-        return preferences, "Display preferences saved in this browser.", "save-message save-message-success"
+        return (
+            preferences,
+            "Display preferences applied. This browser will retain them when local storage is available.",
+            "save-message save-message-success",
+        )
 
     @app.callback(
         Output("application-shell", "className"),
