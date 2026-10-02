@@ -329,7 +329,7 @@ def _submission_heading(state: ResearchSubmissionState) -> str:
 
 def _durable_launch_summary(submission: Any, run: RunSummary | None) -> html.Section:
     state = submission.state
-    run_status = run.status if run is not None else "Created"
+    run_status = run.status if run is not None else "Unavailable"
     details = [
         html.Li(f"Quant Factory run: {submission.run_id}"),
         html.Li(f"Submission: {state.value.replace('_', ' ').title()}"),
@@ -1347,14 +1347,14 @@ def register_backtest_results_callbacks(
         triggered_ids = _callback_triggered_ids()
         triggered_id = _callback_triggered_id()
 
-        def stored_run_is_valid() -> bool:
+        def stored_run_validity() -> bool | None:
             persisted_run_id = _persisted_selected_run_id(stored_run_id)
             if not persisted_run_id:
                 return False
             try:
                 return runs.get_run(persisted_run_id) is not None
             except (KeyError, ValueError, RunServiceError):
-                return False
+                return None
 
         query_requested, requested_run_id = _requested_results_run_id(search)
         should_consider_query = triggered_id is None or "url" in triggered_ids
@@ -1386,7 +1386,7 @@ def register_backtest_results_callbacks(
         # On a full browser refresh Dash reports the mounted Location search
         # as the trigger while the selector still carries its layout default.
         # Keep the valid session selection until the store re-controls it.
-        if triggered_id in {None, "url"} and stored_run_is_valid():
+        if triggered_id in {None, "url"} and stored_run_validity() is not False:
             return no_update
         if selected_run_id:
             return selected_run_id

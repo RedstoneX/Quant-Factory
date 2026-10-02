@@ -60,6 +60,18 @@ jobs:
             requirements-runtime.txt
             requirements-ci.txt
             requirements-dashboard.txt
+      - name: Build and prove outbound socket guard
+        shell: bash
+        run: |
+          cc -shared -fPIC -O2 -Wall -Wextra -Werror \
+            tools/block_outbound_connect.c -ldl \
+            -o "$RUNNER_TEMP/qf-block-outbound.so"
+          LD_PRELOAD="$RUNNER_TEMP/qf-block-outbound.so" \
+            python tools/verify_socket_blocker.py
+      - name: Enforce structural maintainability ratchets
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python tools/check_structural_maintainability.py --base-ref "$BASE_REF"
       - name: Enforce architecture dependency boundaries
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -78,6 +90,8 @@ jobs:
           --write-test-lane-inventory=test-lane-inventory.json
           tests
       - name: Run every portable non-browser test
+        env:
+          LD_PRELOAD: ${{ runner.temp }}/qf-block-outbound.so
         run: >-
           python -m pytest -q
           -m "not licensed_vectorbt and not external_prefect and not controlled_market_data"
@@ -122,6 +136,14 @@ jobs:
             requirements-runtime.txt
             requirements-ci.txt
             requirements-dashboard.txt
+      - name: Build and prove outbound socket guard
+        shell: bash
+        run: |
+          cc -shared -fPIC -O2 -Wall -Wextra -Werror \
+            tools/block_outbound_connect.c -ldl \
+            -o "$RUNNER_TEMP/qf-block-outbound.so"
+          LD_PRELOAD="$RUNNER_TEMP/qf-block-outbound.so" \
+            python tools/verify_socket_blocker.py
       - name: Install public test dependencies
         run: >-
           python -m pip install
@@ -138,6 +160,8 @@ jobs:
           --write-test-lane-inventory=test-lane-inventory.json
           tests
       - name: Run every portable browser test
+        env:
+          LD_PRELOAD: ${{ runner.temp }}/qf-block-outbound.so
         run: >-
           python -m pytest -q
           -m "not licensed_vectorbt and not external_prefect and not controlled_market_data"
