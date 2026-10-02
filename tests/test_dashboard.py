@@ -1346,8 +1346,8 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         "/research/strategy-review",
     ):
         assert "Page not found" in _component_text(page_for_path(legacy_path, context))
-    assert page_for_path("/paper/fleet", context).className == "page-container pending-page"
-    assert page_for_path("/paper/strategy", context).className == "page-container pending-page"
+    assert page_for_path("/paper/fleet", context).className == "page-container support-page pending-page"
+    assert page_for_path("/paper/strategy", context).className == "page-container support-page pending-page"
     system = page_for_path("/system", context)
     system_text = _component_text(system)
     assert "system-status-page" in system.className
@@ -2027,7 +2027,7 @@ def test_setup_and_run_test_split_configuration_from_launch() -> None:
         getattr(component, "className", "")
         for component in _walk_components(preview)
     ]
-    assert "No approved choices" in rendered
+    assert "Implementation needed" in rendered
     assert "Choose and accept a Candidate" in rendered
     assert "configuration-document" not in classes
 
