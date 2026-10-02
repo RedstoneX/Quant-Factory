@@ -71,61 +71,35 @@ jobs:
           --requirement requirements-runtime.txt
           --requirement requirements-ci.txt
           --requirement requirements-dashboard.txt
-      - name: Run complete non-browser test suite
+          playwright==1.63.0
+      - name: Validate complete test-lane inventory
+        run: >-
+          python -m pytest --collect-only -q
+          --write-test-lane-inventory=test-lane-inventory.json
+          tests
+      - name: Run every portable non-browser test
         run: >-
           python -m pytest -q
-          --junitxml=non-browser-test-results.xml
+          -m "not licensed_vectorbt and not external_prefect"
+          --junitxml=portable-nonbrowser-test-results.xml
           --ignore=tests/browser
           tests
-      - name: Verify non-browser test report
+      - name: Verify exact portable non-browser coverage
         if: always()
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          from xml.etree import ElementTree
-
-          report = Path("non-browser-test-results.xml")
-          if not report.is_file():
-              raise SystemExit("Non-browser test report is missing.")
-          root = ElementTree.parse(report).getroot()
-          cases = list(root.iter("testcase"))
-          failures = sum(bool(case.findall("failure")) for case in cases)
-          errors = sum(bool(case.findall("error")) for case in cases)
-          skipped_cases = {
-              (case.get("classname", ""), case.get("name", ""))
-              for case in cases
-              if case.findall("skipped")
-          }
-          expected_skips = {
-              (
-                  "tests.test_prefect_spike",
-                  "test_live_external_prefect_retry_success_path",
-              ),
-              (
-                  "tests.test_prefect_spike",
-                  "test_live_external_prefect_timeout_path",
-              ),
-          }
-          print(
-              f"Non-browser suite: {len(cases)} collected; "
-              f"{len(skipped_cases)} skipped; "
-              f"{failures} failed; {errors} errors."
-          )
-          if not cases or failures or errors:
-              raise SystemExit("Non-browser test report is incomplete or not green.")
-          if skipped_cases != expected_skips:
-              raise SystemExit(
-                  "Non-browser skips differ from the two declared external-Prefect tests: "
-                  f"{sorted(skipped_cases)}"
-              )
-          PY
+        run: >-
+          python tools/assert_test_lane_report.py
+          test-lane-inventory.json
+          portable-nonbrowser-test-results.xml
+          portable-nonbrowser
       # actions/upload-artifact v7.0.1
       - name: Upload non-browser test report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: non-browser-test-results
-          path: non-browser-test-results.xml
+          name: portable-nonbrowser-test-results
+          path: |
+            portable-nonbrowser-test-results.xml
+            test-lane-inventory.json
           if-no-files-found: error
           retention-days: 30
 
@@ -158,20 +132,32 @@ jobs:
           playwright==1.63.0
       - name: Install Chromium and operating-system dependencies
         run: python -m playwright install --with-deps chromium
-      - name: Run complete browser test suite
+      - name: Validate complete test-lane inventory
+        run: >-
+          python -m pytest --collect-only -q
+          --write-test-lane-inventory=test-lane-inventory.json
+          tests
+      - name: Run every portable browser test
         run: >-
           python -m pytest -q
-          --junitxml=browser-test-results.xml
+          -m "not licensed_vectorbt and not external_prefect"
+          --junitxml=portable-browser-test-results.xml
           tests/browser
-      - name: Verify browser test report
+      - name: Verify exact portable browser coverage
         if: always()
-        run: python tools/assert_junit_report.py browser-test-results.xml
+        run: >-
+          python tools/assert_test_lane_report.py
+          test-lane-inventory.json
+          portable-browser-test-results.xml
+          portable-browser
       # actions/upload-artifact v7.0.1
       - name: Upload browser test report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: browser-test-results
-          path: browser-test-results.xml
+          name: portable-browser-test-results
+          path: |
+            portable-browser-test-results.xml
+            test-lane-inventory.json
           if-no-files-found: error
           retention-days: 30

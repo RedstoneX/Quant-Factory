@@ -56,6 +56,7 @@ def _detail(database: Path, run_id: str) -> dict:
         persistence.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_spym_saved_configuration_launches_vectorbt_and_persists_lineage(
     tmp_path: Path,
 ) -> None:
@@ -113,6 +114,7 @@ def test_spym_saved_configuration_launches_vectorbt_and_persists_lineage(
         persistence.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades(
     tmp_path: Path,
 ) -> None:

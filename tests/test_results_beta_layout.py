@@ -332,5 +332,7 @@ def test_results_layout_contract_is_included_in_complete_non_browser_ci() -> Non
         Path(__file__).parents[1] / ".github" / "workflows" / "test.yml"
     ).read_text(encoding="utf-8")
 
-    assert "Run complete non-browser test suite" in workflow
+    assert "Run every portable non-browser test" in workflow
+    assert "--write-test-lane-inventory=test-lane-inventory.json" in workflow
+    assert '-m "not licensed_vectorbt and not external_prefect"' in workflow
     assert "--ignore=tests/browser\n          tests" in workflow

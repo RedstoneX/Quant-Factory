@@ -27,9 +27,14 @@ from prefect_spike.spym_vectorbt_fixture import (
     spym_21c_saved_configuration_document,
 )
 from tools import prepare_milestone23_browser_fixture as browser_fixture_cli
+from tests.spym_portable_fixture import portable_spym_fixture_launcher
 
 
 def _launcher(**kwargs):
+    return portable_spym_fixture_launcher(**kwargs)
+
+
+def _real_engine_launcher(**kwargs):
     kwargs.pop("attempt_marker_path", None)
     return deterministic_fixture_body(
         **kwargs,
@@ -100,6 +105,7 @@ def _persisted_snapshot(
     return snapshot
 
 
+@pytest.mark.licensed_vectorbt
 def test_preparer_builds_valid_idempotent_acceptance_fixture(tmp_path: Path) -> None:
     database = tmp_path / "state" / "fixture.sqlite3"
     root = tmp_path / "artifacts"
@@ -107,7 +113,7 @@ def test_preparer_builds_valid_idempotent_acceptance_fixture(tmp_path: Path) -> 
     first = prepare_milestone23_browser_fixture(
         database=database,
         artifact_root=root,
-        fixture_launcher=_launcher,
+        fixture_launcher=_real_engine_launcher,
     )
     service = PersistenceService(database)
     try:
@@ -123,7 +129,7 @@ def test_preparer_builds_valid_idempotent_acceptance_fixture(tmp_path: Path) -> 
     second = prepare_milestone23_browser_fixture(
         database=database,
         artifact_root=root,
-        fixture_launcher=_launcher,
+        fixture_launcher=_real_engine_launcher,
     )
 
     assert second == first

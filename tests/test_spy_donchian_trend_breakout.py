@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pandas as pd
 import pytest
 
@@ -179,6 +181,23 @@ def test_baseline_runner_produces_exact_six_rows(monkeypatch: pytest.MonkeyPatch
         "load_market_data",
         lambda config: MarketDataResult(data=frame, audit=_audit(frame)),
     )
+
+    def execute_fixture(config, *_args, **_kwargs):
+        rows = []
+        for index, parameters in enumerate(config.parameter_combinations):
+            rows.append(
+                {
+                    **parameters,
+                    "total_return": 0.03 - index * 0.01,
+                    "sharpe_ratio": 0.6 - index * 0.1,
+                    "screening_status": (
+                        "passed" if index == 0 else "screened_out"
+                    ),
+                }
+            )
+        return SimpleNamespace(ranked_results=pd.DataFrame(rows))
+
+    monkeypatch.setattr(runner, "execute_experiment", execute_fixture)
     result = runner.run_baseline_screen(write_output=False)
     assert len(result) == 6
     assert result["direction_variant"].value_counts().to_dict() == {

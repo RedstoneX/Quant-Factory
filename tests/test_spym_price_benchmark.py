@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from dash import dcc, html
+import pytest
 
 from dashboard.application import (
     _numeric_value,
@@ -26,6 +27,7 @@ from orchestration import FixtureRunService
 from persistence import PersistenceService
 from prefect_spike.fixture_flow import deterministic_fixture_body
 from prefect_spike.spym_vectorbt_fixture import ensure_spym_21c_saved_configuration
+from tests.spym_portable_fixture import portable_spym_fixture_launcher
 
 
 def _launcher(**kwargs):
@@ -37,7 +39,7 @@ def _launcher(**kwargs):
     )
 
 
-def _spym_detail(tmp_path: Path):
+def _spym_detail(tmp_path: Path, *, fixture_launcher=portable_spym_fixture_launcher):
     database = tmp_path / "state" / "price-benchmark.sqlite3"
     service = PersistenceService(database)
     try:
@@ -45,7 +47,7 @@ def _spym_detail(tmp_path: Path):
     finally:
         service.close()
 
-    FixtureRunService(database=database, fixture_launcher=_launcher).launch_fixture(
+    FixtureRunService(database=database, fixture_launcher=fixture_launcher).launch_fixture(
         configuration_id=configuration_id,
         run_id="qf-spym-price-benchmark",
     )
@@ -100,10 +102,11 @@ def _empty_detail() -> SelectedRunDetailView:
     )
 
 
+@pytest.mark.licensed_vectorbt
 def test_spym_fixture_persists_price_series_and_vectorbt_benchmark(
     tmp_path: Path,
 ) -> None:
-    detail, root = _spym_detail(tmp_path)
+    detail, root = _spym_detail(tmp_path, fixture_launcher=_launcher)
     payload = json.loads(
         (
             root

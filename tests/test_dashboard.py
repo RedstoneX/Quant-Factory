@@ -97,6 +97,7 @@ from tests.test_review_context_artifacts import (
     _review_service,
     _source_lock_artifact,
 )
+from tests.spym_portable_fixture import portable_spym_fixture_launcher
 
 
 
@@ -254,6 +255,7 @@ def _ranked_row() -> dict[str, object]:
     }
 
 
+@pytest.mark.licensed_vectorbt
 def test_selected_parameter_reconstruction_outputs_series_and_metadata() -> None:
     data = _data()
     selected = reconstruct_selected_portfolio(
@@ -6283,6 +6285,7 @@ def _spym_fixture_launcher(**kwargs):
     )
 
 
+@pytest.mark.licensed_vectorbt
 def test_run_detail_adapter_reads_validated_spym_artifacts_for_dashboard(
     tmp_path: Path,
 ) -> None:
@@ -6334,7 +6337,7 @@ def test_run_detail_adapter_fails_closed_for_corrupt_spym_artifact(
         persistence.close()
     FixtureRunService(
         database=database,
-        fixture_launcher=_spym_fixture_launcher,
+        fixture_launcher=portable_spym_fixture_launcher,
     ).launch_fixture(
         configuration_id=configuration_id,
         run_id="qf-dashboard-21d-corrupt",

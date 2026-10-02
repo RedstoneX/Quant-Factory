@@ -19,11 +19,11 @@ from playwright.sync_api import Page, sync_playwright
 from orchestration import FixtureRunService
 from persistence import PersistenceService, StrategyLifecycle
 from persistence.models import normalized_configuration_document
-from prefect_spike.fixture_flow import deterministic_fixture_body
 from prefect_spike.milestone23_browser_fixture import (
     TARGET_RUN_ID,
     prepare_milestone23_browser_fixture,
 )
+from tests.spym_portable_fixture import portable_spym_fixture_launcher
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -33,12 +33,7 @@ INITIAL_OPTION_TEXT = "Infrastructure Fixture"
 
 
 def _launcher(**kwargs):
-    kwargs.pop("attempt_marker_path", None)
-    return deterministic_fixture_body(
-        **kwargs,
-        prefect_flow_run_id=f"prefect-{kwargs['quant_factory_run_id']}",
-        prefect_api_url="http://127.0.0.1:4200/api",
-    )
+    return portable_spym_fixture_launcher(**kwargs)
 
 
 def _prepare_initial_run(database: Path) -> str:

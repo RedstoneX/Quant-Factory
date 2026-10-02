@@ -1,7 +1,7 @@
-# Public dependencies for GitHub Actions test jobs.
-# VectorBT Pro remains deliberately excluded; licensed-engine integration
-# evidence must run in the authorized controlled environment. Browser jobs
-# install their pinned browser runtime separately.
+# Public dependencies for GitHub-hosted portable-test jobs.
+# VectorBT Pro remains deliberately excluded. Exact marker/inventory accounting
+# keeps real-engine and external-Prefect coverage visible for controlled CI;
+# the public jobs run every test in the portable lane.
 exchange-calendars==4.13.2
 numpy==2.4.6
 pandas==2.3.3

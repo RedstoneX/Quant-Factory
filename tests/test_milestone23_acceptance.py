@@ -230,6 +230,7 @@ def _persist_spym_review_prerequisites(
         persistence.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
     tmp_path: Path,
 ) -> None:

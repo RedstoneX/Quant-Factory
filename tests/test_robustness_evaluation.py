@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 import backtesting.robustness.evaluation as evaluation_module
+from backtesting.experiments import SignalResult
 from backtesting.robustness import (
     CandidateDerivation,
     EvaluatedParameterPoint,
@@ -29,6 +30,20 @@ from strategies import get_strategy
 
 
 LOCKED = {"window": 14, "entry_threshold": 25, "exit_threshold": 55}
+
+
+def install_portable_signal_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
+    strategy = get_strategy("rsi_mean_reversion")
+
+    def deterministic_signals(data, parameters):
+        normalized = strategy.validate_parameters(parameters)
+        entries = pd.Series(False, index=data.index, dtype=bool)
+        exits = pd.Series(False, index=data.index, dtype=bool)
+        entries.iloc[5::12] = True
+        exits.iloc[8::12] = True
+        return SignalResult(entries=entries, exits=exits, parameters=normalized)
+
+    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
 
 
 def robustness_config(**kwargs) -> RobustnessConfig:
@@ -177,6 +192,7 @@ def data_and_audit():
 
 
 def test_pipeline_adapter_evaluates_only_valid_candidates_with_same_assumptions(monkeypatch):
+    install_portable_signal_boundary(monkeypatch)
     config = robustness_config()
     neighborhood = build_neighborhood(
         get_strategy(config.strategy_id), LOCKED, config.neighborhood
@@ -235,6 +251,7 @@ def test_pipeline_adapter_evaluates_only_valid_candidates_with_same_assumptions(
 
 
 def test_zero_locked_return_marks_relative_degradation_unavailable(monkeypatch):
+    install_portable_signal_boundary(monkeypatch)
     config = replace(robustness_config(), neighborhood=replace(robustness_config().neighborhood, degradation_mode="absolute"))
     neighborhood = build_neighborhood(get_strategy(config.strategy_id), LOCKED, config.neighborhood)
     data, audit = data_and_audit()
