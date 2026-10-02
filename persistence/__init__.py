@@ -44,6 +44,7 @@ from persistence.models import (
 )
 from persistence.serialization import canonical_json, configuration_hash
 from persistence.service import PersistenceService
+from persistence.candidate_ideas import save_candidate_idea
 
 __all__ = [
     "LATEST_SCHEMA_VERSION",
@@ -87,4 +88,5 @@ __all__ = [
     "connect",
     "database_path",
     "initialize_database",
+    "save_candidate_idea",
 ]

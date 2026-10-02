@@ -26,6 +26,10 @@
       "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "strategies"]
     },
     "research_intake": {"patterns": ["research_intake.*"], "allowed_dependencies": ["persistence"]},
+    "agent_gateway": {
+      "patterns": ["agent_gateway.*"],
+      "allowed_dependencies": ["backtesting", "orchestration", "persistence", "research_intake"]
+    },
     "execution": {"patterns": ["execution.*"], "allowed_dependencies": ["market_data", "persistence", "strategies"]},
     "dashboard_public": {
       "patterns": ["dashboard", "dashboard.app"],
@@ -57,11 +61,11 @@
     },
     "deployment": {
       "patterns": ["deployment.*"],
-      "allowed_dependencies": ["backtesting", "dashboard_models", "dashboard_public", "execution", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
+      "allowed_dependencies": ["agent_gateway", "backtesting", "dashboard_models", "dashboard_public", "execution", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
     },
     "tools": {
       "patterns": ["tools.*"],
-      "allowed_dependencies": ["backtesting", "dashboard_models", "dashboard_public", "deployment", "execution", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
+      "allowed_dependencies": ["agent_gateway", "backtesting", "dashboard_models", "dashboard_public", "deployment", "execution", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
     }
   }
 }

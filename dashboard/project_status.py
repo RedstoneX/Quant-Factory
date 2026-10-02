@@ -16,16 +16,15 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_title="Operator Product Completion",
     current_milestone_status=(
         "QF Candidate v1 standardized browser intake is owner-accepted and complete; "
-        "the bounded Setup-page usability correction is in progress before the "
-        "connected operator-product walkthrough resumes."
+        "the corrected Setup page is deployed for the connected owner walkthrough."
     ),
     strategy_status=(
         "No candidate research is active. The MES overnight-gap reversal is rejected "
         "and may not be tuned or rerun."
     ),
     workspace_status=(
-        "R13 is complete. R12 is correcting Setup presentation without changing "
-        "workflow behavior; strategy testing stays paused."
+        "R13 is complete and R12 awaits owner review. The separately authorized "
+        "agent gateway does not start strategy testing."
     ),
     home_subtitle="Your strategy research workspace.",
 )

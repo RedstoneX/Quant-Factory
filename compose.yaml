@@ -95,6 +95,53 @@ services:
       timeout: 10s
       retries: 3
 
+  agent-gateway:
+    image: quant-factory-research:${QF_REVISION:?set QF_REVISION}
+    command: [python, -m, deployment.agent_gateway_server]
+    environment:
+      QUANT_FACTORY_DB_PATH: /var/lib/quant-factory/state/quant_factory.sqlite3
+      QUANT_FACTORY_ARTIFACT_ROOT: /var/lib/quant-factory
+      QUANT_FACTORY_DATA_LOCATIONS: /app/config/data_locations.local.toml
+      PREFECT_API_URL: http://prefect:4200/api
+      QF_GATEWAY_DB_PATH: /var/lib/quant-factory-gateway/agent_gateway.sqlite3
+      QF_GATEWAY_SOCKET_PATH: /run/quant-factory/agent-gateway.sock
+      QF_GATEWAY_LOCAL_UIDS: ${QF_GATEWAY_LOCAL_UIDS:?set QF_GATEWAY_LOCAL_UIDS}
+      QF_GATEWAY_REMOTE_UID: ${QF_RESEARCH_UID:?set QF_RESEARCH_UID}
+      QF_GATEWAY_AUTHORITIES: ${QF_GATEWAY_AUTHORITIES:-codex-local:2,claude-local:1,grok-remote:1}
+      QF_GATEWAY_RUN_REQUESTS_ENABLED: ${QF_GATEWAY_RUN_REQUESTS_ENABLED:-true}
+      QF_REVISION: ${QF_REVISION:?set QF_REVISION}
+    depends_on:
+      prefect:
+        condition: service_healthy
+    volumes:
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/runtime:/var/lib/quant-factory
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/market-data:/var/lib/quant-factory/market-data:ro
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/config/data_locations.local.toml:/app/config/data_locations.local.toml:ro
+      - ${QF_GATEWAY_STATE_ROOT:?set QF_GATEWAY_STATE_ROOT}:/var/lib/quant-factory-gateway
+      - ${QF_GATEWAY_SOCKET_ROOT:?set QF_GATEWAY_SOCKET_ROOT}:/run/quant-factory
+    user: "${QF_GATEWAY_UID:?set QF_GATEWAY_UID}:${QF_GATEWAY_GID:?set QF_GATEWAY_GID}"
+    group_add:
+      - "${QF_RUNTIME_GID:-10001}"
+      - "${QF_AGENT_ACCESS_GID:?set QF_AGENT_ACCESS_GID}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:uid=${QF_GATEWAY_UID:?set QF_GATEWAY_UID},gid=${QF_GATEWAY_GID:?set QF_GATEWAY_GID},mode=1777
+    cpus: "2.0"
+    mem_limit: 3g
+    pids_limit: 256
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks: [research-internal]
+    healthcheck:
+      test: [CMD, python, -c, "from pathlib import Path; assert Path('/run/quant-factory/agent-gateway.sock').is_socket()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 networks:
   research-internal:
     internal: true

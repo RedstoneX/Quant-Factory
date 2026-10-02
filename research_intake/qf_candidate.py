@@ -16,7 +16,12 @@ from urllib.parse import urlsplit
 
 import yaml
 
-from persistence import IdeaDraftRecord, PersistenceService, canonical_json
+from persistence import (
+    IdeaDraftRecord,
+    PersistenceService,
+    canonical_json,
+    save_candidate_idea,
+)
 
 QF_CANDIDATE_SCHEMA = "qf_candidate_v1"
 MAX_PACKET_CHARS = 100_000
@@ -306,6 +311,7 @@ def import_candidate_as_idea(
     *,
     database: str | Path | None = None,
     format_hint: str | None = None,
+    draft_id: str | None = None,
 ) -> CandidateImportResult:
     """Persist one valid Candidate packet as a durable, non-executable idea draft."""
 
@@ -328,17 +334,29 @@ def import_candidate_as_idea(
 
     service = PersistenceService(database)
     try:
-        draft = service.save_idea_draft(
-            title=_text(candidate.get("title")),
-            description=_text(hypothesis.get("behavior")),
-            source_url=source_url,
-            attribution=attribution,
-            notes=notes[:2000],
-        )
-        draft = service.set_idea_candidate_packet(
-            draft_id=draft.draft_id,
-            candidate_json=validation.canonical_json,
-        )
+        if draft_id is None:
+            draft = service.save_idea_draft(
+                title=_text(candidate.get("title")),
+                description=_text(hypothesis.get("behavior")),
+                source_url=source_url,
+                attribution=attribution,
+                notes=notes[:2000],
+            )
+            draft = service.set_idea_candidate_packet(
+                draft_id=draft.draft_id,
+                candidate_json=validation.canonical_json,
+            )
+        else:
+            draft, _created = save_candidate_idea(
+                service,
+                draft_id=draft_id,
+                title=_text(candidate.get("title")),
+                description=_text(hypothesis.get("behavior")),
+                source_url=source_url,
+                attribution=attribution,
+                notes=notes[:2000],
+                candidate_json=validation.canonical_json,
+            )
         return CandidateImportResult(draft=draft, validation=validation)
     finally:
         service.close()

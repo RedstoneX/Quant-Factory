@@ -26,6 +26,8 @@ def test_container_context_includes_candidate_intake_package():
 
     assert "!research_intake/" in dockerignore
     assert "!research_intake/**" in dockerignore
+    assert "!agent_gateway/" in dockerignore
+    assert "!agent_gateway/**" in dockerignore
 
 
 def test_compose_binds_dashboard_only_to_loopback_and_uses_external_root():
@@ -40,6 +42,9 @@ def test_compose_binds_dashboard_only_to_loopback_and_uses_external_root():
     assert "/runtime:/var/lib/quant-factory" in compose
     assert "entrypoint: [prefect]" in compose
     assert "PREFECT_SERVER_ANALYTICS_ENABLED: \"false\"" in compose
+    assert "QF_GATEWAY_SOCKET_PATH: /run/quant-factory/agent-gateway.sock" in compose
+    assert "agent-gateway:" in compose
+    assert "ports:" not in compose.split("  agent-gateway:", 1)[1]
 
 
 def test_entrypoint_fails_closed_when_required_mount_configuration_is_missing():
