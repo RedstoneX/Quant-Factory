@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Terry performs and explicitly accepts the deployed private QF Candidate v1 walkthrough; the connected R12 handoff gate follows. |
-| Phase | **Standardized strategy intake deployed and technically ready; private owner walkthrough pending. Candidate research remains paused.** |
-| Active work | No additional Codex product work is active. The private review service is healthy and ready for Terry's R13 walkthrough. Stop at owner acceptance unless Terry reports an in-scope walkthrough defect. |
+| Immediate objective | Terry performs and explicitly accepts the connected R12 operator-product walkthrough. |
+| Phase | **Standardized strategy intake accepted; connected operator product technically ready; R12 owner handoff pending. Candidate research remains paused.** |
+| Active work | No additional Codex product work is active. R13 is complete. The existing private review service is ready for Terry's R12 walkthrough; stop at owner acceptance unless Terry reports an in-scope walkthrough defect. |
 | Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Terry has not yet used and accepted the current-revision Candidate intake and connected operator workflow in the private browser environment. |
-| Next action | Terry completes Candidate paste/upload, validation, readable review, durable save/reload, Candidate export, QF Research Context v1 export, and confirms the truthful blocked Setup boundary. Record explicit R13 acceptance before advancing R12. |
+| Verified gap | Terry has not yet explicitly accepted the broader connected R12 operator-product handoff. |
+| Next action | Terry walks through the already-built Setup/launch/status, Results/evidence, comparison, review, reproduction, and failure-handling path using existing safe records or fixtures, then explicitly accepts or reports a blocking defect. No new strategy test is required. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,8 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | blocked | none | **Technical pass and private deployment complete; owner acceptance only.** A verified encrypted pre-deployment backup, revision/health/private reachability, schema-v7 migration, restart, and real-browser flow all passed. Candidate paste/upload, deterministic validation, readable review, durable save/reload, YAML/JSON export, QF Research Context v1 export, and the truthful blocked Setup boundary are ready. No provider, source retrieval, implementation, or execution authority is included. |
-| R12 | 2 | blocked | none | **Connected operator workflow technical pass; owner handoff acceptance pending after R13.** No candidate research or further product scope is authorized while the walkthrough gate remains open. |
+| R12 | 1 | blocked | none | **Connected operator workflow technical pass; owner handoff acceptance only.** R13 is complete. Terry must accept the broader Setup/launch/status, Results/evidence, comparison, review, reproduction, and failure-handling journey. No new candidate research or additional product scope is authorized while this gate remains open. |
 <!-- active-work:end -->
 
 ## Architecture remediation — completed 2026-10-01
@@ -82,7 +81,7 @@ profitability, or the licensed engine itself.
 1. Backend completion — COMPLETE
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
 3. Dashboard and operator-product implementation — TECHNICAL PASS; OWNER HANDOFF AVAILABLE
-4. **Standardized QF Candidate v1 intake — TECHNICAL PASS; OWNER WALKTHROUGH PENDING**
+4. **Standardized QF Candidate v1 intake — COMPLETE; OWNER ACCEPTED 2026-10-02**
 5. Owner walkthrough / handoff acceptance — PENDING
 6. Owner-approved candidate research
 7. Validation of a surviving edge
@@ -174,8 +173,13 @@ preserved all 45 historical runs and advanced the live database to schema 7.
 Health, revision identity, private reachability, Candidate upload and
 validation, readable review, both export families, the blocked Setup boundary,
 zero browser errors, and restart recovery passed. Durable save and reload were
-also proven against a disposable copy of the same state. Terry's subjective
-walkthrough and explicit acceptance remain the only R13 closure gate.
+also proven against a disposable copy of the same state. On 2026-10-02 Terry
+completed all seven Ideas-page checks, confirmed that the logic and interaction
+were usable, and successfully used an external LLM with the exported context to
+produce a Candidate YAML packet. Terry explicitly accepted the successful
+outcome. R13 is complete. The broader R12 operator-product walkthrough remains
+the next owner gate; no candidate research or execution authority follows from
+R13 acceptance alone.
 
 ### Paper and live
 
