@@ -192,7 +192,7 @@ def _assert_unknown_run_test(page: Page, run_id: str) -> None:
         "Submission outcome unknown"
     )
     expect(page.locator("#launch-message")).to_contain_text(run_id)
-    expect(page.locator("#launch-message")).to_contain_text("Run status: Unavailable")
+    expect(page.locator("#launch-message")).to_contain_text("Run status: Created")
     expect(page.locator("#launch-message")).to_contain_text(
         "Do not retry, cancel, or launch"
     )
