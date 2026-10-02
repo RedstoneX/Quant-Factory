@@ -1,9 +1,9 @@
-# CONCEPTUAL / NOT AUTHORIZED — Quant Factory Agent Research Gateway
+# Quant Factory Agent Research Gateway
 
-> This is a supporting implementation specification. It does **not** change the
-> active queue, owner authority, milestone status, research authority, paper/live
-> authority, or product sequencing in `docs/MILESTONES.md`. Implementation starts
-> only when the owner explicitly authorizes this work and Tier 1 is updated.
+> This remains a supporting implementation specification. Decision 323 and
+> `docs/MILESTONES.md` authorize ARG-0 through ARG-6; Tier 1 remains the sole
+> authority for current status and sequencing. ARG-7 remains optional and is
+> not authorized without a demonstrated client need.
 
 ## Purpose
 
@@ -607,6 +607,27 @@ and code-review path.
 
 These are design milestones inside this specification. They are **not active
 project milestones** until `docs/MILESTONES.md` explicitly activates them.
+
+## ARG-0 reuse inventory (completed 2026-10-02)
+
+| Gateway capability | Existing Quant Factory owner | Reuse decision |
+|---|---|---|
+| Research context | `research_intake.qf_research_context` | Reuse `build_research_context` / deterministic export. |
+| Candidate parsing, validation, import safety | `research_intake.qf_candidate` | Reuse unchanged QF Candidate v1 validation and import-status boundary. |
+| Durable Candidate record | `PersistenceService.idea_drafts` | Reuse schema-v7 `idea_drafts`; deterministic gateway content ID supplies deduplication. |
+| Saved setup and Candidate-to-configuration link | `PersistenceService` configuration and idea operations | Read existing link; gateway does not create implementations or configurations. |
+| Durable run identity and at-most-once dispatch | `CandidateRunService` / `DurableResearchLaunchService` | Reuse existing claim and idempotency contract. |
+| Candidate execution and validation sequence | `CandidatePipelineRuntime` plus injected Prefect launcher | Reuse the existing pipeline; no second orchestrator. |
+| Run status/results | `PersistenceService` run and result repositories | Project only permitted non-protected structured fields. |
+| Evidence validation | `ValidationEvidenceArtifactService` and persisted manifests | Reuse validated readers and fail closed for OOS/protected records. |
+| Architecture enforcement | ADR 0014, `config/architecture.json`, `tools/check_architecture.py` | Add one outer component and retain zero/zero/zero. |
+
+True gaps are limited to the provider-neutral request/response contract; a
+deterministic prior-work query; removable gateway audit, note, and lineage
+storage; deterministic Candidate collision handling; protected-safe result
+projection; Unix-socket service/CLI; and the forced-command SSH adapter. No
+core research engine, persistence migration, model integration, dashboard
+dependency, or orchestration replacement is required.
 
 ### ARG-0 — Current-interface inventory
 

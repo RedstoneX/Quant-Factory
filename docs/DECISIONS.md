@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **323** | **Activate the provider-neutral Agent Research Gateway side mission through ARG-6:** reuse the existing Candidate/context/persistence/orchestration/evidence boundaries; provide local Unix-socket/CLI and restricted forced-command SSH access; preserve all owner, protected-data, paper/live, broker, secret, and capital gates. R12 remains deployed for owner review and Candidate research remains paused. |
 | **322** | **R13 standardized intake is owner-accepted and complete:** Terry completed all seven Ideas-page checks and successfully used the exported context with an external LLM to produce a Candidate YAML packet. The existing R12 connected operator-product walkthrough is now the sole active handoff gate; strategy testing remains paused. |
 | **321** | **The owner explicitly lifts the development freeze for the preserved R13/R12 roadmap only:** prepare and privately deploy the current QF Candidate v1/operator workflow for owner walkthrough. Strategy research, new product direction, LLM/provider work, broker work, paper/live work, paid/protected data, and unrelated development remain unauthorized. |
 | **320** | **Architecture completion does not lift the development freeze:** remediation is technically complete, but all normal feature/research development remains paused until Terry personally and explicitly authorizes lifting the freeze. The pre-freeze queue is preserved but blocked. |
@@ -1888,3 +1889,28 @@ superseded.
      protected evidence, paid data, broker work, paper/live operation, orders,
      and capital exposure remain unauthorized until their applicable later
      gates.
+
+
+323. **Activate the provider-neutral Agent Research Gateway side mission
+     through ARG-6 (accepted 2026-10-02).** Terry explicitly authorizes the
+     implementation plan in `docs/AGENT_RESEARCH_GATEWAY_PLAN.md` after the
+     corrected Setup page was deployed for owner review. Work may continue
+     autonomously through ARG-0, local read access, Candidate intake/audit,
+     restricted Grok SSH transport, owner-gated development-run requests,
+     evidence-aware lineage, and the three-agent interoperability pilot.
+
+     The gateway must remain an outer, removable adapter over the existing QF
+     Candidate, Research Context, persistence, orchestration, result, and
+     evidence contracts. It uses a private local Unix socket for Codex/Claude
+     and the existing SSH endpoint with a dedicated key-only, forced-command
+     `qf-research` identity for Grok. It exposes no new public QF listener,
+     creates no second orchestration engine, and adds no model-provider
+     dependency to Quant Factory.
+
+     This decision does not approve any Candidate, start strategy discovery,
+     permit profitability research, expose protected evidence or secrets, buy
+     data, expand broker access, or authorize paper/live trading, orders,
+     capital, or risk changes. R12 remains deployed at its owner-only
+     walkthrough gate. Actual Grok-side credential installation and connection
+     still require the owner-controlled public key and hosted-agent action; a
+     local transport proof cannot be represented as that remote proof.

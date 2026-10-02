@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+client_root=${QF_AGENT_CLIENT_ROOT:-/opt/quant-factory-gateway/client}
+export PYTHONPATH="$client_root"
+exec /usr/bin/python3 -m agent_gateway.cli "$@"

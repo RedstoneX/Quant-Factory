@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Correct the owner-reported Setup-page usability defect, redeploy privately, and resume Terry's connected R12 operator-product walkthrough. |
-| Phase | **Standardized strategy intake accepted; bounded R12 Setup-page correction in progress. Candidate research remains paused.** |
-| Active work | Reorganize the existing Setup presentation around the accepted Ideas-page interaction model while preserving every callback, identifier, persistence path, readiness rule, safety boundary, and launch behavior. No backend or workflow redesign is authorized. |
+| Immediate objective | Complete the owner-authorized provider-neutral Agent Research Gateway side mission while the deployed R12 Setup correction awaits Terry's connected operator-product walkthrough. |
+| Phase | **R13 is accepted; corrected R12 Setup is deployed for owner review; Agent Research Gateway ARG-0 through ARG-6 is active. Candidate research remains paused.** |
+| Active work | Implement `docs/AGENT_RESEARCH_GATEWAY_PLAN.md` through ARG-6 using a local CLI/Unix socket and restricted forced-command SSH, reusing QF Candidate, context, persistence, orchestration, results, and evidence services. No public QF listener, model-provider dependency, second orchestration engine, protected evidence, or trading authority is authorized. |
 | Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Terry reported that Setup retains the same developer-facing hierarchy and unclear guidance corrected on Ideas; R12 is not ready for owner acceptance until that defect is fixed. |
-| Next action | Complete the bounded Setup presentation correction, run focused and required CI, deploy through the existing private path, and return the corrected page to Terry. No new strategy test is required. |
+| Verified gap | External research agents have no stable provider-neutral, least-privilege interface to current QF context, Candidate intake, prior work, permitted results, or owner-gated development-run requests. |
+| Next action | Complete ARG-0 through ARG-6 without changing the QF schema or research/trading authority, prove the local and restricted-SSH boundaries on the target, and return any genuinely owner-only remote-agent connection step. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,7 +24,8 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Bounded Setup-page usability correction.** R13 is complete. Terry reported that Setup still exposes a developer-facing hierarchy rather than clearly communicating the selected idea, requirements, readiness, and next action. Preserve all existing behavior and correct presentation only, then return to owner walkthrough. No new candidate research or additional product scope is authorized. |
+| R14 | 1 | in_progress | none | **Provider-neutral Agent Research Gateway, ARG-0 through ARG-6.** Decision 323 activates the bounded side mission in `docs/AGENT_RESEARCH_GATEWAY_PLAN.md`. Reuse existing QF services; use a local Unix socket and restricted forced-command SSH; preserve owner/Candidate gates; expose no new QF network listener; add no model-provider, paper/live, broker, secret, paid-data, or protected-data authority. |
+| R12 | 2 | blocked | none | **Connected operator-product handoff.** The accepted Ideas workflow and corrected Setup presentation are deployed privately at revision `867f9ec774628e02bc19a50411137d3e0b05c069`. Technical correction is complete; only Terry's Setup and remaining operator walkthrough/explicit acceptance can close the owner gate. The gateway side mission does not alter R12 behavior or acceptance. |
 <!-- active-work:end -->
 
 ## Architecture remediation — completed 2026-10-01
