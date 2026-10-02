@@ -4,6 +4,7 @@
  * silently win the cascade.
  */
 @import url("/assets/approved-workflow.css");
+@import url("/assets/approved-ideas-review.css");
 @import url("/assets/approved-z-dashboard.css");
 
 .setup-workbench-grid-blocked {

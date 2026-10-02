@@ -22,6 +22,10 @@ from dashboard.callbacks.candidate_decision import (
     setup_link_state as _setup_link_state,
 )
 from dashboard.components.candidate_brief import candidate_brief
+from dashboard.candidate_workflow import (
+    candidate_packet_status,
+    idea_decision_presentation,
+)
 from dashboard.pages.ideas import _candidate_status
 from dashboard.pages.ideas import _candidate_status_prompt
 from dashboard.pages.ideas import _candidate_prompt
@@ -473,50 +477,13 @@ def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
 
         source_parts = [part for part in (values["attribution"], values["source_url"]) if part]
         formed = bool(values["title"] and values["description"])
-        candidate_status = ""
-        candidate_json = stored.get("candidate_json")
-        if candidate_json:
-            try:
-                candidate_document = parse_candidate_packet(
-                    str(candidate_json), format_hint="json"
-                )
-                candidate = candidate_document.get("candidate")
-                if isinstance(candidate, dict):
-                    candidate_status = str(candidate.get("status") or "")
-            except CandidatePacketError:
-                candidate_status = "invalid"
-        if candidate_status == "owner_approved":
-            brief_state = "Accepted"
-            brief_class = "idea-brief-badge idea-brief-badge-approved"
-        elif candidate_status == "rejected":
-            brief_state = "Rejected"
-            brief_class = "idea-brief-badge idea-brief-badge-rejected"
-        elif formed:
-            brief_state = "Draft formed"
-            brief_class = "idea-brief-badge idea-brief-badge-ready"
-        else:
-            brief_state = "Needs your input"
-            brief_class = "idea-brief-badge"
-
-        if candidate_status == "owner_approved":
-            next_action = (
-                "Continue to Set up to check whether this exact Candidate is implemented."
-            )
-        elif candidate_status == "rejected":
-            next_action = "This Candidate remains in history and cannot continue."
-        elif not formed:
-            next_action = "Add a title and hypothesis, then save the draft."
-        elif dirty or not stored.get("draft_id"):
-            next_action = "Save this version before continuing."
-        elif stored.get("configuration_id"):
-            next_action = "Open Set up to review the saved bounded configuration."
-        elif stored.get("candidate_json"):
-            next_action = (
-                "Candidate saved. Owner approval and deterministic implementation "
-                "are required before Set up can create a runnable test."
-            )
-        else:
-            next_action = "Continue to Set up and choose an approved specification."
+        brief_state, brief_class, next_action = idea_decision_presentation(
+            candidate_status=candidate_packet_status(stored.get("candidate_json")),
+            formed=formed,
+            dirty=dirty,
+            has_draft=bool(stored.get("draft_id")),
+            has_configuration=bool(stored.get("configuration_id")),
+        )
 
         return (
             values["title"] or "New research idea",

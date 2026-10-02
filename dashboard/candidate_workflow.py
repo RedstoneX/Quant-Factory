@@ -102,6 +102,58 @@ def candidate_review_state(draft: IdeaDraftView | None) -> tuple[str, bool]:
     return status, status == "owner_approved"
 
 
+def candidate_packet_status(candidate_json: object) -> str:
+    """Read only the durable owner-decision status from a stored packet."""
+
+    if not candidate_json:
+        return ""
+    try:
+        document = parse_candidate_packet(str(candidate_json), format_hint="json")
+    except ValueError:
+        return "invalid"
+    candidate = document.get("candidate")
+    return str(candidate.get("status") or "") if isinstance(candidate, Mapping) else ""
+
+
+def idea_decision_presentation(
+    *,
+    candidate_status: str,
+    formed: bool,
+    dirty: bool,
+    has_draft: bool,
+    has_configuration: bool,
+) -> tuple[str, str, str]:
+    """Return the queue decision label, tone, and one truthful next action."""
+
+    if candidate_status == "owner_approved":
+        return (
+            "Accepted",
+            "idea-brief-badge idea-brief-badge-approved",
+            "Continue to Set up to check whether this exact Candidate is implemented.",
+        )
+    if candidate_status == "rejected":
+        return (
+            "Rejected",
+            "idea-brief-badge idea-brief-badge-rejected",
+            "This Candidate remains in history and cannot continue.",
+        )
+    state = "Draft formed" if formed else "Needs your input"
+    state_class = (
+        "idea-brief-badge idea-brief-badge-ready" if formed else "idea-brief-badge"
+    )
+    if not formed:
+        action = "Add a title and hypothesis, then save the draft."
+    elif dirty or not has_draft:
+        action = "Save this version before continuing."
+    elif has_configuration:
+        action = "Open Set up to review the saved bounded configuration."
+    elif candidate_status:
+        action = "Review the exact Candidate, then choose one action."
+    else:
+        action = "Continue to Set up and choose an approved specification."
+    return state, state_class, action
+
+
 def candidate_identity_for_configuration(
     configuration_id: str,
     *,
