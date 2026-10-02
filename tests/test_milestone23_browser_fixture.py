@@ -168,6 +168,46 @@ def test_preparer_builds_valid_idempotent_acceptance_fixture(tmp_path: Path) -> 
         service.close()
 
 
+def test_portable_preparer_labels_generated_evidence_as_synthetic(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "portable.sqlite3"
+    root = tmp_path / "portable-artifacts"
+    prepare_milestone23_browser_fixture(
+        database=database,
+        artifact_root=root,
+        fixture_launcher=_launcher,
+    )
+    service = PersistenceService(database)
+    try:
+        provenance = service.results.get_data_provenance(TARGET_RUN_ID)
+        assert provenance is not None
+        assert provenance.provider == "Synthetic portable test fixture"
+        assert provenance.cache_action == "generated-synthetic-test-fixture"
+        validation_summary = json.loads(provenance.validation_summary_json)
+        assert validation_summary["observed_regular_session_bar_count"] == 0
+        assert validation_summary["synthetic_bar_count"] == 53_528
+
+        artifacts = {
+            artifact.logical_name: json.loads(
+                (database.parent / artifact.location).read_text(encoding="utf-8")
+            )
+            for artifact in service.list_run_artifacts(TARGET_RUN_ID)
+            if artifact.logical_name in {"dataset_manifest", "validation_evidence"}
+        }
+        manifest = artifacts["dataset_manifest"]
+        assert manifest["dataset_id"] == "synthetic_SPYM_1m_portable_ui_fixture"
+        assert manifest["status"] == "provisional"
+        assert manifest["fixture_only"] is True
+        assert manifest["source_market_data_read"] is False
+        validation = artifacts["validation_evidence"]
+        assert validation["dataset_manifest"]["status"] == "fixture-only"
+        assert validation["promotion_eligible"] is False
+        assert validation["evidence_classification"].startswith("synthetic portable")
+    finally:
+        service.close()
+
+
 def test_preparer_fails_closed_without_repairing_corrupt_source_lock(
     tmp_path: Path,
 ) -> None:

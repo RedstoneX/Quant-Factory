@@ -1,14 +1,15 @@
-"""Portable persisted SPYM evidence for dashboard and persistence tests.
+"""Portable synthetic SPYM-shaped evidence for dashboard and persistence tests.
 
 This fixture intentionally replaces only the licensed calculation boundary.  It
 persists the same public evidence contract consumed by the dashboard so browser
-tests continue to exercise real durable claims, manifests, artifact validation,
-and UI rendering without claiming to prove VectorBT Pro calculations.
+tests continue to exercise durable fixture claims, artifact validation, and UI
+rendering without claiming generated values are observed market or engine data.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 import json
 from pathlib import Path
 from typing import Any, Mapping
@@ -40,6 +41,9 @@ _DATASET_CHECKSUM = (
     "0fac9de8cb97568c7ee5ae00532277d960c316989ccd65296c394f0dfa44a5ab"
 )
 _MANIFEST_REFERENCE = "data/manifests/equities_SPYM_1m_databento_equs_mini.json"
+_FIXTURE_DATASET_ID = "synthetic_SPYM_1m_portable_ui_fixture"
+_FIXTURE_MANIFEST_REFERENCE = "generated://synthetic_SPYM_1m_portable_ui_fixture"
+_FIXTURE_PROVIDER = "Synthetic portable test fixture"
 _ROW_COUNT = 53_528
 _TRADE_COUNT = 366
 _METRICS = {
@@ -141,8 +145,9 @@ def _persist_portable_spym_fixture(
         if not isinstance(saved_execution_assumptions, Mapping):
             raise RuntimeError("portable SPYM execution assumptions are missing")
 
-        manifest = _dataset_manifest()
-        bars = _price_rows(manifest)
+        source_manifest = _dataset_manifest()
+        bars = _price_rows(source_manifest)
+        manifest = _synthetic_fixture_manifest(source_manifest, bars)
         trades, orders = _trade_and_order_rows(bars)
         artifacts = _artifact_documents(
             run_id=quant_factory_run_id,
@@ -168,8 +173,8 @@ def _persist_portable_spym_fixture(
             service.results.set_data_provenance(
                 DataProvenanceRecord(
                     run_id=quant_factory_run_id,
-                    provider="Databento",
-                    provider_implementation="EQUS.MINI ohlcv-1m",
+                    provider=_FIXTURE_PROVIDER,
+                    provider_implementation="deterministic generated OHLC contract",
                     symbol="SPYM",
                     interval="1m",
                     timezone="UTC",
@@ -179,12 +184,12 @@ def _persist_portable_spym_fixture(
                     ),
                     adjusted=False,
                     row_count=_ROW_COUNT,
-                    cache_action="portable-contract-fixture",
+                    cache_action="generated-synthetic-test-fixture",
                     validation_summary_json=canonical_json(
                         _validation_summary(manifest)
                     ),
-                    manifest_reference=_MANIFEST_REFERENCE,
-                    checksum=_DATASET_CHECKSUM,
+                    manifest_reference=_FIXTURE_MANIFEST_REFERENCE,
+                    checksum=str(manifest["sha256"]),
                 )
             )
             service.results.set_execution_assumptions(
@@ -197,7 +202,10 @@ def _persist_portable_spym_fixture(
                 target_type="run",
                 target_id=quant_factory_run_id,
                 state=ReviewState.INFRASTRUCTURE_FIXTURE,
-                note="Milestone 21C deterministic SPYM VectorBT Pro fixture run.",
+                note=(
+                    "Synthetic portable UI/persistence fixture; not observed market "
+                    "data or VectorBT Pro evidence."
+                ),
                 operator="local-user",
             )
 
@@ -268,6 +276,36 @@ def _dataset_manifest() -> dict[str, Any]:
     ):
         raise RuntimeError("public SPYM manifest no longer matches the portable contract")
     return document
+
+
+def _synthetic_fixture_manifest(
+    source_manifest: Mapping[str, Any],
+    bars: list[dict[str, Any]],
+) -> dict[str, Any]:
+    encoded = (canonical_json(bars) + "\n").encode("utf-8")
+    return {
+        "dataset_id": _FIXTURE_DATASET_ID,
+        "status": "provisional",
+        "asset_class": "synthetic_test_fixture",
+        "symbol": "SPYM",
+        "provider": _FIXTURE_PROVIDER,
+        "timeframe": "1m",
+        "format": "generated-json-contract",
+        "canonical_relative_path": "portable-fixtures/synthetic-spym-1m.json",
+        "sha256": sha256(encoded).hexdigest(),
+        "size_bytes": len(encoded),
+        "row_count": len(bars),
+        "requested_sessions": list(source_manifest.get("requested_sessions", [])),
+        "possible_regular_session_minute_count": source_manifest.get(
+            "possible_regular_session_minute_count", _ROW_COUNT
+        ),
+        "missing_regular_session_bar_count": source_manifest.get(
+            "missing_regular_session_bar_count", 0
+        ),
+        "fixture_only": True,
+        "source_calendar_template": _MANIFEST_REFERENCE,
+        "source_market_data_read": False,
+    }
 
 
 def _price_rows(manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -382,8 +420,8 @@ def _trade_and_order_rows(
 
 def _validation_summary(manifest: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "dataset": "EQUS.MINI",
-        "dataset_id": _DATASET_ID,
+        "dataset": "synthetic portable UI fixture",
+        "dataset_id": _FIXTURE_DATASET_ID,
         "duplicate_timestamp_count": 0,
         "missing_regular_session_bar_count": manifest.get(
             "missing_regular_session_bar_count", 0
@@ -391,16 +429,17 @@ def _validation_summary(manifest: Mapping[str, Any]) -> dict[str, Any]:
         "missing_session_count": 0,
         "negative_volume_count": 0,
         "null_count": 0,
-        "observed_regular_session_bar_count": _ROW_COUNT,
+        "observed_regular_session_bar_count": 0,
         "ohlc_violation_count": 0,
         "out_of_session_bar_count": 0,
         "possible_regular_session_minute_count": manifest.get(
             "possible_regular_session_minute_count", _ROW_COUNT
         ),
         "schema": "ohlcv-1m",
-        "synthetic_bar_count": 0,
+        "synthetic_bar_count": _ROW_COUNT,
         "validation_notes": [
-            "Deterministic public test evidence; not licensed-engine proof."
+            "All price, trade, and equity values are deterministically generated.",
+            "This fixture is not observed market data or licensed-engine proof.",
         ],
     }
 
@@ -435,12 +474,12 @@ def _artifact_documents(
         "fees": 0.0,
         "fixed_fee_per_order": 0.0,
         "instrument": "SPYM",
-        "label": "SPYM same-instrument buy-and-hold",
+        "label": "Synthetic SPYM fixture buy-and-hold",
         "limitations": (
             "Research fixture comparison only; broker orders are disabled, and "
             "zero configured fees/slippage do not model future actual fills."
         ),
-        "price_series": "deterministic public SPYM-shaped one-minute test evidence",
+        "price_series": "deterministic synthetic SPYM-shaped one-minute test values",
         "resampling": "none; 53,528 persisted one-minute contract rows",
         "slippage": 0.0,
         "starting_capital": 10_000.0,
@@ -471,8 +510,8 @@ def _artifact_documents(
                 "experiment_id": "milestone_21c_spym_databento_vectorbt_fixture",
                 "strategy_id": "spym_rsi_mean_reversion_fixture",
                 "strategy_version": "1.0.0",
-                "dataset_id": _DATASET_ID,
-                "dataset_sha256": _DATASET_CHECKSUM,
+                "dataset_id": manifest["dataset_id"],
+                "dataset_sha256": manifest["sha256"],
                 "terminal_status": RunStatus.SUCCEEDED.value,
                 "evaluated_combinations": 1,
                 "broker_orders": "disabled",
@@ -505,16 +544,16 @@ def _artifact_documents(
             "validation_evidence",
             {
                 "dataset_manifest": {
-                    "reference": _MANIFEST_REFERENCE,
-                    "sha256": _DATASET_CHECKSUM,
+                    "reference": _FIXTURE_MANIFEST_REFERENCE,
+                    "sha256": manifest["sha256"],
                     "row_count": _ROW_COUNT,
-                    "status": "validated",
+                    "status": "fixture-only",
                 },
                 "result_validation_gate_count": 20,
                 "screening_status": "passed",
                 "data_validation": validation,
                 "evidence_classification": (
-                    "deterministic public UI/persistence fixture; not engine evidence"
+                    "synthetic portable UI/persistence fixture; not observed market or engine evidence"
                 ),
                 "promotion_eligible": False,
                 "execution_contract": dict(execution),

@@ -130,7 +130,7 @@ def test_signal_arrays_align_with_price_index(monkeypatch) -> None:
     assert exits.index.equals(close.index)
 
 
-def test_common_interface_signal_result_matches_preserved_rsi_rules(monkeypatch) -> None:
+def test_common_interface_uses_vectorbt_rsi_threshold_methods(monkeypatch) -> None:
     index = pd.date_range("2024-01-01", periods=50, freq="D")
     close = pd.Series(
         [100 + ((i % 10) - 5) * 2 for i in range(len(index))],
@@ -155,6 +155,25 @@ def test_common_interface_signal_result_matches_preserved_rsi_rules(monkeypatch)
         "entry_threshold": 30,
         "exit_threshold": 55,
     }
+
+
+@pytest.mark.licensed_vectorbt
+def test_common_interface_signal_result_matches_preserved_rsi_rules() -> None:
+    import vectorbtpro as vbt
+
+    index = pd.date_range("2024-01-01", periods=50, freq="D")
+    close = pd.Series(
+        [100 + ((i % 10) - 5) * 2 for i in range(len(index))],
+        index=index,
+        dtype=float,
+    )
+    result = get_strategy("rsi_mean_reversion").generate_signals(
+        pd.DataFrame({"Close": close}),
+        {"window": 7, "entry_threshold": 30, "exit_threshold": 55},
+    )
+    rsi = vbt.RSI.run(close, window=7)
+    pd.testing.assert_series_equal(result.entries, rsi.rsi_crossed_below(30))
+    pd.testing.assert_series_equal(result.exits, rsi.rsi_crossed_above(55))
 
 
 def test_parameter_grid_is_unchanged() -> None:

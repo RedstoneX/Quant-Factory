@@ -64,14 +64,14 @@ def test_spym_price_markers_and_benchmark_render_from_persisted_evidence(
             ).to_be_visible()
             expect(
                 page.locator(".run-benchmark-panel")
-                .get_by_text("SPYM same-instrument buy-and-hold", exact=True)
+                .get_by_text("Synthetic SPYM fixture buy-and-hold", exact=True)
                 .last
             ).to_be_visible()
             expect(page.get_by_text("$10,000.00", exact=True).first).to_be_visible()
             expect(page.get_by_text("0.000%", exact=True).first).to_be_visible()
             expect(
                 page.get_by_text(
-                    "Showing 306 of 53,528 actual 1m bars for 1D, "
+                    "Showing 306 of 53,528 synthetic fixture 1m bars for 1D, "
                     "with 6 visible trade markers.",
                     exact=True,
                 )
@@ -79,7 +79,11 @@ def test_spym_price_markers_and_benchmark_render_from_persisted_evidence(
 
             price_traces = _plotly_traces(page, "#price-marker-chart .js-plotly-plot")
             assert price_traces == [
-                {"name": "Observed SPYM (1m)", "type": "candlestick", "points": 306},
+                {
+                    "name": "Synthetic fixture SPYM (1m)",
+                    "type": "candlestick",
+                    "points": 306,
+                },
                 {"name": "Long entry markers", "type": "scatter", "points": 3},
                 {"name": "Long exit markers", "type": "scatter", "points": 3},
             ]
@@ -94,7 +98,7 @@ def test_spym_price_markers_and_benchmark_render_from_persisted_evidence(
                     "points": 1500,
                 },
                 {
-                    "name": "SPYM same-instrument buy-and-hold",
+                    "name": "Synthetic SPYM fixture buy-and-hold",
                     "type": "scattergl",
                     "points": 1500,
                 },
