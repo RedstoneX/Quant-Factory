@@ -11,6 +11,7 @@ local_user=${QF_GATEWAY_LOCAL_USER:-ubuntu}
 public_key=${QF_GATEWAY_PUBLIC_KEY:-}
 runtime_root=${QF_RUNTIME_ROOT:-/opt/quant-factory-research/runtime}
 runtime_gid=${QF_RUNTIME_GID:-10001}
+data_locations=${QF_DATA_LOCATIONS_PATH:-/opt/quant-factory-research/config/data_locations.local.toml}
 install_root=/opt/quant-factory-gateway
 client_root=$install_root/client/agent_gateway
 state_root=$install_root/state
@@ -48,6 +49,10 @@ if [ -d "$runtime_root/state" ]; then
         chgrp "$runtime_gid" "$runtime_root/state/quant_factory.sqlite3"
         chmod 0660 "$runtime_root/state/quant_factory.sqlite3"
     fi
+fi
+if [ -f "$data_locations" ]; then
+    chgrp "$runtime_gid" "$data_locations"
+    chmod 0440 "$data_locations"
 fi
 cat > /etc/tmpfiles.d/quant-factory-agent-gateway.conf <<'EOF'
 d /run/quant-factory 2770 qf-gateway qf-agent-access -

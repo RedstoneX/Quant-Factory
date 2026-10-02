@@ -20,7 +20,8 @@ deployment environment before starting `agent-gateway`.
 Provisioning grants the gateway container's separately configured UID only the
 existing runtime GID needed by SQLite/artifact persistence. The remote
 `qf-research` account is not a member of that runtime group and cannot read the
-database or artifact tree.
+database or artifact tree. The mounted data-location map is group-readable but
+remains non-writable; it contains paths and integrity policy, not credentials.
 
 The service socket is `/run/quant-factory/agent-gateway.sock` and has mode
 `0660`, owner `qf-gateway`, group `qf-agent-access`. Local examples:
