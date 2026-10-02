@@ -102,37 +102,7 @@ def layout(
                 id="run-candidate-identity",
                 className="candidate-workflow-identity candidate-workflow-identity-run",
             ),
-            html.Section(
-                [
-                    html.Div(
-                        [
-                            html.Span("Current state", className="operator-context-label"),
-                            html.Strong(
-                                "Ready for final review"
-                                if ready_for_confirmation
-                                else "Implementation required",
-                                className="operator-context-value",
-                            ),
-                        ],
-                        className="operator-context-item",
-                    ),
-                    html.Div(
-                        [
-                            html.Span("What happens next", className="operator-context-label"),
-                            html.Strong(
-                                "Confirm once, start one test, then review Results"
-                                if ready_for_confirmation
-                                else "Complete the exact Candidate implementation in Set up",
-                                className="operator-context-value",
-                            ),
-                        ],
-                        className="operator-context-item",
-                    ),
-                ],
-                id="run-test-operator-context",
-                className="operator-context run-prelaunch-context",
-                **{"aria-label": "Test review context"},
-            ),
+            _prelaunch_context(ready_for_confirmation),
             dcc.Store(
                 id="run-test-launch-state",
                 storage_type="session",
@@ -191,4 +161,32 @@ def layout(
             ),
         ],
         className="page-container run-test-page",
+    )
+
+
+def _prelaunch_context(ready: bool) -> html.Section:
+    state = "Ready for final review" if ready else "Implementation required"
+    next_step = (
+        "Confirm once, start one test, then review Results"
+        if ready
+        else "Complete the exact Candidate implementation in Set up"
+    )
+    return html.Section(
+        [
+            _context_item("Current state", state),
+            _context_item("What happens next", next_step),
+        ],
+        id="run-test-operator-context",
+        className="operator-context run-prelaunch-context",
+        **{"aria-label": "Test review context"},
+    )
+
+
+def _context_item(label: str, value: str) -> html.Div:
+    return html.Div(
+        [
+            html.Span(label, className="operator-context-label"),
+            html.Strong(value, className="operator-context-value"),
+        ],
+        className="operator-context-item",
     )

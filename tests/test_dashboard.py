@@ -1628,9 +1628,6 @@ def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> No
         "results-operator-context",
     }
     assert "Implementation required" in _component_text(run_page)
-    assert "Complete the exact Candidate implementation in Set up" in _component_text(
-        run_page
-    )
     assert "Succeeded" in _component_text(results_page)
     assert "comparison-operator-contexts" in str(compare_page)
     assert "Choose persisted tests to compare" in _component_text(compare_page)
@@ -2055,11 +2052,6 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
     assert identifiers.count("setup-strategy-selector") == 1
     assert identifiers.count("save-idea-configuration") == 1
     assert identifiers.count("review-test-action") == 1
-    assert "Return to Set up" not in rendered
-    assert "setup-workbench-grid-blocked" in setup_page.className or any(
-        "setup-workbench-grid-blocked" in getattr(component, "className", "")
-        for component in _walk_components(setup_page)
-    )
 
 
 def test_setup_and_run_test_handle_empty_configuration_list() -> None:

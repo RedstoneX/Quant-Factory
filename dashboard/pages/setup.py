@@ -222,47 +222,7 @@ def layout(
                         className="setup-contract-workspace",
                     ),
                     candidate_implementation_boundary(open_boundary=first is None),
-                    html.Section(
-                        [
-                            html.Div(
-                                [
-                                    html.Span(
-                                        "YOUR DECISION" if review_enabled else "NEXT STEP",
-                                        className="setup-state-label",
-                                    ),
-                                    html.H2(
-                                        "Is this test ready for final review?"
-                                        if review_enabled
-                                        else "Waiting for the exact implementation"
-                                    ),
-                                    html.P(
-                                        (
-                                            "If anything is wrong, revise the idea or create a new bounded setup. Nothing starts here."
-                                            if review_enabled
-                                            else "There is no owner action here until the accepted Candidate has been implemented and bound."
-                                        ),
-                                        className="section-description",
-                                    ),
-                                ]
-                            ),
-                            dcc.Link(
-                                "Continue" if review_enabled else "Not ready",
-                                id="review-test-action",
-                                href="/research/run-test" if review_enabled else None,
-                                className=(
-                                    "primary-action"
-                                    if review_enabled
-                                    else "surface-status-text surface-status-blocked"
-                                ),
-                                title=(
-                                    "Review this immutable saved setup before running it."
-                                    if review_enabled
-                                    else "Resolve every preflight blocker before reviewing this test."
-                                ),
-                            ),
-                        ],
-                        className="setup-next-panel",
-                    ),
+                    _next_step(review_enabled),
                     html.P(
                         "Fixture results prove mechanics, not profit. No setup or test grants paper or live trading authority.",
                         className="setup-footer-note",
@@ -276,4 +236,48 @@ def layout(
             ),
         ],
         className="page-container setup-page",
+    )
+
+
+def _next_step(review_enabled: bool) -> html.Section:
+    if review_enabled:
+        eyebrow = "YOUR DECISION"
+        heading = "Is this test ready for final review?"
+        copy = (
+            "If anything is wrong, revise the idea or create a new bounded setup. "
+            "Nothing starts here."
+        )
+        label = "Continue"
+        href = "/research/run-test"
+        action_class = "primary-action"
+        title = "Review this immutable saved setup before running it."
+    else:
+        eyebrow = "NEXT STEP"
+        heading = "Waiting for the exact implementation"
+        copy = (
+            "There is no owner action here until the accepted Candidate has been "
+            "implemented and bound."
+        )
+        label = "Not ready"
+        href = None
+        action_class = "surface-status-text surface-status-blocked"
+        title = "Resolve every preflight blocker before reviewing this test."
+    return html.Section(
+        [
+            html.Div(
+                [
+                    html.Span(eyebrow, className="setup-state-label"),
+                    html.H2(heading),
+                    html.P(copy, className="section-description"),
+                ]
+            ),
+            dcc.Link(
+                label,
+                id="review-test-action",
+                href=href,
+                className=action_class,
+                title=title,
+            ),
+        ],
+        className="setup-next-panel",
     )
