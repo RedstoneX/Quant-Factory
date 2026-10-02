@@ -11,6 +11,8 @@ GATEWAY_PROTOCOL = "qf_agent_gateway_v1"
 MAX_REQUEST_BYTES = 256_000
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 _AGENT_ID = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
+_IDENTITY_VALUE = re.compile(r"^[a-z][a-z0-9._-]{1,63}$")
+_CREDENTIAL = re.compile(r"^[A-Za-z0-9_-]{32,256}$")
 
 
 class GatewayError(ValueError):
@@ -25,16 +27,22 @@ class GatewayError(ValueError):
 @dataclass(frozen=True)
 class GatewayIdentity:
     agent_id: str
+    provider: str
+    client: str
     transport: str
-    peer_uid: int | None
     authority_level: int
+    peer_uid: int | None = None
 
     def __post_init__(self) -> None:
         if not _AGENT_ID.fullmatch(self.agent_id):
             raise GatewayError("invalid_agent", "agent identity is not recognized")
+        if not _IDENTITY_VALUE.fullmatch(self.provider):
+            raise GatewayError("invalid_provider", "agent provider is not recognized")
+        if not _IDENTITY_VALUE.fullmatch(self.client):
+            raise GatewayError("invalid_client", "agent client is not recognized")
         if self.transport not in {"local", "ssh"}:
             raise GatewayError("invalid_transport", "transport identity is not recognized")
-        if self.authority_level not in {0, 1, 2}:
+        if isinstance(self.authority_level, bool) or self.authority_level not in {0, 1, 2}:
             raise GatewayError("invalid_authority", "authority level is not recognized")
 
 
@@ -44,7 +52,6 @@ class GatewayRequest:
     operation: str
     arguments: dict[str, Any]
     payload: str | None = None
-    claimed_agent: str | None = None
 
     @classmethod
     def from_document(cls, document: Mapping[str, Any]) -> "GatewayRequest":
@@ -54,7 +61,15 @@ class GatewayRequest:
         operation = document.get("operation")
         arguments = document.get("arguments", {})
         payload = document.get("payload")
-        claimed_agent = document.get("agent")
+        if any(
+            field in document
+            for field in ("agent", "agent_id", "provider", "client", "transport", "authority_level")
+        ):
+            raise GatewayError(
+                "untrusted_identity",
+                "agent identity must come from the authenticated transport",
+            )
+        credential_from_document(document)
         if not isinstance(request_id, str) or not _REQUEST_ID.fullmatch(request_id):
             raise GatewayError("invalid_request_id", "request identity is invalid")
         if not isinstance(operation, str) or not operation or len(operation) > 80:
@@ -63,11 +78,18 @@ class GatewayRequest:
             raise GatewayError("invalid_arguments", "operation arguments must be an object")
         if payload is not None and not isinstance(payload, str):
             raise GatewayError("invalid_payload", "request payload must be text")
-        if claimed_agent is not None and (
-            not isinstance(claimed_agent, str) or not _AGENT_ID.fullmatch(claimed_agent)
-        ):
-            raise GatewayError("invalid_agent", "agent identity is not recognized")
-        return cls(request_id, operation, dict(arguments), payload, claimed_agent)
+        return cls(request_id, operation, dict(arguments), payload)
+
+
+def credential_from_document(document: Mapping[str, Any]) -> str | None:
+    """Return a bounded bearer credential without treating it as identity data."""
+
+    credential = document.get("credential")
+    if credential is None:
+        return None
+    if not isinstance(credential, str) or not _CREDENTIAL.fullmatch(credential):
+        raise GatewayError("invalid_credential", "gateway credential is invalid")
+    return credential
 
 
 @dataclass(frozen=True)

@@ -53,7 +53,7 @@
     "[\"tests/test_run_lineage.py\",\"test_v3_database_migrates_and_version_one_and_two_manifest_rows_remain_readable\",\"FunctionDef\",1]": 158
   },
   "oversized_source_files": {
-    "agent_gateway/service.py": 625,
+    "agent_gateway/service.py": 619,
     "backtesting/run_mes_orb_durable.py": 722,
     "backtesting/run_mes_overnight_gap_reversal.py": 662,
     "backtesting/run_mes_overnight_gap_reversal_durable.py": 809,

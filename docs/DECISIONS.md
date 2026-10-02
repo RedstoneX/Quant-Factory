@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **324** | **Complete provider-neutral agent onboarding through one shared operating context and trusted bootstrap:** every approved client uses the same Gateway semantics; identity is server-bound rather than caller-claimed; Codex and Claude are the first local proof clients. Existing owner, research, protected-data, trading, credential, and capital gates remain unchanged. |
 | **323** | **Activate the provider-neutral Agent Research Gateway side mission through ARG-6:** reuse the existing Candidate/context/persistence/orchestration/evidence boundaries; provide local Unix-socket/CLI and restricted forced-command SSH access; preserve all owner, protected-data, paper/live, broker, secret, and capital gates. R12 remains deployed for owner review and Candidate research remains paused. |
 | **322** | **R13 standardized intake is owner-accepted and complete:** Terry completed all seven Ideas-page checks and successfully used the exported context with an external LLM to produce a Candidate YAML packet. The existing R12 connected operator-product walkthrough is now the sole active handoff gate; strategy testing remains paused. |
 | **321** | **The owner explicitly lifts the development freeze for the preserved R13/R12 roadmap only:** prepare and privately deploy the current QF Candidate v1/operator workflow for owner walkthrough. Strategy research, new product direction, LLM/provider work, broker work, paper/live work, paid/protected data, and unrelated development remain unauthorized. |
@@ -1914,3 +1915,25 @@ superseded.
      walkthrough gate. Actual Grok-side credential installation and connection
      still require the owner-controlled public key and hosted-agent action; a
      local transport proof cannot be represented as that remote proof.
+
+
+324. **Complete provider-neutral agent onboarding through one shared operating
+     context and trusted bootstrap (accepted 2026-10-02).** Terry directs that
+     Quant Factory support any approved present or future LLM/agent without
+     vendor-specific research logic. Codex and Claude Code are the initial
+     proof clients, not architectural dependencies.
+
+     `docs/AGENT_RESEARCH_OPERATING_CONTEXT.md` is the concise stable research
+     operating contract. The existing Gateway adds one deterministic
+     `qf-agent bootstrap` operation returning authenticated identity metadata,
+     that context reference, current QF Research Context, authority, owner
+     gates, and permitted/prohibited operations. Provider-neutral identity
+     records contain agent ID, provider, client, transport, and authority and
+     are resolved through a trusted server registration rather than a
+     caller-controlled identity field.
+
+     This is an extension of ADR 0015's removable Gateway boundary, not a new
+     frontend, orchestration engine, transport, or model integration. It does
+     not start research, approve a Candidate, connect Grok or Gemini, add MCP
+     or REST, purchase data, inspect protected evidence, expand credentials or
+     brokers, or authorize paper/live trading, orders, risk, or capital.

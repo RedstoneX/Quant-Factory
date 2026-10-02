@@ -105,9 +105,9 @@ services:
       PREFECT_API_URL: http://prefect:4200/api
       QF_GATEWAY_DB_PATH: /var/lib/quant-factory-gateway/agent_gateway.sqlite3
       QF_GATEWAY_SOCKET_PATH: /run/quant-factory/agent-gateway.sock
+      QF_GATEWAY_IDENTITY_REGISTRY: /run/secrets/qf-agent-identities.json
       QF_GATEWAY_LOCAL_UIDS: ${QF_GATEWAY_LOCAL_UIDS:?set QF_GATEWAY_LOCAL_UIDS}
       QF_GATEWAY_REMOTE_UID: ${QF_RESEARCH_UID:?set QF_RESEARCH_UID}
-      QF_GATEWAY_AUTHORITIES: ${QF_GATEWAY_AUTHORITIES:-codex-local:2,claude-local:1,grok-remote:1}
       QF_GATEWAY_RUN_REQUESTS_ENABLED: ${QF_GATEWAY_RUN_REQUESTS_ENABLED:-true}
       QF_REVISION: ${QF_REVISION:?set QF_REVISION}
       HOME: /tmp
@@ -121,6 +121,7 @@ services:
       - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/config/data_locations.local.toml:/app/config/data_locations.local.toml:ro
       - ${QF_GATEWAY_STATE_ROOT:?set QF_GATEWAY_STATE_ROOT}:/var/lib/quant-factory-gateway
       - ${QF_GATEWAY_SOCKET_ROOT:?set QF_GATEWAY_SOCKET_ROOT}:/run/quant-factory
+      - ${QF_GATEWAY_IDENTITY_REGISTRY_PATH:?set QF_GATEWAY_IDENTITY_REGISTRY_PATH}:/run/secrets/qf-agent-identities.json:ro
     user: "${QF_GATEWAY_UID:?set QF_GATEWAY_UID}:${QF_GATEWAY_GID:?set QF_GATEWAY_GID}"
     group_add:
       - "${QF_RUNTIME_GID:-10001}"

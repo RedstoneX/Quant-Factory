@@ -168,6 +168,7 @@ The first implementation should expose a provider-neutral CLI. Example command
 shape:
 
 ```bash
+qf-agent bootstrap
 qf-agent context get
 qf-agent prior search --query "opening range breakout"
 qf-agent candidate validate candidate.yaml
@@ -391,6 +392,11 @@ mode: 0660
 ```
 
 Only explicitly approved local users are members of `qf-agent-access`.
+Each approved local client also presents its own high-entropy credential. The
+gateway resolves the credential hash to a root-managed identity record; it
+does not trust an agent name or authority claimed in request content. Provider,
+client, and authority metadata are configuration, so adding a future local
+agent does not change Quant Factory core logic.
 
 The gateway service should run under `qf-gateway` with a restricted systemd
 unit.
@@ -520,12 +526,14 @@ Do not log secret material or unrestricted browser content.
 Recommended logical agent identities:
 
 ```text
-codex-local
-claude-local
-grok-remote
+codex-local / openai / codex / local
+claude-local / anthropic / claude-code / local
+grok-remote / xai / grok / ssh
 ```
 
-These are audit identities, not authorization by themselves.
+These are server-registered audit identities. Possession of the corresponding
+credential or forced-transport binding plus the registered authority controls
+access; request labels never do.
 
 ## Prompt-injection containment
 

@@ -20,7 +20,7 @@ def allowed_arguments(command: str) -> list[str]:
     if not words or words[0] != "qf-agent":
         raise ValueError("only qf-agent commands are allowed")
     args = words[1:]
-    if args == ["context", "get"] or args == ["candidate", "list"]:
+    if args in (["bootstrap"], ["context", "get"], ["candidate", "list"]):
         return args
     if len(args) == 4 and args[:2] == ["prior", "search"] and args[2] == "--query":
         return args
@@ -42,7 +42,7 @@ def main() -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 126
-    return cli_main(["--agent", "grok-remote", *arguments])
+    return cli_main(arguments)
 
 
 if __name__ == "__main__":
