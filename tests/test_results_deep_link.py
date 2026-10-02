@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from dash import Dash, no_update
 
 from dashboard.callbacks.backtest_results import (
     _INVALID_REQUESTED_RUN_STATE,
+    _durable_launch_summary,
+    _run_for_submission,
     _unknown_requested_run_state,
     register_backtest_results_callbacks,
 )
 from dashboard.application import _results_view_services
-from orchestration import DurableResearchLaunchService, RunSummary
+from orchestration import DurableResearchLaunchService, RunServiceError, RunSummary
+from persistence import ResearchSubmissionState
 
 
 def _run(run_id: str) -> RunSummary:
@@ -93,6 +97,35 @@ def _app(tmp_path: Path) -> tuple[Dash, _Runs]:
         ),
     )
     return app, runs
+
+
+def test_submission_lookup_failure_renders_unavailable_not_created() -> None:
+    class MissingRuns:
+        @staticmethod
+        def get_run(_run_id: str):
+            return None
+
+    class UnavailableRuns:
+        @staticmethod
+        def get_run(_run_id: str):
+            raise RunServiceError("injected lookup failure")
+
+    for runs in (MissingRuns(), UnavailableRuns()):
+        for state in (
+            ResearchSubmissionState.ACKNOWLEDGED,
+            ResearchSubmissionState.SUBMISSION_UNKNOWN,
+        ):
+            submission = SimpleNamespace(
+                run_id="durable-run",
+                state=state,
+                prefect_flow_run_id=None,
+                error_summary=None,
+            )
+            run = _run_for_submission(runs, submission)
+            rendered = str(_durable_launch_summary(submission, run))
+
+            assert "Run status: Unavailable" in rendered
+            assert "Run status: Created" not in rendered
 
 
 def test_registered_results_callback_adopts_one_encoded_persisted_identity(
@@ -289,6 +322,34 @@ def test_no_query_retains_default_and_explicit_selector_wins(
             "/research/backtest-results",
         )
         == "operator-choice"
+    )
+
+
+def test_stored_selection_survives_transient_lookup_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    app, runs = _app(tmp_path)
+    preserve = _callback(app, "selected-run-state")
+    monkeypatch.setattr(
+        "dashboard.callbacks.backtest_results._callback_triggered_id",
+        lambda: None,
+    )
+
+    def unavailable(_run_id: str):
+        raise RunServiceError("injected lookup failure")
+
+    monkeypatch.setattr(runs, "get_run", unavailable)
+
+    assert (
+        preserve(
+            "default-run",
+            None,
+            "",
+            "operator-choice",
+            "/research/backtest-results",
+        )
+        is no_update
     )
 
 
