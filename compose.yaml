@@ -110,6 +110,7 @@ services:
       QF_GATEWAY_AUTHORITIES: ${QF_GATEWAY_AUTHORITIES:-codex-local:2,claude-local:1,grok-remote:1}
       QF_GATEWAY_RUN_REQUESTS_ENABLED: ${QF_GATEWAY_RUN_REQUESTS_ENABLED:-true}
       QF_REVISION: ${QF_REVISION:?set QF_REVISION}
+      HOME: /tmp/qf-gateway-home
     depends_on:
       prefect:
         condition: service_healthy
