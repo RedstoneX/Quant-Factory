@@ -442,8 +442,17 @@ def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
         notes: str | None,
         stored_draft: dict[str, str] | None,
     ):
-        values = _draft_values(title, description, source_url, attribution, notes)
         stored = stored_draft or {}
+        if stored.get("draft_id") and all(
+            value is None
+            for value in (title, description, source_url, attribution, notes)
+        ):
+            values = {
+                key: str(stored.get(key) or "")
+                for key in ("title", "description", "source_url", "attribution", "notes")
+            }
+        else:
+            values = _draft_values(title, description, source_url, attribution, notes)
         stored_values = {key: stored.get(key, "") for key in values}
         dirty = values != stored_values
         saved = bool(stored.get("draft_id")) and not dirty
@@ -464,14 +473,38 @@ def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
 
         source_parts = [part for part in (values["attribution"], values["source_url"]) if part]
         formed = bool(values["title"] and values["description"])
-        if formed:
+        candidate_status = ""
+        candidate_json = stored.get("candidate_json")
+        if candidate_json:
+            try:
+                candidate_document = parse_candidate_packet(
+                    str(candidate_json), format_hint="json"
+                )
+                candidate = candidate_document.get("candidate")
+                if isinstance(candidate, dict):
+                    candidate_status = str(candidate.get("status") or "")
+            except CandidatePacketError:
+                candidate_status = "invalid"
+        if candidate_status == "owner_approved":
+            brief_state = "Accepted"
+            brief_class = "idea-brief-badge idea-brief-badge-approved"
+        elif candidate_status == "rejected":
+            brief_state = "Rejected"
+            brief_class = "idea-brief-badge idea-brief-badge-rejected"
+        elif formed:
             brief_state = "Draft formed"
             brief_class = "idea-brief-badge idea-brief-badge-ready"
         else:
             brief_state = "Needs your input"
             brief_class = "idea-brief-badge"
 
-        if not formed:
+        if candidate_status == "owner_approved":
+            next_action = (
+                "Continue to Set up to check whether this exact Candidate is implemented."
+            )
+        elif candidate_status == "rejected":
+            next_action = "This Candidate remains in history and cannot continue."
+        elif not formed:
             next_action = "Add a title and hypothesis, then save the draft."
         elif dirty or not stored.get("draft_id"):
             next_action = "Save this version before continuing."

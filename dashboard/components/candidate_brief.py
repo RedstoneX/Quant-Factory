@@ -12,7 +12,7 @@ from research_intake import CandidateValidation
 def candidate_brief(
     document: Mapping[str, Any], validation: CandidateValidation
 ) -> html.Div:
-    """Keep the decision surface concise while retaining the entire packet."""
+    """Render the approved plain-language review while retaining the packet."""
 
     candidate = _mapping(document.get("candidate"))
     hypothesis = _mapping(document.get("hypothesis"))
@@ -22,82 +22,137 @@ def candidate_brief(
     variants = document.get("variants", []) or []
     return html.Div(
         [
-            _brief_header(candidate, hypothesis, validation),
-            _metric_strip(variables, variants, high_questions, validation),
+            _provenance(document, candidate),
+            _session_explainer(document),
+            _meaning_strip(document, variables, variants),
+            _review_status(candidate, validation),
             _packet_details(
                 document, hypothesis, questions, variables, variants, high_questions
             ),
-            _boundary_callout(),
         ],
         className="candidate-readable-brief",
     )
 
 
-def _brief_header(
-    candidate: Mapping[str, Any],
-    hypothesis: Mapping[str, Any],
-    validation: CandidateValidation,
-) -> html.Header:
+def _provenance(
+    document: Mapping[str, Any], candidate: Mapping[str, Any]
+) -> html.Dl:
+    sources = document.get("sources") or []
+    source = sources[0] if isinstance(sources, list) and sources else {}
+    source = _mapping(source)
+    proposed_by = str(
+        source.get("creator") or source.get("author") or "Owner-provided idea"
+    )
+    family = str(candidate.get("family") or "Not specified").replace("_", " ").title()
     status = str(candidate.get("status") or "draft").replace("_", " ").title()
-    return html.Header(
+    return html.Dl(
         [
-            html.Div(
-                [
-                    html.P("QF CANDIDATE V1", className="page-eyebrow"),
-                    html.H2(str(candidate.get("title") or "Untitled Candidate")),
-                    html.P(
-                        str(
-                            candidate.get("one_line")
-                            or hypothesis.get("behavior")
-                            or "No one-line summary supplied."
-                        ),
-                        className="candidate-brief-lede",
-                    ),
-                ]
-            ),
-            html.Div(
-                [
-                    html.Span(status, className="candidate-status-pill"),
-                    html.Span(
-                        "Owner review ready"
-                        if validation.review_ready
-                        else "Clarification required",
-                        className=(
-                            "candidate-status-pill candidate-status-ready"
-                            if validation.review_ready
-                            else "candidate-status-pill candidate-status-warning"
-                        ),
-                    ),
-                ],
-                className="candidate-status-group",
-            ),
+            _provenance_item("Proposed by", proposed_by),
+            _provenance_item("Idea family", family),
+            _provenance_item("Owner decision", status),
         ],
-        className="candidate-brief-header",
+        className="candidate-provenance",
     )
 
 
-def _metric_strip(
+def _provenance_item(label: str, value: str) -> html.Div:
+    return html.Div([html.Dt(label), html.Dd(value)])
+
+
+def _session_explainer(document: Mapping[str, Any]) -> html.Section:
+    fixed = _mapping(document.get("fixed"))
+    start = str(fixed.get("opening_range_start") or "Session open")
+    end = str(fixed.get("opening_range_end") or "Range complete")
+    finish = str(fixed.get("time_exit") or "Before session close")
+    stages = (
+        ("Build the opening range", f"{start} → {end}"),
+        ("Watch for a qualified break", f"After {end} · fixed confirmation rules"),
+        ("Finish the trade", f"Stop, target, or flat by {finish}"),
+    )
+    return html.Section(
+        [
+            html.Div(
+                [
+                    html.Div(
+                        [html.H3("What would happen during one trading day"), html.P("A quick visual explanation of the proposed rule.")]
+                    ),
+                    html.Span("Explanation—not a result"),
+                ],
+                className="candidate-session-heading",
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Span(str(index), className="candidate-session-number"),
+                            html.Strong(title),
+                            html.Small(detail),
+                        ],
+                        className=f"candidate-session-step candidate-session-step-{index}",
+                    )
+                    for index, (title, detail) in enumerate(stages, start=1)
+                ],
+                className="candidate-session-map",
+            ),
+        ],
+        className="candidate-session",
+    )
+
+
+def _meaning_strip(
+    document: Mapping[str, Any],
     variables: Mapping[str, Any],
     variants: Any,
-    high_questions: int,
-    validation: CandidateValidation,
 ) -> html.Div:
-    variant_count = len(variants) if isinstance(variants, list) else 0
-    metrics = (
-        ("Sweep dimensions", str(len(variables)), "VectorBT-bounded variables"),
-        ("Combinations", f"{validation.parameter_combinations:,}", "Declared grid only"),
-        ("Structural variants", str(variant_count), "Never invented automatically"),
-        ("High questions", str(high_questions), "Must remain visible"),
+    hypothesis = _mapping(document.get("hypothesis"))
+    reasons = hypothesis.get("edge_reasoning") or []
+    failures = hypothesis.get("failure_theory") or []
+    compared = (
+        f"{len(variables)} fixed sweep dimension(s) and {len(variants) if isinstance(variants, list) else 0} structural variant(s)."
+        if variables or variants
+        else "One fixed formulation. Its rules may not change after results are seen."
+    )
+    meanings = (
+        ("Why it might work", _sentence_summary(reasons, "The Candidate records no supporting mechanism.")),
+        ("What would disprove it", _sentence_summary(failures, "The Candidate records no failure theory.")),
+        ("What will be compared", compared),
     )
     return html.Div(
         [
-            html.Div(
-                [html.Span(label), html.Strong(value), html.Small(detail)],
-                className="candidate-metric",
+            html.Section(
+                [html.H3(title), html.P(copy)],
+                className="candidate-meaning-item",
             )
-            for label, value, detail in metrics
+            for title, copy in meanings
         ],
-        className="candidate-metric-strip",
+        className="candidate-meaning",
+    )
+
+
+def _sentence_summary(value: Any, empty: str) -> str:
+    if isinstance(value, list):
+        sentences = [str(item).strip() for item in value if str(item).strip()]
+        return " ".join(sentences[:2]) or empty
+    text = str(value or "").strip()
+    return text or empty
+
+
+def _review_status(
+    candidate: Mapping[str, Any], validation: CandidateValidation
+) -> html.Div:
+    approved = str(candidate.get("status") or "") == "owner_approved"
+    if approved:
+        headline = "Candidate accepted."
+        copy = "This exact version is locked for Set up."
+    elif validation.review_ready:
+        headline = "Candidate checks passed."
+        copy = "The remaining step is your decision."
+    else:
+        headline = "Clarification is still required."
+        copy = "Resolve the named questions before deciding."
+    return html.Div(
+        [html.Span("✓", **{"aria-hidden": "true"}), html.P([html.Strong(headline), f" {copy}"])],
+        className="candidate-review-status",
     )
 
 
@@ -193,18 +248,6 @@ def _high_question_count(questions: Any) -> int:
         for question in questions
         if isinstance(question, Mapping)
         and str(question.get("importance", "")).lower() == "high"
-    )
-
-
-def _boundary_callout() -> html.Div:
-    return html.Div(
-        [
-            html.Strong("Intake boundary"),
-            html.P(
-                "Saving this Candidate records a research proposal only. It does not approve or implement logic, create a runnable configuration, launch VectorBT, inspect protected data, promote a strategy, or submit an order."
-            ),
-        ],
-        className="candidate-boundary-callout",
     )
 
 

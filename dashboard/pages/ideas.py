@@ -203,6 +203,23 @@ def layout(
         _stored_candidate_state(selected.candidate_json if selected else "")
     )
     candidate_status_value, can_continue = candidate_review_state(selected)
+    candidate_document = candidate_validation.get("document") or {}
+    candidate_record = (
+        candidate_document.get("candidate")
+        if isinstance(candidate_document, Mapping)
+        else {}
+    )
+    candidate_record = candidate_record if isinstance(candidate_record, Mapping) else {}
+    candidate_family = str(candidate_record.get("family") or "Selected idea")
+    selected_kicker = candidate_family.replace("_", " ").title()
+    if candidate_status_value:
+        selected_kicker += f" · {candidate_status_value.replace('_', ' ').title()}"
+    candidate_statuses = tuple(candidate_review_state(draft)[0] for draft in available)
+    queue_counts = (
+        sum(status not in {"owner_approved", "rejected"} for status in candidate_statuses),
+        candidate_statuses.count("owner_approved"),
+        candidate_statuses.count("rejected"),
+    )
 
     return html.Div(
         [
@@ -308,6 +325,8 @@ def layout(
                 candidate_valid=bool(candidate_validation.get("valid")),
                 candidate_status=candidate_status_value,
                 can_continue=can_continue,
+                queue_counts=queue_counts,
+                selected_kicker=selected_kicker,
             ),
             html.Div(id="idea-intake"),
             start_path_selector(),
