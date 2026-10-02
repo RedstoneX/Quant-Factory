@@ -13,6 +13,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dashboard.health import DatasetHealth
+from market_data.catalog import DataLocations, load_dataset_manifest
 from persistence import (
     ArtifactType,
     DataProvenanceRecord,
@@ -48,6 +50,31 @@ _METRICS = {
     "total_return": 0.0008170000000000059,
     "win_rate": 0.6693989071038251,
 }
+
+
+def portable_spym_catalog_snapshot() -> tuple[
+    DataLocations,
+    tuple[DatasetHealth, ...],
+    None,
+]:
+    """Provide a typed test double for readiness without reading market data."""
+
+    fixture_root = Path("/portable-test-market-data")
+    locations = DataLocations(
+        root=fixture_root,
+        manifests=fixture_root / "manifests",
+        quarantine=fixture_root / "quarantine",
+        backup_archive=None,
+        extracted_root=None,
+        verify_sha256_before_use=True,
+    )
+    health = DatasetHealth(
+        load_dataset_manifest(_DATASET_ID),
+        "Available locally",
+        "Verified",
+        "Injected portable browser-test readiness; no market-data file was read.",
+    )
+    return locations, (health,), None
 
 
 def portable_spym_fixture_launcher(**kwargs: Any) -> PrefectFixtureResult:

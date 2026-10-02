@@ -775,6 +775,7 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
             expect(page.locator("#idea-draft-status")).to_contain_text(
                 "Unsaved local changes"
             )
+            _wait_for_callbacks_to_settle(page, pending_requests)
             page.locator("#save-idea-draft").click()
             _wait_for_callbacks_to_settle(page, pending_requests)
             persistence = PersistenceService(database)

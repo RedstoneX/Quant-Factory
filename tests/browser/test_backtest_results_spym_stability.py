@@ -117,6 +117,7 @@ from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService
 
 from tests.browser.test_backtest_results_spym_stability import _launcher
+from tests.spym_portable_fixture import portable_spym_catalog_snapshot
 
 database = Path(sys.argv[1])
 artifact_root = Path(sys.argv[2])
@@ -124,6 +125,7 @@ port = int(sys.argv[3])
 app = create_app(
     review_database=database,
     run_service=FixtureRunService(database=database, fixture_launcher=_launcher),
+    catalog_snapshot=portable_spym_catalog_snapshot(),
     run_detail_adapter=RunDetailDashboardAdapter(
         database=database,
         artifact_root=artifact_root,
