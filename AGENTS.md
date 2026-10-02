@@ -225,11 +225,18 @@ Mode.
 ## Proportional proof
 
 - Operational change: verify revision, health, and reachability.
-- Isolated code or UI change: run focused affected tests.
+- Isolated code or UI change: run focused affected non-browser tests.
 - Shared core change: run relevant integration tests.
 - Run the full suite only when core/shared behavior changed, CI requires it, or
   focused proof is insufficient.
 - Do not duplicate already-required CI merely for reassurance.
+- **Do not run automated browser tests.** Terry owns browser QA and performs
+  the owner-visible walkthrough. Keep browser test assets available as
+  historical/manual references, but Codex and CI must not execute them unless
+  Terry explicitly reverses this decision. For UI work, use focused
+  non-browser component/callback checks, ordinary health/reachability proof,
+  and the owner walkthrough rather than Playwright, Selenium, or another
+  automated browser runner.
 
 ## Research and evidence
 
