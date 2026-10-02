@@ -96,12 +96,13 @@ def layout(
             None,
             component_id="configuration-preview",
             loading=loading,
-            empty_title="No approved choices",
+            empty_title="Implementation needed",
             empty_message=(
                 binding.blocker_reason
                 if binding is not None and binding.blocker_reason
                 else "Choose and accept a Candidate on Ideas before preparing a test."
             ),
+            empty_action_href=None,
         )
 
     review_enabled = first_readiness is not None and first_readiness.ready and not loading
@@ -208,7 +209,11 @@ def layout(
                                         className="field-help",
                                     ),
                                 ],
-                                className="setup-saved-selector",
+                                className=(
+                                    "setup-saved-selector"
+                                    if first is not None
+                                    else "setup-saved-selector setup-saved-selector-blocked"
+                                ),
                                 role="group",
                                 **{"aria-labelledby": "configuration-selector-label"},
                             ),
@@ -221,22 +226,33 @@ def layout(
                         [
                             html.Div(
                                 [
-                                    html.Span("YOUR DECISION", className="setup-state-label"),
-                                    html.H2("Is this test ready for final review?"),
+                                    html.Span(
+                                        "YOUR DECISION" if review_enabled else "NEXT STEP",
+                                        className="setup-state-label",
+                                    ),
+                                    html.H2(
+                                        "Is this test ready for final review?"
+                                        if review_enabled
+                                        else "Waiting for the exact implementation"
+                                    ),
                                     html.P(
-                                        "If anything is wrong, revise the idea or create a new bounded setup. Nothing starts here.",
+                                        (
+                                            "If anything is wrong, revise the idea or create a new bounded setup. Nothing starts here."
+                                            if review_enabled
+                                            else "There is no owner action here until the accepted Candidate has been implemented and bound."
+                                        ),
                                         className="section-description",
                                     ),
                                 ]
                             ),
                             dcc.Link(
-                                "Continue",
+                                "Continue" if review_enabled else "Not ready",
                                 id="review-test-action",
                                 href="/research/run-test" if review_enabled else None,
                                 className=(
                                     "primary-action"
                                     if review_enabled
-                                    else "primary-action action-disabled"
+                                    else "surface-status-text surface-status-blocked"
                                 ),
                                 title=(
                                     "Review this immutable saved setup before running it."
@@ -252,7 +268,11 @@ def layout(
                         className="setup-footer-note",
                     ),
                 ],
-                className="setup-workbench-grid",
+                className=(
+                    "setup-workbench-grid"
+                    if first is not None
+                    else "setup-workbench-grid setup-workbench-grid-blocked"
+                ),
             ),
         ],
         className="page-container setup-page",

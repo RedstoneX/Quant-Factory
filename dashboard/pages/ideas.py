@@ -240,30 +240,84 @@ def _candidate_brief(
                 ],
                 className="candidate-metric-strip",
             ),
-            html.Div(
-                [
-                    _candidate_section("Hypothesis", "Why it might work—and fail", hypothesis),
-                    _candidate_section("Market & session", "Trader-readable scope and holding boundary", document.get("market", {})),
-                    _candidate_section("Open questions", "Unresolved means unresolved", questions, warning=bool(high_questions)),
-                    _candidate_section("Evaluation boundary", "Evidence contract, not profitability", document.get("evaluation", {})),
-                ],
-                className="candidate-brief-grid candidate-brief-core",
-            ),
             html.Details(
                 [
-                    html.Summary("Technical candidate details"),
+                    html.Summary("Review the complete Candidate packet"),
                     html.Div(
                         [
-                    _candidate_section("Source attribution", "Original producers and references", document.get("sources", [])),
-                    _candidate_section("Source rules", "What the source actually states", document.get("source_rules", {})),
-                    _candidate_section("QF interpretation", "Explicit interpretation, never silently inferred", document.get("qf_interpretation", {}), warning=not bool(document.get("qf_interpretation"))),
-                    _candidate_section("Testable rules", "Structured English; never executable code", document.get("rules", {})),
-                    _candidate_section("Fixed rules", "Candidate identity; never swept", document.get("fixed", {})),
-                    _candidate_section("VectorBT sweep variables", "Only these bounded dimensions may be enumerated", variables, accent="sweep"),
-                    _candidate_section("Structural variants", "Different logic paths; support or implementation required", variants, accent="variant"),
-                    _candidate_section("Data needs", "Requirements, not an availability claim", document.get("data_needs", {})),
-                    _candidate_section("Exclusions", "Explicitly outside this Candidate", document.get("exclusions", [])),
-                    _candidate_section("Prior-work claims", "Imported claims remain unverified by QF", document.get("prior_work", {}), warning=bool(document.get("prior_work"))),
+                            _candidate_section(
+                                "Hypothesis", "Why it might work—and fail", hypothesis
+                            ),
+                            _candidate_section(
+                                "Market & session",
+                                "Trader-readable scope and holding boundary",
+                                document.get("market", {}),
+                            ),
+                            _candidate_section(
+                                "Open questions",
+                                "Unresolved means unresolved",
+                                questions,
+                                warning=bool(high_questions),
+                            ),
+                            _candidate_section(
+                                "Evaluation boundary",
+                                "Evidence contract, not profitability",
+                                document.get("evaluation", {}),
+                            ),
+                            _candidate_section(
+                                "Source attribution",
+                                "Original producers and references",
+                                document.get("sources", []),
+                            ),
+                            _candidate_section(
+                                "Source rules",
+                                "What the source actually states",
+                                document.get("source_rules", {}),
+                            ),
+                            _candidate_section(
+                                "QF interpretation",
+                                "Explicit interpretation, never silently inferred",
+                                document.get("qf_interpretation", {}),
+                                warning=not bool(document.get("qf_interpretation")),
+                            ),
+                            _candidate_section(
+                                "Testable rules",
+                                "Structured English; never executable code",
+                                document.get("rules", {}),
+                            ),
+                            _candidate_section(
+                                "Fixed rules",
+                                "Candidate identity; never swept",
+                                document.get("fixed", {}),
+                            ),
+                            _candidate_section(
+                                "VectorBT sweep variables",
+                                "Only these bounded dimensions may be enumerated",
+                                variables,
+                                accent="sweep",
+                            ),
+                            _candidate_section(
+                                "Structural variants",
+                                "Different logic paths; support or implementation required",
+                                variants,
+                                accent="variant",
+                            ),
+                            _candidate_section(
+                                "Data needs",
+                                "Requirements, not an availability claim",
+                                document.get("data_needs", {}),
+                            ),
+                            _candidate_section(
+                                "Exclusions",
+                                "Explicitly outside this Candidate",
+                                document.get("exclusions", []),
+                            ),
+                            _candidate_section(
+                                "Prior-work claims",
+                                "Imported claims remain unverified by QF",
+                                document.get("prior_work", {}),
+                                warning=bool(document.get("prior_work")),
+                            ),
                         ],
                         className="candidate-brief-grid candidate-brief-technical-grid",
                     ),

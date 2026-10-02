@@ -8,7 +8,6 @@ from dash import dcc, html
 
 from dashboard.candidate_workflow import candidate_configuration_binding
 from dashboard.components.configuration_summary import configuration_summary
-from dashboard.components.operator_context import operator_context
 from dashboard.components.run_test_review import run_launch_rail
 from dashboard.pages.common import page_heading
 from dashboard.run_adapter import (
@@ -103,7 +102,37 @@ def layout(
                 id="run-candidate-identity",
                 className="candidate-workflow-identity candidate-workflow-identity-run",
             ),
-            operator_context(component_id="run-test-operator-context"),
+            html.Section(
+                [
+                    html.Div(
+                        [
+                            html.Span("Current state", className="operator-context-label"),
+                            html.Strong(
+                                "Ready for final review"
+                                if ready_for_confirmation
+                                else "Implementation required",
+                                className="operator-context-value",
+                            ),
+                        ],
+                        className="operator-context-item",
+                    ),
+                    html.Div(
+                        [
+                            html.Span("What happens next", className="operator-context-label"),
+                            html.Strong(
+                                "Confirm once, start one test, then review Results"
+                                if ready_for_confirmation
+                                else "Complete the exact Candidate implementation in Set up",
+                                className="operator-context-value",
+                            ),
+                        ],
+                        className="operator-context-item",
+                    ),
+                ],
+                id="run-test-operator-context",
+                className="operator-context run-prelaunch-context",
+                **{"aria-label": "Test review context"},
+            ),
             dcc.Store(
                 id="run-test-launch-state",
                 storage_type="session",

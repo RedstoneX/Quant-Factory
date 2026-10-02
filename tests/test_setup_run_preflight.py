@@ -287,7 +287,7 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
         configuration.configuration_id
     )
     assert href is None
-    assert "action-disabled" in class_name
+    assert "surface-status-blocked" in class_name
     assert "Choose a saved QF Candidate first" in setup_title
     assert state == "Candidate not ready"
     assert "setup-campaign-item-blocked" in state_class

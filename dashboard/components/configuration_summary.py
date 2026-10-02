@@ -16,6 +16,8 @@ def configuration_summary(
     empty_message: str = (
         "Choose an approved immutable saved setup before reviewing or running a test."
     ),
+    empty_action_href: str | None = "/research/setup",
+    empty_action_label: str = "Return to Set up",
 ) -> html.Div:
     """Render explicit loading, empty, blocked, and ready states."""
 
@@ -33,6 +35,15 @@ def configuration_summary(
             **{"data-state": "loading"},
         )
     if readiness is None:
+        empty_action = (
+            dcc.Link(
+                empty_action_label,
+                href=empty_action_href,
+                className="secondary-action",
+            )
+            if empty_action_href
+            else None
+        )
         return html.Div(
             [
                 html.H2(empty_title),
@@ -40,11 +51,7 @@ def configuration_summary(
                     empty_message,
                     className="empty-state-copy",
                 ),
-                dcc.Link(
-                    "Return to Set up",
-                    href="/research/setup",
-                    className="secondary-action",
-                ),
+                empty_action,
             ],
             id=component_id,
             className="panel empty-state",

@@ -1,0 +1,153 @@
+/*
+ * Dash loads assets alphabetically. Keep the owner-approved workflow and
+ * dashboard rules after the legacy stylesheet so legacy declarations do not
+ * silently win the cascade.
+ */
+@import url("/assets/approved-workflow.css");
+@import url("/assets/approved-z-dashboard.css");
+
+.setup-workbench-grid-blocked {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.setup-workbench-grid-blocked .setup-contract-workspace,
+.setup-workbench-grid-blocked .setup-create-disclosure,
+.setup-workbench-grid-blocked .setup-next-panel,
+.setup-workbench-grid-blocked .setup-footer-note {
+  grid-column: 1;
+  grid-row: auto;
+}
+
+.setup-workbench-grid-blocked .setup-next-panel {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
+}
+
+.setup-boundary-steps {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-top: 16px;
+}
+
+.setup-boundary-step {
+  align-items: flex-start;
+  background: #f7f9fc;
+  border: 1px solid #dce3ec;
+  border-radius: 9px;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+}
+
+.setup-boundary-step-number {
+  align-items: center;
+  background: #eaf2ff;
+  border-radius: 999px;
+  color: #315cdb;
+  display: inline-flex;
+  flex: 0 0 26px;
+  font-weight: 800;
+  height: 26px;
+  justify-content: center;
+}
+
+.setup-boundary-step strong {
+  color: #24344d;
+  font-size: 14px;
+}
+
+.setup-callback-controls {
+  display: none;
+}
+
+.setup-saved-selector-blocked {
+  display: none;
+}
+
+.run-callback-controls {
+  display: none;
+}
+
+.pending-page-banner {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.pending-page-banner h2 {
+  margin: 9px 0 5px;
+}
+
+.pending-page-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.pending-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pending-fact {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.pending-fact + .pending-fact {
+  border-left: 1px solid #e4e9f0;
+}
+
+.pending-fact span,
+.pending-fact small {
+  color: #68778d;
+  font-size: 12px;
+}
+
+.pending-fact strong {
+  color: #24344d;
+  font-size: 16px;
+}
+
+.pending-boundary-panel {
+  border-color: #8fb4ff;
+  padding: 18px;
+}
+
+.pending-boundary-panel h2 {
+  color: #172237;
+  margin: 8px 0;
+}
+
+.run-prelaunch-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 14px;
+  overflow: hidden;
+  padding: 0;
+}
+
+.run-prelaunch-context .operator-context-item + .operator-context-item {
+  border-left: 1px solid #e4e9f0;
+}
+
+@media (max-width: 1080px) {
+  .setup-boundary-steps,
+  .run-prelaunch-context,
+  .setup-workbench-grid-blocked .setup-next-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pending-page-grid,
+  .pending-fact-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pending-fact + .pending-fact {
+    border-left: 0;
+    border-top: 1px solid #e4e9f0;
+  }
+}
