@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import dataclass, field
+from itertools import count
 from pathlib import Path
 import os
 import sqlite3
 from typing import Iterator
+from uuid import uuid4
 
 LATEST_SCHEMA_VERSION = 7
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE_PATH = Path("state") / "quant_factory.sqlite3"
 ENV_DATABASE_PATH = "QUANT_FACTORY_DB_PATH"
+_SAVEPOINT_SEQUENCE = count()
 MIGRATION_001_STATEMENTS = (
     """
     CREATE TABLE schema_metadata (
@@ -336,14 +340,90 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
 
 @contextmanager
 def transaction(connection: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
+    if connection.in_transaction:
+        savepoint = f"qf_nested_{next(_SAVEPOINT_SEQUENCE)}"
+        connection.execute(f"SAVEPOINT {savepoint}")
+        try:
+            yield connection
+            connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+        except Exception:
+            connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+            connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            raise
+        return
+
     try:
         connection.execute("BEGIN")
         yield connection
+        _commit(connection)
     except Exception:
         connection.rollback()
         raise
+
+
+def _commit(connection: sqlite3.Connection) -> None:
+    """Commit hook kept separate so commit-failure rollback is testable."""
+
+    connection.commit()
+
+
+@dataclass
+class ArtifactFileTransaction:
+    """Stage artifact writes and restore their prior state after a failed unit."""
+
+    _writes: list[tuple[Path, Path | None]] = field(default_factory=list)
+
+    def write_bytes(self, target: Path, content: bytes) -> None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        token = uuid4().hex
+        staged = target.with_name(f".{target.name}.{token}.staged")
+        backup = target.with_name(f".{target.name}.{token}.backup")
+        prior: Path | None = None
+        installed = False
+        try:
+            staged.write_bytes(content)
+            if staged.read_bytes() != content:
+                raise OSError(f"staged artifact verification failed: {target}")
+            if target.exists():
+                target.replace(backup)
+                prior = backup
+            staged.replace(target)
+            installed = True
+            self._writes.append((target, prior))
+        except Exception:
+            staged.unlink(missing_ok=True)
+            if installed:
+                target.unlink(missing_ok=True)
+            if prior is not None and prior.exists():
+                prior.replace(target)
+            raise
+
+    def rollback(self) -> None:
+        for target, backup in reversed(self._writes):
+            target.unlink(missing_ok=True)
+            if backup is not None and backup.exists():
+                backup.replace(target)
+        self._writes.clear()
+
+    def finish(self) -> None:
+        for _, backup in self._writes:
+            if backup is not None:
+                backup.unlink(missing_ok=True)
+        self._writes.clear()
+
+
+@contextmanager
+def artifact_file_transaction() -> Iterator[ArtifactFileTransaction]:
+    """Keep artifact-file state aligned with a surrounding database transaction."""
+
+    files = ArtifactFileTransaction()
+    try:
+        yield files
+    except Exception:
+        files.rollback()
+        raise
     else:
-        connection.commit()
+        files.finish()
 
 
 def _table_exists(connection: sqlite3.Connection, name: str) -> bool:

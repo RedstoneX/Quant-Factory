@@ -19,6 +19,7 @@ from persistence import (
     RunStatus,
 )
 from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
+from persistence.database import artifact_file_transaction, transaction
 from persistence.repositories import utc_now
 from persistence.serialization import canonical_json
 
@@ -208,55 +209,58 @@ def persist_screening_rejection_review(
     context = _screening_rejection_context(
         service, run_id, artifact_root=artifact_root
     )
-    review = service.update_review(
-        target_type="run",
-        target_id=run_id,
-        state=ReviewState.REJECT,
-        note=review_reason,
-        operator=reviewer,
-    )
-    history = service.reviews.history("run", run_id)
-    document: dict[str, Any] = {
-        "schema_version": SCREENING_REJECTION_SCHEMA_VERSION,
-        "artifact_kind": SCREENING_REJECTION_ARTIFACT_KIND,
-        "created_at": utc_now(),
-        "artifact": {
-            "logical_name": EVIDENCE_DECISION_LOGICAL_NAME,
-            "artifact_type": ArtifactType.VALIDATION_EVIDENCE.value,
-            "format": "json",
-            "schema_version": SCREENING_REJECTION_SCHEMA_VERSION,
-        },
-        "screening_context": context,
-        "decision": {
-            "eligible_to_progress": False,
-            "review": {
-                "state": review.state.value,
-                "reason": review.note,
-                "reviewer": review.operator,
-            },
-            "audit_reference": history[-1] if history else None,
-        },
-    }
-    document["artifact"]["decision_identity"] = _screening_decision_identity(document)
-    content = canonical_json(document).encode("utf-8")
-    location = f"artifacts/{run_id}/{EVIDENCE_DECISION_LOGICAL_NAME}.json"
-    target = (Path(artifact_root).resolve() / location).resolve()
-    target.relative_to(Path(artifact_root).resolve())
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(content)
-    artifact = service.register_artifact(
-        run_id=run_id,
-        artifact_type=ArtifactType.VALIDATION_EVIDENCE,
-        logical_name=EVIDENCE_DECISION_LOGICAL_NAME,
-        media_type="application/json",
-        format="json",
-        location=location,
-        content=content,
-        schema_version=SCREENING_REJECTION_SCHEMA_VERSION,
-    )
-    return _read_screening_rejection_decision(
-        service, artifact, run_id=run_id, artifact_root=artifact_root
-    )
+    with artifact_file_transaction() as files:
+        with transaction(service.connection):
+            review = service.update_review(
+                target_type="run",
+                target_id=run_id,
+                state=ReviewState.REJECT,
+                note=review_reason,
+                operator=reviewer,
+            )
+            history = service.reviews.history("run", run_id)
+            document: dict[str, Any] = {
+                "schema_version": SCREENING_REJECTION_SCHEMA_VERSION,
+                "artifact_kind": SCREENING_REJECTION_ARTIFACT_KIND,
+                "created_at": utc_now(),
+                "artifact": {
+                    "logical_name": EVIDENCE_DECISION_LOGICAL_NAME,
+                    "artifact_type": ArtifactType.VALIDATION_EVIDENCE.value,
+                    "format": "json",
+                    "schema_version": SCREENING_REJECTION_SCHEMA_VERSION,
+                },
+                "screening_context": context,
+                "decision": {
+                    "eligible_to_progress": False,
+                    "review": {
+                        "state": review.state.value,
+                        "reason": review.note,
+                        "reviewer": review.operator,
+                    },
+                    "audit_reference": history[-1] if history else None,
+                },
+            }
+            document["artifact"]["decision_identity"] = (
+                _screening_decision_identity(document)
+            )
+            content = canonical_json(document).encode("utf-8")
+            location = f"artifacts/{run_id}/{EVIDENCE_DECISION_LOGICAL_NAME}.json"
+            target = (Path(artifact_root).resolve() / location).resolve()
+            target.relative_to(Path(artifact_root).resolve())
+            files.write_bytes(target, content)
+            artifact = service.register_artifact(
+                run_id=run_id,
+                artifact_type=ArtifactType.VALIDATION_EVIDENCE,
+                logical_name=EVIDENCE_DECISION_LOGICAL_NAME,
+                media_type="application/json",
+                format="json",
+                location=location,
+                content=content,
+                schema_version=SCREENING_REJECTION_SCHEMA_VERSION,
+            )
+            return _read_screening_rejection_decision(
+                service, artifact, run_id=run_id, artifact_root=artifact_root
+            )
 
 
 def load_durable_review(

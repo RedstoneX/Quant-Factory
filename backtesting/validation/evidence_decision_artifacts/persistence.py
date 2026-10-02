@@ -18,6 +18,7 @@ from backtesting.validation.evidence_decision_artifacts.validator import (
     validate_evidence_decision_document,
     validate_source_lineage,
 )
+from persistence.database import ArtifactFileTransaction
 from persistence.serialization import canonical_json
 
 _REFERENCE_LOGICAL_NAMES = {
@@ -110,6 +111,7 @@ def persist_evidence_decision_artifact(
     review: Any,
     audit_reference: Mapping[str, Any] | None,
     artifact_root: str | Path,
+    files: ArtifactFileTransaction,
     created_at: str | None = None,
 ) -> PersistedEvidenceDecisionRecord:
     """Write and register one compact post-run evidence-decision record."""
@@ -141,8 +143,7 @@ def persist_evidence_decision_artifact(
     content = canonical_json(document).encode("utf-8")
     location = f"artifacts/{run_id}/{EVIDENCE_DECISION_LOGICAL_NAME}.json"
     target = _safe_artifact_path(Path(artifact_root), location)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(content)
+    files.write_bytes(target, content)
     artifact = service.register_artifact(
         run_id=run_id,
         artifact_type=ArtifactType.VALIDATION_EVIDENCE,
