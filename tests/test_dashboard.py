@@ -1456,6 +1456,8 @@ def test_ideas_page_is_durable_local_text_only() -> None:
     }
 
     assert "Intake only — nothing will run" in rendered
+    assert "How do you want to start?" in rendered
+    assert "YAML and JSON are two versions of the same file" in rendered
     assert "will not open, preview, download, summarize, approve, or execute" in rendered
     assert {
         "idea-draft-store",
@@ -1468,7 +1470,23 @@ def test_ideas_page_is_durable_local_text_only() -> None:
         "save-idea-draft",
         "discard-idea-draft",
         "confirm-discard-idea-draft",
+        "idea-start-path",
+        "manual-idea-path",
+        "assisted-idea-path",
+        "candidate-valid-actions",
+        "candidate-brief-panel-v1",
     }.issubset(ids)
+    start_choice = next(
+        component
+        for component in _walk_components(page)
+        if getattr(component, "id", None) == "idea-start-path"
+    )
+    option_copy = " ".join(
+        _component_text(html.Div(option["label"]))
+        for option in start_choice.options
+    )
+    assert "I have an idea" in option_copy
+    assert "I want help researching or structuring an idea" in option_copy
     assert _valid_source_url("")
     assert _valid_source_url("https://example.com/research")
     assert not _valid_source_url("javascript:alert(1)")
@@ -2994,6 +3012,24 @@ def test_initial_idea_hydration_cannot_overwrite_first_keystroke(
     values = hydrate(None)
 
     assert values == (no_update,) * 5
+
+
+def test_ideas_start_choice_reveals_only_the_selected_path(tmp_path: Path) -> None:
+    app = create_app(review_database=tmp_path / "idea-path.sqlite3")
+    choose_path = _callback_function(app, "manual-idea-path.className")
+
+    initial = choose_path(None)
+    manual = choose_path("manual")
+    assisted = choose_path("assisted")
+
+    assert "idea-path-hidden" in initial[0]
+    assert "idea-path-hidden" in initial[1]
+    assert "idea-path-hidden" in initial[4]
+    assert "idea-path-hidden" not in manual[0]
+    assert "idea-path-hidden" in manual[1]
+    assert "idea-path-hidden" in assisted[0]
+    assert "idea-path-hidden" not in assisted[1]
+    assert "idea-path-hidden" not in assisted[4]
 
 
 def _comparison_run_summaries() -> tuple[RunSummary, RunSummary]:

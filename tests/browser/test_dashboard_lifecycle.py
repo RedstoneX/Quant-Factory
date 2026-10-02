@@ -54,6 +54,7 @@ from tests.test_review_context_artifacts import (
     _source_lock_artifact,
 )
 from tests.test_dashboard import _reproduction_service
+from tests.test_qf_candidate_v1 import _candidate_document
 
 
 @pytest.fixture()
@@ -764,6 +765,8 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
         try:
             page.goto(base_url + "/research/ideas", wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending_requests)
+            page.locator('#idea-start-path input[value="manual"]').check()
+            expect(page.locator("#manual-idea-path")).to_be_visible()
             page.locator("#idea-title").fill("Local-only idea")
             page.locator("#idea-source-url").fill(
                 "https://user:secret@example.invalid/private"
@@ -796,6 +799,85 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
             expect(page.locator("#idea-title")).to_have_value("")
             page.screenshot(path=tmp_path / "ideas-safe-draft.png", full_page=True)
             _wait_for_callbacks_to_settle(page, pending_requests)
+            _assert_no_browser_errors(events)
+        except Exception:
+            _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)
+            raise
+        finally:
+            browser.close()
+
+
+def test_ideas_guided_candidate_path_validates_saves_and_reloads(
+    mounted_workflow_server,
+    tmp_path,
+):
+    base_url, server_log, _ = mounted_workflow_server
+    events = []
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        action = {"name": "complete guided Candidate intake"}
+        pending_requests = _attach_diagnostics(page, events, action)
+        try:
+            page.goto(base_url + "/research/ideas", wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending_requests)
+
+            expect(page.get_by_text("How do you want to start?", exact=True)).to_be_visible()
+            expect(page.locator("#manual-idea-path")).to_be_hidden()
+            expect(page.locator("#assisted-idea-path")).to_be_hidden()
+
+            page.locator('#idea-start-path input[value="assisted"]').check()
+            expect(page.locator("#assisted-idea-path")).to_be_visible()
+            expect(page.locator("#manual-idea-path")).to_be_hidden()
+            expect(page.locator("#export-research-context-yaml")).to_be_visible()
+            expect(page.locator("#candidate-valid-actions")).to_be_hidden()
+            expect(page.locator("#candidate-brief-panel-v1")).to_be_hidden()
+
+            packet = json.dumps(_candidate_document()).encode("utf-8")
+            page.locator('#candidate-file-upload input[type="file"]').set_input_files(
+                {
+                    "name": "qf-candidate.json",
+                    "mimeType": "application/json",
+                    "buffer": packet,
+                }
+            )
+            expect(page.locator("#candidate-upload-status")).to_contain_text(
+                "Loaded qf-candidate.json"
+            )
+            page.locator("#validate-candidate-packet").click()
+            expect(page.locator("#candidate-valid-actions")).to_be_visible()
+            expect(page.locator("#candidate-brief-panel-v1")).to_be_visible()
+            expect(page.locator("#candidate-brief-panel-v1")).to_contain_text(
+                "15-minute ORB with VWAP confirmation"
+            )
+            expect(page.locator("#export-candidate-yaml")).to_be_enabled()
+
+            page.locator("#save-candidate-packet").click()
+            expect(page.locator("#candidate-action-status")).to_contain_text(
+                "Candidate saved durably"
+            )
+            expect(page.locator("#continue-idea-to-setup")).not_to_have_attribute(
+                "href", "/research/setup"
+            )
+
+            page.reload(wait_until="networkidle")
+            page.locator('#idea-start-path input[value="assisted"]').check()
+            expect(page.locator("#candidate-brief-panel-v1")).to_be_visible()
+            expect(page.locator("#candidate-brief-panel-v1")).to_contain_text(
+                "15-minute ORB with VWAP confirmation"
+            )
+
+            page.screenshot(
+                path=tmp_path / "ideas-guided-candidate-desktop.png",
+                full_page=True,
+            )
+            page.set_viewport_size({"width": 390, "height": 844})
+            assert page.evaluate("document.documentElement.scrollWidth") <= 391
+            assert page.evaluate("document.body.scrollWidth") <= 391
+            page.screenshot(
+                path=tmp_path / "ideas-guided-candidate-mobile.png",
+                full_page=True,
+            )
             _assert_no_browser_errors(events)
         except Exception:
             _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)

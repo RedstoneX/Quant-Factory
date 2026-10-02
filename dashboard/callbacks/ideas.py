@@ -230,6 +230,32 @@ def register_ideas_callbacks(
     """Persist only operator-authored text in local Quant Factory storage."""
 
     @app.callback(
+        Output("manual-idea-path", "className"),
+        Output("assisted-idea-path", "className"),
+        Output("idea-context-bar", "className"),
+        Output("new-idea-draft", "className"),
+        Output("idea-action-bar", "className"),
+        Input("idea-start-path", "value"),
+    )
+    def show_idea_start_path(path: str | None):
+        manual = path == "manual"
+        assisted = path == "assisted"
+        active = manual or assisted
+        return (
+            "idea-workbench-grid idea-path-panel"
+            if manual
+            else "idea-workbench-grid idea-path-panel idea-path-hidden",
+            "idea-path-panel"
+            if assisted
+            else "idea-path-panel idea-path-hidden",
+            "idea-context-bar" if active else "idea-context-bar idea-path-hidden",
+            "primary-action idea-new-action"
+            if active
+            else "primary-action idea-new-action idea-path-hidden",
+            "idea-action-bar" if active else "idea-action-bar idea-path-hidden",
+        )
+
+    @app.callback(
         Output("idea-draft-store", "data"),
         Output("idea-draft-status", "children"),
         Output("idea-draft-status", "className"),
@@ -596,6 +622,8 @@ def register_ideas_callbacks(
         Output("save-candidate-packet", "disabled"),
         Output("export-candidate-yaml", "disabled"),
         Output("export-candidate-json", "disabled"),
+        Output("candidate-valid-actions", "className"),
+        Output("candidate-brief-panel-v1", "className"),
         Input("validate-candidate-packet", "n_clicks"),
         Input("candidate-packet-input", "n_blur"),
         Input("idea-draft-store", "data"),
@@ -621,11 +649,22 @@ def register_ideas_callbacks(
                 True,
                 True,
                 True,
+                "candidate-valid-actions idea-path-hidden",
+                "idea-workbench-panel candidate-brief-panel-v1 idea-path-hidden",
             )
         try:
             validation = validate_candidate_packet(parse_candidate_packet(text))
         except CandidatePacketError as exc:
-            return {}, _candidate_error(str(exc)), _candidate_prompt(), True, True, True
+            return (
+                {},
+                _candidate_error(str(exc)),
+                _candidate_prompt(),
+                True,
+                True,
+                True,
+                "candidate-valid-actions idea-path-hidden",
+                "idea-workbench-panel candidate-brief-panel-v1 idea-path-hidden",
+            )
         enabled = validation.valid
         return (
             _candidate_validation_data(validation),
@@ -637,6 +676,16 @@ def register_ideas_callbacks(
             not enabled,
             not enabled,
             not enabled,
+            (
+                "candidate-valid-actions"
+                if enabled
+                else "candidate-valid-actions idea-path-hidden"
+            ),
+            (
+                "idea-workbench-panel candidate-brief-panel-v1"
+                if enabled
+                else "idea-workbench-panel candidate-brief-panel-v1 idea-path-hidden"
+            ),
         )
 
     @app.callback(

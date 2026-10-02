@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 from dash import dcc, html
 
+from dashboard.components.idea_intake import candidate_research_guide, start_path_selector
 from dashboard.run_adapter import IdeaDraftView, list_idea_drafts
 from research_intake import CandidateValidation, parse_candidate_packet, validate_candidate_packet
 
@@ -400,11 +401,12 @@ def layout(
                         [html.Span("+", **{"aria-hidden": "true"}), "New idea"],
                         id="new-idea-draft",
                         n_clicks=0,
-                        className="primary-action idea-new-action",
+                        className="primary-action idea-new-action idea-path-hidden",
                     ),
                 ],
                 className="page-heading idea-workbench-heading",
             ),
+            start_path_selector(),
             html.Div(
                 [
                     html.Div(
@@ -439,12 +441,24 @@ def layout(
                         className="idea-context-chips",
                     ),
                 ],
-                className="idea-context-bar",
+                id="idea-context-bar",
+                className="idea-context-bar idea-path-hidden",
             ),
             html.Main(
                 [
                     html.Section(
                         [
+                            html.P("WRITE IT IN YOUR OWN WORDS", className="page-eyebrow"),
+                            html.H2("Capture your idea as a private draft"),
+                            html.P(
+                                "Describe what you think may be happening in the market. Quant Factory saves your words locally; nothing is researched, tested, or run automatically."
+                            ),
+                        ],
+                        className="manual-path-intro",
+                    ),
+                    html.Details(
+                        [
+                            html.Summary("Open a saved draft"),
                             html.Div(
                                 [
                                     html.Div(
@@ -481,7 +495,7 @@ def layout(
                                 style={} if not available else {"display": "none"},
                             ),
                         ],
-                        className="idea-workbench-panel idea-history-panel",
+                        className="idea-workbench-panel idea-history-panel idea-support-disclosure",
                     ),
                     html.Section(
                         [
@@ -666,173 +680,178 @@ def layout(
                                 className="idea-next-action",
                             ),
                         ],
-                        className="idea-workbench-panel idea-brief-panel",
+                        className="idea-workbench-panel idea-brief-panel idea-support-disclosure",
                     ),
                 ],
-                className="idea-workbench-grid",
+                id="manual-idea-path",
+                className="idea-workbench-grid idea-path-panel idea-path-hidden",
             ),
-            html.Section(
+            html.Div(
                 [
-                    html.Div(
+                    candidate_research_guide(),
+                    html.Section(
                         [
                             html.Div(
                                 [
-                                    html.P("STANDARDIZED INTAKE", className="page-eyebrow"),
-                                    html.H2("Import QF Candidate v1"),
-                                    html.P(
-                                        "Paste or upload a provider-neutral Candidate packet. Validation is local and deterministic; the submitted content stays editable even when errors are found.",
-                                        className="idea-panel-description",
-                                    ),
-                                ]
-                            ),
-                            html.Span("Non-executing contract", className="surface-badge"),
-                        ],
-                        className="candidate-intake-heading",
-                    ),
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    html.Label(
-                                        "Candidate YAML or JSON",
-                                        htmlFor="candidate-packet-input",
-                                        className="field-label",
-                                    ),
-                                    dcc.Textarea(
-                                        id="candidate-packet-input",
-                                        value=candidate_text,
-                                        placeholder="schema: qf_candidate_v1\ncandidate:\n  title: ...",
-                                        className="candidate-packet-input",
-                                    ),
-                                    dcc.Upload(
-                                        id="candidate-file-upload",
-                                        accept=".yaml,.yml,.json,application/json,application/yaml,text/yaml",
-                                        multiple=False,
-                                        children=html.Div(
-                                            [
-                                                html.Strong("Drop a .yaml, .yml, or .json file here"),
-                                                html.Span(" or choose a file"),
-                                            ]
-                                        ),
-                                        className="candidate-upload",
-                                    ),
-                                    html.Div(
-                                        "No file selected.",
-                                        id="candidate-upload-status",
-                                        className="field-help",
-                                    ),
-                                ],
-                                className="candidate-editor",
-                            ),
-                            html.Aside(
-                                [
-                                    html.Div(candidate_status, id="candidate-validation-status"),
                                     html.Div(
                                         [
+                                            html.P("STEPS 4–5", className="page-eyebrow"),
+                                            html.H2("Upload and check the Candidate file"),
+                                            html.P(
+                                                "Bring back the YAML or JSON file from your researcher. Quant Factory checks its structure locally; it does not run a strategy.",
+                                                className="idea-panel-description",
+                                            ),
+                                        ]
+                                    ),
+                                    html.Span("Nothing runs", className="surface-badge"),
+                                ],
+                                className="candidate-intake-heading",
+                            ),
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [
+                                            dcc.Upload(
+                                                id="candidate-file-upload",
+                                                accept=".yaml,.yml,.json,application/json,application/yaml,text/yaml",
+                                                multiple=False,
+                                                children=html.Div(
+                                                    [
+                                                        html.Strong("Choose the Candidate file you received"),
+                                                        html.Span("Drop it here, or browse for .yaml, .yml, or .json"),
+                                                    ]
+                                                ),
+                                                className="candidate-upload",
+                                            ),
+                                            html.Div(
+                                                "No Candidate file selected yet.",
+                                                id="candidate-upload-status",
+                                                className="field-help",
+                                            ),
+                                            html.Details(
+                                                [
+                                                    html.Summary("Or paste the file contents"),
+                                                    html.P(
+                                                        "Use this only when your researcher returned text instead of a downloadable file.",
+                                                        className="field-help",
+                                                    ),
+                                                    html.Label(
+                                                        "Candidate file contents",
+                                                        htmlFor="candidate-packet-input",
+                                                        className="field-label",
+                                                    ),
+                                                    dcc.Textarea(
+                                                        id="candidate-packet-input",
+                                                        value=candidate_text,
+                                                        placeholder="Paste the complete QF Candidate text here…",
+                                                        className="candidate-packet-input",
+                                                    ),
+                                                ],
+                                                className="candidate-paste-disclosure",
+                                            ),
+                                        ],
+                                        className="candidate-editor",
+                                    ),
+                                    html.Aside(
+                                        [
+                                            html.Span("5", className="candidate-step-number"),
+                                            html.H3("Check the file"),
+                                            html.P(
+                                                "Validation checks that the returned idea is complete enough to review. It never approves or runs it.",
+                                                className="field-help",
+                                            ),
                                             html.Button(
-                                                "Validate packet",
+                                                "Validate Candidate",
                                                 id="validate-candidate-packet",
                                                 n_clicks=0,
                                                 className="primary-action",
                                             ),
-                                            html.Button(
-                                                "Save Candidate to idea",
-                                                id="save-candidate-packet",
-                                                n_clicks=0,
-                                                disabled=not bool(candidate_validation.get("valid")),
-                                                className="secondary-action",
-                                            ),
-                                        ],
-                                        className="candidate-primary-actions",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Button(
-                                                "Download YAML",
-                                                id="export-candidate-yaml",
-                                                n_clicks=0,
-                                                disabled=not bool(candidate_validation.get("valid")),
-                                                className="secondary-action",
-                                            ),
-                                            html.Button(
-                                                "Download JSON",
-                                                id="export-candidate-json",
-                                                n_clicks=0,
-                                                disabled=not bool(candidate_validation.get("valid")),
-                                                className="secondary-action",
-                                            ),
-                                        ],
-                                        className="candidate-export-actions",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.P(
-                                                "External research context",
-                                                className="field-label",
-                                            ),
-                                            html.P(
-                                                "Give this portable QF context to Grok, Claude, ChatGPT, Gemini, or another researcher before asking for Candidate packets.",
-                                                className="field-help",
-                                            ),
+                                            html.Div(candidate_status, id="candidate-validation-status"),
                                             html.Div(
                                                 [
                                                     html.Button(
-                                                        "QF context YAML",
-                                                        id="export-research-context-yaml",
+                                                        "Save this Candidate",
+                                                        id="save-candidate-packet",
                                                         n_clicks=0,
-                                                        className="secondary-action",
+                                                        disabled=not bool(candidate_validation.get("valid")),
+                                                        className="primary-action",
                                                     ),
-                                                    html.Button(
-                                                        "QF context JSON",
-                                                        id="export-research-context-json",
-                                                        n_clicks=0,
-                                                        className="secondary-action",
+                                                    html.P("Optional copy for your records", className="field-label"),
+                                                    html.Div(
+                                                        [
+                                                            html.Button(
+                                                                "Download YAML",
+                                                                id="export-candidate-yaml",
+                                                                n_clicks=0,
+                                                                disabled=not bool(candidate_validation.get("valid")),
+                                                                className="secondary-action",
+                                                            ),
+                                                            html.Button(
+                                                                "Download JSON",
+                                                                id="export-candidate-json",
+                                                                n_clicks=0,
+                                                                disabled=not bool(candidate_validation.get("valid")),
+                                                                className="secondary-action",
+                                                            ),
+                                                        ],
+                                                        className="candidate-export-actions",
+                                                    ),
+                                                    html.Div(
+                                                        (
+                                                            "Candidate saved locally. It is still not approved, implemented, or runnable."
+                                                            if selected and selected.candidate_json
+                                                            else "Review the plain-English brief, then save when you are satisfied."
+                                                        ),
+                                                        id="candidate-action-status",
+                                                        className="field-help candidate-action-status",
                                                     ),
                                                 ],
-                                                className="candidate-export-actions",
+                                                id="candidate-valid-actions",
+                                                className=(
+                                                    "candidate-valid-actions"
+                                                    if candidate_validation.get("valid")
+                                                    else "candidate-valid-actions idea-path-hidden"
+                                                ),
                                             ),
                                         ],
-                                        className="candidate-context-export",
-                                    ),
-                                    html.Div(
-                                        (
-                                            "Validated Candidate is saved on this idea. It remains non-executable."
-                                            if selected and selected.candidate_json
-                                            else "Validate first; saving records the Candidate but grants no approval or execution authority."
-                                        ),
-                                        id="candidate-action-status",
-                                        className="field-help candidate-action-status",
+                                        className="candidate-control-rail",
                                     ),
                                 ],
-                                className="candidate-control-rail",
+                                className="candidate-intake-grid",
                             ),
                         ],
-                        className="candidate-intake-grid",
+                        className="idea-workbench-panel candidate-intake-panel",
                     ),
-                ],
-                className="idea-workbench-panel candidate-intake-panel",
-            ),
-            html.Section(
-                [
-                    html.Div(
+                    html.Section(
                         [
                             html.Div(
                                 [
-                                    html.P("OPERATOR VIEW", className="page-eyebrow"),
-                                    html.H2("Candidate research brief"),
-                                    html.P(
-                                        "The portable packet rendered as research decisions—not raw serialization.",
-                                        className="idea-panel-description",
+                                    html.Div(
+                                        [
+                                            html.P("STEP 6", className="page-eyebrow"),
+                                            html.H2("Read the Candidate in plain English"),
+                                            html.P(
+                                                "This is the researcher’s proposal translated into the decisions you need to review.",
+                                                className="idea-panel-description",
+                                            ),
+                                        ]
                                     ),
-                                ]
+                                    html.Span("Review before saving", className="surface-badge"),
+                                ],
+                                className="candidate-intake-heading",
                             ),
-                            html.Span("Readable contract", className="surface-badge"),
+                            html.Div(candidate_brief, id="candidate-brief-content"),
                         ],
-                        className="candidate-intake-heading",
+                        id="candidate-brief-panel-v1",
+                        className=(
+                            "idea-workbench-panel candidate-brief-panel-v1"
+                            if candidate_validation.get("valid")
+                            else "idea-workbench-panel candidate-brief-panel-v1 idea-path-hidden"
+                        ),
                     ),
-                    html.Div(candidate_brief, id="candidate-brief-content"),
                 ],
-                className="idea-workbench-panel candidate-brief-panel-v1",
+                id="assisted-idea-path",
+                className="idea-path-panel idea-path-hidden",
             ),
             html.Footer(
                 [
@@ -854,7 +873,8 @@ def layout(
                         className="primary-action" if can_continue else "primary-action action-disabled",
                     ),
                 ],
-                className="idea-action-bar",
+                id="idea-action-bar",
+                className="idea-action-bar idea-path-hidden",
             ),
         ],
         className="page-container ideas-page idea-workbench-page",
