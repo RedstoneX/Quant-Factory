@@ -13,6 +13,7 @@ from backtesting.experiments import (
     ExecutionConfig,
     ExperimentConfig,
     METRIC_COLUMNS,
+    SignalResult,
     build_portfolio,
     execute_experiment,
     extract_metrics,
@@ -104,6 +105,42 @@ def _config(
     )
 
 
+def _install_portable_runner_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    strategy = get_strategy("rsi_mean_reversion")
+
+    def deterministic_signals(
+        data: pd.DataFrame | pd.Series, parameters: dict[str, int]
+    ) -> SignalResult:
+        normalized = strategy.validate_parameters(parameters)
+        index = data.index
+        entries = pd.Series(False, index=index, dtype=bool)
+        exits = pd.Series(False, index=index, dtype=bool)
+        entries.iloc[5::12] = True
+        exits.iloc[8::12] = True
+        return SignalResult(entries=entries, exits=exits, parameters=normalized)
+
+    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
+    monkeypatch.setattr(
+        runner_module,
+        "_construct_portfolio",
+        lambda data, aligned, config: object(),
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "extract_metrics",
+        lambda portfolio: {
+            "total_return": 0.10,
+            "annualized_return": 0.10,
+            "sharpe_ratio": 1.0,
+            "max_drawdown": -0.10,
+            "number_of_trades": 20,
+            "win_rate": 0.50,
+        },
+    )
+
+
 def test_typed_experiment_configuration(tmp_path: Path) -> None:
     config = _config(tmp_path)
     assert config.experiment_id == "test_rsi"
@@ -122,6 +159,7 @@ def test_typed_experiment_configuration(tmp_path: Path) -> None:
 def test_strategy_lookup_and_grid_execution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _install_portable_runner_boundaries(monkeypatch)
     requested: list[str] = []
     real_get_strategy = get_strategy
 
@@ -184,7 +222,10 @@ def config_columns(frame: pd.DataFrame) -> list[str]:
     return list(frame.columns)
 
 
-def test_invalid_parameters_are_recorded(tmp_path: Path) -> None:
+def test_invalid_parameters_are_recorded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_portable_runner_boundaries(monkeypatch)
     config = _config(
         tmp_path,
         (
@@ -225,6 +266,7 @@ def test_unapproved_parameter_plan_fails_before_simulation(
 def test_ranking_is_deterministic_on_ties(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _install_portable_runner_boundaries(monkeypatch)
     config = _config(
         tmp_path,
         (
@@ -251,6 +293,7 @@ def test_ranking_is_deterministic_on_ties(
     assert first.ranked_results["rsi_window"].tolist() == [7, 14]
 
 
+@pytest.mark.licensed_vectorbt
 def test_portfolio_metrics_and_result_provenance(tmp_path: Path) -> None:
     config = _config(tmp_path, ({"window": 7, "entry_threshold": 25, "exit_threshold": 60},))
     data = _data()

@@ -277,6 +277,7 @@ def test_server_independent_graceful_behavior_when_prefect_unavailable(monkeypat
         ensure_prefect_available()
 
 
+@pytest.mark.external_prefect
 def test_live_external_prefect_retry_success_path(tmp_path: Path) -> None:
     if not os.environ.get("PREFECT_API_URL"):
         pytest.skip(
@@ -307,6 +308,7 @@ def test_live_external_prefect_retry_success_path(tmp_path: Path) -> None:
         service.close()
 
 
+@pytest.mark.external_prefect
 def test_live_external_prefect_timeout_path(tmp_path: Path) -> None:
     if not os.environ.get("PREFECT_API_URL"):
         pytest.skip(

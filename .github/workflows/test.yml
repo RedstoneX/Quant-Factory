@@ -44,7 +44,7 @@ jobs:
   portable-tests:
     name: Portable tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -56,7 +56,10 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: requirements-ci.txt
+          cache-dependency-path: |
+            requirements-runtime.txt
+            requirements-ci.txt
+            requirements-dashboard.txt
       - name: Enforce architecture dependency boundaries
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -65,67 +68,96 @@ jobs:
         run: >-
           python -m pip install
           --constraint requirements-runtime.txt
+          --requirement requirements-runtime.txt
           --requirement requirements-ci.txt
           --requirement requirements-dashboard.txt
-      - name: Run portable test selection
+          playwright==1.63.0
+      - name: Validate complete test-lane inventory
+        run: >-
+          python -m pytest --collect-only -q
+          --write-test-lane-inventory=test-lane-inventory.json
+          tests
+      - name: Run every portable non-browser test
         run: >-
           python -m pytest -q
-          --junitxml=portable-test-results.xml
-          tests/test_ci_portable_imports.py
-          tests/test_architecture_boundaries.py
-          tests/test_dashboard_component_boundaries.py
-          tests/test_validation_evidence_service_boundary.py
-          tests/test_candidate_pipeline_runtime.py
-          tests/test_candidate_run_service.py
-          tests/test_candidate_dashboard_runtime.py
-          tests/test_market_data_cache_only.py
-          tests/test_compare_adapter.py
-          tests/test_mes_overnight_gap_reversal.py
-          tests/test_mes_overnight_gap_reversal_durable.py
-          tests/test_mes_orb_durable_screening.py
-          tests/test_results_model.py
-          tests/test_results_beta_layout.py
-          tests/test_parameter_variant_evidence.py
-          tests/test_parameter_variant_explorer.py
-          tests/test_dashboard_candidate_artifact_normalization.py
-          tests/test_operator_intake_setup.py
-          tests/test_qf_candidate_v1.py
-          tests/test_qf_research_context_v1.py
-          tests/test_agent_gateway.py
-          tests/test_operator_run_operations.py
-          tests/test_results_deep_link.py
-          tests/test_dashboard.py::test_all_callback_components_exist_in_full_mounted_layout
-          tests/test_dashboard.py::test_dashboard_state_ownership_contract_names_callback_owners
-          tests/test_dashboard.py::test_dashboard_reconciles_selected_unknown_submission_with_prefect_identity
-          tests/test_dashboard.py::test_dashboard_abandons_selected_unknown_submission_only_with_evidence
-          tests/test_milestone23_acceptance.py::test_milestone23_controlled_failure_is_diagnosable_without_false_success
-          tests/test_research_launch_claims.py
-          tests/test_run_stale_recovery.py
-          tests/test_execution_contracts.py
-          tests/test_paper_binding.py
-          tests/test_alpaca_snapshots.py
-          tests/test_paper_journal.py
-          tests/test_alpaca_paper.py
-          tests/test_paper_read_transport.py
-          tests/test_alpaca_authentication.py
-          tests/test_onecli_v2_preflight.py
-          tests/test_onecli_v2_production.py
-          tests/test_paper_worker.py
-          tests/test_paper_observer_bootstrap.py
-          tests/test_credential_proof.py
-          tests/test_alpaca_provider.py
-          tests/test_data_catalog.py
-          tests/test_market_data_calendar.py
-          tests/test_market_data_validation.py
-      - name: Verify portable test report
+          -m "not licensed_vectorbt and not external_prefect and not controlled_market_data"
+          --junitxml=portable-nonbrowser-test-results.xml
+          --ignore=tests/browser
+          tests
+      - name: Verify exact portable non-browser coverage
         if: always()
-        run: python tools/assert_junit_report.py portable-test-results.xml
+        run: >-
+          python tools/assert_test_lane_report.py
+          test-lane-inventory.json
+          portable-nonbrowser-test-results.xml
+          portable-nonbrowser
       # actions/upload-artifact v7.0.1
-      - name: Upload portable test report
+      - name: Upload non-browser test report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: portable-test-results
-          path: portable-test-results.xml
+          name: portable-nonbrowser-test-results
+          path: |
+            portable-nonbrowser-test-results.xml
+            test-lane-inventory.json
+          if-no-files-found: error
+          retention-days: 30
+
+  browser-tests:
+    name: Browser tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # actions/setup-python v7.0.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements-runtime.txt
+            requirements-ci.txt
+            requirements-dashboard.txt
+      - name: Install public test dependencies
+        run: >-
+          python -m pip install
+          --constraint requirements-runtime.txt
+          --requirement requirements-runtime.txt
+          --requirement requirements-ci.txt
+          --requirement requirements-dashboard.txt
+          playwright==1.63.0
+      - name: Install Chromium and operating-system dependencies
+        run: python -m playwright install --with-deps chromium
+      - name: Validate complete test-lane inventory
+        run: >-
+          python -m pytest --collect-only -q
+          --write-test-lane-inventory=test-lane-inventory.json
+          tests
+      - name: Run every portable browser test
+        run: >-
+          python -m pytest -q
+          -m "not licensed_vectorbt and not external_prefect and not controlled_market_data"
+          --junitxml=portable-browser-test-results.xml
+          tests/browser
+      - name: Verify exact portable browser coverage
+        if: always()
+        run: >-
+          python tools/assert_test_lane_report.py
+          test-lane-inventory.json
+          portable-browser-test-results.xml
+          portable-browser
+      # actions/upload-artifact v7.0.1
+      - name: Upload browser test report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: portable-browser-test-results
+          path: |
+            portable-browser-test-results.xml
+            test-lane-inventory.json
           if-no-files-found: error
           retention-days: 30

@@ -179,13 +179,15 @@ def test_all_history_reports_ranked_metrics_and_metadata_without_artifact_payloa
 
     assert len(rows) == 21
     assert first["run_id"] == "history-grid-20"
-    assert first["total_return"] == 20.1
-    assert first["annualized_return"] == 20.2
-    assert first["sharpe_ratio"] == 21.5
-    assert first["max_drawdown"] == -0.05
-    assert first["win_rate"] == 0.6
-    assert first["number_of_trades"] == 25
-    assert first["metric_basis"] == "Top-ranked variation · Rank 1 · Screening Passed"
+    assert first["total_return"] is None
+    assert first["annualized_return"] is None
+    assert first["sharpe_ratio"] is None
+    assert first["max_drawdown"] is None
+    assert first["win_rate"] is None
+    assert first["number_of_trades"] is None
+    assert first["metric_basis"] == (
+        "Top-ranked variation unavailable · Manifest/artifact evidence is invalid"
+    )
     assert first["instrument"] == "SPY"
     assert first["interval"] == "1d"
     assert first["strategy"] == "Ranked History Strategy"

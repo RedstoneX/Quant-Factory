@@ -933,7 +933,9 @@ def register_backtest_results_callbacks(
             title = store_error
             label = "Run ticket conflict"
         elif submission is not None:
-            if launch_error is not None:
+            if launch_error is not None and (
+                submission.state != ResearchSubmissionState.ACKNOWLEDGED
+            ):
                 message = _operator_message(
                     "Run launch acknowledgement is incomplete.",
                     str(launch_error),
@@ -942,15 +944,13 @@ def register_backtest_results_callbacks(
                 message_class = "save-message warning-state"
             else:
                 message = _durable_launch_summary(submission, run)
+                is_failed = submission.state in {
+                    ResearchSubmissionState.SUBMISSION_UNKNOWN,
+                    ResearchSubmissionState.FAILED_BEFORE_SUBMISSION,
+                    ResearchSubmissionState.ABANDONED,
+                } or (run is not None and run.status == "failed")
                 message_class = (
-                    "save-message error-state"
-                    if submission.state
-                    in {
-                        ResearchSubmissionState.SUBMISSION_UNKNOWN,
-                        ResearchSubmissionState.FAILED_BEFORE_SUBMISSION,
-                        ResearchSubmissionState.ABANDONED,
-                    }
-                    else "save-message"
+                    "save-message error-state" if is_failed else "save-message"
                 )
         elif launch_error is not None:
             message = _operator_message(

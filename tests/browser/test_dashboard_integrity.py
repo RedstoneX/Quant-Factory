@@ -82,17 +82,23 @@ def test_market_data_and_system_health_are_truthful_in_browser(home_health_serve
                 "route-research-market-data",
             )
             market_data = page.locator("#route-research-market-data")
-            expect(market_data.locator("h1")).to_have_text("Market Data")
+            expect(market_data.locator("h1")).to_have_text(
+                "Know what data is usable"
+            )
             catalogued = market_data.locator(
-                ".metric-card", has_text="Catalogued datasets"
+                ".support-metric", has_text="Catalogued datasets"
             )
             expect(catalogued.locator("strong")).to_have_text("2")
             expect(
-                market_data.get_by_text("Quarantined — not approved", exact=True)
+                market_data.get_by_text(
+                    "1 quarantined datasets remain provenance records and are not "
+                    "approved for experiments.",
+                    exact=True,
+                )
             ).to_be_visible()
             expect(
                 market_data.get_by_text(
-                    "Provider connectivity, credential availability, and data freshness were not checked on this page.",
+                    "Provider connectivity, credentials, and freshness are not checked here.",
                     exact=True,
                 )
             ).to_be_visible()
@@ -102,10 +108,18 @@ def test_market_data_and_system_health_are_truthful_in_browser(home_health_serve
             _wait_for_callbacks_to_settle(page, pending)
             _assert_route(page, base_url, "/system", "route-system")
             system = page.locator("#route-system")
-            expect(system.locator("h1")).to_have_text("System Status")
-            credentials = system.locator(".metric-card", has_text="Credentials")
-            expect(credentials.locator(".metric-label")).to_have_text("Credentials")
-            expect(credentials.locator("strong")).to_have_text("Not checked")
+            expect(system.locator("h1")).to_have_text(
+                "Know whether research can operate"
+            )
+            credentials = system.locator(
+                ".health-component-row", has_text="Credentials"
+            )
+            expect(credentials.locator(".health-component-state")).to_have_text(
+                "Not checked"
+            )
+            expect(credentials.locator("time")).to_have_text(
+                "Last checked: Not checked"
+            )
             _assert_no_browser_errors(events)
         finally:
             browser.close()
@@ -127,7 +141,10 @@ def test_missing_spym_artifact_is_visible_and_reproduction_is_blocked(dashboard_
             before = _run_count(server_log)
             page.get_by_text("Comparison and selected-backtest actions", exact=True).click()
             page.locator("#reproduce-selected-run").click()
-            expect(page.locator("#reproduction-message")).to_contain_text("Run reproduction failed")
+            reproduction = page.locator("#reproduction-message")
+            expect(reproduction).to_have_class(re.compile(r"error-state"))
+            expect(reproduction).to_contain_text("Run reproduction did not start")
+            expect(reproduction).to_contain_text("artifact_missing")
             assert _run_count(server_log) == before
         finally:
             browser.close()
@@ -169,12 +186,21 @@ def test_invalid_spym_lineage_is_visible_and_not_reproducible(dashboard_server) 
         try:
             pending = _attach_diagnostics(page, [], {"name": "invalid lineage"})
             _open_spym_detail(page, base_url, pending)
-            expect(page.locator(".run-detail-warning")).to_contain_text("persisted run manifest is invalid")
-            expect(page.locator("#selected-run-detail .artifact-card-error .artifact-status").first).to_have_text("invalid")
+            expect(page.locator(".run-detail-warning")).to_contain_text(
+                "persisted run manifest is invalid"
+            )
+            expect(
+                page.locator(
+                    "#selected-run-detail .artifact-card-error .artifact-status"
+                ).first
+            ).to_have_text("invalid")
             before = _run_count(server_log)
             page.get_by_text("Comparison and selected-backtest actions", exact=True).click()
             page.locator("#reproduce-selected-run").click()
-            expect(page.locator("#reproduction-message")).to_contain_text("Run reproduction failed")
+            reproduction = page.locator("#reproduction-message")
+            expect(reproduction).to_have_class(re.compile(r"error-state"))
+            expect(reproduction).to_contain_text("Run reproduction did not start")
+            expect(reproduction).to_contain_text("stored canonical JSON is invalid")
             assert _run_count(server_log) == before
         finally:
             browser.close()

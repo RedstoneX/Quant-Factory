@@ -327,9 +327,15 @@ def test_reset_layout_asset_changes_dimensions_only() -> None:
         assert forbidden not in source
 
 
-def test_results_layout_contract_runs_in_portable_ci() -> None:
+def test_results_layout_contract_is_included_in_complete_non_browser_ci() -> None:
     workflow = (
         Path(__file__).parents[1] / ".github" / "workflows" / "test.yml"
     ).read_text(encoding="utf-8")
 
-    assert "tests/test_results_beta_layout.py" in workflow
+    assert "Run every portable non-browser test" in workflow
+    assert "--write-test-lane-inventory=test-lane-inventory.json" in workflow
+    assert (
+        '-m "not licensed_vectorbt and not external_prefect and not controlled_market_data"'
+        in workflow
+    )
+    assert "--ignore=tests/browser\n          tests" in workflow

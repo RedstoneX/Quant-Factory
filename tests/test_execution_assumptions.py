@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+import backtesting.experiments.runner as runner_module
 from backtesting.execution_comparison import build_execution_comparison
 from backtesting.experiments import (
     ExecutionConfig,
@@ -109,6 +110,41 @@ def _audit(row_count: int) -> DataAudit:
     )
 
 
+def _install_portable_runner_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    strategy = get_strategy("rsi_mean_reversion")
+
+    def deterministic_signals(
+        data: pd.DataFrame | pd.Series, parameters: dict[str, int]
+    ) -> SignalResult:
+        normalized = strategy.validate_parameters(parameters)
+        entries = pd.Series(False, index=data.index, dtype=bool)
+        exits = pd.Series(False, index=data.index, dtype=bool)
+        entries.iloc[5::12] = True
+        exits.iloc[8::12] = True
+        return SignalResult(entries=entries, exits=exits, parameters=normalized)
+
+    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
+    monkeypatch.setattr(
+        runner_module,
+        "_construct_portfolio",
+        lambda data, aligned, config: object(),
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "extract_metrics",
+        lambda portfolio: {
+            "total_return": 0.10,
+            "annualized_return": 0.10,
+            "sharpe_ratio": 1.0,
+            "max_drawdown": -0.10,
+            "number_of_trades": 20,
+            "win_rate": 0.50,
+        },
+    )
+
+
 def test_next_bar_shift_has_no_same_bar_or_future_execution() -> None:
     signals = _signals(_data().index)
     aligned = align_signals_for_execution(signals, _execution())
@@ -120,6 +156,7 @@ def test_next_bar_shift_has_no_same_bar_or_future_execution() -> None:
     assert aligned.exits.sum() == 1  # final-bar signal has no future fill
 
 
+@pytest.mark.licensed_vectorbt
 def test_rsi_signal_prefix_is_unchanged_by_future_rows() -> None:
     index = pd.date_range("2024-01-01", periods=60, freq="D")
     close = pd.Series(
@@ -135,6 +172,7 @@ def test_rsi_signal_prefix_is_unchanged_by_future_rows() -> None:
     pd.testing.assert_series_equal(prefix.exits, full.exits.iloc[:45])
 
 
+@pytest.mark.licensed_vectorbt
 def test_next_bar_portfolio_uses_next_open_price(tmp_path: Path) -> None:
     data = _data()
     portfolio = build_portfolio(data, _signals(data.index), _config(tmp_path, _execution()))
@@ -144,6 +182,7 @@ def test_next_bar_portfolio_uses_next_open_price(tmp_path: Path) -> None:
     assert orders.iloc[0]["Price"] == data["Open"].iloc[2]
 
 
+@pytest.mark.licensed_vectorbt
 def test_same_bar_close_mode_preserves_unshifted_comparison(tmp_path: Path) -> None:
     data = _data()
     signals = _signals(data.index)
@@ -173,6 +212,7 @@ def _futures_execution(direction: str, *, quantity: float = 1.0) -> ExecutionCon
     )
 
 
+@pytest.mark.licensed_vectorbt
 def test_long_futures_fee_and_slippage_direction(tmp_path: Path) -> None:
     data = _data()
     signals = _signals(data.index)
@@ -191,6 +231,7 @@ def test_long_futures_fee_and_slippage_direction(tmp_path: Path) -> None:
     assert orders["Fees"].sum() == pytest.approx(1.24)
 
 
+@pytest.mark.licensed_vectorbt
 def test_short_futures_fee_and_slippage_direction(tmp_path: Path) -> None:
     data = _data()
     index = data.index
@@ -229,6 +270,7 @@ def test_futures_slippage_can_be_configured_in_price_points() -> None:
     assert prices.iloc[3] == (_data()["Open"].iloc[3] - 0.5) * 5
 
 
+@pytest.mark.licensed_vectorbt
 def test_futures_costs_scale_with_contract_quantity(tmp_path: Path) -> None:
     execution = _futures_execution("longonly", quantity=3)
     portfolio = build_portfolio(
@@ -240,6 +282,7 @@ def test_futures_costs_scale_with_contract_quantity(tmp_path: Path) -> None:
     assert orders["Fees"].sum() == pytest.approx(3.72)
 
 
+@pytest.mark.licensed_vectorbt
 def test_rsi_percentage_fee_and_slippage_behavior_is_unchanged(tmp_path: Path) -> None:
     execution = ExecutionConfig.next_bar_open(
         initial_cash=10_000,
@@ -287,7 +330,10 @@ def test_typed_execution_rejects_unsupported_combinations() -> None:
         )
 
 
-def test_result_records_actual_execution_assumptions(tmp_path: Path) -> None:
+def test_result_records_actual_execution_assumptions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_portable_runner_boundaries(monkeypatch)
     index = pd.date_range("2024-01-01", periods=80, freq="D")
     data = pd.DataFrame(
         {
@@ -308,6 +354,7 @@ def test_result_records_actual_execution_assumptions(tmp_path: Path) -> None:
     assert result.ranked_results.loc[0, "execution_timing"] == "next_available_bar"
 
 
+@pytest.mark.licensed_vectorbt
 def test_execution_comparison_reports_metric_and_ranking_change(tmp_path: Path) -> None:
     index = pd.date_range("2024-01-01", periods=80, freq="D")
     data = pd.DataFrame(

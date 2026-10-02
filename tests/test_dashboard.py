@@ -97,6 +97,7 @@ from tests.test_review_context_artifacts import (
     _review_service,
     _source_lock_artifact,
 )
+from tests.spym_portable_fixture import portable_spym_fixture_launcher
 
 
 
@@ -254,6 +255,7 @@ def _ranked_row() -> dict[str, object]:
     }
 
 
+@pytest.mark.licensed_vectorbt
 def test_selected_parameter_reconstruction_outputs_series_and_metadata() -> None:
     data = _data()
     selected = reconstruct_selected_portfolio(
@@ -614,7 +616,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 51
+    assert len(app.callback_map) == 53
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -913,7 +915,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     expected_titles = {
         "/": "Dashboard · Research Atlas",
         "/research/ideas": "New research idea",
-        "/research/setup": "Define the experiment",
+        "/research/setup": "Prepare a strategy test",
         "/research/run-test": "Review before running",
         "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Results",
@@ -1400,7 +1402,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
     expected = {
         "/": "Dashboard · Research Atlas",
         "/research/ideas": "New research idea",
-        "/research/setup": "Define the experiment",
+        "/research/setup": "Prepare a strategy test",
         "/research/run-test": "Review before running",
         "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Results",
@@ -1544,7 +1546,7 @@ def test_ideas_page_is_durable_local_text_only() -> None:
 def test_workflow_pages_use_the_sidebar_instead_of_repeating_stage_cards() -> None:
     pages = (
         ("/research/ideas", "New research idea"),
-        ("/research/setup", "Define the experiment"),
+        ("/research/setup", "Prepare a strategy test"),
         ("/research/run-test", "Review before running"),
         ("/research/backtest-results", "Results"),
         ("/research/compare-backtests", "Compare persisted runs"),
@@ -5575,9 +5577,14 @@ def test_passive_refresh_preserves_selected_run_outside_recent_limit(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
         lambda: "refresh-runs",
     )
-    def unexpected_portfolio_scan(*args, **kwargs):
-        raise AssertionError("A valid selected run needs no portfolio scan")
-    monkeypatch.setattr("dashboard.callbacks.backtest_results._preferred_backtest_id", unexpected_portfolio_scan)
+    looked_up_run_ids: list[str] = []
+    original_get_run = service.get_run
+
+    def tracked_get_run(run_id: str):
+        looked_up_run_ids.append(run_id)
+        return original_get_run(run_id)
+
+    monkeypatch.setattr(service, "get_run", tracked_get_run)
     options, selected = refresh_selectors(
         1,
         0,
@@ -5589,6 +5596,7 @@ def test_passive_refresh_preserves_selected_run_outside_recent_limit(
     )
 
     assert selected is no_update
+    assert looked_up_run_ids == ["spym_historical_run"]
     assert [option["value"] for option in options][-1] == "spym_historical_run"
     assert "SPYM RSI Mean Reversion Fixture" in options[-1]["label"]
 
@@ -6277,6 +6285,7 @@ def _spym_fixture_launcher(**kwargs):
     )
 
 
+@pytest.mark.licensed_vectorbt
 def test_run_detail_adapter_reads_validated_spym_artifacts_for_dashboard(
     tmp_path: Path,
 ) -> None:
@@ -6328,7 +6337,7 @@ def test_run_detail_adapter_fails_closed_for_corrupt_spym_artifact(
         persistence.close()
     FixtureRunService(
         database=database,
-        fixture_launcher=_spym_fixture_launcher,
+        fixture_launcher=portable_spym_fixture_launcher,
     ).launch_fixture(
         configuration_id=configuration_id,
         run_id="qf-dashboard-21d-corrupt",

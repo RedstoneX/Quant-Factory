@@ -27,9 +27,14 @@ from prefect_spike.spym_vectorbt_fixture import (
     spym_21c_saved_configuration_document,
 )
 from tools import prepare_milestone23_browser_fixture as browser_fixture_cli
+from tests.spym_portable_fixture import portable_spym_fixture_launcher
 
 
 def _launcher(**kwargs):
+    return portable_spym_fixture_launcher(**kwargs)
+
+
+def _real_engine_launcher(**kwargs):
     kwargs.pop("attempt_marker_path", None)
     return deterministic_fixture_body(
         **kwargs,
@@ -100,6 +105,7 @@ def _persisted_snapshot(
     return snapshot
 
 
+@pytest.mark.licensed_vectorbt
 def test_preparer_builds_valid_idempotent_acceptance_fixture(tmp_path: Path) -> None:
     database = tmp_path / "state" / "fixture.sqlite3"
     root = tmp_path / "artifacts"
@@ -107,7 +113,7 @@ def test_preparer_builds_valid_idempotent_acceptance_fixture(tmp_path: Path) -> 
     first = prepare_milestone23_browser_fixture(
         database=database,
         artifact_root=root,
-        fixture_launcher=_launcher,
+        fixture_launcher=_real_engine_launcher,
     )
     service = PersistenceService(database)
     try:
@@ -123,7 +129,7 @@ def test_preparer_builds_valid_idempotent_acceptance_fixture(tmp_path: Path) -> 
     second = prepare_milestone23_browser_fixture(
         database=database,
         artifact_root=root,
-        fixture_launcher=_launcher,
+        fixture_launcher=_real_engine_launcher,
     )
 
     assert second == first
@@ -158,6 +164,46 @@ def test_preparer_builds_valid_idempotent_acceptance_fixture(tmp_path: Path) -> 
             artifact.logical_name == SOURCE_LOCK_LOGICAL_NAME
             for artifact in service.list_run_artifacts(SOURCE_LOCK_RUN_ID)
         )
+    finally:
+        service.close()
+
+
+def test_portable_preparer_labels_generated_evidence_as_synthetic(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "portable.sqlite3"
+    root = tmp_path / "portable-artifacts"
+    prepare_milestone23_browser_fixture(
+        database=database,
+        artifact_root=root,
+        fixture_launcher=_launcher,
+    )
+    service = PersistenceService(database)
+    try:
+        provenance = service.results.get_data_provenance(TARGET_RUN_ID)
+        assert provenance is not None
+        assert provenance.provider == "Synthetic portable test fixture"
+        assert provenance.cache_action == "generated-synthetic-test-fixture"
+        validation_summary = json.loads(provenance.validation_summary_json)
+        assert validation_summary["observed_regular_session_bar_count"] == 0
+        assert validation_summary["synthetic_bar_count"] == 53_528
+
+        artifacts = {
+            artifact.logical_name: json.loads(
+                (database.parent / artifact.location).read_text(encoding="utf-8")
+            )
+            for artifact in service.list_run_artifacts(TARGET_RUN_ID)
+            if artifact.logical_name in {"dataset_manifest", "validation_evidence"}
+        }
+        manifest = artifacts["dataset_manifest"]
+        assert manifest["dataset_id"] == "synthetic_SPYM_1m_portable_ui_fixture"
+        assert manifest["status"] == "provisional"
+        assert manifest["fixture_only"] is True
+        assert manifest["source_market_data_read"] is False
+        validation = artifacts["validation_evidence"]
+        assert validation["dataset_manifest"]["status"] == "fixture-only"
+        assert validation["promotion_eligible"] is False
+        assert validation["evidence_classification"].startswith("synthetic portable")
     finally:
         service.close()
 

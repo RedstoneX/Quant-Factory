@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from dash import dcc, html
+import pytest
 
 from dashboard.application import (
     _numeric_value,
@@ -26,6 +27,7 @@ from orchestration import FixtureRunService
 from persistence import PersistenceService
 from prefect_spike.fixture_flow import deterministic_fixture_body
 from prefect_spike.spym_vectorbt_fixture import ensure_spym_21c_saved_configuration
+from tests.spym_portable_fixture import portable_spym_fixture_launcher
 
 
 def _launcher(**kwargs):
@@ -37,7 +39,7 @@ def _launcher(**kwargs):
     )
 
 
-def _spym_detail(tmp_path: Path):
+def _spym_detail(tmp_path: Path, *, fixture_launcher=portable_spym_fixture_launcher):
     database = tmp_path / "state" / "price-benchmark.sqlite3"
     service = PersistenceService(database)
     try:
@@ -45,7 +47,7 @@ def _spym_detail(tmp_path: Path):
     finally:
         service.close()
 
-    FixtureRunService(database=database, fixture_launcher=_launcher).launch_fixture(
+    FixtureRunService(database=database, fixture_launcher=fixture_launcher).launch_fixture(
         configuration_id=configuration_id,
         run_id="qf-spym-price-benchmark",
     )
@@ -53,14 +55,21 @@ def _spym_detail(tmp_path: Path):
     return adapter.selected_run_detail("qf-spym-price-benchmark"), tmp_path
 
 
-def _graph(component: Any) -> dcc.Graph:
+def _graph(component: Any, seen: set[int] | None = None) -> dcc.Graph | None:
     if isinstance(component, dcc.Graph):
         return component
-    children = getattr(component, "children", ())
-    if not isinstance(children, list):
+    if component is None or isinstance(component, (str, int, float, bool)):
+        return None
+    seen = set() if seen is None else seen
+    marker = id(component)
+    if marker in seen:
+        return None
+    seen.add(marker)
+    children = getattr(component, "children", None)
+    if not isinstance(children, (list, tuple)):
         children = [children]
     for child in children:
-        found = _graph(child)
+        found = _graph(child, seen)
         if found is not None:
             return found
     return None
@@ -93,10 +102,11 @@ def _empty_detail() -> SelectedRunDetailView:
     )
 
 
+@pytest.mark.licensed_vectorbt
 def test_spym_fixture_persists_price_series_and_vectorbt_benchmark(
     tmp_path: Path,
 ) -> None:
-    detail, root = _spym_detail(tmp_path)
+    detail, root = _spym_detail(tmp_path, fixture_launcher=_launcher)
     payload = json.loads(
         (
             root
@@ -137,6 +147,8 @@ def test_spym_fixture_persists_price_series_and_vectorbt_benchmark(
 
 def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> None:
     detail, _ = _spym_detail(tmp_path)
+    assert detail.evidence.evidence_classification is not None
+    assert detail.evidence.evidence_classification.startswith("synthetic portable")
 
     price_graph = _graph(_price_marker_panel(detail))
     assert price_graph is not None
@@ -146,6 +158,7 @@ def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> N
     for interval in ("1m", "5m", "15m", "1D"):
         figure, _ = _price_marker_figure(detail, interval=interval, view="Full run")
         candlestick = next(trace for trace in figure.data if trace.type == "candlestick")
+        assert candlestick.name.startswith("Synthetic fixture SPYM")
         counts.append(len(candlestick.x))
     assert counts == [53528, 13340, 4474, 173]
 
@@ -155,7 +168,7 @@ def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> N
     assert benchmark_graph.id == "portfolio-benchmark-chart"
     assert [trace.name for trace in benchmark_graph.figure.data] == [
         "Portfolio value vs same-instrument buy-and-hold",
-        "SPYM same-instrument buy-and-hold",
+        "Synthetic SPYM fixture buy-and-hold",
     ]
     assert [len(trace.x) for trace in benchmark_graph.figure.data] == [1500, 1500]
     assert "representative points are shown" in str(benchmark_panel)

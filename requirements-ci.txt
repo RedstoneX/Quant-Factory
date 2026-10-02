@@ -1,7 +1,7 @@
-# Public, portable dependencies for the GitHub Actions CI test subset.
-# VectorBT Pro, local market datasets, and browser binaries are deliberately
-# excluded. Their tests require the controlled WSL environment and are not
-# represented by a GitHub-hosted CI green result.
+# Public dependencies for GitHub-hosted portable-test jobs.
+# VectorBT Pro remains deliberately excluded. Exact marker/inventory accounting
+# keeps real-engine, external-Prefect, and controlled-data coverage visible;
+# the public jobs run every test in the portable lane.
 exchange-calendars==4.13.2
 numpy==2.4.6
 pandas==2.3.3

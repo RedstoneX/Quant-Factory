@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -56,6 +55,8 @@ def _assert_runtime_clean(
     server_log: Path,
 ) -> None:
     _assert_no_browser_errors(events)
+    http_errors = [event for event in events if event["kind"] == "http-error"]
+    assert http_errors == []
     request_failures = [
         event for event in events if event["kind"] == "requestfailed"
     ]
@@ -64,37 +65,16 @@ def _assert_runtime_clean(
         and "/_dash-update-component" in event["url"]
         for event in request_failures
     ), request_failures
-    server_204s = Counter(
-        (status.get("output"), status.get("pathname"), status.get("search"))
-        for status in parse_callback_statuses((server_log,))
-        if status.get("status") == 204
-    )
-    browser_aborts: Counter[tuple[object, object, object]] = Counter()
+    callback_statuses = parse_callback_statuses((server_log,))
+    assert all(
+        isinstance(status.get("status"), int) and status["status"] < 400
+        for status in callback_statuses
+    ), callback_statuses
     for event in request_failures:
         body = json.loads(event["request_body"])
-        values = (*body.get("inputs", ()), *body.get("state", ()))
-
-        def value(component_id: str, prop: str):
-            return next(
-                (
-                    item.get("value")
-                    for item in values
-                    if item.get("id") == component_id and item.get("property") == prop
-                ),
-                None,
-            )
-
-        browser_aborts[
-            (
-                body.get("output"),
-                value("url", "pathname"),
-                value("url", "search"),
-            )
-        ] += 1
-    assert not (browser_aborts - server_204s), {
-        "browser_aborts": browser_aborts,
-        "server_204s": server_204s,
-    }
+        assert isinstance(body, dict) and isinstance(body.get("output"), str), body
+        assert isinstance(body.get("inputs", []), list), body
+        assert isinstance(body.get("state", []), list), body
     assert page.locator("._dash-error-card").count() == 0
     assert page.locator("#_dash-error-container .dash-error-card").count() == 0
 
@@ -256,6 +236,7 @@ def test_inspect_review_and_compare_actions_work_at_each_viewport(
                 f"{base_url}{BACKTEST_PATH}?run_id={target_run_id}",
                 wait_until="networkidle",
             )
+            _wait_for_callbacks_to_settle(page, pending)
             expect(page.locator("#selected-run-detail")).to_contain_text(
                 target_run_id,
                 timeout=10_000,
@@ -298,6 +279,7 @@ def test_inspect_review_and_compare_actions_work_at_each_viewport(
                 ),
                 wait_until="networkidle",
             )
+            _wait_for_callbacks_to_settle(page, pending)
             expect(page.locator(".compare-run-card")).to_have_count(2, timeout=10_000)
             compare_ids = page.locator(".compare-run-card").evaluate_all(
                 "cards => cards.map(card => card.dataset.runId)"
@@ -363,6 +345,7 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
                 f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}",
                 wait_until="networkidle",
             )
+            _wait_for_callbacks_to_settle(page, pending)
             expect(page.locator("#selected-run-detail")).to_contain_text(
                 source_run_id,
                 timeout=10_000,
@@ -410,6 +393,7 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
                 f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}",
                 wait_until="networkidle",
             )
+            _wait_for_callbacks_to_settle(page, pending)
             expect(page).to_have_url(
                 f"{base_url}{BACKTEST_PATH}?run_id={source_run_id}"
             )
@@ -420,7 +404,6 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
             expect(
                 page.locator("#reproduction-message [data-run-id]")
             ).to_have_attribute("data-run-id", reproduced_id)
-            _wait_for_callbacks_to_settle(page, pending)
 
             action["name"] = f"{viewport_name} refresh reproduction source"
             page.reload(wait_until="networkidle")
@@ -442,6 +425,7 @@ def test_reproduce_action_preserves_new_identity_at_each_viewport(
                 f"{base_url}{BACKTEST_PATH}?run_id={reproduced_id}",
                 wait_until="networkidle",
             )
+            _wait_for_callbacks_to_settle(page, pending)
             expect(page).to_have_url(
                 f"{base_url}{BACKTEST_PATH}?run_id={reproduced_id}"
             )

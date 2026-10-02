@@ -12,7 +12,6 @@ import pytest
 from dash import no_update
 
 from dashboard.app import DashboardContext, create_app
-from dashboard.application import _run_launch_summary
 from dashboard.run_adapter import list_saved_configurations
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import FixtureRunService
@@ -122,7 +121,7 @@ def _seed_dashboard(
 def _app(service: FixtureRunService, adapter: RunDetailDashboardAdapter, tmp_path: Path):
     return create_app(
         _context(),
-        tmp_path / "reviews.json",
+        service.database_path,
         run_service=service,
         run_detail_adapter=adapter,
     )
@@ -255,20 +254,29 @@ def test_dashboard_success_workflow_and_restart_reopen(
 
     launch = _callback_function(app, "launch-message")
     (
+        launch_state,
         launch_content,
         launch_class,
         launch_context,
         launch_context_class,
-    ) = launch(1, configuration_id)
+        launch_disabled,
+        launch_title,
+        launch_label,
+    ) = launch(1, configuration_id, None, "/research/run-test")
     run_id = service.recent_runs(limit=1)[0].run_id
     _prepare_success_run_artifacts(database, tmp_path / "artifact-root", run_id)
 
     assert launch_class == "save-message"
     assert run_id in str(launch_content)
-    assert "succeeded" in str(launch_content)
+    assert "Research run acknowledged" in str(launch_content)
+    assert "Submission: Acknowledged" in str(launch_content)
+    assert "Run status: Succeeded" in str(launch_content)
     assert "prefect-" in str(launch_content)
-    assert "Attempt count: 1" in str(launch_content)
     assert launch_context_class == "operator-context"
+    assert launch_state["submitted"]["configuration_id"] == configuration_id
+    assert launch_disabled is False
+    assert launch_title
+    assert launch_label == "Run test again"
     rendered_launch_context = str(launch_context)
     assert "Run status" in rendered_launch_context
     assert "Succeeded" in rendered_launch_context
@@ -341,7 +349,7 @@ def test_dashboard_success_workflow_and_restart_reopen(
     assert configuration_id in restarted_rendered
     assert "launch-commit" in restarted_rendered
     assert "artifact-status-success" in restarted_rendered
-    assert "deterministic_value: 1729" in restarted_rendered
+    assert "'deterministic_value': 1729" in restarted_rendered
 
 
 def test_dashboard_failure_reconciliation_remains_visible(
@@ -355,17 +363,30 @@ def test_dashboard_failure_reconciliation_remains_visible(
     )
     app = _app(service, adapter, tmp_path)
 
-    content, class_name, launch_context, launch_context_class = _callback_function(
+    (
+        launch_state,
+        content,
+        class_name,
+        launch_context,
+        launch_context_class,
+        launch_disabled,
+        launch_title,
+        launch_label,
+    ) = _callback_function(
         app,
         "launch-message",
-    )(1, configuration_id)
+    )(1, configuration_id, None, "/research/run-test")
     run_id = service.recent_runs(limit=1)[0].run_id
 
-    assert class_name == "save-message"
-    assert "failed" in str(content)
-    assert "controlled Prefect fixture failure" in str(content)
-    assert run_id in str(content)
+    assert class_name == "save-message error-state"
+    assert "Submission: Acknowledged" in str(content)
+    assert "Run status: Failed" in str(content)
+    assert service.get_run(run_id).status == RunStatus.FAILED.value
     assert launch_context_class == "operator-context"
+    assert launch_state["submitted"]["configuration_id"] == configuration_id
+    assert launch_disabled is False
+    assert launch_title
+    assert launch_label == "Run test again"
     rendered_launch_context = str(launch_context)
     assert "Run status" in rendered_launch_context
     assert "Failed" in rendered_launch_context
@@ -491,7 +512,8 @@ def test_dashboard_stale_recovery_reopens_reconciled_runs(
     rendered_message = str(message)
 
     assert class_name == "stale-recovery-message error-state"
-    assert "age-only fixture recovery is disabled" in rendered_message
+    assert "Age-only recovery is disabled" in rendered_message
+    assert "use claim-aware reconciliation" in rendered_message
 
     detail = _render_selected(app, "qf-stale-ui-running")
     assert "running" in detail
@@ -505,15 +527,30 @@ def test_dashboard_historical_relaunch_creates_new_run_and_preserves_old_run(
 ) -> None:
     database, configuration_id, service, adapter = _seed_dashboard(tmp_path, monkeypatch)
     app = _app(service, adapter, tmp_path)
-    _callback_function(app, "launch-message")(1, configuration_id)
+    _callback_function(app, "launch-message")(
+        1, configuration_id, None, "/research/run-test"
+    )
     old_run = service.recent_runs(limit=1)[0]
     _prepare_success_run_artifacts(database, tmp_path / "artifact-root", old_run.run_id)
 
     historical_launch = _callback_function(app, "historical-launch-message")
-    content, class_name = historical_launch(1, old_run.run_id)
+    (
+        historical_state,
+        content,
+        class_name,
+        launch_disabled,
+        launch_title,
+        launch_label,
+    ) = historical_launch(
+        1, old_run.run_id, None, "/research/backtest-results"
+    )
     new_run = service.recent_runs(limit=1)[0]
 
-    assert class_name == "historical-launch-message historical-launch-message-success"
+    assert class_name == "historical-launch-message"
+    assert historical_state["submitted"]["source_run_id"] == old_run.run_id
+    assert launch_disabled is False
+    assert launch_title
+    assert launch_label == "Launch new run from this configuration again"
     assert new_run.run_id != old_run.run_id
     assert new_run.configuration_id == old_run.configuration_id == configuration_id
     assert new_run.run_id in str(content)
@@ -522,13 +559,13 @@ def test_dashboard_historical_relaunch_creates_new_run_and_preserves_old_run(
 
     monkeypatch.setattr(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
-        lambda: "historical-launch-message",
+        lambda: "historical-launch-state",
     )
     options, selected = _callback_function(app, "selected-run-selector.options")(
         2,
-        0,
-        content,
-        0,
+        None,
+        historical_state,
+        None,
         old_run.run_id,
         old_run.run_id,
         [],
@@ -689,13 +726,24 @@ def test_dashboard_callback_refresh_integrity_with_real_services(
 
     monkeypatch.setattr(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
-        lambda: "launch-message",
+        lambda: "run-test-launch-state",
     )
+    assert new_launch.submission is not None
+    request = json.loads(new_launch.submission.canonical_request_json)
+    launch_state = {
+        "submitted": {
+            "idempotency_key": new_launch.submission.idempotency_key,
+            "operation": request["operation_kind"],
+            "configuration_id": request["configuration_id"],
+            "source_run_id": request["source_run_id"],
+        },
+        "prepared": None,
+    }
     _, selected_after_launch = refresh_selectors(
         2,
-        _run_launch_summary(new_launch.run),
-        0,
-        0,
+        launch_state,
+        None,
+        None,
         "qf-refresh-old",
         "qf-refresh-old",
         options,

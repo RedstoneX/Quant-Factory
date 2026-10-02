@@ -9,7 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from orchestration import FixtureRunService
+from market_data import load_dataset_manifest
+from orchestration import FixtureRunService, ResearchLaunchInvocationError
 from persistence import PersistenceService, RunStatus
 from prefect_spike.fixture_flow import (
     ControlledFixtureCancellation,
@@ -21,7 +22,6 @@ from tests.test_prefect_spike import (
 import prefect_spike.spym_vectorbt_fixture as spym_fixture
 from prefect_spike.spym_vectorbt_fixture import (
     ensure_spym_21c_saved_configuration,
-    load_spym_21c_fixture_inputs,
     spym_21c_execution_assumptions,
 )
 
@@ -56,6 +56,7 @@ def _detail(database: Path, run_id: str) -> dict:
         persistence.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_spym_saved_configuration_launches_vectorbt_and_persists_lineage(
     tmp_path: Path,
 ) -> None:
@@ -113,6 +114,7 @@ def test_spym_saved_configuration_launches_vectorbt_and_persists_lineage(
         persistence.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades(
     tmp_path: Path,
 ) -> None:
@@ -153,6 +155,11 @@ def test_spym_fixture_cancellation_safe_point_discards_computed_result(
         return SimpleNamespace()
 
     monkeypatch.setattr(spym_fixture, "execute_experiment", expensive_stub)
+    monkeypatch.setattr(
+        spym_fixture,
+        "load_spym_21c_fixture_inputs",
+        lambda **_kwargs: SimpleNamespace(config=None, data=None, audit=None),
+    )
 
     with pytest.raises(ControlledFixtureCancellation):
         claimed_deterministic_fixture_body(
@@ -179,26 +186,34 @@ def test_spym_fixture_fails_closed_on_mismatched_dataset_identity(
     monkeypatch,
 ) -> None:
     database, configuration_id, service = _configured_service(tmp_path)
-    fixture = load_spym_21c_fixture_inputs(
-        database_path=database,
-        saved_execution_assumptions=spym_21c_execution_assumptions(),
+    manifest = load_dataset_manifest(
+        spym_fixture.SPYM_EQUITY_DATA_CONTRACT.dataset_id
     )
     bad_manifest = replace(
-        fixture.manifest,
-        metadata={**fixture.manifest.metadata, "dataset_id": "wrong_dataset"},
+        manifest,
+        metadata={**manifest.metadata, "dataset_id": "wrong_dataset"},
     )
     monkeypatch.setattr(
         "prefect_spike.spym_vectorbt_fixture.load_dataset_manifest",
         lambda dataset_id: bad_manifest,
     )
 
-    launched = service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="qf-21c-bad-dataset",
-    )
+    with pytest.raises(
+        ResearchLaunchInvocationError,
+        match="submission was acknowledged but invocation reported an error",
+    ):
+        service.launch_fixture(
+            configuration_id=configuration_id,
+            run_id="qf-21c-bad-dataset",
+        )
 
-    assert launched.run.status == RunStatus.FAILED.value
-    assert "dataset_id must be" in (launched.run.error_summary or "")
+    failed_run = service.get_run("qf-21c-bad-dataset")
+    assert failed_run is not None
+    assert failed_run.status == RunStatus.FAILED.value
+    assert failed_run.error_summary == (
+        "Prefect fixture execution failed; inspect approved technical diagnostics."
+    )
+    assert "wrong_dataset" not in failed_run.error_summary
     detail = _detail(database, "qf-21c-bad-dataset")
     assert detail["parameters"] == []
     assert detail["artifacts"] == []

@@ -6257,6 +6257,16 @@ a.secondary-action {
   margin-bottom: 0;
 }
 
+/* Operational evidence can contain machine paths and timestamps with no
+   natural break points. Keep those values inside their responsive surfaces. */
+.support-page p,
+.support-page time,
+.support-page dd,
+.support-page small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .support-metric-strip,
 .health-pulse-strip {
   background: #fff;

@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 import backtesting.experiments.runner as experiment_runner
-from backtesting.experiments import execute_experiment
+from backtesting.experiments import SignalResult, execute_experiment
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
 from backtesting.screening import (
     ScreeningConfig,
@@ -14,6 +14,7 @@ from backtesting.screening import (
     screen_metrics,
 )
 from market_data import DataAudit
+from strategies import get_strategy
 
 
 def _metrics() -> dict[str, float | int]:
@@ -73,6 +74,29 @@ def _audit(data: pd.DataFrame) -> DataAudit:
         missing_close_count=0,
         missing_volume_count=0,
         expected_session_gap_count=0,
+    )
+
+
+def _install_portable_runner_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    strategy = get_strategy("rsi_mean_reversion")
+
+    def deterministic_signals(
+        data: pd.DataFrame | pd.Series, parameters: dict[str, int]
+    ) -> SignalResult:
+        normalized = strategy.validate_parameters(parameters)
+        entries = pd.Series(False, index=data.index, dtype=bool)
+        exits = pd.Series(False, index=data.index, dtype=bool)
+        entries.iloc[5::12] = True
+        exits.iloc[8::12] = True
+        return SignalResult(entries=entries, exits=exits, parameters=normalized)
+
+    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
+    monkeypatch.setattr(
+        experiment_runner,
+        "_construct_portfolio",
+        lambda data, aligned, config: object(),
     )
 
 
@@ -165,6 +189,7 @@ def test_screening_does_not_mutate_metrics_and_identity_is_stable() -> None:
 def test_experiment_preserves_passing_and_screened_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _install_portable_runner_boundaries(monkeypatch)
     produced = iter(
         [
             _metrics(),
@@ -197,6 +222,7 @@ def test_experiment_preserves_passing_and_screened_rows(
 def test_invalid_parameters_remain_distinct_from_screening_failures(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _install_portable_runner_boundaries(monkeypatch)
     monkeypatch.setattr(
         experiment_runner, "extract_metrics", lambda portfolio: _metrics()
     )
@@ -217,6 +243,7 @@ def test_invalid_parameters_remain_distinct_from_screening_failures(
 def test_screening_occurs_after_simulation_and_metrics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _install_portable_runner_boundaries(monkeypatch)
     events: list[str] = []
     real_screen = experiment_runner.screen_metrics
 
@@ -249,6 +276,7 @@ def test_screening_occurs_after_simulation_and_metrics(
 def test_complete_output_contains_screening_columns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _install_portable_runner_boundaries(monkeypatch)
     monkeypatch.setattr(
         experiment_runner, "extract_metrics", lambda portfolio: _metrics()
     )

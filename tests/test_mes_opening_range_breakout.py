@@ -148,6 +148,7 @@ def test_grid_and_registry_have_exact_30_structural_variants() -> None:
     assert get_strategy("mes_opening_range_breakout_short").spec.identity.direction == "short"
 
 
+@pytest.mark.controlled_market_data
 def test_cataloged_mes_file_matches_committed_manifest() -> None:
     manifest = load_dataset_manifest("futures_MES_5m_databento")
     path = verify_dataset_file(manifest, load_data_locations())
