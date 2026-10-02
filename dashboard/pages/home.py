@@ -22,10 +22,9 @@ from dashboard.health import (
     normalize_health_reading,
     redact_credential_health_reading,
 )
+from dashboard.components.research_campaign import research_campaign_overview
 from dashboard.project_status import DashboardProjectStatus, PROJECT_STATUS
 from orchestration import RunEvent, RunSummary
-
-
 @dataclass(frozen=True)
 class HomeHealthView:
     area: str
@@ -215,9 +214,10 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                 [
                     html.Div(
                         [
-                            html.H1("Dashboard · Research Atlas"),
+                            html.P("RESEARCH / DASHBOARD", className="page-eyebrow"),
+                            html.H1("Research Atlas"),
                             html.P(
-                                "Relationships across runs, evidence and data",
+                                "See what research is exploring, what survived, and what needs you.",
                                 className="atlas-subtitle",
                             ),
                         ],
@@ -274,6 +274,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                 interval=model.health_refresh_interval_ms,
                 n_intervals=0,
             ),
+            research_campaign_overview(model=model, rows=rows, outcome_for=_row_outcome),
             html.Main(
                 [
                     html.Div(
@@ -340,8 +341,6 @@ _GRAPH_CONFIG = {
     "responsive": True,
     "scrollZoom": False,
 }
-
-
 def _panel(
     title: str,
     subtitle: str,

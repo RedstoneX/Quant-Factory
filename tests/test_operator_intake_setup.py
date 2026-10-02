@@ -259,7 +259,8 @@ def test_candidate_upload_and_saved_packet_render_as_readable_brief() -> None:
         "Evaluation boundary",
     ):
         assert expected in rendered
-    assert "Continue to Set up" in rendered
+    assert "Choose what happens next" in rendered
+    assert "Accept" in rendered
     continue_link = next(
         component
         for component in _walk(page)

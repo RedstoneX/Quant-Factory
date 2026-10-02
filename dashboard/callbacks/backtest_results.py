@@ -72,17 +72,14 @@ _LAUNCH_KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
 _INVALID_REQUESTED_RUN_STATE = "\x00invalid-results-run-id"
 _UNKNOWN_REQUESTED_RUN_PREFIX = "\x00unknown-results-run-id:"
 
-
 def _callback_triggered_id() -> str | None:
     try:
         return ctx.triggered_id
     except Exception:
         return None
 
-
 def _unknown_requested_run_state(run_id: str) -> str:
     return f"{_UNKNOWN_REQUESTED_RUN_PREFIX}{run_id}"
-
 
 def _unknown_requested_run_id(state: str | None) -> str | None:
     if not isinstance(state, str) or not state.startswith(
@@ -91,10 +88,8 @@ def _unknown_requested_run_id(state: str | None) -> str | None:
         return None
     return state.removeprefix(_UNKNOWN_REQUESTED_RUN_PREFIX)
 
-
 def _persisted_selected_run_id(state: str | None) -> str | None:
     """Return only identities that are safe to pass to persistence services."""
-
     if (
         not isinstance(state, str)
         or state == _INVALID_REQUESTED_RUN_STATE
@@ -102,7 +97,6 @@ def _persisted_selected_run_id(state: str | None) -> str | None:
     ):
         return None
     return state
-
 
 def _accepts_keywords(callable_object: Any, required: frozenset[str]) -> bool:
     """Return whether a service method implements the frozen durable seam."""
@@ -115,7 +109,6 @@ def _accepts_keywords(callable_object: Any, required: frozenset[str]) -> bool:
     if any(parameter.kind == Parameter.VAR_KEYWORD for parameter in parameters):
         return True
     return required.issubset({parameter.name for parameter in parameters})
-
 
 def _durable_launch_supported(runs: FixtureRunService, operation: str) -> bool:
     method = (
@@ -791,19 +784,19 @@ def register_backtest_results_callbacks(
         Input("selected-configuration-state", "data"),
         State("run-test-launch-state", "data"),
         Input("url", "pathname"),
+        Input("confirm-run-test", "value"),
         running=[
             (Output("launch-run", "disabled"), True, True),
-            (Output("launch-run", "children"), "Starting test...", "Run test"),
+            (Output("launch-run", "children"), "Starting test...", "Start test"),
         ],
     )
-    def launch_saved_configuration(
-        n_clicks: int | None,
-        configuration_id: str | None,
-        launch_state: object = None,
-        pathname: str | None = "/research/run-test",
-    ):
+    def launch_saved_configuration(n_clicks: int | None, configuration_id: str | None,
+        launch_state: object = None, pathname: str | None = "/research/run-test",
+        confirmation: list[str] | None = None):
         triggered_id = _callback_triggered_id()
         explicit_action = triggered_id == "launch-run" and bool(n_clicks)
+        # Dash supplies [] until the owner confirms; older internal callers omit it.
+        confirmed = confirmation is None or "confirmed" in confirmation
         if triggered_id is None and n_clicks:
             # Unit-level direct invocation has no Dash callback context.
             explicit_action = True
@@ -849,10 +842,10 @@ def register_backtest_results_callbacks(
                 store_error = str(exc)
         run = _run_for_submission(runs, submission)
         launch_error: BaseException | None = None
-
         if (
             explicit_action
             and allowed
+            and confirmed
             and supported
             and store_error is None
             and not adopted_prepared
@@ -916,14 +909,14 @@ def register_backtest_results_callbacks(
                         "The launcher returned without creating a durable claim."
                     )
                 run = _run_for_submission(runs, submission)
-
         disabled, title, label = _launch_button_state(
             supported=supported,
             allowed=allowed and store_error is None,
             submission=submission,
             run=run,
-            base_label="Run test",
+            base_label="Start test",
         )
+        if submission is None and not confirmed: disabled, title = True, "Review and confirm the saved test before starting."
         if store_error is not None:
             message = _operator_message(
                 "Run ticket conflict.", store_error, tone="error"
@@ -984,6 +977,7 @@ def register_backtest_results_callbacks(
                 tone="warning",
             )
             message_class = "save-message warning-state"
+        elif not confirmed: message, message_class = "Confirm the saved test above.", "save-message"
         else:
             message = "Ready to create one durable run ticket."
             message_class = "save-message"
@@ -998,7 +992,6 @@ def register_backtest_results_callbacks(
             title,
             label,
         )
-
     @app.callback(
         Output("historical-launch-state", "data"),
         Output("historical-launch-message", "children"),

@@ -276,7 +276,7 @@ def test_dashboard_success_workflow_and_restart_reopen(
     assert launch_state["submitted"]["configuration_id"] == configuration_id
     assert launch_disabled is False
     assert launch_title
-    assert launch_label == "Run test again"
+    assert launch_label == "Start test again"
     rendered_launch_context = str(launch_context)
     assert "Run status" in rendered_launch_context
     assert "Succeeded" in rendered_launch_context
@@ -386,7 +386,7 @@ def test_dashboard_failure_reconciliation_remains_visible(
     assert launch_state["submitted"]["configuration_id"] == configuration_id
     assert launch_disabled is False
     assert launch_title
-    assert launch_label == "Run test again"
+    assert launch_label == "Start test again"
     rendered_launch_context = str(launch_context)
     assert "Run status" in rendered_launch_context
     assert "Failed" in rendered_launch_context

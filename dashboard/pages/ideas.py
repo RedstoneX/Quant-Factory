@@ -10,6 +10,7 @@ from typing import Any, Mapping
 from dash import dcc, html
 
 from dashboard.components.idea_intake import candidate_research_guide, start_path_selector
+from dashboard.components.idea_review import idea_review_workspace
 from dashboard.run_adapter import IdeaDraftView, list_idea_drafts
 from research_intake import CandidateValidation, parse_candidate_packet, validate_candidate_packet
 
@@ -58,10 +59,6 @@ def _draft_options(drafts: tuple[IdeaDraftView, ...]) -> list[dict[str, object]]
         }
         for draft in drafts
     ]
-
-
-def _brief_value(value: str | None, empty: str) -> str:
-    return value.strip() if value and value.strip() else empty
 
 
 def _candidate_validation_data(validation: CandidateValidation) -> dict[str, Any]:
@@ -245,21 +242,32 @@ def _candidate_brief(
             html.Div(
                 [
                     _candidate_section("Hypothesis", "Why it might work—and fail", hypothesis),
+                    _candidate_section("Market & session", "Trader-readable scope and holding boundary", document.get("market", {})),
+                    _candidate_section("Open questions", "Unresolved means unresolved", questions, warning=bool(high_questions)),
+                    _candidate_section("Evaluation boundary", "Evidence contract, not profitability", document.get("evaluation", {})),
+                ],
+                className="candidate-brief-grid candidate-brief-core",
+            ),
+            html.Details(
+                [
+                    html.Summary("Technical candidate details"),
+                    html.Div(
+                        [
                     _candidate_section("Source attribution", "Original producers and references", document.get("sources", [])),
                     _candidate_section("Source rules", "What the source actually states", document.get("source_rules", {})),
                     _candidate_section("QF interpretation", "Explicit interpretation, never silently inferred", document.get("qf_interpretation", {}), warning=not bool(document.get("qf_interpretation"))),
-                    _candidate_section("Market & session", "Trader-readable scope and holding boundary", document.get("market", {})),
                     _candidate_section("Testable rules", "Structured English; never executable code", document.get("rules", {})),
                     _candidate_section("Fixed rules", "Candidate identity; never swept", document.get("fixed", {})),
                     _candidate_section("VectorBT sweep variables", "Only these bounded dimensions may be enumerated", variables, accent="sweep"),
                     _candidate_section("Structural variants", "Different logic paths; support or implementation required", variants, accent="variant"),
-                    _candidate_section("Open questions", "Unresolved means unresolved", questions, warning=bool(high_questions)),
                     _candidate_section("Data needs", "Requirements, not an availability claim", document.get("data_needs", {})),
                     _candidate_section("Exclusions", "Explicitly outside this Candidate", document.get("exclusions", [])),
                     _candidate_section("Prior-work claims", "Imported claims remain unverified by QF", document.get("prior_work", {}), warning=bool(document.get("prior_work"))),
-                    _candidate_section("Evaluation boundary", "Evidence contract, not profitability", document.get("evaluation", {})),
+                        ],
+                        className="candidate-brief-grid candidate-brief-technical-grid",
+                    ),
                 ],
-                className="candidate-brief-grid",
+                className="technical-details candidate-technical-details",
             ),
             html.Div(
                 [
@@ -384,29 +392,38 @@ def layout(
                 [
                     html.Div(
                         [
-                            html.P("RESEARCH / IDEA WORKBENCH", className="page-eyebrow"),
+                            html.P("RESEARCH / IDEAS", className="page-eyebrow"),
                             html.H1(
-                                selected.title if selected else "New research idea",
+                                "Review research ideas",
                                 id="idea-workbench-title",
                                 className="page-title",
                             ),
                             html.P(
-                                "Keep the source, your reasoning, and the evolving research brief together.",
+                                "Agent suggestions and your own ideas arrive in one place. Review, revise, and prepare only the idea you choose.",
                                 className="page-description",
                             ),
                         ],
                         className="idea-workbench-heading-copy",
                     ),
-                    html.Button(
-                        [html.Span("+", **{"aria-hidden": "true"}), "New idea"],
-                        id="new-idea-draft",
-                        n_clicks=0,
-                        className="primary-action idea-new-action idea-path-hidden",
+                    html.Div(
+                        [
+                            html.Button(
+                                "Research context",
+                                id="export-research-context-yaml",
+                                n_clicks=0,
+                                className="secondary-action idea-context-download",
+                            ),
+                            html.A(
+                                [html.Span("+", **{"aria-hidden": "true"}), "Add / import"],
+                                href="#idea-intake",
+                                className="primary-action idea-new-action",
+                            ),
+                        ],
+                        className="idea-heading-actions",
                     ),
                 ],
                 className="page-heading idea-workbench-heading",
             ),
-            start_path_selector(),
             html.Div(
                 [
                     html.Div(
@@ -444,58 +461,42 @@ def layout(
                 id="idea-context-bar",
                 className="idea-context-bar idea-path-hidden",
             ),
+            *idea_review_workspace(
+                draft_count=len(available),
+                draft_options=_draft_options(available),
+                selected=selected,
+                candidate_brief=candidate_brief,
+                candidate_valid=bool(candidate_validation.get("valid")),
+                can_continue=can_continue,
+            ),
+            html.Div(id="idea-intake"),
+            start_path_selector(),
             html.Main(
                 [
                     html.Section(
                         [
-                            html.P("WRITE IT IN YOUR OWN WORDS", className="page-eyebrow"),
-                            html.H2("Capture your idea as a private draft"),
-                            html.P(
-                                "Describe what you think may be happening in the market. Quant Factory saves your words locally; nothing is researched, tested, or run automatically."
-                            ),
-                        ],
-                        className="manual-path-intro",
-                    ),
-                    html.Details(
-                        [
-                            html.Summary("Open a saved draft"),
                             html.Div(
                                 [
                                     html.Div(
                                         [
-                                            html.H2("Idea history"),
-                                            html.Span(
-                                                str(len(available)),
-                                                id="idea-history-count",
-                                                className="idea-count-badge",
+                                            html.P("WRITE IT IN YOUR OWN WORDS", className="page-eyebrow"),
+                                            html.H2("Capture your idea as a private draft"),
+                                            html.P(
+                                                "Describe what you think may be happening in the market. Quant Factory saves your words locally; nothing is researched, tested, or run automatically."
                                             ),
-                                        ],
-                                        className="idea-panel-title-row",
+                                        ]
                                     ),
-                                    html.P(
-                                        "Open any saved ingestion without losing its context.",
-                                        className="idea-panel-description",
+                                    html.Button(
+                                        "New blank idea",
+                                        id="new-idea-draft",
+                                        n_clicks=0,
+                                        className="secondary-action idea-new-draft-action",
                                     ),
                                 ],
-                                className="idea-panel-heading",
-                            ),
-                            dcc.RadioItems(
-                                id="idea-draft-selector",
-                                options=_draft_options(available),
-                                value=selected.draft_id if selected else None,
-                                className="idea-history-selector",
-                            ),
-                            html.Div(
-                                [
-                                    html.Strong("No saved ideas yet"),
-                                    html.P("Your first saved draft will appear here."),
-                                ],
-                                id="idea-history-empty",
-                                className="idea-history-empty",
-                                style={} if not available else {"display": "none"},
+                                className="manual-path-heading",
                             ),
                         ],
-                        className="idea-workbench-panel idea-history-panel idea-support-disclosure",
+                        className="manual-path-intro",
                     ),
                     html.Section(
                         [
@@ -589,98 +590,11 @@ def layout(
                             html.Div(
                                 [
                                     html.Button("Save draft", id="save-idea-draft", n_clicks=0, className="primary-action"),
-                                    html.Button("Discard", id="discard-idea-draft", n_clicks=0, className="secondary-action"),
                                 ],
                                 className="idea-editor-actions",
                             ),
                         ],
                         className="idea-workbench-panel idea-editor-panel",
-                    ),
-                    html.Section(
-                        [
-                            html.Div(
-                                [
-                                    html.Div(
-                                        [
-                                            html.H2("Research brief"),
-                                            html.P(
-                                                "Operator-authored context that remains alongside an optional Candidate.",
-                                                className="idea-panel-description",
-                                            ),
-                                        ]
-                                    ),
-                                    html.Span("Needs your input", id="idea-brief-state", className="idea-brief-badge"),
-                                ],
-                                className="idea-panel-heading idea-panel-heading-split",
-                            ),
-                            html.Dl(
-                                [
-                                    html.Div(
-                                        [
-                                            html.Dt("Hypothesis"),
-                                            html.Dd(
-                                                _brief_value(
-                                                    selected.description if selected else "",
-                                                    "Describe the behavior you want to investigate.",
-                                                ),
-                                                id="idea-brief-hypothesis",
-                                            ),
-                                        ],
-                                        className="idea-brief-row idea-brief-row-primary",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Dt("Source basis"),
-                                            html.Dd(
-                                                _brief_value(
-                                                    selected.attribution if selected else "",
-                                                    "No source or owner observation recorded yet.",
-                                                ),
-                                                id="idea-brief-source",
-                                            ),
-                                        ],
-                                        className="idea-brief-row",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Dt("Open questions"),
-                                            html.Dd(
-                                                _brief_value(
-                                                    selected.notes if selected else "",
-                                                    "Record the uncertainties that must be resolved before testing.",
-                                                ),
-                                                id="idea-brief-questions",
-                                            ),
-                                        ],
-                                        className="idea-brief-row",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Dt("Setup"),
-                                            html.Dd(
-                                                "Bounded setup saved" if selected and selected.configuration_id else "Not prepared",
-                                                id="idea-brief-setup",
-                                            ),
-                                        ],
-                                        className="idea-brief-row",
-                                    ),
-                                ],
-                                className="idea-brief-list",
-                            ),
-                            html.Div(
-                                [
-                                    html.Span("Next useful action", className="idea-next-label"),
-                                    html.Strong(
-                                        "Save this draft, then continue to Set up."
-                                        if selected
-                                        else "Add a title and hypothesis, then save the draft.",
-                                        id="idea-next-action-copy",
-                                    ),
-                                ],
-                                className="idea-next-action",
-                            ),
-                        ],
-                        className="idea-workbench-panel idea-brief-panel idea-support-disclosure",
                     ),
                 ],
                 id="manual-idea-path",
@@ -776,26 +690,6 @@ def layout(
                                                         disabled=not bool(candidate_validation.get("valid")),
                                                         className="primary-action",
                                                     ),
-                                                    html.P("Optional copy for your records", className="field-label"),
-                                                    html.Div(
-                                                        [
-                                                            html.Button(
-                                                                "Download YAML",
-                                                                id="export-candidate-yaml",
-                                                                n_clicks=0,
-                                                                disabled=not bool(candidate_validation.get("valid")),
-                                                                className="secondary-action",
-                                                            ),
-                                                            html.Button(
-                                                                "Download JSON",
-                                                                id="export-candidate-json",
-                                                                n_clicks=0,
-                                                                disabled=not bool(candidate_validation.get("valid")),
-                                                                className="secondary-action",
-                                                            ),
-                                                        ],
-                                                        className="candidate-export-actions",
-                                                    ),
                                                     html.Div(
                                                         (
                                                             "Candidate saved locally. It is still not approved, implemented, or runnable."
@@ -822,33 +716,6 @@ def layout(
                         ],
                         className="idea-workbench-panel candidate-intake-panel",
                     ),
-                    html.Section(
-                        [
-                            html.Div(
-                                [
-                                    html.Div(
-                                        [
-                                            html.P("STEP 6", className="page-eyebrow"),
-                                            html.H2("Read the Candidate in plain English"),
-                                            html.P(
-                                                "This is the researcher’s proposal translated into the decisions you need to review.",
-                                                className="idea-panel-description",
-                                            ),
-                                        ]
-                                    ),
-                                    html.Span("Review before saving", className="surface-badge"),
-                                ],
-                                className="candidate-intake-heading",
-                            ),
-                            html.Div(candidate_brief, id="candidate-brief-content"),
-                        ],
-                        id="candidate-brief-panel-v1",
-                        className=(
-                            "idea-workbench-panel candidate-brief-panel-v1"
-                            if candidate_validation.get("valid")
-                            else "idea-workbench-panel candidate-brief-panel-v1 idea-path-hidden"
-                        ),
-                    ),
                 ],
                 id="assisted-idea-path",
                 className="idea-path-panel idea-path-hidden",
@@ -865,12 +732,6 @@ def layout(
                             ),
                         ],
                         className="idea-action-copy",
-                    ),
-                    dcc.Link(
-                        "Continue to Set up →",
-                        id="continue-idea-to-setup",
-                        href="/research/setup" if can_continue else None,
-                        className="primary-action" if can_continue else "primary-action action-disabled",
                     ),
                 ],
                 id="idea-action-bar",

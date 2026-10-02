@@ -249,9 +249,7 @@ def register_ideas_callbacks(
             if assisted
             else "idea-path-panel idea-path-hidden",
             "idea-context-bar" if active else "idea-context-bar idea-path-hidden",
-            "primary-action idea-new-action"
-            if active
-            else "primary-action idea-new-action idea-path-hidden",
+            "secondary-action idea-new-draft-action",
             "idea-action-bar" if active else "idea-action-bar idea-path-hidden",
         )
 
@@ -436,7 +434,7 @@ def register_ideas_callbacks(
         )
 
     @app.callback(
-        Output("idea-workbench-title", "children"),
+        Output("selected-idea-title", "children"),
         Output("idea-workbench-state", "children"),
         Output("idea-workbench-state", "className"),
         Output("idea-workbench-meta", "children"),

@@ -100,13 +100,7 @@ def candidate_research_guide() -> html.Section:
                     html.Div(
                         [
                             html.Button(
-                                "Download QF Context (YAML)",
-                                id="export-research-context-yaml",
-                                n_clicks=0,
-                                className="primary-action",
-                            ),
-                            html.Button(
-                                "Download QF Context (JSON)",
+                                "Download JSON version",
                                 id="export-research-context-json",
                                 n_clicks=0,
                                 className="secondary-action",
