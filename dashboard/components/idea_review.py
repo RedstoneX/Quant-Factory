@@ -16,6 +16,8 @@ def idea_review_workspace(
     candidate_valid: bool,
     candidate_status: str,
     can_continue: bool,
+    queue_counts: tuple[int, int, int] = (0, 0, 0),
+    selected_kicker: str = "Selected idea",
 ) -> tuple[Any, Any]:
     """Build the approved three-column review hierarchy from live state."""
 
@@ -23,8 +25,12 @@ def idea_review_workspace(
         [
             html.Div(
                 [
-                    html.Strong(f"{draft_count} ideas saved"),
-                    html.Span("Choose an idea, read the proposal, then decide what happens next."),
+                    html.Strong(
+                        f"{queue_counts[0]} idea{'s' if queue_counts[0] != 1 else ''} need your decision"
+                        if queue_counts[0]
+                        else "Your idea queue is up to date"
+                    ),
+                    html.Span("Read the selected proposal, then choose what should happen next."),
                 ],
                 className="idea-review-attention-copy",
             ),
@@ -42,6 +48,14 @@ def idea_review_workspace(
                             html.Span(str(draft_count), id="idea-history-count", className="idea-count-badge"),
                         ],
                         className="idea-panel-heading idea-panel-heading-split",
+                    ),
+                    html.Div(
+                        [
+                            _queue_stat(queue_counts[0], "Need you"),
+                            _queue_stat(queue_counts[1], "Accepted"),
+                            _queue_stat(queue_counts[2], "Closed"),
+                        ],
+                        className="idea-queue-summary",
                     ),
                     dcc.RadioItems(
                         id="idea-draft-selector",
@@ -62,7 +76,7 @@ def idea_review_workspace(
                 [
                     html.Header(
                         [
-                            html.P("Selected idea", className="page-eyebrow"),
+                            html.P(selected_kicker, className="page-eyebrow"),
                             html.H2(selected.title if selected else "Choose an idea", id="selected-idea-title"),
                             html.P(
                                 _value(selected.description if selected else "", "Select or add an idea to review its meaning."),
@@ -78,7 +92,7 @@ def idea_review_workspace(
                             _fact("Open questions", _value(selected.notes if selected else "", "No open questions recorded."), "idea-brief-questions"),
                             _fact("Setup", "Bounded setup saved" if selected and selected.configuration_id else "Not prepared", "idea-brief-setup"),
                         ],
-                        className="idea-review-facts",
+                        className="idea-review-facts idea-review-callback-state",
                     ),
                     html.Section(
                         [html.Div(candidate_brief, id="candidate-brief-content")],
@@ -114,7 +128,7 @@ def _decision_panel(
 ) -> html.Aside:
     approved = candidate_status == "owner_approved"
     rejected = candidate_status == "rejected"
-    state = "Accepted" if approved else "Rejected" if rejected else "Ready to review" if selected else "Choose an idea"
+    state = "Accepted" if approved else "Rejected" if rejected else "Decision needed" if selected else "Choose an idea"
     next_action = (
         "Continue to Set up to check whether this exact Candidate is implemented."
         if approved else "This Candidate remains in history and cannot continue."
@@ -129,31 +143,50 @@ def _decision_panel(
                     html.Span(
                         state,
                         id="idea-brief-state",
-                        className="idea-brief-badge idea-brief-badge-ready" if selected else "idea-brief-badge",
+                        className=(
+                            "idea-brief-badge idea-brief-badge-approved"
+                            if approved
+                            else "idea-brief-badge idea-brief-badge-rejected"
+                            if rejected
+                            else "idea-brief-badge idea-brief-badge-ready"
+                            if selected
+                            else "idea-brief-badge"
+                        ),
                     ),
                     html.H2("Choose what happens next"),
                     html.P("Accept this exact version, revise it, or reject it."),
                 ],
                 className="idea-decision-heading",
             ),
-            html.Strong(next_action, id="idea-next-action-copy", className="idea-decision-next"),
-            html.Button(
-                "Accept",
-                id="accept-candidate-for-setup",
-                n_clicks=0,
-                disabled=not actionable,
-                className="primary-action" if actionable else "primary-action action-disabled",
+            html.Div(
+                [
+                    html.Span("✓", className="idea-decision-ready-icon", **{"aria-hidden": "true"}),
+                    html.Strong(next_action, id="idea-next-action-copy", className="idea-decision-next"),
+                ],
+                className="idea-decision-readiness",
             ),
-            html.A("Revise", href="#idea-intake", className="secondary-action idea-decision-button"),
-            html.Button(
-                "Reject",
-                id="reject-candidate",
-                n_clicks=0,
-                disabled=not selected or not candidate_valid or rejected,
-                className="secondary-action idea-reject-button",
+            html.Div(
+                [
+                    html.Button(
+                        [html.Span("✓", **{"aria-hidden": "true"}), "Accept"],
+                        id="accept-candidate-for-setup",
+                        n_clicks=0,
+                        disabled=not actionable,
+                        className="primary-action" if actionable else "primary-action action-disabled",
+                    ),
+                    html.A([html.Span("✎", **{"aria-hidden": "true"}), "Revise"], href="#idea-intake", className="secondary-action idea-decision-button"),
+                    html.Button(
+                        [html.Span("×", **{"aria-hidden": "true"}), "Reject"],
+                        id="reject-candidate",
+                        n_clicks=0,
+                        disabled=not selected or not candidate_valid or rejected,
+                        className="secondary-action idea-reject-button",
+                    ),
+                ],
+                className="idea-decision-actions",
             ),
             dcc.Link(
-                "Continue to Set up",
+                ["Continue to Set up", html.Span("→", **{"aria-hidden": "true"})],
                 id="continue-idea-to-setup",
                 href="/research/setup" if can_continue else None,
                 className=(
@@ -172,3 +205,7 @@ def _fact(label: str, value: str, component_id: str) -> html.Div:
 
 def _value(value: str | None, empty: str) -> str:
     return value.strip() if value and value.strip() else empty
+
+
+def _queue_stat(value: int, label: str) -> html.Div:
+    return html.Div([html.Strong(str(value)), html.Span(label)], className="idea-queue-stat")
