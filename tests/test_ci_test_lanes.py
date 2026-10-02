@@ -15,11 +15,12 @@ def _inventory(path: Path) -> Path:
         json.dumps(
             {
                 "schema_version": 1,
-                "total": 4,
+                "total": 5,
                 "counts": {
                     "portable": 2,
                     "licensed_vectorbt": 1,
                     "external_prefect": 1,
+                    "controlled_market_data": 1,
                 },
                 "lanes": {
                     "portable": [
@@ -31,6 +32,9 @@ def _inventory(path: Path) -> Path:
                     ],
                     "external_prefect": [
                         "tests/test_prefect.py::test_external_server"
+                    ],
+                    "controlled_market_data": [
+                        "tests/test_data.py::test_controlled_dataset"
                     ],
                 },
             }
@@ -54,6 +58,7 @@ def _report(path: Path, *, count: int, skipped: bool = False) -> Path:
         "portable-browser",
         "licensed-vectorbt",
         "external-prefect",
+        "controlled-market-data",
     ),
 )
 def test_lane_report_accepts_exact_green_coverage(tmp_path: Path, lane: str) -> None:

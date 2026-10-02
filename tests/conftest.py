@@ -40,6 +40,12 @@ EXTERNAL_PREFECT_NODE_IDS = frozenset(
     }
 )
 
+CONTROLLED_MARKET_DATA_NODE_IDS = frozenset(
+    {
+        "tests/test_mes_opening_range_breakout.py::test_cataloged_mes_file_matches_committed_manifest",
+    }
+)
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
@@ -58,6 +64,10 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "external_prefect: requires an already-running external Prefect server",
     )
+    config.addinivalue_line(
+        "markers",
+        "controlled_market_data: requires the configured non-repository market-data file",
+    )
 
 
 def _base_node_id(node_id: str) -> str:
@@ -70,12 +80,14 @@ def pytest_collection_modifyitems(
 ) -> None:
     marked_licensed: set[str] = set()
     marked_external: set[str] = set()
+    marked_controlled_data: set[str] = set()
     for item in items:
         node_id = _base_node_id(item.nodeid)
         licensed = item.get_closest_marker("licensed_vectorbt") is not None
         external = item.get_closest_marker("external_prefect") is not None
-        if licensed and external:
-            raise pytest.UsageError(f"test belongs to two restricted lanes: {item.nodeid}")
+        controlled_data = item.get_closest_marker("controlled_market_data") is not None
+        if sum((licensed, external, controlled_data)) > 1:
+            raise pytest.UsageError(f"test belongs to multiple restricted lanes: {item.nodeid}")
         if licensed:
             marked_licensed.add(node_id)
             if node_id not in LICENSED_VECTORBT_NODE_IDS:
@@ -88,25 +100,40 @@ def pytest_collection_modifyitems(
                 raise pytest.UsageError(
                     f"unapproved external Prefect marker: {item.nodeid}"
                 )
+        if controlled_data:
+            marked_controlled_data.add(node_id)
+            if node_id not in CONTROLLED_MARKET_DATA_NODE_IDS:
+                raise pytest.UsageError(
+                    f"unapproved controlled market-data marker: {item.nodeid}"
+                )
 
     inventory_path = config.getoption("--write-test-lane-inventory")
     if inventory_path is None:
         return
     missing_licensed = LICENSED_VECTORBT_NODE_IDS - marked_licensed
     missing_external = EXTERNAL_PREFECT_NODE_IDS - marked_external
-    if missing_licensed or missing_external:
+    missing_controlled_data = CONTROLLED_MARKET_DATA_NODE_IDS - marked_controlled_data
+    if missing_licensed or missing_external or missing_controlled_data:
         raise pytest.UsageError(
             "restricted test inventory is incomplete: "
             f"missing licensed={sorted(missing_licensed)}; "
-            f"missing external={sorted(missing_external)}"
+            f"missing external={sorted(missing_external)}; "
+            f"missing controlled_data={sorted(missing_controlled_data)}"
         )
 
-    lanes = {"portable": [], "licensed_vectorbt": [], "external_prefect": []}
+    lanes = {
+        "portable": [],
+        "licensed_vectorbt": [],
+        "external_prefect": [],
+        "controlled_market_data": [],
+    }
     for item in items:
         if item.get_closest_marker("licensed_vectorbt") is not None:
             lane = "licensed_vectorbt"
         elif item.get_closest_marker("external_prefect") is not None:
             lane = "external_prefect"
+        elif item.get_closest_marker("controlled_market_data") is not None:
+            lane = "controlled_market_data"
         else:
             lane = "portable"
         lanes[lane].append(item.nodeid)

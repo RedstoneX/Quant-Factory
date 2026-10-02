@@ -334,5 +334,8 @@ def test_results_layout_contract_is_included_in_complete_non_browser_ci() -> Non
 
     assert "Run every portable non-browser test" in workflow
     assert "--write-test-lane-inventory=test-lane-inventory.json" in workflow
-    assert '-m "not licensed_vectorbt and not external_prefect"' in workflow
+    assert (
+        '-m "not licensed_vectorbt and not external_prefect and not controlled_market_data"'
+        in workflow
+    )
     assert "--ignore=tests/browser\n          tests" in workflow

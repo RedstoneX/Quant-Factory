@@ -1,6 +1,6 @@
 # Public dependencies for GitHub-hosted portable-test jobs.
 # VectorBT Pro remains deliberately excluded. Exact marker/inventory accounting
-# keeps real-engine and external-Prefect coverage visible for controlled CI;
+# keeps real-engine, external-Prefect, and controlled-data coverage visible;
 # the public jobs run every test in the portable lane.
 exchange-calendars==4.13.2
 numpy==2.4.6

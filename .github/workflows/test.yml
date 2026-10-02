@@ -80,7 +80,7 @@ jobs:
       - name: Run every portable non-browser test
         run: >-
           python -m pytest -q
-          -m "not licensed_vectorbt and not external_prefect"
+          -m "not licensed_vectorbt and not external_prefect and not controlled_market_data"
           --junitxml=portable-nonbrowser-test-results.xml
           --ignore=tests/browser
           tests
@@ -140,7 +140,7 @@ jobs:
       - name: Run every portable browser test
         run: >-
           python -m pytest -q
-          -m "not licensed_vectorbt and not external_prefect"
+          -m "not licensed_vectorbt and not external_prefect and not controlled_market_data"
           --junitxml=portable-browser-test-results.xml
           tests/browser
       - name: Verify exact portable browser coverage

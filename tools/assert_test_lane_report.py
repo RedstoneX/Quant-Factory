@@ -13,6 +13,7 @@ LANES = (
     "portable-browser",
     "licensed-vectorbt",
     "external-prefect",
+    "controlled-market-data",
 )
 
 
@@ -36,6 +37,8 @@ def _expected_count(inventory: dict[str, object], lane: str) -> int:
         node_ids = list(lanes.get("licensed_vectorbt", []))
     elif lane == "external-prefect":
         node_ids = list(lanes.get("external_prefect", []))
+    elif lane == "controlled-market-data":
+        node_ids = list(lanes.get("controlled_market_data", []))
     else:
         raise ValueError(f"unsupported test lane: {lane}")
     return len(node_ids)
