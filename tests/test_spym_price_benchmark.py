@@ -147,6 +147,8 @@ def test_spym_fixture_persists_price_series_and_vectorbt_benchmark(
 
 def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> None:
     detail, _ = _spym_detail(tmp_path)
+    assert detail.evidence.evidence_classification is not None
+    assert detail.evidence.evidence_classification.startswith("synthetic portable")
 
     price_graph = _graph(_price_marker_panel(detail))
     assert price_graph is not None
@@ -156,6 +158,7 @@ def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> N
     for interval in ("1m", "5m", "15m", "1D"):
         figure, _ = _price_marker_figure(detail, interval=interval, view="Full run")
         candlestick = next(trace for trace in figure.data if trace.type == "candlestick")
+        assert candlestick.name.startswith("Synthetic fixture SPYM")
         counts.append(len(candlestick.x))
     assert counts == [53528, 13340, 4474, 173]
 
@@ -165,7 +168,7 @@ def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> N
     assert benchmark_graph.id == "portfolio-benchmark-chart"
     assert [trace.name for trace in benchmark_graph.figure.data] == [
         "Portfolio value vs same-instrument buy-and-hold",
-        "SPYM same-instrument buy-and-hold",
+        "Synthetic SPYM fixture buy-and-hold",
     ]
     assert [len(trace.x) for trace in benchmark_graph.figure.data] == [1500, 1500]
     assert "representative points are shown" in str(benchmark_panel)
