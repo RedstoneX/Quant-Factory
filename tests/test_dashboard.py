@@ -2034,6 +2034,30 @@ def test_setup_and_run_test_split_configuration_from_launch() -> None:
     assert "configuration-document" not in classes
 
 
+def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
+    setup_page = page_for_path("/research/setup", None, (_saved_configuration(),))
+    rendered = _component_text(setup_page)
+    identifiers = [
+        getattr(component, "id", None)
+        for component in _walk_components(setup_page)
+        if getattr(component, "id", None)
+    ]
+
+    assert "Prepare a strategy test" in rendered
+    assert "Know what is ready before you change anything" in rendered
+    assert "YOUR SAVED IDEA" in rendered
+    assert "WHAT A TEST NEEDS" in rendered
+    assert "CURRENT RESULT" in rendered
+    assert "Importing a Candidate does not make it runnable" in rendered
+    assert "Review exactly what can already be tested" in rendered
+    assert "Create a new bounded setup" in rendered
+    assert "Nothing launches from this page" in rendered
+    assert identifiers.count("configuration-selector") == 1
+    assert identifiers.count("setup-strategy-selector") == 1
+    assert identifiers.count("save-idea-configuration") == 1
+    assert identifiers.count("review-test-action") == 1
+
+
 def test_setup_and_run_test_handle_empty_configuration_list() -> None:
     setup_page = page_for_path("/research/setup", None, ())
     run_page = page_for_path("/research/run-test", None, ())

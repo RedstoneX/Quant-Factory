@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Terry performs and explicitly accepts the connected R12 operator-product walkthrough. |
-| Phase | **Standardized strategy intake accepted; connected operator product technically ready; R12 owner handoff pending. Candidate research remains paused.** |
-| Active work | No additional Codex product work is active. R13 is complete. The existing private review service is ready for Terry's R12 walkthrough; stop at owner acceptance unless Terry reports an in-scope walkthrough defect. |
+| Immediate objective | Correct the owner-reported Setup-page usability defect, redeploy privately, and resume Terry's connected R12 operator-product walkthrough. |
+| Phase | **Standardized strategy intake accepted; bounded R12 Setup-page correction in progress. Candidate research remains paused.** |
+| Active work | Reorganize the existing Setup presentation around the accepted Ideas-page interaction model while preserving every callback, identifier, persistence path, readiness rule, safety boundary, and launch behavior. No backend or workflow redesign is authorized. |
 | Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Terry has not yet explicitly accepted the broader connected R12 operator-product handoff. |
-| Next action | Terry walks through the already-built Setup/launch/status, Results/evidence, comparison, review, reproduction, and failure-handling path using existing safe records or fixtures, then explicitly accepts or reports a blocking defect. No new strategy test is required. |
+| Verified gap | Terry reported that Setup retains the same developer-facing hierarchy and unclear guidance corrected on Ideas; R12 is not ready for owner acceptance until that defect is fixed. |
+| Next action | Complete the bounded Setup presentation correction, run focused and required CI, deploy through the existing private path, and return the corrected page to Terry. No new strategy test is required. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | blocked | none | **Connected operator workflow technical pass; owner handoff acceptance only.** R13 is complete. Terry must accept the broader Setup/launch/status, Results/evidence, comparison, review, reproduction, and failure-handling journey. No new candidate research or additional product scope is authorized while this gate remains open. |
+| R12 | 1 | in_progress | none | **Bounded Setup-page usability correction.** R13 is complete. Terry reported that Setup still exposes a developer-facing hierarchy rather than clearly communicating the selected idea, requirements, readiness, and next action. Preserve all existing behavior and correct presentation only, then return to owner walkthrough. No new candidate research or additional product scope is authorized. |
 <!-- active-work:end -->
 
 ## Architecture remediation — completed 2026-10-01
