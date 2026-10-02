@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **322** | **R13 standardized intake is owner-accepted and complete:** Terry completed all seven Ideas-page checks and successfully used the exported context with an external LLM to produce a Candidate YAML packet. The existing R12 connected operator-product walkthrough is now the sole active handoff gate; strategy testing remains paused. |
 | **321** | **The owner explicitly lifts the development freeze for the preserved R13/R12 roadmap only:** prepare and privately deploy the current QF Candidate v1/operator workflow for owner walkthrough. Strategy research, new product direction, LLM/provider work, broker work, paper/live work, paid/protected data, and unrelated development remain unauthorized. |
 | **320** | **Architecture completion does not lift the development freeze:** remediation is technically complete, but all normal feature/research development remains paused until Terry personally and explicitly authorizes lifting the freeze. The pre-freeze queue is preserved but blocked. |
 | **319** | **Quant Factory's measured one-way component architecture is accepted and mechanically enforced:** runtime cycles and forbidden directions are eliminated; independent launcher, evidence-storage, and dashboard-presentation contracts replace reverse ownership. Decision 320 corrects Decision 319's erroneous freeze-authority conclusion. |
@@ -1869,3 +1870,21 @@ superseded.
      paper/live trading, orders, credentials, capital, or unrelated feature
      work. R13 and R12 remain open until Terry performs and explicitly accepts
      the owner walkthrough.
+
+
+322. **Accept and close R13 standardized strategy intake (accepted
+     2026-10-02).** Terry completed all seven owner walkthrough checks on the
+     deployed Ideas page, confirmed that he could follow the logic and interact
+     with the workflow, and successfully used QF Research Context v1 with an
+     external LLM to produce a QF Candidate YAML packet. Terry explicitly
+     reported the outcome as successful and authorized closing it.
+
+     R13 is complete. This acceptance proves the provider-neutral intake
+     outcome; it does not choose or integrate an LLM provider, approve the
+     produced Candidate for implementation, or authorize a backtest. The
+     connected R12 operator product retains its technical pass and advances to
+     its owner-only walkthrough and handoff-acceptance gate. No new strategy
+     test is required to perform that walkthrough. Candidate research,
+     protected evidence, paid data, broker work, paper/live operation, orders,
+     and capital exposure remain unauthorized until their applicable later
+     gates.
