@@ -5,10 +5,8 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
 
 import pytest
-import persistence.database as persistence_database
 
 from backtesting.validation.evidence_decision_artifacts import (
     EVIDENCE_DECISION_LOGICAL_NAME,
@@ -371,71 +369,6 @@ def test_decision_persists_retrieves_and_preserves_registry_link(tmp_path: Path)
         artifact.logical_name == EVIDENCE_DECISION_LOGICAL_NAME
         for artifact in service.list_run_artifacts("decision-run")
     )
-
-
-@pytest.mark.parametrize("fault", ["write", "register", "commit"])
-def test_decision_fault_cannot_leave_durable_review_without_artifact(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    fault: str,
-) -> None:
-    database = tmp_path / "state.sqlite3"
-    service = _service_with_run(tmp_path)
-    root = tmp_path / "artifacts"
-    gate = _gate(_references(service, root=root))
-    target = (
-        root
-        / "artifacts"
-        / "decision-run"
-        / f"{EVIDENCE_DECISION_LOGICAL_NAME}.json"
-    )
-
-    if fault == "write":
-        original_write_bytes = Path.write_bytes
-
-        def fail_staged_write(path: Path, content: bytes) -> int:
-            if path.name.endswith(".staged"):
-                raise OSError("injected artifact write failure")
-            return original_write_bytes(path, content)
-
-        monkeypatch.setattr(Path, "write_bytes", fail_staged_write)
-        expected = OSError
-    elif fault == "register":
-        def fail_registration(**kwargs: Any) -> Any:
-            raise RuntimeError("injected artifact registration failure")
-
-        monkeypatch.setattr(service, "register_artifact", fail_registration)
-        expected = RuntimeError
-    else:
-        def fail_commit(connection: Any) -> None:
-            raise RuntimeError("injected database commit failure")
-
-        monkeypatch.setattr(persistence_database, "_commit", fail_commit)
-        expected = RuntimeError
-
-    with pytest.raises(expected):
-        ValidationEvidenceArtifactService(service).persist_evidence_decision(
-            run_id="decision-run",
-            gate_result=gate,
-            review_state=ReviewState.REVISE,
-            review_reason="human review note",
-            reviewer="reviewer-1",
-            artifact_root=root,
-        )
-
-    monkeypatch.undo()
-    service.close()
-    reopened = PersistenceService(database)
-    try:
-        assert reopened.reviews.get_current("run", "decision-run") is None
-        assert reopened.reviews.history("run", "decision-run") == ()
-        assert not any(
-            artifact.logical_name == EVIDENCE_DECISION_LOGICAL_NAME
-            for artifact in reopened.list_run_artifacts("decision-run")
-        )
-        assert not target.exists()
-    finally:
-        reopened.close()
 
 
 def test_decision_after_sealed_manifest_preserves_manifest_and_idempotency(

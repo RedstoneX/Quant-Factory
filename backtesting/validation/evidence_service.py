@@ -780,28 +780,23 @@ class ValidationEvidenceArtifactService:
                 return retrieved
             raise ValueError("conflicting evidence decision artifact already exists")
 
-        with artifact_file_transaction() as files:
-            with transaction(self._service.connection):
-                review = self._service.update_review(
-                    target_type="run",
-                    target_id=run_id,
-                    state=review_state,
-                    note=review_reason,
-                    operator=reviewer,
-                )
-                history = self._service.reviews.history("run", run_id)
-                audit_reference = history[-1] if history else None
-                return persist_evidence_decision_artifact(
-                    service=self._service,
-                    run_id=run_id,
-                    source=source,
-                    gate_result=gate_result,
-                    review=review,
-                    audit_reference=audit_reference,
-                    artifact_root=artifact_root,
-                    files=files,
-                    created_at=created_at,
-                )
+        with artifact_file_transaction() as files, transaction(self._service.connection):
+            review = self._service.update_review(
+                target_type="run", target_id=run_id, state=review_state,
+                note=review_reason, operator=reviewer,
+            )
+            history = self._service.reviews.history("run", run_id)
+            return persist_evidence_decision_artifact(
+                service=self._service,
+                run_id=run_id,
+                source=source,
+                gate_result=gate_result,
+                review=review,
+                audit_reference=history[-1] if history else None,
+                artifact_root=artifact_root,
+                files=files,
+                created_at=created_at,
+            )
 
     def retrieve_evidence_decision(
         self,
