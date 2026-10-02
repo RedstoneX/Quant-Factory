@@ -18,8 +18,8 @@ The report separates four states:
 - **proved at the measured revision** — direct measurement or a fault test
   closed the question;
 - **defect found** — a concrete failure was reproduced;
-- **fixed separately** — a narrow fix exists outside the measured revision and
-  needs normal integration;
+- **fixed after measurement** — a narrow fix is integrated by the audit change,
+  but was not present at the frozen measurement revision;
 - **debt** — an identified gap remains, but this audit did not authorize a mass
   rewrite.
 
@@ -155,9 +155,10 @@ exists in the measured production source.
   could commit before artifact write/registration failed, leaving partial state.
 
 Every claim, its mechanism, current evidence, missing fault, and smallest proof
-is in the completion-claim TSV. The settings wording and atomic review boundary
-have narrow fixes prepared separately; they are **not** evidence that the
-measured revision was already correct. The remaining unverified CLI claims are
+is in the completion-claim TSV. The audit change makes the settings wording
+truthful and makes the review plus artifact boundary atomic, with injected
+write, registration, and commit failures. Those fixes do **not** retroactively
+make the measured revision correct. The remaining unverified CLI claims are
 debt.
 
 ## 5. Real construction versus test substitution
@@ -183,9 +184,9 @@ failure boundary.
 
 ## 6. Network reachability from tests
 
-A compiled `connect`/`connect64` interposer allowed loopback and blocked outbound
-IPv4 and IPv6 connections. Its SHA-256 was
-`687789a5aa1f4cf5b2faf6528e4f5935373e8605303fa75b31e7c5338b09a57f`.
+A compiled `connect()` interposer allowed loopback and blocked outbound IPv4 and
+IPv6 connections. The repository-owned source SHA-256 is
+`fa229516abe95d8be60d114fd45b31fc885dfa6b7fc4f0b602c5db0e6857f521`.
 With the blocker preloaded, the full non-browser test set completed:
 
 - 1,727 passed;
@@ -195,10 +196,10 @@ With the blocker preloaded, the full non-browser test set completed:
 - the run included 17 licensed-VectorBT, 2 external-Prefect, and 1
   controlled-market-data marked cases.
 
-This proves those non-browser tests did not require an outbound socket. A
-browser attempt was interrupted and produced no terminal report; browser
-network isolation is therefore **pending**, not passed. A repository-owned
-blocker/proof tool and CI invocation are being prepared separately.
+This proves those measured-revision non-browser tests did not require an
+outbound socket. The audit change now owns the blocker and proof tool and runs
+both portable CI lanes beneath it. Final-revision browser acceptance remains a
+CI result rather than a claim made by this frozen measurement report.
 
 ## 7. Decision-governing numbers
 
@@ -280,11 +281,12 @@ Eleven owner/safety/progression failure families were inspected:
   rather than a silent promotion.
 
 The Results defect was reproduced: an injected `RunServiceError` became `None`,
-and the UI rendered `Run status: Created`. A narrow fix now renders
+and the UI rendered `Run status: Created`. A narrow fix integrated by the audit
+change now renders
 `Run status: Unavailable` for missing/failed lookup and preserves the selected
 identity on transient lookup error. Focused proof is 9 passing tests in
 `tests/test_results_deep_link.py`; the production callback remains at its
-2,000-line ratchet. That fix is separate from the measured revision.
+2,000-line ratchet. That fix was not present at the measured revision.
 
 ## Reproduction and integrity commands
 
@@ -308,7 +310,7 @@ Network proof procedure:
 
 ```bash
 cc -shared -fPIC -ldl -o /tmp/qf-audit-block-outbound.so tools/block_outbound_connect.c
-sha256sum /tmp/qf-audit-block-outbound.so
+LD_PRELOAD=/tmp/qf-audit-block-outbound.so python3 tools/verify_socket_blocker.py
 LD_PRELOAD=/tmp/qf-audit-block-outbound.so \
   python3 -m pytest -q tests --ignore=tests/browser \
   --junitxml=/tmp/qf-audit-nonbrowser.xml
