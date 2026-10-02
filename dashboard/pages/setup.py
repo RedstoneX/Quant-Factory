@@ -118,9 +118,9 @@ def layout(
                     html.Div(
                         [
                             html.P("RESEARCH / SET UP", className="page-eyebrow"),
-                            html.H1("Prepare a strategy test", className="page-title"),
+                            html.H1("Prepare the next test", className="page-title"),
                             html.P(
-                                "Connect a saved idea to an existing approved implementation, or review a setup that is already prepared.",
+                                "Turn an accepted idea into one clear, fixed research test.",
                                 className="page-description",
                             ),
                         ]
@@ -138,74 +138,36 @@ def layout(
                 [
                     html.Div(
                         [
-                            html.P("START HERE", className="page-eyebrow"),
-                            html.H2("Know what is ready before you change anything"),
-                            html.P(
-                                "A saved Candidate is a research proposal. A runnable setup additionally needs an approved implementation, bounded parameters, and compatible local data.",
-                                className="setup-guidance-lede",
+                            html.Span("Selected idea", className="setup-state-label"),
+                            html.Strong(
+                                "Choose and save a draft on Ideas first.",
+                                id="setup-idea-title",
                             ),
                         ],
-                        className="setup-guidance-heading",
+                        className="setup-campaign-item setup-campaign-item-primary",
                     ),
                     html.Div(
                         [
-                            html.Div(
-                                [
-                                    html.Span("YOUR SAVED IDEA", className="setup-state-label"),
-                                    html.Strong(
-                                        "Choose and save a draft on Ideas first.",
-                                        id="setup-idea-title",
-                                    ),
-                                    html.P(
-                                        "The idea and its source context stay unchanged here.",
-                                        className="field-help",
-                                    ),
-                                ],
-                                className="setup-state-card setup-state-card-idea",
-                            ),
-                            html.Div(
-                                [
-                                    html.Span("WHAT A TEST NEEDS", className="setup-state-label"),
-                                    html.Strong("Approved implementation + fixed choices + data"),
-                                    html.P(
-                                        "Setup records those exact inputs. It does not invent strategy logic.",
-                                        className="field-help",
-                                    ),
-                                ],
-                                className="setup-state-card",
-                            ),
-                            html.Div(
-                                [
-                                    html.Span("CURRENT RESULT", className="setup-state-label"),
-                                    html.Strong(initial_state, className="setup-context-state"),
-                                    html.P(
-                                        (
-                                            "The selected saved setup can move to final review."
-                                            if review_enabled
-                                            else "Read the blocker below before trying to continue."
-                                            if first_readiness is not None
-                                            else "There is no saved setup to review yet."
-                                        ),
-                                        className="field-help",
-                                    ),
-                                ],
-                                className=(
-                                    "setup-state-card setup-state-card-ready"
-                                    if review_enabled
-                                    else "setup-state-card setup-state-card-blocked"
-                                ),
+                            html.Span("Current state", className="setup-state-label"),
+                            html.Strong(
+                                initial_state,
+                                id="setup-context-state",
+                                className="setup-context-state",
                             ),
                         ],
-                        className="setup-state-grid",
+                        className=(
+                            "setup-campaign-item setup-campaign-item-ready"
+                            if review_enabled
+                            else "setup-campaign-item setup-campaign-item-blocked"
+                        ),
+                        id="setup-current-state",
                     ),
                     html.Div(
                         [
-                            html.Strong("Important boundary"),
-                            html.P(
-                                "Importing a Candidate does not make it runnable, and choosing a similar existing strategy does not implement it. Nothing launches from this page."
-                            ),
+                            html.Span("Boundary", className="setup-state-label"),
+                            html.Strong("Setup saves a test plan; it never starts a test."),
                         ],
-                        className="setup-boundary-callout",
+                        className="setup-campaign-item",
                     ),
                 ],
                 className="setup-guidance-panel",
@@ -219,14 +181,14 @@ def layout(
                                     html.Div(
                                         [
                                             html.P("EXISTING SAVED SETUPS", className="page-eyebrow"),
-                                            html.H2("Review exactly what can already be tested"),
+                                            html.H2("Review the exact saved test"),
                                             html.P(
-                                                "Choose a saved setup to see its strategy, data, parameters, assumptions, and any blocker before moving forward.",
+                                                "Every rule, cost, data choice and blocker remains visible before final review.",
                                                 className="section-description",
                                             ),
                                         ]
                                     ),
-                                    html.Span("Read only", className="surface-badge"),
+                                    html.Span("Locked preview", className="surface-status-text"),
                                 ],
                                 className="setup-section-heading",
                             ),
@@ -365,16 +327,16 @@ def layout(
                         [
                             html.Div(
                                 [
-                                    html.Span("NEXT SAFE ACTION", className="setup-state-label"),
-                                    html.H2("Review the selected saved setup"),
+                                    html.Span("YOUR DECISION", className="setup-state-label"),
+                                    html.H2("Is this test ready for final review?"),
                                     html.P(
-                                        "Continue only when the preview above says it is ready. The next page asks for a final review before any launch.",
+                                        "If anything is wrong, revise the idea or create a new bounded setup. Nothing starts here.",
                                         className="section-description",
                                     ),
                                 ]
                             ),
                             dcc.Link(
-                                "Review test",
+                                "Continue",
                                 id="review-test-action",
                                 href="/research/run-test" if review_enabled else None,
                                 className=(

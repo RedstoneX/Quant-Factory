@@ -283,12 +283,14 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
     )
 
     setup_preview = _callback(app, "configuration-preview.children")
-    _, href, class_name, setup_title = setup_preview(
+    _, href, class_name, setup_title, state, state_class = setup_preview(
         configuration.configuration_id
     )
     assert href is None
     assert "action-disabled" in class_name
     assert "Resolve every preflight blocker" in setup_title
+    assert state == "Setup blocked"
+    assert "setup-campaign-item-blocked" in state_class
 
     launch = _callback(app, "launch-message.children")
     _, message, class_name, _, _, disabled, title, label = launch(
@@ -301,4 +303,4 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
     assert class_name == "save-message error-state"
     assert disabled is True
     assert title == "This persisted selection is not launchable."
-    assert label == "Run test"
+    assert label == "Start test"

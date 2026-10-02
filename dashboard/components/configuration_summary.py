@@ -67,10 +67,7 @@ def configuration_summary(
             html.Div(
                 [
                     html.Span(status_text, className=status_class),
-                    html.Code(
-                        readiness.configuration_id,
-                        className="configuration-identity",
-                    ),
+                    html.Span("Saved test · read only", className="surface-status-text"),
                 ],
                 className="configuration-preview-header",
             ),
@@ -82,86 +79,21 @@ def configuration_summary(
                         readiness.strategy_identity,
                     ),
                     _summary_card(
-                        "Instrument",
+                        "Market",
                         readiness.instrument,
-                        f"{readiness.provider} · {readiness.dataset}",
+                        f"{readiness.timeframe} prices",
                     ),
                     _summary_card(
-                        "Timeframe",
-                        readiness.timeframe,
-                        readiness.lifecycle.replace("_", " ").title(),
+                        "Saved test version",
+                        readiness.experiment_id,
+                        "Locked until a new version is saved",
                     ),
                 ],
                 className="summary-grid configuration-summary-grid",
             ),
-            html.Section(
-                [
-                    html.H3("Data used"),
-                    _field_list(
-                        (
-                            ConfigurationField("Provider", readiness.provider),
-                            ConfigurationField("Dataset", readiness.dataset),
-                            ConfigurationField("Instrument", readiness.instrument),
-                            ConfigurationField("Timeframe", readiness.timeframe),
-                            ConfigurationField(
-                                "Requested coverage",
-                                readiness.requested_coverage,
-                            ),
-                            ConfigurationField("Actual coverage", readiness.actual_coverage),
-                            ConfigurationField(
-                                "Local availability",
-                                readiness.local_availability,
-                            ),
-                            ConfigurationField(
-                                "Local validation",
-                                readiness.local_validation,
-                            ),
-                        )
-                    ),
-                ],
-                className="panel configuration-detail-panel",
-            ),
+            _plain_english_contract(readiness),
             _preflight(readiness),
-            html.Div(
-                [
-                    html.Section(
-                        [
-                            html.H3("Parameters"),
-                            _field_list(
-                                readiness.parameters,
-                                empty="No parameters recorded.",
-                            ),
-                        ],
-                        className="panel configuration-detail-panel",
-                    ),
-                    html.Section(
-                        [
-                            html.H3("Execution assumptions"),
-                            _field_list(
-                                readiness.execution_assumptions,
-                                empty="No execution assumptions recorded.",
-                            ),
-                        ],
-                        className="panel configuration-detail-panel",
-                    ),
-                ],
-                className="two-column configuration-detail-grid",
-            ),
-            html.Details(
-                [
-                    html.Summary("Technical details"),
-                    html.Dl(
-                        [
-                            html.Dt("Experiment"),
-                            html.Dd(readiness.experiment_id),
-                            html.Dt("Configuration checksum"),
-                            html.Dd(readiness.config_hash),
-                        ],
-                        className="run-detail-fields",
-                    ),
-                ],
-                className="technical-details",
-            ),
+            _technical_details(readiness),
         ],
         id=component_id,
         className=f"configuration-readiness configuration-readiness-{readiness.state}",
@@ -177,6 +109,102 @@ def _summary_card(label: str, value: str, detail: str) -> html.Div:
             html.P(detail, className="summary-detail"),
         ],
         className="summary-card",
+    )
+
+
+def _contract_row(label: str, value: str) -> html.Div:
+    return html.Div([html.Dt(label), html.Dd(value)], className="configuration-contract-row")
+
+
+def _field_sentence(fields: tuple[ConfigurationField, ...], empty: str) -> str:
+    if not fields:
+        return empty
+    return " · ".join(f"{field.label}: {field.value}" for field in fields)
+
+
+def _plain_english_contract(readiness: ConfigurationReadinessView) -> html.Section:
+    return html.Section(
+        [
+            html.Div(
+                [
+                    html.H3("The test, in plain English"),
+                    html.Span("Every saved choice is visible", className="surface-status-text"),
+                ],
+                className="configuration-contract-heading",
+            ),
+            html.Dl(
+                [
+                    _contract_row(
+                        "Market & price history",
+                        f"{readiness.instrument} · {readiness.timeframe} · {readiness.provider} {readiness.dataset}",
+                    ),
+                    _contract_row(
+                        "Research period",
+                        f"Requested {readiness.requested_coverage}; available {readiness.actual_coverage}",
+                    ),
+                    _contract_row(
+                        "Rules being tested",
+                        _field_sentence(readiness.parameters, "No adjustable choices"),
+                    ),
+                    _contract_row(
+                        "Trading assumptions",
+                        _field_sentence(readiness.execution_assumptions, "No assumptions recorded"),
+                    ),
+                ],
+                className="configuration-contract-grid",
+            ),
+        ],
+        className="configuration-contract",
+    )
+
+
+def _technical_details(readiness: ConfigurationReadinessView) -> html.Details:
+    data_fields = (
+        ConfigurationField("Provider", readiness.provider),
+        ConfigurationField("Dataset", readiness.dataset),
+        ConfigurationField("Instrument", readiness.instrument),
+        ConfigurationField("Timeframe", readiness.timeframe),
+        ConfigurationField("Requested coverage", readiness.requested_coverage),
+        ConfigurationField("Actual coverage", readiness.actual_coverage),
+        ConfigurationField("Local availability", readiness.local_availability),
+        ConfigurationField("Local validation", readiness.local_validation),
+    )
+    identity = html.Dl(
+        [
+            html.Dt("Strategy identity"),
+            html.Dd(readiness.strategy_identity),
+            html.Dt("Lifecycle"),
+            html.Dd(readiness.lifecycle.replace("_", " ").title()),
+            html.Dt("Configuration ID"),
+            html.Dd(readiness.configuration_id),
+            html.Dt("Configuration checksum"),
+            html.Dd(readiness.config_hash),
+        ],
+        className="run-detail-fields",
+    )
+    return html.Details(
+        [
+            html.Summary("Technical details"),
+            html.Div(
+                [
+                    html.Section([html.H3("Data used"), _field_list(data_fields)]),
+                    html.Section(
+                        [
+                            html.H3("Parameters"),
+                            _field_list(readiness.parameters, empty="No parameters recorded."),
+                            html.H3("Execution assumptions"),
+                            _field_list(
+                                readiness.execution_assumptions,
+                                empty="No execution assumptions recorded.",
+                            ),
+                        ]
+                    ),
+                    identity,
+                ],
+                className="configuration-technical-grid",
+            ),
+        ],
+        className="technical-details",
     )
 
 

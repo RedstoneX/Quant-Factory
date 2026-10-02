@@ -9,6 +9,7 @@ from dash import ALL, Dash, Input, Output, State, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 
 from dashboard.components.configuration_summary import configuration_summary
+from dashboard.callbacks.run_test import register_run_test_confirmation_callback
 from dashboard.run_adapter import (
     ConfigurationReadinessView,
     SetupStrategyView,
@@ -56,6 +57,40 @@ def _parameter_controls(
     return controls
 
 
+def _preview_setup_outputs(
+    configuration_id: str | None,
+    readiness_by_id: dict[str, ConfigurationReadinessView],
+) -> tuple[Any, str | None, str, str, str, str]:
+    readiness = readiness_by_id.get(configuration_id or "")
+    summary = configuration_summary(readiness, component_id="configuration-preview-content")
+    if readiness is None:
+        return (
+            summary.children,
+            None,
+            "primary-action action-disabled",
+            "Choose an approved saved setup before continuing.",
+            "No saved setup",
+            "setup-campaign-item setup-campaign-item-blocked",
+        )
+    if not readiness.ready:
+        return (
+            summary.children,
+            None,
+            "primary-action action-disabled",
+            "Resolve every preflight blocker before reviewing this test.",
+            "Setup blocked",
+            "setup-campaign-item setup-campaign-item-blocked",
+        )
+    return (
+        summary.children,
+        "/research/run-test",
+        "primary-action",
+        "Review this immutable saved setup before running it.",
+        "Ready to review",
+        "setup-campaign-item setup-campaign-item-ready",
+    )
+
+
 def register_setup_callbacks(
     app: Dash,
     *,
@@ -63,6 +98,8 @@ def register_setup_callbacks(
     database: str | Path,
 ) -> None:
     """Register callbacks whose writable outputs all belong to Set up."""
+
+    register_run_test_confirmation_callback(app)
 
     @app.callback(
         Output("selected-configuration-state", "data"),
@@ -79,34 +116,12 @@ def register_setup_callbacks(
         Output("review-test-action", "href"),
         Output("review-test-action", "className"),
         Output("review-test-action", "title"),
+        Output("setup-context-state", "children"),
+        Output("setup-current-state", "className"),
         Input("selected-configuration-state", "data"),
     )
     def preview_setup_configuration(configuration_id: str | None):
-        readiness = readiness_by_id.get(configuration_id or "")
-        summary = configuration_summary(
-            readiness,
-            component_id="configuration-preview-content",
-        )
-        if readiness is None:
-            return (
-                summary.children,
-                None,
-                "primary-action action-disabled",
-                "Choose an approved saved setup before continuing.",
-            )
-        if not readiness.ready:
-            return (
-                summary.children,
-                None,
-                "primary-action action-disabled",
-                "Resolve every preflight blocker before reviewing this test.",
-            )
-        return (
-            summary.children,
-            "/research/run-test",
-            "primary-action",
-            "Review this immutable saved setup before running it.",
-        )
+        return _preview_setup_outputs(configuration_id, readiness_by_id)
 
     strategies = list_setup_strategies(database)
 

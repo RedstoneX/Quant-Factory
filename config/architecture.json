@@ -4,8 +4,8 @@
     "max_lines": 1000,
     "grandfathered_modules": {
       "dashboard.application": 4830,
-      "dashboard.callbacks.backtest_results": 2000,
-      "dashboard.pages.home": 1328,
+      "dashboard.callbacks.backtest_results": 1993,
+      "dashboard.pages.home": 1327,
       "dashboard.run_detail_adapter": 1369,
       "orchestration.candidate_pipeline_runtime": 1280,
       "orchestration.research_launch_claims": 1353,

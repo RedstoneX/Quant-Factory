@@ -616,7 +616,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 53
+    assert len(app.callback_map) == 54
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -889,7 +889,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
 
     home_visible = visible_routes(invoke_route("/"))
     home_text = mounted_pages["/"]
-    assert "Dashboard · Research Atlas" in home_text
+    assert "Research Atlas" in home_text
     assert "Research Landscape" in home_text
     assert "Data Readiness" in home_text
     assert home_visible == ["/"]
@@ -913,10 +913,10 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     assert current_hrefs(invoke_navigation("/not-a-route")) == []
 
     expected_titles = {
-        "/": "Dashboard · Research Atlas",
-        "/research/ideas": "New research idea",
-        "/research/setup": "Prepare a strategy test",
-        "/research/run-test": "Review before running",
+        "/": "Research Atlas",
+        "/research/ideas": "Review research ideas",
+        "/research/setup": "Prepare the next test",
+        "/research/run-test": "Final review before one test",
         "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Results",
         "/research/compare-backtests": "Compare persisted runs",
@@ -1308,7 +1308,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     home = page_for_path("/", context)
     home_text = _component_text(home)
     assert "research-atlas-page" in home.className
-    assert "Dashboard · Research Atlas" in home_text
+    assert "Research Atlas" in home_text
     assert "Research Landscape" in home_text
     assert "Data Readiness" in home_text
     assert "Why Research Stops" in home_text
@@ -1400,10 +1400,10 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
     )
 
     expected = {
-        "/": "Dashboard · Research Atlas",
-        "/research/ideas": "New research idea",
-        "/research/setup": "Prepare a strategy test",
-        "/research/run-test": "Review before running",
+        "/": "Research Atlas",
+        "/research/ideas": "Review research ideas",
+        "/research/setup": "Prepare the next test",
+        "/research/run-test": "Final review before one test",
         "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Results",
         "/research/compare-backtests": "Compare persisted runs",
@@ -1545,9 +1545,9 @@ def test_ideas_page_is_durable_local_text_only() -> None:
 
 def test_workflow_pages_use_the_sidebar_instead_of_repeating_stage_cards() -> None:
     pages = (
-        ("/research/ideas", "New research idea"),
-        ("/research/setup", "Prepare a strategy test"),
-        ("/research/run-test", "Review before running"),
+        ("/research/ideas", "Review research ideas"),
+        ("/research/setup", "Prepare the next test"),
+        ("/research/run-test", "Final review before one test"),
         ("/research/backtest-results", "Results"),
         ("/research/compare-backtests", "Compare persisted runs"),
     )
@@ -1674,7 +1674,7 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
     rendered = _component_text(page)
 
     assert "research-atlas-page" in page.className
-    assert "Dashboard · Research Atlas" in rendered
+    assert "Research Atlas" in rendered
     assert "Research Landscape" in rendered
     assert "Data Readiness" in rendered
     assert "Why Research Stops" in rendered
@@ -2045,15 +2045,13 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
         if getattr(component, "id", None)
     ]
 
-    assert "Prepare a strategy test" in rendered
-    assert "Know what is ready before you change anything" in rendered
-    assert "YOUR SAVED IDEA" in rendered
-    assert "WHAT A TEST NEEDS" in rendered
-    assert "CURRENT RESULT" in rendered
-    assert "Importing a Candidate does not make it runnable" in rendered
-    assert "Review exactly what can already be tested" in rendered
+    assert "Prepare the next test" in rendered
+    assert "Selected idea" in rendered
+    assert "Current state" in rendered
+    assert "Setup saves a test plan; it never starts a test" in rendered
+    assert "Review the exact saved test" in rendered
     assert "Create a new bounded setup" in rendered
-    assert "Nothing launches from this page" in rendered
+    assert "Nothing starts here" in rendered
     assert identifiers.count("configuration-selector") == 1
     assert identifiers.count("setup-strategy-selector") == 1
     assert identifiers.count("save-idea-configuration") == 1
@@ -3019,7 +3017,7 @@ def test_selected_setup_identity_updates_run_test_preview(
     run_preview = _callback_function(app, "run-configuration-preview")
 
     assert preserve(second.configuration_id) == second.configuration_id
-    setup_children, href, _class_name, _setup_title = setup_preview(
+    setup_children, href, _class_name, _setup_title, setup_state, setup_state_class = setup_preview(
         second.configuration_id
     )
     run_children = run_preview(second.configuration_id)
@@ -3027,6 +3025,8 @@ def test_selected_setup_identity_updates_run_test_preview(
     assert "second_operator_choice" in _component_text(html.Div(setup_children))
     assert "second_operator_choice" in _component_text(html.Div(run_children))
     assert href == "/research/run-test"
+    assert setup_state == "Ready to review"
+    assert "setup-campaign-item-ready" in setup_state_class
 
 
 def test_initial_idea_hydration_cannot_overwrite_first_keystroke(
