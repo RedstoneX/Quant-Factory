@@ -44,11 +44,28 @@ def _inventory(path: Path) -> Path:
     return path
 
 
-def _report(path: Path, *, count: int, skipped: bool = False) -> Path:
+def _report(
+    path: Path,
+    *,
+    cases: list[tuple[str, str]],
+    skipped: bool = False,
+) -> Path:
     skip = "<skipped/>" if skipped else ""
-    cases = "".join(f'<testcase name="case-{index}">{skip}</testcase>' for index in range(count))
-    path.write_text(f"<testsuite>{cases}</testsuite>", encoding="utf-8")
+    payload = "".join(
+        f'<testcase classname="{classname}" name="{name}">{skip}</testcase>'
+        for classname, name in cases
+    )
+    path.write_text(f"<testsuite>{payload}</testsuite>", encoding="utf-8")
     return path
+
+
+EXPECTED_CASES = {
+    "portable-nonbrowser": ("tests.test_unit", "test_unit"),
+    "portable-browser": ("tests.browser.test_page", "test_page"),
+    "licensed-vectorbt": ("tests.test_engine", "test_real_engine"),
+    "external-prefect": ("tests.test_prefect", "test_external_server"),
+    "controlled-market-data": ("tests.test_data", "test_controlled_dataset"),
+}
 
 
 @pytest.mark.parametrize(
@@ -64,7 +81,7 @@ def _report(path: Path, *, count: int, skipped: bool = False) -> Path:
 def test_lane_report_accepts_exact_green_coverage(tmp_path: Path, lane: str) -> None:
     summary = verify_report(
         _inventory(tmp_path / "inventory.json"),
-        _report(tmp_path / "report.xml", count=1),
+        _report(tmp_path / "report.xml", cases=[EXPECTED_CASES[lane]]),
         lane,
     )
 
@@ -76,12 +93,28 @@ def test_lane_report_rejects_missing_or_skipped_cases(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="expected 1; reported 0"):
         verify_report(
             inventory,
-            _report(tmp_path / "missing.xml", count=0),
+            _report(tmp_path / "missing.xml", cases=[]),
             "portable-nonbrowser",
         )
     with pytest.raises(ValueError, match="skipped 1"):
         verify_report(
             inventory,
-            _report(tmp_path / "skipped.xml", count=1, skipped=True),
+            _report(
+                tmp_path / "skipped.xml",
+                cases=[EXPECTED_CASES["portable-browser"]],
+                skipped=True,
+            ),
             "portable-browser",
+        )
+
+
+def test_lane_report_rejects_same_count_wrong_test(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="missing.*unexpected"):
+        verify_report(
+            _inventory(tmp_path / "inventory.json"),
+            _report(
+                tmp_path / "wrong-test.xml",
+                cases=[("tests.test_other", "test_other")],
+            ),
+            "portable-nonbrowser",
         )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 from pathlib import Path
 from xml.etree import ElementTree
@@ -17,7 +18,7 @@ LANES = (
 )
 
 
-def _expected_count(inventory: dict[str, object], lane: str) -> int:
+def _expected_node_ids(inventory: dict[str, object], lane: str) -> list[str]:
     lanes = inventory.get("lanes")
     if not isinstance(lanes, dict):
         raise ValueError("inventory lanes are missing")
@@ -41,23 +42,37 @@ def _expected_count(inventory: dict[str, object], lane: str) -> int:
         node_ids = list(lanes.get("controlled_market_data", []))
     else:
         raise ValueError(f"unsupported test lane: {lane}")
-    return len(node_ids)
+    return [str(node_id) for node_id in node_ids]
+
+
+def _junit_identity(node_id: str) -> tuple[str, str]:
+    parts = node_id.split("::")
+    module = parts[0].removesuffix(".py").replace("/", ".")
+    if len(parts) < 2:
+        raise ValueError(f"unsupported pytest node id: {node_id}")
+    return ".".join((module, *parts[1:-1])), parts[-1]
 
 
 def verify_report(inventory_path: Path, report_path: Path, lane: str) -> str:
     inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
-    expected = _expected_count(inventory, lane)
+    expected_node_ids = _expected_node_ids(inventory, lane)
+    expected_cases = Counter(_junit_identity(node_id) for node_id in expected_node_ids)
     root = ElementTree.parse(report_path).getroot()
     cases = list(root.iter("testcase"))
+    reported_cases = Counter(
+        (case.get("classname", ""), case.get("name", "")) for case in cases
+    )
     failures = sum(bool(case.findall("failure")) for case in cases)
     errors = sum(bool(case.findall("error")) for case in cases)
     skipped = sum(bool(case.findall("skipped")) for case in cases)
     summary = (
-        f"{lane}: expected {expected}; reported {len(cases)}; "
+        f"{lane}: expected {len(expected_node_ids)}; reported {len(cases)}; "
         f"skipped {skipped}; failed {failures}; errors {errors}"
     )
-    if len(cases) != expected or skipped or failures or errors:
-        raise ValueError(summary)
+    if reported_cases != expected_cases or skipped or failures or errors:
+        missing = list((expected_cases - reported_cases).elements())
+        unexpected = list((reported_cases - expected_cases).elements())
+        raise ValueError(f"{summary}; missing {missing}; unexpected {unexpected}")
     return summary
 
 
