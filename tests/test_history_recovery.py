@@ -118,7 +118,7 @@ class _ActionRunService:
     def get_run(self, run_id: str):
         return self.runs.get(run_id)
 
-    def launch_fixture(self, *, configuration_id: str):
+    def launch_fixture(self, *, configuration_id: str, **_kwargs):
         self.launches.append(configuration_id)
         run = _run("new-launch", configuration_id)
         return RunLaunchResult(run=run, prefect_result=None)
@@ -127,7 +127,7 @@ class _ActionRunService:
         self.cancellations.append(run_id)
         return self.runs[run_id]
 
-    def reproduce_fixture_run(self, run_id: str, *, artifact_root: Path):
+    def reproduce_fixture_run(self, run_id: str, *, artifact_root: Path, **_kwargs):
         self.reproductions.append(run_id)
         raise RuntimeError("stop after target capture")
 
@@ -169,6 +169,11 @@ def test_selected_run_actions_read_session_store_instead_of_stale_dropdown(
         dashboard_database=database,
         artifact_root=tmp_path,
         view=_results_view_services(),
+        reproduce_run=service.reproduce_fixture_run,
+        run_operation_eligibility=lambda operation, run: (
+            True,
+            f"{operation} allowed for selected-run ownership proof.",
+        ),
     )
     register_compare_backtests_callbacks(
         app,
@@ -178,21 +183,29 @@ def test_selected_run_actions_read_session_store_instead_of_stale_dropdown(
         artifact_root=tmp_path,
     )
 
+    historical_callback = next(
+        value
+        for key, value in app.callback_map.items()
+        if "historical-launch-message.children" in key
+    )
     historical_state = {
         (item["id"], item["property"])
-        for item in app.callback_map["..historical-launch-message.children...historical-launch-message.className.."]["state"]
+        for group in ("inputs", "state")
+        for item in historical_callback[group]
     }
     cancel_state = {
         (item["id"], item["property"])
         for item in app.callback_map["..cancellation-message.children...cancellation-message.className.."]["state"]
     }
+    reproduction_callback = next(
+        value
+        for key, value in app.callback_map.items()
+        if "reproduction-message.children" in key
+    )
     reproduction_state = {
         (item["id"], item["property"])
-        for item in next(
-            value
-            for key, value in app.callback_map.items()
-            if "reproduction-message.children" in key
-        )["state"]
+        for group in ("inputs", "state")
+        for item in reproduction_callback[group]
     }
 
     assert ("selected-run-state", "data") in historical_state
@@ -203,11 +216,11 @@ def test_selected_run_actions_read_session_store_instead_of_stale_dropdown(
     assert ("selected-run-selector", "value") not in reproduction_state
 
     historical_launch = _callback_function(app, "historical-launch-message")
-    historical_launch(1, "stored-run", "/research/backtest-results")
+    historical_launch(1, "stored-run", None, "/research/backtest-results")
     cancel = _callback_function(app, "cancellation-message")
     cancel(1, "stored-run", "/research/backtest-results")
     reproduce = _callback_function(app, "reproduction-message")
-    reproduce(1, "stored-run", "/research/backtest-results")
+    reproduce(1, "stored-run", None, "/research/backtest-results")
 
     assert service.launches == ["config-a"]
     assert service.cancellations == ["stored-run"]
@@ -320,8 +333,11 @@ def test_all_history_keeps_row_visible_when_saved_configuration_is_malformed(
     assert row["stage"] == "Fixture backtest"
     assert row["status"] == "Succeeded"
     assert row["review"] == "Watchlist"
-    assert row["total_return"] == 0.12
-    assert row["metric_basis"] == "Rank 1 result"
+    assert row["total_return"] is None
+    assert (
+        row["metric_basis"]
+        == "Top-ranked variation unavailable · Manifest/artifact evidence is invalid"
+    )
     assert row["artifact_status"] == "1 registered artifacts"
     assert str(row["evidence"]).startswith("Evidence invalid: saved configuration is invalid:")
     assert expected_issue in str(row["evidence"])

@@ -58,7 +58,7 @@ def test_spym_price_markers_and_benchmark_render_from_persisted_evidence(
             ).to_be_visible()
             expect(
                 page.get_by_text(
-                    "Underlying price, entries, and exits",
+                    "Price and completed trades",
                     exact=True,
                 )
             ).to_be_visible()
@@ -67,21 +67,21 @@ def test_spym_price_markers_and_benchmark_render_from_persisted_evidence(
                 .get_by_text("SPYM same-instrument buy-and-hold", exact=True)
                 .last
             ).to_be_visible()
-            expect(page.get_by_text("$10,000.00", exact=True)).to_be_visible()
+            expect(page.get_by_text("$10,000.00", exact=True).first).to_be_visible()
             expect(page.get_by_text("0.000%", exact=True).first).to_be_visible()
             expect(
                 page.get_by_text(
-                    "Full observed SPYM 1m series: 53,528 bars. "
-                    "No synthetic bars and no chart resampling are applied.",
+                    "Showing 306 of 53,528 actual 1m bars for 1D, "
+                    "with 6 visible trade markers.",
                     exact=True,
                 )
             ).to_be_visible()
 
             price_traces = _plotly_traces(page, "#price-marker-chart .js-plotly-plot")
             assert price_traces == [
-                {"name": "SPYM close", "type": "scattergl", "points": 53528},
-                {"name": "Long entry markers", "type": "scatter", "points": 366},
-                {"name": "Long exit markers", "type": "scatter", "points": 366},
+                {"name": "Observed SPYM (1m)", "type": "candlestick", "points": 306},
+                {"name": "Long entry markers", "type": "scatter", "points": 3},
+                {"name": "Long exit markers", "type": "scatter", "points": 3},
             ]
             benchmark_traces = _plotly_traces(
                 page,
@@ -91,12 +91,12 @@ def test_spym_price_markers_and_benchmark_render_from_persisted_evidence(
                 {
                     "name": "Portfolio value vs same-instrument buy-and-hold",
                     "type": "scatter",
-                    "points": 53528,
+                    "points": 1500,
                 },
                 {
                     "name": "SPYM same-instrument buy-and-hold",
                     "type": "scattergl",
-                    "points": 53528,
+                    "points": 1500,
                 },
             ]
             assert [

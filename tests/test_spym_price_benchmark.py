@@ -53,14 +53,21 @@ def _spym_detail(tmp_path: Path):
     return adapter.selected_run_detail("qf-spym-price-benchmark"), tmp_path
 
 
-def _graph(component: Any) -> dcc.Graph:
+def _graph(component: Any, seen: set[int] | None = None) -> dcc.Graph | None:
     if isinstance(component, dcc.Graph):
         return component
-    children = getattr(component, "children", ())
-    if not isinstance(children, list):
+    if component is None or isinstance(component, (str, int, float, bool)):
+        return None
+    seen = set() if seen is None else seen
+    marker = id(component)
+    if marker in seen:
+        return None
+    seen.add(marker)
+    children = getattr(component, "children", None)
+    if not isinstance(children, (list, tuple)):
         children = [children]
     for child in children:
-        found = _graph(child)
+        found = _graph(child, seen)
         if found is not None:
             return found
     return None

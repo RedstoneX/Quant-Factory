@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from orchestration import FixtureRunService
+from orchestration import FixtureRunService, ResearchLaunchInvocationError
 from persistence import PersistenceService, RunStatus
 from prefect_spike.fixture_flow import (
     ControlledFixtureCancellation,
@@ -192,13 +192,22 @@ def test_spym_fixture_fails_closed_on_mismatched_dataset_identity(
         lambda dataset_id: bad_manifest,
     )
 
-    launched = service.launch_fixture(
-        configuration_id=configuration_id,
-        run_id="qf-21c-bad-dataset",
-    )
+    with pytest.raises(
+        ResearchLaunchInvocationError,
+        match="submission was acknowledged but invocation reported an error",
+    ):
+        service.launch_fixture(
+            configuration_id=configuration_id,
+            run_id="qf-21c-bad-dataset",
+        )
 
-    assert launched.run.status == RunStatus.FAILED.value
-    assert "dataset_id must be" in (launched.run.error_summary or "")
+    failed_run = service.get_run("qf-21c-bad-dataset")
+    assert failed_run is not None
+    assert failed_run.status == RunStatus.FAILED.value
+    assert failed_run.error_summary == (
+        "Prefect fixture execution failed; inspect approved technical diagnostics."
+    )
+    assert "wrong_dataset" not in failed_run.error_summary
     detail = _detail(database, "qf-21c-bad-dataset")
     assert detail["parameters"] == []
     assert detail["artifacts"] == []

@@ -507,9 +507,9 @@ def test_milestone23_controlled_failure_is_diagnosable_without_false_success(
     run_id = service.recent_runs(limit=1)[0].run_id
     rendered = _render_selected(app, run_id)
 
-    assert class_name == "save-message warning-state"
-    assert "acknowledgement is incomplete" in str(content).lower()
-    assert "reported an error" in str(content).lower()
+    assert class_name == "save-message error-state"
+    assert "Submission: Acknowledged" in str(content)
+    assert "Run status: Failed" in str(content)
     assert context_class == "operator-context"
     assert "Review failure" in str(context)
     assert "controlled Prefect fixture failure" in rendered

@@ -6,6 +6,7 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+import re
 import sqlite3
 import subprocess
 import sys
@@ -187,11 +188,11 @@ app.run(host="127.0.0.1", port=port, debug=False)
 
 def _expect_health_card(page, area: str, status: str, *, timestamped: bool) -> None:
     card = page.locator(f"#home-health-{area}")
-    expect(card.locator("strong")).to_have_text(status)
+    expect(card.locator("small")).to_contain_text(status)
     if timestamped:
-        expect(card).not_to_contain_text("Last checked: Not checked")
+        assert "Last checked: Not checked" not in (card.get_attribute("title") or "")
     else:
-        expect(card).to_contain_text("Last checked: Not checked")
+        expect(card).to_have_attribute("title", re.compile(r"Last checked: Not checked$"))
 
 
 def test_home_and_system_render_local_health_without_claiming_remote_checks(
@@ -216,7 +217,9 @@ def test_home_and_system_render_local_health_without_claiming_remote_checks(
         try:
             page.goto(base_url, wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
-            expect(page.locator("#route-home h1")).to_have_text("Home")
+            expect(page.locator("#route-home h1")).to_have_text(
+                "Dashboard · Research Atlas"
+            )
             for area in ("database", "cache", "artifact"):
                 _expect_health_card(page, area, "Available", timestamped=True)
             for area in ("worker", "provider", "credential"):
@@ -225,8 +228,8 @@ def test_home_and_system_render_local_health_without_claiming_remote_checks(
             home_route = page.locator("#route-home").element_handle()
             system_route = page.locator("#route-system").element_handle()
             expect(
-                page.locator("#home-health-database strong")
-            ).to_have_text("Stale — Available", timeout=12_000)
+                page.locator("#home-health-database small")
+            ).to_have_text("Stale — Available · stale", timeout=12_000)
             expect(page).to_have_url(base_url + "/")
             assert page.evaluate(
                 "node => node === document.querySelector('#route-home')",
@@ -243,7 +246,9 @@ def test_home_and_system_render_local_health_without_claiming_remote_checks(
                 {"width": 390, "height": 844},
             ):
                 page.set_viewport_size(viewport)
-                expect(page.locator("#route-home h1")).to_have_text("Home")
+                expect(page.locator("#route-home h1")).to_have_text(
+                    "Dashboard · Research Atlas"
+                )
                 assert (
                     page.evaluate("document.documentElement.scrollWidth")
                     <= viewport["width"] + 1
@@ -255,18 +260,30 @@ def test_home_and_system_render_local_health_without_claiming_remote_checks(
 
             action["name"] = "open System Status local health"
             page.set_viewport_size({"width": 1280, "height": 900})
-            page.locator("#navigation-link-system").click()
+            system_link = page.locator("#navigation-link-system")
+            system_link.focus()
+            expect(system_link).to_be_focused()
+            system_link.press("Enter")
             _wait_for_callbacks_to_settle(page, pending)
             expect(page).to_have_url(base_url + "/system")
-            expect(page.locator("#route-system h1")).to_have_text("System Status")
+            expect(page.locator("#route-system h1")).to_have_text(
+                "Know whether research can operate"
+            )
             system = page.locator("#route-system")
             for label in ("Research database", "Artifact storage", "Local data"):
-                card = system.locator(".metric-card", has_text=label)
-                expect(card.locator("strong")).to_have_text("Stale — Available")
+                pulse = system.locator(".health-pulse", has_text=label)
+                expect(pulse.locator("strong")).to_have_text(
+                    "Stale — Available"
+                )
+                component = system.locator(".health-component-row", has_text=label)
+                expect(component.locator("time")).not_to_have_text(
+                    "Last checked: Not checked"
+                )
             for label in ("Orchestrator", "Credentials"):
-                card = system.locator(".metric-card", has_text=label)
-                expect(card.locator("strong")).to_have_text("Not checked")
-                expect(card).to_contain_text("Last checked: Not checked")
+                pulse = system.locator(".health-pulse", has_text=label)
+                expect(pulse.locator("strong")).to_have_text("Not checked")
+                component = system.locator(".health-component-row", has_text=label)
+                expect(component).to_contain_text("Last checked: Not checked")
 
             assert page.evaluate(
                 "node => node === document.querySelector('#route-home')",

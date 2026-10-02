@@ -82,6 +82,7 @@ def test_trade_explorer_mounts_with_empty_database(empty_dashboard_server) -> No
         try:
             page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
+            page.locator("#results-report-tabs .tab", has_text="Trades").click()
 
             expect(page.locator("#trade-outcome-filter")).to_be_visible()
             expect(page.locator("#trade-direction-filter")).to_be_visible()
@@ -111,6 +112,7 @@ def test_trade_grid_supports_single_click_selection_without_checkboxes(
         try:
             page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
+            page.locator("#results-report-tabs .tab", has_text="Trades").click()
             page.evaluate(
                 """
                 async () => {
@@ -193,6 +195,7 @@ def test_spym_trade_explorer_filters_and_opens_row_detail(dashboard_server) -> N
             page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
             _select(page, "selected-run-selector", SPYM_OPTION_TEXT)
             _wait_for_callbacks_to_settle(page, pending)
+            page.locator("#results-report-tabs .tab", has_text="Trades").click()
 
             expect(page.locator("#trade-explorer-summary")).to_contain_text(
                 "Showing 366 of 366 persisted backtest trade rows"

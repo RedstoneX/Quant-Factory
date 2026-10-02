@@ -165,7 +165,7 @@ def test_active_navigation_item_tracks_browser_history_semantically(
 
             _assert_current_link_contained(
                 page,
-                expected_height=62 if viewport["width"] >= 1200 else None,
+                expected_height=48 if viewport["width"] >= 1200 else None,
             )
 
             action["name"] = "navigate to Run test"
@@ -205,7 +205,7 @@ def test_active_navigation_item_tracks_browser_history_semantically(
             _assert_accessible_current_page_link(
                 page,
                 path="/",
-                accessible_name="QF QUANT FACTORY",
+                accessible_name="Dashboard",
             )
 
             action["name"] = "open an unknown route"

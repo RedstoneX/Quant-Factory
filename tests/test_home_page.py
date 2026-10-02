@@ -242,12 +242,11 @@ def test_home_shows_operator_product_handoff_status() -> None:
     assert model.milestone.startswith("Milestone 23")
     assert model.milestone_status == (
         "QF Candidate v1 standardized browser intake is owner-accepted and complete; "
-        "the bounded Setup-page usability correction is in progress before the "
-        "connected operator-product walkthrough resumes."
+        "the corrected Setup page is deployed for the connected owner walkthrough."
     )
     assert "No candidate research is active" in discovery
     assert "R13 is complete" in discovery
-    assert "R12 is correcting Setup presentation" in discovery
-    assert "strategy testing stays paused" in discovery
+    assert "R12 awaits owner review" in discovery
+    assert "does not start strategy testing" in discovery
     assert model.action.label == "Continue to Compare"
     assert "discover" not in model.action.label.lower()

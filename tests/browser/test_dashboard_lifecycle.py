@@ -749,6 +749,7 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
     tmp_path,
 ):
     base_url, server_log, _ = mounted_workflow_server
+    database = server_log.parent / "state" / "mounted-workflow.sqlite3"
     events = []
     external_requests = []
     with sync_playwright() as playwright:
@@ -775,6 +776,12 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
                 "Unsaved local changes"
             )
             page.locator("#save-idea-draft").click()
+            _wait_for_callbacks_to_settle(page, pending_requests)
+            persistence = PersistenceService(database)
+            try:
+                assert persistence.idea_drafts.list() == ()
+            finally:
+                persistence.close()
             expect(page.locator("#idea-draft-status")).to_contain_text(
                 "Your text is unchanged"
             )
@@ -956,10 +963,13 @@ def test_results_review_persists_in_browser(review_compare_server, tmp_path):
         action = {"name": "open Results review"}
         pending_requests = _attach_diagnostics(page, events, action)
         try:
-            page.goto(base_url + BACKTEST_PATH, wait_until="networkidle")
-            _select(page, "selected-run-selector", "Out-of-sample evidence")
+            page.goto(
+                f"{base_url}{BACKTEST_PATH}?run_id={target_run_id}",
+                wait_until="networkidle",
+            )
             expect(page.locator("#selected-run-detail")).to_contain_text(
-                target_run_id
+                target_run_id,
+                timeout=10000,
             )
             expect(page.locator("#save-review")).to_be_enabled(timeout=10000)
             _select(page, "review-status", "Watchlist")
@@ -1243,7 +1253,7 @@ def test_launch_spym_and_diagnose_controlled_failure(dashboard_server, tmp_path)
             page.screenshot(path=tmp_path / "launched-spym.png", full_page=True)
 
             action["name"] = "inspect a controlled failed run"
-            page.get_by_text("View results", exact=True).click()
+            page.locator(f"#{navigation_link_id(BACKTEST_PATH)}").click()
             _assert_route(
                 page,
                 base_url,

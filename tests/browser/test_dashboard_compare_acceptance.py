@@ -17,6 +17,11 @@ from tests.browser.test_backtest_results_spym_stability import (
     _free_port,
     _wait_for_server,
 )
+from tests.browser.test_dashboard_lifecycle import (
+    _assert_no_browser_errors,
+    _attach_diagnostics,
+    _wait_for_callbacks_to_settle,
+)
 from tests.test_compare_adapter import _comparison_stack, _persist_run
 
 
@@ -125,8 +130,8 @@ app.run(host='127.0.0.1', port=port, debug=False)
 
 def _select_row(page, index: int) -> None:
     page.locator("#find-compare-grid .ag-row").nth(index).locator(
-        ".ag-selection-checkbox"
-    ).click()
+        ".ag-cell"
+    ).first.click()
 
 
 def _assert_no_horizontal_scroll(page) -> None:
@@ -138,16 +143,19 @@ def _assert_no_horizontal_scroll(page) -> None:
 
 def test_find_compare_thousand_rows_links_hydration_and_reset(
     find_compare_server,
-    tmp_path: Path,
 ) -> None:
     base_url, server_log = find_compare_server
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 1100})
+        events: list[dict[str, object]] = []
+        action = {"name": "load full-history comparison"}
+        pending = _attach_diagnostics(page, events, action)
         try:
             page.goto(base_url + COMPARE_PATH, wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
             route = page.locator("#route-research-compare-backtests")
-            expect(route.locator("h1")).to_have_text("Find & Compare")
+            expect(route.locator("h1")).to_have_text("Compare persisted runs")
             expect(page.locator("#find-compare-grid-count")).to_contain_text(
                 "1,000 matched · 0 selected"
             )
@@ -168,6 +176,7 @@ def test_find_compare_thousand_rows_links_hydration_and_reset(
             assert href is not None and href.count("run_id=") == 2
 
             page.goto(base_url + href, wait_until="networkidle")
+            _wait_for_callbacks_to_settle(page, pending)
             expect(page.locator("#comparison-read-model")).to_be_visible()
             expect(page.locator("#find-compare-grid .ag-row-selected")).to_have_count(2)
 
@@ -195,24 +204,19 @@ def test_find_compare_thousand_rows_links_hydration_and_reset(
             search = page.locator("#find-compare-search")
             search.fill("Unique search target")
             search.press("Enter")
+            _wait_for_callbacks_to_settle(page, pending)
             expect(page.locator("#find-compare-grid-count")).to_contain_text(
                 "1 matched"
             )
             page.locator("#find-compare-reset-view").click()
+            _wait_for_callbacks_to_settle(page, pending)
             expect(search).to_have_value("")
             expect(page.locator("#find-compare-grid-count")).to_contain_text(
                 "1,000 matched"
             )
             _assert_no_horizontal_scroll(page)
-            page.screenshot(
-                path=tmp_path / "find-compare-1000-desktop.png",
-                full_page=True,
-            )
-        except Exception:
-            page.screenshot(
-                path=tmp_path / "find-compare-1000-failure.png",
-                full_page=True,
-            )
-            raise AssertionError(server_log.read_text(encoding="utf-8"))
+            _assert_no_browser_errors(events)
+        except Exception as exc:
+            raise AssertionError(server_log.read_text(encoding="utf-8")) from exc
         finally:
             browser.close()

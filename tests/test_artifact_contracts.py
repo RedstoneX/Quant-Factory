@@ -207,7 +207,7 @@ def test_v3_artifact_rows_migrate_forward_and_remain_readable(tmp_path: Path) ->
                 "schema_version"
             ]
             == LATEST_SCHEMA_VERSION
-            == 6
+            == 7
         )
         assert migrated.execute(
             "SELECT run_id FROM experiment_runs WHERE run_id='legacy-run'"

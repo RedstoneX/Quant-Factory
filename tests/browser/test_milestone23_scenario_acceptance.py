@@ -25,6 +25,9 @@ from prefect_spike.fixture_flow import (
     _validated_claim_boundary,
     deterministic_fixture_body,
 )
+from tests.browser.dashboard_diagnostics import (
+    attach_browser_diagnostics as _attach_diagnostics,
+)
 from tests.browser.test_backtest_results_spym_stability import (
     BACKTEST_PATH,
     REPOSITORY_ROOT,
@@ -35,7 +38,6 @@ from tests.browser.test_backtest_results_spym_stability import (
 )
 from tests.browser.test_dashboard_lifecycle import (
     _assert_no_browser_errors,
-    _attach_diagnostics,
     _select,
     _wait_for_callbacks_to_settle,
     _write_lifecycle_failure_artifacts,
@@ -541,7 +543,10 @@ def test_retry_and_timeout_are_operator_visible_without_false_timeout_evidence(
             expect(timeout_detail).to_contain_text("succeeded")
             expect(timeout_detail).not_to_contain_text("timed out")
             expect(timeout_detail).to_contain_text("Run completed successfully.")
-            expect(timeout_detail).to_contain_text("deterministic_value")
+            expect(timeout_detail).to_contain_text(
+                "Parameter-result evidence is invalid"
+            )
+            expect(timeout_detail).to_contain_text("Results are hidden")
             expect(timeout_detail).to_contain_text("No artifact inventory is available")
             expect(timeout_detail.locator(".artifact-status-success")).to_have_count(0)
             page.screenshot(path=tmp_path / "retry-timeout-scenarios.png", full_page=True)

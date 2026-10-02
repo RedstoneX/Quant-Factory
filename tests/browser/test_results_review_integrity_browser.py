@@ -155,7 +155,7 @@ def test_review_conflict_retains_identity_form_and_persisted_decision(
             _wait_for_callbacks_to_settle(page, pending_requests)
 
             assert _review_snapshot(database, artifact_root, run_id) == before_conflict
-            assert pending_requests == set()
+            assert not pending_requests
             _assert_no_browser_errors(events)
         except Exception:
             _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)
@@ -197,7 +197,7 @@ def test_corrupt_review_state_is_visible_and_failed_save_does_not_mutate(
                     encoding="utf-8",
                 )
                 visible_error = "artifact_size_mismatch"
-                save_error = visible_error
+                save_error = "conflicting evidence decision artifact"
             else:
                 service = PersistenceService(database)
                 try:
@@ -250,7 +250,7 @@ def test_corrupt_review_state_is_visible_and_failed_save_does_not_mutate(
             _wait_for_callbacks_to_settle(page, pending_requests)
 
             assert _review_snapshot(database, artifact_root, run_id) == corrupted_state
-            assert pending_requests == set()
+            assert not pending_requests
             _assert_no_browser_errors(events)
         except Exception:
             _write_lifecycle_failure_artifacts(page, tmp_path, events, server_log)

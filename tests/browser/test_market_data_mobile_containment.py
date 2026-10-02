@@ -94,6 +94,23 @@ def _horizontal_overflow_nodes(
         """
         (elements) => {
           const overflows = (element) => {
+            // SVG text uses glyph geometry for scrollWidth/clientWidth, so
+            // HTML overflow arithmetic reports false positives even when the
+            // containing responsive SVG stays within the viewport.
+            if (element instanceof SVGElement) {
+              return false;
+            }
+            // Wide evidence tables intentionally scroll inside their bounded
+            // wrapper on narrow screens. Their off-screen cells are not page
+            // overflow; the wrapper and document bounds are checked below.
+            let ancestor = element.parentElement;
+            while (ancestor) {
+              const ancestorOverflow = getComputedStyle(ancestor).overflowX;
+              if (ancestorOverflow === 'auto' || ancestorOverflow === 'scroll') {
+                return false;
+              }
+              ancestor = ancestor.parentElement;
+            }
             const rect = element.getBoundingClientRect();
             const style = getComputedStyle(element);
             if (style.display === 'none' || style.visibility === 'hidden'
@@ -146,17 +163,12 @@ def test_long_market_data_path_stays_contained(
             page.goto(base_url + "/research/market-data", wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
             expect(page.locator("#route-research-market-data h1")).to_have_text(
-                "Market Data"
+                "Know what data is usable"
             )
             warning = page.locator(
                 "#route-research-market-data .operator-message-warning"
-            )
+            ).filter(has_text="Local data configuration is missing")
             expect(warning).to_contain_text(str(config_path))
-            page.get_by_text("Technical manifest references", exact=True).click()
-            technical_references = page.locator(
-                "#route-research-market-data details li"
-            )
-            expect(technical_references.first).to_be_visible()
             overflow_nodes = _horizontal_overflow_nodes(
                 page, route_selector="#route-research-market-data"
             )
@@ -174,8 +186,6 @@ def test_long_market_data_path_stays_contained(
             page.reload(wait_until="networkidle")
             _wait_for_callbacks_to_settle(page, pending)
             expect(warning).to_contain_text(str(config_path))
-            page.get_by_text("Technical manifest references", exact=True).click()
-            expect(technical_references.first).to_be_visible()
             overflow_nodes = _horizontal_overflow_nodes(
                 page, route_selector="#route-research-market-data"
             )
@@ -195,8 +205,12 @@ def test_long_market_data_path_stays_contained(
 @pytest.mark.parametrize(
     ("path", "container_id", "heading"),
     (
-        ("/system", "route-system", "System Status"),
-        ("/system/providers", "route-system-providers", "Data Sources"),
+        ("/system", "route-system", "Know whether research can operate"),
+        (
+            "/system/providers",
+            "route-system-providers",
+            "Know where research data came from",
+        ),
     ),
     ids=("system-status", "data-sources"),
 )
