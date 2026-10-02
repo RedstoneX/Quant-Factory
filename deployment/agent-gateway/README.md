@@ -24,12 +24,31 @@ database or artifact tree. The mounted data-location map is group-readable but
 remains non-writable; it contains paths and integrity policy, not credentials.
 
 The service socket is `/run/quant-factory/agent-gateway.sock` and has mode
-`0660`, owner `qf-gateway`, group `qf-agent-access`. Local examples:
+`0660`, owner `qf-gateway`, group `qf-agent-access`. Provisioning creates two
+distinct bearer credentials and stores only their SHA-256 digests in the
+server-side identity registry. Start each local program with its credential
+path in the inherited environment; the agent can then bootstrap without
+claiming its own identity:
 
 ```bash
-qf-agent --agent codex-local context get
-qf-agent --agent claude-local candidate list
+QF_AGENT_CREDENTIAL_FILE=/opt/quant-factory-gateway/credentials/codex-local.token codex
+QF_AGENT_CREDENTIAL_FILE=/opt/quant-factory-gateway/credentials/claude-local.token claude
+qf-agent --pretty bootstrap
 ```
+
+Both programs may run under the same Linux account. The bearer credential,
+not the username, executable name, or a caller-supplied agent label, selects a
+server-registered record containing `agent_id`, `provider`, `client`,
+`transport`, and `authority_level`. Because the two programs share one OS
+security principal, the credentials provide trustworthy gateway attribution,
+not hostile isolation between those local programs. Strong mutual isolation
+would require separate operating-system principals or sandboxes.
+
+To add a future local client, provision a new random credential and add its
+digest and provider-neutral metadata to the root-owned registry; Quant Factory
+core logic does not change. A new transport still requires its own reviewed
+adapter. See `docs/AGENT_RESEARCH_OPERATING_CONTEXT.md` for the common research
+rules.
 
 Remote SSH accepts only the documented `qf-agent` grammar. Candidate and note
 payloads use stdin (`-`); SCP, SFTP, PTY, shell, forwarding, and arbitrary file

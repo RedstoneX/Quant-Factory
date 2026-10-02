@@ -17,6 +17,8 @@ client_root=$install_root/client/agent_gateway
 state_root=$install_root/state
 socket_root=/run/quant-factory
 inventory=$install_root/identity.env
+credential_root=$install_root/credentials
+registry=$install_root/identity-registry.json
 
 [ -f "$source_root/agent_gateway/cli.py" ] || { echo "gateway client source is missing" >&2; exit 66; }
 id "$local_user" >/dev/null 2>&1 || { echo "local agent user does not exist" >&2; exit 67; }
@@ -39,6 +41,30 @@ chmod 0644 "$client_root/__init__.py"
 for name in contracts.py cli.py ssh_command.py; do
     install -o root -g root -m 0644 "$source_root/agent_gateway/$name" "$client_root/$name"
 done
+install -d -o root -g root -m 0711 "$credential_root"
+local_group=$(id -gn "$local_user")
+create_credential() {
+    target=$1
+    if [ ! -s "$target" ]; then
+        umask 077
+        od -An -N32 -tx1 /dev/urandom | tr -d ' \n' > "$target"
+    fi
+    chown "$local_user:$local_group" "$target"
+    chmod 0400 "$target"
+}
+codex_credential=$credential_root/codex-local.token
+claude_credential=$credential_root/claude-local.token
+create_credential "$codex_credential"
+create_credential "$claude_credential"
+codex_digest=$(sha256sum "$codex_credential" | cut -d' ' -f1)
+claude_digest=$(sha256sum "$claude_credential" | cut -d' ' -f1)
+registry_tmp=$install_root/.identity-registry.tmp
+cat > "$registry_tmp" <<EOF
+{"schema":"qf_agent_identity_registry_v1","identities":[{"agent_id":"codex-local","provider":"openai","client":"codex","transport":"local","authority_level":2,"credential_sha256":"$codex_digest"},{"agent_id":"claude-local","provider":"anthropic","client":"claude-code","transport":"local","authority_level":1,"credential_sha256":"$claude_digest"},{"agent_id":"grok-remote","provider":"xai","client":"grok","transport":"ssh","authority_level":1}]}
+EOF
+chown qf-gateway:qf-gateway "$registry_tmp"
+chmod 0400 "$registry_tmp"
+mv "$registry_tmp" "$registry"
 install -d -o qf-gateway -g qf-gateway -m 0700 "$state_root"
 install -d -o qf-gateway -g qf-agent-access -m 2770 "$socket_root"
 if [ -d "$runtime_root/state" ]; then
@@ -91,6 +117,7 @@ QF_AGENT_ACCESS_GID=$access_gid
 QF_GATEWAY_LOCAL_UIDS=$local_uid
 QF_GATEWAY_STATE_ROOT=$state_root
 QF_GATEWAY_SOCKET_ROOT=$socket_root
+QF_GATEWAY_IDENTITY_REGISTRY_PATH=$registry
 QF_RUNTIME_GID=$runtime_gid
 EOF
 chown root:root "$inventory"
@@ -99,6 +126,8 @@ chmod 0600 "$inventory"
 echo "gateway_identity=qf-gateway uid=$gateway_uid gid=$gateway_gid"
 echo "research_identity=qf-research uid=$research_uid access_gid=$access_gid"
 echo "local_agent_user=$local_user uid=$local_uid"
+echo "codex_credential_file=$codex_credential"
+echo "claude_credential_file=$claude_credential"
 if [ -n "$public_key" ]; then
     echo "remote_key=installed"
 else

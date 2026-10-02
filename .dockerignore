@@ -13,6 +13,8 @@
 !research_intake/**
 !agent_gateway/
 !agent_gateway/**
+!docs/
+!docs/AGENT_RESEARCH_OPERATING_CONTEXT.md
 !persistence/
 !persistence/**
 !market_data/

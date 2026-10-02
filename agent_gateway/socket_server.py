@@ -2,22 +2,41 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, replace
+import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
 import socket
 import socketserver
 import struct
-from typing import Mapping
 
 from agent_gateway.contracts import (
     MAX_REQUEST_BYTES,
     GatewayError,
     GatewayIdentity,
     GatewayRequest,
+    credential_from_document,
     failure,
 )
 from agent_gateway.service import AgentResearchGateway
+
+
+@dataclass(frozen=True)
+class IdentityRegistration:
+    identity: GatewayIdentity
+    credential_sha256: str | None = None
+
+    def __post_init__(self) -> None:
+        digest = self.credential_sha256
+        if self.identity.peer_uid is not None:
+            raise GatewayError("invalid_identity_registry", "registered identity cannot contain a peer UID")
+        if self.identity.transport == "local":
+            if digest is None or len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+                raise GatewayError("invalid_identity_registry", "local identity credential digest is invalid")
+        elif digest is not None:
+            raise GatewayError("invalid_identity_registry", "non-local identity cannot use a local credential")
 
 
 class PeerPolicy:
@@ -26,23 +45,34 @@ class PeerPolicy:
         *,
         local_uids: set[int],
         remote_uid: int,
-        authorities: Mapping[str, int],
+        registrations: tuple[IdentityRegistration, ...],
     ) -> None:
         self.local_uids = frozenset(local_uids)
         self.remote_uid = remote_uid
-        self.authorities = dict(authorities)
+        self.registrations = registrations
+        agent_ids = [item.identity.agent_id for item in registrations]
+        digests = [item.credential_sha256 for item in registrations if item.credential_sha256]
+        remote = [item for item in registrations if item.identity.transport == "ssh"]
+        if len(agent_ids) != len(set(agent_ids)) or len(digests) != len(set(digests)):
+            raise GatewayError("invalid_identity_registry", "agent registrations must be unique")
+        if len(remote) != 1:
+            raise GatewayError("invalid_identity_registry", "exactly one SSH identity must be registered")
+        self.remote_registration = remote[0]
 
-    def identity(self, *, peer_uid: int, claimed_agent: str | None) -> GatewayIdentity:
+    def identity(self, *, peer_uid: int, credential: str | None) -> GatewayIdentity:
         if peer_uid == self.remote_uid:
-            agent_id, transport = "grok-remote", "ssh"
-        elif peer_uid in self.local_uids and claimed_agent in {"codex-local", "claude-local"}:
-            agent_id, transport = claimed_agent, "local"
-        else:
+            if credential is not None:
+                raise GatewayError("peer_denied", "operating-system peer is not authorized")
+            return replace(self.remote_registration.identity, peer_uid=peer_uid)
+        if peer_uid not in self.local_uids or credential is None:
             raise GatewayError("peer_denied", "operating-system peer is not authorized")
-        level = self.authorities.get(agent_id)
-        if level is None:
-            raise GatewayError("invalid_agent", "agent identity is not configured")
-        return GatewayIdentity(agent_id, transport, peer_uid, level)
+        digest = hashlib.sha256(credential.encode("utf-8")).hexdigest()
+        for registration in self.registrations:
+            if registration.credential_sha256 and hmac.compare_digest(
+                digest, registration.credential_sha256
+            ):
+                return replace(registration.identity, peer_uid=peer_uid)
+        raise GatewayError("peer_denied", "operating-system peer is not authorized")
 
 
 class _GatewayHandler(socketserver.StreamRequestHandler):
@@ -64,7 +94,7 @@ class _GatewayHandler(socketserver.StreamRequestHandler):
             peer_uid = _peer_uid(self.request)
             identity = self.server.peer_policy.identity(
                 peer_uid=peer_uid,
-                claimed_agent=request.claimed_agent,
+                credential=credential_from_document(document),
             )
             response = self.server.gateway.handle(request, identity)
         except GatewayError as exc:

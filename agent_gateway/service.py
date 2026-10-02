@@ -10,6 +10,8 @@ from pathlib import Path
 import re
 from typing import Any, Callable, Mapping
 
+from agent_gateway.authority import OPERATION_LEVELS
+from agent_gateway.bootstrap import build_bootstrap
 from agent_gateway.contracts import (
     GatewayError,
     GatewayIdentity,
@@ -30,20 +32,6 @@ from research_intake import (
 
 RunLauncher = Callable[[str, str, str], str]
 _STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request"}
-_LEVELS = {
-    "context.get": 0,
-    "prior.search": 0,
-    "candidate.list": 0,
-    "candidate.get": 0,
-    "run.status": 0,
-    "run.results": 0,
-    "run.evidence": 0,
-    "lineage.get": 0,
-    "candidate.validate": 1,
-    "candidate.submit": 1,
-    "research.note.add": 1,
-    "run.request": 2,
-}
 _SAFE_EVIDENCE_STATES = {"gated", "not_applicable", None}
 _WORD = re.compile(r"[a-z0-9]+")
 _SECRET_KEY = re.compile(
@@ -146,11 +134,17 @@ class AgentResearchGateway:
         identity: GatewayIdentity,
         store: GatewayStore,
     ) -> Any:
-        required = _LEVELS.get(request.operation)
+        required = OPERATION_LEVELS.get(request.operation)
         if required is None:
             raise GatewayError("operation_not_allowed", "gateway operation is not allowed")
         if identity.authority_level < required:
             raise GatewayError("authority_denied", "agent authority does not permit this operation")
+        if request.operation == "bootstrap":
+            return build_bootstrap(
+                identity,
+                operation_levels=OPERATION_LEVELS,
+                run_requests_enabled=self.run_launcher is not None,
+            )
         handlers = {
             "context.get": self._context_get,
             "prior.search": self._prior_search,

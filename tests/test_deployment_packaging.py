@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import sqlite3
 import subprocess
 from pathlib import Path
@@ -28,6 +29,7 @@ def test_container_context_includes_candidate_intake_package():
     assert "!research_intake/**" in dockerignore
     assert "!agent_gateway/" in dockerignore
     assert "!agent_gateway/**" in dockerignore
+    assert "!docs/AGENT_RESEARCH_OPERATING_CONTEXT.md" in dockerignore
 
 
 def test_compose_binds_dashboard_only_to_loopback_and_uses_external_root():
@@ -43,10 +45,46 @@ def test_compose_binds_dashboard_only_to_loopback_and_uses_external_root():
     assert "entrypoint: [prefect]" in compose
     assert "PREFECT_SERVER_ANALYTICS_ENABLED: \"false\"" in compose
     assert "QF_GATEWAY_SOCKET_PATH: /run/quant-factory/agent-gateway.sock" in compose
+    assert "QF_GATEWAY_IDENTITY_REGISTRY: /run/secrets/qf-agent-identities.json" in compose
+    assert "QF_GATEWAY_AUTHORITIES" not in compose
     assert "HOME: /tmp" in compose
     assert "PREFECT_HOME: /tmp/qf-prefect" in compose
     assert "agent-gateway:" in compose
     assert "ports:" not in compose.split("  agent-gateway:", 1)[1]
+
+
+def test_gateway_identity_registry_is_provider_neutral_and_configuration_driven(tmp_path):
+    server = importlib.import_module("deployment.agent_gateway_server")
+    registry = tmp_path / "identities.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "schema": "qf_agent_identity_registry_v1",
+                "identities": [
+                    {
+                        "agent_id": "future-local",
+                        "provider": "future-provider",
+                        "client": "future-client",
+                        "transport": "local",
+                        "authority_level": 1,
+                        "credential_sha256": "a" * 64,
+                    },
+                    {
+                        "agent_id": "remote-agent",
+                        "provider": "remote-provider",
+                        "client": "remote-client",
+                        "transport": "ssh",
+                        "authority_level": 0,
+                    },
+                ],
+            }
+        )
+    )
+
+    registrations = server._identity_registry(registry)
+
+    assert [item.identity.agent_id for item in registrations] == ["future-local", "remote-agent"]
+    assert registrations[0].identity.provider == "future-provider"
 
 
 def test_entrypoint_fails_closed_when_required_mount_configuration_is_missing():

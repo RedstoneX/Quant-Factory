@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -9,10 +10,10 @@ import threading
 
 import pytest
 
-from agent_gateway.cli import send
+from agent_gateway.cli import build_parser, request_document, send
 from agent_gateway.contracts import GATEWAY_PROTOCOL, GatewayIdentity, GatewayRequest
 from agent_gateway.service import AgentResearchGateway
-from agent_gateway.socket_server import GatewayUnixServer, PeerPolicy
+from agent_gateway.socket_server import GatewayUnixServer, IdentityRegistration, PeerPolicy
 from agent_gateway.ssh_command import allowed_arguments
 from persistence import PersistenceService, RunStage, StrategyLifecycle, save_candidate_idea
 
@@ -53,7 +54,6 @@ def _request(operation: str, *, arguments=None, payload=None, request_id="req_12
         operation=operation,
         arguments=arguments or {},
         payload=payload,
-        claimed_agent="codex-local",
     )
 
 
@@ -69,11 +69,52 @@ def _gateway(tmp_path: Path, *, launcher=None) -> AgentResearchGateway:
 @pytest.fixture
 def identities():
     return {
-        "read": GatewayIdentity("reader-local", "local", os.getuid(), 0),
-        "claude": GatewayIdentity("claude-local", "local", os.getuid(), 1),
-        "codex": GatewayIdentity("codex-local", "local", os.getuid(), 2),
-        "grok": GatewayIdentity("grok-remote", "ssh", 2222, 1),
+        "read": GatewayIdentity("reader-local", "local-provider", "reader", "local", 0, os.getuid()),
+        "claude": GatewayIdentity("claude-local", "anthropic", "claude-code", "local", 1, os.getuid()),
+        "codex": GatewayIdentity("codex-local", "openai", "codex", "local", 2, os.getuid()),
+        "grok": GatewayIdentity("grok-remote", "xai", "grok", "ssh", 1, 2222),
     }
+
+
+def _registration(identity: GatewayIdentity, credential: str | None = None) -> IdentityRegistration:
+    digest = hashlib.sha256(credential.encode()).hexdigest() if credential else None
+    return IdentityRegistration(
+        GatewayIdentity(
+            identity.agent_id,
+            identity.provider,
+            identity.client,
+            identity.transport,
+            identity.authority_level,
+        ),
+        digest,
+    )
+
+
+def test_provider_neutral_bootstrap_is_complete_for_codex_and_claude(tmp_path, identities):
+    gateway = _gateway(tmp_path, launcher=lambda *_: "unused")
+
+    for name in ("codex", "claude"):
+        response = gateway.handle(_request("bootstrap"), identities[name])
+        assert response.ok
+        result = response.result
+        assert result["schema"] == "qf_agent_bootstrap_v1"
+        assert result["identity"] == {
+            "agent_id": identities[name].agent_id,
+            "provider": identities[name].provider,
+            "client": identities[name].client,
+            "transport": "local",
+            "authority_level": identities[name].authority_level,
+        }
+        assert result["operating_context"]["reference"] == "docs/AGENT_RESEARCH_OPERATING_CONTEXT.md"
+        assert result["operating_context"]["content"].startswith("# Agent Research Operating Context")
+        assert len(result["operating_context"]["sha256"]) == 64
+        assert result["research_context"]["schema"] == "qf_research_context_v1"
+        assert result["owner_gates"]
+        assert "bootstrap" in result["permitted_operations"]
+        assert "broker.order" in result["prohibited_operations"]
+
+    assert "run.request" in gateway.handle(_request("bootstrap"), identities["codex"]).result["permitted_operations"]
+    assert "run.request" in gateway.handle(_request("bootstrap"), identities["claude"]).result["prohibited_operations"]
 
 
 def test_context_prior_and_candidate_read_contracts(tmp_path, identities):
@@ -356,7 +397,11 @@ def test_unix_socket_contract_peer_policy_and_mode(tmp_path):
     policy = PeerPolicy(
         local_uids={os.getuid()},
         remote_uid=99999,
-        authorities={"codex-local": 2, "claude-local": 1, "grok-remote": 1},
+        registrations=(
+            _registration(GatewayIdentity("codex-local", "openai", "codex", "local", 2), "codex-test-token-0000000000000000"),
+            _registration(GatewayIdentity("claude-local", "anthropic", "claude-code", "local", 1), "claude-test-token-000000000000000"),
+            _registration(GatewayIdentity("grok-remote", "xai", "grok", "ssh", 1)),
+        ),
     )
     server = GatewayUnixServer(socket_path, gateway=gateway, peer_policy=policy)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -364,18 +409,40 @@ def test_unix_socket_contract_peer_policy_and_mode(tmp_path):
     try:
         mode = stat.S_IMODE(socket_path.stat().st_mode)
         assert mode == 0o660
-        response = send(
+        for index, (credential, expected_agent) in enumerate(
+            (
+                ("codex-test-token-0000000000000000", "codex-local"),
+                ("claude-test-token-000000000000000", "claude-local"),
+            )
+        ):
+            response = send(
+                {
+                    "protocol": GATEWAY_PROTOCOL,
+                    "request_id": f"req_socket_{index:08d}",
+                    "credential": credential,
+                    "operation": "bootstrap",
+                    "arguments": {},
+                    "payload": None,
+                },
+                str(socket_path),
+            )
+            assert response["ok"] is True
+            assert response["result"]["identity"]["agent_id"] == expected_agent
+
+        spoofed = send(
             {
                 "protocol": GATEWAY_PROTOCOL,
-                "request_id": "req_socket_00000001",
-                "agent": "codex-local",
-                "operation": "context.get",
+                "request_id": "req_socket_spoof_0001",
+                "credential": "codex-test-token-0000000000000000",
+                "agent_id": "claude-local",
+                "operation": "bootstrap",
                 "arguments": {},
                 "payload": None,
             },
             str(socket_path),
         )
-        assert response["ok"] is True
+        assert spoofed["ok"] is False
+        assert spoofed["error"]["code"] == "untrusted_identity"
     finally:
         server.shutdown()
         server.server_close()
@@ -386,12 +453,30 @@ def test_peer_policy_rejects_unknown_uid_and_unknown_local_identity():
     policy = PeerPolicy(
         local_uids={1000},
         remote_uid=2000,
-        authorities={"codex-local": 2, "claude-local": 1, "grok-remote": 1},
+        registrations=(
+            _registration(GatewayIdentity("codex-local", "openai", "codex", "local", 2), "codex-test-token-0000000000000000"),
+            _registration(GatewayIdentity("grok-remote", "xai", "grok", "ssh", 1)),
+        ),
     )
     with pytest.raises(ValueError, match="not authorized"):
-        policy.identity(peer_uid=3000, claimed_agent="codex-local")
+        policy.identity(peer_uid=3000, credential="codex-test-token-0000000000000000")
     with pytest.raises(ValueError, match="not authorized"):
-        policy.identity(peer_uid=1000, claimed_agent="grok-remote")
+        policy.identity(peer_uid=1000, credential="wrong-test-token-00000000000000000")
+
+
+def test_cli_reads_credential_without_accepting_identity_claim(tmp_path):
+    credential_file = tmp_path / "credential"
+    credential_file.write_text("codex-test-token-0000000000000000\n")
+    parser = build_parser()
+    args = parser.parse_args(["--credential-file", str(credential_file), "bootstrap"])
+
+    document = request_document(args)
+
+    assert document["operation"] == "bootstrap"
+    assert document["credential"] == "codex-test-token-0000000000000000"
+    assert "agent" not in document and "agent_id" not in document
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--agent", "codex-local", "bootstrap"])
 
 
 def test_host_provisioning_is_key_only_dynamic_and_has_recoverable_rollback():
@@ -436,6 +521,7 @@ def test_ssh_forced_command_rejects_shell_files_and_transport_overrides(command)
     "command",
     [
         "qf-agent context get",
+        "qf-agent bootstrap",
         "qf-agent prior search --query 'opening range breakout'",
         "qf-agent candidate validate -",
         "qf-agent candidate submit -",

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
+from agent_gateway.contracts import GatewayError, GatewayIdentity
 from agent_gateway.service import AgentResearchGateway
-from agent_gateway.socket_server import GatewayUnixServer, PeerPolicy
+from agent_gateway.socket_server import GatewayUnixServer, IdentityRegistration, PeerPolicy
 from orchestration import CandidatePipelineRuntime
 from prefect_spike.candidate_pipeline_flow import run_candidate_pipeline_flow
 
@@ -28,19 +30,35 @@ def _uid_set(value: str) -> set[int]:
     return result
 
 
-def _authorities(value: str) -> dict[str, int]:
-    result: dict[str, int] = {}
+def _identity_registry(path: Path) -> tuple[IdentityRegistration, ...]:
     try:
-        for entry in value.split(","):
-            name, level = entry.split(":", 1)
-            result[name] = int(level)
-    except (TypeError, ValueError) as exc:
-        raise RuntimeError("QF_GATEWAY_AUTHORITIES is invalid") from exc
-    if set(result) != {"codex-local", "claude-local", "grok-remote"}:
-        raise RuntimeError("QF_GATEWAY_AUTHORITIES must configure the three approved agents")
-    if any(level not in {0, 1, 2} for level in result.values()):
-        raise RuntimeError("QF_GATEWAY_AUTHORITIES contains an invalid level")
-    return result
+        document = json.loads(path.read_text())
+        if not isinstance(document, dict):
+            raise ValueError("identity registry must be an object")
+        if document.get("schema") != "qf_agent_identity_registry_v1":
+            raise ValueError("unsupported identity registry schema")
+        rows = document["identities"]
+        if not isinstance(rows, list) or not rows:
+            raise ValueError("identity registry must contain identities")
+        registrations = []
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError("identity registration must be an object")
+            registrations.append(
+                IdentityRegistration(
+                    identity=GatewayIdentity(
+                        agent_id=row["agent_id"],
+                        provider=row["provider"],
+                        client=row["client"],
+                        transport=row["transport"],
+                        authority_level=row["authority_level"],
+                    ),
+                    credential_sha256=row.get("credential_sha256"),
+                )
+            )
+        return tuple(registrations)
+    except (GatewayError, KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError("QF_GATEWAY_IDENTITY_REGISTRY is invalid") from exc
 
 
 def build_server() -> GatewayUnixServer:
@@ -48,6 +66,7 @@ def build_server() -> GatewayUnixServer:
     artifact_root = _required_path("QUANT_FACTORY_ARTIFACT_ROOT")
     gateway_database = _required_path("QF_GATEWAY_DB_PATH")
     socket_path = _required_path("QF_GATEWAY_SOCKET_PATH")
+    identity_registry = _required_path("QF_GATEWAY_IDENTITY_REGISTRY")
     run_enabled = os.environ.get("QF_GATEWAY_RUN_REQUESTS_ENABLED", "false") == "true"
 
     def launch(_candidate_id: str, configuration_id: str, idempotency_key: str) -> str:
@@ -74,7 +93,7 @@ def build_server() -> GatewayUnixServer:
     policy = PeerPolicy(
         local_uids=_uid_set(os.environ.get("QF_GATEWAY_LOCAL_UIDS", "")),
         remote_uid=remote_uid,
-        authorities=_authorities(os.environ.get("QF_GATEWAY_AUTHORITIES", "")),
+        registrations=_identity_registry(identity_registry),
     )
     return GatewayUnixServer(socket_path, gateway=gateway, peer_policy=policy)
 

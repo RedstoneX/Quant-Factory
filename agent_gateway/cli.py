@@ -19,9 +19,14 @@ DEFAULT_SOCKET = "/run/quant-factory/agent-gateway.sock"
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="qf-agent")
     parser.add_argument("--socket", default=os.environ.get("QF_AGENT_SOCKET", DEFAULT_SOCKET))
-    parser.add_argument("--agent", default=os.environ.get("QF_AGENT_ID"))
+    parser.add_argument(
+        "--credential-file",
+        default=os.environ.get("QF_AGENT_CREDENTIAL_FILE"),
+    )
     parser.add_argument("--pretty", action="store_true")
     commands = parser.add_subparsers(dest="group", required=True)
+
+    commands.add_parser("bootstrap")
 
     context = commands.add_parser("context")
     context.add_subparsers(dest="action", required=True).add_parser("get")
@@ -75,22 +80,24 @@ def _lineage_options(parser: argparse.ArgumentParser) -> None:
 
 
 def request_document(args: argparse.Namespace) -> dict[str, object]:
-    if not args.agent:
-        raise ValueError("--agent or QF_AGENT_ID is required")
     operation, arguments, payload = _operation(args)
-    return {
+    document: dict[str, object] = {
         "protocol": GATEWAY_PROTOCOL,
         "request_id": f"req_{uuid4().hex}",
-        "agent": args.agent,
         "operation": operation,
         "arguments": arguments,
         "payload": payload,
     }
+    if args.credential_file:
+        document["credential"] = _read_credential(args.credential_file)
+    return document
 
 
 def _operation(args: argparse.Namespace) -> tuple[str, dict[str, object], str | None]:
     payload = None
     arguments: dict[str, object] = {}
+    if args.group == "bootstrap":
+        return "bootstrap", arguments, payload
     if args.group == "context":
         return "context.get", arguments, payload
     if args.group == "prior":
@@ -135,6 +142,13 @@ def _read_payload(path: str) -> str:
     if len(text.encode()) > MAX_REQUEST_BYTES:
         raise ValueError("input exceeds gateway request size limit")
     return text
+
+
+def _read_credential(path: str) -> str:
+    credential = Path(path).read_text().strip()
+    if not credential or len(credential) > 256 or not credential.replace("_", "a").replace("-", "a").isalnum():
+        raise ValueError("gateway credential file is invalid")
+    return credential
 
 
 def send(document: dict[str, object], socket_path: str) -> dict[str, object]:
