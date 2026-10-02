@@ -404,6 +404,7 @@ def test_host_provisioning_is_key_only_dynamic_and_has_recoverable_rollback():
     assert "private key" not in provision.lower()
     assert "id -u qf-gateway" in provision
     assert "QF_GATEWAY_UID=" in provision
+    assert 'chmod 0440 "$data_locations"' in provision
     assert "AuthenticationMethods publickey" in sshd
     assert "PasswordAuthentication no" in sshd
     assert "DisableForwarding yes" in sshd
