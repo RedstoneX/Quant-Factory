@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from dash import ALL, Dash, Input, Output, State, dcc, html, no_update
+from dash import ALL, Dash, Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 
-from dashboard.components.configuration_summary import configuration_summary
+from dashboard.callbacks.candidate_setup import register_candidate_setup_callbacks
 from dashboard.callbacks.run_test import register_run_test_confirmation_callback
 from dashboard.run_adapter import (
     ConfigurationReadinessView,
@@ -57,40 +57,6 @@ def _parameter_controls(
     return controls
 
 
-def _preview_setup_outputs(
-    configuration_id: str | None,
-    readiness_by_id: dict[str, ConfigurationReadinessView],
-) -> tuple[Any, str | None, str, str, str, str]:
-    readiness = readiness_by_id.get(configuration_id or "")
-    summary = configuration_summary(readiness, component_id="configuration-preview-content")
-    if readiness is None:
-        return (
-            summary.children,
-            None,
-            "primary-action action-disabled",
-            "Choose an approved saved setup before continuing.",
-            "No saved setup",
-            "setup-campaign-item setup-campaign-item-blocked",
-        )
-    if not readiness.ready:
-        return (
-            summary.children,
-            None,
-            "primary-action action-disabled",
-            "Resolve every preflight blocker before reviewing this test.",
-            "Setup blocked",
-            "setup-campaign-item setup-campaign-item-blocked",
-        )
-    return (
-        summary.children,
-        "/research/run-test",
-        "primary-action",
-        "Review this immutable saved setup before running it.",
-        "Ready to review",
-        "setup-campaign-item setup-campaign-item-ready",
-    )
-
-
 def register_setup_callbacks(
     app: Dash,
     *,
@@ -100,6 +66,11 @@ def register_setup_callbacks(
     """Register callbacks whose writable outputs all belong to Set up."""
 
     register_run_test_confirmation_callback(app)
+    register_candidate_setup_callbacks(
+        app,
+        readiness_by_id=readiness_by_id,
+        database=database,
+    )
 
     @app.callback(
         Output("selected-configuration-state", "data"),
@@ -107,21 +78,7 @@ def register_setup_callbacks(
         prevent_initial_call=True,
     )
     def preserve_selected_configuration(configuration_id: str | None):
-        if not configuration_id:
-            raise PreventUpdate
         return configuration_id
-
-    @app.callback(
-        Output("configuration-preview", "children"),
-        Output("review-test-action", "href"),
-        Output("review-test-action", "className"),
-        Output("review-test-action", "title"),
-        Output("setup-context-state", "children"),
-        Output("setup-current-state", "className"),
-        Input("selected-configuration-state", "data"),
-    )
-    def preview_setup_configuration(configuration_id: str | None):
-        return _preview_setup_outputs(configuration_id, readiness_by_id)
 
     strategies = list_setup_strategies(database)
 
@@ -133,21 +90,9 @@ def register_setup_callbacks(
         return _parameter_controls(strategy_identity, strategies)
 
     @app.callback(
-        Output("setup-idea-title", "children"),
-        Input("idea-draft-store", "data"),
-    )
-    def show_selected_idea(draft: dict[str, Any] | None):
-        if not draft or not draft.get("draft_id"):
-            return "Selected idea: choose and save a draft on Ideas first."
-        suffix = " · setup already saved" if draft.get("configuration_id") else ""
-        return f"Selected idea: {draft.get('title', 'Untitled')}{suffix}"
-
-    @app.callback(
         Output("idea-configuration-status", "children"),
         Output("idea-configuration-status", "className"),
         Output("created-configuration-state", "data"),
-        Output("configuration-selector", "options"),
-        Output("configuration-selector", "value"),
         Input("save-idea-configuration", "n_clicks"),
         State("idea-draft-store", "data"),
         State("setup-strategy-selector", "value"),
@@ -170,15 +115,6 @@ def register_setup_callbacks(
                 "Setup not saved. Save an idea draft first.",
                 "save-message error-state",
                 None,
-                [
-                    {
-                        "label": configuration.label,
-                        "value": configuration.configuration_id,
-                        "disabled": not configuration.launchable,
-                    }
-                    for configuration in list_saved_configurations(database)
-                ],
-                no_update,
             )
         parameters = {
             identity["name"]: value
@@ -196,8 +132,6 @@ def register_setup_callbacks(
                 f"Setup not saved. {exc}",
                 "save-message error-state",
                 None,
-                no_update,
-                no_update,
             )
 
         configurations = list_saved_configurations(database)
@@ -212,13 +146,4 @@ def register_setup_callbacks(
             ),
             "save-message save-message-success",
             {"configuration_id": configuration_id, "draft_id": draft_id},
-            [
-                {
-                    "label": configuration.label,
-                    "value": configuration.configuration_id,
-                    "disabled": not configuration.launchable,
-                }
-                for configuration in configurations
-            ],
-            configuration_id,
         )

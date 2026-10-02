@@ -16,16 +16,16 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_title="Operator Product Completion",
     current_milestone_status=(
         "QF Candidate v1 standardized browser intake is owner-accepted and complete; "
-        "the corrected Setup page is deployed for the connected owner walkthrough."
+        "the exact connected Candidate workflow is being corrected for a new owner walkthrough."
     ),
     strategy_status=(
         "No candidate research is active. The MES overnight-gap reversal is rejected "
         "and may not be tuned or rerun."
     ),
     workspace_status=(
-        "R13 is complete and R12 awaits owner review. The separately authorized "
-        "agent gateway is operational locally; its real Grok connection awaits "
-        "the owner-controlled hosted public key and does not start strategy testing."
+        "R13 is complete and R12 exact-object correction is active. The provider-neutral "
+        "agent gateway remains operational locally; bounded campaign preparation does "
+        "not start strategy testing or bypass the first Candidate approval gate."
     ),
     home_subtitle="Your strategy research workspace.",
 )

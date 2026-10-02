@@ -275,6 +275,7 @@ def test_comparable_runs_build_aligned_metrics_normalized_curves_and_differences
     assert _field(model, "data", "row_count").state == "equal"
     assert _field(model, "execution", "persisted.fees").state == "changed"
     assert {group.key for group in model.difference_groups} == {
+        "candidate",
         "parameters",
         "data",
         "execution",

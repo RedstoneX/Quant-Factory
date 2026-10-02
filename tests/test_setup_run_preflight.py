@@ -288,8 +288,8 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
     )
     assert href is None
     assert "action-disabled" in class_name
-    assert "Resolve every preflight blocker" in setup_title
-    assert state == "Setup blocked"
+    assert "Choose a saved QF Candidate first" in setup_title
+    assert state == "Candidate not ready"
     assert "setup-campaign-item-blocked" in state_class
 
     launch = _callback(app, "launch-message.children")

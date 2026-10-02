@@ -4,6 +4,7 @@ from dataclasses import asdict
 import base64
 import json
 import sqlite3
+from types import SimpleNamespace
 
 import pytest
 
@@ -17,7 +18,9 @@ from dashboard.run_adapter import (
     persist_bounded_idea_configuration,
     save_idea_draft,
 )
+from dashboard.candidate_workflow import candidate_configuration_binding
 from persistence import LATEST_SCHEMA_VERSION, PersistenceService, StrategyLifecycle
+from research_intake import import_candidate_as_idea, record_candidate_decision
 from strategies.spym_rsi_mean_reversion_fixture import (
     SPYM_RSI_ENTRY_THRESHOLD,
     SPYM_RSI_EXIT_THRESHOLD,
@@ -55,6 +58,16 @@ def _register_fixture(path) -> None:
 def _callback(app, output_fragment: str):
     entry = next(
         value for key, value in app.callback_map.items() if output_fragment in key
+    )
+    callback = entry["callback"]
+    return getattr(callback, "__wrapped__", callback)
+
+
+def _callback_for_input(app, component_id: str):
+    entry = next(
+        value
+        for value in app.callback_map.values()
+        if any(item["id"] == component_id for item in value["inputs"])
     )
     callback = entry["callback"]
     return getattr(callback, "__wrapped__", callback)
@@ -281,44 +294,137 @@ def test_candidate_upload_and_saved_packet_render_as_readable_brief() -> None:
         )
 
 
-def test_new_setup_draft_is_known_to_run_preflight_without_server_restart(
+def test_accept_button_records_owner_decision_and_enables_setup(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    path = tmp_path / "operator.sqlite3"
+    candidate = {
+        "schema": "qf_candidate_v1",
+        "candidate": {"title": "Decision Candidate", "status": "ready_for_review"},
+        "sources": [{"type": "owner_observation"}],
+        "hypothesis": {
+            "behavior": "One same-session behavior may persist.",
+            "failure_theory": ["It may be noise."],
+        },
+        "market": {"holding_style": "intraday", "overnight_positions": False},
+        "rules": {"entry": ["Use one fixed trigger."]},
+        "variables": {},
+        "variants": [],
+        "open_questions": [],
+        "evaluation": {"use_qf_standard_screen": True},
+    }
+    imported = import_candidate_as_idea(candidate, database=path)
+    app = create_app(review_database=path)
+    decide = _callback_for_input(app, "accept-candidate-for-setup")
+    monkeypatch.setattr(
+        "dashboard.callbacks.candidate_decision.ctx",
+        SimpleNamespace(triggered_id="accept-candidate-for-setup"),
+    )
+
+    stored, _options, selected, message, _class_name, href, link_class = decide(
+        1,
+        0,
+        asdict(imported.draft),
+        "/research/ideas",
+    )
+
+    assert json.loads(stored["candidate_json"])["candidate"]["status"] == "owner_approved"
+    assert selected == imported.draft.draft_id
+    assert "accepted" in message.lower()
+    assert href == "/research/setup"
+    assert "action-disabled" not in link_class
+
+
+def test_accepted_candidate_without_implementation_cannot_fall_back_to_fixture(
     tmp_path,
 ) -> None:
     path = tmp_path / "operator.sqlite3"
     _register_fixture(path)
-    draft = save_idea_draft({"title": "Fresh draft"}, database=path)
+    candidate = {
+        "schema": "qf_candidate_v1",
+        "candidate": {"title": "Exact candidate", "status": "ready_for_review"},
+        "sources": [{"type": "owner_observation"}],
+        "hypothesis": {
+            "behavior": "A bounded intraday behavior may persist.",
+            "failure_theory": ["The apparent effect may be noise."],
+        },
+        "market": {"holding_style": "intraday", "overnight_positions": False},
+        "rules": {"entry": ["Use one fixed intraday trigger."]},
+        "fixed": {"flat_by_close": True},
+        "variables": {},
+        "variants": [],
+        "open_questions": [],
+        "exclusions": ["No overnight holding."],
+        "evaluation": {"use_qf_standard_screen": True},
+    }
+    imported = import_candidate_as_idea(candidate, database=path)
+    decided = record_candidate_decision(
+        draft_id=imported.draft.draft_id,
+        decision="owner_approved",
+        database=path,
+    )
     app = create_app(
         review_database=path,
         catalog_snapshot=(None, (), None),
     )
 
-    save_setup = _callback(app, "created-configuration-state.data")
-    _, _, created, _, selected_id = save_setup(
-        1,
-        draft.to_store(),
-        "spym_rsi_mean_reversion_fixture@1.0.0",
-        [
-            {"type": "setup-parameter", "name": "window"},
-            {"type": "setup-parameter", "name": "entry_threshold"},
-            {"type": "setup-parameter", "name": "exit_threshold"},
-        ],
-        [
-            SPYM_RSI_WINDOW,
-            SPYM_RSI_ENTRY_THRESHOLD,
-            SPYM_RSI_EXIT_THRESHOLD,
-        ],
+    binding = candidate_configuration_binding(
+        decided.draft.draft_id,
+        database=path,
     )
-    assert created["configuration_id"] == selected_id
+    assert binding.blocker_code == "implementation_required"
+    assert binding.configuration is None
+
+    service = PersistenceService(path)
+    try:
+        fixture = service.upsert_configuration(
+            {
+                "experiment_id": "wrong_fixture",
+                "strategy_id": "spym_rsi_mean_reversion_fixture",
+                "strategy_version": "1.0.0",
+                "market_data": {"kind": "none"},
+                "parameters": {
+                    "window": SPYM_RSI_WINDOW,
+                    "entry_threshold": SPYM_RSI_ENTRY_THRESHOLD,
+                    "exit_threshold": SPYM_RSI_EXIT_THRESHOLD,
+                },
+                "execution": {"kind": "fixture"},
+                "ranking": {},
+                "screening": {},
+            }
+        )
+        decided = service.link_idea_configuration(
+            draft_id=decided.draft.draft_id,
+            configuration_id=fixture.configuration_id,
+        )
+    finally:
+        service.close()
+
+    binding = candidate_configuration_binding(decided.draft_id, database=path)
+    assert binding.blocker_code == "fixture_substitution_forbidden"
+    assert binding.configuration is None
+
+    bind_selector = _callback(app, "configuration-selector.options")
+    options, selected_id = bind_selector(asdict(decided), None)
+    assert options == []
+    assert selected_id is None
+
+    run_preview = _callback(app, "run-configuration-preview.children")
+    preview = run_preview(fixture.configuration_id, asdict(decided))
+    assert "infrastructure fixture" in str(preview)
+    assert "wrong_fixture" not in str(preview)
 
     launch = _callback(app, "launch-message.children")
     _, message, _, _, _, disabled, _, _ = launch(
         1,
-        selected_id,
+        fixture.configuration_id,
         None,
         "/research/run-test",
+        ["confirmed"],
+        asdict(decided),
     )
-    assert "did not pass preflight" in str(message)
-    assert "could not be found" not in str(message)
+    assert "infrastructure fixture" in str(message)
     assert disabled is True
 
 

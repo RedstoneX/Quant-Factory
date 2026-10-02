@@ -17,7 +17,8 @@ from dashboard.components.operator_context import (
     OperatorContextViewModel,
     operator_context,
 )
-from dashboard.components.configuration_summary import configuration_summary
+from dashboard.candidate_workflow import candidate_selection_blocker
+from dashboard.callbacks.candidate_run import register_candidate_run_preview
 from dashboard.results_contracts import ResultsViewServices
 from dashboard.routing import active_route as _active_route
 from dashboard.run_adapter import (
@@ -757,19 +758,12 @@ def register_backtest_results_callbacks(
             return False, evidence_blocker
         return bool(allowed), str(reason)
 
-    @app.callback(
-        Output("run-configuration-preview", "children"),
-        Input("selected-configuration-state", "data"),
+    register_candidate_run_preview(
+        app,
+        configurations=configurations,
+        readiness_by_id=readiness_by_id,
+        database=dashboard_database,
     )
-    def preview_configuration(configuration_id: str | None):
-        readiness = readiness_by_id.get(configuration_id or "")
-        summary = configuration_summary(
-            readiness,
-            component_id="run-configuration-preview-content",
-        )
-        if readiness is None:
-            return summary.children
-        return summary.children
 
     @app.callback(
         Output("run-test-launch-state", "data"),
@@ -785,14 +779,14 @@ def register_backtest_results_callbacks(
         State("run-test-launch-state", "data"),
         Input("url", "pathname"),
         Input("confirm-run-test", "value"),
+        State("idea-draft-store", "data"),
         running=[
             (Output("launch-run", "disabled"), True, True),
             (Output("launch-run", "children"), "Starting test...", "Start test"),
         ],
     )
-    def launch_saved_configuration(n_clicks: int | None, configuration_id: str | None,
-        launch_state: object = None, pathname: str | None = "/research/run-test",
-        confirmation: list[str] | None = None):
+    def launch_saved_configuration(n_clicks: int | None, configuration_id: str | None, launch_state: object = None,
+        pathname: str | None = "/research/run-test", confirmation: list[str] | None = None, draft: dict[str, Any] | None = None):
         triggered_id = _callback_triggered_id()
         explicit_action = triggered_id == "launch-run" and bool(n_clicks)
         # Dash supplies [] until the owner confirms; older internal callers omit it.
@@ -814,7 +808,8 @@ def register_backtest_results_callbacks(
         )
         selected = current_configurations.get(configuration_id or "")
         readiness = readiness_by_id.get(selected.configuration_id) if selected else None
-        allowed = selected is not None and readiness is not None and readiness.ready
+        candidate_blocker = None if draft is None else candidate_selection_blocker(str(draft.get("draft_id") or ""), configuration_id, database=dashboard_database)
+        allowed = bool(selected and readiness and readiness.ready and not candidate_blocker)
         supported = launch_supported(
             selected.configuration_id if selected is not None else None,
             ResearchLaunchOperation.RUN_TEST,
@@ -956,7 +951,7 @@ def register_backtest_results_callbacks(
                 if isinstance(launch_error, ResearchLaunchContentionError)
                 else "save-message error-state"
             )
-        elif selected is None:
+        elif selected is None and candidate_blocker is None:
             message = _operator_message(
                 "Run launch unavailable.",
                 "The selected saved configuration could not be found.",
@@ -966,7 +961,7 @@ def register_backtest_results_callbacks(
         elif not allowed:
             message = _operator_message(
                 "Run launch unavailable.",
-                "The selected saved configuration did not pass preflight.",
+                candidate_blocker or "The selected saved configuration did not pass preflight.",
                 tone="error",
             )
             message_class = "save-message error-state"

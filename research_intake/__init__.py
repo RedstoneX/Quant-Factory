@@ -10,6 +10,7 @@ from research_intake.qf_candidate import (
     export_candidate_packet,
     import_candidate_as_idea,
     parse_candidate_packet,
+    record_candidate_decision,
     validate_candidate_packet,
 )
 
@@ -23,6 +24,7 @@ __all__ = [
     "export_candidate_packet",
     "import_candidate_as_idea",
     "parse_candidate_packet",
+    "record_candidate_decision",
     "validate_candidate_packet",
 ]
 

@@ -13,6 +13,7 @@ from typing import Any
 from persistence import ArtifactAvailability, ArtifactType, PersistenceService
 from persistence.database import database_path
 from persistence.serialization import canonical_json
+from dashboard.candidate_workflow import candidate_detail_fields, candidate_identity_for_configuration
 from dashboard.formatting import format_metric
 from dashboard.results_model import ResultsDataError, validate_ohlc_rows
 
@@ -1263,6 +1264,7 @@ class RunDetailDashboardAdapter:
             if run is None:
                 raise KeyError(f"unknown run {run_id}")
             configuration = service.configurations.get(run.configuration_id)
+            candidate = candidate_identity_for_configuration(run.configuration_id, database=self.database)
             configuration_document: dict[str, Any] | None = None
             if configuration is None:
                 warnings.append("The saved configuration for this run is missing.")
@@ -1271,7 +1273,6 @@ class RunDetailDashboardAdapter:
                     configuration_document = json.loads(configuration.canonical_config_json)
                 except json.JSONDecodeError as exc:
                     warnings.append(f"The saved configuration is invalid JSON: {exc}")
-
             manifest_document = None
             manifest_checksum = None
             persisted_manifest = service.read_persisted_run_manifest(run_id)
@@ -1318,7 +1319,6 @@ class RunDetailDashboardAdapter:
                     )
                     for artifact in registered_artifacts
                 )
-
             detail = None
             try:
                 detail = service.run_detail(run_id)
@@ -1332,10 +1332,10 @@ class RunDetailDashboardAdapter:
                 artifact_root=self.artifact_root,
             )
             warnings.extend(evidence.warnings)
-
             return SelectedRunDetailView(
                 configuration_fields=(
                     (
+                        *(DetailField(label, value) for label, value in candidate_detail_fields(candidate)),
                         DetailField("Configuration ID", configuration.configuration_id),
                         DetailField("Experiment ID", _display((configuration_document or {}).get("experiment_id"))),
                         DetailField("Strategy", f"{run.strategy_id}@{run.strategy_version}"),

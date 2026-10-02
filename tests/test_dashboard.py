@@ -616,7 +616,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 54
+    assert len(app.callback_map) == 56
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -2009,8 +2009,9 @@ def test_setup_and_run_test_split_configuration_from_launch() -> None:
     )
 
     assert selector.id == "configuration-selector"
-    assert selector.value == "a" * 64
-    assert selector.options[0]["disabled"] is False
+    assert selector.value is None
+    assert selector.options == []
+    assert selector.disabled is True
     assert selector.persistence is True
     assert selector.persistence_type == "session"
     assert preview.id == "configuration-preview"
@@ -2026,13 +2027,8 @@ def test_setup_and_run_test_split_configuration_from_launch() -> None:
         getattr(component, "className", "")
         for component in _walk_components(preview)
     ]
-    assert "Parameters" in rendered
-    assert "Fixture" in rendered
-    assert "Yes" in rendered
-    assert "Execution assumptions" in rendered
-    assert "Kind" in rendered
-    assert "Prefect fixture" in rendered
-    assert "prefect_fixture" in rendered
+    assert "No approved choices" in rendered
+    assert "Choose and accept a Candidate" in rendered
     assert "configuration-document" not in classes
 
 
@@ -2049,8 +2045,8 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
     assert "Selected idea" in rendered
     assert "Current state" in rendered
     assert "Setup saves a test plan; it never starts a test" in rendered
-    assert "Review the exact saved test" in rendered
-    assert "Create a new bounded setup" in rendered
+    assert "Review this Candidate's exact test" in rendered
+    assert "Exact implementation required" in rendered
     assert "Nothing starts here" in rendered
     assert identifiers.count("configuration-selector") == 1
     assert identifiers.count("setup-strategy-selector") == 1
@@ -2063,7 +2059,7 @@ def test_setup_and_run_test_handle_empty_configuration_list() -> None:
     run_page = page_for_path("/research/run-test", None, ())
 
     assert "No approved choices" in _component_text(setup_page)
-    assert "No saved setup selected" in _component_text(run_page)
+    assert "No Candidate test is ready" in _component_text(run_page)
     launch_button = next(
         component
         for component in _walk_components(run_page)
@@ -3022,11 +3018,11 @@ def test_selected_setup_identity_updates_run_test_preview(
     )
     run_children = run_preview(second.configuration_id)
 
-    assert "second_operator_choice" in _component_text(html.Div(setup_children))
+    assert "Choose a saved QF Candidate first" in _component_text(html.Div(setup_children))
     assert "second_operator_choice" in _component_text(html.Div(run_children))
-    assert href == "/research/run-test"
-    assert setup_state == "Ready to review"
-    assert "setup-campaign-item-ready" in setup_state_class
+    assert href is None
+    assert setup_state == "Candidate not ready"
+    assert "setup-campaign-item-blocked" in setup_state_class
 
 
 def test_initial_idea_hydration_cannot_overwrite_first_keystroke(

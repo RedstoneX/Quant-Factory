@@ -16,12 +16,16 @@ from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 
 from dashboard.routing import active_route
+from dashboard.callbacks.candidate_decision import (
+    draft_options as _draft_options,
+    register_candidate_decision_callback,
+    setup_link_state as _setup_link_state,
+)
 from dashboard.pages.ideas import _candidate_brief
 from dashboard.pages.ideas import _candidate_status
 from dashboard.pages.ideas import _candidate_status_prompt
 from dashboard.pages.ideas import _candidate_prompt
 from dashboard.pages.ideas import _candidate_validation_data
-from dashboard.pages.ideas import _draft_options as _workbench_draft_options
 from dashboard.pages.ideas import _readable_time
 from dashboard.run_adapter import (
     delete_idea_draft,
@@ -159,27 +163,6 @@ def _idea_draft_transition(
     )
 
 
-def _draft_options(database: str | Path) -> list[dict[str, object]]:
-    return _workbench_draft_options(list_idea_drafts(database))
-
-
-def _setup_link_state(
-    draft: dict[str, Any] | None,
-    *,
-    dirty: bool = False,
-) -> tuple[str | None, str]:
-    value = draft or {}
-    allowed = bool(
-        value.get("draft_id")
-        and not dirty
-        and (value.get("configuration_id") or not value.get("candidate_json"))
-    )
-    return (
-        "/research/setup" if allowed else None,
-        "primary-action" if allowed else "primary-action action-disabled",
-    )
-
-
 def _decode_candidate_upload(contents: str | None, filename: str | None) -> str:
     suffix = Path(filename or "").suffix.lower()
     if suffix not in {".yaml", ".yml", ".json"}:
@@ -222,12 +205,10 @@ def _same_candidate(candidate_text: str, stored: dict[str, Any]) -> bool:
     return candidate.canonical_json == persisted.canonical_json
 
 
-def register_ideas_callbacks(
-    app: Dash,
-    *,
-    database: str | Path,
-) -> None:
+def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
     """Persist only operator-authored text in local Quant Factory storage."""
+
+    register_candidate_decision_callback(app, database=database)
 
     @app.callback(
         Output("manual-idea-path", "className"),

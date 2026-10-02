@@ -14,6 +14,7 @@ def idea_review_workspace(
     selected: Any,
     candidate_brief: Any,
     candidate_valid: bool,
+    candidate_status: str,
     can_continue: bool,
 ) -> tuple[Any, Any]:
     """Build the approved three-column review hierarchy from live state."""
@@ -98,40 +99,71 @@ def idea_review_workspace(
                 ],
                 className="idea-workbench-panel idea-review-main",
             ),
-            html.Aside(
-                [
-                    html.Div(
-                        [
-                            html.Span(
-                                "Ready to review" if selected else "Choose an idea",
-                                id="idea-brief-state",
-                                className="idea-brief-badge idea-brief-badge-ready" if selected else "idea-brief-badge",
-                            ),
-                            html.H2("Choose what happens next"),
-                            html.P("Save the exact version for Set up, revise it, or remove an unlinked draft."),
-                        ],
-                        className="idea-decision-heading",
-                    ),
-                    html.Strong(
-                        "Save this draft, then continue to Set up." if selected else "Add or import an idea first.",
-                        id="idea-next-action-copy",
-                        className="idea-decision-next",
-                    ),
-                    dcc.Link(
-                        "Accept",
-                        id="continue-idea-to-setup",
-                        href="/research/setup" if can_continue else None,
-                        className="primary-action" if can_continue else "primary-action action-disabled",
-                    ),
-                    html.A("Revise", href="#idea-intake", className="secondary-action idea-decision-button"),
-                    html.Button("Reject", id="discard-idea-draft", n_clicks=0, className="secondary-action idea-reject-button"),
-                ],
-                className="idea-workbench-panel idea-decision-panel",
-            ),
+            _decision_panel(selected, candidate_valid, candidate_status, can_continue),
         ],
         className="idea-review-workspace",
     )
     return attention, workspace
+
+
+def _decision_panel(
+    selected: Any,
+    candidate_valid: bool,
+    candidate_status: str,
+    can_continue: bool,
+) -> html.Aside:
+    approved = candidate_status == "owner_approved"
+    rejected = candidate_status == "rejected"
+    state = "Accepted" if approved else "Rejected" if rejected else "Ready to review" if selected else "Choose an idea"
+    next_action = (
+        "Continue to Set up to check whether this exact Candidate is implemented."
+        if approved else "This Candidate remains in history and cannot continue."
+        if rejected else "Review the exact Candidate, then choose one action."
+        if selected else "Add or import an idea first."
+    )
+    actionable = bool(selected and candidate_valid and not approved and not rejected)
+    return html.Aside(
+        [
+            html.Div(
+                [
+                    html.Span(
+                        state,
+                        id="idea-brief-state",
+                        className="idea-brief-badge idea-brief-badge-ready" if selected else "idea-brief-badge",
+                    ),
+                    html.H2("Choose what happens next"),
+                    html.P("Accept this exact version, revise it, or reject it."),
+                ],
+                className="idea-decision-heading",
+            ),
+            html.Strong(next_action, id="idea-next-action-copy", className="idea-decision-next"),
+            html.Button(
+                "Accept",
+                id="accept-candidate-for-setup",
+                n_clicks=0,
+                disabled=not actionable,
+                className="primary-action" if actionable else "primary-action action-disabled",
+            ),
+            html.A("Revise", href="#idea-intake", className="secondary-action idea-decision-button"),
+            html.Button(
+                "Reject",
+                id="reject-candidate",
+                n_clicks=0,
+                disabled=not selected or not candidate_valid or rejected,
+                className="secondary-action idea-reject-button",
+            ),
+            dcc.Link(
+                "Continue to Set up",
+                id="continue-idea-to-setup",
+                href="/research/setup" if can_continue else None,
+                className=(
+                    "primary-action idea-decision-button"
+                    if can_continue else "secondary-action idea-decision-button action-disabled"
+                ),
+            ),
+        ],
+        className="idea-workbench-panel idea-decision-panel",
+    )
 
 
 def _fact(label: str, value: str, component_id: str) -> html.Div:

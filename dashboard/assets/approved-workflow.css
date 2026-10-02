@@ -475,3 +475,28 @@
   flex: 0 0 auto;
   min-height: 40px;
 }
+
+.candidate-workflow-identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.candidate-workflow-identity strong,
+.candidate-workflow-identity small {
+  overflow-wrap: anywhere;
+}
+
+.candidate-workflow-identity small {
+  color: #68778d;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.candidate-workflow-identity-run {
+  background: #f7f9fc;
+  border: 1px solid #dce3ec;
+  border-radius: 10px;
+  margin: 0 0 14px;
+  padding: 12px 15px;
+}

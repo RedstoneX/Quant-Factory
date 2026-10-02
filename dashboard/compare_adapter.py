@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import urlencode
 
+from dashboard.candidate_workflow import candidate_compare_identity
 from dashboard.callbacks.review_state import load_durable_review
 from dashboard.formatting import format_metric
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter, SelectedRunDetailView
@@ -46,7 +47,6 @@ class CompareRunIdentity:
     omissions: tuple[str, ...] = ()
     errors: tuple[str, ...] = ()
 
-
 @dataclass(frozen=True, slots=True)
 class CompareMetricValue:
     run_id: str
@@ -54,7 +54,6 @@ class CompareMetricValue:
     display_value: str
     basis: str
     omission: str | None = None
-
 
 @dataclass(frozen=True, slots=True)
 class CompareMetricRow:
@@ -64,12 +63,10 @@ class CompareMetricRow:
     values: tuple[CompareMetricValue, ...]
     basis_warning: str | None = None
 
-
 @dataclass(frozen=True, slots=True)
 class CompareSeriesPoint:
     timestamp: str
     value: float
-
 
 @dataclass(frozen=True, slots=True)
 class CompareSeries:
@@ -132,6 +129,7 @@ class _RunSnapshot:
     results_href: str
     available: bool = False
     strategy: str = "Unavailable"
+    candidate: dict[str, str] = field(default_factory=dict)
     instrument: str = "Unavailable"
     timeframe: str = "Unavailable"
     requested_period: str = "Unavailable"
@@ -239,10 +237,10 @@ class CompareDashboardAdapter:
             return snapshot
 
         snapshot.available = True
-        snapshot.strategy = f"{run.strategy_id}@{run.strategy_version}"
+        implementation = f"{run.strategy_id}@{run.strategy_version}"
+        snapshot.strategy, snapshot.candidate = candidate_compare_identity(run.configuration_id, implementation, database=self.database)
         snapshot.run_status = run.status.value.replace("_", " ").title()
         snapshot.stage = run.stage.value.replace("_", " ").title()
-
         configuration = service.configurations.get(run.configuration_id)
         configuration_document: dict[str, Any] = {}
         if configuration is None:
@@ -537,6 +535,7 @@ def _difference_groups(
     snapshots: tuple[_RunSnapshot, ...],
 ) -> tuple[CompareDifferenceGroup, ...]:
     documents = {
+        "candidate": [snapshot.candidate for snapshot in snapshots],
         "parameters": [snapshot.parameters for snapshot in snapshots],
         "data": [
             {
@@ -575,6 +574,7 @@ def _difference_groups(
         ],
     }
     labels = {
+        "candidate": "Candidate identity",
         "parameters": "Parameters",
         "data": "Data, provider and period",
         "execution": "Execution and costs",
@@ -587,7 +587,7 @@ def _difference_groups(
             label=labels[key],
             fields=_difference_fields(snapshots, documents[key]),
         )
-        for key in ("parameters", "data", "execution", "evidence", "review")
+        for key in ("candidate", "parameters", "data", "execution", "evidence", "review")
     )
 
 

@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **326** | **Repair and complete the exact connected Candidate workflow before handoff:** one immutable Candidate identity/version must remain traceable through Ideas, Setup, Run Test, Results, and Compare; an unrelated fixture may never be substituted. Prepare the existing provider-neutral Gateway for bounded autonomous research campaigns and supply a copy/paste launcher, but do not run real strategy research before Terry accepts the first exact Candidate and evidence contract. |
 | **325** | **Automated browser testing is prohibited:** Terry owns browser QA. Codex and CI use focused non-browser tests plus health/reachability evidence and hand the rendered workflow to Terry; retained browser assets are not executed unless Terry explicitly reverses this decision. |
 | **324** | **Complete provider-neutral agent onboarding through one shared operating context and trusted bootstrap:** every approved client uses the same Gateway semantics; identity is server-bound rather than caller-claimed; Codex and Claude are the first local proof clients. Existing owner, research, protected-data, trading, credential, and capital gates remain unchanged. |
 | **323** | **Activate the provider-neutral Agent Research Gateway side mission through ARG-6:** reuse the existing Candidate/context/persistence/orchestration/evidence boundaries; provide local Unix-socket/CLI and restricted forced-command SSH access; preserve all owner, protected-data, paper/live, broker, secret, and capital gates. R12 remains deployed for owner review and Candidate research remains paused. |
@@ -1953,3 +1954,40 @@ superseded.
      release work unless Terry explicitly reverses this decision. This accepts
      the reduced automated UI-regression coverage in exchange for eliminating
      the recurring browser-test time and compute cost.
+
+
+326. **Complete the exact connected Candidate workflow and prepare bounded
+     autonomous research operation (accepted 2026-10-02).** After attempting
+     the deployed owner walkthrough, Terry found that an imported Candidate
+     did not remain connected beyond Ideas and that Setup/Run Test could
+     present and launch an unrelated infrastructure fixture. Terry authorizes
+     Codex to repair and complete the existing workflow autonomously, merge it,
+     back it up, and deploy it through the existing private tailnet service.
+
+     The same identifiable, immutable Candidate version, source attribution,
+     rationale, fixed rules, evidence contract, implementation state, run,
+     results, and comparison identity must remain connected from Ideas through
+     Compare. Missing executable logic is a visible implementation boundary,
+     never permission to match or run another strategy. Reuse the existing QF
+     Candidate, persistence, Candidate runtime, VectorBT, Agent Research
+     Gateway, dashboard, architecture, and mature component system; no new
+     frontend, framework, service, generic strategy compiler, or orchestration
+     layer is authorized.
+
+     The existing Gateway and shared operating context may receive only the
+     smallest additions needed for bounded autonomous campaigns: prior-work
+     checking, source-attributed distinct Candidate proposals, evidence-based
+     child lineage, predeclared chronological/OOS/walk-forward boundaries,
+     look-ahead and protected-evidence controls, cost/information-gain stopping
+     rules, and a provider-neutral copy/paste launcher. Codex and Claude may
+     propose through their registered authority; authority remains
+     server-bound. No agent may auto-approve or auto-promote a Candidate.
+
+     This decision does not authorize actual strategy discovery or a real
+     Candidate run as implementation proof. Terry must still accept the first
+     exact Candidate and evidence contract before research begins. Paid or
+     protected data, new credentials, broker work, paper/live activation,
+     orders, capital, public exposure, destructive migration, and unrelated
+     work remain outside scope. Decision 325's prohibition on automated
+     browser tests remains in force; Terry performs the final browser
+     walkthrough.

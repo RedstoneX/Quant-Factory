@@ -157,7 +157,9 @@ def test_candidate_validation_submission_dedup_and_audit(tmp_path, identities):
 
     service = PersistenceService(tmp_path / "qf.sqlite3")
     try:
-        assert len(service.idea_drafts.list()) == 1
+        drafts = service.idea_drafts.list()
+        assert len(drafts) == 1
+        assert drafts[0].attribution.startswith("Agent claude-local (anthropic)")
     finally:
         service.close()
     connection = sqlite3.connect(tmp_path / "gateway.sqlite3")
