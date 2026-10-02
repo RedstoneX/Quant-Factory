@@ -118,22 +118,15 @@ def layout(
                     html.Div(
                         [
                             html.P("RESEARCH / SET UP", className="page-eyebrow"),
-                            html.H1("Define the experiment", className="page-title"),
+                            html.H1("Prepare a strategy test", className="page-title"),
                             html.P(
-                                "See exactly what the research engine can test before an immutable setup is saved.",
+                                "Connect a saved idea to an existing approved implementation, or review a setup that is already prepared.",
                                 className="page-description",
                             ),
                         ]
                     ),
-                    html.Button(
-                        "Save setup draft",
-                        id="save-idea-configuration",
-                        n_clicks=0,
-                        disabled=not approved_strategies,
-                        className="primary-action page-action",
-                    ),
                 ],
-                className="page-heading page-heading-with-actions setup-page-heading",
+                className="page-heading setup-page-heading",
             ),
             dcc.Store(
                 id="selected-configuration-state",
@@ -145,153 +138,262 @@ def layout(
                 [
                     html.Div(
                         [
-                            html.Span("From idea", className="setup-context-label"),
-                            html.Strong(
-                                "Choose and save a draft on Ideas first.",
-                                id="setup-idea-title",
+                            html.P("START HERE", className="page-eyebrow"),
+                            html.H2("Know what is ready before you change anything"),
+                            html.P(
+                                "A saved Candidate is a research proposal. A runnable setup additionally needs an approved implementation, bounded parameters, and compatible local data.",
+                                className="setup-guidance-lede",
                             ),
-                            html.Small("Owner-authored source capture"),
                         ],
-                        className="setup-context-item",
+                        className="setup-guidance-heading",
                     ),
                     html.Div(
                         [
-                            html.Label(
-                                "Approved strategy or fixture",
-                                htmlFor="setup-strategy-selector",
-                                className="setup-context-label",
-                            ),
-                            dcc.Dropdown(
-                                id="setup-strategy-selector",
-                                options=[
-                                    {
-                                        "label": f"{strategy.name} · {strategy.lifecycle}",
-                                        "value": strategy.identity,
-                                    }
-                                    for strategy in approved_strategies
+                            html.Div(
+                                [
+                                    html.Span("YOUR SAVED IDEA", className="setup-state-label"),
+                                    html.Strong(
+                                        "Choose and save a draft on Ideas first.",
+                                        id="setup-idea-title",
+                                    ),
+                                    html.P(
+                                        "The idea and its source context stay unchanged here.",
+                                        className="field-help",
+                                    ),
                                 ],
-                                value=(approved_strategies[0].identity if approved_strategies else None),
-                                clearable=False,
-                                placeholder="No approved specification available",
-                                disabled=not approved_strategies,
+                                className="setup-state-card setup-state-card-idea",
+                            ),
+                            html.Div(
+                                [
+                                    html.Span("WHAT A TEST NEEDS", className="setup-state-label"),
+                                    html.Strong("Approved implementation + fixed choices + data"),
+                                    html.P(
+                                        "Setup records those exact inputs. It does not invent strategy logic.",
+                                        className="field-help",
+                                    ),
+                                ],
+                                className="setup-state-card",
+                            ),
+                            html.Div(
+                                [
+                                    html.Span("CURRENT RESULT", className="setup-state-label"),
+                                    html.Strong(initial_state, className="setup-context-state"),
+                                    html.P(
+                                        (
+                                            "The selected saved setup can move to final review."
+                                            if review_enabled
+                                            else "Read the blocker below before trying to continue."
+                                            if first_readiness is not None
+                                            else "There is no saved setup to review yet."
+                                        ),
+                                        className="field-help",
+                                    ),
+                                ],
+                                className=(
+                                    "setup-state-card setup-state-card-ready"
+                                    if review_enabled
+                                    else "setup-state-card setup-state-card-blocked"
+                                ),
                             ),
                         ],
-                        className="setup-context-item",
+                        className="setup-state-grid",
                     ),
                     html.Div(
                         [
-                            html.Label(
-                                "Saved setup",
-                                id="configuration-selector-label",
-                                htmlFor="configuration-selector",
-                                className="setup-context-label",
+                            html.Strong("Important boundary"),
+                            html.P(
+                                "Importing a Candidate does not make it runnable, and choosing a similar existing strategy does not implement it. Nothing launches from this page."
                             ),
-                            selector,
                         ],
-                        className="setup-context-item",
-                        role="group",
-                        **{"aria-labelledby": "configuration-selector-label"},
-                    ),
-                    html.Div(
-                        [
-                            html.Span(initial_state, className="setup-context-state"),
-                            html.Small("No test starts from this page"),
-                        ],
-                        className="setup-context-item setup-context-readiness",
+                        className="setup-boundary-callout",
                     ),
                 ],
-                className="setup-context-strip",
+                className="setup-guidance-panel",
             ),
-            html.Div(
+            html.Main(
                 [
-                    html.Div(
+                    html.Section(
                         [
                             html.Div(
                                 [
                                     html.Div(
                                         [
-                                            html.H2("Immutable contract preview"),
+                                            html.P("EXISTING SAVED SETUPS", className="page-eyebrow"),
+                                            html.H2("Review exactly what can already be tested"),
                                             html.P(
-                                                "Every recorded input, assumption, data boundary, and launch blocker stays visible before anything can run.",
+                                                "Choose a saved setup to see its strategy, data, parameters, assumptions, and any blocker before moving forward.",
                                                 className="section-description",
                                             ),
                                         ]
                                     ),
-                                    html.Span("Read only until saved", className="surface-badge"),
+                                    html.Span("Read only", className="surface-badge"),
                                 ],
-                                className="surface-heading",
+                                className="setup-section-heading",
+                            ),
+                            html.Div(
+                                [
+                                    html.Label(
+                                        "Saved setup",
+                                        id="configuration-selector-label",
+                                        htmlFor="configuration-selector",
+                                        className="field-label",
+                                    ),
+                                    selector,
+                                    html.P(
+                                        "Changing this selection only changes the preview. It does not run a test.",
+                                        className="field-help",
+                                    ),
+                                ],
+                                className="setup-saved-selector",
+                                role="group",
+                                **{"aria-labelledby": "configuration-selector-label"},
                             ),
                             preview,
                         ],
                         className="setup-contract-workspace",
                     ),
-                    html.Aside(
+                    html.Details(
                         [
-                            html.Section(
+                            html.Summary(
                                 [
                                     html.Div(
                                         [
-                                            html.H2("Bounded setup controls"),
+                                            html.Span("OPTIONAL", className="setup-state-label"),
+                                            html.Strong("Create a new bounded setup"),
+                                            html.Small("Only from an implementation that already exists and is approved"),
+                                        ]
+                                    ),
+                                    html.Span("Open →", className="setup-disclosure-action"),
+                                ],
+                                className="setup-create-summary",
+                            ),
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [
+                                            html.Div(
+                                                [
+                                                    html.H2("Create from an approved implementation"),
+                                                    html.P(
+                                                        "Use this only when the saved idea is the exact strategy represented by an implementation already registered in Quant Factory.",
+                                                        className="section-description",
+                                                    ),
+                                                ]
+                                            ),
                                             html.Span("Specification-bound", className="surface-badge surface-badge-safe"),
                                         ],
-                                        className="surface-heading",
+                                        className="setup-section-heading setup-create-heading",
                                     ),
-                                    html.P(
-                                        "Only values permitted by the approved specification can be selected.",
-                                        className="field-help",
-                                    ),
-                                    html.Div(id="setup-parameter-controls", className="setup-parameter-list"),
                                     html.Div(
-                                        "No setup has been created from the selected idea.",
-                                        id="idea-configuration-status",
-                                        className="save-message setup-save-status",
+                                        [
+                                            html.Div(
+                                                [
+                                                    html.Label(
+                                                        "Existing approved implementation",
+                                                        htmlFor="setup-strategy-selector",
+                                                        className="field-label",
+                                                    ),
+                                                    dcc.Dropdown(
+                                                        id="setup-strategy-selector",
+                                                        options=[
+                                                            {
+                                                                "label": f"{strategy.name} · {strategy.lifecycle}",
+                                                                "value": strategy.identity,
+                                                            }
+                                                            for strategy in approved_strategies
+                                                        ],
+                                                        value=(approved_strategies[0].identity if approved_strategies else None),
+                                                        clearable=False,
+                                                        placeholder="No approved implementation available",
+                                                        disabled=not approved_strategies,
+                                                    ),
+                                                    html.P(
+                                                        "An imported Candidate will not appear here until its strategy logic has been separately approved and implemented.",
+                                                        className="field-help",
+                                                    ),
+                                                ],
+                                                className="setup-create-field",
+                                            ),
+                                            html.Div(
+                                                [
+                                                    html.H3("Allowed choices"),
+                                                    html.P(
+                                                        "Only values declared by the approved strategy specification are available.",
+                                                        className="field-help",
+                                                    ),
+                                                    html.Div(id="setup-parameter-controls", className="setup-parameter-list"),
+                                                ],
+                                                className="setup-parameter-panel",
+                                            ),
+                                        ],
+                                        className="setup-create-grid",
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Div(
+                                                "No setup has been created from the selected idea.",
+                                                id="idea-configuration-status",
+                                                className="save-message setup-save-status",
+                                            ),
+                                            html.Button(
+                                                "Save bounded setup",
+                                                id="save-idea-configuration",
+                                                n_clicks=0,
+                                                disabled=not approved_strategies,
+                                                className="primary-action",
+                                            ),
+                                        ],
+                                        className="setup-create-actions",
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Strong("Why this may still be blocked"),
+                                            html.P(
+                                                "Saving records the permitted choices. Approval, a concrete data binding, and a passing readiness check are still required before Run test becomes available."
+                                            ),
+                                        ],
+                                        className="operator-message operator-message-warning setup-boundary-note",
                                     ),
                                 ],
-                                className="panel setup-control-panel",
-                            ),
-                            html.Section(
-                                [
-                                    html.Strong("Idea-to-code boundary"),
-                                    html.P(
-                                        (
-                                            "Saving preserves a bounded setup draft. A new idea still needs explicit hypothesis approval, deterministic strategy implementation, and concrete data binding before Run test can become available."
-                                        ),
-                                        className="field-help",
-                                    ),
-                                ],
-                                className="operator-message operator-message-warning setup-boundary-note",
-                            ),
-                            html.Section(
-                                [
-                                    html.Strong("Next safe action"),
-                                    html.P(
-                                        "Review test is enabled only for an already approved setup whose local data and runtime binding pass preflight.",
-                                        className="field-help",
-                                    ),
-                                    dcc.Link(
-                                        "Review test",
-                                        id="review-test-action",
-                                        href="/research/run-test" if review_enabled else None,
-                                        className=(
-                                            "primary-action"
-                                            if review_enabled
-                                            else "primary-action action-disabled"
-                                        ),
-                                        title=(
-                                            "Review this immutable saved setup before running it."
-                                            if review_enabled
-                                            else "Resolve every preflight blocker before reviewing this test."
-                                        ),
-                                    ),
-                                ],
-                                className="panel setup-next-panel",
-                            ),
-                            html.P(
-                                "Fixture results prove mechanics, not profit. No setup or test grants paper or live trading authority.",
-                                className="setup-footer-note",
+                                className="setup-create-body",
                             ),
                         ],
-                        className="setup-controls-rail",
+                        className="setup-create-disclosure",
+                        open=not available,
+                    ),
+                    html.Section(
+                        [
+                            html.Div(
+                                [
+                                    html.Span("NEXT SAFE ACTION", className="setup-state-label"),
+                                    html.H2("Review the selected saved setup"),
+                                    html.P(
+                                        "Continue only when the preview above says it is ready. The next page asks for a final review before any launch.",
+                                        className="section-description",
+                                    ),
+                                ]
+                            ),
+                            dcc.Link(
+                                "Review test",
+                                id="review-test-action",
+                                href="/research/run-test" if review_enabled else None,
+                                className=(
+                                    "primary-action"
+                                    if review_enabled
+                                    else "primary-action action-disabled"
+                                ),
+                                title=(
+                                    "Review this immutable saved setup before running it."
+                                    if review_enabled
+                                    else "Resolve every preflight blocker before reviewing this test."
+                                ),
+                            ),
+                        ],
+                        className="setup-next-panel",
+                    ),
+                    html.P(
+                        "Fixture results prove mechanics, not profit. No setup or test grants paper or live trading authority.",
+                        className="setup-footer-note",
                     ),
                 ],
                 className="setup-workbench-grid",
