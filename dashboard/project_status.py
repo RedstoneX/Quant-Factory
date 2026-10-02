@@ -24,7 +24,8 @@ PROJECT_STATUS = DashboardProjectStatus(
     ),
     workspace_status=(
         "R13 is complete and R12 awaits owner review. The separately authorized "
-        "agent gateway does not start strategy testing."
+        "agent gateway is operational locally; its real Grok connection awaits "
+        "the owner-controlled hosted public key and does not start strategy testing."
     ),
     home_subtitle="Your strategy research workspace.",
 )

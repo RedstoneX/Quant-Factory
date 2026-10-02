@@ -43,7 +43,8 @@ def test_compose_binds_dashboard_only_to_loopback_and_uses_external_root():
     assert "entrypoint: [prefect]" in compose
     assert "PREFECT_SERVER_ANALYTICS_ENABLED: \"false\"" in compose
     assert "QF_GATEWAY_SOCKET_PATH: /run/quant-factory/agent-gateway.sock" in compose
-    assert "HOME: /tmp/qf-gateway-home" in compose
+    assert "HOME: /tmp" in compose
+    assert "PREFECT_HOME: /tmp/qf-prefect" in compose
     assert "agent-gateway:" in compose
     assert "ports:" not in compose.split("  agent-gateway:", 1)[1]
 
