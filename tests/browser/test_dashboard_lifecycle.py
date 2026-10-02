@@ -752,6 +752,16 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
     database = server_log.parent / "state" / "mounted-workflow.sqlite3"
     events = []
     external_requests = []
+
+    def is_save_callback(response) -> bool:
+        if "/_dash-update-component" not in response.url:
+            return False
+        try:
+            body = json.loads(response.request.post_data or "{}")
+        except json.JSONDecodeError:
+            return False
+        return "save-idea-draft.n_clicks" in body.get("changedPropIds", ())
+
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
@@ -776,7 +786,8 @@ def test_ideas_invalid_url_stays_local_and_requires_discard_confirmation(
                 "Unsaved local changes"
             )
             _wait_for_callbacks_to_settle(page, pending_requests)
-            page.locator("#save-idea-draft").click()
+            with page.expect_response(is_save_callback, timeout=10_000):
+                page.locator("#save-idea-draft").click()
             _wait_for_callbacks_to_settle(page, pending_requests)
             persistence = PersistenceService(database)
             try:
