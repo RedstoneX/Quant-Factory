@@ -60,6 +60,10 @@ jobs:
             requirements-runtime.txt
             requirements-ci.txt
             requirements-dashboard.txt
+      - name: Enforce structural maintainability ratchets
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python tools/check_structural_maintainability.py --base-ref "$BASE_REF"
       - name: Enforce architecture dependency boundaries
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
