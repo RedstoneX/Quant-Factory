@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **325** | **Automated browser testing is prohibited:** Terry owns browser QA. Codex and CI use focused non-browser tests plus health/reachability evidence and hand the rendered workflow to Terry; retained browser assets are not executed unless Terry explicitly reverses this decision. |
 | **324** | **Complete provider-neutral agent onboarding through one shared operating context and trusted bootstrap:** every approved client uses the same Gateway semantics; identity is server-bound rather than caller-claimed; Codex and Claude are the first local proof clients. Existing owner, research, protected-data, trading, credential, and capital gates remain unchanged. |
 | **323** | **Activate the provider-neutral Agent Research Gateway side mission through ARG-6:** reuse the existing Candidate/context/persistence/orchestration/evidence boundaries; provide local Unix-socket/CLI and restricted forced-command SSH access; preserve all owner, protected-data, paper/live, broker, secret, and capital gates. R12 remains deployed for owner review and Candidate research remains paused. |
 | **322** | **R13 standardized intake is owner-accepted and complete:** Terry completed all seven Ideas-page checks and successfully used the exported context with an external LLM to produce a Candidate YAML packet. The existing R12 connected operator-product walkthrough is now the sole active handoff gate; strategy testing remains paused. |
@@ -1937,3 +1938,18 @@ superseded.
      not start research, approve a Candidate, connect Grok or Gemini, add MCP
      or REST, purchase data, inspect protected evidence, expand credentials or
      brokers, or authorize paper/live trading, orders, risk, or capital.
+
+
+325. **Make browser QA owner-only and prohibit automated browser tests
+     (accepted 2026-10-02).** Terry explicitly directs Codex never to run
+     browser tests and states that he will perform browser QA. The automatic
+     `Browser tests` CI job is removed. Codex uses focused non-browser tests,
+     architecture and governance checks where applicable, and ordinary
+     revision/health/reachability proof, then hands the rendered workflow to
+     Terry for browser acceptance.
+
+     Existing browser test files and historical browser evidence are retained
+     for provenance; they are not executed by Codex, CI, schedules, or routine
+     release work unless Terry explicitly reverses this decision. This accepts
+     the reduced automated UI-regression coverage in exchange for eliminating
+     the recurring browser-test time and compute cost.

@@ -339,3 +339,6 @@ def test_results_layout_contract_is_included_in_complete_non_browser_ci() -> Non
         in workflow
     )
     assert "--ignore=tests/browser\n          tests" in workflow
+    assert "\n  browser-tests:" not in workflow
+    assert "Run every portable browser test" not in workflow
+    assert "playwright==" not in workflow.lower()
