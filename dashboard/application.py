@@ -2375,14 +2375,9 @@ def _price_marker_figure(
     selected_trade_index: int | None = None,
 ) -> tuple[go.Figure, str]:
     """Build the approved Bars/View workspace from persisted evidence only."""
-
     instrument = _evidence_instrument(detail)
     timeframe = _evidence_timeframe(detail)
-    classification = detail.evidence.evidence_classification or ""
-    synthetic_fixture = "synthetic" in classification.casefold()
-    price_evidence_label = "Synthetic fixture" if synthetic_fixture else "Observed"
-    bar_evidence_label = "synthetic fixture" if synthetic_fixture else "actual"
-    title_evidence_label = "synthetic fixture" if synthetic_fixture else "observed"
+    synthetic_fixture = "synthetic" in (detail.evidence.evidence_classification or "").casefold()
     source_interval = detail.evidence.source_interval
     selected_interval = interval or (
         source_interval if source_interval in _RESULTS_INTERVALS else _RESULTS_INTERVALS[0]
@@ -2484,7 +2479,6 @@ def _price_marker_figure(
         visible_bars = tuple(bar for bar in bars if start <= bar.timestamp < end)
         if not visible_bars:
             visible_bars = bars[-1:]
-
     visible_timestamps = {bar.timestamp for bar in visible_bars}
     figure = go.Figure()
     figure.add_trace(
@@ -2496,7 +2490,7 @@ def _price_marker_figure(
             close=[bar.close for bar in visible_bars],
             increasing={"line": {"color": "#16a34a", "width": 1}, "fillcolor": "#16a34a"},
             decreasing={"line": {"color": "#dc2626", "width": 1}, "fillcolor": "#dc2626"},
-            name=f"{price_evidence_label} {instrument} ({selected_interval})",
+            name=f"{'Synthetic fixture' if synthetic_fixture else 'Observed'} {instrument} ({selected_interval})",
             hovertemplate=bar_hover.replace(source_label, selected_interval, 1),
         )
     )
@@ -2561,9 +2555,7 @@ def _price_marker_figure(
         )
 
     figure.update_layout(
-        title=(
-            f"{instrument} {title_evidence_label} {timeframe} price with trade entries and exits"
-        ),
+        title=f"{instrument} {'synthetic fixture' if synthetic_fixture else 'observed'} {timeframe} price with trade entries and exits",
         template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -2576,8 +2568,8 @@ def _price_marker_figure(
         uirevision=f"{selected_interval}:{selected_view}:{selected_trade_index or 'none'}",
     )
     summary = (
-        f"Showing {len(visible_bars):,} of {len(bars):,} {bar_evidence_label} "
-        f"{selected_interval} bars "
+        f"Showing {len(visible_bars):,} of {len(bars):,} "
+        f"{'synthetic fixture' if synthetic_fixture else 'actual'} {selected_interval} bars "
         f"for {selected_view}, with {visible_marker_count:,} visible trade markers."
     )
     return figure, summary
