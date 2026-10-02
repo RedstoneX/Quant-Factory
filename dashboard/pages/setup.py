@@ -96,12 +96,13 @@ def layout(
             None,
             component_id="configuration-preview",
             loading=loading,
-            empty_title="No approved choices",
+            empty_title="Implementation needed",
             empty_message=(
                 binding.blocker_reason
                 if binding is not None and binding.blocker_reason
                 else "Choose and accept a Candidate on Ideas before preparing a test."
             ),
+            empty_action_href=None,
         )
 
     review_enabled = first_readiness is not None and first_readiness.ready and not loading
@@ -208,7 +209,11 @@ def layout(
                                         className="field-help",
                                     ),
                                 ],
-                                className="setup-saved-selector",
+                                className=(
+                                    "setup-saved-selector"
+                                    if first is not None
+                                    else "setup-saved-selector setup-saved-selector-blocked"
+                                ),
                                 role="group",
                                 **{"aria-labelledby": "configuration-selector-label"},
                             ),
@@ -217,43 +222,62 @@ def layout(
                         className="setup-contract-workspace",
                     ),
                     candidate_implementation_boundary(open_boundary=first is None),
-                    html.Section(
-                        [
-                            html.Div(
-                                [
-                                    html.Span("YOUR DECISION", className="setup-state-label"),
-                                    html.H2("Is this test ready for final review?"),
-                                    html.P(
-                                        "If anything is wrong, revise the idea or create a new bounded setup. Nothing starts here.",
-                                        className="section-description",
-                                    ),
-                                ]
-                            ),
-                            dcc.Link(
-                                "Continue",
-                                id="review-test-action",
-                                href="/research/run-test" if review_enabled else None,
-                                className=(
-                                    "primary-action"
-                                    if review_enabled
-                                    else "primary-action action-disabled"
-                                ),
-                                title=(
-                                    "Review this immutable saved setup before running it."
-                                    if review_enabled
-                                    else "Resolve every preflight blocker before reviewing this test."
-                                ),
-                            ),
-                        ],
-                        className="setup-next-panel",
-                    ),
+                    _next_step(review_enabled),
                     html.P(
                         "Fixture results prove mechanics, not profit. No setup or test grants paper or live trading authority.",
                         className="setup-footer-note",
                     ),
                 ],
-                className="setup-workbench-grid",
+                className=(
+                    "setup-workbench-grid"
+                    if first is not None
+                    else "setup-workbench-grid setup-workbench-grid-blocked"
+                ),
             ),
         ],
         className="page-container setup-page",
+    )
+
+
+def _next_step(review_enabled: bool) -> html.Section:
+    if review_enabled:
+        eyebrow = "YOUR DECISION"
+        heading = "Is this test ready for final review?"
+        copy = (
+            "If anything is wrong, revise the idea or create a new bounded setup. "
+            "Nothing starts here."
+        )
+        label = "Continue"
+        href = "/research/run-test"
+        action_class = "primary-action"
+        title = "Review this immutable saved setup before running it."
+    else:
+        eyebrow = "NEXT STEP"
+        heading = "Waiting for the exact implementation"
+        copy = (
+            "There is no owner action here until the accepted Candidate has been "
+            "implemented and bound."
+        )
+        label = "Not ready"
+        href = None
+        action_class = "surface-status-text surface-status-blocked"
+        title = "Resolve every preflight blocker before reviewing this test."
+    return html.Section(
+        [
+            html.Div(
+                [
+                    html.Span(eyebrow, className="setup-state-label"),
+                    html.H2(heading),
+                    html.P(copy, className="section-description"),
+                ]
+            ),
+            dcc.Link(
+                label,
+                id="review-test-action",
+                href=href,
+                className=action_class,
+                title=title,
+            ),
+        ],
+        className="setup-next-panel",
     )

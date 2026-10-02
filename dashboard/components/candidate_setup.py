@@ -69,67 +69,56 @@ def candidate_implementation_boundary(*, open_boundary: bool) -> html.Details:
                     ),
                     html.Div(
                         [
-                            html.Div(
-                                [
-                                    html.Label(
-                                        "Linked Candidate implementation",
-                                        htmlFor="setup-strategy-selector",
-                                        className="field-label",
-                                    ),
-                                    dcc.Dropdown(
-                                        id="setup-strategy-selector",
-                                        options=[],
-                                        value=None,
-                                        clearable=False,
-                                        placeholder="No approved implementation available",
-                                        disabled=True,
-                                    ),
-                                    html.P(
-                                        "This remains empty until the exact accepted Candidate has approved strategy logic and an immutable saved configuration.",
-                                        className="field-help",
-                                    ),
-                                ],
-                                className="setup-create-field",
+                            _boundary_step(
+                                "1",
+                                "Implement the exact rules",
+                                "Use this Candidate's declared entry, exit, session and cost assumptions.",
                             ),
-                            html.Div(
-                                [
-                                    html.H3("Allowed choices"),
-                                    html.P(
-                                        "Only values declared by the approved strategy specification are available.",
-                                        className="field-help",
-                                    ),
-                                    html.Div(id="setup-parameter-controls", className="setup-parameter-list"),
-                                ],
-                                className="setup-parameter-panel",
+                            _boundary_step(
+                                "2",
+                                "Bind one immutable version",
+                                "The saved configuration must identify this Candidate—not a fixture or another strategy.",
+                            ),
+                            _boundary_step(
+                                "3",
+                                "Verify local data",
+                                "Only then can final review and one research run become available.",
                             ),
                         ],
-                        className="setup-create-grid",
+                        className="setup-boundary-steps",
                     ),
                     html.Div(
                         [
+                            html.Strong("Blocked truthfully"),
+                            html.P(
+                                "No test can be prepared until an agent implements and binds this exact accepted Candidate.",
+                                className="field-help",
+                            ),
+                        ],
+                        className="operator-message operator-message-warning setup-boundary-note",
+                    ),
+                    html.Div(
+                        [
+                            dcc.Dropdown(
+                                id="setup-strategy-selector",
+                                options=[],
+                                value=None,
+                                clearable=False,
+                                disabled=True,
+                            ),
+                            html.Div(id="setup-parameter-controls"),
                             html.Div(
                                 "No exact Candidate implementation is linked yet.",
                                 id="idea-configuration-status",
-                                className="save-message setup-save-status",
                             ),
                             html.Button(
                                 "Waiting for implementation",
                                 id="save-idea-configuration",
                                 n_clicks=0,
                                 disabled=True,
-                                className="primary-action",
                             ),
                         ],
-                        className="setup-create-actions",
-                    ),
-                    html.Div(
-                        [
-                            html.Strong("Why this may still be blocked"),
-                            html.P(
-                                "The Candidate identity, rules, data boundary and costs must match before Run test becomes available."
-                            ),
-                        ],
-                        className="operator-message operator-message-warning setup-boundary-note",
+                        className="setup-callback-controls",
                     ),
                 ],
                 className="setup-create-body",
@@ -137,4 +126,14 @@ def candidate_implementation_boundary(*, open_boundary: bool) -> html.Details:
         ],
         className="setup-create-disclosure",
         open=open_boundary,
+    )
+
+
+def _boundary_step(number: str, title: str, description: str) -> html.Div:
+    return html.Div(
+        [
+            html.Span(number, className="setup-boundary-step-number"),
+            html.Div([html.Strong(title), html.P(description, className="field-help")]),
+        ],
+        className="setup-boundary-step",
     )

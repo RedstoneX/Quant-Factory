@@ -8,7 +8,6 @@ from dash import dcc, html
 
 from dashboard.candidate_workflow import candidate_configuration_binding
 from dashboard.components.configuration_summary import configuration_summary
-from dashboard.components.operator_context import operator_context
 from dashboard.components.run_test_review import run_launch_rail
 from dashboard.pages.common import page_heading
 from dashboard.run_adapter import (
@@ -103,7 +102,7 @@ def layout(
                 id="run-candidate-identity",
                 className="candidate-workflow-identity candidate-workflow-identity-run",
             ),
-            operator_context(component_id="run-test-operator-context"),
+            _prelaunch_context(ready_for_confirmation),
             dcc.Store(
                 id="run-test-launch-state",
                 storage_type="session",
@@ -162,4 +161,32 @@ def layout(
             ),
         ],
         className="page-container run-test-page",
+    )
+
+
+def _prelaunch_context(ready: bool) -> html.Section:
+    state = "Ready for final review" if ready else "Implementation required"
+    next_step = (
+        "Confirm once, start one test, then review Results"
+        if ready
+        else "Complete the exact Candidate implementation in Set up"
+    )
+    return html.Section(
+        [
+            _context_item("Current state", state),
+            _context_item("What happens next", next_step),
+        ],
+        id="run-test-operator-context",
+        className="operator-context run-prelaunch-context",
+        **{"aria-label": "Test review context"},
+    )
+
+
+def _context_item(label: str, value: str) -> html.Div:
+    return html.Div(
+        [
+            html.Span(label, className="operator-context-label"),
+            html.Strong(value, className="operator-context-value"),
+        ],
+        className="operator-context-item",
     )

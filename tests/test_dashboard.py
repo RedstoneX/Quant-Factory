@@ -1346,8 +1346,8 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         "/research/strategy-review",
     ):
         assert "Page not found" in _component_text(page_for_path(legacy_path, context))
-    assert page_for_path("/paper/fleet", context).className == "page-container pending-page"
-    assert page_for_path("/paper/strategy", context).className == "page-container pending-page"
+    assert page_for_path("/paper/fleet", context).className == "page-container support-page pending-page"
+    assert page_for_path("/paper/strategy", context).className == "page-container support-page pending-page"
     system = page_for_path("/system", context)
     system_text = _component_text(system)
     assert "system-status-page" in system.className
@@ -1627,7 +1627,7 @@ def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> No
         "run-test-operator-context",
         "results-operator-context",
     }
-    assert "No run selected" in _component_text(run_page)
+    assert "Implementation required" in _component_text(run_page)
     assert "Succeeded" in _component_text(results_page)
     assert "comparison-operator-contexts" in str(compare_page)
     assert "Choose persisted tests to compare" in _component_text(compare_page)
@@ -2027,7 +2027,7 @@ def test_setup_and_run_test_split_configuration_from_launch() -> None:
         getattr(component, "className", "")
         for component in _walk_components(preview)
     ]
-    assert "No approved choices" in rendered
+    assert "Implementation needed" in rendered
     assert "Choose and accept a Candidate" in rendered
     assert "configuration-document" not in classes
 
@@ -2047,7 +2047,7 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
     assert "Setup saves a test plan; it never starts a test" in rendered
     assert "Review this Candidate's exact test" in rendered
     assert "Exact implementation required" in rendered
-    assert "Nothing starts here" in rendered
+    assert "There is no owner action here" in rendered
     assert identifiers.count("configuration-selector") == 1
     assert identifiers.count("setup-strategy-selector") == 1
     assert identifiers.count("save-idea-configuration") == 1
@@ -2058,7 +2058,7 @@ def test_setup_and_run_test_handle_empty_configuration_list() -> None:
     setup_page = page_for_path("/research/setup", None, ())
     run_page = page_for_path("/research/run-test", None, ())
 
-    assert "No approved choices" in _component_text(setup_page)
+    assert "Implementation needed" in _component_text(setup_page)
     assert "No Candidate test is ready" in _component_text(run_page)
     launch_button = next(
         component

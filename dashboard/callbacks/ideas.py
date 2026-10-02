@@ -21,7 +21,7 @@ from dashboard.callbacks.candidate_decision import (
     register_candidate_decision_callback,
     setup_link_state as _setup_link_state,
 )
-from dashboard.pages.ideas import _candidate_brief
+from dashboard.components.candidate_brief import candidate_brief
 from dashboard.pages.ideas import _candidate_status
 from dashboard.pages.ideas import _candidate_status_prompt
 from dashboard.pages.ideas import _candidate_prompt
@@ -651,7 +651,7 @@ def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
                 validation,
                 saved=_same_candidate(text, stored),
             ),
-            _candidate_brief(validation.document, validation),
+            candidate_brief(validation.document, validation),
             not enabled,
             not enabled,
             not enabled,
