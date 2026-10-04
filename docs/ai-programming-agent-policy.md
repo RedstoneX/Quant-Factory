@@ -78,6 +78,16 @@ architecture. Work directly without adversary, implementation preflight, broad
 audit, speculative architecture, adjacent cleanup, unrelated repeated tests,
 or new owner gates for ordinary consequences of existing authority.
 
+For the private single-owner beta, iteration is local and consolidated. Use
+focused checks while correcting the owner-visible workflow, then create one PR,
+one required CI run, and one private deployment at the walkthrough boundary.
+Do not create per-iteration backups or retain per-iteration releases, images,
+screenshots, build logs, or generated evidence. Keep only the current and
+immediately previous beta release/image. A backup is justified only for an
+owner-accepted go-live, a genuine persistent/schema migration or destructive
+state change, or an explicit owner request. Dashboard-only beta changes restart
+only the dashboard unless another service actually changed.
+
 Escalated Mode is limited to genuinely difficult-to-reverse or high-consequence
 changes involving new architecture/service/framework, persistent data/schema
 migration, paid resources, credential/secret authority expansion, public

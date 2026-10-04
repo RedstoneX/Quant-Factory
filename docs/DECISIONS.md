@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **327** | **Use a lean private-beta development and deployment process:** consolidate UI corrections, use focused non-browser checks, perform one PR/CI/deployment at the walkthrough boundary, restart only changed services, create no beta-iteration backup, and retain only the current plus immediately previous beta release/image. Backups remain required for an owner-accepted go-live, genuine persistent/schema migration or destructive state change, or explicit owner request. |
 | **326** | **Repair and complete the exact connected Candidate workflow before handoff:** one immutable Candidate identity/version must remain traceable through Ideas, Setup, Run Test, Results, and Compare; an unrelated fixture may never be substituted. Prepare the existing provider-neutral Gateway for bounded autonomous research campaigns and supply a copy/paste launcher, but do not run real strategy research before Terry accepts the first exact Candidate and evidence contract. |
 | **325** | **Automated browser testing is prohibited:** Terry owns browser QA. Codex and CI use focused non-browser tests plus health/reachability evidence and hand the rendered workflow to Terry; retained browser assets are not executed unless Terry explicitly reverses this decision. |
 | **324** | **Complete provider-neutral agent onboarding through one shared operating context and trusted bootstrap:** every approved client uses the same Gateway semantics; identity is server-bound rather than caller-claimed; Codex and Claude are the first local proof clients. Existing owner, research, protected-data, trading, credential, and capital gates remain unchanged. |
@@ -1991,3 +1992,29 @@ superseded.
      work remain outside scope. Decision 325's prohibition on automated
      browser tests remains in force; Terry performs the final browser
      walkthrough.
+
+
+327. **Adopt a lean private-beta workflow and stop production ceremony during
+     unaccepted iteration (accepted 2026-10-03).** Terry directs that Quant
+     Factory's current private, single-user, unaccepted experimental build not
+     be treated as production. Related UI corrections are consolidated locally
+     with focused non-browser checks, followed by one repository/CI cycle and
+     one private deployment at the owner-walkthrough boundary. A dashboard-only
+     correction rebuilds and restarts only the dashboard unless another service
+     actually changed.
+
+     Reversible private-beta UI, copy, configuration, and code deployments do
+     not receive database/state backups, restore drills, repeated screenshots,
+     full-service restarts, per-correction releases, or retained proof bundles.
+     Keep at most the current and immediately previous beta release/image and
+     remove superseded images, extracted releases, build archives/logs,
+     temporary environments, browser captures, and generated test evidence as
+     part of completing the slice.
+
+     Backups remain justified before an owner-accepted go-live, a genuine
+     persistent/schema migration or destructive state change, or an explicit
+     owner request. Production, paper/live, protected-data, credentials,
+     orders, capital, and risk safeguards are unchanged. This decision
+     supersedes Decisions 321 and 326, the active milestone wording, and the
+     research deployment runbook only where they require production-grade
+     backup/rollback ceremony for reversible private-beta review deployments.

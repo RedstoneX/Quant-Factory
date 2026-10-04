@@ -100,6 +100,31 @@ In Direct Mode:
 - deliver and stop as soon as decisive evidence proves the requested owner-
   visible outcome.
 
+### Private-beta economy and retention
+
+Until Terry explicitly accepts a revision as viable for go-live, the private
+review service is a disposable single-owner beta rather than a production
+release process.
+
+- Consolidate related UI corrections locally and deploy once for the owner
+  walkthrough; do not package, back up, deploy, and re-verify every visual
+  adjustment separately.
+- Do not create a database or state backup for a reversible private-beta UI,
+  copy, configuration, or code deployment. Back up only before an accepted
+  go-live, a genuine persistent/schema migration or destructive state change,
+  or an explicit owner request.
+- For a dashboard-only beta change, rebuild and restart only the dashboard
+  unless another service actually changed.
+- Retain at most the current and immediately previous private-beta release and
+  image. Remove superseded extracted releases, images, build archives/logs,
+  temporary environments, screenshots, and generated test evidence once the
+  current revision is healthy.
+- Do not retain browser captures or repeated proof artifacts as durable
+  evidence when the owner performs browser QA. Keep only the accepted decision,
+  source revision, and the minimum required health/reachability record.
+- Cleanup is part of completing the slice. Do not let temporary beta artifacts
+  accumulate into a later cleanup project.
+
 ### Escalated Mode — exception
 
 Use heavier preflight, review, or independent challenge only when the task
@@ -230,6 +255,10 @@ Mode.
 - Run the full suite only when core/shared behavior changed, CI requires it, or
   focused proof is insufficient.
 - Do not duplicate already-required CI merely for reassurance.
+- During an unaccepted private-beta iteration, do not run full CI, create a PR,
+  package a release, or deploy after each small correction. Batch the accepted
+  correction set, use focused checks while iterating, then perform the required
+  repository workflow once at the handoff boundary.
 - **Do not run automated browser tests.** Terry owns browser QA and performs
   the owner-visible walkthrough. Keep browser test assets available as
   historical/manual references, but Codex and CI must not execute them unless
