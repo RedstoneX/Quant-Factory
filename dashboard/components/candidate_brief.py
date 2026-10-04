@@ -26,8 +26,14 @@ def candidate_brief(
             _session_explainer(document),
             _meaning_strip(document, variables, variants),
             _review_status(candidate, validation),
-            _packet_details(
-                document, hypothesis, questions, variables, variants, high_questions
+            _review_tools(
+                document,
+                hypothesis,
+                questions,
+                variables,
+                variants,
+                high_questions,
+                validation.valid,
             ),
         ],
         className="candidate-readable-brief",
@@ -182,13 +188,69 @@ def _packet_details(
     )
     return html.Details(
         [
-            html.Summary("Review the complete Candidate packet"),
+            html.Summary("Technical details"),
             html.Div(
                 [_candidate_section(*section) for section in sections],
                 className="candidate-brief-grid candidate-brief-technical-grid",
             ),
         ],
         className="technical-details candidate-technical-details",
+    )
+
+
+def _review_tools(
+    document: Mapping[str, Any],
+    hypothesis: Mapping[str, Any],
+    questions: Any,
+    variables: Mapping[str, Any],
+    variants: Any,
+    high_questions: int,
+    candidate_valid: bool,
+) -> html.Footer:
+    sources = document.get("sources") or []
+    source_count = len(sources) if isinstance(sources, list) else 0
+    return html.Footer(
+        [
+            html.Details(
+                [
+                    html.Summary("Export selected idea"),
+                    html.Div(
+                        [
+                            html.Button(
+                                "YAML",
+                                id="export-candidate-yaml",
+                                n_clicks=0,
+                                disabled=not candidate_valid,
+                                className="secondary-action",
+                            ),
+                            html.Button(
+                                "JSON",
+                                id="export-candidate-json",
+                                n_clicks=0,
+                                disabled=not candidate_valid,
+                                className="secondary-action",
+                            ),
+                        ],
+                        className="candidate-export-options",
+                    ),
+                ],
+                className="candidate-footer-control candidate-export-control",
+            ),
+            html.Details(
+                [
+                    html.Summary(f"View {source_count} source{'s' if source_count != 1 else ''}"),
+                    html.Div(
+                        _readable_value(sources),
+                        className="candidate-source-content",
+                    ),
+                ],
+                className="candidate-footer-control candidate-source-control",
+            ),
+            _packet_details(
+                document, hypothesis, questions, variables, variants, high_questions
+            ),
+        ],
+        className="candidate-review-footer",
     )
 
 

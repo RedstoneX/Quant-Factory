@@ -25,16 +25,24 @@ def idea_review_workspace(
         [
             html.Div(
                 [
-                    html.Strong(
-                        f"{queue_counts[0]} idea{'s' if queue_counts[0] != 1 else ''} need your decision"
-                        if queue_counts[0]
-                        else "Your idea queue is up to date"
+                    html.Div(
+                        [
+                            html.Strong(
+                                f"{queue_counts[0]} idea{'s' if queue_counts[0] != 1 else ''} need your decision"
+                                if queue_counts[0]
+                                else "Your idea queue is up to date"
+                            ),
+                            html.Span("Read the selected proposal, then choose what should happen next."),
+                        ],
+                        className="idea-review-attention-copy",
                     ),
-                    html.Span("Read the selected proposal, then choose what should happen next."),
                 ],
-                className="idea-review-attention-copy",
+                className="idea-review-attention-message",
             ),
-            html.Span("Nothing starts from Ideas", className="idea-review-boundary"),
+            html.Span(
+                f"Selected: {1 if selected else 0} of {draft_count}",
+                className="idea-review-selection",
+            ),
         ],
         className="idea-review-attention",
     )
@@ -68,6 +76,15 @@ def idea_review_workspace(
                         id="idea-history-empty",
                         className="idea-history-empty",
                         style={} if not draft_count else {"display": "none"},
+                    ),
+                    html.Div(
+                        [
+                            html.Details([html.Summary("View all idea history")]),
+                            html.P(
+                                f"All {draft_count} saved idea{'s are' if draft_count != 1 else ' is'} shown above. Rejected and superseded versions remain visible here.",
+                            ),
+                        ],
+                        className="idea-history-footer",
                     ),
                 ],
                 className="idea-workbench-panel idea-review-queue-panel",
@@ -103,13 +120,6 @@ def idea_review_workspace(
                             else "candidate-brief-panel-v1 idea-review-candidate idea-path-hidden"
                         ),
                     ),
-                    html.Div(
-                        [
-                            html.Button("Export YAML", id="export-candidate-yaml", n_clicks=0, disabled=not candidate_valid, className="secondary-action"),
-                            html.Button("Export JSON", id="export-candidate-json", n_clicks=0, disabled=not candidate_valid, className="secondary-action"),
-                        ],
-                        className="idea-review-tools",
-                    ),
                 ],
                 className="idea-workbench-panel idea-review-main",
             ),
@@ -130,12 +140,12 @@ def _decision_panel(
     rejected = candidate_status == "rejected"
     state = "Accepted" if approved else "Rejected" if rejected else "Decision needed" if selected else "Choose an idea"
     next_action = (
-        "Continue to Set up to check whether this exact Candidate is implemented."
+        "Accepted version is locked and ready for Set up."
         if approved else "This Candidate remains in history and cannot continue."
         if rejected else "Review the exact Candidate, then choose one action."
         if selected else "Add or import an idea first."
     )
-    actionable = bool(selected and candidate_valid and not approved and not rejected)
+    actionable = bool(selected and candidate_valid and not rejected)
     return html.Aside(
         [
             html.Div(
@@ -154,7 +164,13 @@ def _decision_panel(
                         ),
                     ),
                     html.H2("Choose what happens next"),
-                    html.P("Accept this exact version, revise it, or reject it."),
+                    html.P(
+                        "Continue with this accepted version, revise it, or reject it."
+                        if approved
+                        else "Revise this rejected version to create a new decision."
+                        if rejected
+                        else "Accept this exact version, revise it, or reject it."
+                    ),
                 ],
                 className="idea-decision-heading",
             ),
@@ -168,11 +184,20 @@ def _decision_panel(
             html.Div(
                 [
                     html.Button(
-                        [html.Span("✓", **{"aria-hidden": "true"}), "Accept"],
+                        "Accept",
                         id="accept-candidate-for-setup",
                         n_clicks=0,
                         disabled=not actionable,
                         className="primary-action" if actionable else "primary-action action-disabled",
+                    ),
+                    dcc.Link(
+                        ["Continue to Set up", html.Span("→", **{"aria-hidden": "true"})],
+                        id="continue-idea-to-setup",
+                        href="/research/setup" if can_continue else None,
+                        className=(
+                            "primary-action idea-decision-button"
+                            if can_continue else "secondary-action idea-decision-button action-disabled"
+                        ),
                     ),
                     html.A([html.Span("✎", **{"aria-hidden": "true"}), "Revise"], href="#idea-intake", className="secondary-action idea-decision-button"),
                     html.Button(
@@ -185,17 +210,14 @@ def _decision_panel(
                 ],
                 className="idea-decision-actions",
             ),
-            dcc.Link(
-                ["Continue to Set up", html.Span("→", **{"aria-hidden": "true"})],
-                id="continue-idea-to-setup",
-                href="/research/setup" if can_continue else None,
-                className=(
-                    "primary-action idea-decision-button"
-                    if can_continue else "secondary-action idea-decision-button action-disabled"
-                ),
-            ),
         ],
-        className="idea-workbench-panel idea-decision-panel",
+        className=(
+            "idea-workbench-panel idea-decision-panel idea-decision-approved"
+            if approved
+            else "idea-workbench-panel idea-decision-panel idea-decision-rejected"
+            if rejected
+            else "idea-workbench-panel idea-decision-panel"
+        ),
     )
 
 

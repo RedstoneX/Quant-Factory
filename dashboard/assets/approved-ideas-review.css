@@ -9,10 +9,15 @@
   padding: 13px 15px;
 }
 
+.idea-review-attention-message {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
 .idea-review-attention-copy { display: grid; gap: 3px; }
 .idea-review-attention-copy strong { color: #1f3f73; }
 .idea-review-attention-copy span,
-.idea-review-boundary { color: #617794; font-size: 12px; }
+.idea-review-selection { color: #2f6df6; font-size: 12px; }
 
 .idea-review-workspace {
   align-items: start;
@@ -66,6 +71,30 @@
   background: #eaf2ff;
   box-shadow: inset 4px 0 0 #2f6df6;
 }
+.idea-history-footer {
+  background: #f5f8fc;
+  border-top: 1px solid #dce3ec;
+  padding: 11px 14px 13px;
+}
+.idea-history-footer summary {
+  background: #fff;
+  border: 1px solid #cfd9e6;
+  border-radius: 7px;
+  color: #24344d;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+  list-style: none;
+  padding: 9px 11px;
+  text-align: center;
+}
+.idea-history-footer summary::-webkit-details-marker { display: none; }
+.idea-history-footer p {
+  color: #617794;
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 10px 0 0;
+}
 .ideas-page .idea-history-title {
   line-height: 1.35;
   overflow: visible;
@@ -117,7 +146,7 @@
   display: grid;
   gap: 5px;
   min-width: 0;
-  padding: 13px 15px;
+  padding: 11px 15px;
 }
 .candidate-provenance > div + div { border-left: 1px solid #dce3ec; }
 .candidate-provenance dt { color: #68778d; font-size: 11px; }
@@ -225,12 +254,61 @@
   justify-content: center;
 }
 .candidate-review-status p { font-size: 12px; margin: 0; }
-.idea-review-tools {
+.candidate-review-footer {
+  align-items: center;
   border-top: 1px solid #dce3ec;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 12px 15px;
+  padding: 11px 15px;
+}
+.candidate-footer-control,
+.candidate-technical-details {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+.candidate-footer-control > summary,
+.candidate-technical-details > summary {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #cfd9e6;
+  border-radius: 7px;
+  color: #24344d;
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  font-weight: 750;
+  list-style: none;
+  min-height: 38px;
+  padding: 0 12px;
+}
+.candidate-footer-control > summary::-webkit-details-marker,
+.candidate-technical-details > summary::-webkit-details-marker { display: none; }
+.candidate-technical-details { margin-left: auto; }
+.candidate-export-options,
+.candidate-source-content,
+.candidate-technical-details > .candidate-brief-grid {
+  background: #fff;
+  border: 1px solid #cfd9e6;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(28, 48, 78, .14);
+  margin-top: 7px;
+  padding: 10px;
+  position: relative;
+  z-index: 5;
+}
+.candidate-export-options { display: flex; gap: 7px; }
+.candidate-export-options .secondary-action { min-height: 34px; }
+.candidate-source-content {
+  color: #52647c;
+  font-size: 11px;
+  line-height: 1.45;
+  max-width: 440px;
+}
+.candidate-technical-details > .candidate-brief-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .idea-decision-panel {
@@ -238,7 +316,7 @@
   border-color: #8fb4ff;
   box-shadow: 0 10px 28px rgba(34, 75, 145, .08);
   display: grid;
-  grid-template-columns: minmax(220px, 1.1fr) minmax(240px, 1fr) auto;
+  grid-template-columns: minmax(205px, .85fr) minmax(220px, 1fr) minmax(360px, auto);
   padding: 0;
 }
 .idea-decision-heading { background: #eaf2ff; margin: 0; padding: 15px; }
@@ -276,21 +354,42 @@
   display: flex;
   gap: 7px;
   justify-content: center;
+  min-width: 104px;
+  width: auto;
 }
+.idea-decision-actions #continue-idea-to-setup { min-width: 170px; }
 .idea-decision-panel .primary-action,
 .idea-decision-button,
 .idea-reject-button { min-height: 44px; width: 100%; }
 .idea-reject-button { border-color: #c95a68; color: #b93648; }
-.idea-decision-panel:has(.idea-brief-badge-approved) .idea-decision-actions,
-.idea-decision-panel:has(.idea-brief-badge-rejected) .idea-decision-actions,
-.idea-decision-panel:not(:has(.idea-brief-badge-approved)) #continue-idea-to-setup {
-  display: none;
+.idea-decision-panel #continue-idea-to-setup { display: none; }
+.idea-decision-rejected #accept-candidate-for-setup,
+.idea-decision-rejected #continue-idea-to-setup { display: none; }
+
+.ideas-page .idea-context-download {
+  background: #fff;
+  border-color: #cfd9e6;
+  color: #24344d;
 }
-.idea-decision-panel #continue-idea-to-setup {
-  align-self: center;
-  margin: 12px;
-  min-width: 210px;
+
+.idea-decision-actions .idea-decision-button,
+.idea-decision-actions .idea-reject-button,
+.idea-decision-actions #accept-candidate-for-setup {
+  font-size: 12px;
+  min-height: 42px;
+  min-width: 96px;
+  padding: 0 14px;
   width: auto;
+}
+.idea-decision-actions #continue-idea-to-setup { min-width: 154px; }
+.idea-decision-actions .secondary-action {
+  background: #fff;
+  border: 1px solid #cfd9e6;
+  color: #24344d;
+}
+.idea-decision-actions .idea-reject-button {
+  border-color: #c95a68;
+  color: #b93648;
 }
 
 #idea-intake { scroll-margin-top: 18px; }
