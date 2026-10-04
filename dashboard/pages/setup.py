@@ -229,6 +229,7 @@ def _idea_queue(drafts, selected_draft) -> html.Aside:
             "owner_approved": "Accepted",
             "rejected": "Closed",
         }.get(status, "Needs review")
+        selected = selected_draft is not None and draft.draft_id == selected_draft.draft_id
         rows.append(
             html.Div(
                 [
@@ -240,16 +241,19 @@ def _idea_queue(drafts, selected_draft) -> html.Aside:
                         ],
                         className="setup-queue-meta",
                     ),
-                    html.Span(
-                        "Selected"
-                        if selected_draft is not None and draft.draft_id == selected_draft.draft_id
-                        else "Open on Ideas",
-                        className="setup-queue-row-action",
+                    (
+                        html.Span("Selected", className="setup-queue-row-action")
+                        if selected
+                        else dcc.Link(
+                            "Review on Ideas →",
+                            href="/research/ideas",
+                            className="setup-queue-row-action setup-queue-row-link",
+                        )
                     ),
                 ],
                 className=(
                     "setup-queue-row setup-queue-row-selected"
-                    if selected_draft is not None and draft.draft_id == selected_draft.draft_id
+                    if selected
                     else "setup-queue-row"
                 ),
             )
@@ -276,24 +280,13 @@ def _idea_queue(drafts, selected_draft) -> html.Aside:
             ),
             html.Div(
                 [
-                    html.Span("Show ideas from", className="setup-state-label"),
                     html.Div(
                         [
-                            html.Button(
-                                "Agent suggestions",
-                                type="button",
-                                className="setup-source-tab setup-source-tab-active",
-                                disabled=True,
-                            ),
-                            html.Button(
-                                "My saved ideas",
-                                type="button",
-                                className="setup-source-tab",
-                                disabled=True,
-                            ),
-                        ],
-                        className="setup-source-tabs",
+                            html.Span("IDEA SELECTION", className="setup-state-label"),
+                            html.Strong("Choose or change ideas on the Ideas page"),
+                        ]
                     ),
+                    dcc.Link("Change", href="/research/ideas", className="secondary-action setup-source-change"),
                 ],
                 className="setup-source-control",
             ),

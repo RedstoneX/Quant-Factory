@@ -70,7 +70,7 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
                 [
                     html.Summary(
                         [
-                            html.Strong("Find or change saved runs"),
+                            html.Strong("Find runs"),
                             html.Span(
                                 f"{len(history_rows):,} available",
                                 className="surface-status-text",
