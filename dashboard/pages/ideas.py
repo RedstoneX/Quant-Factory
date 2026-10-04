@@ -185,6 +185,20 @@ def _candidate_prompt() -> html.Div:
             html.P(
                 "Ordinary idea capture above remains available. Candidate import is an optional standardized intake path."
             ),
+            html.Button(
+                "YAML",
+                id="export-candidate-yaml",
+                n_clicks=0,
+                disabled=True,
+                className="secondary-action",
+            ),
+            html.Button(
+                "JSON",
+                id="export-candidate-json",
+                n_clicks=0,
+                disabled=True,
+                className="secondary-action",
+            ),
         ],
         className="candidate-empty-state",
     )

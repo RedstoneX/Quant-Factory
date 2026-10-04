@@ -274,6 +274,19 @@ def test_candidate_upload_and_saved_packet_render_as_readable_brief() -> None:
         assert expected in rendered
     assert "Choose what happens next" in rendered
     assert "Accept" in rendered
+    assert "View all idea history" in rendered
+    attention_icon = next(
+        component
+        for component in _walk(page)
+        if getattr(component, "className", None) == "idea-review-attention-icon"
+    )
+    assert attention_icon.children == ""
+    accept_button = next(
+        component
+        for component in _walk(page)
+        if getattr(component, "id", None) == "accept-candidate-for-setup"
+    )
+    assert accept_button.children == "Accept"
     continue_link = next(
         component
         for component in _walk(page)

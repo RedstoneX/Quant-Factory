@@ -129,7 +129,7 @@ def idea_decision_presentation(
         return (
             "Accepted",
             "idea-brief-badge idea-brief-badge-approved",
-            "Continue to Set up to check whether this exact Candidate is implemented.",
+            "Accepted version is locked and ready for Set up.",
         )
     if candidate_status == "rejected":
         return (
