@@ -29,7 +29,7 @@ def _preview_outputs(
             "surface-status-text surface-status-blocked",
             "Choose an approved saved setup before continuing.",
             "No saved setup",
-            "setup-campaign-item setup-campaign-item-blocked",
+            "setup-context-state setup-context-state-blocked",
         )
     if not readiness.ready:
         return (
@@ -38,7 +38,7 @@ def _preview_outputs(
             "surface-status-text surface-status-blocked",
             "Resolve every preflight blocker before reviewing this test.",
             "Setup blocked",
-            "setup-campaign-item setup-campaign-item-blocked",
+            "setup-context-state setup-context-state-blocked",
         )
     return (
         summary.children,
@@ -46,7 +46,7 @@ def _preview_outputs(
         "primary-action",
         "Review this immutable saved setup before running it.",
         "Ready to review",
-        "setup-campaign-item setup-campaign-item-ready",
+        "setup-context-state setup-context-state-ready",
     )
 
 
@@ -97,7 +97,7 @@ def register_candidate_setup_callbacks(
                 "surface-status-text surface-status-blocked",
                 binding.blocker_reason or "Candidate setup is unavailable.",
                 title,
-                "setup-campaign-item setup-campaign-item-blocked",
+                "setup-context-state setup-context-state-blocked",
             )
         if configuration_id != binding.configuration.configuration_id:
             configuration_id = None

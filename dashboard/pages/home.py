@@ -23,6 +23,7 @@ from dashboard.health import (
     redact_credential_health_reading,
 )
 from dashboard.components.research_campaign import research_campaign_overview
+from dashboard.components.research_stops_chart import research_stops_figure
 from dashboard.project_status import DashboardProjectStatus, PROJECT_STATUS
 from orchestration import RunEvent, RunSummary
 @dataclass(frozen=True)
@@ -274,6 +275,12 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                 interval=model.health_refresh_interval_ms,
                 n_intervals=0,
             ),
+            dcc.Interval(
+                id="home-chart-hydration-interval",
+                interval=100,
+                n_intervals=0,
+                max_intervals=1,
+            ),
             research_campaign_overview(model=model, rows=rows, outcome_for=_row_outcome),
             html.Main(
                 [
@@ -283,6 +290,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                                 "Research Landscape",
                                 "Risk-adjusted evidence across every persisted candidate",
                                 dcc.Graph(
+                                    id="home-research-landscape-chart",
                                     figure=_research_landscape_figure(rows),
                                     config=_GRAPH_CONFIG,
                                     className="atlas-graph atlas-graph-large",
@@ -294,6 +302,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                                 "Generalization Map",
                                 "Screening evidence versus out-of-sample evidence",
                                 dcc.Graph(
+                                    id="home-generalization-chart",
                                     figure=_generalization_figure(rows),
                                     config=_GRAPH_CONFIG,
                                     className="atlas-graph atlas-graph-large",
@@ -317,6 +326,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                                 "Evidence Survival",
                                 "How many candidates advance through each evidence gate",
                                 dcc.Graph(
+                                    id="home-evidence-survival-chart",
                                     figure=_evidence_survival_figure(rows),
                                     config=_GRAPH_CONFIG,
                                     className="atlas-graph atlas-graph-compact",
@@ -630,7 +640,7 @@ def _generalization_figure(rows: tuple[dict[str, object], ...]) -> go.Figure:
         and _number(stages["oos"], "sharpe_ratio") is not None
     ]
     if not pairs:
-        return _empty_figure("No paired screening and out-of-sample evidence is persisted yet.")
+        return _empty_figure("No paired screening and out-of-sample<br>evidence is persisted yet.")
 
     figure = _base_figure()
     x_values = [_number(screen, "sharpe_ratio") or 0 for _, screen, _ in pairs]
@@ -912,6 +922,7 @@ def _readiness_panel(
                 className="atlas-panel-heading",
             ),
             dcc.Graph(
+                id="home-data-readiness-chart",
                 figure=_data_readiness_figure(datasets, as_of),
                 config=_GRAPH_CONFIG,
                 className="atlas-graph atlas-readiness-graph",
@@ -970,28 +981,6 @@ def _stop_counts(rows: tuple[dict[str, object], ...]) -> Counter[str]:
     return counts
 
 
-def _research_stops_figure(rows: tuple[dict[str, object], ...]) -> go.Figure:
-    counts = _stop_counts(rows)
-    if not counts:
-        return _empty_figure("No failed evidence gates are recorded yet.")
-    ordered = counts.most_common()
-    figure = _base_figure(margin={"l": 112, "r": 20, "t": 10, "b": 30})
-    figure.add_trace(
-        go.Bar(
-            x=[count for _, count in ordered][::-1],
-            y=[label for label, _ in ordered][::-1],
-            orientation="h",
-            marker={"color": "#ff8787", "line": {"color": "#fa5252", "width": 1}},
-            text=[str(count) for _, count in ordered][::-1],
-            textposition="outside",
-            hovertemplate="%{y}: %{x} failed gate(s)<extra></extra>",
-        )
-    )
-    figure.update_xaxes(dtick=1, title="Failed gates")
-    figure.update_yaxes(title=None)
-    return figure
-
-
 def _research_stops_panel(
     rows: tuple[dict[str, object], ...], model: HomeViewModel
 ) -> html.Section:
@@ -1034,7 +1023,8 @@ def _research_stops_panel(
                 className="atlas-panel-heading",
             ),
             dcc.Graph(
-                figure=_research_stops_figure(rows),
+                id="home-research-stops-chart",
+                figure=research_stops_figure(_stop_counts(rows)),
                 config=_GRAPH_CONFIG,
                 className="atlas-graph atlas-stops-graph",
                 style={"height": "145px"},

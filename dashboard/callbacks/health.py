@@ -54,6 +54,32 @@ def register_health_callbacks(app: Dash) -> None:
     ) -> tuple[list[Any], list[Any]]:
         return health_presentations(snapshot)
 
+    @app.callback(
+        Output("home-research-landscape-chart", "figure"),
+        Output("home-generalization-chart", "figure"),
+        Output("home-evidence-survival-chart", "figure"),
+        Output("home-data-readiness-chart", "figure"),
+        Output("home-research-stops-chart", "figure"),
+        Input("home-chart-hydration-interval", "n_intervals"),
+        State("home-research-landscape-chart", "figure"),
+        State("home-generalization-chart", "figure"),
+        State("home-evidence-survival-chart", "figure"),
+        State("home-data-readiness-chart", "figure"),
+        State("home-research-stops-chart", "figure"),
+        prevent_initial_call=True,
+    )
+    def hydrate_home_charts(
+        _n_intervals: int,
+        landscape: object,
+        generalization: object,
+        survival: object,
+        readiness: object,
+        stops: object,
+    ) -> tuple[object, object, object, object, object]:
+        """Apply static figures once the asynchronously loaded graph is ready."""
+
+        return landscape, generalization, survival, readiness, stops
+
 
 def _snapshot_values(
     snapshot: object,

@@ -391,7 +391,7 @@ def _empty_run_context():
 
 def _run_context(run: RunSummary | None, submission: Any):
     if run is None or submission is None:
-        return _empty_run_context()
+        return no_update, no_update
     status = run.status.replace("_", " ").title()
     if submission.state == ResearchSubmissionState.SUBMISSION_UNKNOWN:
         next_action = "Reconciliation required"

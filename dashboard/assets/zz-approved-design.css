@@ -6,155 +6,13 @@
 @import url("/assets/approved-workflow.css");
 @import url("/assets/approved-ideas-review.css");
 @import url("/assets/approved-z-dashboard.css");
+@import url("/assets/approved-setup-conformance.css");
 
-.setup-workbench-grid,
-.setup-workbench-grid-blocked {
-  align-items: start;
-  display: grid;
-  gap: 14px;
-  grid-template-columns: 230px minmax(0, 1fr) 320px;
-}
+/* The permanent navigation must scroll instead of allowing the owner card and
+   Settings link to occupy the same pixels on shorter desktop viewports. */
+.sidebar-navigation-groups { overflow-y: auto; }
+.sidebar-status { flex: 0 0 auto; }
 
-.setup-idea-queue,
-.setup-contract-workspace,
-.setup-decision-rail {
-  min-width: 0;
-}
-
-.setup-idea-queue {
-  background: #fff;
-  border: 1px solid #dce3ec;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.setup-idea-queue .surface-heading {
-  align-items: center;
-  padding: 14px;
-}
-
-.setup-idea-queue .surface-heading h2 {
-  font-size: 16px;
-}
-
-.setup-queue-help {
-  color: #68778d;
-  font-size: 12px;
-  line-height: 1.45;
-  margin: 0;
-  padding: 12px 14px;
-}
-
-.setup-queue-list {
-  border-bottom: 1px solid #e4e9f0;
-  border-top: 1px solid #e4e9f0;
-}
-
-.setup-queue-row {
-  display: grid;
-  gap: 8px;
-  padding: 13px 14px;
-}
-
-.setup-queue-row + .setup-queue-row {
-  border-top: 1px solid #e4e9f0;
-}
-
-.setup-queue-row-selected {
-  background: #edf4ff;
-  box-shadow: inset 3px 0 #2f6df6;
-}
-
-.setup-queue-row strong {
-  color: #24344d;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.setup-queue-meta {
-  color: #68778d;
-  display: flex;
-  font-size: 11px;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.setup-queue-action {
-  margin: 12px 14px;
-  min-height: 38px;
-  width: calc(100% - 28px);
-}
-
-.setup-contract-workspace {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.setup-decision-rail {
-  display: grid;
-  gap: 12px;
-  grid-column: 3;
-  grid-row: 1;
-}
-
-.setup-decision-rail .setup-create-disclosure,
-.setup-decision-rail .setup-next-panel,
-.setup-decision-rail .setup-footer-note {
-  grid-column: auto;
-  grid-row: auto;
-}
-
-.setup-candidate-meaning {
-  border-bottom: 1px solid #e4e9f0;
-}
-
-.setup-candidate-lede {
-  background: #edf4ff;
-  border-left: 3px solid #2f6df6;
-  display: grid;
-  gap: 6px;
-  margin: 14px 18px;
-  padding: 13px 14px;
-}
-
-.setup-candidate-lede strong {
-  color: #24344d;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.setup-meaning-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.setup-meaning-card {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  padding: 13px 15px;
-}
-
-.setup-meaning-card + .setup-meaning-card {
-  border-left: 1px solid #e4e9f0;
-}
-
-.setup-meaning-card span {
-  color: #68778d;
-  font-size: 11px;
-}
-
-.setup-meaning-card strong {
-  color: #24344d;
-  font-size: 12px;
-  line-height: 1.45;
-  max-height: 7.2em;
-  overflow: hidden;
-}
-
-.setup-decision-rail .setup-boundary-steps {
-  grid-template-columns: minmax(0, 1fr);
-}
 
 .setup-decision-rail .setup-create-heading {
   align-items: flex-start;
@@ -233,7 +91,7 @@
 }
 
 .results-page .run-results-toolbar {
-  grid-column: 1 / -1;
+  display: none;
 }
 
 .results-page #selected-run-detail {
@@ -287,6 +145,30 @@
 
 .results-page .run-status-copy h2 {
   font-size: 20px;
+}
+
+/* Infrastructure fixtures prove plumbing, not a research result. Keep their
+   IDs and callbacks mounted, but do not present empty chart/report furniture
+   as though it were evidence. */
+.results-page .run-detail-panel-fixture .results-beta-workspace,
+.results-page .run-detail-panel-fixture .results-evidence-region,
+.results-page .run-detail-panel-fixture .run-operations-details,
+.results-page .run-detail-panel-fixture .run-identity-strip {
+  display: none;
+}
+
+.results-page .run-detail-panel-fixture .fixture-disclaimer {
+  margin: 14px 16px 16px;
+}
+
+.results-page .workflow-group-analysis,
+.results-page .workflow-group-operations {
+  display: none;
+}
+
+.comparison-page > .page-heading-with-actions > .page-action {
+  justify-self: end;
+  width: 128px;
 }
 
 .results-page .run-identity-strip {
@@ -485,6 +367,18 @@
 
   .setup-meaning-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .setup-identity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .setup-identity-card:nth-child(3) {
+    border-left: 0;
+  }
+
+  .setup-identity-card:nth-child(n + 3) {
+    border-top: 1px solid #e4e9f0;
   }
 
   .setup-meaning-card + .setup-meaning-card {
