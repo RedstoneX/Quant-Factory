@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.check_documentation import check_repository
+from tools.check_documentation import LEAN_CONTRACT_MARKERS, check_repository
 
 
 HISTORY = """# M23\n\n<!-- incident-history:start -->\n\n### 2026-09-02 — Incident\n\nImpact: startup failed; repair is undergoing validation.\n<!-- incident-history:end -->\n"""
@@ -124,6 +124,23 @@ class DocumentationGovernanceTests(unittest.TestCase):
         base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
         path.write_text(HISTORY, encoding="utf-8")
         self.assertEqual(check_repository(root, base_ref=base), [])
+
+    def test_lean_operating_contract_is_machine_enforced_when_present(self):
+        root = self.repo(VALID_QUEUE)
+        for relative, markers in LEAN_CONTRACT_MARKERS.items():
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            existing = path.read_text(encoding="utf-8") if path.exists() else ""
+            path.write_text(existing + "\n" + "\n".join(markers), encoding="utf-8")
+        self.assertEqual(check_repository(root), [])
+        agents = root / "AGENTS.md"
+        agents.write_text("missing cost controls", encoding="utf-8")
+        errors = check_repository(root)
+        self.assertTrue(any("lean operating contract marker" in error for error in errors))
+        agents.write_text("\n".join(LEAN_CONTRACT_MARKERS["AGENTS.md"]), encoding="utf-8")
+        (root / "docs/ai-programming-agent-policy.md").unlink()
+        errors = check_repository(root)
+        self.assertTrue(any("lean operating contract file is missing" in error for error in errors))
 
     def test_cli_accepts_current_repository(self):
         result = subprocess.run(

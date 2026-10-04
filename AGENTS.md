@@ -64,12 +64,6 @@ Do not infer that ORB, momentum, mean reversion, channel breakout, gap reversal,
 or any other broader family is exhausted unless Tier 1 contains an explicit
 owner decision closing that family.
 
-For external research, use QF Research Context v1 as the portable companion to
-QF Candidate v1. The context supplies the current mandate, prior-work
-dispositions, relevant data snapshot, deduplication rules, and Candidate output
-contract. It is a supporting snapshot rather than Tier-1 authority; Quant
-Factory still re-checks current Tier-1 and local evidence before research.
-
 Before candidate research begins, the owner explicitly accepts one bounded
 Candidate packet and its evidence contract. The current intraday evidence
 boundaries then apply unless the owner changes them.
@@ -124,6 +118,37 @@ release process.
   source revision, and the minimum required health/reachability record.
 - Cleanup is part of completing the slice. Do not let temporary beta artifacts
   accumulate into a later cleanup project.
+
+### Cost, time, and stop discipline
+
+For this one-owner experiment, attention, elapsed time, tokens, compute, and
+disk are product resources. Spend them only on the shortest path to the
+requested owner-visible outcome.
+
+- Every tool call must answer a necessary question or advance the requested
+  deliverable. If its result would not change the next action, do not run it.
+- A Direct Mode plan has at most five short steps. Do not create a new planning
+  layer, audit, matrix, evidence package, alternative implementation, or mockup
+  unless the owner explicitly requests it or the current outcome cannot be
+  produced without it.
+- Do not run an unchanged check twice, locally duplicate required CI, or create
+  proof of already decisive proof. One passing focused check is enough for one
+  isolated defect.
+- Do not retry the same failed operation more than twice. After the second
+  failure, diagnose the specific blocker, choose one materially different
+  approach, or stop and report it. Never poll or rebuild indefinitely.
+- If a Direct Mode task runs for 15 minutes without producing new
+  owner-visible progress, stop and reassess scope, necessity, and the cheapest
+  remaining path. Tell Terry before continuing an unexpectedly expensive path.
+- If Terry asks whether work is necessary, wasteful, stuck, paused, or looping,
+  stop nonessential work and answer that question from current evidence before
+  resuming. Do not defend sunk cost by continuing.
+- A reported UI defect authorizes the smallest correction to that defect. Do
+  not redesign adjacent surfaces, generate multiple variants, add responsive
+  renderings, or build infrastructure unless explicitly requested.
+- Once the requested result is delivered or the active milestone reaches an
+  owner-only gate, stop. Do not substitute cleanup, research, refactoring, or
+  another queued item unless Terry requests it.
 
 ### Escalated Mode — exception
 
@@ -328,10 +353,12 @@ bypass deterministic risk controls.
 ## Completion
 
 A slice is complete when its stated evidence answers the stated requirement,
-the exact diff is reviewed, focused checks pass, documentation impact is
-handled, and repository state is synchronized. A milestone is complete only
-when its acceptance criteria pass and owner acceptance is recorded where
-required.
+the exact diff is reviewed, focused checks pass, and repository state is
+synchronized. Update documentation only when the change alters durable
+behavior, authority, current status, or a documented contract; an ordinary
+bug fix or visual correction does not require another decision or status essay.
+A milestone is complete only when its acceptance criteria pass and owner
+acceptance is recorded where required.
 
 Report concisely: question answered, change, evidence, pass/fail/insufficient,
 next justified action, and warnings. Do not repeat project history unless it is

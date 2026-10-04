@@ -51,8 +51,28 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Classify change scope
+        id: scope
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          if [[ -z "$BASE_REF" || "$BASE_REF" =~ ^0+$ ]]; then
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "$BASE_REF" HEAD > "$RUNNER_TEMP/changed-files.txt"
+          if grep -Ev '^(AGENTS\.md|README\.md|docs/|dashboard/assets/.*\.(css|svg|png|jpg|jpeg|webp|ico)$)' "$RUNNER_TEMP/changed-files.txt" | grep -q .; then
+            echo "full=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "full=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Lightweight documentation/static-asset proof
+        if: steps.scope.outputs.full == 'false'
+        run: echo "The separate required Documentation contracts job supplies the applicable proof; no runtime test lane is justified."
       # actions/setup-python v7.0.0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        if: steps.scope.outputs.full == 'true'
         with:
           python-version: '3.12'
           cache: pip
@@ -61,6 +81,7 @@ jobs:
             requirements-ci.txt
             requirements-dashboard.txt
       - name: Build and prove outbound socket guard
+        if: steps.scope.outputs.full == 'true'
         shell: bash
         run: |
           cc -shared -fPIC -O2 -Wall -Wextra -Werror \
@@ -69,14 +90,17 @@ jobs:
           LD_PRELOAD="$RUNNER_TEMP/qf-block-outbound.so" \
             python tools/verify_socket_blocker.py
       - name: Enforce structural maintainability ratchets
+        if: steps.scope.outputs.full == 'true'
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python tools/check_structural_maintainability.py --base-ref "$BASE_REF"
       - name: Enforce architecture dependency boundaries
+        if: steps.scope.outputs.full == 'true'
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python tools/check_architecture.py --base-ref "$BASE_REF"
       - name: Install public test dependencies
+        if: steps.scope.outputs.full == 'true'
         run: >-
           python -m pip install
           --constraint requirements-runtime.txt
@@ -84,12 +108,14 @@ jobs:
           --requirement requirements-ci.txt
           --requirement requirements-dashboard.txt
       - name: Validate complete test-lane inventory
+        if: steps.scope.outputs.full == 'true'
         run: >-
           python -m pytest --collect-only -q
           --write-test-lane-inventory=test-lane-inventory.json
           --ignore=tests/browser
           tests
       - name: Run every portable non-browser test
+        if: steps.scope.outputs.full == 'true'
         env:
           LD_PRELOAD: ${{ runner.temp }}/qf-block-outbound.so
         run: >-
@@ -99,7 +125,7 @@ jobs:
           --ignore=tests/browser
           tests
       - name: Verify exact portable non-browser coverage
-        if: always()
+        if: always() && steps.scope.outputs.full == 'true'
         run: >-
           python tools/assert_test_lane_report.py
           test-lane-inventory.json
@@ -107,7 +133,7 @@ jobs:
           portable-nonbrowser
       # actions/upload-artifact v7.0.1
       - name: Upload non-browser test report
-        if: always()
+        if: always() && steps.scope.outputs.full == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: portable-nonbrowser-test-results
@@ -115,4 +141,4 @@ jobs:
             portable-nonbrowser-test-results.xml
             test-lane-inventory.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7

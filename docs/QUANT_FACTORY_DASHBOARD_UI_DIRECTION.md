@@ -4,6 +4,10 @@
 > Reuse the approved chart-first experience, mature components, and thin
 > adapters while completing the existing operator product. Current work and
 > acceptance status are defined only in `docs/MILESTONES.md`.
+> Decisions 325, 327, and 328 govern execution: Terry performs browser QA;
+> Codex does not regenerate historical mockups/evidence, run automated browser
+> tests, or repeat accepted design research unless a specific current defect
+> requires it.
 
 
 - **Status:** Owner-approved UX direction and reusable implementation evidence
@@ -36,6 +40,8 @@ deferred. This document does not
 record Milestone 23 completion or waive
 implementation, deployment, browser, workflow, failure-handling, testing,
 licensed-target proof, renewed operator acceptance, or documentation evidence.
+Here, browser acceptance means Terry's walkthrough, not Codex-run browser
+automation or a retained screenshot package.
 It does not authorize
 strategy discovery, external-source retrieval, paper execution or live
 trading.

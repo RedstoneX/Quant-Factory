@@ -4,6 +4,9 @@
 > `docs/MILESTONES.md` authorize ARG-0 through ARG-6; Tier 1 remains the sole
 > authority for current status and sequencing. ARG-7 remains optional and is
 > not authorized without a demonstrated client need.
+> When Tier 1 is at an owner walkthrough or other owner-only gate, this plan
+> creates no substitute work. Do not rerun completed ARG stages, connectivity
+> proofs, or onboarding evidence while waiting.
 
 ## Purpose
 

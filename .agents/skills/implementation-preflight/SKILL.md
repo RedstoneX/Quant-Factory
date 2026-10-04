@@ -12,6 +12,11 @@ Direct Mode work never uses this procedure. File count, diff size, the words
 `runtime` or `deployment`, and production-like infrastructure do not by
 themselves make a change material.
 
+If this skill is loaded for a routine bug, UI/style/copy change, private beta
+redeploy, documentation update, or reversible configuration change, stop the
+skill immediately and return to Direct Mode. Do not complete the checklist “for
+safety,” create a preflight artifact, or ask for another owner approval.
+
 1. Confirm the canonical repository, accepted `main` base, branch, clean owned
    worktree, and exact owned paths.
 2. Read `AGENTS.md`, current `docs/MILESTONES.md`, and only the relevant
@@ -33,6 +38,7 @@ themselves make a change material.
    `docs/DOCUMENTATION_GOVERNANCE.md`; do not create a competing status or
    roadmap document.
 
-Return: path step/blocker, evidence checked, selected reuse, remaining gap,
-owned paths, exclusions, stop conditions, validation, and documentation
-impact. If any boundary is unresolved, stop and report it plainly.
+Return one concise boundary record: path step/blocker, selected reuse, remaining
+gap, exclusions, stop condition, and decisive validation. Do not turn the
+preflight into an audit, implementation plan, or proof package. If any boundary
+is unresolved, stop and report it plainly.

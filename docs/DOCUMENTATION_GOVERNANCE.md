@@ -41,8 +41,11 @@ sections across supporting documents.
 
 ## Lifecycle and cleanup rules
 
-- Preserve accepted decisions, test evidence, incident history, and useful
-  research history. Cleanup does not mean deleting evidence.
+- Preserve accepted decisions, canonical research evidence, incident history,
+  and evidence required to reproduce an accepted result. Generated proof
+  debris—temporary databases, screenshots, browser captures, test XML/logs,
+  build archives, extracted releases, caches, and repeated beta backups—is not
+  durable evidence and is removed when its slice ends.
 - Retire duplicated plans by marking them historical/supporting or replacing
   their current-status prose with a Tier 1 pointer.
 - ADRs describe architecture and rationale, not the active queue.
@@ -53,6 +56,10 @@ sections across supporting documents.
 - Conceptual documents are labelled `CONCEPTUAL / NOT AUTHORIZED`.
 - Do not create a new roadmap, status, handoff, or decision-summary file when
   Tier 1 can hold the information.
+- Routine bug fixes, styling corrections, refactors with unchanged contracts,
+  and private beta redeployments do not create decisions or milestone essays.
+  Update Tier 1 only when authority, durable behavior, current status, or a
+  documented contract actually changes.
 
 ## Evidence and ratification
 
@@ -91,6 +98,10 @@ For a durable change, evaluate:
 | public orientation | `README.md` |
 | operator/recovery/migration procedure | named runbook/spec |
 | dashboard-displayed project status | align `dashboard/project_status.py` |
+
+For ordinary implementation with no durable authority/status/contract change,
+the documentation-impact result is **none**. Do not manufacture documentation
+work merely because code changed.
 
 Do not update unrelated supporting documents merely to restate the same current
 status.
