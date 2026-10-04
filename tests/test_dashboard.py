@@ -2042,11 +2042,8 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
     assert identifiers.count("setup-strategy-selector") == 1
     assert identifiers.count("save-idea-configuration") == 1
     assert identifiers.count("review-test-action") == 1
-    review_action = next(
-        component
-        for component in _walk_components(setup_page)
-        if getattr(component, "id", None) == "review-test-action"
-    )
+    review_action = next(component for component in _walk_components(setup_page)
+                         if getattr(component, "id", None) == "review-test-action")
     assert review_action.children == "Return to accepted idea"
     assert review_action.href == "/research/ideas"
     assert "Revise" not in rendered
