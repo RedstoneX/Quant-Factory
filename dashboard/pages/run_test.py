@@ -85,24 +85,29 @@ def layout(
             ),
             html.Section(
                 [
-                    html.Span("EXACT CANDIDATE", className="page-eyebrow"),
-                    html.Strong(
+                    _identity_item(
+                        "Saved test",
                         binding.identity.title
                         if binding is not None and binding.identity is not None
-                        else "No runnable Candidate selected"
+                        else "No runnable Candidate selected",
                     ),
-                    html.Small(
-                        (
-                            f"{binding.identity.candidate_id} · version {binding.identity.short_version} · {binding.identity.attribution}"
-                            if binding is not None and binding.identity is not None
-                            else "Run Test will not substitute a fixture or unrelated setup."
-                        )
+                    _identity_item(
+                        "Origin",
+                        binding.identity.attribution
+                        if binding is not None and binding.identity is not None
+                        else "No source recorded",
+                    ),
+                    _identity_item(
+                        "Saved test version",
+                        binding.identity.short_version
+                        if binding is not None and binding.identity is not None
+                        else "Unavailable",
                     ),
                 ],
                 id="run-candidate-identity",
                 className="candidate-workflow-identity candidate-workflow-identity-run",
             ),
-            _prelaunch_context(ready_for_confirmation),
+            _prelaunch_context(ready_for_confirmation, binding),
             dcc.Store(
                 id="run-test-launch-state",
                 storage_type="session",
@@ -164,7 +169,14 @@ def layout(
     )
 
 
-def _prelaunch_context(ready: bool) -> html.Section:
+def _identity_item(label: str, value: str) -> html.Div:
+    return html.Div(
+        [html.Span(label, className="operator-context-label"), html.Strong(value)],
+        className="run-identity-item",
+    )
+
+
+def _prelaunch_context(ready: bool, binding) -> html.Section:
     state = "Ready for final review" if ready else "Implementation required"
     next_step = (
         "Confirm once, start one test, then review Results"
@@ -173,8 +185,30 @@ def _prelaunch_context(ready: bool) -> html.Section:
     )
     return html.Section(
         [
-            _context_item("Current state", state),
-            _context_item("What happens next", next_step),
+            _context_item(
+                "What test is this?",
+                binding.identity.title
+                if binding is not None and binding.identity is not None
+                else "No exact Candidate test is ready",
+            ),
+            _context_item(
+                "Who proposed it?",
+                binding.identity.attribution
+                if binding is not None and binding.identity is not None
+                else "Not recorded",
+            ),
+            _context_item("What is happening now?", state),
+            _context_item(
+                "What is fixed?",
+                "The accepted Candidate meaning and evidence contract"
+                if binding is not None and binding.identity is not None
+                else "Nothing yet",
+            ),
+            _context_item(
+                "What needs you?",
+                "Final confirmation" if ready else "Nothing until implementation is complete",
+            ),
+            _context_item("What happens next?", next_step),
         ],
         id="run-test-operator-context",
         className="operator-context run-prelaunch-context",

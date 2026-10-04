@@ -3616,24 +3616,13 @@ def _run_detail_panel(
                 ),
                 className="fixture-disclaimer",
             ),
-            html.Section(
+            html.Details(
                 [
-                    html.Div(
-                        [
-                            html.H3("Evidence and review context"),
-                            html.P(
-                                (
-                                    "Inspect the persisted validation, assumptions, "
-                                    "lineage, and technical evidence below."
-                                ),
-                                className="field-help",
-                            ),
-                        ],
-                        className="run-section-heading",
-                    ),
+                    html.Summary("Evidence, assumptions and lineage"),
                     _run_detail_analysis_tabs(detail),
                 ],
-                className="results-evidence-region",
+                open=False,
+                className="operator-details results-evidence-region",
             ),
             html.Details(
                 [
@@ -3782,10 +3771,7 @@ def _runs_page(
                                 "RESEARCH / RESULTS",
                                 className="page-eyebrow",
                             ),
-                            html.H1(
-                                "Results",
-                                className="page-title",
-                            ),
+                            html.H1("Understand this run", className="page-title"),
                             html.P(
                                 "Understand what happened, whether the evidence is usable, and what decision is required.",
                                 className="page-description",
@@ -4112,7 +4098,7 @@ def _runs_page(
                 className="workflow-group workflow-group-operations",
             ),
         ],
-        className="page-container",
+        className="page-container results-page",
     )
 
 

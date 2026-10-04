@@ -241,7 +241,7 @@ def _selected_dataset(item: DatasetHealth | None) -> html.Aside:
                 [
                     html.Strong("Use restrictions"),
                     html.P(
-                        str(item.manifest.metadata.get("restrictions", "No restrictions were recorded in the manifest.")),
+                        _readable_restrictions(item.manifest.metadata.get("restrictions")),
                         className="field-help",
                     ),
                 ],
@@ -250,6 +250,14 @@ def _selected_dataset(item: DatasetHealth | None) -> html.Aside:
         ],
         className="support-surface selected-support-record",
     )
+
+
+def _readable_restrictions(value: object) -> str:
+    if isinstance(value, (list, tuple)):
+        return " · ".join(str(item).strip() for item in value if str(item).strip())
+    if value:
+        return str(value).strip()
+    return "No restrictions were recorded in the manifest."
 
 
 def _configuration_notice(error: str | None) -> html.Div | None:

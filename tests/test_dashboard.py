@@ -875,7 +875,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     backtest_visible = visible_routes(invoke_route("/research/backtest-results"))
     backtest_text = mounted_pages["/research/backtest-results"]
     backtest_active = active_hrefs(invoke_navigation("/research/backtest-results"))
-    assert "Results" in backtest_text
+    assert "Understand this run" in backtest_text
     assert "Understand what happened, whether the evidence is usable, and what decision is required." in backtest_text
     assert "Review decision" in backtest_text
     assert "review-status" in str(
@@ -918,7 +918,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         "/research/setup": "Prepare the next test",
         "/research/run-test": "Final review before one test",
         "/research/market-data": "Know what data is usable",
-        "/research/backtest-results": "Results",
+        "/research/backtest-results": "Understand this run",
         "/research/compare-backtests": "Compare persisted runs",
         "/paper/fleet": "Paper Trading Overview",
         "/paper/strategy": "Strategy Monitor",
@@ -1322,7 +1322,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     ).className
     assert page_for_path("/research/setup", context).className == "page-container setup-page"
     assert page_for_path("/research/run-test", context).className == "page-container run-test-page"
-    assert page_for_path("/research/backtest-results", context).className == "page-container"
+    assert page_for_path("/research/backtest-results", context).className == "page-container results-page"
     comparisons = page_for_path("/research/compare-backtests", context)
     assert comparisons.className == "page-container comparison-page"
     rendered_comparisons = str(comparisons)
@@ -1405,7 +1405,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         "/research/setup": "Prepare the next test",
         "/research/run-test": "Final review before one test",
         "/research/market-data": "Know what data is usable",
-        "/research/backtest-results": "Results",
+        "/research/backtest-results": "Understand this run",
         "/research/compare-backtests": "Compare persisted runs",
     }
 
@@ -1548,7 +1548,7 @@ def test_workflow_pages_use_the_sidebar_instead_of_repeating_stage_cards() -> No
         ("/research/ideas", "Review research ideas"),
         ("/research/setup", "Prepare the next test"),
         ("/research/run-test", "Final review before one test"),
-        ("/research/backtest-results", "Results"),
+        ("/research/backtest-results", "Understand this run"),
         ("/research/compare-backtests", "Compare persisted runs"),
     )
 
