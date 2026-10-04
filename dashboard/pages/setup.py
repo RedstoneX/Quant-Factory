@@ -6,7 +6,10 @@ from pathlib import Path
 
 from dash import dcc, html
 
-from dashboard.candidate_workflow import candidate_configuration_binding
+from dashboard.candidate_workflow import (
+    candidate_configuration_binding,
+    candidate_review_state,
+)
 from dashboard.components.candidate_setup import (
     candidate_identity_summary,
     candidate_implementation_boundary,
@@ -51,6 +54,7 @@ def layout(
         )
     selected_draft = None
     binding = None
+    drafts = ()
     if database is not None:
         drafts = list_idea_drafts(database)
         selected_draft = drafts[0] if drafts else None
@@ -119,21 +123,7 @@ def layout(
 
     return html.Div(
         [
-            html.Header(
-                [
-                    html.Div(
-                        [
-                            html.P("RESEARCH / SET UP", className="page-eyebrow"),
-                            html.H1("Prepare the next test", className="page-title"),
-                            html.P(
-                                "Turn an accepted idea into one clear, fixed research test.",
-                                className="page-description",
-                            ),
-                        ]
-                    ),
-                ],
-                className="page-heading setup-page-heading",
-            ),
+            _page_header(),
             dcc.Store(
                 id="selected-configuration-state",
                 data=first.configuration_id if first else None,
@@ -177,6 +167,7 @@ def layout(
             ),
             html.Main(
                 [
+                    _idea_queue(drafts, selected_draft),
                     html.Section(
                         [
                             html.Div(
@@ -195,6 +186,7 @@ def layout(
                                 ],
                                 className="setup-section-heading",
                             ),
+                            _candidate_meaning(binding),
                             html.Div(
                                 [
                                     html.Label(
@@ -221,11 +213,16 @@ def layout(
                         ],
                         className="setup-contract-workspace",
                     ),
-                    candidate_implementation_boundary(open_boundary=first is None),
-                    _next_step(review_enabled),
-                    html.P(
-                        "Fixture results prove mechanics, not profit. No setup or test grants paper or live trading authority.",
-                        className="setup-footer-note",
+                    html.Aside(
+                        [
+                            candidate_implementation_boundary(open_boundary=first is None),
+                            _next_step(review_enabled),
+                            html.P(
+                                "Research only. Nothing here can place an order or move money.",
+                                className="setup-footer-note",
+                            ),
+                        ],
+                        className="setup-decision-rail",
                     ),
                 ],
                 className=(
@@ -236,6 +233,113 @@ def layout(
             ),
         ],
         className="page-container setup-page",
+    )
+
+
+def _page_header() -> html.Header:
+    return html.Header(
+        [
+            html.P("RESEARCH / SET UP", className="page-eyebrow"),
+            html.H1("Prepare the next test", className="page-title"),
+            html.P(
+                "Turn an accepted idea into one clear, fixed research test.",
+                className="page-description",
+            ),
+        ],
+        className="page-heading setup-page-heading",
+    )
+
+
+def _idea_queue(drafts, selected_draft) -> html.Aside:
+    rows = []
+    for draft in drafts[:5]:
+        status, _ = candidate_review_state(draft)
+        label = {
+            "owner_approved": "Accepted",
+            "rejected": "Closed",
+        }.get(status, "Needs review")
+        rows.append(
+            html.Div(
+                [
+                    html.Strong(draft.title),
+                    html.Div(
+                        [
+                            html.Span(draft.attribution or "Owner import"),
+                            html.Span(label),
+                        ],
+                        className="setup-queue-meta",
+                    ),
+                ],
+                className=(
+                    "setup-queue-row setup-queue-row-selected"
+                    if selected_draft is not None and draft.draft_id == selected_draft.draft_id
+                    else "setup-queue-row"
+                ),
+            )
+        )
+    if not rows:
+        rows.append(
+            html.P(
+                "Accept an idea before preparing a test.",
+                className="empty-state-copy",
+            )
+        )
+    return html.Aside(
+        [
+            html.Div(
+                [
+                    html.H2("Idea queue"),
+                    html.Span(f"{len(drafts)} total", className="surface-status-text"),
+                ],
+                className="surface-heading",
+            ),
+            html.P(
+                "Accepted ideas waiting for an exact test setup.",
+                className="setup-queue-help",
+            ),
+            html.Div(rows, className="setup-queue-list"),
+            dcc.Link("Review ideas", href="/research/ideas", className="secondary-action setup-queue-action"),
+        ],
+        className="setup-idea-queue",
+    )
+
+
+def _candidate_meaning(binding) -> html.Section | None:
+    identity = binding.identity if binding is not None else None
+    if identity is None:
+        return None
+    return html.Section(
+        [
+            html.Div(
+                [
+                    html.Span("WHAT THE IDEA SAYS", className="setup-state-label"),
+                    html.Strong(identity.rationale),
+                ],
+                className="setup-candidate-lede",
+            ),
+            html.Div(
+                [
+                    _meaning_card("Idea family", identity.family),
+                    _meaning_card(
+                        "Fixed test",
+                        "Entry, exit, session, costs and parameter boundaries are locked.",
+                    ),
+                    _meaning_card(
+                        "Useful result",
+                        "The Candidate's recorded pass/fail evidence contract.",
+                    ),
+                ],
+                className="setup-meaning-grid",
+            ),
+        ],
+        className="setup-candidate-meaning",
+    )
+
+
+def _meaning_card(label: str, value: str) -> html.Div:
+    return html.Div(
+        [html.Span(label), html.Strong(value or "Not specified")],
+        className="setup-meaning-card",
     )
 
 

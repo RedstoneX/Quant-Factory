@@ -64,140 +64,126 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
 
     return html.Div(
         [
-            html.Header(
+            _page_header(),
+            _selection_strip(),
+            html.Details(
                 [
-                    html.Div(
+                    html.Summary(
                         [
-                            html.P("RESEARCH / FIND & COMPARE", className="page-eyebrow"),
-                            html.H1("Compare persisted runs", className="page-title"),
-                            html.P(
-                                "Search, sort, and filter every saved test. Select one "
-                                "row for its exact Results page, or two to four rows for "
-                                "an exact comparison.",
-                                className="page-description",
-                            ),
-                        ]
-                    ),
-                    html.Button(
-                        "Refresh",
-                        id="refresh-comparisons",
-                        n_clicks=0,
-                        className="secondary-action page-action",
-                        title="Retry reading persisted history. No test will run or change.",
-                        style={
-                            "alignSelf": "flex-start",
-                            "justifySelf": "end",
-                            "maxWidth": "160px",
-                            "minWidth": "120px",
-                            "width": "auto",
-                        },
-                    ),
-                ],
-                className="page-heading page-heading-with-actions",
-            ),
-            html.Section(
-                [
-                    html.Div(
-                        [
-                            html.Span("SAVED TESTS", className="section-kicker"),
-                            html.H2("Find a test or build a comparison"),
-                            html.P(
-                                "Each row is one saved test. Metrics are from that test's "
-                                "top-ranked variation; unavailable values remain blank.",
-                                className="section-description",
+                            html.Strong("Find or change saved runs"),
+                            html.Span(
+                                f"{len(history_rows):,} available",
+                                className="surface-status-text",
                             ),
                         ],
-                        className="section-heading-row",
+                        className="compare-finder-summary",
                     ),
-                    html.Div(
+                    html.Section(
                         [
-                            html.Label(
+                            html.Div(
                                 [
-                                    html.Span("Quick search", className="field-label"),
-                                    dcc.Input(
-                                        id="find-compare-search",
-                                        type="search",
-                                        placeholder="Search saved tests",
-                                        debounce=True,
-                                        persistence=True,
-                                        persistence_type="session",
-                                        className="text-input",
+                                    html.Span("SAVED TESTS", className="section-kicker"),
+                                    html.H2("Find a test or build a comparison"),
+                                    html.P(
+                                        "Each row is one saved test. Select one for Results, or two to four for comparison.",
+                                        className="section-description",
                                     ),
-                                ]
-                            ),
-                            html.Button(
-                                "Reset view",
-                                id="find-compare-reset-view",
-                                n_clicks=0,
-                                className="secondary-action",
-                            ),
-                            html.P(
-                                f"{len(history_rows):,} matched · 0 selected",
-                                id="find-compare-grid-count",
-                                className="field-help compact-field-help",
-                                **{"aria-live": "polite"},
-                            ),
-                        ],
-                        className="page-actions",
-                        style={"alignItems": "center", "marginBottom": "12px"},
-                    ),
-                    dag.AgGrid(
-                        id="find-compare-grid",
-                        rowData=list(history_rows),
-                        columnDefs=find_compare_columns(),
-                        defaultColDef={"sortable": True, "filter": True, "resizable": True},
-                        dashGridOptions={
-                            "pagination": True,
-                            "paginationPageSize": 25,
-                            "rowSelection": {
-                                "mode": "multiRow",
-                                "checkboxes": True,
-                                "headerCheckbox": False,
-                                "enableClickSelection": True,
-                            },
-                        },
-                        getRowId="params.data.run_id",
-                        selectedRows=[],
-                        persistence=True,
-                        persistence_type="session",
-                        persisted_props=["filterModel", "columnState"],
-                        columnSize="responsiveSizeToFit",
-                        columnSizeOptions={"defaultMinWidth": 56},
-                        style={"height": "520px", "width": "100%"},
-                        className="ag-theme-alpine qf-data-grid",
-                    ),
-                    html.Div(
-                        [
-                            html.P(
-                                "Select one saved test to open Results, or two to four to compare.",
-                                id="find-compare-selection-message",
-                                className="field-help compact-field-help",
-                                **{"aria-live": "polite"},
+                                ],
+                                className="section-heading-row",
                             ),
                             html.Div(
                                 [
-                                    dcc.Link(
-                                        "Open exact Results",
-                                        id="find-compare-results-link",
-                                        href=None,
-                                        className="secondary-action",
-                                        style={"display": "none"},
+                                    html.Label(
+                                        [
+                                            html.Span("Quick search", className="field-label"),
+                                            dcc.Input(
+                                                id="find-compare-search",
+                                                type="search",
+                                                placeholder="Search saved tests",
+                                                debounce=True,
+                                                persistence=True,
+                                                persistence_type="session",
+                                                className="text-input",
+                                            ),
+                                        ]
                                     ),
-                                    dcc.Link(
-                                        "Compare selected tests",
-                                        id="find-compare-exact-link",
-                                        href=None,
-                                        className="primary-action",
-                                        style={"display": "none"},
+                                    html.Button(
+                                        "Reset view",
+                                        id="find-compare-reset-view",
+                                        n_clicks=0,
+                                        className="secondary-action",
+                                    ),
+                                    html.P(
+                                        f"{len(history_rows):,} matched · 0 selected",
+                                        id="find-compare-grid-count",
+                                        className="field-help compact-field-help",
+                                        **{"aria-live": "polite"},
                                     ),
                                 ],
                                 className="page-actions",
+                                style={"alignItems": "center", "marginBottom": "12px"},
+                            ),
+                            dag.AgGrid(
+                                id="find-compare-grid",
+                                rowData=list(history_rows),
+                                columnDefs=find_compare_columns(),
+                                defaultColDef={"sortable": True, "filter": True, "resizable": True},
+                                dashGridOptions={
+                                    "pagination": True,
+                                    "paginationPageSize": 25,
+                                    "rowSelection": {
+                                        "mode": "multiRow",
+                                        "checkboxes": True,
+                                        "headerCheckbox": False,
+                                        "enableClickSelection": True,
+                                    },
+                                },
+                                getRowId="params.data.run_id",
+                                selectedRows=[],
+                                persistence=True,
+                                persistence_type="session",
+                                persisted_props=["filterModel", "columnState"],
+                                columnSize="responsiveSizeToFit",
+                                columnSizeOptions={"defaultMinWidth": 56},
+                                style={"height": "420px", "width": "100%"},
+                                className="ag-theme-alpine qf-data-grid",
+                            ),
+                            html.Div(
+                                [
+                                    html.P(
+                                        "Select one saved test to open Results, or two to four to compare.",
+                                        id="find-compare-selection-message",
+                                        className="field-help compact-field-help",
+                                        **{"aria-live": "polite"},
+                                    ),
+                                    html.Div(
+                                        [
+                                            dcc.Link(
+                                                "Open exact Results",
+                                                id="find-compare-results-link",
+                                                href=None,
+                                                className="secondary-action",
+                                                style={"display": "none"},
+                                            ),
+                                            dcc.Link(
+                                                "Compare selected tests",
+                                                id="find-compare-exact-link",
+                                                href=None,
+                                                className="primary-action",
+                                                style={"display": "none"},
+                                            ),
+                                        ],
+                                        className="page-actions",
+                                    ),
+                                ],
+                                className="comparison-selector-control",
                             ),
                         ],
-                        className="comparison-selector-control",
+                        className="comparison-setup-panel",
                     ),
                 ],
-                className="comparison-setup-panel",
+                open=False,
+                className="compare-finder",
             ),
             html.Div(
                 dcc.Loading(
@@ -214,6 +200,53 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
             ),
         ],
         className="page-container comparison-page",
+    )
+
+
+def _page_header() -> html.Header:
+    return html.Header(
+        [
+            html.Div(
+                [
+                    html.P("RESEARCH / FIND & COMPARE", className="page-eyebrow"),
+                    html.H1("Compare persisted runs", className="page-title"),
+                    html.P(
+                        "Search, sort, and filter every saved test. Select one "
+                        "row for its exact Results page, or two to four rows for "
+                        "an exact comparison.",
+                        className="page-description",
+                    ),
+                ]
+            ),
+            html.Button(
+                "Refresh",
+                id="refresh-comparisons",
+                n_clicks=0,
+                className="secondary-action page-action",
+                title="Retry reading persisted history. No test will run or change.",
+            ),
+        ],
+        className="page-heading page-heading-with-actions",
+    )
+
+
+def _selection_strip() -> html.Section:
+    return html.Section(
+        [
+            html.Div(
+                [html.Span("RUN A", className="setup-state-label"), html.Strong("Choose a saved test")],
+                className="compare-selection-slot compare-selection-slot-primary",
+            ),
+            html.Div(
+                [html.Span("RUN B", className="setup-state-label"), html.Strong("Choose a saved test")],
+                className="compare-selection-slot",
+            ),
+            html.Div(
+                [html.Span("COMPARISON", className="setup-state-label"), html.Strong("Select two to four persisted runs")],
+                className="compare-selection-slot compare-selection-guidance",
+            ),
+        ],
+        className="compare-selection-strip",
     )
 
 
