@@ -351,11 +351,8 @@
   grid-template-columns: 1fr;
 }
 
-.setup-decision-actions { border-bottom: 1px solid #e4e9f0; display: grid; gap: 8px; grid-template-columns: 1fr 1fr; padding: 12px; }
-.setup-decision-actions .primary-action { grid-column: 1 / -1; }
-.setup-decision-actions button:disabled,
-.setup-action-disabled { cursor: not-allowed; opacity: .48; pointer-events: none; }
-.danger-action { background: #fff; border: 1px solid #d95b69; border-radius: 8px; color: #bd3044; font: inherit; font-weight: 800; min-height: 40px; padding: 9px 14px; }
+.setup-decision-actions { border-bottom: 1px solid #e4e9f0; display: grid; padding: 12px; }
+.setup-decision-actions > a { box-sizing: border-box; justify-content: center; width: 100%; }
 .setup-readiness-overview { align-items: center; border-bottom: 1px solid #e4e9f0; display: flex; gap: 12px; padding: 12px 14px; }
 .setup-readiness-overview > div { display: grid; gap: 4px; }
 .setup-readiness-overview > div span { color: #68778d; font-size: 10px; }

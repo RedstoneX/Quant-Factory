@@ -435,12 +435,10 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
 
     assert option_inputs == {
         ("refresh-comparisons", "n_clicks"),
-        ("url", "pathname"),
         ("url", "search"),
     }
     assert comparison_inputs == {
         ("refresh-comparisons", "n_clicks"),
-        ("url", "pathname"),
         ("url", "search"),
     }
     assert all("reproduction-message" not in key for key in app.callback_map)

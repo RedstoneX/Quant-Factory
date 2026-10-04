@@ -283,12 +283,13 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
     )
 
     setup_preview = _callback(app, "configuration-preview.children")
-    _, href, class_name, setup_title, state, state_class = setup_preview(
+    _, href, class_name, setup_title, label, state, state_class = setup_preview(
         configuration.configuration_id
     )
-    assert href is None
-    assert "surface-status-blocked" in class_name
-    assert "Choose a saved QF Candidate first" in setup_title
+    assert href == "/research/ideas"
+    assert class_name == "secondary-action"
+    assert setup_title == "Review the accepted Candidate while its exact implementation is pending."
+    assert label == "Return to accepted idea"
     assert state == "Candidate not ready"
     assert "setup-context-state-blocked" in state_class
 
