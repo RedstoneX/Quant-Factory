@@ -3662,7 +3662,7 @@ def _run_detail_panel(
                 className="operator-details run-operations-details",
             ),
         ],
-        className="panel run-detail-panel",
+        className=f"panel run-detail-panel{' run-detail-panel-fixture' if run.stage == 'fixture' else ''}",
     )
 
 

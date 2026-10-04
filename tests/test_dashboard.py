@@ -616,7 +616,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 56
+    assert len(app.callback_map) == 57
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -2042,12 +2042,11 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
     ]
 
     assert "Prepare the next test" in rendered
-    assert "Selected idea" in rendered
-    assert "Current state" in rendered
-    assert "Setup saves a test plan; it never starts a test" in rendered
+    assert "Candidate:" in rendered
+    assert "Nothing runs from Set up" in rendered
     assert "Review this Candidate's exact test" in rendered
-    assert "Exact implementation required" in rendered
-    assert "There is no owner action here" in rendered
+    assert "Implementation required" in rendered
+    assert "No owner action right now" in rendered
     assert identifiers.count("configuration-selector") == 1
     assert identifiers.count("setup-strategy-selector") == 1
     assert identifiers.count("save-idea-configuration") == 1
@@ -3022,7 +3021,7 @@ def test_selected_setup_identity_updates_run_test_preview(
     assert "second_operator_choice" in _component_text(html.Div(run_children))
     assert href is None
     assert setup_state == "Candidate not ready"
-    assert "setup-campaign-item-blocked" in setup_state_class
+    assert "setup-context-state-blocked" in setup_state_class
 
 
 def test_initial_idea_hydration_cannot_overwrite_first_keystroke(
@@ -4417,8 +4416,8 @@ def test_dashboard_reports_launch_failure_without_creating_ui_state(
     assert "Run launch did not start." in rendered
     assert "duplicate run" in rendered
     assert class_name == "save-message error-state"
-    assert "No run selected" in _component_text(html.Div(context_children))
-    assert context_class == "operator-context operator-context-empty"
+    assert context_children is no_update
+    assert context_class is no_update
 
 
 def test_dashboard_launches_new_run_from_selected_historical_configuration(

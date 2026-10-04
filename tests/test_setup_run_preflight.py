@@ -290,7 +290,7 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
     assert "surface-status-blocked" in class_name
     assert "Choose a saved QF Candidate first" in setup_title
     assert state == "Candidate not ready"
-    assert "setup-campaign-item-blocked" in state_class
+    assert "setup-context-state-blocked" in state_class
 
     launch = _callback(app, "launch-message.children")
     _, message, class_name, _, _, disabled, title, label = launch(

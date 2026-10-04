@@ -32,70 +32,107 @@ def candidate_identity_summary(
     )
 
 
-def candidate_implementation_boundary(*, open_boundary: bool) -> html.Details:
-    """Explain the truthful stop when the exact strategy logic is unavailable."""
+def candidate_implementation_boundary(*, open_boundary: bool) -> html.Section:
+    """Show implementation readiness without disguising status as an action."""
 
-    return html.Details(
+    title = "Review decision"
+    state = "Blocked" if open_boundary else "Ready"
+    state_class = "setup-rail-state setup-rail-state-blocked" if open_boundary else "setup-rail-state setup-rail-state-ready"
+    summary = (
+        "Implementation required. The exact test cannot be saved until its implementation is bound."
+        if open_boundary
+        else "The exact accepted Candidate has a saved immutable implementation."
+    )
+    checks = (
+        (
+            ("complete", "Candidate accepted"),
+            ("missing", "Exact rules implemented"),
+            ("missing", "Immutable version bound"),
+            ("waiting", "Local price history verified"),
+            ("waiting", "Final review available"),
+        )
+        if open_boundary
+        else (
+            ("complete", "Candidate accepted"),
+            ("complete", "Exact rules implemented"),
+            ("complete", "Immutable version bound"),
+            ("complete", "Local price history verified"),
+            ("complete", "Final review available"),
+        )
+    )
+
+    return html.Section(
         [
-            html.Summary(
+            html.Div(
                 [
                     html.Div(
                         [
                             html.Span("IMPLEMENTATION", className="setup-state-label"),
-                            html.Strong("Exact implementation required"),
-                            html.Small("An agent must implement and bind this accepted Candidate"),
+                            html.H2(title),
+                            html.P(summary, className="section-description"),
                         ]
                     ),
-                    html.Span("Open →", className="setup-disclosure-action"),
+                    html.Span(state, className=state_class),
                 ],
-                className="setup-create-summary",
+                className="setup-rail-heading",
+            ),
+            html.Div(
+                [
+                    dcc.Link(
+                        "Save",
+                        id="review-test-action",
+                        href=None if open_boundary else "/research/run-test",
+                        className="primary-action" if not open_boundary else "primary-action setup-action-disabled",
+                        title=(
+                            "Resolve every implementation blocker before final review."
+                            if open_boundary
+                            else "Review this immutable saved setup before running it."
+                        ),
+                    ),
+                    html.Button("Revise", type="button", disabled=open_boundary, className="secondary-action"),
+                    html.Button("Reject", type="button", disabled=open_boundary, className="danger-action"),
+                ],
+                className="setup-decision-actions",
             ),
             html.Div(
                 [
                     html.Div(
                         [
+                            html.Span("1 / 5" if open_boundary else "5 / 5", className="setup-readiness-ring"),
                             html.Div(
                                 [
-                                    html.H2("No substitute implementation"),
-                                    html.P(
-                                        "Quant Factory will not let an existing fixture or unrelated strategy stand in for the Candidate you accepted.",
-                                        className="section-description",
-                                    ),
+                                    html.Strong("1 of 5 ready" if open_boundary else "5 of 5 ready"),
+                                    html.Span("Implementation is the next missing requirement." if open_boundary else "The test can move to final review."),
                                 ]
                             ),
-                            html.Span("Specification-bound", className="surface-badge surface-badge-safe"),
                         ],
-                        className="setup-section-heading setup-create-heading",
+                        className="setup-readiness-overview",
+                    ),
+                    html.Div(
+                        [_readiness_check(tone, label) for tone, label in checks],
+                        className="setup-readiness-checks",
                     ),
                     html.Div(
                         [
-                            _boundary_step(
-                                "1",
-                                "Implement the exact rules",
-                                "Use this Candidate's declared entry, exit, session and cost assumptions.",
+                            html.Strong(
+                                "No owner action right now"
+                                if open_boundary
+                                else "Ready for your final review"
                             ),
-                            _boundary_step(
-                                "2",
-                                "Bind one immutable version",
-                                "The saved configuration must identify this Candidate—not a fixture or another strategy.",
-                            ),
-                            _boundary_step(
-                                "3",
-                                "Verify local data",
-                                "Only then can final review and one research run become available.",
-                            ),
-                        ],
-                        className="setup-boundary-steps",
-                    ),
-                    html.Div(
-                        [
-                            html.Strong("Blocked truthfully"),
                             html.P(
-                                "No test can be prepared until an agent implements and binds this exact accepted Candidate.",
+                                (
+                                    "Quant Factory is waiting for the exact implementation. It will not substitute a fixture or unrelated strategy."
+                                    if open_boundary
+                                    else "The saved test can now move to the separate Run test review page."
+                                ),
                                 className="field-help",
                             ),
                         ],
-                        className="operator-message operator-message-warning setup-boundary-note",
+                        className=(
+                            "operator-message operator-message-warning setup-boundary-note"
+                            if open_boundary
+                            else "operator-message operator-message-success setup-boundary-note"
+                        ),
                     ),
                     html.Div(
                         [
@@ -125,15 +162,12 @@ def candidate_implementation_boundary(*, open_boundary: bool) -> html.Details:
             ),
         ],
         className="setup-create-disclosure",
-        open=open_boundary,
     )
 
 
-def _boundary_step(number: str, title: str, description: str) -> html.Div:
+def _readiness_check(tone: str, label: str) -> html.Div:
+    symbol = "✓" if tone == "complete" else "!" if tone == "missing" else "○"
     return html.Div(
-        [
-            html.Span(number, className="setup-boundary-step-number"),
-            html.Div([html.Strong(title), html.P(description, className="field-help")]),
-        ],
-        className="setup-boundary-step",
+        [html.Span(symbol, **{"aria-hidden": "true"}), html.Strong(label)],
+        className=f"setup-readiness-check setup-readiness-check-{tone}",
     )
