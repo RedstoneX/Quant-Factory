@@ -83,12 +83,9 @@ def idea_review_workspace(
                         style={} if not draft_count else {"display": "none"},
                     ),
                     html.Div(
-                        [
-                            html.Details([html.Summary("View all idea history")]),
-                            html.P(
-                                f"All {draft_count} saved idea{'s are' if draft_count != 1 else ' is'} shown above. Rejected and superseded versions remain visible here.",
-                            ),
-                        ],
+                        html.P(
+                            f"All {draft_count} saved idea{'s are' if draft_count != 1 else ' is'} shown above. Rejected and superseded versions remain visible here."
+                        ),
                         className="idea-history-footer",
                     ),
                 ],
