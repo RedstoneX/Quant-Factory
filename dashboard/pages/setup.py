@@ -123,21 +123,7 @@ def layout(
 
     return html.Div(
         [
-            html.Header(
-                [
-                    html.Div(
-                        [
-                            html.P("RESEARCH / SET UP", className="page-eyebrow"),
-                            html.H1("Prepare the next test", className="page-title"),
-                            html.P(
-                                "Turn an accepted idea into one clear, fixed research test.",
-                                className="page-description",
-                            ),
-                        ]
-                    ),
-                ],
-                className="page-heading setup-page-heading",
-            ),
+            _page_header(),
             dcc.Store(
                 id="selected-configuration-state",
                 data=first.configuration_id if first else None,
@@ -247,6 +233,20 @@ def layout(
             ),
         ],
         className="page-container setup-page",
+    )
+
+
+def _page_header() -> html.Header:
+    return html.Header(
+        [
+            html.P("RESEARCH / SET UP", className="page-eyebrow"),
+            html.H1("Prepare the next test", className="page-title"),
+            html.P(
+                "Turn an accepted idea into one clear, fixed research test.",
+                className="page-description",
+            ),
+        ],
+        className="page-heading setup-page-heading",
     )
 
 
