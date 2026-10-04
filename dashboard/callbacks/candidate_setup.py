@@ -15,7 +15,7 @@ from dashboard.run_adapter import ConfigurationReadinessView, configuration_read
 def _preview_outputs(
     configuration_id: str | None,
     readiness_by_id: dict[str, ConfigurationReadinessView],
-) -> tuple[Any, str | None, str, str, str, str]:
+) -> tuple[Any, str, str, str, str, str, str]:
     readiness = readiness_by_id.get(configuration_id or "")
     summary = configuration_summary(
         readiness,
@@ -25,18 +25,20 @@ def _preview_outputs(
     if readiness is None:
         return (
             summary.children,
-            None,
-            "surface-status-text surface-status-blocked",
-            "Choose an approved saved setup before continuing.",
+            "/research/ideas",
+            "secondary-action",
+            "Review the accepted Candidate while its exact implementation is pending.",
+            "Return to accepted idea",
             "No saved setup",
             "setup-context-state setup-context-state-blocked",
         )
     if not readiness.ready:
         return (
             summary.children,
-            None,
-            "surface-status-text surface-status-blocked",
-            "Resolve every preflight blocker before reviewing this test.",
+            "/research/ideas",
+            "secondary-action",
+            "Review the accepted Candidate while its exact implementation is pending.",
+            "Return to accepted idea",
             "Setup blocked",
             "setup-context-state setup-context-state-blocked",
         )
@@ -45,6 +47,7 @@ def _preview_outputs(
         "/research/run-test",
         "primary-action",
         "Review this immutable saved setup before running it.",
+        "Continue to final review",
         "Ready to review",
         "setup-context-state setup-context-state-ready",
     )
@@ -75,6 +78,7 @@ def register_candidate_setup_callbacks(
         Output("review-test-action", "href"),
         Output("review-test-action", "className"),
         Output("review-test-action", "title"),
+        Output("review-test-action", "children"),
         Output("setup-context-state", "children"),
         Output("setup-current-state", "className"),
         Input("selected-configuration-state", "data"),
@@ -93,9 +97,10 @@ def register_candidate_setup_callbacks(
             )
             return (
                 summary.children,
-                None,
-                "surface-status-text surface-status-blocked",
-                binding.blocker_reason or "Candidate setup is unavailable.",
+                "/research/ideas",
+                "secondary-action",
+                "Review the accepted Candidate while its exact implementation is pending.",
+                "Return to accepted idea",
                 title,
                 "setup-context-state setup-context-state-blocked",
             )

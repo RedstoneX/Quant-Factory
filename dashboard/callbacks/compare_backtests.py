@@ -106,7 +106,7 @@ def register_compare_backtests_callbacks(
     @app.callback(
         Output("find-compare-grid", "rowData"),
         Input("refresh-comparisons", "n_clicks"),
-        Input("url", "pathname"),
+        State("url", "pathname"),
         Input("url", "search"),
     )
     def refresh_find_compare_rows(
@@ -143,7 +143,7 @@ def register_compare_backtests_callbacks(
     @app.callback(
         Output("find-compare-grid", "selectedRows"),
         Input("url", "search"),
-        Input("url", "pathname"),
+        State("url", "pathname"),
         State("find-compare-grid", "rowData"),
     )
     def hydrate_exact_selection(
@@ -235,7 +235,7 @@ def register_compare_backtests_callbacks(
         Output("run-comparison-output", "children"),
         Output("run-comparison-output", "className"),
         Input("refresh-comparisons", "n_clicks"),
-        Input("url", "pathname"),
+        State("url", "pathname"),
         Input("url", "search"),
     )
     def render_exact_comparison(

@@ -79,18 +79,16 @@ def candidate_implementation_boundary(*, open_boundary: bool) -> html.Section:
             html.Div(
                 [
                     dcc.Link(
-                        "Save",
+                        "Return to accepted idea" if open_boundary else "Continue to final review",
                         id="review-test-action",
-                        href=None if open_boundary else "/research/run-test",
-                        className="primary-action" if not open_boundary else "primary-action setup-action-disabled",
+                        href="/research/ideas" if open_boundary else "/research/run-test",
+                        className="secondary-action" if open_boundary else "primary-action",
                         title=(
-                            "Resolve every implementation blocker before final review."
+                            "Review the accepted Candidate while its exact implementation is pending."
                             if open_boundary
                             else "Review this immutable saved setup before running it."
                         ),
                     ),
-                    html.Button("Revise", type="button", disabled=open_boundary, className="secondary-action"),
-                    html.Button("Reject", type="button", disabled=open_boundary, className="danger-action"),
                 ],
                 className="setup-decision-actions",
             ),

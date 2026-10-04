@@ -719,28 +719,6 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
             if key.startswith("..responsive-active-page.children")
         ),
     }
-    # ADR 0008 permits passive page-owned refresh when entering a mounted page.
-    # Trade evidence must populate on Home -> Backtest Results navigation while
-    # retaining the URL/navigation output restrictions below.
-    passive_route_refresh_keys = {
-            "..run-test-launch-state.data...launch-message.children..."
-            "launch-message.className...run-test-operator-context.children..."
-            "run-test-operator-context.className...launch-run.disabled..."
-            "launch-run.title...launch-run.children..",
-        "..selected-trade-grid.rowData...trade-explorer-summary.children..."
-        "selected-trade-grid.selectedRows..",
-        "find-compare-grid.rowData",
-        "find-compare-grid.selectedRows",
-        "..find-compare-selection-message.children..."
-        "find-compare-selection-message.className...find-compare-results-link.href..."
-        "find-compare-results-link.style...find-compare-exact-link.href..."
-        "find-compare-exact-link.style..",
-        "..run-comparison-output.children...run-comparison-output.className..",
-        "selected-run-detail.children",
-        "..results-operator-context.children...results-operator-context.className..",
-        "..price-marker-chart.figure...price-marker-summary.children..",
-    }
-
     for output_key, metadata in app.callback_map.items():
         output_text = str(output_key)
         input_refs = {
@@ -748,7 +726,7 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
             for item in metadata["inputs"]
         }
         if ("url", "pathname") in input_refs:
-            assert output_key in route_callback_keys | passive_route_refresh_keys
+            assert output_key in route_callback_keys
         if output_key not in route_callback_keys:
             assert "page-content" not in output_text
             assert "navigation-container" not in output_text
@@ -1140,6 +1118,10 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
         (item["id"], item["property"]): item
         for item in app.callback_map["selected-run-detail.children"]["inputs"]
     }
+    detail_states = {
+        (item["id"], item["property"]): item
+        for item in app.callback_map["selected-run-detail.children"]["state"]
+    }
     refresh_output = "..recent-runs-monitor.children...recent-events-monitor.children.."
     selector_output = (
         "..selected-run-selector.options...selected-run-selector.value.."
@@ -1159,7 +1141,8 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
 
     assert ("selected-run-state", "data") in detail_inputs
     assert ("selected-run-selector", "value") in detail_inputs
-    assert ("url", "pathname") in detail_inputs
+    assert ("url", "pathname") not in detail_inputs
+    assert ("url", "pathname") in detail_states
     assert ("launch-selected-run-configuration", "n_clicks") not in detail_inputs
     assert ("cancel-selected-run", "n_clicks") not in detail_inputs
     assert detail_inputs[("cancellation-message", "children")]["allow_optional"]
@@ -1186,9 +1169,13 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
     }
     assert set(comparison_inputs) == {
         ("refresh-comparisons", "n_clicks"),
-        ("url", "pathname"),
         ("url", "search"),
     }
+    comparison_states = {
+        (item["id"], item["property"]): item
+        for item in app.callback_map["find-compare-grid.rowData"]["state"]
+    }
+    assert ("url", "pathname") in comparison_states
 
     compare_output = next(
         value
@@ -1201,9 +1188,13 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
     }
     assert compare_inputs == {
         ("refresh-comparisons", "n_clicks"),
-        ("url", "pathname"),
         ("url", "search"),
     }
+    compare_states = {
+        (item["id"], item["property"])
+        for item in compare_output["state"]
+    }
+    assert ("url", "pathname") in compare_states
 
 
 def test_user_action_callbacks_ignore_inactive_routes(tmp_path: Path) -> None:
@@ -2051,6 +2042,15 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
     assert identifiers.count("setup-strategy-selector") == 1
     assert identifiers.count("save-idea-configuration") == 1
     assert identifiers.count("review-test-action") == 1
+    review_action = next(
+        component
+        for component in _walk_components(setup_page)
+        if getattr(component, "id", None) == "review-test-action"
+    )
+    assert review_action.children == "Return to accepted idea"
+    assert review_action.href == "/research/ideas"
+    assert "Revise" not in rendered
+    assert "Reject" not in rendered
 
 
 def test_setup_and_run_test_handle_empty_configuration_list() -> None:
@@ -3012,14 +3012,16 @@ def test_selected_setup_identity_updates_run_test_preview(
     run_preview = _callback_function(app, "run-configuration-preview")
 
     assert preserve(second.configuration_id) == second.configuration_id
-    setup_children, href, _class_name, _setup_title, setup_state, setup_state_class = setup_preview(
+    setup_children, href, class_name, _setup_title, label, setup_state, setup_state_class = setup_preview(
         second.configuration_id
     )
     run_children = run_preview(second.configuration_id)
 
     assert "Choose a saved QF Candidate first" in _component_text(html.Div(setup_children))
     assert "second_operator_choice" in _component_text(html.Div(run_children))
-    assert href is None
+    assert href == "/research/ideas"
+    assert class_name == "secondary-action"
+    assert label == "Return to accepted idea"
     assert setup_state == "Candidate not ready"
     assert "setup-context-state-blocked" in setup_state_class
 
@@ -6580,16 +6582,17 @@ def test_selected_run_detail_dash_endpoint_renders_with_absent_detail_controls(
                 {"id": "recover-stale-runs", "property": "n_clicks", "value": 0},
                 {
                     "id": "url",
+                    "property": "search",
+                    "value": "",
+                },
+            ],
+            "state": [
+                {
+                    "id": "url",
                     "property": "pathname",
                     "value": "/research/backtest-results",
-                },
-                    {
-                        "id": "url",
-                        "property": "search",
-                        "value": "",
-                    },
+                }
             ],
-            "state": [],
         },
     )
     rendered = response.get_data(as_text=True)

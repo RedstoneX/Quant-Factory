@@ -777,7 +777,7 @@ def register_backtest_results_callbacks(
         Input("launch-run", "n_clicks"),
         Input("selected-configuration-state", "data"),
         State("run-test-launch-state", "data"),
-        Input("url", "pathname"),
+        State("url", "pathname"),
         Input("confirm-run-test", "value"),
         State("idea-draft-store", "data"),
         running=[
@@ -1623,7 +1623,7 @@ def register_backtest_results_callbacks(
         Input("launch-message", "children"),
         Input("cancellation-message", "children", allow_optional=True),
         Input("stale-recovery-message", "children"),
-        Input("url", "pathname"),
+        State("url", "pathname"),
         Input("url", "search"),
     )
     def inspect_run(
@@ -1787,7 +1787,7 @@ def register_backtest_results_callbacks(
         Input("refresh-runs", "n_clicks"),
         Input("review-message", "children"),
         Input("stale-recovery-message", "children"),
-        Input("url", "pathname"),
+        State("url", "pathname"),
     )
     def update_results_operator_context(
         run_id: str | None,

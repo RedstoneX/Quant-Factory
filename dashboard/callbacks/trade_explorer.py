@@ -42,7 +42,7 @@ def register_trade_explorer_callbacks(
         Input("trade-date-range", "start_date"),
         Input("trade-date-range", "end_date"),
         Input("refresh-runs", "n_clicks"),
-        Input("url", "pathname"),
+        State("url", "pathname"),
     )
     def refresh_trade_rows(
         run_id: str | None,
