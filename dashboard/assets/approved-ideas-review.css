@@ -352,6 +352,7 @@
   border-left: 1px solid #dce3ec;
   display: flex;
   gap: 8px;
+  justify-content: center;
   padding: 12px;
 }
 .idea-decision-actions .primary-action,
@@ -388,6 +389,13 @@
   width: auto;
 }
 .idea-decision-actions #continue-idea-to-setup { min-width: 154px; }
+.idea-decision-actions #accept-candidate-for-setup {
+  align-self: center;
+  font-family: inherit;
+  line-height: 1;
+  margin: 0;
+  text-align: center;
+}
 .idea-decision-actions .secondary-action {
   background: #fff;
   border: 1px solid #cfd9e6;
