@@ -25,6 +25,11 @@ def idea_review_workspace(
         [
             html.Div(
                 [
+                    html.Span(
+                        "",
+                        className="idea-review-attention-icon",
+                        **{"aria-hidden": "true"},
+                    ),
                     html.Div(
                         [
                             html.Strong(

@@ -14,6 +14,12 @@
   display: flex;
   gap: 12px;
 }
+.idea-review-attention-icon {
+  background: #2f6df6;
+  border-radius: 8px;
+  flex: 0 0 34px;
+  height: 34px;
+}
 .idea-review-attention-copy { display: grid; gap: 3px; }
 .idea-review-attention-copy strong { color: #1f3f73; }
 .idea-review-attention-copy span,
