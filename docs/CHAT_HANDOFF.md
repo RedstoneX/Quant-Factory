@@ -15,6 +15,11 @@ Do not read the decision log chronologically to infer current work. Do not use
 README, ADRs, dashboard specifications, historical milestone records, or review
 packages as a competing roadmap.
 
+If the active milestone is waiting on Terry's walkthrough or another owner-only
+gate, stop after reporting the ready URL/state. Do not begin substitute work,
+repeat verification, create another backup, or redeploy without a reported
+defect or new owner instruction.
+
 ## Procedures
 
 - [Documentation governance](DOCUMENTATION_GOVERNANCE.md)

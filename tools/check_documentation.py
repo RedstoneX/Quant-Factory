@@ -23,6 +23,36 @@ DEADLINE_RE = re.compile(r"^- \[ \] DECIDE BY (\d{4}-\d{2}-\d{2}) — (\S.*)$")
 ID_RE = re.compile(r"^R[0-9]{2,}$")
 LINK_RE = re.compile(r"\]\(milestones/milestone-23-acceptance\.md#incident-history\)")
 
+LEAN_CONTRACT_MARKERS = {
+    "AGENTS.md": (
+        "### Private-beta economy and retention",
+        "### Cost, time, and stop discipline",
+        "Do not run an unchanged check twice",
+        "Do not retry the same failed operation more than twice",
+    ),
+    "docs/ai-programming-agent-policy.md": (
+        "## Cost and stop controls",
+        "The same failed operation gets at most two attempts",
+    ),
+    "docs/DECISIONS.md": ("| **328** |",),
+    "docs/MILESTONES.md": (
+        "No Codex implementation is active while Terry performs the walkthrough",
+    ),
+    "docs/operations/ovh-research-deployment.md": (
+        "## Lean private-beta review deployment",
+        "Do not create a backup",
+    ),
+    "docs/DOCUMENTATION_GOVERNANCE.md": ("Generated proof", "repeated beta backups"),
+    ".github/workflows/test.yml": (
+        "Classify change scope",
+        "Lightweight documentation/static-asset proof",
+    ),
+    ".github/workflows/dependency-review.yml": (
+        "Classify dependency scope",
+        "No dependency change",
+    ),
+}
+
 
 def _marked(text: str, start: str, end: str, label: str) -> tuple[str | None, list[str]]:
     errors: list[str] = []
@@ -182,6 +212,27 @@ def _validate_history(root: Path, milestones: str, base_ref: str | None) -> list
     return errors
 
 
+def _validate_lean_contract(root: Path) -> list[str]:
+    agents_path = root / "AGENTS.md"
+    if not agents_path.is_file():
+        return []
+    agents_text = agents_path.read_text(encoding="utf-8")
+    policy_path = root / "docs/ai-programming-agent-policy.md"
+    if "### Private-beta economy and retention" not in agents_text and not policy_path.is_file():
+        return []
+    errors: list[str] = []
+    for relative, markers in LEAN_CONTRACT_MARKERS.items():
+        path = root / relative
+        if not path.is_file():
+            errors.append(f"lean operating contract file is missing: {relative}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append(f"lean operating contract marker is missing from {relative}: {marker}")
+    return errors
+
+
 def check_repository(root: Path, base_ref: str | None = None, today: dt.date | None = None) -> list[str]:
     today = today or dt.datetime.now(dt.timezone.utc).date()
     milestones_path = root / "docs/MILESTONES.md"
@@ -194,6 +245,7 @@ def check_repository(root: Path, base_ref: str | None = None, today: dt.date | N
     errors.extend(_validate_queue(milestones))
     errors.extend(_validate_decisions(milestones, today))
     errors.extend(_validate_history(root, milestones, base_ref))
+    errors.extend(_validate_lean_contract(root))
     return errors
 
 

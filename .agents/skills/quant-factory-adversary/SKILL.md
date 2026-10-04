@@ -1,6 +1,6 @@
 ---
 name: quant-factory-adversary
-description: Challenge an Escalated Mode Quant Factory proposal or closure claim for goal drift, unsupported evidence, excess cost, and missed reuse. Use only for genuinely difficult-to-reverse or high-consequence architecture, migration, paid-resource, credential-authority, public-exposure, protected-evidence, broker/order, paper/live, capital/risk, destructive-state, milestone, or edge-readiness decisions. Do not use for Direct Mode routine implementation, bug fixes, UI work, configuration, private operations, redeploys, or reversible reuse of established architecture.
+description: Challenge an Escalated Mode Quant Factory proposal or closure claim for goal drift, unsupported evidence, excess cost, and missed reuse. Use only for genuinely difficult-to-reverse or high-consequence architecture, migration, paid-resource, credential-authority, public-exposure, protected-evidence, broker/order, paper/live, capital/risk, destructive-state, or edge-readiness decisions. Do not use for owner walkthrough acceptance, Direct Mode routine implementation, bug fixes, UI work, configuration, private operations, redeploys, documentation, or reversible reuse of established architecture.
 ---
 
 # Quant Factory Adversary
@@ -11,6 +11,11 @@ verdict, approval, rejection, score, implementation, or new gate.
 Direct Mode work does not invoke this skill. File count, diff size, the words
 `runtime` or `deployment`, and touching production-like infrastructure do not
 by themselves make work material.
+
+If loaded for an owner walkthrough, ordinary milestone status update, routine
+documentation, UI/style/copy correction, private beta deployment, or other
+Direct Mode work, stop immediately without producing an adversary record or
+commissioning a subagent.
 
 When delegation is available, the lead assigns this check to a separate
 read-only Codex subagent. The adversary does not contact the owner or spawn
@@ -33,10 +38,10 @@ Challenge:
   paper/live, credential, or capital authority; and
 - work that can be removed or deferred without blocking the MVP.
 
-Return a concise record: proposal challenged, verified load-bearing claim,
-strongest objections, strongest contrary interpretation, cheaper or shorter
-path if one exists, and unresolved unknowns. Mark claims as measured, inferred,
-or unknown.
+Return one concise pass of at most seven bullets: proposal challenged, verified
+load-bearing claim, strongest objections, cheaper or shorter path if one
+exists, and unresolved unknowns. Mark claims as measured, inferred, or unknown.
+Do not start a debate loop or request a second adversary.
 
 The lead answers every material objection before proceeding:
 

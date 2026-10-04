@@ -16,8 +16,9 @@
 
 Decision 285 requires Quant Factory to adapt or integrate suitable maintained
 components instead of recreating them. Custom code is limited to verified
-project-specific gaps or cases where reuse is materially worse, with the
-rationale recorded in implementation preflight. Small domain adapters,
+project-specific gaps or cases where reuse is materially worse. Escalated Mode
+records that rationale in implementation preflight; Direct Mode UI/bug work
+does not invoke preflight or create a separate reuse report. Small domain adapters,
 evidence-integrity checks, and safety controls remain allowed where necessary;
 unlicensed or incompatibly licensed copying is never allowed.
 

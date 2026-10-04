@@ -88,6 +88,25 @@ owner-accepted go-live, a genuine persistent/schema migration or destructive
 state change, or an explicit owner request. Dashboard-only beta changes restart
 only the dashboard unless another service actually changed.
 
+## Cost and stop controls
+
+Direct Mode is intentionally small. Use at most five plan items, one
+implementation path, and one decisive focused proof. A tool call is justified
+only when its output can change the next action or directly produces the
+requested deliverable.
+
+Never rerun an unchanged check, duplicate required CI locally, create multiple
+mockup/device variants without an explicit request, or retain proof bundles for
+owner-run browser QA. The same failed operation gets at most two attempts; then
+diagnose, take one materially different path, or stop. If 15 minutes pass
+without new owner-visible progress on a Direct Mode task, reassess and tell the
+owner before continuing.
+
+When the owner questions necessity, cost, waiting, or looping, stop
+nonessential work and answer from current evidence. When an owner-only gate is
+reached, no substitute task begins automatically. Sunk effort never justifies
+more effort.
+
 Escalated Mode is limited to genuinely difficult-to-reverse or high-consequence
 changes involving new architecture/service/framework, persistent data/schema
 migration, paid resources, credential/secret authority expansion, public
@@ -168,6 +187,6 @@ machine account and official `bws` CLI are the standard machine path. Do not
 substitute an interactive vault session, dotenv file, unrestricted project
 output, Password Manager workflow, or another project's credential system.
 
-Before completion, review the exact diff, run required documentation/focused
-checks, update the authoritative record required by documentation governance,
-and report repository state honestly.
+Before completion, review the exact diff, run the one required focused proof,
+update authority only when durable behavior/status actually changed, and
+report repository state honestly.

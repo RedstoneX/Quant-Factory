@@ -15,6 +15,28 @@ dependencies, produces a JUnit report, verifies that report, and uploads it as
 a bounded artifact. Dependency review runs only for pull requests with no
 comment or write permission.
 
+The required `Portable tests` check has two cost-proportional lanes under the
+same protected check name:
+
+- documentation plus static dashboard assets (`dashboard/assets` CSS/images)
+  use the separate required `Documentation contracts` job as their proof; the
+  `Portable tests` job classifies and exits without Python setup, dependency
+  installation, report upload, or application tests because these files cannot
+  change Python/runtime behavior and Terry owns browser QA;
+- any Python, test, dependency, workflow, configuration, or runtime change uses
+  the complete portable non-browser lane, including architecture and structural
+  guards.
+
+Changing the classifier or workflow itself always selects the complete lane.
+This preserves required-check enforcement without spending the full-suite cost
+on prose or static styling alone. Full-lane test reports expire after seven
+days; they are diagnostic artifacts, not permanent project evidence.
+
+The required `Dependency review` check similarly invokes the dependency-review
+action only when a dependency manifest, container build file, or its own policy
+workflow changed. Other pull requests retain the required check name but exit
+after proving that the diff contains no dependency-bearing file.
+
 The Test workflow concurrency group includes `github.ref`; cancellation is
 therefore limited to a newer run on the same ref. Independent pull-request refs
 can run concurrently. The repository uses no merge queue.

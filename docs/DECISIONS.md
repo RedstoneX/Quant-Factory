@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **328** | **Enforce cost and stop discipline for the one-owner experiment:** every action must change the next decision or produce the requested outcome; Direct Mode uses at most five plan items, one implementation path, one focused proof, no unchanged reruns, and no more than two identical failed attempts. After 15 minutes without owner-visible progress or whenever Terry questions necessity/cost/looping, stop and reassess. At an owner-only gate, do nothing else. Required CI remains full for code/core changes but becomes lightweight for documentation/static-asset-only changes. |
 | **327** | **Use a lean private-beta development and deployment process:** consolidate UI corrections, use focused non-browser checks, perform one PR/CI/deployment at the walkthrough boundary, restart only changed services, create no beta-iteration backup, and retain only the current plus immediately previous beta release/image. Backups remain required for an owner-accepted go-live, genuine persistent/schema migration or destructive state change, or explicit owner request. |
 | **326** | **Repair and complete the exact connected Candidate workflow before handoff:** one immutable Candidate identity/version must remain traceable through Ideas, Setup, Run Test, Results, and Compare; an unrelated fixture may never be substituted. Prepare the existing provider-neutral Gateway for bounded autonomous research campaigns and supply a copy/paste launcher, but do not run real strategy research before Terry accepts the first exact Candidate and evidence contract. |
 | **325** | **Automated browser testing is prohibited:** Terry owns browser QA. Codex and CI use focused non-browser tests plus health/reachability evidence and hand the rendered workflow to Terry; retained browser assets are not executed unless Terry explicitly reverses this decision. |
@@ -2018,3 +2019,31 @@ superseded.
      supersedes Decisions 321 and 326, the active milestone wording, and the
      research deployment runbook only where they require production-grade
      backup/rollback ceremony for reversible private-beta review deployments.
+
+
+328. **Make cost, time, and stop discipline mechanically durable for the
+     one-owner experiment (accepted 2026-10-03).** Terry directs Codex to remove
+     the root causes of repeated over-architecture, excessive verification,
+     unnecessary backups/deployments, retained artifacts, and work that
+     continues after the useful answer is already available.
+
+     In Direct Mode, every tool call must change the next decision or directly
+     produce the requested deliverable. Plans contain at most five short steps;
+     use one implementation path and one decisive focused proof. Do not rerun
+     unchanged checks, duplicate required CI locally, generate unrequested
+     variants, or retry the same failed operation more than twice. After two
+     failures, diagnose and take one materially different path or stop. If 15
+     minutes pass without new owner-visible progress, or Terry questions
+     necessity, cost, waiting, or looping, stop nonessential work and reassess
+     before continuing.
+
+     Reaching an owner walkthrough or other owner-only gate ends Codex work;
+     another queue item, cleanup, research task, audit, redesign, deployment,
+     or verification does not begin automatically. Routine bug/style fixes do
+     not create decision essays. Required CI keeps the same protected check
+     names, but documentation and static-asset-only changes use a lightweight
+     lane; Python, tests, dependencies, workflows, configuration, and runtime
+     changes retain the complete portable lane. Dependency review runs its
+     scanner only when dependency-bearing files change. Production, research-evidence,
+     protected-data, credential, paper/live, order, capital, and risk controls
+     are unchanged.

@@ -4,6 +4,10 @@
 > Decision 313 resumes completion of the existing single-user dashboard and
 > operator workflow. The approved chart-first UX and historical evidence remain
 > implementation input. See `docs/MILESTONES.md` for current work and status.
+> Historical prototype, responsiveness, browser, and performance evidence in
+> this document is not an instruction to rerun it. Under Decisions 325, 327,
+> and 328, repeat only the smallest check required by a newly reported defect;
+> Terry owns browser acceptance.
 
 
 > **Sequencing record:** Decisions 298 and 303 recorded completion through Step
@@ -633,24 +637,22 @@ The eventual implementation is conformant only when all applicable checks pass:
    independence, Show-on-chart linkage, accepted Reset layout boundaries,
    review isolation, route gating, and truthful missing/corrupt states. If the
    proposed Reset range control is retained, test its narrower boundary too.
-3. Real-browser tests prove direct deep link, refresh, back/forward, Change run
-   selection, route identity after callback hydration, and absence of missing-
-   component or unexpected-route errors under ADR 0008.
-4. Desktop, tablet and mobile tests prove the responsive/overflow contract,
-   normal-flow Metrics and Trades, readable typography, report-tab switching,
-   desktop resizing and accepted Reset layout behavior, and no resize
-   affordances on smaller layouts.
-5. Keyboard-only tests prove Change run selection, tabs, filters, closed/open
-   trade selection, every available Show action, all three desktop resize
-   edges, and pointer-independent Reset layout activation. If retained, the
-   proposed focus-return, Reset range and live-status defaults receive their
-   own conditional keyboard and announcement tests.
+3. Terry's browser walkthrough covers direct links, refresh, back/forward,
+   Change run selection, route identity, and visible route errors. Codex does
+   not automate or archive this walkthrough.
+4. The implemented page remains responsive, but Codex does not generate or
+   test separate desktop, tablet, and mobile variants unless Terry requests a
+   specific device correction. Terry checks the device and window size he
+   actually uses.
+5. Keyboard behavior remains a product requirement where applicable. A focused
+   non-browser component/callback check may cover a reported defect; Codex does
+   not run a general browser accessibility campaign during private-beta UI
+   iteration.
 6. Failure fixtures prove loading, no-run, active, failed, missing-price,
    no-trades, unsupported-interval, corrupt-artifact and unknown-run behavior.
-7. Browser diagnostics show no Dash renderer error, uncaught page error,
-   unexpected external request, or page-level horizontal overflow. Manual
-   owner review then covers comprehension, visual hierarchy and trader-facing
-   language; automated checks do not substitute for renewed acceptance.
+7. Health/reachability checks cover deployment. Terry's walkthrough covers
+   visible renderer errors, overflow, comprehension, visual hierarchy, and
+   trader-facing language; automated checks do not substitute for acceptance.
 
 ### Owner-visible implementation boundary
 
@@ -886,5 +888,5 @@ AG Grid and Dash Bootstrap Components as approved implementation components.
 The bounded Decision 291 correction is merged and its focused automated and
 portable browser evidence passed. Complete workflow acceptance, deployment,
 licensed-target proof, and renewed owner acceptance remain pending but dormant.
-23C-3's full real-browser lifecycle and end-to-end workflow evidence resumes
-only when the gate is explicitly activated under Decision 294.
+Historical 23C-3 browser evidence is retained but is not resumed. Decision 325
+assigns current browser acceptance to Terry unless he explicitly reverses it.
