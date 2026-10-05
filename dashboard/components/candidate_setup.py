@@ -35,11 +35,11 @@ def candidate_identity_summary(
 def candidate_implementation_boundary(*, open_boundary: bool) -> html.Section:
     """Show implementation readiness without disguising status as an action."""
 
-    title = "Review decision"
+    title = "Bounded setup controls"
     state = "Blocked" if open_boundary else "Ready"
     state_class = "setup-rail-state setup-rail-state-blocked" if open_boundary else "setup-rail-state setup-rail-state-ready"
     summary = (
-        "Implementation required. The exact test cannot be saved until its implementation is bound."
+        "Only the exact accepted Candidate implementation can make this setup save-ready."
         if open_boundary
         else "The exact accepted Candidate has a saved immutable implementation."
     )
@@ -113,13 +113,13 @@ def candidate_implementation_boundary(*, open_boundary: bool) -> html.Section:
                     html.Div(
                         [
                             html.Strong(
-                                "No owner action right now"
+                                "Waiting for implementation"
                                 if open_boundary
                                 else "Ready for your final review"
                             ),
                             html.P(
                                 (
-                                    "Quant Factory is waiting for the exact implementation. It will not substitute a fixture or unrelated strategy."
+                                    "No owner action is required here. Quant Factory will not substitute a fixture or unrelated strategy."
                                     if open_boundary
                                     else "The saved test can now move to the separate Run test review page."
                                 ),

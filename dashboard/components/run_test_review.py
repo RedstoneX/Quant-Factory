@@ -17,9 +17,9 @@ def run_launch_rail(
         [
             html.Div(
                 [
-                    html.H2("5 checks passed" if ready else "Final checks incomplete"),
+                    html.H2("Preflight"),
                     html.Span(
-                        "Ready" if ready else "Blocked",
+                        "5 passed" if ready else "Blocked",
                         className=(
                             "surface-status-text surface-status-safe"
                             if ready
@@ -31,18 +31,18 @@ def run_launch_rail(
             ),
             html.Ul(
                 [
-                    html.Li("Exact saved version"),
-                    html.Li("Approved implementation"),
-                    html.Li("Verified local price history"),
-                    html.Li("Fixed costs and session"),
-                    html.Li("No unresolved duplicate start"),
+                    _check("Persisted setup", "Exact immutable version selected."),
+                    _check("Approved implementation", "Candidate logic is bound."),
+                    _check("Verified local price history", "Required local checks passed."),
+                    _check("Fixed costs and session", "Saved assumptions cannot change here."),
+                    _check("Submission state", "No unresolved duplicate start."),
                 ],
                 className=(
                     "launch-check-list" if ready else "launch-check-list launch-check-list-blocked"
                 ),
             ),
         ],
-        className="panel run-launch-gate",
+        className="run-launch-gate",
     )
     confirmation_controls = [
         dcc.Checklist(
@@ -63,7 +63,7 @@ def run_launch_rail(
             className="run-confirmation",
         ),
         html.Button(
-            "Start test",
+            "Run test",
             id="launch-run",
             n_clicks=0,
             disabled=launch_disabled,
@@ -104,6 +104,13 @@ def run_launch_rail(
                 html.Div(confirmation_controls, className="run-callback-controls"),
             ]
         ),
-        className="panel run-launch-action",
+        className="run-launch-action",
     )
-    return html.Aside([gate, action], className="run-launch-rail")
+    return html.Aside(
+        [gate, action],
+        className="run-launch-rail run-launch-rail-panel",
+    )
+
+
+def _check(label: str, detail: str) -> html.Li:
+    return html.Li([html.Strong(label), html.Span(detail)])
