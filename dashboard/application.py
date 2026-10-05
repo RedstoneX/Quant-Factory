@@ -4674,7 +4674,6 @@ def create_app(
         configurations,
         **layout_kwargs,
     )
-
     from dashboard.callbacks.backtest_results import (
         register_backtest_results_callbacks,
     )
@@ -4686,11 +4685,11 @@ def create_app(
     from dashboard.callbacks.routing import register_routing_callbacks
     from dashboard.callbacks.setup import register_setup_callbacks
     from dashboard.callbacks.settings import register_settings_callbacks
+    from dashboard.callbacks.support_pages import register_support_page_callbacks
     from dashboard.callbacks.results_review import (
         register_results_review_callbacks,
     )
     from dashboard.callbacks.trade_explorer import register_trade_explorer_callbacks
-
     register_routing_callbacks(app)
     register_health_callbacks(app)
     register_ideas_callbacks(app, database=dashboard_database)
@@ -4700,6 +4699,7 @@ def create_app(
         database=dashboard_database,
     )
     register_settings_callbacks(app)
+    register_support_page_callbacks(app)
     register_backtest_results_callbacks(
         app,
         runs=runs,
