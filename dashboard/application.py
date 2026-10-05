@@ -1106,6 +1106,11 @@ def _run_identity_strip(
                     )
                     ,
                     html.Span(
+                        run.status.replace("_", " ").title(),
+                        className="results-identity-badge results-run-status",
+                        **{"data-run-status": run.status},
+                    ),
+                    html.Span(
                         _display_or_dash(_evidence_outcome_value(detail)),
                         className="results-identity-badge results-identity-outcome",
                     ),
@@ -2758,9 +2763,27 @@ def _run_chart_and_trade_focus(detail: SelectedRunDetailView | None) -> Any:
 
 def _results_metrics_report(detail: SelectedRunDetailView | None) -> Any:
     if detail is None:
-        return html.P(
-            "Select a completed run to open its persisted chart and metrics.",
-            className="empty-state-copy",
+        return html.Div(
+            [
+                _primary_metric_cards(None),
+                html.Section(
+                    [
+                        html.Div(
+                            [
+                                html.H2("Price & recorded trades"),
+                                html.P(
+                                    "Select a completed run to open its persisted chart and metrics.",
+                                    className="field-help",
+                                ),
+                            ],
+                            className="results-chart-title",
+                        ),
+                        _price_marker_panel(None),
+                    ],
+                    className="results-chart-workspace",
+                ),
+            ],
+            className="results-overview",
         )
     return html.Div(
         [
@@ -2812,6 +2835,10 @@ def _results_metrics_report(detail: SelectedRunDetailView | None) -> Any:
                             emphasize_min=True,
                         ),
                     ),
+                    _detail_subsection(
+                        "Cumulative trade P&L",
+                        _trade_pnl_chart(detail.evidence.trades, mode="cumulative"),
+                    ),
                 ],
                 className="operator-details results-supporting-charts",
             ),
@@ -2828,10 +2855,17 @@ def _results_assumptions_and_lineage(
             "Persisted assumptions and lineage are unavailable until a run is selected.",
             className="empty-state-copy",
         )
+    execution_fields = tuple(
+        DetailField("Initial capital", _format_currency(str(field.value)))
+        if field.label in {"Initial Cash", "Initial Capital", "Cash"}
+        else field
+        for field in detail.execution
+    )
     return html.Div(
         [
+            _mes_assumption_summary(detail),
             _detail_subsection(
-                "Strategy settings",
+                "Strategy Settings",
                 [
                     _detail_fields(
                         detail.configuration_fields,
@@ -2855,13 +2889,13 @@ def _results_assumptions_and_lineage(
                         empty="No market-data specification is recorded.",
                     ),
                     _detail_fields(
-                        detail.execution,
+                        execution_fields,
                         empty="No execution assumptions are recorded.",
                     ),
                 ],
             ),
             _detail_subsection(
-                "Research lineage",
+                "Research History",
                 [
                     _detail_fields(
                         detail.manifest_fields,
@@ -2887,7 +2921,7 @@ def _results_report_tabs(
         [
             _run_detail_analysis_tab(
                 label="Overview",
-                value="overview",
+                value="metrics",
                 children=html.Div(
                     _results_metrics_report(detail),
                     className="results-report-panel",
@@ -2929,7 +2963,7 @@ def _results_report_tabs(
             ),
         ],
         id="run-detail-analysis-tabs",
-        value="variants" if selected_parameter_row_id else "overview",
+        value="variants" if selected_parameter_row_id else "metrics",
         className="run-analysis-tabs results-workspace-tabs",
         parent_style={"display": "flex", "gap": "8px"},
     )
@@ -3536,7 +3570,7 @@ def _run_detail_panel(
             ),
             html.Div(
                 (
-                    "Development/reference evidence only; promotion is blocked and this is not edge proof."
+                    "Development/reference only. Promotion is blocked; this is not edge proof."
                     if detail is not None
                     and detail.evidence.evidence_classification
                     else "Infrastructure fixture evidence verifies the factory path; it does not imply profitability."
@@ -3548,6 +3582,14 @@ def _run_detail_panel(
             html.Details(
                 [
                     html.Summary("Technical diagnostics"),
+                    html.A(
+                        "Open exact saved-run link",
+                        href=(
+                            "/research/backtest-results?"
+                            + urlencode({"run_id": run.run_id})
+                        ),
+                        className="secondary-action",
+                    ),
                     html.Div(
                         [
                             _detail_subsection(
@@ -3606,6 +3648,7 @@ def _results_review_panel() -> html.Section:
                 ],
                 className="section-heading-row",
             ),
+            html.H3("Review decision"),
             html.Label(
                 "Human decision",
                 htmlFor="review-status",
@@ -3827,6 +3870,11 @@ def _runs_page(
                     html.Details(
                         [
                             html.Summary("Comparison and selected-backtest actions"),
+                            dcc.Link(
+                                "Compare runs",
+                                href="/research/compare-backtests",
+                                className="secondary-action",
+                            ),
                             html.Div(
                                 _recent_runs_panel(recent_runs),
                                 id="recent-runs-monitor",

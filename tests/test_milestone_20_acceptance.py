@@ -306,7 +306,7 @@ def test_dashboard_success_workflow_and_restart_reopen(
     assert "Research History" in rendered
     assert "launch-commit" in rendered
     assert "launch-package-fingerprint" in rendered
-    assert "Strategy Checks" in rendered
+    assert "Evidence & review" in rendered
     assert "artifact-status-success" in rendered
     assert "Persisted deterministic fixture result summary" in rendered
     assert "does not imply profitability" in rendered

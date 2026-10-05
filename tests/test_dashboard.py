@@ -5871,7 +5871,7 @@ def test_run_detail_panel_renders_immutable_configuration_lineage_and_results() 
     assert "Fixture" in rendered
     assert "window: 14" in rendered
     assert '{"' not in rendered
-    assert "Research lineage" in rendered
+    assert "Research History" in rendered
     assert "abc123" in rendered
     assert "VectorBT Pro" in rendered
     assert "Not recorded" in rendered
@@ -6124,8 +6124,8 @@ def test_selected_backtest_formats_period_and_initial_capital_for_a_trader() -> 
     rendered = str(_run_detail_panel(run, service.recent_events(), detail=detail))
 
     assert "Oct 31, 2025, 1:30 PM UTC → Jul 13, 2026, 7:59 PM UTC" in rendered
-    assert "Strategy settings" in rendered
-    assert "10000.0" in rendered
+    assert "Strategy Settings" in rendered
+    assert "$10,000.00" in rendered
 
 
 def test_primary_metrics_use_a_compact_responsive_summary_grid() -> None:
@@ -6408,8 +6408,8 @@ def test_dashboard_inspects_selected_run(tmp_path: Path, monkeypatch) -> None:
     assert detail_adapter.requests == ["run_dashboard_fixture"]
     assert "prefect-run_dashboard_fixture" in str(panel)
     assert "Run completed successfully." in str(panel)
-    assert "Strategy settings" in str(panel)
-    assert "Research history" in str(panel)
+    assert "Strategy Settings" in str(panel)
+    assert "Research History" in str(panel)
 
 
 def test_hidden_results_callbacks_skip_large_detail_reconstruction(
@@ -6437,7 +6437,7 @@ def test_hidden_results_callbacks_skip_large_detail_reconstruction(
         if getattr(component, "id", None) == "selected-run-detail"
     )
     assert "Select a completed run to open its persisted chart" in str(mounted_detail)
-    assert "results-headline-metrics" not in str(mounted_detail)
+    assert "price-marker-chart" in str(mounted_detail)
 
     inspect = _callback_function(app, "selected-run-detail")
     operator_context = _callback_function(app, "results-operator-context")
