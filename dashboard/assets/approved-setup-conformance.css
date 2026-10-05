@@ -161,12 +161,14 @@
   width: calc(100% - 28px);
 }
 
-.setup-contract-workspace {
+.setup-workbench-grid > .setup-contract-workspace,
+.setup-workbench-grid-blocked > .setup-contract-workspace {
   grid-column: 2;
   grid-row: 1;
 }
 
-.setup-decision-rail {
+.setup-workbench-grid > .setup-decision-rail,
+.setup-workbench-grid-blocked > .setup-decision-rail {
   display: grid;
   gap: 12px;
   grid-column: 3;

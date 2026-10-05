@@ -296,13 +296,15 @@ Mode.
   package a release, or deploy after each small correction. Batch the accepted
   correction set, use focused checks while iterating, then perform the required
   repository workflow once at the handoff boundary.
-- **Do not run automated browser tests.** Terry owns browser QA and performs
-  the owner-visible walkthrough. Keep browser test assets available as
-  historical/manual references, but Codex and CI must not execute them unless
-  Terry explicitly reverses this decision. For UI work, use focused
-  non-browser component/callback checks, ordinary health/reachability proof,
-  and the owner walkthrough rather than Playwright, Selenium, or another
-  automated browser runner.
+- **Do not run an automated browser test suite or browser checks in CI.** Terry
+  owns final browser QA and the owner-visible walkthrough. For the active R12
+  correction, Terry authorizes narrowly scoped Playwright inspection as a
+  visual instrument: one desktop viewport, the private review service or a
+  local equivalent, repository-owned approved references, and only the exact
+  page/workflow under repair. Do not create a general browser harness, repeat
+  multi-device renders, mutate research evidence, or substitute browser checks
+  for focused component/callback tests. Remove temporary captures when the
+  slice ends.
 
 ## Research and evidence
 

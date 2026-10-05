@@ -55,7 +55,7 @@
   grid-template-columns: minmax(0, 1fr) 330px;
 }
 
-.setup-contract-workspace {
+.setup-workbench-grid > .setup-contract-workspace {
   grid-column: 1;
   grid-row: 1 / span 3;
 }

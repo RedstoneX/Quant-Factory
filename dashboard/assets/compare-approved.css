@@ -22,7 +22,7 @@
 .compare-selected-runs {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(110px, auto);
 }
 
 .compare-run-chip {
@@ -60,13 +60,13 @@
 
 .compare-run-chip strong {
   color: #24344d;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .compare-run-chip span {
   color: #68778d;
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 2px;
 }
 
@@ -141,7 +141,7 @@
 .compare-series-label {
   align-items: center;
   display: inline-flex;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   gap: 6px;
 }
@@ -173,12 +173,12 @@
 
 .compare-context-quartet dt {
   color: #68778d;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .compare-context-quartet dd {
   color: #24344d;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1.3;
   margin: 3px 0 0;
@@ -209,7 +209,7 @@
 
 .compare-panel-heading p {
   color: #68778d;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
   margin: 3px 0 0;
 }
@@ -271,7 +271,7 @@
 .compare-metric-table th {
   background: #f7f9fc;
   color: #68778d;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 7px 9px;
   text-align: left;
@@ -280,7 +280,7 @@
 .compare-metric-table td {
   border-top: 1px solid #e4e9f0;
   color: #24344d;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.35;
   padding: 8px 9px;
   vertical-align: top;
@@ -313,12 +313,12 @@
 .compare-difference-row small {
   color: #68778d;
   display: block;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .compare-difference-row strong {
   color: #24344d;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1.35;
   min-width: 0;
@@ -332,6 +332,7 @@
 }
 
 @media (max-width: 1000px) {
+  .compare-selected-runs { grid-template-columns: 1fr; }
   .compare-workspace { grid-template-columns: 1fr; }
   .compare-differences-panel { display: grid; grid-template-columns: repeat(2, 1fr); }
   .compare-differences-panel > .compare-panel-heading { grid-column: 1 / -1; }

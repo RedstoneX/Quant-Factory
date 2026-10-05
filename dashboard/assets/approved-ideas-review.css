@@ -370,6 +370,8 @@
 .idea-reject-button { min-height: 44px; width: 100%; }
 .idea-reject-button { border-color: #c95a68; color: #b93648; }
 .idea-decision-panel #continue-idea-to-setup { display: none; }
+.idea-decision-approved #accept-candidate-for-setup { display: none; }
+.idea-decision-approved #continue-idea-to-setup { display: flex; }
 .idea-decision-rejected #accept-candidate-for-setup,
 .idea-decision-rejected #continue-idea-to-setup { display: none; }
 

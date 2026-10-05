@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -301,6 +302,22 @@ def test_compare_uses_one_normalized_equity_chart_and_never_mounts_drawdown() ->
     assert all(trace.connectgaps is False for trace in equity.data)
     mounted_ids = {getattr(item, "id", None) for item in _walk(rendered)}
     assert "comparison-drawdown-chart" not in mounted_ids
+
+
+def test_compare_bounds_only_browser_chart_points_for_large_persisted_curves() -> None:
+    model = _model()
+    points = tuple(
+        CompareSeriesPoint(f"2024-01-01T00:{index:05d}:00Z", 100.0 + index / 1000)
+        for index in range(4_000)
+    )
+    large_series = tuple(replace(series, points=points) for series in model.equity_series)
+
+    rendered = compare_results(replace(model, equity_series=large_series))
+    equity = _by_id(rendered, "comparison-equity-chart").figure
+
+    assert all(len(trace.x) == 1_500 for trace in equity.data)
+    assert all(len(trace.y) == 1_500 for trace in equity.data)
+    assert large_series[0].points == points
 
 
 def test_partial_evidence_omits_unsupported_trace_and_labels_every_gap() -> None:

@@ -110,6 +110,7 @@ def register_compare_backtests_callbacks(
         Input("url", "search"),
         State("url", "pathname"),
         State("find-compare-grid", "rowData"),
+        prevent_initial_call=False,
     )
     def hydrate_exact_selection(
         search: str | None,
@@ -135,6 +136,7 @@ def register_compare_backtests_callbacks(
         Input("find-compare-grid", "selectedRows"),
         Input("url", "search"),
         State("url", "pathname"),
+        prevent_initial_call=False,
     )
     def selection_actions(
         selected_rows: list[dict[str, object]] | None,
@@ -202,6 +204,7 @@ def register_compare_backtests_callbacks(
         Input("refresh-comparisons", "n_clicks"),
         State("url", "pathname"),
         Input("url", "search"),
+        prevent_initial_call=False,
     )
     def render_exact_comparison(
         _refresh_clicks: int,

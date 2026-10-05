@@ -130,6 +130,21 @@
   min-width: 0;
 }
 
+.results-page .results-no-run-state {
+  background: #fff;
+  border: 1px solid #d8e1ec;
+  border-radius: 11px;
+  padding: 18px;
+}
+
+.results-page .backtest-detail-workspace:has(.results-no-run-state) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.results-page .backtest-detail-workspace:has(.results-no-run-state) .results-review-panel {
+  display: none;
+}
+
 .results-page .results-run-identity {
   align-items: center;
   background: #fff;
