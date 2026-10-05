@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **329** | **Lock the current operator-workflow design contract into the repository:** repository-owned approved references control visual composition and interaction; keep Dash and the existing backend; translate the exact reference structure through live data/actions; keep permanently mounted route skeletons lightweight and hydrate expensive content only on the active route; remove rather than hide superseded dense renderers; and establish page-level conformance before merge/deploy. No framework migration or greenfield frontend is authorized. |
 | **328** | **Enforce cost and stop discipline for the one-owner experiment:** every action must change the next decision or produce the requested outcome; Direct Mode uses at most five plan items, one implementation path, one focused proof, no unchanged reruns, and no more than two identical failed attempts. After 15 minutes without owner-visible progress or whenever Terry questions necessity/cost/looping, stop and reassess. At an owner-only gate, do nothing else. Required CI remains full for code/core changes but becomes lightweight for documentation/static-asset-only changes. |
 | **327** | **Use a lean private-beta development and deployment process:** consolidate UI corrections, use focused non-browser checks, perform one PR/CI/deployment at the walkthrough boundary, restart only changed services, create no beta-iteration backup, and retain only the current plus immediately previous beta release/image. Backups remain required for an owner-accepted go-live, genuine persistent/schema migration or destructive state change, or explicit owner request. |
 | **326** | **Repair and complete the exact connected Candidate workflow before handoff:** one immutable Candidate identity/version must remain traceable through Ideas, Setup, Run Test, Results, and Compare; an unrelated fixture may never be substituted. Prepare the existing provider-neutral Gateway for bounded autonomous research campaigns and supply a copy/paste launcher, but do not run real strategy research before Terry accepts the first exact Candidate and evidence contract. |
@@ -2047,3 +2048,36 @@ superseded.
      scanner only when dependency-bearing files change. Production, research-evidence,
      protected-data, credential, paper/live, order, capital, and risk controls
      are unchanged.
+
+
+329. **Make repository-owned approved mockups the operator-workflow design
+     contract (accepted 2026-10-05).** Terry directs that the retained approved
+     page sources and references be checked into the canonical repository so
+     later sessions implement the accepted composition and interaction rather
+     than reconstructing it from screenshots or memory.
+
+     Keep Plotly Dash, the existing backend, persistence, research boundaries,
+     mounted-route architecture, and live actions. Translate the exact approved
+     page structure through thin Dash components and existing data/actions; the
+     reference HTML/CSS is design evidence, not a second frontend or permission
+     to copy unsafe standalone behavior. Permanently mounted routes retain
+     lightweight component skeletons and stable callback IDs, while run
+     history, charts, evidence, dense tables, and other expensive content load
+     only for the active route.
+
+     Superseded dense renderers must be removed from a redesigned page, not
+     mounted underneath it and hidden with CSS. Broad late-loading override
+     layers and text-only/component-presence claims do not prove conformance.
+     Before merge or private deployment, each page must satisfy its concise
+     manifest of required visible regions, working actions, prohibited legacy
+     content, and loading behavior. Terry retains browser acceptance under
+     Decision 325. The accepted Dashboard and substantially conforming Ideas
+     page are protected visual baselines. They receive regression protection,
+     not redesign or broad restyling; shared loading remediation must preserve
+     their appearance and interaction.
+
+     This decision authorizes no framework migration, greenfield frontend,
+     backend or schema redesign, automated browser testing, strategy research,
+     paid/protected data, broker work, paper/live activation, orders, capital,
+     or public exposure. Decisions 327 and 328 continue to require one lean
+     private-beta correction path and proportional proof.

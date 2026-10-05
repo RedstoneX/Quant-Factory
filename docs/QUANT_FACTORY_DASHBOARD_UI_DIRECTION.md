@@ -70,6 +70,21 @@ report section in a long page:
 - technical identifiers, hashes, storage references and diagnostics appear only
   in labelled drill-downs.
 
+The workflow must make four outcomes quickly understandable: **what happened,
+whether the evidence is usable, what needs attention, and the next safe
+action**. These are semantic outcomes, not required literal headings, cards,
+step labels, or button copy. Communicate them through information hierarchy,
+charts, status treatment, annotations or warnings, and contextual controls
+appropriate to the page.
+
+Controls must be visually unmistakable, and only real controls may look
+interactive. Primary actions use concise, context-specific verbs such as
+**Compare**, **Review trades**, **Save**, **Revise**, or **Start**, rather than
+explanatory sentences or redundant confirmations. Do not infantilize or
+over-explain obvious actions. Add adjacent supporting copy only when it is
+needed to understand a risk, evidence limitation, authority boundary, or
+irreversible consequence.
+
 Palette revision is deferred. Temporary acceptance of the validated preview's
 palette does not establish a final palette or turn a recolour into current
 implementation scope.
@@ -105,6 +120,50 @@ historical design evidence and is not the Decision 280 replacement mockup:
 
 Paper mockups are not part of Milestone 23 and must not be used to introduce
 deployment, broker, order, position, capital-allocation or live controls.
+
+## Repository-owned operator-workflow references
+
+Decision 329 makes
+[`docs/assets/dashboard/operator-workflow-approved/`](assets/dashboard/operator-workflow-approved/)
+the current implementation reference. The HTML files preserve the approved
+composition and styling; the PNG files preserve the corresponding desktop
+appearance. They are design contracts to translate through existing Dash
+components and live data/actions, not standalone production code.
+
+Two source gaps are explicit rather than silently reconstructed:
+
+- Dashboard has the accepted `dashboard.png` reference but no retained source
+  HTML/CSS. Preserve that accepted screen; do not infer new behavior from it.
+- Ideas has the accepted `ideas.html` source but no unambiguous clean standalone
+  PNG. Older Ideas workbench images and built-page comparisons are not the
+  contract.
+
+`paper-overview-status-reference.png` and
+`strategy-monitor-status-reference.png` record the retained private-beta page
+state only. They are not approved paper-trading mockups and authorize no paper
+operation or new controls.
+
+### Page acceptance manifest
+
+| Page | Current treatment | Repository reference | Required visible regions and working actions | Prohibited legacy/default content | Loading behavior |
+|---|---|---|---|---|---|
+| Dashboard | **Protected accepted baseline; regression check only** | `dashboard.png` | Research Atlas overview, live-research summary, readiness, research landscape, evidence survival, and clear next owner need | Replacement overview, invented metrics, new workflow controls, or visual change made only for loading work | Lightweight summary only; expensive detail waits for its destination page |
+| Ideas | **Protected substantially conforming baseline; regression check and specific confirmed defects only** | `ideas.html` | Idea queue/history, selected idea explanation, provenance, and obvious **Accept**, **Revise**, **Reject**, import/context/export actions | Redesign, broad restyling, ambiguous text posing as controls, hidden decision action, or legacy draft-editor composition | Preserve appearance, interaction, selected identity, and queue shell while active-route data loads |
+| Set up | **Verified visual/functional correction required** | `setup.html`, `setup.png` | Selected idea/campaign context, exact bounded test, test-day explanation, readiness checks, and obvious save/revise/reject or next valid action | Universal strategy builder, unrelated fixture substitution, duplicated narrative panels | Load Candidate/configuration detail only while Set up is active; preserve the selected identity |
+| Run test | **Verified workflow/functional correction required** | `run-test.html`, `run-test.png` | Saved test identity, immutable contract, data/provenance, preflight checks, explicit confirmation, and one start action or truthful blocker | Editable setup, silent retry, duplicate launch, or unrelated runnable fixture | Hydrate preflight/run state only on the active route; never launch from hydration |
+| Results | **Verified visual/functional correction required** | `results.html`, `results.png` | Persistent quartet, selected-run identity, truthful price/trade workspace, chart controls, metrics/trades/variants, evidence, review, and technical disclosure | Long diagnostics-first page, fabricated charts, or dense evidence mounted as the default view | Load history, artifacts, chart, and evidence only when Results is active and a run is selected |
+| Compare | **Verified structural correction required** | `compare.html`, `compare.png` | Selected-run chips, comparability warning, per-run quartets, normalized equity, aligned metrics, material differences, and Results links | Exhaustive parameter dump, separate legacy drawdown report, or hidden old Compare renderer | Load selected runs and chart evidence only while Compare is active; retain identities during reads |
+| Market data | **Inspect first; preserve if conformant** | `market-data.html`, `market-data.png` | Usability summary, coverage landscape, selected dataset, and validated catalog | Raw storage inventory as the primary experience or acquisition controls | Load catalog/coverage only while active; show observation time and truthful unavailable states |
+| System status | **Inspect first; preserve if conformant** | `system-status.html`, `system-status.png` | Operability answer, component health, recent relevant events, and safe/needs-check meaning | Raw logs, stack traces, or internal process detail as default content | Load current health only while active; label stale observations |
+| Data sources | **Inspect first; preserve if conformant** | `data-sources.html`, `data-sources.png` | Recorded lineage, selected source, provenance records, and bounded acquisition guidance | Secrets, unrestricted provider output, or purchase/download action | Load provenance records only while active; retain the selected source during refresh |
+| Settings | **Inspect first; preserve if conformant** | `settings.html`, `settings.png` | Interface/results preferences, protected-boundary explanation, reset, and save actions | Research-rule, authority, broker, or capital controls | Load preferences only while active; failed save retains edits and reports no change |
+| Paper Trading Overview | **Status reference only; no redesign authority** | `paper-overview-status-reference.png` | Retained read-only status reference only | Any operational control or claim of paper authority | No paper data polling before the paper milestone is authorized |
+| Strategy Monitor | **Status reference only; no redesign authority** | `strategy-monitor-status-reference.png` | Retained read-only status reference only | Orders, positions, activation, allocation, or live monitoring claims | No strategy-monitor hydration before the paper milestone is authorized |
+
+Conformance means the required regions and real actions exist, prohibited
+content is absent rather than CSS-hidden, and the loading rule is respected.
+Text presence, component counts, or a passing callback helper test alone are
+insufficient. Terry performs browser acceptance under Decision 325.
 
 ## Route and navigation contract
 

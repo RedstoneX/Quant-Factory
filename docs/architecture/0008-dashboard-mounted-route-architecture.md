@@ -44,6 +44,15 @@ The sidebar/navigation tree must not be rebuilt during ordinary route changes.
 
 Every registered route has one real, permanently mounted route container. Each route container owns the actual page components required by that page's callbacks, including controls, stores, selectors, buttons, and output regions.
 
+Permanent mounting does not require eager construction or hydration of every
+page's expensive presentation. Each route container keeps only the lightweight
+component skeleton and stable IDs needed for callback registration and route
+safety. Run history, artifacts, charts, dense tables, and other expensive
+derived content are read and rendered only when that route is active. The
+active-route gate must preserve existing callback-output IDs and fail-closed
+mutation checks. A replacement page must remove its superseded dense renderer;
+CSS-hidden legacy content is neither lightweight mounting nor conformance.
+
 Unknown-route handling uses a permanently mounted Page Not Found container. Unknown routes render Page Not Found without redirecting.
 
 The dashboard must not use hidden compatibility text, invisible markers, legacy aliases, fake placeholder components, or test-only presentation behavior to satisfy callback or acceptance tests.
