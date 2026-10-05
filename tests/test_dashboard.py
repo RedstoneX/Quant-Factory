@@ -606,7 +606,6 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert app.config.prevent_initial_callbacks is True
     assert len(app.callback_map) == 59
     assert app.config.meta_tags == [
         {

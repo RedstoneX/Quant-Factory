@@ -58,14 +58,12 @@ def register_compare_backtests_callbacks(
     compare_adapter: CompareDashboardAdapter | None = None,
 ) -> None:
     """Register callbacks owned by the Find & Compare route."""
-
     persisted_compare = compare_adapter or CompareDashboardAdapter(
         database=dashboard_database,
         artifact_root=artifact_root,
         detail_adapter=detail_adapter,
     )
     register_compare_history_callback(app, runs=runs, artifact_root=artifact_root)
-
     app.clientside_callback(
         """
         function (value, options) {
@@ -79,7 +77,6 @@ def register_compare_backtests_callbacks(
         State("find-compare-grid", "dashGridOptions"),
         prevent_initial_call=False,
     )
-
     @app.callback(
         Output("find-compare-search", "value"),
         Output("find-compare-grid", "filterModel"),
