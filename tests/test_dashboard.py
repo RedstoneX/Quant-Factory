@@ -883,8 +883,8 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     expected_titles = {
         "/": "Research Atlas",
         "/research/ideas": "Review research ideas",
-        "/research/setup": "Prepare the next test",
-        "/research/run-test": "Final review before one test",
+        "/research/setup": "Define the experiment",
+        "/research/run-test": "Review before running",
         "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Understand this run",
         "/research/compare-backtests": "Compare persisted runs",
@@ -1384,8 +1384,8 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
     expected = {
         "/": "Research Atlas",
         "/research/ideas": "Review research ideas",
-        "/research/setup": "Prepare the next test",
-        "/research/run-test": "Final review before one test",
+        "/research/setup": "Define the experiment",
+        "/research/run-test": "Review before running",
         "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Understand this run",
         "/research/compare-backtests": "Compare persisted runs",
@@ -1524,8 +1524,8 @@ def test_ideas_page_is_durable_local_text_only() -> None:
 def test_workflow_pages_use_the_sidebar_instead_of_repeating_stage_cards() -> None:
     pages = (
         ("/research/ideas", "Review research ideas"),
-        ("/research/setup", "Prepare the next test"),
-        ("/research/run-test", "Final review before one test"),
+        ("/research/setup", "Define the experiment"),
+        ("/research/run-test", "Review before running"),
         ("/research/backtest-results", "Understand this run"),
         ("/research/compare-backtests", "Compare persisted runs"),
     )
@@ -2019,12 +2019,12 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
         if getattr(component, "id", None)
     ]
 
-    assert "Prepare the next test" in rendered
-    assert "Candidate:" in rendered
-    assert "Nothing runs from Set up" in rendered
-    assert "Review this Candidate's exact test" in rendered
+    assert "Define the experiment" in rendered
+    assert "From idea" in rendered
+    assert "Saving a setup never starts a test" in rendered
+    assert "Fixed-rule preview" in rendered
     assert "Implementation required" in rendered
-    assert "No owner action right now" in rendered
+    assert "No owner action is required here" in rendered
     assert identifiers.count("configuration-selector") == 1
     assert identifiers.count("setup-strategy-selector") == 1
     assert identifiers.count("save-idea-configuration") == 1
