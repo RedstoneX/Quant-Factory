@@ -1404,11 +1404,7 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
         if pathname == "/research/market-data":
             assert "Inspect coverage, provenance, restrictions" in rendered_page
         if pathname == "/research/compare-backtests":
-            assert (
-                "Search, sort, and filter every saved test. Select one "
-                "row for its exact Results page, or two to four rows for "
-                "an exact comparison."
-            ) in rendered_page
+            assert "See material differences before deciding" in rendered_page
 
         links = [
             component
@@ -3628,16 +3624,16 @@ def test_dashboard_run_comparison_renders_equal_changed_and_missing_fields(
     rendered = str(panel)
 
     assert class_name == "run-comparison-output"
-    assert "Can these tests be compared?" in rendered
+    assert "Comparison requires caution" in rendered
     assert "compare_run_a" in rendered
     assert "compare_run_b" in rendered
-    assert "comparison-row-equal" in rendered
+    assert "comparison-row-equal" not in rendered
     assert "comparison-row-changed" in rendered
     assert "comparison-row-missing" in rendered
-    assert "Execution and costs" in rendered
+    assert "Execution & costs" in rendered
     assert "0.0005" in rendered
     assert "0.001" in rendered
-    assert "Parameters" in rendered
+    assert "Signal & timing" in rendered
     assert "10" in _component_text(panel)
     assert "20" in _component_text(panel)
     assert "Evidence" in rendered
@@ -3808,7 +3804,7 @@ def test_dashboard_run_comparison_uses_callback_local_sqlite_connection(
     assert len(result) == 1
     panel, class_name = result[0]
     assert class_name == "run-comparison-output"
-    assert "Can these tests be compared?" in str(panel)
+    assert "Comparison requires caution" in str(panel)
     assert "SQLite objects created in a thread" not in str(result[0])
 
 

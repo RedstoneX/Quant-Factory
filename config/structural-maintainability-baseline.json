@@ -76,7 +76,7 @@
     "tests/browser/test_results_beta_acceptance.py": 766,
     "tests/test_candidate_dashboard_runtime.py": 616,
     "tests/test_candidate_pipeline_runtime.py": 664,
-    "tests/test_dashboard.py": 7106,
+    "tests/test_dashboard.py": 7102,
     "tests/test_dashboard_health.py": 678,
     "tests/test_evidence_decision_artifacts.py": 1093,
     "tests/test_factory_filter_chain.py": 612,
