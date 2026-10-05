@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from typing import Mapping
 
+import dash_ag_grid as dag
 from dash import dcc, html
 import plotly.graph_objects as go
 
@@ -32,21 +34,10 @@ def layout(
         item for item in datasets if item.manifest.status == "quarantined"
     )
     selected = next(
-        (
-            item
-            for item in validated_datasets
-            if item.manifest.symbol.upper() == "SPYM"
-            and item.availability == "Available locally"
-        ),
-        next(
-            (
-                item
-                for item in validated_datasets
-                if item.availability == "Available locally"
-            ),
-            validated_datasets[0] if validated_datasets else None,
-        ),
+        (item for item in validated_datasets if item.availability == "Available locally"),
+        validated_datasets[0] if validated_datasets else None,
     )
+    catalog_rows = [_dataset_record(item) for item in validated_datasets]
     return html.Div(
         [
             page_heading(
@@ -97,18 +88,18 @@ def layout(
                         [
                             html.Div(
                                 [
-                                    html.H2("Committed dataset catalog"),
+                                    html.H2("Validated dataset catalog"),
                                     html.P(
                                         "Use a row's manifest details to inspect assumptions and restrictions.",
                                         className="section-description",
                                     ),
                                 ]
                             ),
-                            html.Span(f"{len(datasets)} records", className="surface-badge"),
+                            html.Span(f"{len(validated_datasets)} records", className="surface-badge"),
                         ],
                         className="surface-heading",
                     ),
-                    html.Div(_catalog_table(validated_datasets), className="support-table-scroll"),
+                    _catalog_grid(catalog_rows, _dataset_record(selected) if selected else None),
                     html.Details(
                         [
                             html.Summary(
@@ -209,11 +200,22 @@ def _coverage_chart(datasets: tuple[DatasetHealth, ...]) -> dcc.Graph | html.Div
 
 
 def _selected_dataset(item: DatasetHealth | None) -> html.Aside:
-    if item is None:
+    return selected_dataset_panel(_dataset_record(item) if item else None)
+
+
+def selected_dataset_panel(record: Mapping[str, object] | None) -> html.Aside:
+    """Render the selected manifest row without reading catalog state again."""
+
+    if not record:
         return html.Aside(
-            [html.H2("Selected dataset"), html.P("No committed dataset is available.")],
+            [html.H2("Selected dataset"), html.P("Select a validated dataset row to inspect it.")],
+            id="market-data-selected-record",
             className="support-surface selected-support-record",
         )
+    restrictions = str(record.get("restrictions") or "No restrictions were recorded in the manifest.")
+    symbol = str(record.get("symbol") or "Unknown")
+    timeframe = str(record.get("timeframe") or "Unknown")
+    dataset_id = str(record.get("dataset_id") or "Not recorded")
     return html.Aside(
         [
             html.Div(
@@ -222,18 +224,18 @@ def _selected_dataset(item: DatasetHealth | None) -> html.Aside:
             ),
             html.Div(
                 [
-                    html.Strong(f"{item.manifest.symbol} · {item.manifest.timeframe}"),
-                    html.Small(item.manifest.dataset_id),
+                    html.Strong(f"{symbol} · {timeframe}"),
+                    html.Small(dataset_id),
                 ],
                 className="selected-record-title",
             ),
             html.Dl(
                 [
-                    html.Div([html.Dt("Provider"), html.Dd(item.manifest.provider)]),
-                    html.Div([html.Dt("Coverage"), html.Dd(_coverage(item))]),
-                    html.Div([html.Dt("Rows"), html.Dd(f"{item.manifest.row_count:,}")]),
-                    html.Div([html.Dt("Local file"), html.Dd(item.availability)]),
-                    html.Div([html.Dt("Approval"), html.Dd(_approval(item))]),
+                    html.Div([html.Dt("Provider"), html.Dd(str(record.get("provider") or "Not recorded"))]),
+                    html.Div([html.Dt("Coverage"), html.Dd(str(record.get("coverage") or "Unknown"))]),
+                    html.Div([html.Dt("Rows"), html.Dd(str(record.get("row_count_display") or "0"))]),
+                    html.Div([html.Dt("Local file"), html.Dd(str(record.get("availability") or "Not checked"))]),
+                    html.Div([html.Dt("Approval"), html.Dd(str(record.get("approval") or "Not recorded"))]),
                 ],
                 className="selected-record-facts",
             ),
@@ -241,13 +243,14 @@ def _selected_dataset(item: DatasetHealth | None) -> html.Aside:
                 [
                     html.Strong("Use restrictions"),
                     html.P(
-                        _readable_restrictions(item.manifest.metadata.get("restrictions")),
+                        restrictions,
                         className="field-help",
                     ),
                 ],
                 className="operator-message operator-message-warning selected-record-warning",
             ),
         ],
+        id="market-data-selected-record",
         className="support-surface selected-support-record",
     )
 
@@ -269,30 +272,47 @@ def _configuration_notice(error: str | None) -> html.Div | None:
     )
 
 
-def _catalog_table(datasets: tuple[DatasetHealth, ...]) -> html.Table:
-    return html.Table(
-        [
-            html.Thead(html.Tr([html.Th(label) for label in ("Instrument", "Provider", "Timeframe", "Coverage", "Rows", "Approval", "Local file", "Checksum")])),
-            html.Tbody(
-                [
-                    html.Tr(
-                        [
-                            html.Td(f"{item.manifest.asset_class.title()} · {item.manifest.symbol}"),
-                            html.Td(item.manifest.provider),
-                            html.Td(item.manifest.timeframe),
-                            html.Td(_coverage(item)),
-                            html.Td(str(item.manifest.row_count)),
-                            html.Td(_approval(item)),
-                            html.Td(item.availability),
-                            html.Td(item.checksum),
-                        ]
-                    )
-                    for item in datasets
-                ]
-                or [html.Tr(html.Td("No committed dataset manifests were found.", colSpan=8))]
-            ),
+def _dataset_record(item: DatasetHealth) -> dict[str, object]:
+    return {
+        "dataset_id": item.manifest.dataset_id,
+        "instrument": f"{item.manifest.asset_class.title()} · {item.manifest.symbol}",
+        "symbol": item.manifest.symbol,
+        "provider": item.manifest.provider,
+        "timeframe": item.manifest.timeframe,
+        "coverage": _coverage(item),
+        "row_count": item.manifest.row_count,
+        "row_count_display": f"{item.manifest.row_count:,}",
+        "approval": _approval(item),
+        "availability": item.availability,
+        "checksum": item.checksum,
+        "restrictions": _readable_restrictions(item.manifest.metadata.get("restrictions")),
+    }
+
+
+def _catalog_grid(
+    rows: list[dict[str, object]],
+    selected: dict[str, object] | None,
+) -> dag.AgGrid:
+    return dag.AgGrid(
+        id="market-data-catalog-grid",
+        rowData=rows,
+        columnDefs=[
+            {"field": "instrument", "headerName": "Instrument", "flex": 1.2},
+            {"field": "provider", "headerName": "Provider", "flex": 1},
+            {"field": "timeframe", "headerName": "Bars", "maxWidth": 90},
+            {"field": "coverage", "headerName": "Recorded coverage", "flex": 1.6},
+            {"field": "row_count_display", "headerName": "Rows", "maxWidth": 110},
+            {"field": "approval", "headerName": "Approval", "flex": 1.1},
+            {"field": "availability", "headerName": "Local file", "flex": 1.1},
         ],
-        className="catalog-table",
+        selectedRows=[selected] if selected else [],
+        getRowId="params.data.dataset_id",
+        dashGridOptions={
+            "rowSelection": {"mode": "singleRow", "enableClickSelection": True},
+            "animateRows": False,
+        },
+        defaultColDef={"sortable": True, "filter": True, "resizable": True},
+        className="ag-theme-alpine support-record-grid",
     )
 
 

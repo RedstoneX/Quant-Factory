@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
-from dash import html
+from dash import dcc, html
 
 from dashboard.health import (
     HomeHealthReading,
@@ -122,9 +122,6 @@ def layout(
             redact_credential_health_reading(credential_reading),
         )
     )
-    available_count = sum(reading.status == "Available" for reading in snapshot)
-    not_checked_count = sum(reading.status == "Not checked" for reading in snapshot)
-
     return html.Div(
         [
             page_heading(
@@ -132,28 +129,7 @@ def layout(
                 "Know whether research can operate",
                 "Read the latest available health evidence without mistaking unmeasured services for healthy ones.",
             ),
-            html.Section(
-                [
-                    html.Div(
-                        [
-                            html.Strong(
-                                "Research state is readable; launch readiness is not established"
-                                if not_checked_count
-                                else "The recorded research components are available"
-                            ),
-                            html.P(
-                                "Every status below is tied to the evidence and observation time shown on this page.",
-                                className="section-description",
-                            ),
-                        ]
-                    ),
-                    html.Span(
-                        f"{available_count} available · {not_checked_count} not checked",
-                        className="support-summary-count",
-                    ),
-                ],
-                className="support-summary-banner",
-            ),
+            _system_summary(snapshot, resolved_observed_at),
             html.Section(
                 [_health_pulse(reading) for reading in snapshot],
                 id="system-health-summary",
@@ -239,6 +215,36 @@ def layout(
     )
 
 
+def _system_summary(
+    snapshot: tuple[HomeHealthReading, ...], observed_at: datetime
+) -> html.Section:
+    available_count = sum(reading.status == "Available" for reading in snapshot)
+    attention_count = len(snapshot) - available_count
+    observed = observed_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    return html.Section(
+        [
+            html.Div(
+                [
+                    html.Strong(
+                        "Research state is readable; fresh checks are still required"
+                        if attention_count
+                        else "The recorded research components are available"
+                    ),
+                    html.P(
+                        f"Snapshot observed {observed}. Every status stays tied to its recorded evidence.",
+                        className="section-description",
+                    ),
+                ]
+            ),
+            html.Span(
+                f"{attention_count} need attention" if attention_count else f"{available_count} available",
+                className="support-summary-count",
+            ),
+        ],
+        className="support-summary-banner",
+    )
+
+
 def provider_layout(
     *,
     config_path: Path = DEFAULT_CONFIG_PATH,
@@ -253,13 +259,17 @@ def provider_layout(
     validated_datasets = tuple(
         item for item in datasets if item.manifest.status == "validated"
     )
-    providers = sorted({item.manifest.provider for item in validated_datasets})
+    providers = sorted({_provider_family(item.manifest.provider) for item in validated_datasets})
     selected_provider = providers[0] if providers else None
     selected_records = tuple(
-        item for item in validated_datasets if item.manifest.provider == selected_provider
+        item
+        for item in validated_datasets
+        if _provider_family(item.manifest.provider) == selected_provider
     )
+    provider_records = [_provider_record(item) for item in validated_datasets]
     return html.Div(
         [
+            dcc.Store(id="data-source-records", data=provider_records, storage_type="memory"),
             page_heading(
                 "SYSTEM / DATA SOURCES",
                 "Know where research data came from",
@@ -289,47 +299,21 @@ def provider_layout(
                             ),
                             html.Div(
                                 [
-                                    html.Div([html.Span("Recorded provider"), html.Strong(selected_provider or "None")], className="lineage-step"),
+                                    html.Div([html.Span("Recorded provider"), html.Strong(selected_provider or "None", id="provider-lineage-name")], className="lineage-step"),
                                     html.Span("→", className="lineage-arrow", **{"aria-hidden": "true"}),
-                                    html.Div([html.Span("Validated manifests"), html.Strong(str(len(selected_records)))], className="lineage-step"),
+                                    html.Div([html.Span("Validated manifests"), html.Strong(str(len(selected_records)), id="provider-lineage-count")], className="lineage-step"),
                                     html.Span("→", className="lineage-arrow", **{"aria-hidden": "true"}),
                                     html.Div([html.Span("Local catalog"), html.Strong("Committed · read only")], className="lineage-step"),
                                 ],
                                 className="lineage-flow",
                             ),
-                            html.Div(
-                                [
-                                    html.Div(
-                                        [html.Strong(provider), html.Small(f"{sum(item.manifest.provider == provider for item in validated_datasets)} validated datasets"), html.Span("Not checked live")],
-                                        className=("provider-choice provider-choice-selected" if provider == selected_provider else "provider-choice"),
-                                    )
-                                    for provider in providers
-                                ]
-                                or [html.P("No committed provider records were found.", className="support-empty-state")],
-                                className="provider-choice-grid",
-                            ),
+                            _provider_selector(providers, validated_datasets, selected_provider),
                         ],
                         className="support-surface",
                     ),
-                    html.Aside(
-                        [
-                            html.Div([html.H2("Selected source"), html.P("What the recorded evidence actually establishes.", className="section-description")], className="surface-heading"),
-                            html.Div([html.Strong(selected_provider or "No source"), html.Small("Historical market-data provider")], className="selected-record-title"),
-                            html.Dl(
-                                [
-                                    html.Div([html.Dt("Provenance status"), html.Dd("Present in committed manifests" if selected_provider else "Unavailable")]),
-                                    html.Div([html.Dt("Validated datasets"), html.Dd(str(len(selected_records)))]),
-                                    html.Div([html.Dt("Live connectivity"), html.Dd("Not checked")]),
-                                    html.Div([html.Dt("Credential grant"), html.Dd("Not checked")]),
-                                ],
-                                className="selected-record-facts",
-                            ),
-                            html.Div(
-                                [html.Strong("Recorded does not mean connected"), html.P("This page proves the saved data's recorded origin. It does not prove current entitlement, uptime, credential availability, or freshness.", className="field-help")],
-                                className="operator-message operator-message-warning selected-record-warning",
-                            ),
-                        ],
-                        className="support-surface selected-support-record",
+                    selected_provider_panel(
+                        selected_provider,
+                        [record for record in provider_records if record["provider_family"] == selected_provider],
                     ),
                 ],
                 className="support-primary-grid",
@@ -349,6 +333,85 @@ def provider_layout(
 
 def _provider_metric(label: str, value: str, detail: str) -> html.Div:
     return html.Div([html.Span(label), html.Strong(value), html.Small(detail)], className="support-metric")
+
+
+def _provider_family(label: str) -> str:
+    """Normalize equivalent recorded labels without changing retained provenance."""
+
+    folded = label.strip().casefold()
+    if "databento" in folded:
+        return "Databento"
+    if "alpaca" in folded:
+        return "Alpaca"
+    if "yahoo" in folded:
+        return "Yahoo Finance"
+    return label.strip() or "Unlabelled source"
+
+
+def _provider_selector(providers, datasets, selected_provider):
+    return dcc.RadioItems(
+        id="data-source-selector",
+        options=[
+            {
+                "label": html.Div(
+                    [
+                        html.Strong(provider),
+                        html.Small(
+                            f"{sum(_provider_family(item.manifest.provider) == provider for item in datasets)} validated datasets"
+                        ),
+                        html.Span("Not checked live"),
+                    ],
+                    className="provider-choice-content",
+                ),
+                "value": provider,
+            }
+            for provider in providers
+        ],
+        value=selected_provider,
+        persistence=True,
+        persistence_type="session",
+        className="provider-choice-grid provider-selector",
+        inputClassName="provider-choice-input",
+        labelClassName="provider-choice",
+    )
+
+
+def _provider_record(item) -> dict[str, str]:
+    return {
+        "provider_family": _provider_family(item.manifest.provider),
+        "recorded_label": item.manifest.provider,
+        "instrument": f"{item.manifest.symbol} · {item.manifest.timeframe}",
+    }
+
+
+def selected_provider_panel(provider: str | None, records) -> html.Aside:
+    labels = sorted({str(item.get("recorded_label") or "") for item in records})
+    instruments = tuple(
+        str(item.get("instrument") or "") for item in records
+    )
+    return html.Aside(
+        [
+            html.Div([html.H2("Selected source"), html.P("What the recorded evidence actually establishes.", className="section-description")], className="surface-heading"),
+            html.Div([html.Strong(provider or "No source"), html.Small("Historical market-data provider")], className="selected-record-title"),
+            html.Dl(
+                [
+                    html.Div([html.Dt("Recorded labels"), html.Dd(" · ".join(labels) if labels else "None")]),
+                    html.Div([html.Dt("Provenance status"), html.Dd("Present in committed manifests" if provider else "Unavailable")]),
+                    html.Div([html.Dt("Validated datasets"), html.Dd(str(len(records)))]),
+                    html.Div([html.Dt("Live connectivity"), html.Dd("Not checked")]),
+                    html.Div([html.Dt("Credential grant"), html.Dd("Not checked")]),
+                ],
+                className="selected-record-facts",
+            ),
+            html.Div([html.Span(item) for item in instruments], className="dataset-chips"),
+            html.Div(
+                [html.Strong("Recorded does not mean connected"), html.P("Established: saved provenance and local validated manifests. Not established: current entitlement, uptime, credential availability, freshness, or acquisition cost.", className="field-help")],
+                className="operator-message operator-message-warning selected-record-warning",
+            ),
+        ],
+        id="data-source-selected-record",
+        className="support-surface selected-support-record",
+    )
 
 
 def _provenance_table(datasets: tuple) -> html.Table:
