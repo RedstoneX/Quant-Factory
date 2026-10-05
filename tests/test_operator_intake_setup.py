@@ -7,6 +7,7 @@ import sqlite3
 from types import SimpleNamespace
 
 import pytest
+from dash.exceptions import PreventUpdate
 
 from dashboard.app import create_app
 from dashboard.callbacks.setup import _parameter_controls
@@ -419,9 +420,21 @@ def test_accepted_candidate_without_implementation_cannot_fall_back_to_fixture(
     assert binding.configuration is None
 
     bind_selector = _callback(app, "configuration-selector.options")
-    options, selected_id = bind_selector(asdict(decided), None)
+    options, selected_id = bind_selector(
+        asdict(decided),
+        None,
+        {"display": "block"},
+        {"display": "none"},
+    )
     assert options == []
     assert selected_id is None
+    with pytest.raises(PreventUpdate):
+        bind_selector(
+            asdict(decided),
+            None,
+            {"display": "none"},
+            {"display": "none"},
+        )
 
     run_preview = _callback(app, "run-configuration-preview.children")
     preview = run_preview(fixture.configuration_id, asdict(decided))

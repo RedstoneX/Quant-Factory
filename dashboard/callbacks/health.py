@@ -7,10 +7,12 @@ from math import isfinite
 from typing import Any, Mapping
 
 from dash import Dash, Input, Output, State
+from dash.exceptions import PreventUpdate
 
 from dashboard.health import HomeHealthReading
 from dashboard.pages.home import health_cards_for_readings
 from dashboard.pages.system_health import health_pulse_cards
+from dashboard.routing import active_route
 
 
 DEFAULT_STALE_AFTER = timedelta(minutes=15)
@@ -66,6 +68,7 @@ def register_health_callbacks(app: Dash) -> None:
         State("home-evidence-survival-chart", "figure"),
         State("home-data-readiness-chart", "figure"),
         State("home-research-stops-chart", "figure"),
+        State("url", "pathname"),
         prevent_initial_call=True,
     )
     def hydrate_home_charts(
@@ -75,9 +78,12 @@ def register_health_callbacks(app: Dash) -> None:
         survival: object,
         readiness: object,
         stops: object,
+        pathname: str | None,
     ) -> tuple[object, object, object, object, object]:
         """Apply static figures once the asynchronously loaded graph is ready."""
 
+        if not active_route(pathname, "/"):
+            raise PreventUpdate
         return landscape, generalization, survival, readiness, stops
 
 
