@@ -70,6 +70,21 @@ report section in a long page:
 - technical identifiers, hashes, storage references and diagnostics appear only
   in labelled drill-downs.
 
+The workflow must make four outcomes quickly understandable: **what happened,
+whether the evidence is usable, what needs attention, and the next safe
+action**. These are semantic outcomes, not required literal headings, cards,
+step labels, or button copy. Communicate them through information hierarchy,
+charts, status treatment, annotations or warnings, and contextual controls
+appropriate to the page.
+
+Controls must be visually unmistakable, and only real controls may look
+interactive. Primary actions use concise, context-specific verbs such as
+**Compare**, **Review trades**, **Save**, **Revise**, or **Start**, rather than
+explanatory sentences or redundant confirmations. Do not infantilize or
+over-explain obvious actions. Add adjacent supporting copy only when it is
+needed to understand a risk, evidence limitation, authority boundary, or
+irreversible consequence.
+
 Palette revision is deferred. Temporary acceptance of the validated preview's
 palette does not establish a final palette or turn a recolour into current
 implementation scope.
