@@ -12,6 +12,7 @@ from dashboard.application import (
     _price_marker_figure,
     _price_marker_panel,
     _result_summary,
+    _run_detail_panel,
     _results_report_tabs,
 )
 from dashboard.components.trade_explorer import (
@@ -24,6 +25,7 @@ from dashboard.run_detail_adapter import (
     RunEvidenceView,
     SelectedRunDetailView,
 )
+from orchestration import RunSummary
 
 
 def _detail() -> SelectedRunDetailView:
@@ -283,10 +285,57 @@ def test_results_report_reuses_existing_metrics_and_trade_explorer() -> None:
     report = _results_report_tabs(_detail())
     rendered = str(report)
 
-    assert [tab.label for tab in report.children] == ["Metrics", "Trades", "Variants"]
+    assert [tab.label for tab in report.children] == [
+        "Overview",
+        "Trades",
+        "Variants",
+        "Evidence & review",
+        "Assumptions & lineage",
+    ]
+    assert report.id == "run-detail-analysis-tabs"
+    assert report.value == "metrics"
     assert rendered.count("id='selected-trade-grid'") == 1
     assert rendered.count("id='trade-explorer-summary'") == 1
+    assert rendered.count("id='price-marker-chart'") == 1
     assert "Parameter variants" in rendered
+
+
+def test_approved_results_workspace_replaces_legacy_long_renderer() -> None:
+    run = RunSummary(
+        run_id="run-results-contract",
+        configuration_id="configuration-results-contract",
+        strategy_id="fixture_strategy",
+        strategy_version="1.0.0",
+        stage="screening",
+        status="succeeded",
+        created_at="2026-01-02T14:30:00Z",
+        started_at="2026-01-02T14:30:01Z",
+        completed_at="2026-01-02T14:31:00Z",
+        error_summary=None,
+        prefect_flow_run_id=None,
+        prefect_api_url=None,
+        attempt_count=1,
+    )
+
+    rendered = str(_run_detail_panel(run, detail=_detail()))
+
+    for required in (
+        "results-run-identity",
+        "results-headline-metrics",
+        "Price & recorded trades",
+        "Evidence & review",
+        "Assumptions & lineage",
+        "Technical diagnostics",
+    ):
+        assert required in rendered
+    for removed in (
+        "run-detail-hero",
+        "results-beta-workspace",
+        "results-resize-edge",
+        "BACKTEST REPORT",
+        "Operations and diagnostics",
+    ):
+        assert removed not in rendered
 
 
 def test_trade_selection_linkage_is_scoped_and_grid_uses_normal_page_flow() -> None:
@@ -305,7 +354,7 @@ def test_trade_selection_linkage_is_scoped_and_grid_uses_normal_page_flow() -> N
     assert normalized[0]["__trade_index"] == 1
 
 
-def test_reset_layout_asset_changes_dimensions_only() -> None:
+def test_trade_focus_asset_changes_marker_emphasis_only() -> None:
     source = (
         Path(__file__).parents[1]
         / "dashboard"
@@ -313,9 +362,6 @@ def test_reset_layout_asset_changes_dimensions_only() -> None:
         / "results_beta_resize.js"
     ).read_text(encoding="utf-8")
 
-    assert "--qf-results-chart-height" in source
-    assert "--qf-results-report-min-height" in source
-    assert "removeProperty" in source
     assert "qfResults.focusTrade" in source
     assert "graph.data" in source
     assert "Plotly.restyle" in source
@@ -323,7 +369,14 @@ def test_reset_layout_asset_changes_dimensions_only() -> None:
     assert "without changing Bars or View" in source
     assert "Plotly.react" not in source
     assert "Plotly.newPlot" not in source
-    for forbidden in ("interval =", "view =", "selectedTrade", "results-report-tabs"):
+    for forbidden in (
+        "interval =",
+        "view =",
+        "selectedTrade",
+        "results-report-tabs",
+        "data-results-resizer",
+        "results-reset-layout",
+    ):
         assert forbidden not in source
 
 

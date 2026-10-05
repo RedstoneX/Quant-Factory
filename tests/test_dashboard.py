@@ -5862,16 +5862,16 @@ def test_run_detail_panel_renders_immutable_configuration_lineage_and_results() 
     )
     rendered = str(panel)
 
-    assert "Strategy settings" in rendered
-    assert "Selected backtest" in rendered
-    assert "Validation outcome" in rendered
     assert "Strategy Settings" in rendered
-    assert "Technical Details" in rendered
+    assert "results-run-identity" in rendered
+    assert "Validation outcome" in rendered
+    assert "Assumptions & lineage" in rendered
+    assert "Technical diagnostics" in rendered
     assert "slice_18a_fixture" in rendered
     assert "Fixture" in rendered
     assert "window: 14" in rendered
     assert '{"' not in rendered
-    assert "Research history" in rendered
+    assert "Research History" in rendered
     assert "abc123" in rendered
     assert "VectorBT Pro" in rendered
     assert "Not recorded" in rendered
@@ -5947,17 +5947,16 @@ def test_run_detail_panel_renders_spym_fixture_persisted_evidence() -> None:
     assert "Number Of Trades" in rendered
     assert "366" in rendered
     assert "passed" in rendered
-    assert "Trade summary" in rendered
+    assert "Recorded trade outcomes" in rendered
     assert "Recent trades" in rendered
     assert "Closed trades" in rendered
-    assert "Cumulative trade P&L" in rendered
-    assert "Price and completed trades" in rendered
+    assert "Price & recorded trades" in rendered
     assert "Evidence not recorded" in rendered
     assert "This run does not include a persisted underlying price" in rendered
     assert "Portfolio value and buy-and-hold comparison" in rendered
     assert "Drawdown over time" in rendered
     assert "Portfolio value" in rendered
-    assert "Validation evidence" in rendered
+    assert "Validation and evidence" in rendered
     assert "EQUS.MINI" in rendered
     assert "ohlcv-1m" in rendered
     assert "SPYM is an ingestion and execution fixture" in rendered
@@ -6102,10 +6101,10 @@ def test_selected_backtest_hierarchy_keeps_trace_id_out_of_primary_heading() -> 
     rendered = str(panel)
 
     assert run.run_id not in headings
-    assert "Fixture-only" in rendered
-    assert "Test period" in rendered
-    assert "Traceability retained below" in rendered
-    assert "Backtest ID" in rendered
+    assert "Infrastructure Fixture" in rendered
+    assert "fixed persisted configuration" in rendered
+    assert "Technical diagnostics" in rendered
+    assert "Run ID" in rendered
 
 
 def test_selected_backtest_formats_period_and_initial_capital_for_a_trader() -> None:
@@ -6124,9 +6123,8 @@ def test_selected_backtest_formats_period_and_initial_capital_for_a_trader() -> 
 
     rendered = str(_run_detail_panel(run, service.recent_events(), detail=detail))
 
-    assert "Test period: " in rendered
     assert "Oct 31, 2025, 1:30 PM UTC → Jul 13, 2026, 7:59 PM UTC" in rendered
-    assert "Initial capital: " in rendered
+    assert "Strategy Settings" in rendered
     assert "$10,000.00" in rendered
 
 
@@ -6410,8 +6408,8 @@ def test_dashboard_inspects_selected_run(tmp_path: Path, monkeypatch) -> None:
     assert detail_adapter.requests == ["run_dashboard_fixture"]
     assert "prefect-run_dashboard_fixture" in str(panel)
     assert "Run completed successfully." in str(panel)
-    assert "Strategy settings" in str(panel)
-    assert "Research history" in str(panel)
+    assert "Strategy Settings" in str(panel)
+    assert "Research History" in str(panel)
 
 
 def test_hidden_results_callbacks_skip_large_detail_reconstruction(
@@ -6438,8 +6436,8 @@ def test_hidden_results_callbacks_skip_large_detail_reconstruction(
         for component in _walk_components(_resolved_layout(app))
         if getattr(component, "id", None) == "selected-run-detail"
     )
-    assert "Persisted performance metrics appear after selecting" in str(mounted_detail)
-    assert "Primary metrics" not in str(mounted_detail)
+    assert "Select a completed run to open its persisted chart" in str(mounted_detail)
+    assert "price-marker-chart" in str(mounted_detail)
 
     inspect = _callback_function(app, "selected-run-detail")
     operator_context = _callback_function(app, "results-operator-context")
@@ -6534,8 +6532,8 @@ def test_selected_run_detail_dash_endpoint_renders_with_absent_detail_controls(
     rendered = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "run-detail-hero" in rendered
-    assert "Primary metrics" in rendered
+    assert "results-run-identity" in rendered
+    assert "results-headline-metrics" in rendered
     assert "run-analysis-tabs" in rendered
     assert "Select a recent run" not in rendered
 
@@ -6572,7 +6570,7 @@ def test_selected_run_detail_initializes_from_visible_dropdown_when_store_is_emp
 
     assert service.run_detail_queries == ["run_dashboard_fixture"]
     assert detail_adapter.requests == ["run_dashboard_fixture"]
-    assert "run-detail-hero" in rendered
+    assert "results-run-identity" in rendered
     assert "Select a recent run" not in rendered
 
 
@@ -6643,9 +6641,9 @@ def test_selected_run_detail_callback_renders_charts_and_tables_for_persisted_ru
     rendered = str(panel)
 
     assert "Portfolio value and buy-and-hold comparison" in rendered
-    assert "Cumulative trade P&amp;L" in rendered or "Cumulative trade P&L" in rendered
     assert "Drawdown over time" in rendered
-    assert "Trade return distribution" in rendered
+    assert "Price & recorded trades" in rendered
+    assert "results-headline-metrics" in rendered
     assert "Recent trades" in rendered
     assert "result-summary-card" in rendered
     assert "window: 14" in rendered
