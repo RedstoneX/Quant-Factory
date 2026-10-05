@@ -365,7 +365,7 @@ def test_all_history_keeps_row_visible_when_saved_configuration_is_malformed(
         ),
     ),
 )
-def test_dashboard_initial_layout_survives_malformed_history_configuration(
+def test_results_history_hydration_survives_malformed_configuration(
     tmp_path: Path,
     configuration_payload: str,
     expected_issue: str,
@@ -426,6 +426,12 @@ def test_dashboard_initial_layout_survives_malformed_history_configuration(
     layout = app.layout()
     rendered = str(layout)
     assert "layout-invalid-config-run" in rendered
-    assert "Configuration unavailable" in rendered
-    assert "Evidence invalid: saved configuration is invalid:" in rendered
-    assert expected_issue in rendered
+    assert "Configuration unavailable" not in rendered
+
+    history_rows = _callback_function(app, "run-history-grid.rowData")(
+        True, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results"
+    )
+    rendered_history = str(history_rows)
+    assert "Configuration unavailable" in rendered_history
+    assert "Evidence invalid: saved configuration is invalid:" in rendered_history
+    assert expected_issue in rendered_history

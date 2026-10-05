@@ -9,6 +9,7 @@ from dash import Dash, Input, Output, State
 from dash.exceptions import PreventUpdate
 
 from dashboard.compare_adapter import CompareDashboardAdapter
+from dashboard.callbacks.compare_history import register_compare_history_callback
 from dashboard.compare_query import compare_query_href, parse_compare_search
 from dashboard.components.compare_results import compare_empty, compare_failure, compare_results
 from dashboard.pages.compare_backtests import results_query_href
@@ -63,6 +64,7 @@ def register_compare_backtests_callbacks(
         artifact_root=artifact_root,
         detail_adapter=detail_adapter,
     )
+    register_compare_history_callback(app, runs=runs, artifact_root=artifact_root)
 
     app.clientside_callback(
         """
@@ -102,43 +104,6 @@ def register_compare_backtests_callbacks(
         matched = len(visible_rows) if visible_rows is not None else len(all_rows or ())
         selected = len(selected_rows or ())
         return f"{matched:,} matched · {selected:,} selected"
-
-    @app.callback(
-        Output("find-compare-grid", "rowData"),
-        Input("refresh-comparisons", "n_clicks"),
-        State("url", "pathname"),
-        Input("url", "search"),
-    )
-    def refresh_find_compare_rows(
-        _: int,
-        pathname: str | None,
-        search: str | None,
-    ):
-        if not _active_route(pathname, "/research/compare-backtests"):
-            raise PreventUpdate
-        rows = list(runs.all_history(artifact_root=artifact_root))
-        request = parse_compare_search(search)
-        if request.valid:
-            existing = {str(row.get("run_id")) for row in rows}
-            rows = [
-                *(
-                    {
-                        "run_id": run_id,
-                        "created_at": "Unavailable",
-                        "instrument": "Unavailable",
-                        "interval": "Unavailable",
-                        "strategy": "Unavailable",
-                        "status": "Unavailable",
-                        "review": "Unavailable",
-                        "evidence": "Persisted test unavailable",
-                        "metric_basis": "Top-ranked variation unavailable",
-                    }
-                    for run_id in request.run_ids
-                    if run_id not in existing
-                ),
-                *rows,
-            ]
-        return rows
 
     @app.callback(
         Output("find-compare-grid", "selectedRows"),

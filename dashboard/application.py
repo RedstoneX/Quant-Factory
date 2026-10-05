@@ -3891,7 +3891,7 @@ def _runs_page(
                         style={"height": "360px", "width": "100%"},
                     ),
                 ],
-                open=False,
+                id="results-run-history-disclosure", open=False,
                 className="panel run-history-panel operator-details results-change-run-history",
             ),
             html.Section(
@@ -4655,22 +4655,14 @@ def create_app(
         detail_adapter=detail_adapter,
     )
     recent_run_records = runs.recent_runs(limit=20)
-    all_run_records = (
-        runs.all_runs() if hasattr(runs, "all_runs") else recent_run_records
-    )
-    history_records = (
-        runs.all_history(artifact_root=artifact_root)
-        if hasattr(runs, "all_history")
-        else tuple(_history_row(run) for run in all_run_records)
-    )
     recent_event_records = runs.recent_events(limit=20)
     selected_run_panel: Any | None = None
     selected_run_id: str | None = None
     if recent_run_records:
-        selected_run, _ = _select_initial_backtest(
-            recent_run_records,
-            detail_adapter,
-        )
+        # Layout construction supplies a callback-safe Results shell only.
+        # Persisted evidence and the preferred evidence-bearing run are read by
+        # Results-owned callbacks after that route becomes active.
+        selected_run = _ordered_backtests(recent_run_records)[0]
     else:
         selected_run = None
     if selected_run is not None:
@@ -4712,8 +4704,8 @@ def create_app(
         "recent_events": recent_event_records,
         "selected_run_panel": selected_run_panel,
         "selected_run_id": selected_run_id,
-        "all_runs": all_run_records,
-        "history_rows": history_records,
+        "all_runs": (),
+        "history_rows": (),
         "catalog_snapshot": resolved_catalog_snapshot,
         "readiness_by_id": readiness_by_id,
         "catalog_checked_at": resolved_catalog_checked_at,
@@ -4722,21 +4714,15 @@ def create_app(
     }
 
     def serve_layout() -> html.Div:
-        # A new tab or refresh must reflect runs created since server startup.
-        # Initial callback hydration deliberately preserves mounted selector
-        # options, so a startup-only snapshot would hide later runs.
+        # A new tab or refresh keeps the lightweight recent-run shell current.
+        # Full history and persisted evidence hydrate only in route-owned
+        # callbacks after Results or Compare becomes active.
         current_layout_kwargs = {
             **layout_kwargs,
             "recent_runs": runs.recent_runs(limit=20),
             "recent_events": runs.recent_events(limit=20),
-            "all_runs": (
-                runs.all_runs() if hasattr(runs, "all_runs") else runs.recent_runs(limit=20)
-            ),
-            "history_rows": (
-                runs.all_history(artifact_root=artifact_root)
-                if hasattr(runs, "all_history")
-                else tuple(_history_row(run) for run in runs.recent_runs(limit=20))
-            ),
+            "all_runs": (),
+            "history_rows": (),
         }
         return create_layout(
             context,

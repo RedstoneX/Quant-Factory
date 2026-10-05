@@ -182,6 +182,7 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
                         className="comparison-setup-panel",
                     ),
                 ],
+                id="compare-run-finder-disclosure",
                 open=False,
                 className="compare-finder",
             ),
