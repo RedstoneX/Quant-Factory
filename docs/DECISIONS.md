@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **331** | **Require page-local UI references and representative-state visual proof during R12 recovery:** the standalone chart-first preview is Results-only; every other page uses its own approved reference. Before merge/deploy, Codex must visually inspect the actual meaningful page state against that exact reference, show Terry the side-by-side result, and obtain approval. Route arrival, HTTP success, empty shells, visible text, or zero browser errors cannot be called page or workflow completion. |
 | **330** | **Authorize narrowly scoped Playwright visual inspection for the active R12 correction:** one desktop viewport, exact approved-reference comparison, and read-only connected-workflow inspection. No browser suite, CI browser lane, multi-device matrix, evidence mutation, or general test infrastructure is authorized. This is a bounded exception to Decision 325, not a reversal of Terry's final browser acceptance. |
 | **329** | **Lock the current operator-workflow design contract into the repository:** repository-owned approved references control visual composition and interaction; keep Dash and the existing backend; translate the exact reference structure through live data/actions; keep permanently mounted route skeletons lightweight and hydrate expensive content only on the active route; remove rather than hide superseded dense renderers; and establish page-level conformance before merge/deploy. No framework migration or greenfield frontend is authorized. |
 | **328** | **Enforce cost and stop discipline for the one-owner experiment:** every action must change the next decision or produce the requested outcome; Direct Mode uses at most five plan items, one implementation path, one focused proof, no unchanged reruns, and no more than two identical failed attempts. After 15 minutes without owner-visible progress or whenever Terry questions necessity/cost/looping, stop and reassess. At an owner-only gate, do nothing else. Required CI remains full for code/core changes but becomes lightweight for documentation/static-asset-only changes. |
@@ -2101,3 +2102,31 @@ superseded.
      removed when the slice ends. This decision supersedes Decision 325 and
      the browser clauses of Decisions 326 and 329 only for this bounded R12
      inspection.
+
+
+331. **Require page-local references and representative-state visual proof for
+     R12 recovery (accepted 2026-10-05).** Terry corrects the repeated misuse
+     of UI references and insufficient browser closure claims. The standalone
+     chart-first preview and Decisions 280–282 apply only to the selected-run
+     Results experience. They are not the product-wide source of truth. Each
+     other operator route follows its own repository-owned HTML/PNG reference
+     and manifest entry; cross-page reuse is limited to non-conflicting shared
+     design principles.
+
+     Before any further R12 page is merged or deployed, Codex must name the
+     target page, exact reference, representative state, reported defect, and
+     allowed change. It must render that meaningful state at the approved
+     desktop viewport, visually inspect the reference and actual result, list
+     and correct material differences, show Terry the two views side by side,
+     and obtain page approval. Work proceeds one page at a time during this
+     trust-recovery period.
+
+     Route arrival, HTTP 200, a correct URL, visible headings, component/text
+     presence, an empty or loading shell, and absence of browser errors prove
+     only their narrow facts. They cannot establish page conformance or a
+     working workflow. Navigation-only inspection must be reported as a routing
+     smoke check. A workflow pass requires each included page's meaningful
+     state, real controls, and next safe transition. This decision narrows and
+     strengthens Decisions 329–330 without authorizing a framework migration,
+     second frontend, browser-test suite, multi-device matrix, new product
+     scope, research, trading, or repeated proof work.

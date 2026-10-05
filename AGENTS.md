@@ -265,6 +265,14 @@ an implementation mandate**. Reproduce the required experience using mature
 components and thin adapters; do not rebuild generic charting, grid, docking,
 layout, or component systems.
 
+UI references are page-local. The standalone chart-first preview and Decisions
+280–282 apply to the selected-run **Results** experience only. They do not
+control Dashboard, Ideas, Set up, Run test, Compare, or support-page
+composition. Each of those pages follows only its own entry in the approved
+reference manifest. Shared typography, spacing, control language, and
+progressive-disclosure principles may carry across pages only when they do not
+replace or contradict that page's own contract.
+
 Repository-owned references under
 `docs/assets/dashboard/operator-workflow-approved/` are the visual and
 interaction contract for the current operator workflow. Use their source
@@ -276,6 +284,28 @@ Page conformance requires the specified visible regions, real working actions,
 absence of prohibited legacy content, and active-route loading behavior; text
 presence or component-count tests alone do not establish conformance. Terry's
 walkthrough remains the browser acceptance gate.
+
+Before changing an operator page, write down the one target page, its exact
+repository reference, the representative data/state to render, the reported
+defect, and the permitted change. Do not combine pages or substitute a
+different page's reference. Before merge or deployment during the active R12
+trust-recovery work:
+
+- render the actual page at the same desktop viewport and a comparable,
+  meaningful state as its approved reference;
+- open and visually inspect both the approved reference and the actual render;
+- list and correct material differences in composition, hierarchy, spacing,
+  visible data, control affordance, and primary action;
+- exercise the safe read-only controls and transitions needed for that page;
+  and
+- show Terry the reference and actual render side by side and obtain approval.
+
+A loading screen, empty shell, blocked state, route change, HTTP 200, correct
+URL, visible text, or absence of browser errors is not representative page
+proof unless that exact state is the reported defect. Navigation-only evidence
+may be called a routing smoke check; it must never be reported as a working
+page or end-to-end workflow. A workflow pass requires every included page to
+show its meaningful state and the transition to the next safe action.
 
 For an Escalated Mode proposal or closure claim, use
 `.agents/skills/quant-factory-adversary/SKILL.md`. Independent review remains
