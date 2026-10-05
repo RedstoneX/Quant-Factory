@@ -21,7 +21,6 @@
     "[\"dashboard/compare_adapter.py\",\"CompareDashboardAdapter._snapshot\",\"FunctionDef\",1]": 156,
     "[\"dashboard/compare_adapter.py\",\"_comparability_findings\",\"FunctionDef\",1]": 158,
     "[\"dashboard/pages/ideas.py\",\"layout\",\"FunctionDef\",1]": 158,
-    "[\"dashboard/pages/setup.py\",\"layout\",\"FunctionDef\",1]": 179,
     "[\"dashboard/pages/system_health.py\",\"layout\",\"FunctionDef\",1]": 216,
     "[\"dashboard/run_adapter.py\",\"configuration_readiness\",\"FunctionDef\",1]": 311,
     "[\"dashboard/run_detail_adapter.py\",\"_evidence_view\",\"FunctionDef\",1]": 167,
