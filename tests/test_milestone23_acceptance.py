@@ -344,12 +344,12 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
     )
     assert comparison_class == "run-comparison-output"
     rendered_comparison = str(comparison_panel)
-    assert "Persisted run context" in rendered_comparison
+    assert "Selected run contexts" in rendered_comparison
     assert "m23-spym-success" in rendered_comparison
     assert reproduced.run_id in rendered_comparison
-    assert "Can these tests be compared?" in rendered_comparison
-    assert "Aligned headline metrics" in rendered_comparison
-    assert "What changed between tests?" in rendered_comparison
+    assert "Comparable on the recorded basis" in rendered_comparison
+    assert "Aligned persisted metrics" in rendered_comparison
+    assert "Material differences" in rendered_comparison
 
     review_context, sealed_manifest_before_review = _persist_spym_review_prerequisites(
         database,

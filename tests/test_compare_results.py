@@ -231,7 +231,7 @@ def _by_id(component: Any, component_id: str):
     return next(item for item in _walk(component) if getattr(item, "id", None) == component_id)
 
 
-def test_compare_results_renders_identities_quartets_warnings_before_charts_and_links() -> None:
+def test_compare_results_matches_approved_compact_structure_and_links() -> None:
     rendered = compare_results(_model(blocked=True))
     text = _text(rendered)
 
@@ -241,45 +241,53 @@ def test_compare_results_renders_identities_quartets_warnings_before_charts_and_
     assert text.count("Human decision") == 2
     assert text.count("Next safe action") == 2
     assert "Record decision" in text
-    assert "No action available" in text
-    assert "Direct comparison is blocked" in text
+    assert "None" in text
+    assert "Comparison requires caution" in text
     assert "Selected runs use different data windows." in text
-    assert "Aligned headline metrics" in text
-    assert "Basis: Rank 1 persisted parameter result; screening passed" in text
-    assert "Parameters" in text
-    assert "Data, provider and period" in text
+    assert "Aligned persisted metrics" in text
+    assert "Rank 1 persisted parameter result; screening passed" in text
+    assert "Market & sample" in text
+    assert "Signal & timing" in text
+    assert "Execution & costs" in text
+    assert "Evidence & review" in text
+    assert "Normalized performance and drawdown" not in text
+    assert "What changed between tests?" not in text
+    assert "Persisted run context" not in text
+    assert "Drawdown" not in text
 
     children = rendered.children
     findings_index = next(
-        index for index, child in enumerate(children) if getattr(child, "id", None) == "comparison-findings"
+        index
+        for index, child in enumerate(children)
+        if getattr(child, "id", None) == "comparison-findings"
     )
     chart_index = next(
         index
         for index, child in enumerate(children)
-        if "compare-chart-section" in str(getattr(child, "className", ""))
+        if "compare-workspace" in str(getattr(child, "className", ""))
     )
     assert findings_index < chart_index
 
     cards = [
         item
         for item in _walk(rendered)
-        if "compare-run-card" in str(getattr(item, "className", ""))
+        if "compare-run-context" in str(getattr(item, "className", "")).split()
     ]
     assert [card.to_plotly_json()["props"]["data-run-id"] for card in cards] == [
         "run-a",
         "run-b",
     ]
     links = [item for item in _walk(rendered) if isinstance(item, dcc.Link)]
-    assert [link.href for link in links] == [
+    result_links = [link.href for link in links if link.children == "Open Results"]
+    assert result_links == [
         "/research/backtest-results?run_id=run-a",
         "/research/backtest-results?run_id=run-b",
     ]
 
 
-def test_compare_charts_use_only_persisted_points_and_label_every_trace() -> None:
+def test_compare_uses_one_normalized_equity_chart_and_never_mounts_drawdown() -> None:
     rendered = compare_results(_model())
     equity = _by_id(rendered, "comparison-equity-chart").figure
-    drawdown = _by_id(rendered, "comparison-drawdown-chart").figure
 
     assert len(equity.data) == 2
     assert list(equity.data[0].x) == [
@@ -290,8 +298,9 @@ def test_compare_charts_use_only_persisted_points_and_label_every_trace() -> Non
     assert list(equity.data[1].y) == [100.0, 97.0]
     assert "run-a" in equity.data[0].name
     assert "run-b" in equity.data[1].name
-    assert list(drawdown.data[1].y) == [0.0, -0.03]
-    assert all(trace.connectgaps is False for trace in (*equity.data, *drawdown.data))
+    assert all(trace.connectgaps is False for trace in equity.data)
+    mounted_ids = {getattr(item, "id", None) for item in _walk(rendered)}
+    assert "comparison-drawdown-chart" not in mounted_ids
 
 
 def test_partial_evidence_omits_unsupported_trace_and_labels_every_gap() -> None:
@@ -304,9 +313,9 @@ def test_partial_evidence_omits_unsupported_trace_and_labels_every_gap() -> None
     assert "run-b: No validated persisted equity curve is available." in text
     assert "Unavailable" in text
     assert "Persisted value is unavailable." in text
-    assert "This persisted test is unavailable." in text
+    assert "Unavailable evidence" in text
     assert "Persisted run is unavailable." in text
-    assert "Comparison is blocked" in text
+    assert "Comparison requires caution" in text
 
 
 def test_loading_empty_and_failure_states_keep_safe_read_only_guidance() -> None:

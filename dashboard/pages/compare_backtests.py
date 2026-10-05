@@ -65,12 +65,11 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
     return html.Div(
         [
             _page_header(),
-            _selection_strip(),
             html.Details(
                 [
                     html.Summary(
                         [
-                            html.Strong("Find runs"),
+                            html.Strong("Add persisted run"),
                             html.Span(
                                 f"{len(history_rows):,} available",
                                 className="surface-status-text",
@@ -112,6 +111,13 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
                                         id="find-compare-reset-view",
                                         n_clicks=0,
                                         className="secondary-action",
+                                    ),
+                                    html.Button(
+                                        "Refresh",
+                                        id="refresh-comparisons",
+                                        n_clicks=0,
+                                        className="secondary-action",
+                                        title="Retry reading persisted history. No test will run or change.",
                                     ),
                                     html.P(
                                         f"{len(history_rows):,} matched · 0 selected",
@@ -212,42 +218,14 @@ def _page_header() -> html.Header:
                     html.P("RESEARCH / FIND & COMPARE", className="page-eyebrow"),
                     html.H1("Compare persisted runs", className="page-title"),
                     html.P(
-                        "Search, sort, and filter every saved test. Select one "
-                        "row for its exact Results page, or two to four rows for "
-                        "an exact comparison.",
+                        "See material differences before deciding whether outcomes "
+                        "can be interpreted side by side.",
                         className="page-description",
                     ),
                 ]
-            ),
-            html.Button(
-                "Refresh",
-                id="refresh-comparisons",
-                n_clicks=0,
-                className="secondary-action page-action",
-                title="Retry reading persisted history. No test will run or change.",
-            ),
+            )
         ],
-        className="page-heading page-heading-with-actions",
-    )
-
-
-def _selection_strip() -> html.Section:
-    return html.Section(
-        [
-            html.Div(
-                [html.Span("RUN A", className="setup-state-label"), html.Strong("Choose a saved test")],
-                className="compare-selection-slot compare-selection-slot-primary",
-            ),
-            html.Div(
-                [html.Span("RUN B", className="setup-state-label"), html.Strong("Choose a saved test")],
-                className="compare-selection-slot",
-            ),
-            html.Div(
-                [html.Span("COMPARISON", className="setup-state-label"), html.Strong("Select two to four persisted runs")],
-                className="compare-selection-slot compare-selection-guidance",
-            ),
-        ],
-        className="compare-selection-strip",
+        className="page-heading",
     )
 
 
