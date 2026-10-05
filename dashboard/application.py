@@ -3531,9 +3531,13 @@ def _run_detail_panel(
                     "Choose a persisted run to inspect its recorded chart, trades and evidence.",
                     className="empty-state-copy",
                 ),
-                _results_report_tabs(None),
+                html.Div(
+                    _results_report_tabs(None),
+                    className="results-callback-hosts",
+                    hidden=True,
+                ),
             ],
-            className="results-selected-run",
+            className="results-selected-run results-no-run-state",
         )
 
     identity_fields = [
@@ -3708,14 +3712,7 @@ def _runs_page(
         if configurations is None
         else configurations
     )
-    ordered_runs = _ordered_backtests(recent_runs)
-    initial_selected_run_id = (
-        selected_run_id
-        if selected_run_id is not None
-        else ordered_runs[0].run_id
-        if ordered_runs
-        else None
-    )
+    initial_selected_run_id = selected_run_id
     initial_selected_run = next(
         (
             run
@@ -4593,34 +4590,14 @@ def create_app(
     )
     recent_run_records = runs.recent_runs(limit=20)
     recent_event_records = runs.recent_events(limit=20)
-    selected_run_panel: Any | None = None
+    # Results must never substitute the newest unrelated fixture for the
+    # Candidate the owner is following. Exact links, completed-run callbacks,
+    # and an explicit history selection hydrate a persisted run later.
     selected_run_id: str | None = None
-    if recent_run_records:
-        # Layout construction supplies a callback-safe Results shell only.
-        # Persisted evidence and the preferred evidence-bearing run are read by
-        # Results-owned callbacks after that route becomes active.
-        selected_run = _ordered_backtests(recent_run_records)[0]
-    else:
-        selected_run = None
-    if selected_run is not None:
-        selected_run_id = selected_run.run_id
-        # Keep the permanently mounted Results page lightweight. Its real
-        # controls and selected-run shell remain mounted for ADR 0008, while
-        # the large persisted charts are hydrated by the Results-owned
-        # callback only when that route is active.
-        selected_run_panel = _run_detail_panel(
-            selected_run,
-            runs.events_for_run(selected_run.run_id),
-        )
-    elif recent_run_records:
-        selected_run = recent_run_records[0]
-        selected_run_id = selected_run.run_id
-        selected_run_panel = _run_detail_panel(
-            selected_run,
-            runs.events_for_run(selected_run.run_id),
-        )
+    selected_run_panel: Any | None = _run_detail_panel(None)
     app = Dash(
         __name__,
+        prevent_initial_callbacks=True,
         suppress_callback_exceptions=True,
         meta_tags=[
             {

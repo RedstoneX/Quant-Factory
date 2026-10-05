@@ -2103,8 +2103,8 @@ def test_backtest_selection_owns_results_review_form() -> None:
         in {"review-status", "review-note", "save-review", "review-history"}
     }
 
-    assert detail_selector.value == target.run_id
-    assert detail_store.data == target.run_id
+    assert detail_selector.value is None
+    assert detail_store.data is None
     assert review_ids == {
         "review-status",
         "review-note",
@@ -5048,8 +5048,8 @@ def test_selected_run_store_recontrols_dropdown_after_detail_render_remount(
         for component in _walk_components(layout)
         if getattr(component, "id", None) == "selected-run-state"
     )
-    assert mounted_selector.value == "default_run_a"
-    assert mounted_store.data == "default_run_a"
+    assert mounted_selector.value is None
+    assert mounted_store.data is None
     assert mounted_store.storage_type == "session"
 
     preserve = _callback_function(app, "selected-run-state")
@@ -5063,7 +5063,7 @@ def test_selected_run_store_recontrols_dropdown_after_detail_render_remount(
         "selected_run_b",
         None,
         "",
-        "default_run_a",
+        None,
         "/research/backtest-results",
     )
     rendered = str(inspect(stored, "selected_run_b", 0, 0, 0, 0))
@@ -5630,7 +5630,7 @@ def test_history_grid_selection_recontrols_stale_dropdown_value(
     assert [option["value"] for option in options][-1] == "spym_historical_run"
 
 
-def test_missing_selected_run_outside_recent_limit_falls_back_to_preferred(
+def test_missing_selected_run_outside_recent_limit_does_not_substitute_another_run(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -5663,7 +5663,7 @@ def test_missing_selected_run_outside_recent_limit_falls_back_to_preferred(
         [],
     )
 
-    assert selected == "recent_run_00"
+    assert selected is None
     assert "missing-run" not in [option["value"] for option in options]
 
 
@@ -6436,7 +6436,7 @@ def test_hidden_results_callbacks_skip_large_detail_reconstruction(
         for component in _walk_components(_resolved_layout(app))
         if getattr(component, "id", None) == "selected-run-detail"
     )
-    assert "Select a completed run to open its persisted chart" in str(mounted_detail)
+    assert "Choose a persisted run to inspect its recorded chart" in str(mounted_detail)
     assert "price-marker-chart" in str(mounted_detail)
 
     inspect = _callback_function(app, "selected-run-detail")

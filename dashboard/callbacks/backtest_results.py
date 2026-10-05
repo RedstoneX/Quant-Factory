@@ -1325,6 +1325,7 @@ def register_backtest_results_callbacks(
         Input("url", "search"),
         State("selected-run-state", "data"),
         State("url", "pathname"),
+        prevent_initial_call=False,
     )
     def preserve_selected_run(
         selected_run_id: str | None,
@@ -1416,7 +1417,7 @@ def register_backtest_results_callbacks(
         Output("recent-runs-monitor", "children"),
         Output("recent-events-monitor", "children"),
         Input("refresh-runs", "n_clicks"),
-        Input("launch-message", "children"),
+        Input("launch-message", "children", allow_optional=True),
         Input("historical-launch-message", "children", allow_optional=True),
         Input("reproduction-message", "children", allow_optional=True),
         Input("cancellation-message", "children", allow_optional=True),
@@ -1441,7 +1442,7 @@ def register_backtest_results_callbacks(
         Output("run-history-grid", "rowData"),
         Input("results-run-history-disclosure", "open"),
         Input("refresh-runs", "n_clicks"),
-        Input("launch-message", "children"),
+        Input("launch-message", "children", allow_optional=True),
         Input("historical-launch-message", "children", allow_optional=True),
         Input("reproduction-message", "children", allow_optional=True),
         Input("review-message", "children", allow_optional=True),
@@ -1562,14 +1563,6 @@ def register_backtest_results_callbacks(
             if stored_run is not None
             else None
         )
-        # Resolving chart evidence is only needed for initial selection. A
-        # refresh with a valid operator selection must not reconstruct every
-        # candidate portfolio before returning unchanged selector values.
-        preferred_backtest_id = (
-            _preferred_backtest_id(recent_run_records, detail_adapter)
-            if stable_selected_run_id is None and completed_run_id is None
-            else None
-        )
         if completed_run_id is not None:
             selected_value = completed_run_id
         elif stored_request_is_invalid:
@@ -1579,7 +1572,9 @@ def register_backtest_results_callbacks(
         elif stable_selected_run_id is not None:
             selected_value = stable_selected_run_id
         else:
-            selected_value = preferred_backtest_id
+            # Never substitute a recent fixture or unrelated historical run
+            # for the exact Candidate/run the operator is following.
+            selected_value = None
         initial_selector_hydration = triggered_id is None and bool(selected_options)
         options = _selector_options(recent_run_records)
         option_values = {option["value"] for option in options}
@@ -1614,7 +1609,7 @@ def register_backtest_results_callbacks(
         Input("selected-run-state", "data"),
         Input("selected-run-selector", "value"),
         Input("refresh-runs", "n_clicks"),
-        Input("launch-message", "children"),
+        Input("launch-message", "children", allow_optional=True),
         Input("cancellation-message", "children", allow_optional=True),
         Input("stale-recovery-message", "children"),
         State("url", "pathname"),

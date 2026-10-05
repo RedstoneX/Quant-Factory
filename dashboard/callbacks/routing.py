@@ -51,6 +51,7 @@ def register_routing_callbacks(app: Dash) -> None:
     @app.callback(
         *[Output(container_id, "style") for container_id in ROUTE_CONTAINER_IDS],
         Input("url", "pathname"),
+        prevent_initial_call=False,
     )
     def update_route_visibility(pathname: str | None):
         if pathname is None:

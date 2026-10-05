@@ -3,12 +3,14 @@
 .run-test-page .page-heading { margin-bottom: 14px; }
 
 .setup-header-state {
+  align-self: center;
   background: #fff4dc;
   border-radius: 999px;
   color: #a56800;
   font-size: 11px;
   font-weight: 750;
   padding: 6px 9px;
+  justify-self: end;
 }
 
 .setup-approved-identity,
@@ -73,6 +75,12 @@
 .run-selector-state {
   align-items: center;
   display: flex;
+  justify-content: center;
+}
+
+.setup-approved-identity > .setup-identity-state .setup-context-state {
+  display: inline-flex;
+  width: auto;
 }
 
 .setup-approved-workspace,
@@ -84,6 +92,12 @@
 }
 
 .setup-decision-rail { display: grid; gap: 10px; min-width: 0; }
+
+.setup-approved-workspace > .setup-contract-workspace,
+.setup-approved-workspace > .setup-decision-rail {
+  grid-column: auto;
+  grid-row: auto;
+}
 
 .setup-candidate-contract { border-bottom: 1px solid #e4e9f0; }
 

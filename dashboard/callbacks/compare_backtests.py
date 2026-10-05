@@ -58,14 +58,12 @@ def register_compare_backtests_callbacks(
     compare_adapter: CompareDashboardAdapter | None = None,
 ) -> None:
     """Register callbacks owned by the Find & Compare route."""
-
     persisted_compare = compare_adapter or CompareDashboardAdapter(
         database=dashboard_database,
         artifact_root=artifact_root,
         detail_adapter=detail_adapter,
     )
     register_compare_history_callback(app, runs=runs, artifact_root=artifact_root)
-
     app.clientside_callback(
         """
         function (value, options) {
@@ -79,7 +77,6 @@ def register_compare_backtests_callbacks(
         State("find-compare-grid", "dashGridOptions"),
         prevent_initial_call=False,
     )
-
     @app.callback(
         Output("find-compare-search", "value"),
         Output("find-compare-grid", "filterModel"),
@@ -110,6 +107,7 @@ def register_compare_backtests_callbacks(
         Input("url", "search"),
         State("url", "pathname"),
         State("find-compare-grid", "rowData"),
+        prevent_initial_call=False,
     )
     def hydrate_exact_selection(
         search: str | None,
@@ -135,6 +133,7 @@ def register_compare_backtests_callbacks(
         Input("find-compare-grid", "selectedRows"),
         Input("url", "search"),
         State("url", "pathname"),
+        prevent_initial_call=False,
     )
     def selection_actions(
         selected_rows: list[dict[str, object]] | None,
@@ -202,6 +201,7 @@ def register_compare_backtests_callbacks(
         Input("refresh-comparisons", "n_clicks"),
         State("url", "pathname"),
         Input("url", "search"),
+        prevent_initial_call=False,
     )
     def render_exact_comparison(
         _refresh_clicks: int,

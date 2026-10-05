@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from urllib.parse import urlencode
 
+import numpy as np
 import plotly.graph_objects as go
+from tsdownsample import MinMaxLTTBDownsampler
 from dash import dcc, html
 
 from dashboard.compare_adapter import (
@@ -13,6 +15,7 @@ from dashboard.compare_adapter import (
     CompareDifferenceGroup,
     CompareRunIdentity,
     CompareSeries,
+    CompareSeriesPoint,
     CompareViewModel,
 )
 
@@ -294,10 +297,11 @@ def _equity_chart(series_items: tuple[CompareSeries, ...]) -> html.Div:
         figure = go.Figure()
         colors = ("#316ff4", "#7a55d9", "#0b9f76", "#b66b00")
         for index, series in enumerate(supported):
+            displayed_points = _display_points(series.points)
             figure.add_trace(
                 go.Scatter(
-                    x=[point.timestamp for point in series.points],
-                    y=[point.value for point in series.points],
+                    x=[point.timestamp for point in displayed_points],
+                    y=[point.value for point in displayed_points],
                     mode="lines",
                     name=f"{series.label} · {series.run_id}",
                     line={"color": colors[index % len(colors)], "width": 2.5},
@@ -345,6 +349,23 @@ def _equity_chart(series_items: tuple[CompareSeries, ...]) -> html.Div:
             )
         )
     return html.Div(children, className="compare-chart-wrap")
+
+
+_MAX_COMPARE_CHART_POINTS = 1_500
+
+
+def _display_points(
+    points: Sequence[CompareSeriesPoint],
+    *,
+    max_points: int = _MAX_COMPARE_CHART_POINTS,
+) -> tuple[CompareSeriesPoint, ...]:
+    """Bound browser chart geometry while preserving the immutable read model."""
+
+    if len(points) <= max_points:
+        return tuple(points)
+    values = np.asarray([point.value for point in points], dtype=np.float64)
+    selected = MinMaxLTTBDownsampler().downsample(values, n_out=max_points)
+    return tuple(points[int(index)] for index in selected)
 
 
 def _metric_table(model: CompareViewModel) -> html.Div:

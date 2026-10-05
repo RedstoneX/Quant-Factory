@@ -80,7 +80,7 @@ def register_candidate_setup_callbacks(
         Output("review-test-action", "title"),
         Output("review-test-action", "children"),
         Output("setup-context-state", "children"),
-        Output("setup-current-state", "className"),
+        Output("setup-context-state", "className"),
         Input("selected-configuration-state", "data"),
         Input("idea-draft-store", "data"),
     )

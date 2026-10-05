@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **330** | **Authorize narrowly scoped Playwright visual inspection for the active R12 correction:** one desktop viewport, exact approved-reference comparison, and read-only connected-workflow inspection. No browser suite, CI browser lane, multi-device matrix, evidence mutation, or general test infrastructure is authorized. This is a bounded exception to Decision 325, not a reversal of Terry's final browser acceptance. |
 | **329** | **Lock the current operator-workflow design contract into the repository:** repository-owned approved references control visual composition and interaction; keep Dash and the existing backend; translate the exact reference structure through live data/actions; keep permanently mounted route skeletons lightweight and hydrate expensive content only on the active route; remove rather than hide superseded dense renderers; and establish page-level conformance before merge/deploy. No framework migration or greenfield frontend is authorized. |
 | **328** | **Enforce cost and stop discipline for the one-owner experiment:** every action must change the next decision or produce the requested outcome; Direct Mode uses at most five plan items, one implementation path, one focused proof, no unchanged reruns, and no more than two identical failed attempts. After 15 minutes without owner-visible progress or whenever Terry questions necessity/cost/looping, stop and reassess. At an owner-only gate, do nothing else. Required CI remains full for code/core changes but becomes lightweight for documentation/static-asset-only changes. |
 | **327** | **Use a lean private-beta development and deployment process:** consolidate UI corrections, use focused non-browser checks, perform one PR/CI/deployment at the walkthrough boundary, restart only changed services, create no beta-iteration backup, and retain only the current plus immediately previous beta release/image. Backups remain required for an owner-accepted go-live, genuine persistent/schema migration or destructive state change, or explicit owner request. |
@@ -2081,3 +2082,22 @@ superseded.
      paid/protected data, broker work, paper/live activation, orders, capital,
      or public exposure. Decisions 327 and 328 continue to require one lean
      private-beta correction path and proportional proof.
+
+
+330. **Permit one bounded Playwright visual-inspection path for R12 (accepted
+     2026-10-05).** After repeated source-level and screenshot-only claims did
+     not detect material live-page divergence, Terry authorizes Codex to use
+     Playwright as a narrow visual inspection instrument for the active R12
+     correction. The allowed proof is one desktop viewport against the
+     repository-owned approved reference, plus read-only inspection of the
+     connected Dashboard -> Ideas -> Setup -> Run Test -> Results -> Compare
+     path.
+
+     This does not authorize a reusable browser test project, a CI browser
+     lane, multi-browser or multi-device matrices, repeated render variants,
+     research/evidence mutation, or browser-driven strategy execution. Focused
+     component and callback tests remain the executable proof; Terry retains
+     final browser walkthrough acceptance. Temporary browser captures are
+     removed when the slice ends. This decision supersedes Decision 325 and
+     the browser clauses of Decisions 326 and 329 only for this bounded R12
+     inspection.
