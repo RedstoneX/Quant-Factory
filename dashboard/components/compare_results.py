@@ -1,56 +1,55 @@
-"""Accessible rendering for the immutable persisted-run Compare read model."""
+"""Approved compact rendering for the immutable persisted-run Compare read model."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from urllib.parse import urlencode
 
 import plotly.graph_objects as go
 from dash import dcc, html
 
 from dashboard.compare_adapter import (
+    CompareDifferenceField,
     CompareDifferenceGroup,
     CompareRunIdentity,
     CompareSeries,
     CompareViewModel,
 )
-from dashboard.components.operator_context import (
-    OperatorContextViewModel,
-    operator_context,
-)
 
 
 def compare_results(model: CompareViewModel) -> html.Div:
-    """Render every requested run and only its validated persisted evidence."""
+    """Render the approved Compare workspace from persisted evidence only."""
 
     return html.Div(
         [
-            _run_cards(model.runs),
-            _findings(model),
-            _chart_section(model),
-            _metric_section(model),
-            _difference_sections(model.difference_groups, model.runs),
+            _selected_runs(model.runs),
+            _comparability(model),
+            _run_contexts(model.runs),
+            html.Div(
+                [
+                    html.Section(
+                        [_equity_panel(model), _metric_table(model)],
+                        className="compare-performance-panel",
+                    ),
+                    _material_differences(model.difference_groups, model.runs),
+                ],
+                className="compare-workspace",
+            ),
         ],
         id="comparison-read-model",
-        className=(
-            "compare-read-model compare-read-model-comparable"
-            if model.directly_comparable
-            else "compare-read-model compare-read-model-blocked"
-        ),
+        className="compare-read-model",
         **{"data-directly-comparable": str(model.directly_comparable).lower()},
     )
 
 
 def compare_loading(run_ids: Sequence[str]) -> html.Section:
-    """Keep requested identities explicit before the first persisted read completes."""
+    """Keep requested identities explicit while persisted evidence is read."""
 
     selected = tuple(str(run_id) for run_id in run_ids)
     return html.Section(
         [
             html.H2("Loading comparison"),
-            html.P(
-                "Reading persisted evidence only. No test will run or change.",
-                className="section-description",
-            ),
+            html.P("Reading persisted evidence only. No test will run or change."),
             _requested_identity_list(selected),
         ],
         className="comparison-state-panel comparison-loading-state",
@@ -65,8 +64,8 @@ def compare_empty() -> html.Section:
         [
             html.H2("Choose persisted tests to compare"),
             html.P(
-                "Select at least two saved tests. Adding a test reads its recorded "
-                "evidence; it does not run or reproduce anything.",
+                "Select at least two saved tests, up to four. Comparison reads recorded evidence; "
+                "it never runs or changes a test."
             ),
         ],
         className="comparison-state-panel comparison-empty-state",
@@ -83,14 +82,12 @@ def compare_failure(run_ids: Sequence[str], diagnostic: str) -> html.Section:
             html.H2("Comparison could not be read"),
             html.P(
                 "The selected tests are unchanged. Choose Refresh to retry reading "
-                "their persisted evidence; nothing will be run or changed.",
+                "persisted evidence; nothing will run or change."
             ),
             _requested_identity_list(selected),
             html.Details(
-                [
-                    html.Summary("Problem details"),
-                    html.P(diagnostic, className="comparison-diagnostic"),
-                ]
+                [html.Summary("Problem details"), html.P(diagnostic)],
+                className="compare-run-details",
             ),
         ],
         className="comparison-state-panel comparison-failure-state",
@@ -103,103 +100,125 @@ def _requested_identity_list(run_ids: tuple[str, ...]) -> html.Ul | html.P:
         return html.P("No tests are selected.")
     return html.Ul(
         [html.Li(run_id, className="comparison-trace-id") for run_id in run_ids],
-        className="comparison-requested-identities",
         **{"aria-label": "Requested tests"},
     )
 
 
-def _run_cards(runs: tuple[CompareRunIdentity, ...]) -> html.Section:
-    return html.Section(
-        [
-            html.Div(
+def _selected_runs(runs: tuple[CompareRunIdentity, ...]) -> html.Section:
+    chips: list[object] = []
+    for index, run in enumerate(runs):
+        remaining = [item.run_id for item in runs if item.run_id != run.run_id]
+        href = "/research/compare-backtests"
+        if len(remaining) >= 2:
+            href += "?" + urlencode([("run_id", run_id) for run_id in remaining])
+        chips.append(
+            html.Article(
                 [
-                    html.Span("Selected tests", className="section-kicker"),
-                    html.H2("Persisted run context"),
-                    html.P(
-                        "Each test keeps its own status, evidence outcome, human "
-                        "decision, and next safe action.",
-                        className="section-description",
+                    html.Div(
+                        [
+                            html.Strong(run.strategy),
+                            html.Span(
+                                " · ".join(
+                                    value
+                                    for value in (run.instrument, run.timeframe, _period(run))
+                                    if value and value != "Unavailable"
+                                )
+                                or run.run_id
+                            ),
+                        ]
+                    ),
+                    dcc.Link(
+                        "×",
+                        href=href,
+                        className="compare-remove-run",
+                        title=f"Remove {run.strategy} from the comparison",
                     ),
                 ],
-                className="section-heading-row",
-            ),
-            html.Div(
-                [_run_card(run) for run in runs],
-                className="compare-run-grid",
-            ),
-        ],
-        className="compare-section compare-run-contexts",
-        **{"aria-label": "Selected test contexts"},
+                className=f"compare-run-chip compare-run-chip-{(index % 4) + 1}",
+                **{"data-run-id": run.run_id},
+            )
+        )
+    chips.append(
+        dcc.Link(
+            "Find runs",
+            href="/research/compare-backtests#compare-run-finder",
+            className="secondary-action compare-find-runs",
+        )
+    )
+    return html.Section(chips, className="compare-selected-runs", **{"aria-label": "Selected runs"})
+
+
+def _comparability(model: CompareViewModel) -> html.Section:
+    details = (
+        " ".join(finding.message for finding in model.findings)
+        if model.findings
+        else "No persisted-basis incompatibilities were found."
+    )
+    heading = (
+        "Comparable on the recorded basis"
+        if model.directly_comparable
+        else "Comparison requires caution"
+    )
+    return html.Section(
+        [html.Strong(heading), html.P(details)],
+        id="comparison-findings",
+        className=(
+            "compare-comparability compare-comparability-supported"
+            if model.directly_comparable
+            else "compare-comparability compare-comparability-blocked"
+        ),
+        **{"aria-live": "polite"},
     )
 
 
-def _run_card(run: CompareRunIdentity) -> html.Article:
-    period = _period(run)
-    primary_problem = None
-    if not run.available:
-        primary_problem = "This persisted test is unavailable."
-    elif run.errors:
-        primary_problem = "Some persisted evidence is invalid or unreadable."
-    elif run.omissions:
-        primary_problem = "Some persisted evidence is unavailable."
+def _run_contexts(runs: tuple[CompareRunIdentity, ...]) -> html.Section:
+    return html.Section(
+        [_run_context(run, index) for index, run in enumerate(runs)],
+        className="compare-run-contexts",
+        **{"aria-label": "Selected run contexts"},
+    )
 
+
+def _run_context(run: CompareRunIdentity, index: int) -> html.Article:
     return html.Article(
         [
             html.Header(
                 [
-                    html.Span(f"Test {run.position}", className="metric-label"),
-                    html.H3(run.strategy),
-                    html.Code(run.run_id, className="comparison-trace-id"),
+                    html.Span(
+                        run.strategy,
+                        className=(
+                            f"compare-series-label compare-series-{(index % 4) + 1}"
+                        ),
+                    ),
+                    dcc.Link("Open Results", href=run.results_href),
                 ]
             ),
             html.Dl(
                 [
-                    _identity_item("Instrument", run.instrument),
-                    _identity_item("Timeframe", run.timeframe),
-                    _identity_item("Data period", period),
+                    _context_item("Run status", run.run_status),
+                    _context_item("Evidence outcome", run.evidence_outcome),
+                    _context_item("Human decision", run.human_review),
+                    _context_item("Next safe action", _next_safe_action(run)),
                 ],
-                className="compare-identity-grid",
+                className="compare-context-quartet",
             ),
-            operator_context(
-                OperatorContextViewModel(
-                    selected_run=True,
-                    run_status=run.run_status,
-                    evidence_outcome=run.evidence_outcome,
-                    human_decision=run.human_review,
-                    next_safe_action=_next_safe_action(run),
-                ),
-                component_id=f"compare-operator-context-{run.position}",
-            ),
-            (
-                html.P(primary_problem, className="compare-run-impact")
-                if primary_problem
-                else None
-            ),
-            _omission_details(run),
-            dcc.Link(
-                "Open full Results",
-                href=run.results_href,
-                className="secondary-action compare-results-link",
-                title=f"Open the full persisted Results page for {run.run_id}",
-            ),
+            _evidence_gaps(run),
         ],
         className=(
-            "compare-run-card"
+            "compare-run-context"
             if run.available and not run.errors
-            else "compare-run-card compare-run-card-problem"
+            else "compare-run-context compare-run-context-problem"
         ),
         **{"data-run-id": run.run_id},
     )
 
 
-def _identity_item(label: str, value: str) -> html.Div:
+def _context_item(label: str, value: str) -> html.Div:
     return html.Div([html.Dt(label), html.Dd(value)])
 
 
 def _period(run: CompareRunIdentity) -> str:
-    if run.actual_period != "Unavailable":
-        return run.actual_period
-    return run.requested_period
+    return run.actual_period if run.actual_period != "Unavailable" else run.requested_period
 
 
 def _next_safe_action(run: CompareRunIdentity) -> str:
@@ -208,169 +227,112 @@ def _next_safe_action(run: CompareRunIdentity) -> str:
         return "Wait for completion"
     if status in {"failed", "cancelled", "timed_out"}:
         return "Review failure"
-    if status == "succeeded":
-        if run.human_review == "Unreviewed":
-            return "Record decision"
-        if run.human_review in {"", "Unavailable"}:
-            return "Inspect evidence"
-        return "No action available"
-    return "No action available"
+    if status == "succeeded" and run.human_review == "Unreviewed":
+        return "Record decision"
+    if status == "succeeded" and run.human_review not in {"", "Unavailable"}:
+        return "None"
+    return "Inspect evidence"
 
 
-def _omission_details(run: CompareRunIdentity) -> html.Details | None:
-    if not run.errors and not run.omissions:
+def _evidence_gaps(run: CompareRunIdentity) -> html.Details | None:
+    messages = (*run.omissions, *run.errors)
+    if not messages:
         return None
-    children: list[object] = [html.Summary("Unavailable evidence and problem details")]
-    if run.omissions:
-        children.extend(
-            [
-                html.Strong("Unavailable"),
-                html.Ul([html.Li(message) for message in run.omissions]),
-            ]
-        )
-    if run.errors:
-        children.extend(
-            [
-                html.Strong("Problem details"),
-                html.Ul([html.Li(message) for message in run.errors]),
-            ]
-        )
-    return html.Details(children, className="compare-run-details")
+    return html.Details(
+        [html.Summary("Unavailable evidence"), html.Ul([html.Li(message) for message in messages])],
+        className="compare-run-details",
+    )
 
 
-def _findings(model: CompareViewModel) -> html.Section:
-    status = (
-        "Direct comparison is supported"
-        if model.directly_comparable
-        else "Direct comparison is blocked"
-    )
-    findings = (
-        html.Ul(
-            [
-                html.Li(
-                    [
-                        html.Strong(f"{finding.severity.title()}: "),
-                        finding.message,
-                    ],
-                    className=f"compare-finding compare-finding-{finding.severity}",
-                    **{"data-finding-code": finding.code},
-                )
-                for finding in model.findings
-            ],
-            className="compare-finding-list",
-        )
-        if model.findings
-        else html.P("No persisted-basis incompatibilities were found.")
-    )
-    return html.Section(
+def _equity_panel(model: CompareViewModel) -> html.Div:
+    return html.Div(
         [
-            html.Span("Comparability", className="section-kicker"),
-            html.H2("Can these tests be compared?"),
-            html.P(status, className="compare-comparability-status"),
-            findings,
-        ],
-        id="comparison-findings",
-        className=(
-            "compare-section compare-findings-supported"
-            if model.directly_comparable
-            else "compare-section compare-findings-blocked"
-        ),
-        **{"aria-live": "polite"},
-    )
-
-
-def _chart_section(model: CompareViewModel) -> html.Section:
-    copy = (
-        "Aligned normalized series use only validated persisted observations."
-        if model.directly_comparable
-        else "Comparison is blocked. Supported series remain visible for separate "
-        "inspection and must not be interpreted as directly comparable."
-    )
-    return html.Section(
-        [
-            html.Span("Charts", className="section-kicker"),
-            html.H2("Normalized performance and drawdown"),
-            html.P(copy, className="section-description"),
-            html.Div(
+            html.Header(
                 [
-                    _series_panel(
-                        "Normalized equity",
-                        "Indexed value (start = 100)",
-                        model.equity_series,
-                        "comparison-equity-chart",
-                        percent=False,
+                    html.Div(
+                        [
+                            html.H2("Normalized equity comparison"),
+                            html.P(
+                                "Each persisted curve is rebased to 100 at its own start; "
+                                "missing points are never inferred."
+                            ),
+                        ]
                     ),
-                    _series_panel(
-                        "Drawdown",
-                        "Drawdown from running peak",
-                        model.drawdown_series,
-                        "comparison-drawdown-chart",
-                        percent=True,
-                    ),
+                    _legend(model.equity_series),
                 ],
-                className="compare-chart-grid",
+                className="compare-panel-heading",
             ),
+            _equity_chart(model.equity_series),
         ],
-        className="compare-section compare-chart-section",
+        className="compare-equity-block",
     )
 
 
-def _series_panel(
-    title: str,
-    yaxis_title: str,
-    series_items: tuple[CompareSeries, ...],
-    component_id: str,
-    *,
-    percent: bool,
-) -> html.Article:
+def _legend(series_items: tuple[CompareSeries, ...]) -> html.Div:
+    return html.Div(
+        [
+            html.Span(
+                [
+                    html.I(
+                        className=f"compare-swatch compare-swatch-{(index % 4) + 1}"
+                    ),
+                    series.label,
+                ],
+                className="compare-legend-item",
+            )
+            for index, series in enumerate(series_items)
+        ],
+        className="compare-legend",
+    )
+
+
+def _equity_chart(series_items: tuple[CompareSeries, ...]) -> html.Div:
     supported = tuple(series for series in series_items if series.points)
     missing = tuple(series for series in series_items if not series.points)
-    body: list[object] = [html.H3(title)]
+    children: list[object] = []
     if supported:
         figure = go.Figure()
-        for series in supported:
+        colors = ("#316ff4", "#7a55d9", "#0b9f76", "#b66b00")
+        for index, series in enumerate(supported):
             figure.add_trace(
                 go.Scatter(
                     x=[point.timestamp for point in series.points],
                     y=[point.value for point in series.points],
                     mode="lines",
                     name=f"{series.label} · {series.run_id}",
+                    line={"color": colors[index % len(colors)], "width": 2.5},
                     connectgaps=False,
-                    hovertemplate=(
-                        "%{x}<br>%{y:.2%}<extra>%{fullData.name}</extra>"
-                        if percent
-                        else "%{x}<br>%{y:.2f}<extra>%{fullData.name}</extra>"
-                    ),
+                    hovertemplate="%{x}<br>%{y:.2f}<extra>%{fullData.name}</extra>",
                 )
             )
         figure.update_layout(
             template="plotly_white",
-            margin={"l": 58, "r": 24, "t": 28, "b": 54},
+            height=300,
+            margin={"l": 52, "r": 20, "t": 20, "b": 45},
             hovermode="x unified",
-            legend={"orientation": "h", "y": -0.22},
+            showlegend=False,
             xaxis_title="Persisted observation time",
-            yaxis_title=yaxis_title,
-            yaxis={"tickformat": ".1%"} if percent else {},
+            yaxis_title="Indexed value (start = 100)",
             autosize=True,
         )
-        body.append(
+        children.append(
             dcc.Graph(
-                id=component_id,
+                id="comparison-equity-chart",
                 figure=figure,
                 responsive=True,
                 config={"displayModeBar": False, "responsive": True},
-                className="compare-chart",
+                className="compare-equity-chart",
             )
         )
     else:
-        body.append(
+        children.append(
             html.P(
-                "No validated persisted series is available. No points were reconstructed.",
+                "No validated persisted equity series is available.",
                 className="compare-chart-empty",
             )
         )
     if missing:
-        body.append(
+        children.append(
             html.Ul(
                 [
                     html.Li(
@@ -379,155 +341,131 @@ def _series_panel(
                     for series in missing
                 ],
                 className="compare-series-omissions",
-                **{"aria-label": f"{title} omissions"},
+                **{"aria-label": "Normalized equity omissions"},
             )
         )
-    return html.Article(body, className="compare-chart-card")
+    return html.Div(children, className="compare-chart-wrap")
 
 
-def _metric_section(model: CompareViewModel) -> html.Section:
-    headers = [html.Th("Metric", scope="col"), html.Th("State", scope="col")]
-    headers.extend(
-        html.Th(
-            [html.Span(f"Test {run.position}"), html.Code(run.run_id)],
-            scope="col",
-        )
-        for run in model.runs
-    )
+def _metric_table(model: CompareViewModel) -> html.Div:
+    headers: list[object] = [html.Th("Metric", scope="col")]
+    headers.extend(html.Th(f"Test {run.position}", scope="col") for run in model.runs)
+    headers.append(html.Th("Basis", scope="col"))
     rows = []
     for metric in model.metric_rows:
-        values = []
-        for value in metric.values:
-            values.append(
-                html.Td(
-                    [
-                        html.Strong(value.display_value),
-                        html.Small(f"Basis: {value.basis}"),
-                        (
-                            html.Small(value.omission, className="comparison-omission")
-                            if value.omission
-                            else None
-                        ),
-                    ]
-                )
-            )
+        basis = metric.basis_warning or " · ".join(
+            dict.fromkeys(value.basis for value in metric.values)
+        )
         rows.append(
             html.Tr(
                 [
                     html.Th(metric.label, scope="row"),
-                    html.Td(metric.state.title()),
-                    *values,
+                    *[
+                        html.Td(
+                            [
+                                html.Strong(value.display_value),
+                                html.Small(
+                                    value.omission,
+                                    className="comparison-omission",
+                                )
+                                if value.omission
+                                else None,
+                            ]
+                        )
+                        for value in metric.values
+                    ],
+                    html.Td(basis, className="compare-metric-basis"),
                 ],
                 className=f"comparison-row comparison-row-{metric.state}",
-                title=metric.basis_warning,
             )
         )
-    return html.Section(
+    return html.Div(
         [
-            html.Span("Metrics", className="section-kicker"),
-            html.H2("Aligned headline metrics"),
-            html.P(
-                "Every value keeps its persisted metric basis. Missing values remain unavailable.",
-                className="section-description",
+            html.Header(
+                [
+                    html.H3("Aligned persisted metrics"),
+                    html.P("Values retain their recorded basis."),
+                ],
+                className="compare-panel-heading",
             ),
             html.Div(
                 html.Table(
-                    [
-                        html.Caption("Persisted headline metric comparison"),
-                        html.Thead(html.Tr(headers)),
-                        html.Tbody(rows),
-                    ],
-                    className="compare-table compare-metric-table",
+                    [html.Thead(html.Tr(headers)), html.Tbody(rows)],
+                    className="compare-metric-table",
+                    **{"aria-label": "Aligned persisted metrics"},
                 ),
                 className="compare-table-scroll",
             ),
         ],
-        className="compare-section compare-metric-section",
+        className="compare-metrics-block",
     )
 
 
-def _difference_sections(
+def _material_differences(
     groups: tuple[CompareDifferenceGroup, ...],
     runs: tuple[CompareRunIdentity, ...],
-) -> html.Section:
-    return html.Section(
+) -> html.Aside:
+    group_map = {group.key: group for group in groups}
+    sections = (
+        ("Market & sample", (group_map.get("data"),)),
+        ("Signal & timing", (group_map.get("parameters"),)),
+        ("Execution & costs", (group_map.get("execution"),)),
+        ("Evidence & review", (group_map.get("evidence"), group_map.get("review"))),
+    )
+    return html.Aside(
         [
-            html.Span("Differences", className="section-kicker"),
-            html.H2("What changed between tests?"),
-            html.P(
-                "Equal, changed, and missing values are labelled in text.",
-                className="section-description",
-            ),
-            *[_difference_group(group, runs) for group in groups],
-        ],
-        className="compare-section compare-difference-section",
-    )
-
-
-def _difference_group(
-    group: CompareDifferenceGroup,
-    runs: tuple[CompareRunIdentity, ...],
-) -> html.Article:
-    if not group.fields:
-        body: object = html.P("No persisted values are available for this group.")
-    else:
-        headers = [html.Th("Field", scope="col"), html.Th("State", scope="col")]
-        headers.extend(
-            html.Th(
-                [html.Span(f"Test {run.position}"), html.Code(run.run_id)],
-                scope="col",
-            )
-            for run in runs
-        )
-        rows = []
-        for field in group.fields:
-            values = [
-                html.Td(
-                    [
-                        html.Span(value.value),
-                        (
-                            html.Small(
-                                value.omission,
-                                className="comparison-omission",
-                            )
-                            if value.omission
-                            else None
-                        ),
-                    ]
-                )
-                for value in field.values
-            ]
-            rows.append(
-                html.Tr(
-                    [
-                        html.Th(field.label, scope="row"),
-                        html.Td(field.state.title()),
-                        *values,
-                    ],
-                    className=f"comparison-row comparison-row-{field.state}",
-                )
-            )
-        body = html.Div(
-            html.Table(
+            html.Header(
                 [
-                    html.Caption(f"{group.label} comparison"),
-                    html.Thead(html.Tr(headers)),
-                    html.Tbody(rows),
+                    html.H2("Material differences"),
+                    html.P("Only differences that change interpretation."),
                 ],
-                className="compare-table",
+                className="compare-panel-heading",
             ),
-            className="compare-table-scroll",
-        )
-    return html.Article(
-        [html.H3(group.label), body],
-        className="compare-difference-group",
-        **{"data-difference-group": group.key},
+            *[_difference_section(label, source_groups, runs) for label, source_groups in sections],
+        ],
+        className="compare-differences-panel",
     )
 
 
-__all__ = [
-    "compare_empty",
-    "compare_failure",
-    "compare_loading",
-    "compare_results",
-]
+def _difference_section(
+    label: str,
+    groups: tuple[CompareDifferenceGroup | None, ...],
+    runs: tuple[CompareRunIdentity, ...],
+) -> html.Section:
+    fields: list[CompareDifferenceField] = []
+    for group in groups:
+        if group is not None:
+            fields.extend(field for field in group.fields if field.state != "equal")
+    bounded_fields = fields[:5]
+    body: list[object]
+    if not bounded_fields:
+        body = [html.P("No material difference recorded.", className="compare-difference-empty")]
+    else:
+        body = [_difference_row(field, runs) for field in bounded_fields]
+    return html.Section(
+        [html.H3(label), *body],
+        className="compare-difference-section",
+        **{"data-difference-group": label.lower().replace(" & ", "-").replace(" ", "-")},
+    )
+
+
+def _difference_row(
+    field: CompareDifferenceField,
+    runs: tuple[CompareRunIdentity, ...],
+) -> html.Div:
+    values: list[object] = [html.Span(field.label)]
+    for run, value in zip(runs, field.values, strict=False):
+        values.append(
+            html.Strong(
+                [value.value, html.Small(value.omission) if value.omission else None],
+                title=f"Test {run.position}",
+            )
+        )
+    return html.Div(
+        values,
+        className=f"compare-difference-row comparison-row-{field.state}",
+        style={"gridTemplateColumns": f"76px repeat({len(runs)}, minmax(0, 1fr))"},
+    )
+
+
+__all__ = ["compare_empty", "compare_failure", "compare_loading", "compare_results"]
