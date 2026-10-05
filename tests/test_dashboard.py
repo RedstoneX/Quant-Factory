@@ -5862,7 +5862,7 @@ def test_run_detail_panel_renders_immutable_configuration_lineage_and_results() 
     )
     rendered = str(panel)
 
-    assert "Strategy settings" in rendered
+    assert "Strategy Settings" in rendered
     assert "results-run-identity" in rendered
     assert "Validation outcome" in rendered
     assert "Assumptions & lineage" in rendered
