@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from dash import Dash, Input, Output, html
+from dash.exceptions import PreventUpdate
 
 from dashboard.candidate_workflow import candidate_configuration_binding
 from dashboard.components.configuration_summary import configuration_summary
@@ -64,8 +65,20 @@ def register_candidate_setup_callbacks(
         Output("configuration-selector", "value"),
         Input("idea-draft-store", "data"),
         Input("created-configuration-state", "data"),
+        Input("route-research-setup", "style"),
+        Input("route-research-run-test", "style"),
     )
-    def bind_candidate_configuration(draft: dict[str, Any] | None, _created: dict[str, Any] | None):
+    def bind_candidate_configuration(
+        draft: dict[str, Any] | None,
+        _created: dict[str, Any] | None,
+        setup_style: dict[str, str] | None,
+        run_style: dict[str, str] | None,
+    ):
+        if not any(
+            (style or {}).get("display") == "block"
+            for style in (setup_style, run_style)
+        ):
+            raise PreventUpdate
         binding = candidate_configuration_binding(str((draft or {}).get("draft_id") or ""), database=database)
         configuration = binding.configuration
         if configuration is None:
