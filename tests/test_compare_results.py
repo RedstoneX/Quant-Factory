@@ -434,6 +434,7 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
     }
 
     assert option_inputs == {
+        ("compare-run-finder-disclosure", "open"),
         ("refresh-comparisons", "n_clicks"),
         ("url", "search"),
     }
@@ -463,8 +464,10 @@ def test_compare_callback_is_route_gated_and_refresh_retries_only_the_read() -> 
     assert adapter.reads == [("run-a", "run-b"), ("run-a", "run-b")]
 
     with pytest.raises(PreventUpdate):
-        options(0, "/", None)
-    assert options(1, "/research/compare-backtests", None) == []
+        options(True, 0, "/", None)
+    with pytest.raises(PreventUpdate):
+        options(False, 0, "/research/compare-backtests", None)
+    assert options(True, 1, "/research/compare-backtests", None) == []
     assert runs.recent_reads == 1
 
 

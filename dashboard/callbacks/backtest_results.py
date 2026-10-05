@@ -27,6 +27,7 @@ from dashboard.run_adapter import (
     list_saved_configurations,
 )
 from dashboard.callbacks.review_state import load_durable_review
+from dashboard.callbacks.run_history import fallback_history_rows
 from dashboard.run_detail_adapter import (
     ResultSummaryView,
     RunDetailDashboardAdapter,
@@ -1438,6 +1439,7 @@ def register_backtest_results_callbacks(
 
     @app.callback(
         Output("run-history-grid", "rowData"),
+        Input("results-run-history-disclosure", "open"),
         Input("refresh-runs", "n_clicks"),
         Input("launch-message", "children"),
         Input("historical-launch-message", "children", allow_optional=True),
@@ -1445,32 +1447,24 @@ def register_backtest_results_callbacks(
         Input("review-message", "children", allow_optional=True),
         Input("cancellation-message", "children", allow_optional=True),
         Input("stale-recovery-message", "children"),
+        State("url", "pathname"),
     )
     def refresh_run_history(
-        *_: object,
+        history_is_open: bool,
+        *values: object,
     ):
+        pathname = values[-1] if values else None
+        if (
+            not _active_route(
+                pathname if isinstance(pathname, str) else None,
+                "/research/backtest-results",
+            )
+            or not history_is_open
+        ):
+            raise PreventUpdate
         if hasattr(runs, "all_history"):
             return list(runs.all_history(artifact_root=detail_adapter.artifact_root))
-        return [
-            {
-                "run_id": run.run_id,
-                "created_at": run.created_at,
-                "instrument": "Not recorded",
-                "strategy": f"{run.strategy_id} {run.strategy_version}",
-                "stage": run.stage,
-                "status": run.status,
-                "review": "Not checked",
-                "evidence": "Unverified",
-                "metric_basis": "No persisted ranked result",
-                "total_return": None,
-                "annualized_return": None,
-                "sharpe_ratio": None,
-                "number_of_trades": None,
-                "artifact_status": "Unverified",
-                "reproducibility": "Unverified",
-            }
-            for run in runs.recent_runs(limit=20)
-        ]
+        return fallback_history_rows(runs)
 
     @app.callback(
         Output("selected-run-selector", "options"),

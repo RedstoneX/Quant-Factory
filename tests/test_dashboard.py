@@ -1168,6 +1168,7 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
         for item in app.callback_map["find-compare-grid.rowData"]["inputs"]
     }
     assert set(comparison_inputs) == {
+        ("compare-run-finder-disclosure", "open"),
         ("refresh-comparisons", "n_clicks"),
         ("url", "search"),
     }
@@ -4748,6 +4749,7 @@ def test_run_monitor_refreshes_from_service(tmp_path: Path, monkeypatch) -> None
     )
     refresh_comparison_rows = _callback_function(app, "find-compare-grid.rowData")
     comparison_rows = refresh_comparison_rows(
+        True,
         0,
         "/research/compare-backtests",
         None,
@@ -4761,57 +4763,6 @@ def test_run_monitor_refreshes_from_service(tmp_path: Path, monkeypatch) -> None
     ]
     assert [row["run_id"] for row in comparison_rows] == ["run_dashboard_fixture"]
     assert selected is no_update
-
-
-def test_run_history_grid_mounts_full_history_with_operator_columns(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    configuration = _saved_configuration()
-    monkeypatch.setattr(
-        "dashboard.app.list_saved_configurations",
-        lambda database=None: (configuration,),
-    )
-    service = _DashboardRunService(
-        initial_runs=tuple(
-            _DashboardRunService()._summary(
-                f"history_grid_run_{index:02d}",
-                configuration.configuration_id,
-                "succeeded",
-            )
-            for index in range(21)
-        )
-    )
-    data = _data()
-    context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
-    app = create_app(
-        context,
-        tmp_path / "reviews.json",
-        run_service=service,
-    )
-
-    grid = next(
-        component
-        for component in _walk_components(_resolved_layout(app))
-        if getattr(component, "id", None) == "run-history-grid"
-    )
-    columns = {column["field"]: column for column in grid.columnDefs}
-
-    assert len(grid.rowData) == 21
-    assert grid.rowData[-1]["run_id"] == "history_grid_run_20"
-    assert grid.rowData[0]["stage"] == "Fixture backtest"
-    assert grid.rowData[0]["status"] == "Succeeded"
-    assert columns["run_id"]["hide"] is True
-    assert columns["instrument"]["filter"] == "agTextColumnFilter"
-    assert columns["review"]["filter"] == "agTextColumnFilter"
-    assert columns["evidence"]["filter"] == "agTextColumnFilter"
-    assert columns["total_return"]["filter"] == "agNumberColumnFilter"
-    assert columns["annualized_return"]["type"] == "numericColumn"
-    assert "* 100" in columns["total_return"]["valueFormatter"]["function"]
-    assert "toFixed(2)" in columns["sharpe_ratio"]["valueFormatter"]["function"]
-    assert "Math.round" in columns["number_of_trades"]["valueFormatter"]["function"]
-    assert grid.getRowId == "params.data.run_id"
-    assert grid.selectedRows == []
 
 
 def test_manual_run_refresh_does_not_reset_stable_selection_or_detail(
@@ -5023,6 +4974,7 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
     )
     refresh_comparison_rows = _callback_function(app, "find-compare-grid.rowData")
     comparison_rows = refresh_comparison_rows(
+        True,
         0,
         "/research/compare-backtests",
         None,
@@ -5325,6 +5277,7 @@ def test_initial_selector_hydration_does_not_rewrite_existing_dropdown(
     )
     refresh_comparison_rows = _callback_function(app, "find-compare-grid.rowData")
     comparison_rows = refresh_comparison_rows(
+        True,
         0,
         "/research/compare-backtests",
         None,

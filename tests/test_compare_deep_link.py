@@ -123,7 +123,7 @@ def test_registered_compare_callbacks_adopt_query_without_writing_location() -> 
     hydrate = _callback(app, "find-compare-grid.selectedRows")
     compare = _callback(app, "run-comparison-output.children")
 
-    history = rows(0, COMPARE_PATH, query)
+    history = rows(True, 0, COMPARE_PATH, query)
     assert hydrate(query, COMPARE_PATH, history) == history
 
     rendered, class_name = compare(
