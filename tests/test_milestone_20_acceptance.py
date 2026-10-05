@@ -290,10 +290,10 @@ def test_dashboard_success_workflow_and_restart_reopen(
     runs_panel, events_panel = refresh_monitor(1, 1, 0, 0, 0, 0)
     monkeypatch.setattr(
         "dashboard.callbacks.backtest_results._callback_triggered_id",
-        lambda: "launch-run",
+        lambda: "run-test-launch-state",
     )
     refresh_selectors = _callback_function(app, "selected-run-selector.options")
-    options, selected = refresh_selectors(1, 1, 0, 0, None, None, [])
+    options, selected = refresh_selectors(1, launch_state, 0, 0, None, None, [])
 
     assert selected == run_id
     assert options[0]["value"] == run_id
