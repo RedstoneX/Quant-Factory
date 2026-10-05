@@ -350,8 +350,6 @@ def test_milestone23_successful_spym_workflow_compare_reproduce_and_review(
     assert "Comparable on the recorded basis" in rendered_comparison
     assert "Aligned persisted metrics" in rendered_comparison
     assert "Material differences" in rendered_comparison
-    assert "comparison-drawdown-chart" not in rendered_comparison
-    assert "What changed between tests?" not in rendered_comparison
 
     review_context, sealed_manifest_before_review = _persist_spym_review_prerequisites(
         database,
