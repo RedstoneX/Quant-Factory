@@ -96,6 +96,15 @@ account surfaces. QAMC is a secondary reference only for docking, resizing and
 chart/ledger-link mechanics; its information density and compressed content
 hierarchy are explicitly not the target.
 
+The standalone `results-page-flow-preview.html` chart-first preview and the
+accepted evidence in Decisions 280–282 are **Results-only** references. They
+define the selected-run chart/report interaction; they are not a global source
+of truth and must not be used to redesign or reinterpret Ideas, Set up, Run
+test, Compare, Dashboard, or support pages. Those pages use their own
+repository-owned references in the manifest below. Only non-conflicting shared
+principles—clear hierarchy, unmistakable controls, restrained density, and
+progressive disclosure—may carry across routes.
+
 The primary-source interaction evidence checked on 2026-09-18 is TradingView's
 [Strategy Report overview](https://www.tradingview.com/support/solutions/43000764138-tradingview-strategy-report-how-to-start/)
 and [Pine strategy documentation](https://www.tradingview.com/pine-script-docs/concepts/strategies/):
@@ -164,6 +173,13 @@ Conformance means the required regions and real actions exist, prohibited
 content is absent rather than CSS-hidden, and the loading rule is respected.
 Text presence, component counts, or a passing callback helper test alone are
 insufficient. Terry performs browser acceptance under Decision 325.
+
+For the active R12 correction, a page is not ready for merge or deployment
+until its actual rendered representative state has been visually inspected
+against that page's exact reference and shown to Terry side by side. Empty or
+loading states, route arrival, HTTP success, and zero browser errors are not a
+substitute for representative-state conformance. Navigation through all route
+URLs is a routing smoke check, not proof that the operator workflow works.
 
 ## Route and navigation contract
 
