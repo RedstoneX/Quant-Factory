@@ -265,6 +265,18 @@ an implementation mandate**. Reproduce the required experience using mature
 components and thin adapters; do not rebuild generic charting, grid, docking,
 layout, or component systems.
 
+Repository-owned references under
+`docs/assets/dashboard/operator-workflow-approved/` are the visual and
+interaction contract for the current operator workflow. Use their source
+structure when it exists; do not reinterpret a screenshot, layer a broad late
+CSS override over a conflicting legacy page, or leave an old dense renderer
+mounted and merely hide it. The reference HTML/CSS is design evidence, not
+permission to copy unsafe standalone behavior or create a second frontend.
+Page conformance requires the specified visible regions, real working actions,
+absence of prohibited legacy content, and active-route loading behavior; text
+presence or component-count tests alone do not establish conformance. Terry's
+walkthrough remains the browser acceptance gate.
+
 For an Escalated Mode proposal or closure claim, use
 `.agents/skills/quant-factory-adversary/SKILL.md`. Independent review remains
 required for material evidence/data/ranking/protected-data changes, migrations,

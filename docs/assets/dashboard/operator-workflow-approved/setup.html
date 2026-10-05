@@ -1,0 +1,264 @@
+<style>
+#qf-vectorbt-setup {
+  --qf-bg: light-dark(#f3f6fb, #08111e);
+  --qf-surface: light-dark(#ffffff, #111d2d);
+  --qf-soft: light-dark(#f7f9fc, #172437);
+  --qf-sidebar: light-dark(#071a2f, #050d17);
+  --qf-text: light-dark(#162238, #eef4ff);
+  --qf-muted: light-dark(#66758c, #9aacbf);
+  --qf-border: light-dark(#d8e1ec, #293b50);
+  --qf-blue: light-dark(#316ff4, #6a9fff);
+  --qf-blue-soft: light-dark(#eaf2ff, #142c4e);
+  --qf-green: light-dark(#0b9f76, #51d5a9);
+  --qf-green-soft: light-dark(#e7f7f0, #12392e);
+  --qf-red: light-dark(#dc5c62, #ff858a);
+  --qf-amber: light-dark(#b66b00, #f2bb55);
+  --qf-amber-soft: light-dark(#fff4dc, #392d16);
+  --qf-chart-bg: light-dark(#f8fafd, #0d1a2b);
+  --qf-chart-grid: light-dark(#dce4ee, #263b54);
+  color-scheme: light dark;
+  color: var(--qf-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#qf-vectorbt-setup * { box-sizing: border-box; }
+#qf-vectorbt-setup button { font: inherit; }
+#qf-vectorbt-setup .qf-shell { display: grid; grid-template-columns: 172px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--qf-border); border-radius: 14px; background: var(--qf-bg); }
+#qf-vectorbt-setup .qf-sidebar { display: flex; flex-direction: column; min-height: 920px; padding: 20px 13px; background: var(--qf-sidebar); color: #dce7f4; }
+#qf-vectorbt-setup .qf-brand { display: flex; align-items: center; gap: 9px; padding: 0 8px 25px; font-size: 14px; font-weight: 500; }
+#qf-vectorbt-setup .qf-brand-mark { color: #3187ff; font-size: 24px; font-weight: 500; letter-spacing: -.07em; }
+#qf-vectorbt-setup .qf-nav-label { margin: 9px 9px 6px; color: #7891ac; font-size: 10px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; }
+#qf-vectorbt-setup .qf-nav { display: grid; gap: 3px; }
+#qf-vectorbt-setup .qf-nav-item { display: flex; align-items: center; gap: 9px; min-height: 39px; padding: 9px 10px; border-radius: 8px; color: #c0cede; font-size: 12px; }
+#qf-vectorbt-setup .qf-nav-item svg { width: 15px; height: 15px; }
+#qf-vectorbt-setup .qf-nav-item.is-active { background: #316ff4; color: #fff; }
+#qf-vectorbt-setup .qf-owner { display: flex; align-items: center; gap: 9px; margin-top: auto; padding: 14px 8px 2px; border-top: 1px solid #193651; font-size: 11px; }
+#qf-vectorbt-setup .qf-avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #7048e8; color: #fff; }
+#qf-vectorbt-setup .qf-owner small { display: block; margin-top: 1px; color: #849ab4; font-size: 11px; }
+#qf-vectorbt-setup .qf-main { min-width: 0; padding: 22px 24px 28px; }
+#qf-vectorbt-setup .qf-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; margin-bottom: 14px; }
+#qf-vectorbt-setup .qf-eyebrow { color: var(--qf-muted); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; }
+#qf-vectorbt-setup h1 { margin: 4px 0 5px; font-size: 28px; line-height: 1.12; font-weight: 500; }
+#qf-vectorbt-setup h2 { margin: 0; font-size: 16px; line-height: 1.25; font-weight: 500; }
+#qf-vectorbt-setup h3 { margin: 0; font-size: 13px; line-height: 1.3; font-weight: 500; }
+#qf-vectorbt-setup p { margin: 0; }
+#qf-vectorbt-setup .qf-subtitle { color: var(--qf-muted); font-size: 12px; line-height: 1.45; }
+#qf-vectorbt-setup .qf-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 39px; padding: 9px 14px; border: 1px solid var(--qf-blue); border-radius: 8px; background: var(--qf-blue); color: #fff; font-size: 12px; font-weight: 500; }
+#qf-vectorbt-setup .qf-primary svg { width: 15px; height: 15px; }
+#qf-vectorbt-setup .qf-identity { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, .85fr) auto; margin-bottom: 14px; overflow: hidden; border: 1px solid var(--qf-border); border-radius: 10px; background: var(--qf-surface); }
+#qf-vectorbt-setup .qf-id-cell { min-width: 0; padding: 11px 13px; border-right: 1px solid var(--qf-border); }
+#qf-vectorbt-setup .qf-id-cell span { display: block; color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-id-cell strong { display: block; margin-top: 3px; overflow: hidden; font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+#qf-vectorbt-setup .qf-id-cell small { display: block; margin-top: 2px; color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-id-select { width: 100%; margin-top: 2px; padding: 0 20px 0 0; border: 0; outline: 0; background: var(--qf-surface); color: var(--qf-text); font: inherit; font-size: 12px; font-weight: 500; }
+#qf-vectorbt-setup .qf-id-status { display: flex; align-items: center; gap: 8px; padding: 11px 14px; color: var(--qf-amber); font-size: 11px; font-weight: 500; white-space: nowrap; }
+#qf-vectorbt-setup .qf-id-status svg { width: 16px; height: 16px; }
+#qf-vectorbt-setup .qf-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start; }
+#qf-vectorbt-setup .qf-analysis, #qf-vectorbt-setup .qf-rail { overflow: hidden; border: 1px solid var(--qf-border); border-radius: 11px; background: var(--qf-surface); }
+#qf-vectorbt-setup .qf-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 14px 16px 12px; border-bottom: 1px solid var(--qf-border); }
+#qf-vectorbt-setup .qf-panel-head p { margin-top: 3px; color: var(--qf-muted); font-size: 11px; line-height: 1.4; }
+#qf-vectorbt-setup .qf-head-tools { display: flex; align-items: center; gap: 7px; }
+#qf-vectorbt-setup .qf-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 999px; background: var(--qf-blue-soft); color: var(--qf-blue); font-size: 11px; font-weight: 500; white-space: nowrap; }
+#qf-vectorbt-setup .qf-badge.is-amber { background: var(--qf-amber-soft); color: var(--qf-amber); }
+#qf-vectorbt-setup .qf-chart-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 16px; border-bottom: 1px solid var(--qf-border); background: var(--qf-soft); }
+#qf-vectorbt-setup .qf-chart-toolbar span { color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-chart-toolbar strong { color: var(--qf-text); font-weight: 500; }
+#qf-vectorbt-setup .qf-chart-legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-key { display: inline-flex; align-items: center; gap: 5px; }
+#qf-vectorbt-setup .qf-key::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: currentColor; }
+#qf-vectorbt-setup .qf-key.is-price { color: var(--qf-text); }
+#qf-vectorbt-setup .qf-key.is-entry { color: var(--qf-blue); }
+#qf-vectorbt-setup .qf-key.is-exit { color: var(--qf-red); }
+#qf-vectorbt-setup .qf-key.is-rsi { color: var(--qf-amber); }
+#qf-vectorbt-setup .qf-chart-wrap { padding: 8px 12px 2px; background: var(--qf-chart-bg); }
+#qf-vectorbt-setup .qf-preview-chart { display: block; width: 100%; height: 330px; }
+#qf-vectorbt-setup .qf-chart-grid { stroke: var(--qf-chart-grid); stroke-width: 1; }
+#qf-vectorbt-setup .qf-axis { fill: var(--qf-muted); font-size: 10px; }
+#qf-vectorbt-setup .qf-axis-title { fill: var(--qf-text); font-size: 11px; font-weight: 500; }
+#qf-vectorbt-setup .qf-candle-up { fill: var(--qf-green); stroke: var(--qf-green); }
+#qf-vectorbt-setup .qf-candle-down { fill: var(--qf-red); stroke: var(--qf-red); }
+#qf-vectorbt-setup .qf-rsi-line { fill: none; stroke: var(--qf-amber); stroke-width: 2; }
+#qf-vectorbt-setup .qf-signal-path { fill: none; stroke: var(--qf-amber); stroke-width: 2.5; }
+#qf-vectorbt-setup .qf-signal-anchor { fill: var(--qf-amber); stroke: var(--qf-surface); stroke-width: 2; }
+#qf-vectorbt-setup .qf-signal-zone { fill: var(--qf-surface); stroke: var(--qf-border); stroke-width: 1; }
+#qf-vectorbt-setup .qf-threshold { stroke: var(--qf-muted); stroke-width: 1; stroke-dasharray: 4 4; }
+#qf-vectorbt-setup .qf-event-guide { stroke: var(--qf-blue); stroke-width: 1; stroke-dasharray: 3 4; opacity: .7; }
+#qf-vectorbt-setup .qf-event-guide.is-exit { stroke: var(--qf-red); }
+#qf-vectorbt-setup .qf-trigger-guide { stroke: var(--qf-amber); stroke-width: 1; stroke-dasharray: 2 5; opacity: .75; }
+#qf-vectorbt-setup .qf-entry-mark { fill: var(--qf-blue); stroke: var(--qf-surface); stroke-width: 2; }
+#qf-vectorbt-setup .qf-exit-mark { fill: var(--qf-red); stroke: var(--qf-surface); stroke-width: 2; }
+#qf-vectorbt-setup .qf-trigger-mark { fill: var(--qf-amber); stroke: var(--qf-surface); stroke-width: 2; }
+#qf-vectorbt-setup .qf-event-label { fill: var(--qf-text); font-size: 10px; font-weight: 500; }
+#qf-vectorbt-setup .qf-preview-note { display: flex; align-items: center; gap: 7px; padding: 8px 16px 10px; color: var(--qf-muted); font-size: 11px; background: var(--qf-chart-bg); }
+#qf-vectorbt-setup .qf-preview-note svg { width: 14px; height: 14px; color: var(--qf-amber); }
+#qf-vectorbt-setup .qf-matrix { border-top: 1px solid var(--qf-border); }
+#qf-vectorbt-setup .qf-matrix-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; padding: 13px 16px 10px; }
+#qf-vectorbt-setup .qf-matrix-head p { margin-top: 3px; color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-equation { display: flex; align-items: center; gap: 7px; color: var(--qf-muted); font-size: 11px; white-space: nowrap; }
+#qf-vectorbt-setup .qf-equation strong { color: var(--qf-text); font-size: 13px; font-weight: 500; }
+#qf-vectorbt-setup .qf-grid-table { margin: 0 16px 15px; overflow: hidden; border: 1px solid var(--qf-border); border-radius: 8px; }
+#qf-vectorbt-setup table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+#qf-vectorbt-setup th { padding: 8px 10px; background: var(--qf-soft); color: var(--qf-muted); font-size: 11px; font-weight: 500; text-align: left; }
+#qf-vectorbt-setup td { padding: 8px 10px; border-top: 1px solid var(--qf-border); color: var(--qf-text); font-size: 11px; vertical-align: middle; }
+#qf-vectorbt-setup td strong { font-weight: 500; }
+#qf-vectorbt-setup .qf-row-status { display: inline-flex; align-items: center; gap: 6px; color: var(--qf-green); font-weight: 500; }
+#qf-vectorbt-setup .qf-row-status svg { width: 14px; height: 14px; }
+#qf-vectorbt-setup .qf-rail-head { padding: 14px 15px 12px; border-bottom: 1px solid var(--qf-border); }
+#qf-vectorbt-setup .qf-rail-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#qf-vectorbt-setup .qf-rail-head p { margin-top: 4px; color: var(--qf-muted); font-size: 11px; line-height: 1.4; }
+#qf-vectorbt-setup .qf-ready { display: inline-flex; align-items: center; gap: 5px; color: var(--qf-green); font-size: 11px; font-weight: 500; }
+#qf-vectorbt-setup .qf-ready svg { width: 14px; height: 14px; }
+#qf-vectorbt-setup .qf-rail-section { padding: 12px 15px; border-bottom: 1px solid var(--qf-border); }
+#qf-vectorbt-setup .qf-rail-section:last-of-type { border-bottom: 0; }
+#qf-vectorbt-setup .qf-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+#qf-vectorbt-setup .qf-section-title span { color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-spec-list { display: grid; gap: 8px; }
+#qf-vectorbt-setup .qf-spec-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 9px; align-items: start; }
+#qf-vectorbt-setup .qf-spec-row span { color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-spec-row strong { color: var(--qf-text); font-size: 11px; font-weight: 500; line-height: 1.35; }
+#qf-vectorbt-setup .qf-fixture-boundary { padding: 10px 11px; border: 1px solid color-mix(in srgb, var(--qf-amber) 40%, var(--qf-border)); border-radius: 8px; background: var(--qf-amber-soft); }
+#qf-vectorbt-setup .qf-fixture-boundary strong { display: block; color: var(--qf-text); font-size: 12px; font-weight: 500; }
+#qf-vectorbt-setup .qf-fixture-boundary p { margin-top: 3px; color: var(--qf-muted); font-size: 11px; line-height: 1.45; }
+#qf-vectorbt-setup .qf-control-stack { display: grid; gap: 9px; }
+#qf-vectorbt-setup .qf-control-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+#qf-vectorbt-setup .qf-field { min-width: 0; }
+#qf-vectorbt-setup .qf-field-label { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin-bottom: 4px; color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-field-label span { display: inline-flex; align-items: center; gap: 4px; color: var(--qf-muted); font-size: 10px; }
+#qf-vectorbt-setup .qf-field-label svg { width: 12px; height: 12px; }
+#qf-vectorbt-setup .qf-input,
+#qf-vectorbt-setup .qf-select { width: 100%; min-height: 34px; padding: 7px 9px; border: 1px solid var(--qf-border); border-radius: 7px; background: var(--qf-surface); color: var(--qf-text); font-size: 11px; }
+#qf-vectorbt-setup .qf-input:disabled,
+#qf-vectorbt-setup .qf-select:disabled { color: var(--qf-text); opacity: 1; background: var(--qf-soft); }
+#qf-vectorbt-setup .qf-control-note { display: flex; align-items: flex-start; gap: 6px; color: var(--qf-muted); font-size: 11px; line-height: 1.4; }
+#qf-vectorbt-setup .qf-control-note svg { flex: 0 0 auto; width: 13px; height: 13px; margin-top: 1px; }
+#qf-vectorbt-setup .qf-contract-preview { margin: 0 16px 15px; overflow: hidden; border: 1px solid var(--qf-border); border-radius: 8px; background: var(--qf-soft); }
+#qf-vectorbt-setup .qf-contract-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 11px; border-bottom: 1px solid var(--qf-border); }
+#qf-vectorbt-setup .qf-contract-head p { margin-top: 2px; color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-contract-status { display: inline-flex; align-items: center; gap: 5px; color: var(--qf-green); font-size: 11px; font-weight: 500; white-space: nowrap; }
+#qf-vectorbt-setup .qf-contract-status.is-blocked { color: var(--qf-amber); }
+#qf-vectorbt-setup .qf-contract-status svg { width: 14px; height: 14px; }
+#qf-vectorbt-setup .qf-contract-cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--qf-surface); }
+#qf-vectorbt-setup .qf-contract-cell { min-width: 0; padding: 9px 10px; border-right: 1px solid var(--qf-border); }
+#qf-vectorbt-setup .qf-contract-cell:nth-child(3n) { border-right: 0; }
+#qf-vectorbt-setup .qf-contract-cell:nth-child(n+4) { border-top: 1px solid var(--qf-border); }
+#qf-vectorbt-setup .qf-contract-cell span { display: block; color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-contract-cell strong { display: block; margin-top: 3px; overflow: hidden; color: var(--qf-text); font-size: 11px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+#qf-vectorbt-setup .qf-next-action { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border-top: 1px solid var(--qf-border); color: var(--qf-muted); font-size: 11px; }
+#qf-vectorbt-setup .qf-next-action strong { color: var(--qf-blue); font-weight: 500; }
+#qf-vectorbt-setup .qf-rail-foot { padding: 12px 15px 14px; background: var(--qf-soft); }
+#qf-vectorbt-setup .qf-rail-foot strong { display: block; font-size: 12px; font-weight: 500; }
+#qf-vectorbt-setup .qf-rail-foot p { margin-top: 3px; color: var(--qf-muted); font-size: 11px; line-height: 1.45; }
+@media (max-width: 900px) { #qf-vectorbt-setup .qf-shell { grid-template-columns: 1fr; } #qf-vectorbt-setup .qf-sidebar { min-height: 0; } #qf-vectorbt-setup .qf-owner { display: none; } #qf-vectorbt-setup .qf-workspace { grid-template-columns: 1fr; } #qf-vectorbt-setup .qf-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+
+<div id="qf-vectorbt-setup">
+  <div class="qf-shell">
+    <aside class="qf-sidebar">
+      <div class="qf-brand"><span class="qf-brand-mark">QF</span><span>Quant Factory</span></div>
+      <div class="qf-nav-label">Research workflow</div>
+      <nav class="qf-nav" aria-label="Research workflow">
+        <div class="qf-nav-item"><i data-lucide="layout-dashboard" aria-hidden="true"></i>Dashboard</div>
+        <div class="qf-nav-item"><i data-lucide="inbox" aria-hidden="true"></i>Ideas</div>
+        <div class="qf-nav-item is-active"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>Set up</div>
+        <div class="qf-nav-item"><i data-lucide="play" aria-hidden="true"></i>Run test</div>
+        <div class="qf-nav-item"><i data-lucide="chart-candlestick" aria-hidden="true"></i>Results</div>
+        <div class="qf-nav-item"><i data-lucide="columns-3" aria-hidden="true"></i>Compare</div>
+      </nav>
+      <div class="qf-nav-label">Research support</div>
+      <nav class="qf-nav" aria-label="Research support"><div class="qf-nav-item"><i data-lucide="database" aria-hidden="true"></i>Market data</div><div class="qf-nav-item"><i data-lucide="activity" aria-hidden="true"></i>System status</div><div class="qf-nav-item"><i data-lucide="cable" aria-hidden="true"></i>Data sources</div><div class="qf-nav-item"><i data-lucide="settings" aria-hidden="true"></i>Settings</div></nav>
+      <div class="qf-owner"><span class="qf-avatar">T</span><span>Terry<small>Operator</small></span></div>
+    </aside>
+
+    <main class="qf-main">
+      <header class="qf-header">
+        <div><div class="qf-eyebrow">Research / Set up</div><h1>Define the experiment</h1><p class="qf-subtitle">See exactly what VectorBT will test before an immutable setup is saved.</p></div>
+        <button class="qf-primary" type="button"><i data-lucide="save" aria-hidden="true"></i>Save setup draft</button>
+      </header>
+
+      <section class="qf-identity" aria-label="Experiment identity">
+        <div class="qf-id-cell"><span>From idea</span><strong>Review the preserved SPYM screen</strong><small>Owner-authored draft</small></div>
+        <label class="qf-id-cell"><span>Approved strategy or fixture</span><select class="qf-id-select" aria-label="Approved strategy or fixture"><option>SPYM Intraday Momentum</option></select><small>Decision 296 · fixed development/reference screen</small></label>
+        <label class="qf-id-cell"><span>Saved setup</span><select class="qf-id-select" aria-label="Saved setup"><option>New setup draft</option><option>SPYM intraday momentum · fixed v1</option></select><small>Choose a saved configuration to reopen it</small></label>
+        <div class="qf-id-status"><i data-lucide="flask-conical" aria-hidden="true"></i>Development/reference</div>
+      </section>
+
+      <div class="qf-workspace">
+        <section class="qf-analysis">
+          <div class="qf-panel-head"><div><h2>Fixed-rule preview</h2><p>See the approved signal, entry and exit boundaries without running research.</p></div><div class="qf-head-tools"><span class="qf-badge">SPYM rules · 1m</span><span class="qf-badge is-amber">Not evidence</span></div></div>
+          <div class="qf-chart-toolbar"><span><strong>Illustrative session</strong> · normalized price</span><div class="qf-chart-legend"><span class="qf-key is-price">Price</span><span class="qf-key is-entry">Entry · 15:30</span><span class="qf-key is-exit">Exit · 15:59</span><span class="qf-key is-rsi">Signal direction</span></div></div>
+          <div class="qf-chart-wrap">
+            <svg class="qf-preview-chart" viewBox="0 0 760 330" role="img" aria-label="Illustrative VectorBT rule preview showing one-minute price candles, fixed 15:30 entry and fixed 15:59 exit">
+              <line class="qf-chart-grid" x1="58" y1="28" x2="735" y2="28"/><line class="qf-chart-grid" x1="58" y1="74" x2="735" y2="74"/><line class="qf-chart-grid" x1="58" y1="120" x2="735" y2="120"/><line class="qf-chart-grid" x1="58" y1="166" x2="735" y2="166"/><line class="qf-chart-grid" x1="58" y1="212" x2="735" y2="212"/>
+              <line class="qf-chart-grid" x1="58" y1="244" x2="735" y2="244"/><line class="qf-chart-grid" x1="58" y1="278" x2="735" y2="278"/><line class="qf-chart-grid" x1="58" y1="312" x2="735" y2="312"/>
+              <line class="qf-chart-grid" x1="58" y1="28" x2="58" y2="312"/><line class="qf-chart-grid" x1="227" y1="28" x2="227" y2="312"/><line class="qf-chart-grid" x1="396" y1="28" x2="396" y2="312"/><line class="qf-chart-grid" x1="565" y1="28" x2="565" y2="312"/><line class="qf-chart-grid" x1="735" y1="28" x2="735" y2="312"/>
+              <text class="qf-axis-title" x="10" y="20">Price</text><text class="qf-axis" x="15" y="32">100.8</text><text class="qf-axis" x="15" y="78">100.4</text><text class="qf-axis" x="15" y="124">100.0</text><text class="qf-axis" x="15" y="170">99.6</text><text class="qf-axis" x="15" y="216">99.2</text>
+              <text class="qf-axis-title" x="12" y="239">Signal</text><text class="qf-axis" x="24" y="260">Long</text><text class="qf-axis" x="36" y="277">0</text><text class="qf-axis" x="19" y="294">Short</text>
+              <text class="qf-axis" text-anchor="middle" x="58" y="231">09:30</text><text class="qf-axis" text-anchor="middle" x="227" y="231">09:59</text><text class="qf-axis" text-anchor="middle" x="396" y="231">12:30</text><text class="qf-axis" text-anchor="middle" x="565" y="231">15:30</text><text class="qf-axis" text-anchor="end" x="735" y="231">15:59</text>
+              <line class="qf-candle-down" x1="82" y1="78" x2="82" y2="119"/><rect class="qf-candle-down" x="77" y="87" width="10" height="23" rx="1"/><line class="qf-candle-down" x1="112" y1="101" x2="112" y2="144"/><rect class="qf-candle-down" x="107" y="110" width="10" height="25" rx="1"/><line class="qf-candle-up" x1="142" y1="119" x2="142" y2="158"/><rect class="qf-candle-up" x="137" y="130" width="10" height="18" rx="1"/><line class="qf-candle-down" x1="172" y1="128" x2="172" y2="181"/><rect class="qf-candle-down" x="167" y="144" width="10" height="25" rx="1"/><line class="qf-candle-down" x1="202" y1="155" x2="202" y2="197"/><rect class="qf-candle-down" x="197" y="166" width="10" height="21" rx="1"/>
+              <line class="qf-candle-up" x1="232" y1="163" x2="232" y2="202"/><rect class="qf-candle-up" x="227" y="174" width="10" height="17" rx="1"/><line class="qf-candle-up" x1="262" y1="146" x2="262" y2="186"/><rect class="qf-candle-up" x="257" y="157" width="10" height="20" rx="1"/><line class="qf-candle-up" x1="292" y1="124" x2="292" y2="166"/><rect class="qf-candle-up" x="287" y="135" width="10" height="23" rx="1"/><line class="qf-candle-up" x1="322" y1="111" x2="322" y2="149"/><rect class="qf-candle-up" x="317" y="120" width="10" height="20" rx="1"/><line class="qf-candle-down" x1="352" y1="107" x2="352" y2="146"/><rect class="qf-candle-down" x="347" y="118" width="10" height="18" rx="1"/>
+              <line class="qf-candle-up" x1="382" y1="99" x2="382" y2="134"/><rect class="qf-candle-up" x="377" y="108" width="10" height="18" rx="1"/><line class="qf-candle-up" x1="412" y1="82" x2="412" y2="120"/><rect class="qf-candle-up" x="407" y="92" width="10" height="20" rx="1"/><line class="qf-candle-up" x1="442" y1="66" x2="442" y2="106"/><rect class="qf-candle-up" x="437" y="77" width="10" height="22" rx="1"/><line class="qf-candle-down" x1="472" y1="69" x2="472" y2="111"/><rect class="qf-candle-down" x="467" y="78" width="10" height="23" rx="1"/><line class="qf-candle-up" x1="502" y1="57" x2="502" y2="95"/><rect class="qf-candle-up" x="497" y="67" width="10" height="20" rx="1"/>
+              <line class="qf-candle-up" x1="532" y1="42" x2="532" y2="79"/><rect class="qf-candle-up" x="527" y="51" width="10" height="20" rx="1"/><line class="qf-candle-down" x1="562" y1="47" x2="562" y2="88"/><rect class="qf-candle-down" x="557" y="55" width="10" height="23" rx="1"/><line class="qf-candle-down" x1="592" y1="67" x2="592" y2="106"/><rect class="qf-candle-down" x="587" y="76" width="10" height="20" rx="1"/><line class="qf-candle-up" x1="622" y1="70" x2="622" y2="111"/><rect class="qf-candle-up" x="617" y="82" width="10" height="18" rx="1"/><line class="qf-candle-up" x1="652" y1="56" x2="652" y2="94"/><rect class="qf-candle-up" x="647" y="66" width="10" height="20" rx="1"/><line class="qf-candle-down" x1="682" y1="61" x2="682" y2="103"/><rect class="qf-candle-down" x="677" y="70" width="10" height="22" rx="1"/>
+              <line class="qf-trigger-guide" x1="202" y1="28" x2="202" y2="312"/><line class="qf-event-guide" x1="562" y1="28" x2="562" y2="312"/><line class="qf-event-guide is-exit" x1="682" y1="28" x2="682" y2="312"/>
+              <path class="qf-entry-mark" d="M562 88 l-8 12 h16 z"/><path class="qf-exit-mark" d="M682 103 l-8 -12 h16 z"/><text class="qf-event-label" text-anchor="end" x="553" y="82">Entry · 15:30 open</text><text class="qf-event-label" text-anchor="end" x="672" y="87">Exit · 15:59 close</text>
+              <rect class="qf-signal-zone" x="58" y="242" width="677" height="70" rx="5"/><line class="qf-threshold" x1="58" y1="274" x2="735" y2="274"/>
+              <path class="qf-signal-path" d="M220 257 L430 294 L705 294"/><circle class="qf-signal-anchor" cx="220" cy="257" r="5"/><circle class="qf-signal-anchor" cx="430" cy="294" r="5"/><text class="qf-event-label" text-anchor="middle" x="220" y="253">Prior session · 15:59 close</text><text class="qf-event-label" text-anchor="middle" x="430" y="307">Current session · 09:59 close</text><text class="qf-event-label" text-anchor="end" x="697" y="289">Negative return → short · direction fixed</text>
+            </svg>
+          </div>
+          <div class="qf-preview-note"><i data-lucide="info" aria-hidden="true"></i>Illustrative geometry—not persisted market data. The saved contract below is authoritative.</div>
+          <section class="qf-matrix">
+            <div class="qf-matrix-head"><div><h3>Bounded experiment matrix</h3><p>Every dimension VectorBT will execute is visible before saving.</p></div><div class="qf-equation"><strong>1</strong> dataset × <strong>1</strong> parameter set × <strong>1</strong> execution model = <strong>1 configuration</strong></div></div>
+            <div class="qf-grid-table"><table aria-label="Bounded experiment matrix"><thead><tr><th style="width:24%">Dimension</th><th style="width:38%">Included</th><th style="width:20%">Search space</th><th style="width:18%">Status</th></tr></thead><tbody>
+              <tr><td><strong>Market data</strong></td><td>SPYM · Databento · 1-minute</td><td>1 dataset</td><td><span class="qf-row-status"><i data-lucide="check" aria-hidden="true"></i>Local</span></td></tr>
+              <tr><td><strong>Requested period</strong></td><td>2025-11-03 → 2026-07-13</td><td>1 exact window</td><td><span class="qf-row-status"><i data-lucide="check" aria-hidden="true"></i>Available</span></td></tr>
+              <tr><td><strong>Signal rule</strong></td><td>Previous 15:59 close vs current 09:59 close</td><td>1 fixed rule</td><td><span class="qf-row-status"><i data-lucide="lock" aria-hidden="true"></i>Bounded</span></td></tr>
+              <tr><td><strong>Execution</strong></td><td>15:30 open → 15:59 close · all cash · no accumulation</td><td>1 model</td><td><span class="qf-row-status"><i data-lucide="lock" aria-hidden="true"></i>Bounded</span></td></tr>
+              <tr><td><strong>Trading costs</strong></td><td>Fees 0.05% · adverse slippage 0.02% per transaction</td><td>1 fixed model</td><td><span class="qf-row-status"><i data-lucide="lock" aria-hidden="true"></i>Bounded</span></td></tr>
+              <tr><td><strong>Evidence role</strong></td><td>Development/reference screen</td><td>No optimization</td><td><span class="qf-row-status"><i data-lucide="shield-check" aria-hidden="true"></i>Explicit</span></td></tr>
+            </tbody></table></div>
+          </section>
+          <section class="qf-contract-preview" aria-label="Immutable contract preview">
+            <div class="qf-contract-head"><div><h3>Immutable contract preview</h3><p>Every consequential value that will be written to this setup draft.</p></div><span class="qf-contract-status"><i data-lucide="shield-check" aria-hidden="true"></i>Decision 296 approval recorded</span></div>
+            <div class="qf-contract-cells">
+              <div class="qf-contract-cell"><span>Data &amp; period</span><strong>SPYM 1m · 2025-11-03 → 2026-07-13</strong></div>
+              <div class="qf-contract-cell"><span>Signal</span><strong>Prior 15:59 vs current 09:59 · positive long, else short</strong></div>
+              <div class="qf-contract-cell"><span>Execution</span><strong>15:30 open → 15:59 close · all cash · no accumulation</strong></div>
+              <div class="qf-contract-cell"><span>Costs</span><strong>Fees 0.05% · adverse slippage 0.02% / transaction</strong></div>
+              <div class="qf-contract-cell"><span>Evidence role</span><strong>Development/reference only</strong></div>
+              <div class="qf-contract-cell"><span>Run eligibility</span><strong>Decision 296 fixed boundaries required</strong></div>
+            </div>
+            <div class="qf-next-action"><span>Save persists this immutable draft; it does not launch a run.</span><strong>Save, then continue to Run test</strong></div>
+          </section>
+        </section>
+
+        <aside class="qf-rail">
+          <div class="qf-rail-head"><div class="qf-rail-title"><h2>Bounded setup controls</h2><span class="qf-ready"><i data-lucide="circle-check" aria-hidden="true"></i>Save-ready</span></div><p>Only values permitted by the approved specification can be selected.</p></div>
+          <section class="qf-rail-section">
+            <div class="qf-section-title"><h3>Data &amp; scope</h3><span>Bounded</span></div>
+            <div class="qf-control-stack">
+              <label class="qf-field"><span class="qf-field-label">Verified dataset <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><select class="qf-select" disabled><option>SPYM · Databento · 1-minute</option></select></label>
+              <div class="qf-control-row"><label class="qf-field"><span class="qf-field-label">Start date <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><input class="qf-input" type="text" value="2025-11-03" disabled></label><label class="qf-field"><span class="qf-field-label">End date <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><input class="qf-input" type="text" value="2026-07-13" disabled></label></div>
+              <div class="qf-control-note"><i data-lucide="database-check" aria-hidden="true"></i>Selected period is fully available in the owned local dataset.</div>
+            </div>
+          </section>
+          <section class="qf-rail-section">
+            <div class="qf-section-title"><h3>Signal rule</h3><span>Specification-bound</span></div>
+            <div class="qf-control-stack">
+              <label class="qf-field"><span class="qf-field-label">Direction <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><select class="qf-select" disabled><option>Prior 15:59 close vs current 09:59 close</option></select></label>
+              <div class="qf-control-row"><label class="qf-field"><span class="qf-field-label">Entry <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><select class="qf-select" disabled><option>15:30 open</option></select></label><label class="qf-field"><span class="qf-field-label">Exit <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><select class="qf-select" disabled><option>15:59 close</option></select></label></div>
+              <div class="qf-control-note"><i data-lucide="shield-check" aria-hidden="true"></i>No optimization or hidden parameter expansion.</div>
+            </div>
+          </section>
+          <section class="qf-rail-section">
+            <div class="qf-section-title"><h3>Execution assumptions</h3><span>Specification-bound</span></div>
+            <div class="qf-control-stack">
+              <label class="qf-field"><span class="qf-field-label">Capital model <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><select class="qf-select" disabled><option>$10,000 · all available cash · 1×</option></select></label>
+              <div class="qf-control-row"><label class="qf-field"><span class="qf-field-label">Position boundary <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><input class="qf-input" type="text" value="One per eligible session" disabled></label><label class="qf-field"><span class="qf-field-label">Accumulation <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><select class="qf-select" disabled><option>Off</option></select></label></div>
+              <div class="qf-control-row"><label class="qf-field"><span class="qf-field-label">Fees <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><input class="qf-input" type="text" value="0.05%" disabled></label><label class="qf-field"><span class="qf-field-label">Slippage <span><i data-lucide="lock" aria-hidden="true"></i>Fixed</span></span><input class="qf-input" type="text" value="0.02% adverse" disabled></label></div>
+            </div>
+          </section>
+          <section class="qf-rail-section"><div class="qf-section-title"><h3>Evidence boundary</h3><span>Fixed</span></div><div class="qf-fixture-boundary"><strong>Development/reference—not protected evidence</strong><p>The full extent is already inspected. This fixed screen cannot establish an edge or authorize promotion, paper or live operation.</p></div></section>
+          <div class="qf-rail-foot"><strong>Changes update the preview and matrix</strong><p>The immutable contract at left remains read-only until you save this setup draft.</p></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>

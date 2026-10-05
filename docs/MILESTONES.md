@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Terry performs the private owner walkthrough of the deployed exact connected Candidate workflow. Codex waits for acceptance or a specific reported defect. |
-| Phase | **R13 remains accepted. R12 implementation is deployed and is now at the owner-only walkthrough gate. Candidate research remains paused.** |
-| Active work | **No Codex implementation is active while Terry performs the walkthrough.** The current private dashboard revision contains the connected Candidate correction and Accept-button alignment. Do not repeat verification, redeploy, back up, redesign, clean up, or start R14/research while waiting. |
+| Immediate objective | Correct the owner-reported R12 operator-interface defects against the repository-owned approved references, then return the connected workflow for Terry's private walkthrough. |
+| Phase | **R13 remains accepted. R12 UI correction is active; owner walkthrough acceptance is not complete. Candidate research remains paused.** |
+| Active work | **Implement only the existing approved operator workflow.** Preserve the accepted Dashboard and conforming Ideas presentation; correct only verified page divergence or nonfunctional controls. Separately improve slow rendering by keeping mounted routes lightweight and loading expensive page content only when its route is active. |
 | Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | No uncorrected technical gap is currently established. The prior Candidate disconnection/fixture-substitution defect and the reported Accept-button alignment defect are corrected in the deployed revision; owner acceptance remains unrecorded. |
-| Next action | Terry walks Ideas → Set up → Run test → Results → Compare and either accepts R12 or reports one specific product defect. Codex does nothing else meanwhile. The separate Grok-hosted proof remains blocked on Terry's public key and is not substituted while R12 is active. |
+| Verified gap | Terry's walkthrough found material divergence from the approved page compositions, controls that are ambiguous or do not work as presented, and slow route rendering caused by unnecessary page work. The prior Candidate-identity correction remains preserved. |
+| Next action | Preserve conforming pages, correct the verified Setup/Run Test/Results/Compare gaps against repository-owned references, and address shared inactive-route loading without changing accepted page compositions; then deploy one consolidated private-beta revision for Terry's walkthrough. The separate Grok-hosted proof remains blocked on Terry's public key and is not substituted while R12 is active. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,9 +24,12 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Owner walkthrough only.** The current private dashboard revision preserves exact Candidate identity/version/provenance through Setup, Run Test, Results, and Compare; truthful implementation blocking; no fixture substitution; the bounded provider-neutral launcher; and corrected Ideas action alignment. Technical work stops until Terry accepts the walkthrough or reports a specific defect. |
+| R12 | 1 | in_progress | none | **UI correction active.** Preserve exact Candidate identity/version/provenance, the accepted Dashboard, and conforming Ideas presentation. Correct verified Setup/Run Test/Results/Compare visual or functional gaps and prevent heavy inactive-route rendering without redesigning conforming pages. Terry's final walkthrough remains the acceptance gate. |
 | R14 | 2 | blocked | R12 | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
+
+The former gate wording, `No Codex implementation is active while Terry performs the walkthrough`,
+is superseded by Terry's reported UI defects and current R12 correction authority.
 
 ## Architecture remediation — completed 2026-10-01
 
