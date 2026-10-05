@@ -376,9 +376,14 @@
 .idea-decision-rejected #continue-idea-to-setup { display: none; }
 
 .ideas-page .idea-context-download {
-  background: #fff;
-  border-color: #cfd9e6;
-  color: #24344d;
+  background: #334155;
+  border: 1px solid #334155;
+  color: #fff;
+}
+.ideas-page .idea-context-download:hover,
+.ideas-page .idea-context-download:focus-visible {
+  background: #24344d;
+  border-color: #24344d;
 }
 
 .idea-decision-actions .idea-decision-button,
@@ -390,7 +395,10 @@
   padding: 0 14px;
   width: auto;
 }
-.idea-decision-actions #continue-idea-to-setup { min-width: 154px; }
+.idea-decision-actions #continue-idea-to-setup {
+  align-self: center;
+  min-width: 154px;
+}
 .idea-decision-actions #accept-candidate-for-setup {
   align-self: center;
   font-family: inherit;
