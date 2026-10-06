@@ -4,68 +4,290 @@
     "max_lines": 1000,
     "grandfathered_modules": {
       "dashboard.application": 4716,
-      "dashboard.callbacks.backtest_results": 1977,
+      "dashboard.callbacks.backtest_results": 1969,
       "dashboard.pages.home": 1317,
       "dashboard.run_detail_adapter": 1369,
-      "orchestration.candidate_pipeline_runtime": 1280,
+      "orchestration.candidate_pipeline_runtime": 1109,
       "orchestration.research_launch_claims": 1353,
       "persistence.repositories": 1223,
       "persistence.service": 1757
     }
   },
   "components": {
-    "licensed_engine": {"patterns": ["backtesting.vectorbt_runtime"], "allowed_dependencies": []},
-    "strategies": {"patterns": ["strategies.*"], "allowed_dependencies": ["licensed_engine"]},
-    "market_data": {"patterns": ["market_data.*"], "allowed_dependencies": ["licensed_engine", "strategies"]},
-    "persistence": {"patterns": ["persistence.*"], "allowed_dependencies": ["strategies"]},
-    "backtesting": {"patterns": ["backtesting.*"], "allowed_dependencies": ["licensed_engine", "market_data", "persistence", "strategies"]},
-    "orchestration": {"patterns": ["orchestration.*"], "allowed_dependencies": ["backtesting", "market_data", "persistence", "strategies"]},
-    "prefect_adapter": {"patterns": ["prefect_spike.*"], "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "strategies"]},
+    "licensed_engine": {
+      "patterns": [
+        "backtesting.vectorbt_runtime"
+      ],
+      "allowed_dependencies": []
+    },
+    "strategies": {
+      "patterns": [
+        "strategies.*"
+      ],
+      "allowed_dependencies": [
+        "licensed_engine"
+      ]
+    },
+    "market_data": {
+      "patterns": [
+        "market_data.*"
+      ],
+      "allowed_dependencies": [
+        "licensed_engine",
+        "strategies"
+      ]
+    },
+    "persistence": {
+      "patterns": [
+        "persistence.*"
+      ],
+      "allowed_dependencies": [
+        "strategies"
+      ]
+    },
+    "backtesting": {
+      "patterns": [
+        "backtesting.*"
+      ],
+      "allowed_dependencies": [
+        "licensed_engine",
+        "market_data",
+        "persistence",
+        "strategies"
+      ]
+    },
+    "orchestration": {
+      "patterns": [
+        "orchestration.*"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "market_data",
+        "persistence",
+        "strategies"
+      ]
+    },
+    "prefect_adapter": {
+      "patterns": [
+        "prefect_spike.*"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "strategies"
+      ]
+    },
     "research_entrypoints": {
-      "patterns": ["backtesting.run_*"],
-      "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "strategies"]
+      "patterns": [
+        "backtesting.run_*"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "prefect_adapter",
+        "strategies"
+      ]
     },
-    "research_intake": {"patterns": ["research_intake.*"], "allowed_dependencies": ["persistence"]},
+    "research_intake": {
+      "patterns": [
+        "research_intake.*"
+      ],
+      "allowed_dependencies": [
+        "persistence"
+      ]
+    },
     "agent_gateway": {
-      "patterns": ["agent_gateway.*"],
-      "allowed_dependencies": ["backtesting", "orchestration", "persistence", "research_intake"]
+      "patterns": [
+        "agent_gateway.*"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "orchestration",
+        "persistence",
+        "research_intake"
+      ]
     },
-    "execution": {"patterns": ["execution.*"], "allowed_dependencies": ["market_data", "persistence", "strategies"]},
+    "execution": {
+      "patterns": [
+        "execution.*"
+      ],
+      "allowed_dependencies": [
+        "market_data",
+        "persistence",
+        "strategies"
+      ]
+    },
     "dashboard_public": {
-      "patterns": ["dashboard", "dashboard.app"],
-      "allowed_dependencies": ["dashboard_composition", "dashboard_models"]
+      "patterns": [
+        "dashboard",
+        "dashboard.app"
+      ],
+      "allowed_dependencies": [
+        "dashboard_composition",
+        "dashboard_models"
+      ]
     },
     "dashboard_composition": {
-      "patterns": ["dashboard.application"],
-      "allowed_dependencies": ["backtesting", "dashboard_callbacks", "dashboard_components", "dashboard_models", "dashboard_pages", "dashboard_support", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
+      "patterns": [
+        "dashboard.application"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "dashboard_callbacks",
+        "dashboard_components",
+        "dashboard_models",
+        "dashboard_pages",
+        "dashboard_support",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "prefect_adapter",
+        "research_entrypoints",
+        "research_intake",
+        "strategies"
+      ]
     },
     "dashboard_pages": {
-      "patterns": ["dashboard.pages.*"],
-      "allowed_dependencies": ["backtesting", "dashboard_components", "dashboard_models", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
+      "patterns": [
+        "dashboard.pages.*"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "dashboard_components",
+        "dashboard_models",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "research_intake",
+        "strategies"
+      ]
     },
     "dashboard_callbacks": {
-      "patterns": ["dashboard.callbacks.*"],
-      "allowed_dependencies": ["backtesting", "dashboard_components", "dashboard_models", "dashboard_pages", "dashboard_support", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
+      "patterns": [
+        "dashboard.callbacks.*"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "dashboard_components",
+        "dashboard_models",
+        "dashboard_pages",
+        "dashboard_support",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "research_intake",
+        "strategies"
+      ]
     },
     "dashboard_components": {
-      "patterns": ["dashboard.components.*"],
-      "allowed_dependencies": ["backtesting", "dashboard_models", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
+      "patterns": [
+        "dashboard.components.*"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "dashboard_models",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "research_intake",
+        "strategies"
+      ]
     },
     "dashboard_models": {
-      "patterns": ["dashboard.adapter", "dashboard.callbacks.review_state", "dashboard.candidate_workflow", "dashboard.candidate_launch_context", "dashboard.mes_candidate_setup", "dashboard.compare_adapter", "dashboard.compare_query", "dashboard.formatting", "dashboard.health", "dashboard.project_status", "dashboard.results_contracts", "dashboard.results_model", "dashboard.run_adapter", "dashboard.run_detail_adapter", "dashboard.state_ownership"],
-      "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
+      "patterns": [
+        "dashboard.adapter",
+        "dashboard.callbacks.review_state",
+        "dashboard.candidate_workflow",
+        "dashboard.candidate_launch_context",
+        "dashboard.mes_candidate_setup",
+        "dashboard.compare_adapter",
+        "dashboard.compare_query",
+        "dashboard.formatting",
+        "dashboard.health",
+        "dashboard.project_status",
+        "dashboard.results_contracts",
+        "dashboard.results_model",
+        "dashboard.run_adapter",
+        "dashboard.run_detail_adapter",
+        "dashboard.state_ownership"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "research_intake",
+        "strategies"
+      ]
     },
     "dashboard_support": {
-      "patterns": ["dashboard.routing", "dashboard.shell"],
-      "allowed_dependencies": ["backtesting", "dashboard_models", "dashboard_pages", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
+      "patterns": [
+        "dashboard.routing",
+        "dashboard.shell"
+      ],
+      "allowed_dependencies": [
+        "backtesting",
+        "dashboard_models",
+        "dashboard_pages",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "research_intake",
+        "strategies"
+      ]
     },
     "deployment": {
-      "patterns": ["deployment.*"],
-      "allowed_dependencies": ["agent_gateway", "backtesting", "dashboard_models", "dashboard_public", "execution", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
+      "patterns": [
+        "deployment.*"
+      ],
+      "allowed_dependencies": [
+        "agent_gateway",
+        "backtesting",
+        "dashboard_models",
+        "dashboard_public",
+        "execution",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "prefect_adapter",
+        "research_entrypoints",
+        "research_intake",
+        "strategies"
+      ]
     },
     "tools": {
-      "patterns": ["tools.*"],
-      "allowed_dependencies": ["agent_gateway", "backtesting", "dashboard_models", "dashboard_public", "deployment", "execution", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
+      "patterns": [
+        "tools.*"
+      ],
+      "allowed_dependencies": [
+        "agent_gateway",
+        "backtesting",
+        "dashboard_models",
+        "dashboard_public",
+        "deployment",
+        "execution",
+        "licensed_engine",
+        "market_data",
+        "orchestration",
+        "persistence",
+        "prefect_adapter",
+        "research_entrypoints",
+        "research_intake",
+        "strategies"
+      ]
     }
   }
 }
