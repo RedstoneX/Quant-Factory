@@ -17,14 +17,13 @@ from dashboard.components.operator_context import (
     OperatorContextViewModel,
     operator_context,
 )
-from dashboard.candidate_workflow import candidate_selection_blocker
+from dashboard.candidate_launch_context import resolve_launch_selection
 from dashboard.callbacks.candidate_run import register_candidate_run_preview
 from dashboard.results_contracts import ResultsViewServices
 from dashboard.routing import active_route as _active_route
 from dashboard.run_adapter import (
     ConfigurationReadinessView,
     SavedConfigurationView,
-    configuration_readiness,
     list_saved_configurations,
 )
 from dashboard.callbacks.review_state import load_durable_review
@@ -798,25 +797,10 @@ def register_backtest_results_callbacks(
             explicit_action = True
         if not _active_route(pathname, "/research/run-test"):
             raise PreventUpdate
-        current_configurations = {
-            configuration.configuration_id: configuration
-            for configuration in configurations
-        }
-        current_configurations.update(
-            {
-                configuration.configuration_id: configuration
-                for configuration in list_saved_configurations(dashboard_database)
-            }
-        )
-        selected = current_configurations.get(configuration_id or "")
-        readiness = readiness_by_id.get(selected.configuration_id) if selected else None
-        is_candidate = bool(selected and candidate_configuration(selected.configuration_id))
-        if is_candidate and readiness is None:
-            readiness = configuration_readiness(selected, None)
-            readiness_by_id[selected.configuration_id] = readiness
-        candidate_blocker = (
-            candidate_selection_blocker(str((draft or {}).get("draft_id") or ""), configuration_id, database=dashboard_database)
-            if draft is not None or is_candidate else None
+        selected, readiness, candidate_blocker = resolve_launch_selection(
+            database=dashboard_database, configurations=configurations,
+            readiness_by_id=readiness_by_id, configuration_id=configuration_id,
+            draft=draft, is_candidate=candidate_configuration,
         )
         allowed = bool(selected and readiness and readiness.ready and not candidate_blocker)
         supported = launch_supported(

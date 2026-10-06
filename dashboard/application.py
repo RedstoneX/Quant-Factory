@@ -897,16 +897,9 @@ def _evidence_outcome_value(detail: SelectedRunDetailView | None) -> str:
         detail.evidence.validation if detail else (),
         "Screening Status",
         "Screening status",
-    )
+    ) or (detail.result_summary.table_rows[0].get("screening_status") if detail and len(detail.result_summary.table_rows) == 1 else None)
     if screening_status:
-        return screening_status.replace("_", " ").title()
-    # Candidate screening can persist its ranked row without a separate
-    # validation artifact. One fixed row still has an exact durable disposition.
-    rows = detail.result_summary.table_rows if detail else ()
-    if len(rows) == 1:
-        recorded = rows[0].get("screening_status")
-        if recorded in {"passed", "screened_out"}:
-            return "Passed screening" if recorded == "passed" else "Screened out"
+        return {"passed": "Passed screening", "screened_out": "Screened out"}.get(screening_status, screening_status.replace("_", " ").title())
     return "Not recorded"
 
 

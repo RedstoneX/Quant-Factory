@@ -11,8 +11,6 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass, replace
 import hashlib
 import json
-import math
-from numbers import Real
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +44,13 @@ from orchestration.candidate_run_service import (
     CandidateScreeningLaunchResult,
 )
 from orchestration.candidate_pipeline_contracts import CandidatePipelineLauncher
+from orchestration.candidate_screening_artifacts import persist_screening_artifacts
+from orchestration.candidate_runtime_robustness import execute_candidate_robustness
+from orchestration.candidate_pipeline_parsing import (
+    _strict_object, _strict_list, _strict_text, _strict_bool, _strict_int,
+    _strict_number, _optional_number, _optional_int, _optional_text,
+    parse_robustness_contract,
+)
 from orchestration.filter_chain import (
     FactoryFilterChainService,
     FilterChainOutcome,
@@ -77,140 +82,6 @@ from strategies import get_strategy
 
 
 VALIDATION_RUNTIME_KEY = "candidate_validation_runtime"
-
-
-def _artifact_value(value: Any) -> Any:
-    if isinstance(value, pd.Timestamp):
-        return value.isoformat()
-    if pd.isna(value):
-        return None
-    return value.item() if hasattr(value, "item") else value
-
-
-def _artifact_records(frame: pd.DataFrame, *, price_multiplier: float = 1.0) -> list[dict[str, Any]]:
-    rows = [{str(key): _artifact_value(value) for key, value in row.items()}
-            for row in frame.to_dict(orient="records")]
-    if price_multiplier != 1.0:
-        for row in rows:
-            for key, value in row.items():
-                if "price" in key.lower() and isinstance(value, Real) and not isinstance(value, bool):
-                    row[key] = float(value) / price_multiplier
-    return rows
-
-
-def _screening_artifacts(*, result: Any, portfolio: Any, data: pd.DataFrame,
-                         config: ExperimentConfig, parameter_row_id: str) -> tuple[tuple[ArtifactType, str, dict[str, Any]], ...]:
-    """Serialize the screened portfolio itself, never a second simulation."""
-    if len(result.ranked_results) != 1:
-        raise RuntimeError("single-configuration screening must produce one ranked row")
-    row = result.ranked_results.iloc[0]
-    if row["parameter_row_id"] != parameter_row_id:
-        raise RuntimeError("screening portfolio does not match the ranked parameter row")
-    trades = portfolio.trades.records_readable
-    orders = portfolio.orders.records_readable
-    recorded = row["number_of_trades"]
-    if not isinstance(recorded, Real) or isinstance(recorded, bool) or not math.isfinite(float(recorded)) or float(recorded) != len(trades):
-        raise RuntimeError("ranked trade count does not match the actual trade ledger")
-    metrics = {key: _artifact_value(row[key]) for key in (
-        "total_return", "annualized_return", "sharpe_ratio", "max_drawdown",
-        "number_of_trades", "win_rate")}
-    multiplier = config.execution.price_multiplier
-    price_unit = "index_points" if multiplier != 1.0 else "currency"
-    value = portfolio.value
-    if isinstance(value, pd.DataFrame):
-        if value.shape[1] != 1:
-            raise RuntimeError("expected one-column portfolio equity series")
-        value = value.iloc[:, 0]
-    return (
-        (ArtifactType.RUN_SUMMARY, "run_summary", {
-            "strategy_id": result.strategy_id, "strategy_version": result.strategy_version,
-            "selected_parameter_row_id": parameter_row_id, "selected_ranking_position": 1,
-            "evidence_classification": "Development screening evidence only; not independent, protected, or edge proof",
-            "promotion_eligible": False, "broker_orders": "disabled",
-        }),
-        (ArtifactType.METRICS, "metrics", {
-            "parameter_row_id": parameter_row_id, "ranking_position": 1, "metrics": metrics,
-        }),
-        (ArtifactType.TRADES_OR_ORDERS, "trades_and_orders", {
-            "parameter_row_id": parameter_row_id, "ranking_position": 1,
-            "instrument": config.market_data.symbol, "price_unit": price_unit,
-            "pnl_unit": "USD", "price_multiplier": multiplier,
-            "price_normalization": "Trade and order price fields are divided by the execution multiplier for display against source bars; monetary fields are unchanged.",
-            "trades": _artifact_records(trades, price_multiplier=multiplier),
-            "orders": _artifact_records(orders, price_multiplier=multiplier),
-        }),
-        (ArtifactType.EQUITY_CURVE, "equity_curve", {
-            "parameter_row_id": parameter_row_id, "ranking_position": 1,
-            "equity_curve": [{"timestamp": _artifact_value(index), "value": _artifact_value(item)} for index, item in value.items()],
-            "price_series": [{"timestamp": _artifact_value(index),
-                              **{key.lower(): _artifact_value(item[key]) for key in ("Open", "High", "Low", "Close")}}
-                             for index, item in data[["Open", "High", "Low", "Close"]].iterrows()],
-            "benchmark_omission": "No benchmark was declared for this bounded screening run.",
-        }),
-    )
-
-
-def _strict_object(
-    value: Any,
-    *,
-    path: str,
-    keys: set[str],
-) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise ValueError(f"{path} must be an object")
-    actual = set(value)
-    missing = sorted(keys - actual)
-    extra = sorted(actual - keys)
-    if missing or extra:
-        details = []
-        if missing:
-            details.append(f"missing {missing}")
-        if extra:
-            details.append(f"unexpected {extra}")
-        raise ValueError(f"{path} has invalid fields: {', '.join(details)}")
-    return value
-
-
-def _strict_list(value: Any, *, path: str) -> list[Any]:
-    if not isinstance(value, list):
-        raise ValueError(f"{path} must be a list")
-    return value
-
-
-def _strict_text(value: Any, *, path: str) -> str:
-    if not isinstance(value, str):
-        raise ValueError(f"{path} must be text")
-    return value
-
-
-def _strict_bool(value: Any, *, path: str) -> bool:
-    if not isinstance(value, bool):
-        raise ValueError(f"{path} must be a boolean")
-    return value
-
-
-def _strict_int(value: Any, *, path: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        raise ValueError(f"{path} must be an integer")
-    return value
-
-
-def _strict_number(value: Any, *, path: str) -> float | int:
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise ValueError(f"{path} must be numeric")
-    return value
-
-
-def _optional_number(value: Any, *, path: str) -> float | int | None:
-    return None if value is None else _strict_number(value, path=path)
-
-
-def _optional_int(value: Any, *, path: str) -> int | None:
-    return None if value is None else _strict_int(value, path=path)
-
-
-def _optional_text(value: Any, *, path: str) -> str | None:
-    return None if value is None else _strict_text(value, path=path)
 
 
 @dataclass(frozen=True)
@@ -613,133 +484,8 @@ class CandidatePipelineDefinition:
                 "minimum_sharpe",
             } | ({"fixed_rule_cost_stress"} if "fixed_rule_cost_stress" in validation_document["robustness"] else set()),
         )
-        neighborhood_document = (
-            None
-            if robustness_document["neighborhood"] is None
-            else _strict_object(
-                robustness_document["neighborhood"],
-                path=f"{VALIDATION_RUNTIME_KEY}.robustness.neighborhood",
-                keys=set(NeighborhoodConfig.__dataclass_fields__),
-            )
-        )
-        definitions = []
-        for index, item in enumerate(
-            [] if neighborhood_document is None else _strict_list(
-                neighborhood_document["definitions"],
-                path="robustness.neighborhood.definitions",
-            )
-        ):
-            definition_document = _strict_object(
-                item,
-                path=f"robustness.neighborhood.definitions[{index}]",
-                keys=set(ParameterNeighborhoodDefinition.__dataclass_fields__),
-            )
-            definitions.append(
-                ParameterNeighborhoodDefinition(
-                    parameter_name=_strict_text(
-                        definition_document["parameter_name"],
-                        path=f"robustness.neighborhood.definitions[{index}].parameter_name",
-                    ),
-                    method=_strict_text(
-                        definition_document["method"],
-                        path=f"robustness.neighborhood.definitions[{index}].method",
-                    ),
-                    explicit_values=tuple(
-                        _strict_list(
-                            definition_document["explicit_values"],
-                            path=f"robustness.neighborhood.definitions[{index}].explicit_values",
-                        )
-                    ),
-                    integer_offsets=tuple(
-                        _strict_int(
-                            value,
-                            path=f"robustness.neighborhood.definitions[{index}].integer_offsets[{offset_index}]",
-                        )
-                        for offset_index, value in enumerate(
-                            _strict_list(
-                                definition_document["integer_offsets"],
-                                path=f"robustness.neighborhood.definitions[{index}].integer_offsets",
-                            )
-                        )
-                    ),
-                    percentage_offsets=tuple(
-                        _strict_number(
-                            value,
-                            path=f"robustness.neighborhood.definitions[{index}].percentage_offsets[{offset_index}]",
-                        )
-                        for offset_index, value in enumerate(
-                            _strict_list(
-                                definition_document["percentage_offsets"],
-                                path=f"robustness.neighborhood.definitions[{index}].percentage_offsets",
-                            )
-                        )
-                    ),
-                )
-            )
-        neighborhood = None if neighborhood_document is None else NeighborhoodConfig(
-            definitions=tuple(definitions),
-            minimum_valid_neighbors=_strict_int(
-                neighborhood_document["minimum_valid_neighbors"],
-                path="robustness.neighborhood.minimum_valid_neighbors",
-            ),
-            required_pass_proportion=_strict_number(
-                neighborhood_document["required_pass_proportion"],
-                path="robustness.neighborhood.required_pass_proportion",
-            ),
-            degradation_mode=_strict_text(
-                neighborhood_document["degradation_mode"],
-                path="robustness.neighborhood.degradation_mode",
-            ),
-            maximum_absolute_degradation=_strict_number(
-                neighborhood_document["maximum_absolute_degradation"],
-                path="robustness.neighborhood.maximum_absolute_degradation",
-            ),
-            maximum_relative_degradation=_strict_number(
-                neighborhood_document["maximum_relative_degradation"],
-                path="robustness.neighborhood.maximum_relative_degradation",
-            ),
-        )
-        stress_document = robustness_document.get("fixed_rule_cost_stress")
-        stress = None if stress_document is None else FixedRuleCostStressPlan(**_strict_object(
-            stress_document,
-            path="robustness.fixed_rule_cost_stress",
-            keys=set(FixedRuleCostStressPlan.__dataclass_fields__),
-        ))
-        if stress is not None and (installed_strategy.spec.parameters or parameters != ({},)):
-            raise ValueError("fixed-rule cost stress requires one parameter-free Candidate")
-        regimes_document = _strict_object(
-            robustness_document["regimes"],
-            path=f"{VALIDATION_RUNTIME_KEY}.robustness.regimes",
-            keys=set(RegimeConfig.__dataclass_fields__),
-        )
-        regimes = RegimeConfig(
-            trend_window=_strict_int(
-                regimes_document["trend_window"], path="robustness.regimes.trend_window"
-            ),
-            trend_neutral_tolerance=_strict_number(
-                regimes_document["trend_neutral_tolerance"],
-                path="robustness.regimes.trend_neutral_tolerance",
-            ),
-            volatility_window=_strict_int(
-                regimes_document["volatility_window"],
-                path="robustness.regimes.volatility_window",
-            ),
-            volatility_threshold=_strict_number(
-                regimes_document["volatility_threshold"],
-                path="robustness.regimes.volatility_threshold",
-            ),
-            annualization_factor=_strict_number(
-                regimes_document["annualization_factor"],
-                path="robustness.regimes.annualization_factor",
-            ),
-            minimum_observations=_strict_int(
-                regimes_document["minimum_observations"],
-                path="robustness.regimes.minimum_observations",
-            ),
-            minimum_trades=_optional_int(
-                regimes_document["minimum_trades"],
-                path="robustness.regimes.minimum_trades",
-            ),
+        neighborhood, stress, regimes = parse_robustness_contract(
+            robustness_document, installed_strategy, parameters,
         )
 
         monte_document = _strict_object(
@@ -1093,22 +839,12 @@ class CandidatePipelineRuntime:
                     if len(captured_portfolios) != 1:
                         raise RuntimeError("single-configuration screening captured multiple portfolios")
                     row_id, portfolio = next(iter(captured_portfolios.items()))
-                    for artifact_type, logical_name, document in _screening_artifacts(
-                        result=screening_result, portfolio=portfolio, data=market.data,
+                    persist_screening_artifacts(
+                        persistence=persistence, artifact_root=self.artifact_root,
+                        run_id=submission.run_id, result=screening_result,
+                        portfolio=portfolio, data=market.data,
                         config=self.definition.experiment, parameter_row_id=row_id,
-                    ):
-                        relative_path = f"state/artifacts/{submission.run_id}/{logical_name}.json"
-                        destination = self.artifact_root / relative_path
-                        destination.parent.mkdir(parents=True, exist_ok=True)
-                        content = (canonical_json(document) + "\n").encode("utf-8")
-                        staging = destination.with_suffix(".json.tmp")
-                        staging.write_bytes(content)
-                        staging.replace(destination)
-                        persistence.register_artifact(
-                            run_id=submission.run_id, artifact_type=artifact_type,
-                            logical_name=logical_name, media_type="application/json",
-                            format="json", location=relative_path, content=content,
-                        )
+                    )
                 persistence.persist_run_manifest(
                     persistence.build_run_manifest(submission.run_id)
                 )
@@ -1292,48 +1028,10 @@ class CandidatePipelineRuntime:
                 cache_action="partition:out_of_sample",
                 cache_decision_reason="locked out-of-sample robustness source",
             )
-            if plan.fixed_rule_cost_stress is not None:
-                result = run_fixed_rule_robustness(
-                    experiment=experiment,
-                    strategy_version=screening_result.strategy_version,
-                    source_lock=source_lock,
-                    plan=plan.fixed_rule_cost_stress,
-                    regimes=plan.robustness_regimes,
-                    maximum_drawdown=plan.robustness_maximum_drawdown,
-                    minimum_return=plan.robustness_minimum_return,
-                    minimum_sharpe=plan.robustness_minimum_sharpe,
-                    data=robustness_data,
-                    audit=robustness_audit,
-                )
-            else:
-                config = RobustnessConfig(
-                    strategy_id=screening_result.strategy_id,
-                    strategy_version=screening_result.strategy_version,
-                    locked_parameters=source_lock.locked_parameters,
-                    experiment_id=experiment.experiment_id,
-                    source_artifact_id=source_lock.artifact_id,
-                    source_start=source_lock.source_start,
-                    source_end=source_lock.source_end,
-                    data_provenance=source_lock.data_provenance,
-                    execution_assumptions=source_lock.execution_assumptions,
-                    neighborhood=plan.robustness_neighborhood,
-                    regimes=plan.robustness_regimes,
-                    maximum_drawdown=plan.robustness_maximum_drawdown,
-                    minimum_return=plan.robustness_minimum_return,
-                    minimum_sharpe=plan.robustness_minimum_sharpe,
-                )
-                construction = build_neighborhood(
-                    get_strategy(experiment.strategy_id),
-                    source_lock.locked_parameters,
-                    plan.robustness_neighborhood,
-                )
-                result = run_robustness_pipeline(
-                    config,
-                    construction,
-                    experiment,
-                    robustness_data,
-                    robustness_audit,
-                )
+            result = execute_candidate_robustness(
+                plan=plan, screening_result=screening_result, experiment=experiment,
+                source_lock=source_lock, data=robustness_data, audit=robustness_audit,
+            )
             evidence.persist_robustness(
                 run_id=context.run_id,
                 result=result,

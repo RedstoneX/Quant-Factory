@@ -380,19 +380,13 @@ def _app(
         "configuration_readiness_by_id",
         readiness_by_id,
     )
-    # These launcher tests use a synthetic configuration without an Ideas packet;
-    # exact Candidate binding is covered by the operator workflow tests.
-    monkeypatch.setattr(
-        "dashboard.callbacks.backtest_results.candidate_selection_blocker",
-        lambda *_args, **_kwargs: None,
-    )
+    monkeypatch.setattr("dashboard.candidate_launch_context.candidate_selection_blocker", lambda *_args, **_kwargs: None)
     app = create_app(
         review_database=database,
         run_service=FixtureRunService(database=database),
         approved_configuration_launcher=launcher,
     )
     return app, database, configuration_id
-
 
 def _intent_run_id(database: Path, store: dict[str, Any]) -> str:
     submitted = store.get("submitted")
