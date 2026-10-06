@@ -186,6 +186,9 @@ as its own contract, not reconstructed from whichever example was most recently
 implemented. MES's $0.62-per-side baseline and $1.24 higher-cost scenario are
 specific to that accepted MES Candidate, not global defaults for equities or
 other futures.
+Do not replace the accepted mockup's design language with an unrequested
+generic "plain language" rewrite; explain work plainly to Terry in the
+conversation while keeping the approved in-product terminology and hierarchy.
 
 Conformance means the required regions and real actions exist, prohibited
 content is absent rather than CSS-hidden, and the loading rule is respected.
