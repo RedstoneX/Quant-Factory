@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **332** | **Keep Set up reusable and selection-driven during R12:** Terry rejected MES-only controls and the prior Set up screenshots. The page must reflect each selected Candidate's exact approved saved contract across equities, futures, and timeframes; fixed values remain visible but disabled, and genuine approved choices use bounded backend contracts. The MES fee/stress assumptions are MES-specific. Set up is not approved or deployed; no strategy run is authorized. |
 | **331** | **Require page-local UI references and representative-state visual proof during R12 recovery:** the standalone chart-first preview is Results-only; every other page uses its own approved reference. Before merge/deploy, Codex must visually inspect the actual meaningful page state against that exact reference, show Terry the side-by-side result, and obtain approval. Route arrival, HTTP success, empty shells, visible text, or zero browser errors cannot be called page or workflow completion. |
 | **330** | **Authorize narrowly scoped Playwright visual inspection for the active R12 correction:** one desktop viewport, exact approved-reference comparison, and read-only connected-workflow inspection. No browser suite, CI browser lane, multi-device matrix, evidence mutation, or general test infrastructure is authorized. This is a bounded exception to Decision 325, not a reversal of Terry's final browser acceptance. |
 | **329** | **Lock the current operator-workflow design contract into the repository:** repository-owned approved references control visual composition and interaction; keep Dash and the existing backend; translate the exact reference structure through live data/actions; keep permanently mounted route skeletons lightweight and hydrate expensive content only on the active route; remove rather than hide superseded dense renderers; and establish page-level conformance before merge/deploy. No framework migration or greenfield frontend is authorized. |
@@ -2130,3 +2131,38 @@ superseded.
      strengthens Decisions 329–330 without authorizing a framework migration,
      second frontend, browser-test suite, multi-device matrix, new product
      scope, research, trading, or repeated proof work.
+
+
+332. **Keep Set up reusable and selection-driven; reject the MES-only page
+     proof (accepted 2026-10-06).** Terry clarifies that Quant Factory is a
+     backtesting engine for many future equities, futures contracts, and
+     timeframes, not a one-off MES backtest. The approved Set up mockup is a
+     page-local composition reference, not a mandate to hard-code its SPYM
+     example or the current MES Candidate into every session. The displayed
+     Candidate, implementation, market, timeframe, dates, permitted settings,
+     execution assumptions, costs, readiness, and next safe action must come
+     from the browser-selected exact saved contract. Another accepted Candidate
+     without a matching implementation remains visibly blocked; an unrelated
+     fixture or MES values may never stand in for it.
+
+     The mockup's fixed dropdowns are real contract-inspection controls: show
+     fixed saved values readably and disable changes where the approved rule
+     has no choice. For a strategy whose approved specification genuinely
+     permits bounded alternatives, those controls must reflect the allowed
+     choices and persist an immutable setup through existing backend
+     boundaries; they are not decorative placeholders or a universal
+     arbitrary-strategy builder. Terry rejected both the initial text-only
+     Set up rail and the subsequent still-MES-only side-by-side. Neither was
+     page approval. No PR, merge, deployment, strategy run, or research-evidence
+     claim follows from those previews.
+
+     For the exact accepted MES ORB/VWAP Candidate only, Terry accepted the
+     documented $0.62-per-contract-per-side fee with one adverse tick per side
+     as the baseline assumption and a proposed actual higher-cost robustness
+     gate at $1.24 plus two adverse ticks per side. These are not default costs
+     for other assets. This fixed-rule Candidate has no parameter neighborhood
+     to vary, so that check may not be reported as passed or replaced by an
+     informational scenario; time-split, market-condition, and simulation
+     checks remain. No test has been run. This decision clarifies Decisions
+     326 and 331 without changing their owner-approval, page-by-page proof,
+     protected-evidence, or no-trading boundaries.
