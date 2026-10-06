@@ -24,6 +24,7 @@ from dashboard.routing import active_route as _active_route
 from dashboard.run_adapter import (
     ConfigurationReadinessView,
     SavedConfigurationView,
+    configuration_readiness,
     list_saved_configurations,
 )
 from dashboard.callbacks.review_state import load_durable_review
@@ -795,7 +796,7 @@ def register_backtest_results_callbacks(
         if triggered_id is None and n_clicks:
             # Unit-level direct invocation has no Dash callback context.
             explicit_action = True
-        if explicit_action and not _active_route(pathname, "/research/run-test"):
+        if not _active_route(pathname, "/research/run-test"):
             raise PreventUpdate
         current_configurations = {
             configuration.configuration_id: configuration
@@ -809,7 +810,14 @@ def register_backtest_results_callbacks(
         )
         selected = current_configurations.get(configuration_id or "")
         readiness = readiness_by_id.get(selected.configuration_id) if selected else None
-        candidate_blocker = None if draft is None else candidate_selection_blocker(str(draft.get("draft_id") or ""), configuration_id, database=dashboard_database)
+        is_candidate = bool(selected and candidate_configuration(selected.configuration_id))
+        if is_candidate and readiness is None:
+            readiness = configuration_readiness(selected, None)
+            readiness_by_id[selected.configuration_id] = readiness
+        candidate_blocker = (
+            candidate_selection_blocker(str((draft or {}).get("draft_id") or ""), configuration_id, database=dashboard_database)
+            if draft is not None or is_candidate else None
+        )
         allowed = bool(selected and readiness and readiness.ready and not candidate_blocker)
         supported = launch_supported(
             selected.configuration_id if selected is not None else None,

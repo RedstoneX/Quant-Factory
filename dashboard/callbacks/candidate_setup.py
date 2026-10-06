@@ -1,57 +1,17 @@
-"""Exact-Candidate binding callbacks shared by Setup and Run Test."""
+"""Exact Candidate selection and save action for Set up."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
-from dash import Dash, Input, Output, html
+from dash import Dash, Input, Output, State, html, no_update
 from dash.exceptions import PreventUpdate
 
 from dashboard.candidate_workflow import candidate_configuration_binding
-from dashboard.components.configuration_summary import configuration_summary
-from dashboard.run_adapter import ConfigurationReadinessView, configuration_readiness
-
-
-def _preview_outputs(
-    configuration_id: str | None,
-    readiness_by_id: dict[str, ConfigurationReadinessView],
-) -> tuple[Any, str, str, str, str, str, str]:
-    readiness = readiness_by_id.get(configuration_id or "")
-    summary = configuration_summary(
-        readiness,
-        component_id="configuration-preview-content",
-        empty_action_href=None,
-    )
-    if readiness is None:
-        return (
-            summary.children,
-            "/research/ideas",
-            "secondary-action",
-            "Review the accepted Candidate while its exact implementation is pending.",
-            "Return to accepted idea",
-            "No saved setup",
-            "setup-context-state setup-context-state-blocked",
-        )
-    if not readiness.ready:
-        return (
-            summary.children,
-            "/research/ideas",
-            "secondary-action",
-            "Review the accepted Candidate while its exact implementation is pending.",
-            "Return to accepted idea",
-            "Setup blocked",
-            "setup-context-state setup-context-state-blocked",
-        )
-    return (
-        summary.children,
-        "/research/run-test",
-        "primary-action",
-        "Review this immutable saved setup before running it.",
-        "Continue to final review",
-        "Ready to review",
-        "setup-context-state setup-context-state-ready",
-    )
+from dashboard.mes_candidate_setup import save_mes_candidate_setup
+from dashboard.pages.setup import render_selected_setup
+from dashboard.run_adapter import ConfigurationReadinessView
 
 
 def register_candidate_setup_callbacks(
@@ -60,6 +20,23 @@ def register_candidate_setup_callbacks(
     readiness_by_id: dict[str, ConfigurationReadinessView],
     database: str | Path,
 ) -> None:
+    del readiness_by_id
+
+    @app.callback(
+        Output("setup-dynamic-view", "children"),
+        Input("idea-draft-store", "data"),
+        Input("created-configuration-state", "data"),
+        Input("route-research-setup", "style"),
+    )
+    def show_selected_setup(
+        draft: dict[str, Any] | None,
+        _created: dict[str, Any] | None,
+        setup_style: dict[str, str] | None,
+    ):
+        if (setup_style or {}).get("display") != "block":
+            raise PreventUpdate
+        return render_selected_setup(str((draft or {}).get("draft_id") or ""), database=database)
+
     @app.callback(
         Output("configuration-selector", "options"),
         Output("configuration-selector", "value"),
@@ -74,54 +51,33 @@ def register_candidate_setup_callbacks(
         setup_style: dict[str, str] | None,
         run_style: dict[str, str] | None,
     ):
-        if not any(
-            (style or {}).get("display") == "block"
-            for style in (setup_style, run_style)
-        ):
+        if not any((style or {}).get("display") == "block" for style in (setup_style, run_style)):
             raise PreventUpdate
         binding = candidate_configuration_binding(str((draft or {}).get("draft_id") or ""), database=database)
         configuration = binding.configuration
         if configuration is None:
             return [], None
-        option = {"label": configuration.label, "value": configuration.configuration_id, "disabled": not configuration.launchable}
-        return [option], configuration.configuration_id
+        return [{"label": configuration.experiment_id, "value": configuration.configuration_id}], configuration.configuration_id
 
     @app.callback(
-        Output("configuration-preview", "children"),
-        Output("review-test-action", "href"),
-        Output("review-test-action", "className"),
-        Output("review-test-action", "title"),
-        Output("review-test-action", "children"),
-        Output("setup-context-state", "children"),
-        Output("setup-context-state", "className"),
-        Input("selected-configuration-state", "data"),
-        Input("idea-draft-store", "data"),
+        Output("idea-configuration-status", "children"),
+        Output("created-configuration-state", "data"),
+        Input("save-idea-configuration", "n_clicks"),
+        State("idea-draft-store", "data"),
+        prevent_initial_call=True,
     )
-    def preview_setup_configuration(configuration_id: str | None, draft: dict[str, Any] | None = None):
-        binding = candidate_configuration_binding(str((draft or {}).get("draft_id") or ""), database=database)
-        if not binding.bound:
-            title = "Implementation needed" if binding.blocker_code == "implementation_required" else "Candidate not ready"
-            summary = configuration_summary(
-                None,
-                component_id="configuration-preview-content",
-                empty_title=title,
-                empty_message=binding.blocker_reason or "Candidate setup is unavailable.",
-                empty_action_href=None,
-            )
-            return (
-                summary.children,
-                "/research/ideas",
-                "secondary-action",
-                "Review the accepted Candidate while its exact implementation is pending.",
-                "Return to accepted idea",
-                title,
-                "setup-context-state setup-context-state-blocked",
-            )
-        if configuration_id != binding.configuration.configuration_id:
-            configuration_id = None
-        elif configuration_id not in readiness_by_id:
-            readiness_by_id[configuration_id] = configuration_readiness(binding.configuration, None)
-        return _preview_outputs(configuration_id, readiness_by_id)
+    def save_exact_candidate(n_clicks: int | None, draft: dict[str, Any] | None):
+        if not n_clicks:
+            raise PreventUpdate
+        draft_id = str((draft or {}).get("draft_id") or "")
+        try:
+            configuration_id = save_mes_candidate_setup(draft_id=draft_id, database=database)
+        except (TypeError, ValueError, RuntimeError, FileNotFoundError) as exc:
+            return f"Setup not saved: {exc}", no_update
+        return (
+            "Saved the exact Candidate setup. No test was launched.",
+            {"configuration_id": configuration_id, "draft_id": draft_id},
+        )
 
     @app.callback(
         Output("setup-candidate-identity", "children"),
@@ -136,4 +92,13 @@ def register_candidate_setup_callbacks(
             if identity is not None
             else [html.Strong("Choose and accept a Candidate on Ideas first."), html.Small(binding.blocker_reason or "No exact Candidate selected")]
         )
-        return content, content
+        run_content = [
+            html.Select(
+                [html.Option(identity.title if identity is not None else "No runnable Candidate selected", value=binding.configuration.configuration_id if binding.configuration is not None else "")],
+                disabled=True,
+                **{"aria-label": "Approved saved configuration"},
+                className="run-locked-configuration-select",
+            ),
+            html.Small(identity.attribution if identity is not None else "No source recorded"),
+        ]
+        return content, run_content

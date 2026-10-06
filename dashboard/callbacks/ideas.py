@@ -314,7 +314,10 @@ def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
         if triggered_id == "new-idea-draft":
             stored = stored_draft or {}
             stored_values = {key: stored.get(key, "") for key in values}
-            if values != stored_values:
+            # The editor may be intentionally blank while a saved Candidate is
+            # selected in the review workspace. That is a safe new-draft action,
+            # not an unsaved edit to the selected Candidate.
+            if values != stored_values and any(values.values()):
                 return (
                     no_update,
                     "Save or discard the current changes before starting a new idea.",
@@ -716,7 +719,7 @@ def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
                 title, description, source_url, attribution, notes
             )
             stored_values = {key: stored.get(key, "") for key in current_values}
-            if current_values != stored_values:
+            if current_values != stored_values and any(current_values.values()):
                 return (
                     no_update,
                     no_update,

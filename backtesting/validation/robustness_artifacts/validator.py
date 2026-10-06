@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any, Mapping, get_args
 
 from backtesting.validation.evidence_adapters import map_native_status
@@ -61,6 +62,13 @@ def _collect_native_thresholds(robustness: dict[str, Any]) -> list[dict[str, Any
                 summary_doc.get("threshold_results"),
                 "robustness neighborhood thresholds",
             )
+        )
+    stress = robustness.get("fixed_rule_cost_stress")
+    if stress is not None:
+        stress_doc = _require_mapping(stress, "fixed-rule cost stress")
+        thresholds.extend(
+            _require_mapping(rule, "fixed-rule cost threshold")
+            for rule in _require_list(stress_doc.get("threshold_results"), "fixed-rule cost thresholds")
         )
     for regime in _require_list(robustness.get("regime_results"), "robustness regimes"):
         regime_doc = _require_mapping(regime, "robustness regime")
@@ -244,6 +252,26 @@ def _validate_robustness_document(document: dict[str, Any]) -> None:
     )
     if any(status not in _ALL_NATIVE_STATUSES for status in components.values()):
         raise ValueError("robustness component status is unsupported")
+    stress = robustness.get("fixed_rule_cost_stress")
+    if stress is not None:
+        stress_doc = _require_mapping(stress, "fixed-rule cost stress")
+        if robustness.get("neighborhood_summary") is not None or robustness.get("neighborhood_construction") is not None or robustness.get("parameter_points"):
+            raise ValueError("fixed-rule cost stress cannot masquerade as parameter-neighborhood evidence")
+        baseline = _require_mapping(stress_doc.get("baseline_costs"), "baseline costs")
+        stressed = _require_mapping(stress_doc.get("stressed_costs"), "stressed costs")
+        for key in ("fixed_fee_per_contract_per_side", "slippage_ticks"):
+            lower, higher = baseline.get(key), stressed.get(key)
+            if not all(isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) for value in (lower, higher)) or lower <= 0 or higher <= lower:
+                raise ValueError("fixed-rule stress costs must exceed positive baseline costs")
+        rules = _require_list(stress_doc.get("threshold_results"), "fixed-rule cost thresholds")
+        if not rules or stress_doc.get("status") not in _NATIVE_STATUSES:
+            raise ValueError("fixed-rule stress has no valid pass/fail evidence")
+        if components.get("fixed_rule_cost_stress") != stress_doc["status"]:
+            raise ValueError("fixed-rule stress component status mismatch")
+        if stress_doc["status"] == "passed" and any(rule.get("status") != "passed" for rule in rules):
+            raise ValueError("fixed-rule stress cannot pass with a failing threshold")
+    elif robustness.get("status") == "passed" and robustness.get("neighborhood_summary") is None:
+        raise ValueError("passed robustness requires parameter or fixed-rule stress evidence")
     _require_list(robustness.get("warnings"), "robustness warnings")
     _require_non_blank(robustness.get("timestamp"), "robustness timestamp")
     if normalized.get("status") not in _NORMALIZED_STATUSES:

@@ -1752,6 +1752,6 @@ def _provenance_from_result(
         row_count=audit.row_count,
         cache_action=audit.cache_action,
         validation_summary_json=canonical_json(validation_summary),
-        manifest_reference=None,
-        checksum=None,
+        manifest_reference=audit.manifest_reference,
+        checksum=audit.checksum,
     )

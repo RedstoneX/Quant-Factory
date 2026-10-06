@@ -900,6 +900,13 @@ def _evidence_outcome_value(detail: SelectedRunDetailView | None) -> str:
     )
     if screening_status:
         return screening_status.replace("_", " ").title()
+    # Candidate screening can persist its ranked row without a separate
+    # validation artifact. One fixed row still has an exact durable disposition.
+    rows = detail.result_summary.table_rows if detail else ()
+    if len(rows) == 1:
+        recorded = rows[0].get("screening_status")
+        if recorded in {"passed", "screened_out"}:
+            return "Passed screening" if recorded == "passed" else "Screened out"
     return "Not recorded"
 
 
@@ -1100,7 +1107,7 @@ def _run_identity_strip(
                         (
                             f"{valid_artifacts}/{artifact_count} artifacts valid"
                             if artifact_count
-                            else "Artifact status unavailable"
+                            else "No artifacts registered"
                         ),
                         className="results-identity-badge",
                     )
@@ -1331,18 +1338,18 @@ def _primary_metric_cards(detail: SelectedRunDetailView | None) -> Any:
             "results-headline-negative",
         ),
         (
-            "Profitable closed trades",
-            f"{profitable} / {trade_count}" if trade_count else "Unavailable",
-            win_rate,
+            "Profitable closed trades" if trade_count else "Sharpe ratio",
+            f"{profitable} / {trade_count}" if trade_count else persisted_metric("Sharpe Ratio"),
+            win_rate if trade_count else "Persisted aggregate screening metric; trade ledger unavailable",
             "",
         ),
         (
-            "Closed trades",
-            str(trade_count) if trade_count else "Unavailable",
+            "Closed trades" if trade_count else "Screened trades",
+            str(trade_count) if trade_count else persisted_metric("Number Of Trades"),
             (
                 f"{long_count} long · {short_count} short"
                 if trade_count
-                else "Persisted closed trades unavailable"
+                else "Persisted aggregate count; trade ledger unavailable"
             ),
             "",
         ),

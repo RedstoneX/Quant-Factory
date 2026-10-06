@@ -11,6 +11,8 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass, replace
 import hashlib
 import json
+import math
+from numbers import Real
 from pathlib import Path
 from typing import Any
 
@@ -26,11 +28,13 @@ from backtesting.out_of_sample import (
     execute_out_of_sample,
 )
 from backtesting.robustness import (
+    FixedRuleCostStressPlan,
     NeighborhoodConfig,
     ParameterNeighborhoodDefinition,
     RegimeConfig,
     RobustnessConfig,
     build_neighborhood,
+    run_fixed_rule_robustness,
     run_robustness_pipeline,
 )
 from backtesting.screening import ScreeningConfig
@@ -73,6 +77,77 @@ from strategies import get_strategy
 
 
 VALIDATION_RUNTIME_KEY = "candidate_validation_runtime"
+
+
+def _artifact_value(value: Any) -> Any:
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    if pd.isna(value):
+        return None
+    return value.item() if hasattr(value, "item") else value
+
+
+def _artifact_records(frame: pd.DataFrame, *, price_multiplier: float = 1.0) -> list[dict[str, Any]]:
+    rows = [{str(key): _artifact_value(value) for key, value in row.items()}
+            for row in frame.to_dict(orient="records")]
+    if price_multiplier != 1.0:
+        for row in rows:
+            for key, value in row.items():
+                if "price" in key.lower() and isinstance(value, Real) and not isinstance(value, bool):
+                    row[key] = float(value) / price_multiplier
+    return rows
+
+
+def _screening_artifacts(*, result: Any, portfolio: Any, data: pd.DataFrame,
+                         config: ExperimentConfig, parameter_row_id: str) -> tuple[tuple[ArtifactType, str, dict[str, Any]], ...]:
+    """Serialize the screened portfolio itself, never a second simulation."""
+    if len(result.ranked_results) != 1:
+        raise RuntimeError("single-configuration screening must produce one ranked row")
+    row = result.ranked_results.iloc[0]
+    if row["parameter_row_id"] != parameter_row_id:
+        raise RuntimeError("screening portfolio does not match the ranked parameter row")
+    trades = portfolio.trades.records_readable
+    orders = portfolio.orders.records_readable
+    recorded = row["number_of_trades"]
+    if not isinstance(recorded, Real) or isinstance(recorded, bool) or not math.isfinite(float(recorded)) or float(recorded) != len(trades):
+        raise RuntimeError("ranked trade count does not match the actual trade ledger")
+    metrics = {key: _artifact_value(row[key]) for key in (
+        "total_return", "annualized_return", "sharpe_ratio", "max_drawdown",
+        "number_of_trades", "win_rate")}
+    multiplier = config.execution.price_multiplier
+    price_unit = "index_points" if multiplier != 1.0 else "currency"
+    value = portfolio.value
+    if isinstance(value, pd.DataFrame):
+        if value.shape[1] != 1:
+            raise RuntimeError("expected one-column portfolio equity series")
+        value = value.iloc[:, 0]
+    return (
+        (ArtifactType.RUN_SUMMARY, "run_summary", {
+            "strategy_id": result.strategy_id, "strategy_version": result.strategy_version,
+            "selected_parameter_row_id": parameter_row_id, "selected_ranking_position": 1,
+            "evidence_classification": "Development screening evidence only; not independent, protected, or edge proof",
+            "promotion_eligible": False, "broker_orders": "disabled",
+        }),
+        (ArtifactType.METRICS, "metrics", {
+            "parameter_row_id": parameter_row_id, "ranking_position": 1, "metrics": metrics,
+        }),
+        (ArtifactType.TRADES_OR_ORDERS, "trades_and_orders", {
+            "parameter_row_id": parameter_row_id, "ranking_position": 1,
+            "instrument": config.market_data.symbol, "price_unit": price_unit,
+            "pnl_unit": "USD", "price_multiplier": multiplier,
+            "price_normalization": "Trade and order price fields are divided by the execution multiplier for display against source bars; monetary fields are unchanged.",
+            "trades": _artifact_records(trades, price_multiplier=multiplier),
+            "orders": _artifact_records(orders, price_multiplier=multiplier),
+        }),
+        (ArtifactType.EQUITY_CURVE, "equity_curve", {
+            "parameter_row_id": parameter_row_id, "ranking_position": 1,
+            "equity_curve": [{"timestamp": _artifact_value(index), "value": _artifact_value(item)} for index, item in value.items()],
+            "price_series": [{"timestamp": _artifact_value(index),
+                              **{key.lower(): _artifact_value(item[key]) for key in ("Open", "High", "Low", "Close")}}
+                             for index, item in data[["Open", "High", "Low", "Close"]].iterrows()],
+            "benchmark_omission": "No benchmark was declared for this bounded screening run.",
+        }),
+    )
 
 
 def _strict_object(
@@ -146,13 +221,14 @@ class CandidateValidationPlan:
     out_of_sample_shortlist_size: int
     walk_forward_rules: WalkForwardWindowRules
     walk_forward_shortlist_size: int
-    robustness_neighborhood: NeighborhoodConfig
+    robustness_neighborhood: NeighborhoodConfig | None
     robustness_regimes: RegimeConfig
     robustness_maximum_drawdown: float
     robustness_minimum_return: float
     robustness_minimum_sharpe: float | None
     monte_carlo: MonteCarloConfig
     data_as_of: str | None = None
+    fixed_rule_cost_stress: FixedRuleCostStressPlan | None = None
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -165,6 +241,8 @@ class CandidateValidationPlan:
             timestamp = pd.Timestamp(self.data_as_of)
             if timestamp.tzinfo is None:
                 raise ValueError("data_as_of must include a timezone")
+        if (self.robustness_neighborhood is None) != (self.fixed_rule_cost_stress is not None):
+            raise ValueError("fixed-rule cost stress must replace, not accompany, parameter variation")
 
     def document(self) -> dict[str, Any]:
         return {
@@ -177,11 +255,12 @@ class CandidateValidationPlan:
                 "shortlist_size": self.walk_forward_shortlist_size,
             },
             "robustness": {
-                "neighborhood": asdict(self.robustness_neighborhood),
+                "neighborhood": asdict(self.robustness_neighborhood) if self.robustness_neighborhood is not None else None,
                 "regimes": asdict(self.robustness_regimes),
                 "maximum_drawdown": self.robustness_maximum_drawdown,
                 "minimum_return": self.robustness_minimum_return,
                 "minimum_sharpe": self.robustness_minimum_sharpe,
+                **({"fixed_rule_cost_stress": asdict(self.fixed_rule_cost_stress)} if self.fixed_rule_cost_stress is not None else {}),
             },
             "monte_carlo": asdict(self.monte_carlo),
             "data_as_of": self.data_as_of,
@@ -532,16 +611,20 @@ class CandidatePipelineDefinition:
                 "maximum_drawdown",
                 "minimum_return",
                 "minimum_sharpe",
-            },
+            } | ({"fixed_rule_cost_stress"} if "fixed_rule_cost_stress" in validation_document["robustness"] else set()),
         )
-        neighborhood_document = _strict_object(
-            robustness_document["neighborhood"],
-            path=f"{VALIDATION_RUNTIME_KEY}.robustness.neighborhood",
-            keys=set(NeighborhoodConfig.__dataclass_fields__),
+        neighborhood_document = (
+            None
+            if robustness_document["neighborhood"] is None
+            else _strict_object(
+                robustness_document["neighborhood"],
+                path=f"{VALIDATION_RUNTIME_KEY}.robustness.neighborhood",
+                keys=set(NeighborhoodConfig.__dataclass_fields__),
+            )
         )
         definitions = []
         for index, item in enumerate(
-            _strict_list(
+            [] if neighborhood_document is None else _strict_list(
                 neighborhood_document["definitions"],
                 path="robustness.neighborhood.definitions",
             )
@@ -593,7 +676,7 @@ class CandidatePipelineDefinition:
                     ),
                 )
             )
-        neighborhood = NeighborhoodConfig(
+        neighborhood = None if neighborhood_document is None else NeighborhoodConfig(
             definitions=tuple(definitions),
             minimum_valid_neighbors=_strict_int(
                 neighborhood_document["minimum_valid_neighbors"],
@@ -616,6 +699,14 @@ class CandidatePipelineDefinition:
                 path="robustness.neighborhood.maximum_relative_degradation",
             ),
         )
+        stress_document = robustness_document.get("fixed_rule_cost_stress")
+        stress = None if stress_document is None else FixedRuleCostStressPlan(**_strict_object(
+            stress_document,
+            path="robustness.fixed_rule_cost_stress",
+            keys=set(FixedRuleCostStressPlan.__dataclass_fields__),
+        ))
+        if stress is not None and (installed_strategy.spec.parameters or parameters != ({},)):
+            raise ValueError("fixed-rule cost stress requires one parameter-free Candidate")
         regimes_document = _strict_object(
             robustness_document["regimes"],
             path=f"{VALIDATION_RUNTIME_KEY}.robustness.regimes",
@@ -780,6 +871,7 @@ class CandidatePipelineDefinition:
                 data_as_of=_optional_text(
                     validation_document["data_as_of"], path="validation.data_as_of"
                 ),
+                fixed_rule_cost_stress=stress,
             ),
         )
         if canonical_json(result.configuration_document()) != canonical_json(document):
@@ -978,11 +1070,17 @@ class CandidatePipelineRuntime:
                     ),
                     allow_download=not self.cache_only,
                 )
+                captured_portfolios: dict[str, Any] = {}
                 screening_result = execute_experiment(
                     self.definition.experiment,
                     market.data,
                     market.audit,
                     write_output=False,
+                    portfolio_observer=(
+                        (lambda row_id, portfolio: captured_portfolios.setdefault(row_id, portfolio))
+                        if len(self.definition.experiment.parameter_combinations) == 1
+                        else None
+                    ),
                 )
                 persistence.persist_experiment_inputs_on_run(
                     run_id=submission.run_id,
@@ -991,6 +1089,26 @@ class CandidatePipelineRuntime:
                     execution_assumptions=execution_document,
                     include_parameter_results=True,
                 )
+                if captured_portfolios:
+                    if len(captured_portfolios) != 1:
+                        raise RuntimeError("single-configuration screening captured multiple portfolios")
+                    row_id, portfolio = next(iter(captured_portfolios.items()))
+                    for artifact_type, logical_name, document in _screening_artifacts(
+                        result=screening_result, portfolio=portfolio, data=market.data,
+                        config=self.definition.experiment, parameter_row_id=row_id,
+                    ):
+                        relative_path = f"state/artifacts/{submission.run_id}/{logical_name}.json"
+                        destination = self.artifact_root / relative_path
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        content = (canonical_json(document) + "\n").encode("utf-8")
+                        staging = destination.with_suffix(".json.tmp")
+                        staging.write_bytes(content)
+                        staging.replace(destination)
+                        persistence.register_artifact(
+                            run_id=submission.run_id, artifact_type=artifact_type,
+                            logical_name=logical_name, media_type="application/json",
+                            format="json", location=relative_path, content=content,
+                        )
                 persistence.persist_run_manifest(
                     persistence.build_run_manifest(submission.run_id)
                 )
@@ -1161,28 +1279,6 @@ class CandidatePipelineRuntime:
                 context.previous[0].run_id,
                 artifact_root=self.artifact_root,
             )
-            config = RobustnessConfig(
-                strategy_id=screening_result.strategy_id,
-                strategy_version=screening_result.strategy_version,
-                locked_parameters=source_lock.locked_parameters,
-                experiment_id=experiment.experiment_id,
-                source_artifact_id=source_lock.artifact_id,
-                source_start=source_lock.source_start,
-                source_end=source_lock.source_end,
-                data_provenance=source_lock.data_provenance,
-                execution_assumptions=source_lock.execution_assumptions,
-                neighborhood=plan.robustness_neighborhood,
-                regimes=plan.robustness_regimes,
-                maximum_drawdown=plan.robustness_maximum_drawdown,
-                minimum_return=plan.robustness_minimum_return,
-                minimum_sharpe=plan.robustness_minimum_sharpe,
-            )
-            strategy = get_strategy(experiment.strategy_id)
-            construction = build_neighborhood(
-                strategy,
-                source_lock.locked_parameters,
-                plan.robustness_neighborhood,
-            )
             robustness_data = data.loc[
                 source_lock.source_start : source_lock.source_end
             ].copy()
@@ -1196,13 +1292,48 @@ class CandidatePipelineRuntime:
                 cache_action="partition:out_of_sample",
                 cache_decision_reason="locked out-of-sample robustness source",
             )
-            result = run_robustness_pipeline(
-                config,
-                construction,
-                experiment,
-                robustness_data,
-                robustness_audit,
-            )
+            if plan.fixed_rule_cost_stress is not None:
+                result = run_fixed_rule_robustness(
+                    experiment=experiment,
+                    strategy_version=screening_result.strategy_version,
+                    source_lock=source_lock,
+                    plan=plan.fixed_rule_cost_stress,
+                    regimes=plan.robustness_regimes,
+                    maximum_drawdown=plan.robustness_maximum_drawdown,
+                    minimum_return=plan.robustness_minimum_return,
+                    minimum_sharpe=plan.robustness_minimum_sharpe,
+                    data=robustness_data,
+                    audit=robustness_audit,
+                )
+            else:
+                config = RobustnessConfig(
+                    strategy_id=screening_result.strategy_id,
+                    strategy_version=screening_result.strategy_version,
+                    locked_parameters=source_lock.locked_parameters,
+                    experiment_id=experiment.experiment_id,
+                    source_artifact_id=source_lock.artifact_id,
+                    source_start=source_lock.source_start,
+                    source_end=source_lock.source_end,
+                    data_provenance=source_lock.data_provenance,
+                    execution_assumptions=source_lock.execution_assumptions,
+                    neighborhood=plan.robustness_neighborhood,
+                    regimes=plan.robustness_regimes,
+                    maximum_drawdown=plan.robustness_maximum_drawdown,
+                    minimum_return=plan.robustness_minimum_return,
+                    minimum_sharpe=plan.robustness_minimum_sharpe,
+                )
+                construction = build_neighborhood(
+                    get_strategy(experiment.strategy_id),
+                    source_lock.locked_parameters,
+                    plan.robustness_neighborhood,
+                )
+                result = run_robustness_pipeline(
+                    config,
+                    construction,
+                    experiment,
+                    robustness_data,
+                    robustness_audit,
+                )
             evidence.persist_robustness(
                 run_id=context.run_id,
                 result=result,

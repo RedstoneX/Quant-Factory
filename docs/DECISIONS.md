@@ -13,6 +13,8 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **334** | **Authorize one private-beta deployment and real operator proof:** Terry requests that the connected Candidate UI be deployed and run properly, with no fixture or fabricated profitability proof. Fix the confirmed screening artifact and verified-data lineage gaps, complete the required repository/CI cycle, rebuild only the dashboard service, and prove the deployed path with one real approved Candidate run on existing data. Preserve sealed prior runs and separate Compare work. No protected test, new strategy research, paper/live trading, or capital authority. |
+| **333** | **Owner authorizes local browser-driven backtests of two exact MES Candidates:** run the previously accepted ORB/VWAP Candidate once and the separately approved fixed intraday 10/30 SMA Candidate once on existing verified MES 5-minute data, and repair root-cause local workflow blockers. The earlier no-PR/no-deployment gate remains. Protected test, optimization, paid data, paper/live trading, and capital remain closed. |
 | **332** | **Keep Set up reusable and selection-driven during R12:** Terry rejected MES-only controls and the prior Set up screenshots. The page must reflect each selected Candidate's exact approved saved contract across equities, futures, and timeframes; fixed values remain visible but disabled, and genuine approved choices use bounded backend contracts. The MES fee/stress assumptions are MES-specific. Set up is not approved or deployed; no strategy run is authorized. |
 | **331** | **Require page-local UI references and representative-state visual proof during R12 recovery:** the standalone chart-first preview is Results-only; every other page uses its own approved reference. Before merge/deploy, Codex must visually inspect the actual meaningful page state against that exact reference, show Terry the side-by-side result, and obtain approval. Route arrival, HTTP success, empty shells, visible text, or zero browser errors cannot be called page or workflow completion. |
 | **330** | **Authorize narrowly scoped Playwright visual inspection for the active R12 correction:** one desktop viewport, exact approved-reference comparison, and read-only connected-workflow inspection. No browser suite, CI browser lane, multi-device matrix, evidence mutation, or general test infrastructure is authorized. This is a bounded exception to Decision 325, not a reversal of Terry's final browser acceptance. |
@@ -2166,3 +2168,51 @@ superseded.
      checks remain. No test has been run. This decision clarifies Decisions
      326 and 331 without changing their owner-approval, page-by-page proof,
      protected-evidence, or no-trading boundaries.
+
+
+333. **Authorize one local connected browser backtest of each accepted MES Candidate
+     and local workflow repair (accepted 2026-10-06).** Terry asked
+     Codex to use a real desktop browser to take an approved Candidate from
+     Ideas through a completed backtest and fix root-cause workflow blockers.
+     This advances the earlier read-only browser and paused-research boundaries
+     of Decisions 330–332 for these exact Candidates and the necessary local
+     operator repairs. Service deployment, a PR, and merge remain separate
+     owner gates. This does not grant a generic research or trading mandate.
+
+     The first Candidate is the separately accepted MES 15-minute ORB/VWAP
+     breakout-quality rule and its existing fixed setup. The second is Terry's
+     fixed MES 5-minute intraday 10/30 close-SMA crossover: session-reset
+     averages, first defined cross, next-contiguous-bar-open entry, at most
+     one trade per regular session, flat by 15:55 ET, verified local data from
+     2019-05-06 through 2026-02-13, $0.62 per contract per side and one
+     adverse tick per side. Terry separately selected its stress case of
+     $1.24 per contract per side and two adverse ticks per side. No tuning,
+     second average pair, new data purchase, or overnight position is allowed.
+
+     Apply the existing conjunctive provisional screen (at least 20 trades,
+     positive total and annualized return, Sharpe at least 0.5, and maximum
+     drawdown at most 35%), then the declared validation gates only if earlier
+     gates pass. The protected test stays closed. Previously inspected data
+     can screen and reject but cannot independently prove a viable edge.
+     Neither result authorizes paper/live operation, broker orders, capital,
+     automatic promotion, or a claim of robust viability.
+
+
+334. **Deploy and prove the real private Candidate workflow (accepted
+     2026-10-06).** Terry explicitly requests deployment of the connected
+     Quant Factory interface so he can operate repeated backtests, and rejects
+     fixtures or fabricated results as deployment proof. This supersedes the
+     no-PR/no-deployment gate in Decision 333 for one consolidated private-beta
+     correction and its required repository/CI cycle. The deployed dashboard
+     must bind the exact selected approved Candidate and configuration, record
+     the real screening portfolio's trade/equity artifacts, and carry the
+     checksum and manifest identity of verified local catalog data into run
+     lineage. Existing sealed runs are not retrofitted or rewritten.
+
+     One browser-operated run of an already-approved fixed MES Candidate on
+     the private service is authorized only to prove the deployed path and
+     its durable evidence; it is not a new independent market observation or
+     permission to reinterpret a screened-out strategy. Preserve the separate
+     Compare work and the protected-data boundary. No new candidate, data
+     purchase, optimization, paper/live trading, broker order, or capital
+     authority follows.

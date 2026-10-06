@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 import hashlib
 import json
 from typing import Any, Mapping
@@ -259,6 +260,7 @@ def build_robustness_evidence_document(
                 _parameter_point_document(point) for point in result.parameter_points
             ),
             "neighborhood_summary": _summary_document(result.neighborhood_summary),
+            "fixed_rule_cost_stress": asdict(result.fixed_rule_cost_stress) if result.fixed_rule_cost_stress is not None else None,
             "regime_metadata": _metadata_document(result.regime_metadata),
             "regime_results": tuple(
                 _regime_document(regime) for regime in result.regime_results

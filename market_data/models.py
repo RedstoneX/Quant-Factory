@@ -61,6 +61,8 @@ class DataAudit:
     cache_path: str = ""
     cache_action: str = ""
     cache_decision_reason: str = ""
+    manifest_reference: str | None = None
+    checksum: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

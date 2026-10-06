@@ -13,15 +13,22 @@ from dashboard.app import create_app
 from dashboard.callbacks.setup import _parameter_controls
 from dashboard.callbacks.ideas import _decode_candidate_upload
 from dashboard.pages.ideas import layout as ideas_layout
+from dashboard.pages.setup import render_selected_setup
 from dashboard.run_adapter import (
     IdeaDraftView,
+    SavedConfigurationView,
+    list_idea_drafts,
+    list_saved_configurations,
     list_setup_strategies,
     persist_bounded_idea_configuration,
     save_idea_draft,
 )
-from dashboard.candidate_workflow import candidate_configuration_binding
+from dashboard.candidate_workflow import CandidateConfigurationBinding, CandidateIdentityView, candidate_configuration_binding
 from persistence import LATEST_SCHEMA_VERSION, PersistenceService, StrategyLifecycle
 from research_intake import import_candidate_as_idea, record_candidate_decision
+from orchestration import CandidatePipelineDefinition
+from strategies.mes_vwap_orb_candidate import CANDIDATE_ID, CANDIDATE_VERSION
+from dashboard.mes_candidate_setup import save_mes_candidate_setup
 from strategies.spym_rsi_mean_reversion_fixture import (
     SPYM_RSI_ENTRY_THRESHOLD,
     SPYM_RSI_EXIT_THRESHOLD,
@@ -72,6 +79,109 @@ def _callback_for_input(app, component_id: str):
     )
     callback = entry["callback"]
     return getattr(callback, "__wrapped__", callback)
+
+
+def test_setup_reads_another_selected_candidates_saved_contract(monkeypatch) -> None:
+    identity = CandidateIdentityView(
+        candidate_id="idea_equity",
+        version_fingerprint="a" * 64,
+        title="Equity session breakout",
+        family="breakout",
+        status="owner_approved",
+        attribution="Owner",
+        rationale="A bounded same-session equity rule.",
+        fixed_definition='{"entry":"breakout"}',
+        evidence_contract='{"screen":"standard"}',
+    )
+    configuration = SavedConfigurationView(
+        configuration_id="config_equity",
+        experiment_id="equity_breakout_15m",
+        strategy_id="equity_breakout",
+        strategy_version="1.0.0",
+        strategy_name="Equity session breakout implementation",
+        lifecycle="candidate",
+        active=True,
+        parameters={"lookback": 3},
+        execution={"direction": "longonly", "mode": "next_bar_open", "order_size": 10, "initial_cash": 25000, "fees": 0.001, "slippage": 0.0002},
+        market_data={"symbol": "AAPL", "provider": "Databento", "interval": "15m", "requested_start": "2025-01-01"},
+        config_hash="b" * 64,
+    )
+    monkeypatch.setattr(
+        "dashboard.pages.setup.candidate_configuration_binding",
+        lambda draft_id, *, database: CandidateConfigurationBinding(None, identity, configuration, None, None) if draft_id == "idea_equity" else None,
+    )
+    monkeypatch.setattr(
+        "dashboard.pages.setup.configuration_readiness",
+        lambda config, catalog: SimpleNamespace(ready=True, requested_coverage="2025-01-01 onward"),
+    )
+
+    rendered = render_selected_setup("idea_equity", database="unused.sqlite3")
+    text = " ".join(str(node.children) for node in _walk(rendered) if isinstance(getattr(node, "children", None), str))
+    assert "Equity session breakout" in text
+    assert "AAPL" in text
+    assert "15m" in text
+    assert "2025-01-01" in text
+    assert "0.1%" in text
+    assert "0.02%" in text
+    assert "MES" not in text
+    controls = [node for node in _walk(rendered) if getattr(node, "_type", None) == "Select"]
+    assert controls and all(control.disabled for control in controls)
+
+
+def test_approved_mes_preview_uses_a_valid_saved_contract_shape(monkeypatch) -> None:
+    identity = CandidateIdentityView(
+        candidate_id=CANDIDATE_ID,
+        version_fingerprint=CANDIDATE_VERSION,
+        title="MES 15-minute ORB",
+        family="opening_range_breakout",
+        status="owner_approved",
+        attribution="Owner",
+        rationale="One fixed same-session rule.",
+        fixed_definition='{"flat_by_close":true}',
+        evidence_contract='{}',
+    )
+    monkeypatch.setattr(
+        "dashboard.pages.setup.candidate_configuration_binding",
+        lambda draft_id, *, database: CandidateConfigurationBinding(None, identity, None, "implementation_required", "Save the exact setup") if draft_id == CANDIDATE_ID else None,
+    )
+
+    def readiness(configuration, _catalog):
+        CandidatePipelineDefinition.from_configuration_document(configuration.document)
+        return SimpleNamespace(ready=True, local_availability="Available", blockers=())
+
+    monkeypatch.setattr("dashboard.pages.setup.configuration_readiness", readiness)
+    rendered = render_selected_setup(CANDIDATE_ID, database="unused.sqlite3")
+    assert not next(node for node in _walk(rendered) if getattr(node, "id", None) == "save-idea-configuration").disabled
+    text = " ".join(str(node.children) for node in _walk(rendered) if isinstance(getattr(node, "children", None), str))
+    assert "MES" in text and "2019-05-06" in text and "2026-02-13" in text
+    assert "$0.62" in text and "$1.24" in text
+    assert "No adjustable parameters" in text and "[{}]" not in text
+    assert "Fixed units" in text and "Completed bar close" in text
+
+
+def test_mes_setup_save_reopens_the_exact_immutable_contract(tmp_path, monkeypatch) -> None:
+    database = tmp_path / "review.sqlite3"
+    draft = save_idea_draft({"title": "MES contract inspection"}, draft_id=CANDIDATE_ID, database=database)
+    identity = CandidateIdentityView(
+        candidate_id=draft.draft_id, version_fingerprint=CANDIDATE_VERSION,
+        title=draft.title, family="opening_range_breakout", status="owner_approved",
+        attribution="Owner", rationale="Fixed rule", fixed_definition="{}", evidence_contract="{}",
+    )
+    # Only the unavailable original packet identity and owned data read are substituted.
+    monkeypatch.setattr("dashboard.mes_candidate_setup.candidate_identity", lambda selected: identity if selected.draft_id == draft.draft_id else None)
+    def local_data(config, *, now, allow_download):
+        assert config.symbol == "MES" and config.interval == "5m"
+        assert allow_download is False and now.isoformat().startswith("2026-02-13")
+    monkeypatch.setattr("dashboard.mes_candidate_setup.load_market_data", local_data)
+
+    configuration_id = save_mes_candidate_setup(draft_id=draft.draft_id, database=database)
+    saved = next(item for item in list_saved_configurations(database) if item.configuration_id == configuration_id)
+    definition = CandidatePipelineDefinition.from_configuration_document(saved.document)
+    assert saved.market_data["symbol"] == "MES"
+    assert saved.market_data["interval"] == "5m"
+    assert saved.execution["fixed_fee_per_contract_per_side"] == 0.62
+    assert definition.validation.fixed_rule_cost_stress.fixed_fee_per_contract_per_side == 1.24
+    assert next(item for item in list_idea_drafts(database) if item.draft_id == draft.draft_id).configuration_id == configuration_id
 
 
 def test_v5_database_migrates_idea_drafts_once(tmp_path) -> None:
@@ -389,6 +499,11 @@ def test_accepted_candidate_without_implementation_cannot_fall_back_to_fixture(
     )
     assert binding.blocker_code == "implementation_required"
     assert binding.configuration is None
+    blocked = render_selected_setup(decided.draft.draft_id, database=path)
+    blocked_text = " ".join(str(node.children) for node in _walk(blocked) if isinstance(getattr(node, "children", None), str))
+    assert "This Candidate is accepted but has no matching implementation yet." in blocked_text
+    assert "MES" not in blocked_text
+    assert next(node for node in _walk(blocked) if getattr(node, "id", None) == "save-idea-configuration").disabled
 
     service = PersistenceService(path)
     try:
