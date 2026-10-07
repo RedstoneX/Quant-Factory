@@ -2965,6 +2965,8 @@ def _results_report_tabs(
         id="run-detail-analysis-tabs",
         value="variants" if selected_parameter_row_id else "metrics",
         className="run-analysis-tabs results-workspace-tabs",
+        persistence=True,
+        persistence_type="session",
         parent_style={"display": "flex", "gap": "8px"},
     )
 

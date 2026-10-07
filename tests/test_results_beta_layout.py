@@ -294,6 +294,8 @@ def test_results_report_reuses_existing_metrics_and_trade_explorer() -> None:
     ]
     assert report.id == "run-detail-analysis-tabs"
     assert report.value == "metrics"
+    assert report.persistence is True
+    assert report.persistence_type == "session"
     assert rendered.count("id='selected-trade-grid'") == 1
     assert rendered.count("id='trade-explorer-summary'") == 1
     assert rendered.count("id='price-marker-chart'") == 1
