@@ -79,6 +79,18 @@ selected-run detail. The native details element also failed to emit the
 expected supporting-chart callback. These are the next measured boundaries;
 chart-library replacement or strategy reruns would not answer them.
 
+Revisions `25cd6b1` and `11d66b3` closed those three boundaries without a new
+frontend or chart engine. Active-route and active-tab mounting reduced the
+Dash layout response to 94,670 bytes; Overview no longer decodes chart rows;
+the supporting charts use an explicit click callback; and a one-shot mount
+trigger loads Trades only after its dynamic grid exists. The representative
+desktop pass reached Overview in 3.863 seconds and the chart in 5.424 seconds,
+loaded all 1,645 Trades rows only after selection, and reported no console
+errors. The owner latency targets remain unmet. The browser still downloads
+the standard Plotly and Dash AG Grid component bundles during startup, so any
+further correction must profile that browser path rather than revisit sealed
+artifact algorithms or rerun a strategy.
+
 ### Parameter studies and automatic optimization
 
 Use VectorBT Pro's native conditional parameter grids, random subsets,
