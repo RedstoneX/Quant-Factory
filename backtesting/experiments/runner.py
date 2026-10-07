@@ -328,7 +328,11 @@ def execute_experiment(
             {result.gate_id: result for result in validation_results}
         )
         portfolio = _construct_portfolio(data, aligned, config)
-        metrics = extract_metrics(portfolio, data=data, config=config)
+        metrics = (
+            extract_metrics(portfolio, data=data, config=config)
+            if config.metric_policy is not None
+            else extract_metrics(portfolio)
+        )
         screening = screen_metrics(
             experiment_id=config.experiment_id,
             strategy_id=strategy.spec.identity.strategy_id,
