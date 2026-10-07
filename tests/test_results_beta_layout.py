@@ -331,6 +331,7 @@ def test_results_report_reuses_existing_metrics_and_trade_explorer() -> None:
     assert "selected-trade-grid" not in rendered
     trades = str(_results_report_tab_content("trades", _detail()))
     assert trades.count("id='selected-trade-grid'") == 1
+    assert trades.count("id='trade-explorer-load-trigger'") == 1
     assert trades.count("id='trade-explorer-summary'") == 1
     assert rendered.count("id='price-marker-chart'") == 1
     assert "Parameter variants" in str(

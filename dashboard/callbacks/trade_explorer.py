@@ -38,6 +38,7 @@ def register_trade_explorer_callbacks(
         Output("selected-trade-grid", "selectedRows"),
         Input("selected-run-state", "data"),
         Input("run-detail-analysis-tabs", "value"),
+        Input("trade-explorer-load-trigger", "n_intervals"),
         Input("trade-outcome-filter", "value"),
         Input("trade-direction-filter", "value"),
         Input("trade-date-range", "start_date"),
@@ -49,6 +50,7 @@ def register_trade_explorer_callbacks(
     def refresh_trade_rows(
         stored_run_id: str | None,
         active_tab: str | None,
+        _load_intervals: int | None,
         outcome_filter: list[str] | None,
         direction_filter: list[str] | None,
         start_date: str | None,
