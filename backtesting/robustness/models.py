@@ -207,6 +207,30 @@ class ThresholdResult:
 
 
 @dataclass(frozen=True)
+class FixedRuleCostStressPlan:
+    """One predeclared higher-cost check for a strategy with no rule parameters."""
+
+    fixed_fee_per_contract_per_side: float
+    slippage_ticks: float
+
+    def __post_init__(self) -> None:
+        _finite_number("fixed_fee_per_contract_per_side", self.fixed_fee_per_contract_per_side)
+        _finite_number("slippage_ticks", self.slippage_ticks)
+        if self.fixed_fee_per_contract_per_side <= 0 or self.slippage_ticks <= 0:
+            raise ValueError("fixed-rule stress costs must be positive")
+
+
+@dataclass(frozen=True)
+class FixedRuleCostStressResult:
+    baseline_costs: dict[str, float]
+    stressed_costs: dict[str, float]
+    stressed_metrics: dict[str, float | int]
+    threshold_results: tuple[ThresholdResult, ...]
+    status: Status
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class EvaluatedParameterPoint:
     normalized_parameters: dict[str, Any]
     derivations: tuple[CandidateDerivation, ...]
@@ -352,6 +376,7 @@ class RobustnessResult:
     reasons: tuple[str, ...]
     warnings: tuple[str, ...]
     timestamp: str
+    fixed_rule_cost_stress: FixedRuleCostStressResult | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

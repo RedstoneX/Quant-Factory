@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Restore trustworthy R12 page-by-page conformance: use each route's own approved reference, prove a meaningful rendered state visually, and obtain Terry's page approval before merge or deployment. |
-| Phase | **R13 remains accepted. R12 UI correction is active; owner walkthrough acceptance is not complete. Candidate research remains paused.** |
-| Active work | **UI implementation is paused for the Decision 331 proof reset.** Preserve the accepted Dashboard and substantially conforming Ideas page. Resume one page at a time only after naming that page's exact reference, representative state, defect, and allowed change. The standalone chart-first preview is Results-only. Before merge/deploy, inspect the actual meaningful render against that page's own reference and show Terry the two views side by side. |
+| Immediate objective | Deploy the existing Dash Candidate workflow privately and prove a real browser-operated backtest can finish with durable, reviewable screening evidence. Fix the confirmed artifact and dataset-lineage gaps without changing Candidate rules. |
+| Phase | **R13 remains accepted. R12 private-beta workflow deployment is active under Decision 334.** |
+| Active work | Both exact Candidates completed isolated local browser-launched screening and were screened out. Terry now authorizes one consolidated PR/CI and private dashboard deployment, plus one real approved-Candidate run on the private service for operator proof. Preserve separate Compare work. No generic new-candidate campaign, protected test, paper/live, or capital authority. |
 | Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | Repeated closure claims confused routing smoke checks with page/workflow proof. The deployed Compare route can reach a correct URL with no browser errors while still presenting an almost empty, non-intuitive state. The chart-first standalone preview was also incorrectly generalized beyond its Results-only scope. Candidate identity and inactive-route performance corrections remain preserved. |
-| Next action | Present the focused UI audit and Decision 331 process to Terry. Do not change another operator page until Terry accepts the reset. Then begin with one named page and its own repository reference; render representative data, compare reference and actual side by side, and obtain page approval before the single merge/deploy boundary. The separate Grok-hosted proof remains blocked on Terry's public key and is not substituted while R12 is active. |
+| Verified gap | The local Set up draft initially showed correct MES facts but treated fixed dropdowns as expendable text and then displayed MES-specific controls regardless of another selected strategy. Terry rejected this one-off behavior: Quant Factory must handle future equities, futures, and timeframes through actual approved saved contracts. Readable dates, relevant information, real permitted controls, and a usable start-to-finish web workflow remain acceptance needs. The deployed Compare page's earlier empty-state defect also remains open. |
+| Next action | Persist same-portfolio screening artifacts and verified catalog identity, complete focused checks and one repository/CI cycle, deploy dashboard only, then browser-run one approved fixed Candidate on the private service and inspect its durable Results. Stop for Terry's walkthrough. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
 
@@ -24,12 +24,28 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Decision 331 proof reset active; implementation paused pending Terry's review.** Preserve exact Candidate identity/version/provenance, accepted Dashboard, substantially conforming Ideas page, and completed inactive-route performance correction. Resume one page at a time with its own approved reference and representative-state side-by-side proof before merge/deploy. Navigation-only evidence cannot close a page or workflow. |
+| R12 | 1 | in_progress | none | **Private-beta deployment and one real target run authorized by Decision 334.** Isolated browser runs screened out ORB/VWAP (Sharpe 0.472) and SMA 10/30 (−4.69% total, Sharpe −0.485). The screening runtime omitted trade/equity artifacts and verified catalog checksum from their sealed manifests. Fix for future runs, do not retrofit those runs, deploy dashboard only, and prove one real private-service run. Preserve separate Compare work. |
 | R14 | 2 | blocked | R12 | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
 
 The former gate wording, `No Codex implementation is active while Terry performs the walkthrough`,
 is superseded by Terry's reported UI defects and current R12 correction authority.
+
+## Current R12 owner corrections and handoff (2026-10-06)
+
+Decisions 333–334 and the current-phase table above supersede this section's
+earlier no-run and no-deployment pause for the exact approved MES Candidates and
+one private-beta workflow deployment. Historical page-review status below
+remains evidence of the earlier gate, not the active stop point.
+
+- **Product outcome:** Terry must be able to use Quant Factory from the web interface to test a strategy and follow it through the existing factory. Visual polish alone, a route smoke check, or a disconnected page is not a workflow pass. Terry wants bounded steps with his approval between them, and root causes corrected before dependent pages are rebuilt.
+- **Prioritization and economy:** Terry rejected treating a small date/copy correction as a whole step, redoing the already accepted mockup/design language, and rebuilding pages before checking shared workflow faults. Use the existing OVH Ubuntu installation, Dash application, backend, virtual environment, and persisted data. A missing shell utility or inaccessible Docker metadata is not a reason to create greenfield infrastructure. Keep checks and browser inspection focused; do not churn through speculative variants or duplicate proof.
+- **Reusable Set up, not an MES product:** MES is the current accepted Candidate example, not the only future backtest. Equities, other futures contracts, and other timeframes must be represented by their own approved strategy/data/configuration contracts. The approved SPYM Set up mockup defines this page's composition, not universal SPYM values; the Results chart-first preview does not define Set up. A selected Candidate must never silently show MES or an unrelated fixture. An accepted but unimplemented Candidate stays visibly blocked.
+- **Controls:** The mockup's fixed dropdowns are intentional inspection controls. For a fixed-rule saved setup they show the exact persisted value and are disabled; they are not decorative placeholders or a global ban on future selectable settings. Where an approved strategy actually allows choices, show only those bounded choices through the existing backend and save the resulting immutable contract. Dates, costs, instrument, timeframe, position assumptions, and the next safe action must be readable and relevant to the selection.
+- **Current MES contract:** Terry accepted the documented MES fee assumption of **$0.62 per contract per side** as this Candidate's baseline, with one adverse tick per side. The proposed higher-cost robustness screen is **$1.24 plus two adverse ticks per side**. These are MES-specific assumptions, not defaults for equities or other futures. Because this Candidate has no adjustable strategy parameters, parameter-variation robustness cannot be claimed as passed; the proposed actual higher-cost gate replaces that one check, while time-split, market-condition, and simulation checks remain. No strategy test or new evidence has been run.
+- **Local status, not closure:** Branch `codex/r12-compare-conformance` contains uncommitted Compare, Set up, and Run test work. Terry approved the selection-driven Set up review by saying “Proceed” and approved the subsequent Run test desktop review. Visual reviews used isolated copies of persisted state; the live database and deployed service were not changed. There is no PR, merge, deployment, research run, or paper/live action for this slice.
+
+Run test page approval is recorded. Do not start Compare or another page, launch a strategy, or treat local checks as workflow acceptance without Terry's next instruction.
 
 ## Architecture remediation — completed 2026-10-01
 
@@ -95,8 +111,10 @@ profitability, or the licensed engine itself.
 
 ### Edge research — PAUSED DURING STANDARDIZED INTAKE WORK
 
-No candidate is active, and standardized intake work does not authorize a
-strategy test. QF Candidate v1 may be produced by Terry, an external LLM, or a
+No candidate research execution is active, and standardized intake work does not
+authorize a strategy test. Terry has since accepted one exact MES ORB/VWAP
+Candidate for bounded local implementation review; that acceptance has not
+authorized running it. QF Candidate v1 may be produced by Terry, an external LLM, or a
 future optional built-in analyzer, but importing a packet never authorizes
 implementation or execution. Before research begins, Terry must explicitly
 accept a bounded, source-attributed Candidate packet and its fixed evidence

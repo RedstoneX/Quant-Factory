@@ -2,7 +2,7 @@
 
 from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 import pandas as pd
 
@@ -99,6 +99,8 @@ def align_signals_for_execution(
             short_exits=_shift_signal(signals.short_exits),
             parameters=dict(signals.parameters),
             metadata=dict(signals.metadata),
+            stop_loss=(signals.stop_loss.shift(1) if signals.stop_loss is not None else None),
+            take_profit=(signals.take_profit.shift(1) if signals.take_profit is not None else None),
         )
     raise ValueError(f"Unsupported execution mode: {execution.mode}")
 
@@ -128,6 +130,23 @@ def _construct_portfolio(
             "short_exits": aligned.short_exits,
         }
     execution_price = build_execution_price(data, aligned, execution)
+    stop_args: dict[str, Any] = {}
+    if aligned.stop_loss is not None or aligned.take_profit is not None:
+        if aligned.stop_loss is None or aligned.take_profit is None:
+            raise ValueError("Stop-loss and take-profit levels must be configured together")
+        if execution.mode != "next_bar_open":
+            raise ValueError("Bar-based stop orders require next-bar-open execution")
+        stop_args = {
+            "open": data["Open"] * execution.price_multiplier,
+            "high": data["High"] * execution.price_multiplier,
+            "low": data["Low"] * execution.price_multiplier,
+            "sl_stop": aligned.stop_loss,
+            "tp_stop": aligned.take_profit,
+            "delta_format": "Percent",
+            "stop_entry_price": "Open",
+            "stop_exit_price": "Stop",
+            "use_stops": True,
+        }
     return vbt.Portfolio.from_signals(
         close=close,
         **signal_args,
@@ -140,6 +159,7 @@ def _construct_portfolio(
         fees=execution.fees,
         slippage=execution.slippage,
         fixed_fees=execution.fixed_fee_per_order,
+        **stop_args,
     )
 
 
@@ -283,6 +303,7 @@ def execute_experiment(
     *,
     run_timestamp: str | None = None,
     write_output: bool = True,
+    portfolio_observer: Callable[[str, Any], None] | None = None,
 ) -> ExperimentResult:
     """Validate, simulate, rank, and optionally persist one experiment."""
     strategy = get_strategy(config.strategy_id)
@@ -335,6 +356,8 @@ def execute_experiment(
             config=config.screening,
         )
         screening_results.append(screening)
+        if portfolio_observer is not None:
+            portfolio_observer(screening.parameter_row_id, portfolio)
         rows.append(
             _parameter_row(normalized, config)
             | metrics

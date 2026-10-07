@@ -143,6 +143,8 @@
 
 .run-configuration-strip { grid-template-columns: minmax(0, 1fr) 190px 190px auto; }
 .run-selector-primary #run-candidate-identity { min-width: 0; }
+.run-selector-primary .run-locked-configuration-select { background: #fff; border: 0; color: #24344d; display: block; font: inherit; font-size: 12px; font-weight: 650; margin: 3px 0; max-width: 100%; overflow: hidden; padding: 0; text-overflow: ellipsis; width: 100%; }
+.run-selector-primary .run-locked-configuration-select:disabled { color: #24344d; opacity: 1; }
 .run-selector-state { color: #a56800; font-size: 11px; font-weight: 750; white-space: nowrap; }
 .run-selector-state-ready { color: #087453; }
 
@@ -185,9 +187,10 @@
 .run-launch-rail-panel .run-launch-action { border: 0; border-radius: 0; box-shadow: none; padding: 14px; }
 .run-launch-rail-panel .run-launch-gate { padding: 14px 0 0; }
 .run-launch-rail-panel .run-launch-gate > .surface-heading { margin: -14px 0 0; padding: 14px 15px 12px; }
-.run-launch-rail-panel .launch-check-list { margin: 0; }
-.run-launch-rail-panel .launch-check-list li { display: grid; gap: 2px; padding: 10px 14px 10px 42px; }
-.run-launch-rail-panel .launch-check-list li::before { left: 15px; top: 11px; }
+.run-launch-rail-panel .run-launch-gate .launch-check-list { grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; padding: 0; }
+.run-launch-rail-panel .run-launch-gate .launch-check-list li { align-items: start; border-bottom: 1px solid #e4e9f0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 10px 14px 10px 42px; }
+.run-launch-rail-panel .run-launch-gate .launch-check-list li::before { left: 15px; top: 11px; }
+.run-launch-rail-panel .run-launch-gate .launch-check-list li.run-check-blocked::before { color: #a56800; content: "○"; }
 .run-launch-rail-panel .launch-check-list strong { color: #24344d; font-size: 11px; }
 .run-launch-rail-panel .launch-check-list span { color: #68778d; font-size: 10px; line-height: 1.35; }
 .run-launch-rail-panel .run-launch-action { border-top: 1px solid #e4e9f0; }

@@ -158,7 +158,7 @@ operation or new controls.
 |---|---|---|---|---|---|
 | Dashboard | **Protected accepted baseline; regression check only** | `dashboard.png` | Research Atlas overview, live-research summary, readiness, research landscape, evidence survival, and clear next owner need | Replacement overview, invented metrics, new workflow controls, or visual change made only for loading work | Lightweight summary only; expensive detail waits for its destination page |
 | Ideas | **Protected substantially conforming baseline; regression check and specific confirmed defects only** | `ideas.html` | Idea queue/history, selected idea explanation, provenance, and obvious **Accept**, **Revise**, **Reject**, import/context/export actions | Redesign, broad restyling, ambiguous text posing as controls, hidden decision action, or legacy draft-editor composition | Preserve appearance, interaction, selected identity, and queue shell while active-route data loads |
-| Set up | **Verified visual/functional correction required** | `setup.html`, `setup.png` | Selected idea/campaign context, exact bounded test, test-day explanation, readiness checks, and obvious save/revise/reject or next valid action | Universal strategy builder, unrelated fixture substitution, duplicated narrative panels | Load Candidate/configuration detail only while Set up is active; preserve the selected identity |
+| Set up | **Verified visual/functional correction required** | `setup.html`, `setup.png` | Selected idea/campaign context, exact bounded test, test-day explanation, readable dates, instrument/timeframe/costs from the selected contract, readiness checks, and obvious save/revise/reject or next valid action | MES/SPYM hard-coding as a universal page, fake or decorative controls, unrelated fixture substitution, duplicated narrative panels | Load Candidate/configuration detail only while Set up is active; preserve the selected identity |
 | Run test | **Verified workflow/functional correction required** | `run-test.html`, `run-test.png` | Saved test identity, immutable contract, data/provenance, preflight checks, explicit confirmation, and one start action or truthful blocker | Editable setup, silent retry, duplicate launch, or unrelated runnable fixture | Hydrate preflight/run state only on the active route; never launch from hydration |
 | Results | **Verified visual/functional correction required** | `results.html`, `results.png` | Persistent quartet, selected-run identity, truthful price/trade workspace, chart controls, metrics/trades/variants, evidence, review, and technical disclosure | Long diagnostics-first page, fabricated charts, or dense evidence mounted as the default view | Load history, artifacts, chart, and evidence only when Results is active and a run is selected |
 | Compare | **Verified structural correction required** | `compare.html`, `compare.png` | Selected-run chips, comparability warning, per-run quartets, normalized equity, aligned metrics, material differences, and Results links | Exhaustive parameter dump, separate legacy drawdown report, or hidden old Compare renderer | Load selected runs and chart evidence only while Compare is active; retain identities during reads |
@@ -169,10 +169,32 @@ operation or new controls.
 | Paper Trading Overview | **Status reference only; no redesign authority** | `paper-overview-status-reference.png` | Retained read-only status reference only | Any operational control or claim of paper authority | No paper data polling before the paper milestone is authorized |
 | Strategy Monitor | **Status reference only; no redesign authority** | `strategy-monitor-status-reference.png` | Retained read-only status reference only | Orders, positions, activation, allocation, or live monitoring claims | No strategy-monitor hydration before the paper milestone is authorized |
 
+Set up is a reusable backtesting-engine page, not a one-off MES form. The
+approved SPYM mockup supplies its composition and control language; the actual
+instrument, asset class, timeframe, dates, strategy settings, execution
+assumptions, and costs come from the browser-selected Candidate and its exact
+saved configuration. The mockup's disabled dropdowns deliberately expose
+fixed values. For a fixed-rule contract, show its persisted values as readable,
+disabled controls; do not replace them with unrelated text or imply they can
+be tuned. If an approved strategy specification permits multiple bounded
+values, use those actual allowed values through the existing backend's bounded
+configuration and immutable persistence contracts. Do not offer arbitrary symbols, timeframes, or
+parameters outside the approved strategy/data/evidence contract. An accepted
+Candidate without a matching implementation shows a clear blocker, never a
+fixture or another Candidate's controls. A saved test is selected and reviewed
+as its own contract, not reconstructed from whichever example was most recently
+implemented. MES's $0.62-per-side baseline and $1.24 higher-cost scenario are
+specific to that accepted MES Candidate, not global defaults for equities or
+other futures.
+Do not replace the accepted mockup's design language with an unrequested
+generic "plain language" rewrite; explain work plainly to Terry in the
+conversation while keeping the approved in-product terminology and hierarchy.
+
 Conformance means the required regions and real actions exist, prohibited
 content is absent rather than CSS-hidden, and the loading rule is respected.
 Text presence, component counts, or a passing callback helper test alone are
-insufficient. Terry performs browser acceptance under Decision 325.
+insufficient. Terry performs final browser acceptance; Decision 330 permits
+only the bounded inspection described there.
 
 For the active R12 correction, a page is not ready for merge or deployment
 until its actual rendered representative state has been visually inspected
@@ -180,6 +202,9 @@ against that page's exact reference and shown to Terry side by side. Empty or
 loading states, route arrival, HTTP success, and zero browser errors are not a
 substitute for representative-state conformance. Navigation through all route
 URLs is a routing smoke check, not proof that the operator workflow works.
+The eventual workflow pass must let a human review the meaningful state and
+next safe transition at each included page from Ideas through Compare; a
+plausible static layout or disabled placeholder controls are not enough.
 
 ## Route and navigation contract
 

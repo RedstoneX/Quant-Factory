@@ -6,6 +6,7 @@ import pandas as pd
 
 from market_data.cache import cache_compatibility, read_cache, write_cache
 from market_data.catalog import (
+    calculate_sha256,
     DataLocations,
     DatasetManifest,
     DatasetUnavailableError,
@@ -105,6 +106,10 @@ def load_market_data(
     """Load clean market data from a compatible cache or supported provider."""
     if not isinstance(allow_download, bool):
         raise ValueError("allow_download must be a boolean")
+    if config.provider == "Databento" and config.provider_implementation.startswith(
+        "verified_local_catalog:"
+    ):
+        return _load_verified_catalog_data(config, now=now)
     if config.provider != "Yahoo Finance":
         raise ValueError(f"Unsupported market-data provider: {config.provider}")
     now = resolve_now(config, now)
@@ -171,6 +176,91 @@ def load_market_data(
     )
     write_cache(cleaned, audit, config)
     return MarketDataResult(data=cleaned, audit=audit)
+
+
+def _load_verified_catalog_data(
+    config: MarketDataConfig, *, now: pd.Timestamp | None
+) -> MarketDataResult:
+    """Read a fixed, validated local Databento slice without acquisition."""
+    dataset_id = config.provider_implementation.removeprefix("verified_local_catalog:")
+    locations = load_data_locations()
+    manifest = load_dataset_manifest(dataset_id, locations.manifests)
+    if (
+        manifest.provider != config.provider
+        or manifest.symbol != config.symbol
+        or manifest.timeframe != config.interval
+        or manifest.format.lower() != "parquet"
+        or config.cache_path != manifest.canonical_relative_path
+        or config.adjusted
+    ):
+        raise DatasetUnavailableError("Saved setup does not match the validated catalog identity")
+    path = verify_dataset_file(manifest, locations)
+    if not locations.verify_sha256_before_use and calculate_sha256(path) != manifest.sha256:
+        raise DatasetUnavailableError("Verified catalog SHA-256 mismatch")
+    start = pd.Timestamp(config.requested_start)
+    start = start.tz_localize("UTC") if start.tzinfo is None else start.tz_convert("UTC")
+    if now is None:
+        raise ValueError("The fixed catalog slice requires an explicit end boundary")
+    end = pd.Timestamp(now)
+    if end.tzinfo is None:
+        raise ValueError("The fixed catalog end boundary must be timezone-aware")
+    end = end.tz_convert("UTC")
+    if end < start:
+        raise ValueError("The fixed catalog end boundary precedes the start")
+    first_available = pd.Timestamp(manifest.metadata["earliest_timestamp"])
+    last_available = pd.Timestamp(manifest.metadata["latest_timestamp"])
+    if start < first_available or end > last_available:
+        raise DatasetUnavailableError("The requested fixed period exceeds verified catalog coverage")
+    frame = pd.read_parquet(
+        path,
+        engine="pyarrow",
+        columns=["open", "high", "low", "close", "volume", "ts_event"],
+        filters=[
+            ("ts_event", ">=", start.to_pydatetime()),
+            ("ts_event", "<=", end.to_pydatetime()),
+        ],
+    )
+    frame = frame.rename(columns=str.title)
+    if frame.empty or set(frame.columns) != set(OHLCV_COLUMNS):
+        raise DatasetUnavailableError("The verified catalog slice is empty or has invalid OHLCV fields")
+    if not isinstance(frame.index, pd.DatetimeIndex) or frame.index.tz is None:
+        raise DatasetUnavailableError("The verified catalog timestamps are not timezone-aware")
+    frame.index = frame.index.tz_convert("UTC")
+    if not frame.index.is_monotonic_increasing or not frame.index.is_unique:
+        raise DatasetUnavailableError("The verified catalog timestamps are not unique and ordered")
+    missing = frame.loc[:, list(OHLCV_COLUMNS)].isna().sum()
+    if missing.any():
+        raise DatasetUnavailableError("The verified catalog slice contains missing OHLCV values")
+    audit = DataAudit(
+        cache_schema_version=config.cache_schema_version,
+        symbol=config.symbol,
+        provider=config.provider,
+        provider_implementation=config.provider_implementation,
+        interval=config.interval,
+        requested_start=config.requested_start,
+        requested_dynamic_end_policy=config.end_date_policy,
+        latest_completed_exchange_session=end.date().isoformat(),
+        prices_adjusted=False,
+        adjustment_verification="validated catalog manifest; original unadjusted prices",
+        download_time=str(manifest.metadata["imported_at_utc"]),
+        download_timezone="UTC",
+        actual_first_row_date=frame.index[0].date().isoformat(),
+        actual_last_row_date=frame.index[-1].date().isoformat(),
+        row_count=len(frame),
+        duplicate_timestamp_count=0,
+        missing_open_count=0,
+        missing_high_count=0,
+        missing_low_count=0,
+        missing_close_count=0,
+        missing_volume_count=0,
+        expected_session_gap_count=0,
+        cache_path=str(path),
+        cache_action="reused",
+        cache_decision_reason=f"validated catalog file {dataset_id} verified before read",
+        manifest_reference=f"data/manifests/{dataset_id}.json",
+        checksum=manifest.sha256,
+    )
+    return MarketDataResult(data=frame, audit=audit)
 
 
 def format_audit(audit: DataAudit) -> str:

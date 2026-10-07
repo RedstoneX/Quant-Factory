@@ -4,10 +4,10 @@
     "max_lines": 1000,
     "grandfathered_modules": {
       "dashboard.application": 4716,
-      "dashboard.callbacks.backtest_results": 1977,
+      "dashboard.callbacks.backtest_results": 1969,
       "dashboard.pages.home": 1317,
       "dashboard.run_detail_adapter": 1369,
-      "orchestration.candidate_pipeline_runtime": 1280,
+      "orchestration.candidate_pipeline_runtime": 1109,
       "orchestration.research_launch_claims": 1353,
       "persistence.repositories": 1223,
       "persistence.service": 1757
@@ -52,7 +52,7 @@
       "allowed_dependencies": ["backtesting", "dashboard_models", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
     },
     "dashboard_models": {
-      "patterns": ["dashboard.adapter", "dashboard.callbacks.review_state", "dashboard.candidate_workflow", "dashboard.compare_adapter", "dashboard.compare_query", "dashboard.formatting", "dashboard.health", "dashboard.project_status", "dashboard.results_contracts", "dashboard.results_model", "dashboard.run_adapter", "dashboard.run_detail_adapter", "dashboard.state_ownership"],
+      "patterns": ["dashboard.adapter", "dashboard.callbacks.review_state", "dashboard.candidate_workflow", "dashboard.candidate_launch_context", "dashboard.mes_candidate_setup", "dashboard.compare_adapter", "dashboard.compare_query", "dashboard.formatting", "dashboard.health", "dashboard.project_status", "dashboard.results_contracts", "dashboard.results_model", "dashboard.run_adapter", "dashboard.run_detail_adapter", "dashboard.state_ownership"],
       "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
     },
     "dashboard_support": {

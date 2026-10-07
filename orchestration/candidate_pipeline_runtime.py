@@ -26,11 +26,13 @@ from backtesting.out_of_sample import (
     execute_out_of_sample,
 )
 from backtesting.robustness import (
+    FixedRuleCostStressPlan,
     NeighborhoodConfig,
     ParameterNeighborhoodDefinition,
     RegimeConfig,
     RobustnessConfig,
     build_neighborhood,
+    run_fixed_rule_robustness,
     run_robustness_pipeline,
 )
 from backtesting.screening import ScreeningConfig
@@ -42,6 +44,13 @@ from orchestration.candidate_run_service import (
     CandidateScreeningLaunchResult,
 )
 from orchestration.candidate_pipeline_contracts import CandidatePipelineLauncher
+from orchestration.candidate_screening_artifacts import persist_screening_artifacts
+from orchestration.candidate_runtime_robustness import execute_candidate_robustness
+from orchestration.candidate_pipeline_parsing import (
+    _strict_object, _strict_list, _strict_text, _strict_bool, _strict_int,
+    _strict_number, _optional_number, _optional_int, _optional_text,
+    parse_robustness_contract,
+)
 from orchestration.filter_chain import (
     FactoryFilterChainService,
     FilterChainOutcome,
@@ -75,69 +84,6 @@ from strategies import get_strategy
 VALIDATION_RUNTIME_KEY = "candidate_validation_runtime"
 
 
-def _strict_object(
-    value: Any,
-    *,
-    path: str,
-    keys: set[str],
-) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise ValueError(f"{path} must be an object")
-    actual = set(value)
-    missing = sorted(keys - actual)
-    extra = sorted(actual - keys)
-    if missing or extra:
-        details = []
-        if missing:
-            details.append(f"missing {missing}")
-        if extra:
-            details.append(f"unexpected {extra}")
-        raise ValueError(f"{path} has invalid fields: {', '.join(details)}")
-    return value
-
-
-def _strict_list(value: Any, *, path: str) -> list[Any]:
-    if not isinstance(value, list):
-        raise ValueError(f"{path} must be a list")
-    return value
-
-
-def _strict_text(value: Any, *, path: str) -> str:
-    if not isinstance(value, str):
-        raise ValueError(f"{path} must be text")
-    return value
-
-
-def _strict_bool(value: Any, *, path: str) -> bool:
-    if not isinstance(value, bool):
-        raise ValueError(f"{path} must be a boolean")
-    return value
-
-
-def _strict_int(value: Any, *, path: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        raise ValueError(f"{path} must be an integer")
-    return value
-
-
-def _strict_number(value: Any, *, path: str) -> float | int:
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise ValueError(f"{path} must be numeric")
-    return value
-
-
-def _optional_number(value: Any, *, path: str) -> float | int | None:
-    return None if value is None else _strict_number(value, path=path)
-
-
-def _optional_int(value: Any, *, path: str) -> int | None:
-    return None if value is None else _strict_int(value, path=path)
-
-
-def _optional_text(value: Any, *, path: str) -> str | None:
-    return None if value is None else _strict_text(value, path=path)
-
-
 @dataclass(frozen=True)
 class CandidateValidationPlan:
     """Fixed, serializable boundaries for the existing validation engines."""
@@ -146,13 +92,14 @@ class CandidateValidationPlan:
     out_of_sample_shortlist_size: int
     walk_forward_rules: WalkForwardWindowRules
     walk_forward_shortlist_size: int
-    robustness_neighborhood: NeighborhoodConfig
+    robustness_neighborhood: NeighborhoodConfig | None
     robustness_regimes: RegimeConfig
     robustness_maximum_drawdown: float
     robustness_minimum_return: float
     robustness_minimum_sharpe: float | None
     monte_carlo: MonteCarloConfig
     data_as_of: str | None = None
+    fixed_rule_cost_stress: FixedRuleCostStressPlan | None = None
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -165,6 +112,8 @@ class CandidateValidationPlan:
             timestamp = pd.Timestamp(self.data_as_of)
             if timestamp.tzinfo is None:
                 raise ValueError("data_as_of must include a timezone")
+        if (self.robustness_neighborhood is None) != (self.fixed_rule_cost_stress is not None):
+            raise ValueError("fixed-rule cost stress must replace, not accompany, parameter variation")
 
     def document(self) -> dict[str, Any]:
         return {
@@ -177,11 +126,12 @@ class CandidateValidationPlan:
                 "shortlist_size": self.walk_forward_shortlist_size,
             },
             "robustness": {
-                "neighborhood": asdict(self.robustness_neighborhood),
+                "neighborhood": asdict(self.robustness_neighborhood) if self.robustness_neighborhood is not None else None,
                 "regimes": asdict(self.robustness_regimes),
                 "maximum_drawdown": self.robustness_maximum_drawdown,
                 "minimum_return": self.robustness_minimum_return,
                 "minimum_sharpe": self.robustness_minimum_sharpe,
+                **({"fixed_rule_cost_stress": asdict(self.fixed_rule_cost_stress)} if self.fixed_rule_cost_stress is not None else {}),
             },
             "monte_carlo": asdict(self.monte_carlo),
             "data_as_of": self.data_as_of,
@@ -532,123 +482,10 @@ class CandidatePipelineDefinition:
                 "maximum_drawdown",
                 "minimum_return",
                 "minimum_sharpe",
-            },
+            } | ({"fixed_rule_cost_stress"} if "fixed_rule_cost_stress" in validation_document["robustness"] else set()),
         )
-        neighborhood_document = _strict_object(
-            robustness_document["neighborhood"],
-            path=f"{VALIDATION_RUNTIME_KEY}.robustness.neighborhood",
-            keys=set(NeighborhoodConfig.__dataclass_fields__),
-        )
-        definitions = []
-        for index, item in enumerate(
-            _strict_list(
-                neighborhood_document["definitions"],
-                path="robustness.neighborhood.definitions",
-            )
-        ):
-            definition_document = _strict_object(
-                item,
-                path=f"robustness.neighborhood.definitions[{index}]",
-                keys=set(ParameterNeighborhoodDefinition.__dataclass_fields__),
-            )
-            definitions.append(
-                ParameterNeighborhoodDefinition(
-                    parameter_name=_strict_text(
-                        definition_document["parameter_name"],
-                        path=f"robustness.neighborhood.definitions[{index}].parameter_name",
-                    ),
-                    method=_strict_text(
-                        definition_document["method"],
-                        path=f"robustness.neighborhood.definitions[{index}].method",
-                    ),
-                    explicit_values=tuple(
-                        _strict_list(
-                            definition_document["explicit_values"],
-                            path=f"robustness.neighborhood.definitions[{index}].explicit_values",
-                        )
-                    ),
-                    integer_offsets=tuple(
-                        _strict_int(
-                            value,
-                            path=f"robustness.neighborhood.definitions[{index}].integer_offsets[{offset_index}]",
-                        )
-                        for offset_index, value in enumerate(
-                            _strict_list(
-                                definition_document["integer_offsets"],
-                                path=f"robustness.neighborhood.definitions[{index}].integer_offsets",
-                            )
-                        )
-                    ),
-                    percentage_offsets=tuple(
-                        _strict_number(
-                            value,
-                            path=f"robustness.neighborhood.definitions[{index}].percentage_offsets[{offset_index}]",
-                        )
-                        for offset_index, value in enumerate(
-                            _strict_list(
-                                definition_document["percentage_offsets"],
-                                path=f"robustness.neighborhood.definitions[{index}].percentage_offsets",
-                            )
-                        )
-                    ),
-                )
-            )
-        neighborhood = NeighborhoodConfig(
-            definitions=tuple(definitions),
-            minimum_valid_neighbors=_strict_int(
-                neighborhood_document["minimum_valid_neighbors"],
-                path="robustness.neighborhood.minimum_valid_neighbors",
-            ),
-            required_pass_proportion=_strict_number(
-                neighborhood_document["required_pass_proportion"],
-                path="robustness.neighborhood.required_pass_proportion",
-            ),
-            degradation_mode=_strict_text(
-                neighborhood_document["degradation_mode"],
-                path="robustness.neighborhood.degradation_mode",
-            ),
-            maximum_absolute_degradation=_strict_number(
-                neighborhood_document["maximum_absolute_degradation"],
-                path="robustness.neighborhood.maximum_absolute_degradation",
-            ),
-            maximum_relative_degradation=_strict_number(
-                neighborhood_document["maximum_relative_degradation"],
-                path="robustness.neighborhood.maximum_relative_degradation",
-            ),
-        )
-        regimes_document = _strict_object(
-            robustness_document["regimes"],
-            path=f"{VALIDATION_RUNTIME_KEY}.robustness.regimes",
-            keys=set(RegimeConfig.__dataclass_fields__),
-        )
-        regimes = RegimeConfig(
-            trend_window=_strict_int(
-                regimes_document["trend_window"], path="robustness.regimes.trend_window"
-            ),
-            trend_neutral_tolerance=_strict_number(
-                regimes_document["trend_neutral_tolerance"],
-                path="robustness.regimes.trend_neutral_tolerance",
-            ),
-            volatility_window=_strict_int(
-                regimes_document["volatility_window"],
-                path="robustness.regimes.volatility_window",
-            ),
-            volatility_threshold=_strict_number(
-                regimes_document["volatility_threshold"],
-                path="robustness.regimes.volatility_threshold",
-            ),
-            annualization_factor=_strict_number(
-                regimes_document["annualization_factor"],
-                path="robustness.regimes.annualization_factor",
-            ),
-            minimum_observations=_strict_int(
-                regimes_document["minimum_observations"],
-                path="robustness.regimes.minimum_observations",
-            ),
-            minimum_trades=_optional_int(
-                regimes_document["minimum_trades"],
-                path="robustness.regimes.minimum_trades",
-            ),
+        neighborhood, stress, regimes = parse_robustness_contract(
+            robustness_document, installed_strategy, parameters,
         )
 
         monte_document = _strict_object(
@@ -780,6 +617,7 @@ class CandidatePipelineDefinition:
                 data_as_of=_optional_text(
                     validation_document["data_as_of"], path="validation.data_as_of"
                 ),
+                fixed_rule_cost_stress=stress,
             ),
         )
         if canonical_json(result.configuration_document()) != canonical_json(document):
@@ -978,11 +816,17 @@ class CandidatePipelineRuntime:
                     ),
                     allow_download=not self.cache_only,
                 )
+                captured_portfolios: dict[str, Any] = {}
                 screening_result = execute_experiment(
                     self.definition.experiment,
                     market.data,
                     market.audit,
                     write_output=False,
+                    portfolio_observer=(
+                        (lambda row_id, portfolio: captured_portfolios.setdefault(row_id, portfolio))
+                        if len(self.definition.experiment.parameter_combinations) == 1
+                        else None
+                    ),
                 )
                 persistence.persist_experiment_inputs_on_run(
                     run_id=submission.run_id,
@@ -991,6 +835,16 @@ class CandidatePipelineRuntime:
                     execution_assumptions=execution_document,
                     include_parameter_results=True,
                 )
+                if captured_portfolios:
+                    if len(captured_portfolios) != 1:
+                        raise RuntimeError("single-configuration screening captured multiple portfolios")
+                    row_id, portfolio = next(iter(captured_portfolios.items()))
+                    persist_screening_artifacts(
+                        persistence=persistence, artifact_root=self.artifact_root,
+                        run_id=submission.run_id, result=screening_result,
+                        portfolio=portfolio, data=market.data,
+                        config=self.definition.experiment, parameter_row_id=row_id,
+                    )
                 persistence.persist_run_manifest(
                     persistence.build_run_manifest(submission.run_id)
                 )
@@ -1161,28 +1015,6 @@ class CandidatePipelineRuntime:
                 context.previous[0].run_id,
                 artifact_root=self.artifact_root,
             )
-            config = RobustnessConfig(
-                strategy_id=screening_result.strategy_id,
-                strategy_version=screening_result.strategy_version,
-                locked_parameters=source_lock.locked_parameters,
-                experiment_id=experiment.experiment_id,
-                source_artifact_id=source_lock.artifact_id,
-                source_start=source_lock.source_start,
-                source_end=source_lock.source_end,
-                data_provenance=source_lock.data_provenance,
-                execution_assumptions=source_lock.execution_assumptions,
-                neighborhood=plan.robustness_neighborhood,
-                regimes=plan.robustness_regimes,
-                maximum_drawdown=plan.robustness_maximum_drawdown,
-                minimum_return=plan.robustness_minimum_return,
-                minimum_sharpe=plan.robustness_minimum_sharpe,
-            )
-            strategy = get_strategy(experiment.strategy_id)
-            construction = build_neighborhood(
-                strategy,
-                source_lock.locked_parameters,
-                plan.robustness_neighborhood,
-            )
             robustness_data = data.loc[
                 source_lock.source_start : source_lock.source_end
             ].copy()
@@ -1196,12 +1028,9 @@ class CandidatePipelineRuntime:
                 cache_action="partition:out_of_sample",
                 cache_decision_reason="locked out-of-sample robustness source",
             )
-            result = run_robustness_pipeline(
-                config,
-                construction,
-                experiment,
-                robustness_data,
-                robustness_audit,
+            result = execute_candidate_robustness(
+                plan=plan, screening_result=screening_result, experiment=experiment,
+                source_lock=source_lock, data=robustness_data, audit=robustness_audit,
             )
             evidence.persist_robustness(
                 run_id=context.run_id,

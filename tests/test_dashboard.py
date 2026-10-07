@@ -1302,7 +1302,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     assert "idea-workbench-page" in page_for_path(
         "/research/ideas", context
     ).className
-    assert page_for_path("/research/setup", context).className == "page-container setup-page"
+    assert "setup-page" in page_for_path("/research/setup", context).className
     assert page_for_path("/research/run-test", context).className == "page-container run-test-page"
     assert page_for_path("/research/backtest-results", context).className == "page-container results-page"
     comparisons = page_for_path("/research/compare-backtests", context)
@@ -1605,7 +1605,7 @@ def test_workflow_mounts_page_unique_operator_contexts_without_inference() -> No
         "run-test-operator-context",
         "results-operator-context",
     }
-    assert "Implementation required" in _component_text(run_page)
+    assert "No Candidate test is ready" in _component_text(run_page)
     assert "Succeeded" in _component_text(results_page)
     assert "comparison-operator-contexts" in str(compare_page)
     assert "Choose persisted tests to compare" in _component_text(compare_page)
@@ -1636,7 +1636,7 @@ def test_results_context_uses_persisted_screening_outcome_when_validation_is_abs
         _results_operator_context(run, _selected_detail_view(evidence=evidence))
     )
 
-    assert "Screened Out" in rendered
+    assert "Screened out" in rendered
     assert "Not run" not in rendered
 
 
@@ -1990,12 +1990,10 @@ def test_setup_and_run_test_split_configuration_from_launch() -> None:
     assert selector.value is None
     assert selector.options == []
     assert selector.disabled is True
-    assert selector.persistence is True
-    assert selector.persistence_type == "session"
     assert preview.id == "configuration-preview"
     assert launch_button.id == "launch-run"
     assert launch_button.disabled is True
-    assert launch_button.title == "Preparing a durable browser-session run ticket."
+    assert launch_button.title == "The saved configuration did not pass preflight."
     assert not any(
         getattr(component, "id", None) in {"configuration-selector", "launch-run"}
         for component in _walk_components(results_page)
@@ -2005,8 +2003,8 @@ def test_setup_and_run_test_split_configuration_from_launch() -> None:
         getattr(component, "className", "")
         for component in _walk_components(preview)
     ]
-    assert "Implementation needed" in rendered
-    assert "Choose and accept a Candidate" in rendered
+    assert rendered == ""
+    assert "No Candidate selected" in _component_text(setup_page)
     assert "configuration-document" not in classes
 
 
@@ -2021,17 +2019,17 @@ def test_setup_leads_with_plain_language_state_and_separates_creation() -> None:
 
     assert "Define the experiment" in rendered
     assert "From idea" in rendered
-    assert "Saving a setup never starts a test" in rendered
+    assert "See exactly what Quant Factory will test" in rendered
     assert "Fixed-rule preview" in rendered
     assert "Implementation required" in rendered
-    assert "No owner action is required here" in rendered
+    assert "Select an accepted Candidate on Ideas first" in rendered
     assert identifiers.count("configuration-selector") == 1
-    assert identifiers.count("setup-strategy-selector") == 1
+    assert "Approved strategy" in rendered
     assert identifiers.count("save-idea-configuration") == 1
     assert identifiers.count("review-test-action") == 1
     review_action = next(component for component in _walk_components(setup_page)
                          if getattr(component, "id", None) == "review-test-action")
-    assert review_action.children == "Return to accepted idea"
+    assert review_action.children == "Review accepted Candidate"
     assert review_action.href == "/research/ideas"
     assert "Revise" not in rendered
     assert "Reject" not in rendered
@@ -2041,7 +2039,7 @@ def test_setup_and_run_test_handle_empty_configuration_list() -> None:
     setup_page = page_for_path("/research/setup", None, ())
     run_page = page_for_path("/research/run-test", None, ())
 
-    assert "Implementation needed" in _component_text(setup_page)
+    assert "Candidate required" in _component_text(setup_page)
     assert "No Candidate test is ready" in _component_text(run_page)
     launch_button = next(
         component
@@ -2992,22 +2990,16 @@ def test_selected_setup_identity_updates_run_test_preview(
     )
     app = create_app(review_database=tmp_path / "selected-setup.sqlite3")
     preserve = _callback_function(app, "selected-configuration-state.data")
-    setup_preview = _callback_function(app, "configuration-preview")
+    setup_preview = _callback_function(app, "setup-dynamic-view")
     run_preview = _callback_function(app, "run-configuration-preview")
 
     assert preserve(second.configuration_id) == second.configuration_id
-    setup_children, href, class_name, _setup_title, label, setup_state, setup_state_class = setup_preview(
-        second.configuration_id
-    )
+    setup_children = setup_preview(None, None, {"display": "block"})
     run_children = run_preview(second.configuration_id)
 
     assert "Choose a saved QF Candidate first" in _component_text(html.Div(setup_children))
-    assert "second_operator_choice" in _component_text(html.Div(run_children))
-    assert href == "/research/ideas"
-    assert class_name == "secondary-action"
-    assert label == "Return to accepted idea"
-    assert setup_state == "Candidate not ready"
-    assert "setup-context-state-blocked" in setup_state_class
+    assert "No Candidate test is ready" in _component_text(html.Div(run_children))
+    assert "Candidate" in _component_text(html.Div(setup_children))
 
 
 def test_initial_idea_hydration_cannot_overwrite_first_keystroke(

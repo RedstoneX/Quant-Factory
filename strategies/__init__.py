@@ -17,6 +17,8 @@ from strategies.spym_intraday_momentum import SPYM_INTRADAY_MOMENTUM_STRATEGY
 from strategies.mes_overnight_gap_reversal import (
     MES_OVERNIGHT_GAP_REVERSAL_STRATEGY,
 )
+from strategies.mes_vwap_orb_candidate import MES_VWAP_ORB_CANDIDATE_STRATEGY
+from strategies.mes_sma_crossover_candidate import MES_SMA_CANDIDATE_STRATEGY
 from strategies.parameter_governance import (
     PROVISIONAL_GRID_WARNING_THRESHOLD,
     ParameterGridContribution,
@@ -53,6 +55,8 @@ REGISTRY.register(SPY_DONCHIAN_SHORT_STRATEGY)
 REGISTRY.register(SPYM_RSI_MEAN_REVERSION_FIXTURE_STRATEGY)
 REGISTRY.register(SPYM_INTRADAY_MOMENTUM_STRATEGY)
 REGISTRY.register(MES_OVERNIGHT_GAP_REVERSAL_STRATEGY)
+REGISTRY.register(MES_VWAP_ORB_CANDIDATE_STRATEGY)
+REGISTRY.register(MES_SMA_CANDIDATE_STRATEGY)
 
 
 def get_strategy(strategy_id: str) -> Strategy:

@@ -134,3 +134,5 @@ class SignalResult:
     short_entries: pd.Series | None = None
     short_exits: pd.Series | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    stop_loss: pd.Series | None = None
+    take_profit: pd.Series | None = None

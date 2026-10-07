@@ -17,7 +17,7 @@ from dashboard.components.operator_context import (
     OperatorContextViewModel,
     operator_context,
 )
-from dashboard.candidate_workflow import candidate_selection_blocker
+from dashboard.candidate_launch_context import resolve_launch_selection
 from dashboard.callbacks.candidate_run import register_candidate_run_preview
 from dashboard.results_contracts import ResultsViewServices
 from dashboard.routing import active_route as _active_route
@@ -795,21 +795,13 @@ def register_backtest_results_callbacks(
         if triggered_id is None and n_clicks:
             # Unit-level direct invocation has no Dash callback context.
             explicit_action = True
-        if explicit_action and not _active_route(pathname, "/research/run-test"):
+        if not _active_route(pathname, "/research/run-test"):
             raise PreventUpdate
-        current_configurations = {
-            configuration.configuration_id: configuration
-            for configuration in configurations
-        }
-        current_configurations.update(
-            {
-                configuration.configuration_id: configuration
-                for configuration in list_saved_configurations(dashboard_database)
-            }
+        selected, readiness, candidate_blocker = resolve_launch_selection(
+            database=dashboard_database, configurations=configurations,
+            readiness_by_id=readiness_by_id, configuration_id=configuration_id,
+            draft=draft, is_candidate=candidate_configuration,
         )
-        selected = current_configurations.get(configuration_id or "")
-        readiness = readiness_by_id.get(selected.configuration_id) if selected else None
-        candidate_blocker = None if draft is None else candidate_selection_blocker(str(draft.get("draft_id") or ""), configuration_id, database=dashboard_database)
         allowed = bool(selected and readiness and readiness.ready and not candidate_blocker)
         supported = launch_supported(
             selected.configuration_id if selected is not None else None,

@@ -2,10 +2,13 @@
 
 from backtesting.robustness.artifact_loader import find_valid_lock, load_lock_artifact
 from backtesting.robustness.evaluation import evaluate_neighborhood
+from backtesting.robustness.fixed_rule import run_fixed_rule_cost_stress, run_fixed_rule_robustness
 from backtesting.robustness.models import (
     CandidateDerivation,
     DimensionStability,
     EvaluatedParameterPoint,
+    FixedRuleCostStressPlan,
+    FixedRuleCostStressResult,
     NeighborhoodCandidate,
     NeighborhoodConfig,
     NeighborhoodConstructionResult,
@@ -43,6 +46,8 @@ __all__ = [
     "CandidateDerivation",
     "DimensionStability",
     "EvaluatedParameterPoint",
+    "FixedRuleCostStressPlan",
+    "FixedRuleCostStressResult",
     "NeighborhoodCandidate",
     "NeighborhoodConfig",
     "NeighborhoodConstructionResult",
@@ -68,6 +73,8 @@ __all__ = [
     "load_lock_artifact",
     "read_robustness_report",
     "run_robustness_pipeline",
+    "run_fixed_rule_cost_stress",
+    "run_fixed_rule_robustness",
     "summarize_neighborhood",
     "validate_robustness_report",
     "write_robustness_report",

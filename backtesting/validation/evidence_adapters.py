@@ -502,6 +502,17 @@ def normalize_robustness_evidence(
             )
             for rule in result.neighborhood_summary.threshold_results
         )
+    if result.fixed_rule_cost_stress is not None:
+        thresholds.extend(
+            NormalizedThresholdResult(
+                threshold_id=rule.rule_id,
+                status=map_native_status(rule.status),
+                observed=rule.observed,
+                threshold=rule.threshold,
+                reason=rule.message,
+            )
+            for rule in result.fixed_rule_cost_stress.threshold_results
+        )
     for regime in result.regime_results:
         thresholds.extend(
             NormalizedThresholdResult(

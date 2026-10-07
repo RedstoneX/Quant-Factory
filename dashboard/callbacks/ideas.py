@@ -314,7 +314,7 @@ def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
         if triggered_id == "new-idea-draft":
             stored = stored_draft or {}
             stored_values = {key: stored.get(key, "") for key in values}
-            if values != stored_values:
+            if values != stored_values and any(values.values()):
                 return (
                     no_update,
                     "Save or discard the current changes before starting a new idea.",
@@ -716,7 +716,7 @@ def register_ideas_callbacks(app: Dash, *, database: str | Path) -> None:
                 title, description, source_url, attribution, notes
             )
             stored_values = {key: stored.get(key, "") for key in current_values}
-            if current_values != stored_values:
+            if current_values != stored_values and any(current_values.values()):
                 return (
                     no_update,
                     no_update,
