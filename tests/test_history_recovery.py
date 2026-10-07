@@ -423,7 +423,7 @@ def test_results_history_hydration_survives_malformed_configuration(
         ),
     )
 
-    layout = app.layout()
+    layout = app.validation_layout
     rendered = str(layout)
     assert "layout-invalid-config-run" in rendered
     assert "Configuration unavailable" not in rendered
