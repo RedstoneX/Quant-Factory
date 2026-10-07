@@ -42,6 +42,7 @@ from dashboard.app import (
     route_content_for_path,
     route_container_styles_for_path,
 )
+from dashboard.application import _results_report_tab_content, _run_history_grid
 from dashboard.formatting import format_assumption, format_metric
 from dashboard.project_status import PROJECT_STATUS
 from dashboard.routing import (
@@ -98,8 +99,7 @@ from tests.test_review_context_artifacts import (
     _source_lock_artifact,
 )
 from tests.spym_portable_fixture import portable_spym_fixture_launcher
-
-
+from tests.results_rendering_support import render_results_tabs as _render_results_tabs
 
 @pytest.fixture(autouse=True)
 def isolated_health_catalog(monkeypatch):
@@ -606,7 +606,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 61
+    assert len(app.callback_map) == 62
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -1835,12 +1835,10 @@ def test_ranked_grid_columns_use_operator_friendly_formats() -> None:
 
 def test_results_page_keeps_run_history_grid_beside_durable_review() -> None:
     page = _runs_page()
-    grid = next(
-        component
-        for component in _walk_components(page)
-        if getattr(component, "id", None) == "run-history-grid"
-    )
+    host = next(component for component in _walk_components(page) if getattr(component, "id", None) == "run-history-grid-host")
+    grid = _run_history_grid(())
 
+    assert "Open Change run" in str(host)
     assert grid.id == "run-history-grid"
     assert grid.rowData == []
     assert grid.selectedRows == []
@@ -4958,7 +4956,7 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
         None,
     )
     panel = inspect(stored, "spym_persisted_run", 0, 0, 0, 0)
-    rendered = str(panel)
+    rendered = str(panel) + _render_results_tabs(chart_detail)
 
     assert [option["value"] for option in options] == [
         "run_dashboard_fixture",
@@ -5851,7 +5849,7 @@ def test_run_detail_panel_renders_immutable_configuration_lineage_and_results() 
         service.recent_events(),
         detail=detail,
     )
-    rendered = str(panel)
+    rendered = str(panel) + _render_results_tabs(detail)
 
     assert "Strategy Settings" in rendered
     assert "results-run-identity" in rendered
@@ -5931,7 +5929,7 @@ def test_run_detail_panel_renders_spym_fixture_persisted_evidence() -> None:
         service.recent_events(),
         detail=detail,
     )
-    rendered = str(panel)
+    rendered = str(panel) + _render_results_tabs(detail)
 
     assert "Validation and evidence" in rendered
     assert "Result metrics" in rendered
@@ -5974,11 +5972,7 @@ def test_recent_trades_grid_uses_responsive_column_profile() -> None:
             warnings=(),
         )
     )
-    panel = _run_detail_panel(
-        _DashboardRunService().recent_runs()[0],
-        (),
-        detail=detail,
-    )
+    panel = _results_report_tab_content("trades", detail)
     grids = [
         component
         for component in _walk_components(panel)
@@ -6111,6 +6105,7 @@ def test_selected_backtest_formats_period_and_initial_capital_for_a_trader() -> 
     )
 
     rendered = str(_run_detail_panel(run, service.recent_events(), detail=detail))
+    rendered += _render_results_tabs(detail)
 
     assert "Oct 31, 2025, 1:30 PM UTC → Jul 13, 2026, 7:59 PM UTC" in rendered
     assert "Strategy Settings" in rendered
@@ -6184,7 +6179,7 @@ def test_run_detail_panel_surfaces_artifact_warning_and_error_states() -> None:
             service.recent_events(),
             detail=detail,
         )
-    )
+    ) + _render_results_tabs(detail)
 
     assert "missing-metrics" in rendered
     assert "artifact_missing" in rendered
@@ -6331,7 +6326,7 @@ def test_run_detail_panel_handles_missing_manifest_config_and_empty_summary() ->
             service.recent_events(),
             detail=detail,
         )
-    )
+    ) + _render_results_tabs(detail)
 
     assert "The saved configuration for this run is missing." in rendered
     assert "No persisted run manifest is available." in rendered
@@ -6396,8 +6391,9 @@ def test_dashboard_inspects_selected_run(tmp_path: Path, monkeypatch) -> None:
     assert detail_adapter.requests == ["run_dashboard_fixture"]
     assert "prefect-run_dashboard_fixture" in str(panel)
     assert "Run completed successfully." in str(panel)
-    assert "Strategy Settings" in str(panel)
-    assert "Research History" in str(panel)
+    rendered_tabs = _render_results_tabs(detail_adapter.detail)
+    assert "Strategy Settings" in rendered_tabs
+    assert "Research History" in rendered_tabs
 
 
 def test_hidden_results_callbacks_skip_large_detail_reconstruction(
@@ -6554,7 +6550,7 @@ def test_selected_run_detail_initializes_from_visible_dropdown_when_store_is_emp
     service.run_detail_queries.clear()
     detail_adapter.requests.clear()
     panel = inspect(None, "run_dashboard_fixture", 0, 0, 0, 0)
-    rendered = str(panel)
+    rendered = str(panel) + _render_results_tabs(detail_adapter.detail)
 
     assert service.run_detail_queries == ["run_dashboard_fixture"]
     assert detail_adapter.requests == ["run_dashboard_fixture"]
@@ -6626,7 +6622,7 @@ def test_selected_run_detail_callback_renders_charts_and_tables_for_persisted_ru
 
     inspect = _callback_function(app, "selected-run-detail")
     panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
-    rendered = str(panel)
+    rendered = str(panel) + _render_results_tabs(detail_adapter.detail)
 
     assert "Open this section to load its saved equity" in rendered
     assert "Price & recorded trades" in rendered
@@ -6662,8 +6658,11 @@ def test_dashboard_selected_run_detail_reports_adapter_failure(
 
     inspect = _callback_function(app, "selected-run-detail")
     panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
+    load_tab = _callback_function(app, "results-report-tab-content")
+    failure = load_tab("evidence", "run_dashboard_fixture", "/research/backtest-results", "")
 
-    assert "Run detail retrieval failed: manifest missing" in str(panel)
+    assert "Run detail retrieval failed: manifest missing" not in str(panel)
+    assert "Run detail retrieval failed: manifest missing" in str(failure)
 
 
 def test_dashboard_callbacks_do_not_query_sqlite_or_parse_artifact_files() -> None:

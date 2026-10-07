@@ -14,7 +14,11 @@ from persistence import ArtifactAvailability, ArtifactType, PersistenceService
 from persistence.database import database_path
 from persistence.serialization import canonical_json
 from dashboard.candidate_workflow import candidate_detail_fields, candidate_identity_for_configuration
-from dashboard.evidence_chart_window import _safe_artifact_path, _read_valid_json_artifacts
+from dashboard.evidence_chart_window import (
+    _safe_artifact_path,
+    _read_valid_json_artifacts,
+    detail_cache_key,
+)
 from dashboard.formatting import format_metric
 from dashboard.results_model import ResultsDataError, validate_ohlc_rows
 
@@ -974,14 +978,14 @@ def _evidence_view(
     run_id: str,
     detail: dict[str, Any] | None,
     retrieval: Any | None,
-    artifact_root: Path,
+    artifact_root: Path, include_chart_data: bool = True,
 ) -> RunEvidenceView:
     warnings: list[str] = []
     documents: dict[str, Any] = {}
     if retrieval is not None:
         documents, warnings = _read_valid_json_artifacts(
             retrieval,
-            artifact_root=artifact_root,
+            artifact_root=artifact_root, include_chart_data=include_chart_data,
         )
 
     metrics_doc = documents.get("metrics")
@@ -1148,76 +1152,46 @@ class RunDetailDashboardAdapter:
     ) -> None:
         self.database = database_path(database)
         self.artifact_root = Path(artifact_root or Path.cwd())
-        self._successful_detail_cache: tuple[tuple[Any, ...], SelectedRunDetailView] | None = None
+        self._successful_detail_cache: dict[bool, tuple[tuple[Any, ...], SelectedRunDetailView]] = {}
         self._successful_detail_cache_lock = RLock()
 
     def selected_run_detail(self, run_id: str) -> SelectedRunDetailView:
+        return self._cached_selected_run_detail(run_id, include_chart_data=True)
+
+    def selected_run_overview(self, run_id: str) -> SelectedRunDetailView:
+        """Build the usable report without decoding its large chart artifact."""
+        return self._cached_selected_run_detail(run_id, include_chart_data=False)
+
+    def _cached_selected_run_detail(
+        self, run_id: str, *, include_chart_data: bool
+    ) -> SelectedRunDetailView:
         service = PersistenceService(self.database)
         try:
-            run = service.runs.get(run_id)
-            succeeded = run is not None and run.status == "succeeded"
-            persisted_manifest = (
-                service.read_persisted_run_manifest(run_id) if succeeded else None
-            )
-            parameter_result_fingerprint = tuple(
-                (
-                    row.row_id,
-                    row.normalized_parameters_json,
-                    row.metrics_json,
-                    row.ranking_position,
-                    row.screening_status,
-                    row.rejection_reasons,
-                )
-                for row in service.results.list_parameter_results(run_id)
-            )
-            artifact_fingerprint: list[tuple[Any, ...]] = []
-            if succeeded:
-                for artifact in service.list_run_artifacts(run_id):
-                    location = Path(artifact.location)
-                    path = location if location.is_absolute() else self.artifact_root / location
-                    try:
-                        stat = path.stat()
-                        observed = (stat.st_size, stat.st_mtime_ns)
-                    except OSError:
-                        observed = (None, None)
-                    artifact_fingerprint.append(
-                        (
-                            artifact.artifact_id,
-                            artifact.run_id,
-                            artifact.artifact_type.value,
-                            artifact.logical_name,
-                            artifact.schema_version,
-                            artifact.media_type,
-                            artifact.format,
-                            artifact.checksum_algorithm,
-                            artifact.checksum,
-                            artifact.size_bytes,
-                            artifact.location,
-                            artifact.availability_state.value,
-                            artifact.created_at,
-                            *observed,
-                        )
-                    )
-            cache_key = (
+            succeeded, cache_key = detail_cache_key(
+                service,
                 run_id,
-                run.completed_at if run is not None else None,
-                persisted_manifest,
-                parameter_result_fingerprint,
-                tuple(artifact_fingerprint),
+                artifact_root=self.artifact_root,
+                include_chart_data=include_chart_data,
             )
         finally:
             service.close()
         if not succeeded:
-            return self._selected_run_detail(run_id)
+            return self._selected_run_detail(run_id, include_chart_data=include_chart_data)
         with self._successful_detail_cache_lock:
-            cached = self._successful_detail_cache
+            cached = self._successful_detail_cache.get(include_chart_data)
             if cached is not None and cached[0] == cache_key:
                 return cached[1]
-            detail = self._selected_run_detail(run_id)
-            self._successful_detail_cache = (cache_key, detail)
+            detail = (
+                self._selected_run_detail(run_id)
+                if include_chart_data
+                else self._selected_run_detail(run_id, include_chart_data=False)
+            )
+            self._successful_detail_cache[include_chart_data] = (cache_key, detail)
             return detail
 
-    def _selected_run_detail(self, run_id: str) -> SelectedRunDetailView:
+    def _selected_run_detail(
+        self, run_id: str, *, include_chart_data: bool = True
+    ) -> SelectedRunDetailView:
         service = PersistenceService(self.database)
         warnings: list[str] = []
         try:
@@ -1291,6 +1265,7 @@ class RunDetailDashboardAdapter:
                 detail=detail,
                 retrieval=retrieval,
                 artifact_root=self.artifact_root,
+                include_chart_data=include_chart_data,
             )
             warnings.extend(evidence.warnings)
             return SelectedRunDetailView(

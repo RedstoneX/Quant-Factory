@@ -428,9 +428,10 @@ def test_results_history_hydration_survives_malformed_configuration(
     assert "layout-invalid-config-run" in rendered
     assert "Configuration unavailable" not in rendered
 
-    history_rows = _callback_function(app, "run-history-grid.rowData")(
+    history_grid = _callback_function(app, "run-history-grid-host.children")(
         True, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results"
     )
+    history_rows = history_grid.rowData
     rendered_history = str(history_rows)
     assert "Configuration unavailable" in rendered_history
     assert "Evidence invalid: saved configuration is invalid:" in rendered_history

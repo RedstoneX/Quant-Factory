@@ -215,6 +215,7 @@ def create_dashboard_layout(
                 data={"theme": "light", "density": "comfortable"},
                 storage_type="local",
             ),
+            dcc.Store(id="run-test-launch-state", storage_type="session"),
             html.Div(
                 [
                     html.Header(

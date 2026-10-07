@@ -20,6 +20,8 @@ from dashboard.components.operator_context import (
 from dashboard.candidate_launch_context import resolve_launch_selection
 from dashboard.callbacks.candidate_run import register_candidate_run_preview
 from dashboard.callbacks.results_charts import register_results_chart_callbacks
+from dashboard.callbacks.results_history import register_results_history_callbacks
+from dashboard.callbacks.results_tabs import register_results_tab_callbacks
 from dashboard.results_contracts import ResultsViewServices
 from dashboard.routing import active_route as _active_route
 from dashboard.run_adapter import (
@@ -531,10 +533,17 @@ def register_backtest_results_callbacks(
     _recent_events_panel = view.recent_events_panel
     _recent_runs_panel = view.recent_runs_panel
     _run_detail_panel = view.run_detail_panel
+    _run_history_grid = view.run_history_grid
+    _results_report_tab_content = view.results_report_tab_content
     _results_report_tabs = view.results_report_tabs
     _results_supporting_charts = view.results_supporting_charts
     _results_operator_context = view.results_operator_context
     _selector_options = view.selector_options
+    _selected_run_overview = getattr(
+        detail_adapter,
+        "selected_run_overview",
+        detail_adapter.selected_run_detail,
+    )
 
     register_results_chart_callbacks(
         app,
@@ -544,6 +553,22 @@ def register_backtest_results_callbacks(
         empty_price_figure=_empty_price_marker_figure,
         price_figure=_price_marker_figure,
         supporting_charts=_results_supporting_charts,
+    )
+    register_results_tab_callbacks(
+        app,
+        detail_adapter=detail_adapter,
+        active_route=_active_route,
+        selected_run_id=_persisted_selected_run_id,
+        requested_parameter_row_id=_requested_results_parameter_row_id,
+        tab_content=_results_report_tab_content,
+    )
+    register_results_history_callbacks(
+        app,
+        runs=runs,
+        artifact_root=artifact_root,
+        active_route=_active_route,
+        fallback_rows=fallback_history_rows,
+        grid=_run_history_grid,
     )
 
     research_launches = research_launches or DurableResearchLaunchService(
@@ -702,7 +727,7 @@ def register_backtest_results_callbacks(
                 tone="warning",
             )
         try:
-            summary = detail_adapter.selected_run_detail(run_id).result_summary
+            summary = _selected_run_overview(run_id).result_summary
         except (KeyError, RuntimeError, ValueError) as exc:
             return _operator_message(
                 "Variant evidence could not be reopened.",
@@ -1443,35 +1468,6 @@ def register_backtest_results_callbacks(
         )
 
     @app.callback(
-        Output("run-history-grid", "rowData"),
-        Input("results-run-history-disclosure", "open"),
-        Input("refresh-runs", "n_clicks"),
-        Input("launch-message", "children", allow_optional=True),
-        Input("historical-launch-message", "children", allow_optional=True),
-        Input("reproduction-message", "children", allow_optional=True),
-        Input("review-message", "children", allow_optional=True),
-        Input("cancellation-message", "children", allow_optional=True),
-        Input("stale-recovery-message", "children"),
-        State("url", "pathname"),
-    )
-    def refresh_run_history(
-        history_is_open: bool,
-        *values: object,
-    ):
-        pathname = values[-1] if values else None
-        if (
-            not _active_route(
-                pathname if isinstance(pathname, str) else None,
-                "/research/backtest-results",
-            )
-            or not history_is_open
-        ):
-            raise PreventUpdate
-        if hasattr(runs, "all_history"):
-            return list(runs.all_history(artifact_root=detail_adapter.artifact_root))
-        return fallback_history_rows(runs)
-
-    @app.callback(
         Output("selected-run-selector", "options"),
         Output("selected-run-selector", "value"),
         Input("refresh-runs", "n_clicks"),
@@ -1681,7 +1677,7 @@ def register_backtest_results_callbacks(
 
         detail_view: SelectedRunDetailView | None
         try:
-            detail_view = detail_adapter.selected_run_detail(run_id)
+            detail_view = _selected_run_overview(run_id)
         except (KeyError, RuntimeError, ValueError) as exc:
             detail_view = SelectedRunDetailView(
                 configuration_fields=(),
@@ -1754,7 +1750,7 @@ def register_backtest_results_callbacks(
             context = _results_operator_context(None)
             return context.children, context.className
         try:
-            detail = detail_adapter.selected_run_detail(run_id)
+            detail = _selected_run_overview(run_id)
         except (KeyError, RuntimeError, ValueError):
             detail = None
         try:

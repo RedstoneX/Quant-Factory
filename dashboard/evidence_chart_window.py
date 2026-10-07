@@ -15,6 +15,67 @@ _chart_lock = Lock()
 _EQUITY_BUCKETS = 1500
 _PRICE_WINDOW = 20_000
 
+
+def detail_cache_key(
+    service: Any,
+    run_id: str,
+    *,
+    artifact_root: Path,
+    include_chart_data: bool,
+) -> tuple[bool, tuple[Any, ...]]:
+    """Fingerprint the immutable inputs used by one selected-run view."""
+
+    run = service.runs.get(run_id)
+    succeeded = run is not None and run.status == "succeeded"
+    persisted_manifest = service.read_persisted_run_manifest(run_id) if succeeded else None
+    parameter_results = tuple(
+        (
+            row.row_id,
+            row.normalized_parameters_json,
+            row.metrics_json,
+            row.ranking_position,
+            row.screening_status,
+            row.rejection_reasons,
+        )
+        for row in service.results.list_parameter_results(run_id)
+    )
+    artifacts: list[tuple[Any, ...]] = []
+    if succeeded:
+        for artifact in service.list_run_artifacts(run_id):
+            location = Path(artifact.location)
+            path = location if location.is_absolute() else artifact_root / location
+            try:
+                stat = path.stat()
+                observed = (stat.st_size, stat.st_mtime_ns)
+            except OSError:
+                observed = (None, None)
+            artifacts.append(
+                (
+                    artifact.artifact_id,
+                    artifact.run_id,
+                    artifact.artifact_type.value,
+                    artifact.logical_name,
+                    artifact.schema_version,
+                    artifact.media_type,
+                    artifact.format,
+                    artifact.checksum_algorithm,
+                    artifact.checksum,
+                    artifact.size_bytes,
+                    artifact.location,
+                    artifact.availability_state.value,
+                    artifact.created_at,
+                    *observed,
+                )
+            )
+    return succeeded, (
+        run_id,
+        include_chart_data,
+        run.completed_at if run is not None else None,
+        persisted_manifest,
+        parameter_results,
+        tuple(artifacts),
+    )
+
 def _safe_artifact_path(root: Path, location: str) -> Path:
     relative = Path(location)
     if relative.is_absolute() or ".." in relative.parts:
@@ -28,6 +89,7 @@ def _read_valid_json_artifacts(
     retrieval,
     *,
     artifact_root: Path,
+    include_chart_data: bool = True,
 ) -> tuple[dict[str, Any], list[str]]:
     validation_by_id = {
         validation.artifact_id: validation
@@ -44,6 +106,8 @@ def _read_valid_json_artifacts(
             )
             continue
         if artifact.format != "json":
+            continue
+        if artifact.logical_name == "equity_curve" and not include_chart_data:
             continue
         try:
             path = _safe_artifact_path(artifact_root, artifact.location)

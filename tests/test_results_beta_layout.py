@@ -12,6 +12,7 @@ from dashboard.application import (
     _price_marker_figure,
     _price_marker_panel,
     _results_supporting_charts,
+    _results_report_tab_content,
     _result_summary,
     _run_detail_panel,
     _results_report_tabs,
@@ -314,22 +315,27 @@ def test_ranked_result_summary_exposes_all_fifteen_rows_in_existing_grid() -> No
 def test_results_report_reuses_existing_metrics_and_trade_explorer() -> None:
     report = _results_report_tabs(_detail())
     rendered = str(report)
+    tabs = report.children[0]
 
-    assert [tab.label for tab in report.children] == [
+    assert [tab.label for tab in tabs.children] == [
         "Overview",
         "Trades",
         "Variants",
         "Evidence & review",
         "Assumptions & lineage",
     ]
-    assert report.id == "run-detail-analysis-tabs"
-    assert report.value == "metrics"
-    assert report.persistence is True
-    assert report.persistence_type == "session"
-    assert rendered.count("id='selected-trade-grid'") == 1
-    assert rendered.count("id='trade-explorer-summary'") == 1
+    assert tabs.id == "run-detail-analysis-tabs"
+    assert tabs.value == "metrics"
+    assert tabs.persistence is True
+    assert tabs.persistence_type == "session"
+    assert "selected-trade-grid" not in rendered
+    trades = str(_results_report_tab_content("trades", _detail()))
+    assert trades.count("id='selected-trade-grid'") == 1
+    assert trades.count("id='trade-explorer-summary'") == 1
     assert rendered.count("id='price-marker-chart'") == 1
-    assert "Parameter variants" in rendered
+    assert "Parameter variants" in str(
+        _results_report_tab_content("variants", _detail())
+    )
 
 
 def test_approved_results_workspace_replaces_legacy_long_renderer() -> None:
