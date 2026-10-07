@@ -44,6 +44,9 @@ from dashboard.components.results_review import (  # noqa: E402
     REVIEW_CONTEXT_UNAVAILABLE_MESSAGE,
     review_context_unavailable_notice as _review_context_unavailable_notice,
 )
+from dashboard.components.results_supporting import (  # noqa: E402
+    render_results_supporting_charts,
+)
 from dashboard.compare_adapter import CompareDashboardAdapter  # noqa: E402
 from dashboard.candidate_workflow import displayed_candidate_identity  # noqa: E402
 from dashboard.project_status import PROJECT_STATUS, DashboardProjectStatus  # noqa: E402
@@ -2604,15 +2607,14 @@ def _price_marker_panel(detail: SelectedRunDetailView | None) -> Any:
             else None
         )
     )
-    if detail is not None and prices:
-        initial_figure, initial_summary = _price_marker_figure(
-            detail,
-            interval=initial_interval,
-            view=initial_view,
-            selected_trade_index=None,
-        )
     return html.Div(
         [
+            dcc.Interval(
+                id="price-chart-load-trigger",
+                interval=1,
+                max_intervals=1,
+                disabled=not bool(prices),
+            ),
             html.Div(
                 [
                     html.Span("Bars:", className="price-chart-control-label"),
@@ -2761,6 +2763,16 @@ def _run_chart_and_trade_focus(detail: SelectedRunDetailView | None) -> Any:
     )
 
 
+def _results_supporting_charts(detail: SelectedRunDetailView) -> Any:
+    return render_results_supporting_charts(
+        detail,
+        detail_subsection=_detail_subsection,
+        portfolio_value_panel=_portfolio_value_panel,
+        curve_graph=_curve_graph,
+        trade_pnl_chart=_trade_pnl_chart,
+    )
+
+
 def _results_metrics_report(detail: SelectedRunDetailView | None) -> Any:
     if detail is None:
         return html.Div(
@@ -2818,28 +2830,15 @@ def _results_metrics_report(detail: SelectedRunDetailView | None) -> Any:
             html.Details(
                 [
                     html.Summary("Equity, benchmark and drawdown"),
-                    _detail_subsection(
-                        "Portfolio value and buy-and-hold comparison",
-                        _portfolio_value_panel(detail),
-                    ),
-                    _detail_subsection(
-                        "Drawdown over time",
-                        _curve_graph(
-                            detail.evidence.drawdown_curve,
-                            y_field="drawdown",
-                            title="Drawdown over time",
-                            color="#ef4444",
-                            empty="No persisted drawdown artifact is available for this run.",
-                            percent=True,
-                            markers=True,
-                            emphasize_min=True,
+                    html.Div(
+                        html.P(
+                            "Open this section to load its saved equity, benchmark and drawdown charts.",
+                            className="empty-state-copy",
                         ),
-                    ),
-                    _detail_subsection(
-                        "Cumulative trade P&L",
-                        _trade_pnl_chart(detail.evidence.trades, mode="cumulative"),
+                        id="results-supporting-charts-content",
                     ),
                 ],
+                id="results-supporting-charts",
                 className="operator-details results-supporting-charts",
             ),
         ],
@@ -4253,6 +4252,7 @@ def _results_view_services() -> ResultsViewServices:
         recent_runs_panel=_recent_runs_panel,
         run_detail_panel=_run_detail_panel,
         results_report_tabs=_results_report_tabs,
+        results_supporting_charts=_results_supporting_charts,
         results_operator_context=_results_operator_context,
         selector_options=_selector_options,
     )

@@ -11,6 +11,7 @@ from dashboard.application import (
     _bounded_curve_rows,
     _price_marker_figure,
     _price_marker_panel,
+    _results_supporting_charts,
     _result_summary,
     _run_detail_panel,
     _results_report_tabs,
@@ -113,11 +114,19 @@ def test_price_workspace_reuses_plotly_with_independent_bars_and_view_controls()
     graph = next(component for component in _walk(panel) if getattr(component, "id", None) == "price-marker-chart")
     bars = next(component for component in _walk(panel) if getattr(component, "id", None) == "price-chart-bars")
     view = next(component for component in _walk(panel) if getattr(component, "id", None) == "price-chart-view")
+    load_trigger = next(
+        component
+        for component in _walk(panel)
+        if getattr(component, "id", None) == "price-chart-load-trigger"
+    )
     assert [option["value"] for option in bars.options] == ["1m", "5m", "15m", "1D"]
     assert [option["value"] for option in view.options] == ["Full run", "1D", "1W", "1M"]
     assert bars.value == "1m"
     assert view.value == "1D"
     assert graph.config["scrollZoom"] is True
+    assert not graph.figure.data
+    assert load_trigger.max_intervals == 1
+    assert load_trigger.disabled is False
 
 
 def test_large_results_series_are_bounded_for_the_browser_without_changing_evidence() -> None:
@@ -133,6 +142,14 @@ def test_large_results_series_are_bounded_for_the_browser_without_changing_evide
     assert displayed[0] == rows[0]
     assert displayed[-1] == rows[-1]
     assert len(rows) == 10_000
+
+
+def test_supporting_results_charts_are_available_after_progressive_load() -> None:
+    rendered = str(_results_supporting_charts(_detail()))
+
+    assert "Portfolio value and buy-and-hold comparison" in rendered
+    assert "Drawdown over time" in rendered
+    assert "Cumulative trade P&amp;L" in rendered or "Cumulative trade P&L" in rendered
 
 
 def test_representative_drawdown_display_retains_the_worst_observation() -> None:

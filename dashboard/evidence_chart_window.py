@@ -9,6 +9,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
+import orjson
+
 _chart_lock = Lock()
 _EQUITY_BUCKETS = 1500
 _PRICE_WINDOW = 20_000
@@ -61,7 +63,10 @@ def _read_valid_json_artifacts(
 def _bounded_chart_document(path: str, checksum: str) -> tuple[dict[str, Any], tuple[str, ...]]:
     """Keep full sealed bytes on disk; return a truthful bounded chart view."""
     del checksum  # The caller validated this exact checksum before opening bytes.
-    document = json.loads(Path(path).read_text(encoding="utf-8"))
+    # This artifact can contain hundreds of thousands of equity and OHLC rows.
+    # Decode bytes directly with the pinned native parser so the first Results
+    # view does not spend seconds creating an intermediate 80+ MB Python string.
+    document = orjson.loads(Path(path).read_bytes())
     if not isinstance(document, dict):
         raise ValueError("equity curve artifact must be an object")
     notices: list[str] = []

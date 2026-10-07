@@ -70,6 +70,7 @@ def test_results_callbacks_construct_with_an_independent_view_contract(tmp_path)
         recent_runs_panel=present,
         run_detail_panel=present,
         results_report_tabs=present,
+        results_supporting_charts=present,
         results_operator_context=present,
         selector_options=present,
     )
@@ -85,4 +86,5 @@ def test_results_callbacks_construct_with_an_independent_view_contract(tmp_path)
         view=view,
     )
 
-    assert app.callback_map
+    assert "..price-marker-chart.figure...price-marker-summary.children.." in app.callback_map
+    assert "results-supporting-charts-content.children" in app.callback_map

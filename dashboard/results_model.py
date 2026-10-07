@@ -7,6 +7,7 @@ mutating source evidence or depending on Dash, VectorBT Pro, or a database.
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import math
@@ -291,7 +292,17 @@ def map_event_to_bar(event: TradeEvent, interval_bars: IntervalBars) -> EventBar
             reason=f"Bars interval {interval_bars.interval!r} is not supported.",
         )
     containing_timestamp = _bucket_start(event.timestamp, width)
-    if not any(bar.timestamp == containing_timestamp for bar in interval_bars.bars):
+    # Bars are validated in increasing timestamp order.  Binary search avoids
+    # scanning the full series for every entry and exit marker on large runs.
+    position = bisect_left(
+        interval_bars.bars,
+        containing_timestamp,
+        key=lambda bar: bar.timestamp,
+    )
+    if (
+        position >= len(interval_bars.bars)
+        or interval_bars.bars[position].timestamp != containing_timestamp
+    ):
         return EventBarMapping(
             event=event,
             interval=interval_bars.interval,

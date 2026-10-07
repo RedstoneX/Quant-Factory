@@ -10,12 +10,12 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Remove the measured Results latency before Terry's owner walkthrough. The same sealed ORB/VWAP run must open as a usable Overview in under 2 seconds and an interactive chart in under 5 seconds on the private service, using dynamic server-side resampling rather than another static browser payload. |
+| Immediate objective | Finish and deploy the measured Results latency correction before Terry's owner walkthrough. The same sealed ORB/VWAP run must open as a usable Overview in under 2 seconds and an interactive chart in under 5 seconds on the private service. |
 | Phase | **R13 remains accepted. R12 private-beta workflow correction continues under Decisions 334–335.** |
-| Active work | **Revision `6fd109b` is deployed and healthy.** PR #169 corrected intraday annualized return and Sharpe at their owning boundary by using completed exchange-session closing equity with an explicit metric basis; no Candidate was rerun and sealed evidence was not changed. The real browser-operated ORB/VWAP run remains sealed with 1,645 trades, a verified dataset checksum, and working Results filters. Its cold Overview still took about 23 seconds. Results performance is the next root-cause slice; preserve the separate Compare work. |
+| Active work | **Revision `6fd109b` is deployed and healthy.** PR #169 corrected intraday annualized return and Sharpe at their owning boundary; no Candidate was rerun and sealed evidence was not changed. The Results correction is implemented locally and not yet deployed: byte-native JSON decoding, indexed marker lookup, and progressive chart loading reduced measured server work on the same sealed ORB/VWAP run to about 1.77 seconds for Overview and 0.34 seconds for its deferred price chart. Focused checks are passing. Preserve the separate Compare work. |
 | Existing assets | The generic Candidate runtime, bounded parameter plans, persisted Variants grid, OOS/walk-forward/robustness/Monte Carlo engines, Plotly Dash, Dash AG Grid, and licensed VectorBT Pro 2026.4.7 are present. The private VectorBT Pro repository and v2026.10.5 source are accessible; that upgrade is selected but not installed and has breaking defaults that require a separate compatibility proof. Bitwarden Secrets Manager remains operational through the scoped `Codex` machine account. |
-| Verified gap | Results currently sends a statically reduced view of 2,937 equity points and the latest 20,000 price bars; it has no dynamic server-side chart resampling and took about 23 seconds to reach Overview. The browser can inspect persisted variants but cannot define and launch an approved bounded study. It also lacks parameter-stability views, readable validation and cost sensitivity, richer trade diagnostics, and finalist-specific evidence drilldowns. The deployed Compare empty-state defect remains separate preserved work. |
-| Next action | Implement the smallest VectorBT/Plotly Resampler adapter for the existing Results chart, prove the same sealed run against the under-2-second Overview and under-5-second chart targets, deploy the dashboard-only correction, and stop for Terry's checkpoint. Then expose approved bounded study setup and native VectorBT Pro optimization; do not build a custom optimizer. |
+| Verified gap | Profiling the real 80 MB chart artifact found the 23-second path was dominated by standard-library decoding, an all-bars scan for every trade marker, and eager construction/serialization of charts whose controls or disclosure were not active. Plotly Resampler handles line traces, not the mixed candlestick-and-marker figure, so globally wrapping this chart would add an incompatible layer without fixing those causes. The browser can inspect persisted variants but cannot yet define and launch an approved bounded study. It also lacks parameter-stability views, readable validation and cost sensitivity, richer trade diagnostics, and finalist-specific evidence drilldowns. The deployed Compare empty-state defect remains separate preserved work. |
+| Next action | Complete the focused checks and repository workflow for the Results correction, deploy only the dashboard, prove the same sealed run against the under-2-second Overview and under-5-second chart targets, and stop for Terry's checkpoint. Then expose approved bounded study setup and native VectorBT Pro optimization; do not build a custom optimizer. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first. Parameter search requires an approved bounded study and fixed objective; no open-ended mining, retroactive tuning of the fixed MES Candidates, protected-evidence inspection, automatic promotion, data purchase, orders, or inferred paper/live authority. |
 
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Connected workflow proof passed; performance correction and Terry's acceptance remain open.** PRs #163–169 passed CI. Revision `6fd109b` is deployed and healthy. The approved ORB/VWAP run has immutable sealed evidence, a verified dataset checksum, and 1,645 trades; Results retained all rows and filtered 877 losses. Intraday annualization is corrected for future runs without rewriting this sealed run. Cold Overview remained about 23 seconds, so dynamic chart resampling is the next slice. Preserve separate Compare work. |
+| R12 | 1 | in_progress | none | **Connected workflow proof passed; performance deployment and Terry's acceptance remain open.** PRs #163–169 passed CI. Revision `6fd109b` is deployed and healthy. The approved ORB/VWAP run has immutable sealed evidence, a verified dataset checksum, and 1,645 trades; Results retained all rows and filtered 877 losses. Intraday annualization is corrected for future runs without rewriting this sealed run. The measured Results root causes are corrected locally and focused checks pass; private-service timing and owner acceptance remain. Preserve separate Compare work. |
 | R14 | 2 | blocked | R12 | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
 
@@ -44,11 +44,16 @@ is superseded by Terry's reported UI defects and current R12 correction authorit
   sessions-per-year, and risk-free-rate metadata. Revision `6fd109b` is deployed
   and both dashboard and Agent Gateway containers are healthy. Existing sealed
   runs remain unchanged and are not reinterpreted.
-- **Active performance correction:** The sealed run's bounded reader takes
-  about 2.2 seconds locally, but the deployed cold Results Overview took about
-  23 seconds because the chart still uses a static browser payload. Reuse
-  VectorBT/Plotly Resampler for dynamic line-trace aggregation in the existing
-  Dash app. Prove the same real run; do not rerun a strategy.
+- **Active performance correction:** Profiling the same sealed run separated
+  artifact decoding, marker mapping, component construction, and
+  serialization. The local correction decodes the immutable JSON artifact
+  directly from bytes with pinned `orjson`, maps events to validated bars with
+  binary search, and builds primary/supporting charts only after their existing
+  controls become active. Local server work measured about 1.77 seconds for
+  Overview and 0.34 seconds for the deferred price chart. Plotly Resampler
+  remains available for future large line-only charts, but it does not safely
+  wrap the current mixed candlestick-and-marker figure. Private-service proof
+  remains; do not rerun a strategy.
 - **Approved study direction:** After the performance checkpoint, Set up and
   Run test may expose only Candidate-approved parameter values, search budget,
   costs, data period, and declared objective. Use VectorBT Pro conditional or

@@ -4971,8 +4971,7 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
     assert stored == "spym_persisted_run"
     assert service.run_detail_queries[-1] == "spym_persisted_run"
     assert detail_adapter.requests[-1] == "spym_persisted_run"
-    assert "Portfolio value and buy-and-hold comparison" in rendered
-    assert "Cumulative trade P&amp;L" in rendered or "Cumulative trade P&L" in rendered
+    assert "Open this section to load its saved equity" in rendered
     assert "Recent trades" in rendered
 
 
@@ -5945,9 +5944,7 @@ def test_run_detail_panel_renders_spym_fixture_persisted_evidence() -> None:
     assert "Price & recorded trades" in rendered
     assert "Evidence not recorded" in rendered
     assert "This run does not include a persisted underlying price" in rendered
-    assert "Portfolio value and buy-and-hold comparison" in rendered
-    assert "Drawdown over time" in rendered
-    assert "Portfolio value" in rendered
+    assert "Open this section to load its saved equity" in rendered
     assert "Validation and evidence" in rendered
     assert "EQUS.MINI" in rendered
     assert "ohlcv-1m" in rendered
@@ -6632,8 +6629,7 @@ def test_selected_run_detail_callback_renders_charts_and_tables_for_persisted_ru
     panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
     rendered = str(panel)
 
-    assert "Portfolio value and buy-and-hold comparison" in rendered
-    assert "Drawdown over time" in rendered
+    assert "Open this section to load its saved equity" in rendered
     assert "Price & recorded trades" in rendered
     assert "results-headline-metrics" in rendered
     assert "Recent trades" in rendered

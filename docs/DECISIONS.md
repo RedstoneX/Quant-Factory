@@ -13,7 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **335** | **Adopt the recovered VectorBT-native performance and bounded-study path:** revision `6fd109b` corrected intraday annualization and is deployed without rewriting sealed evidence. Next, remove the measured Results latency through dynamic server-side chart resampling in the existing Dash app. Later study setup exposes only approved Candidate ranges, search budget, costs, period, and objective; VectorBT Pro performs conditional/random/chunked execution with metric-only search results and complete evidence for selected finalists. Results emphasizes stable regions, return versus drawdown, cost/time validation, trade diagnostics, and exact finalist drilldowns. v2026.10.5 is the selected upgrade target but remains uninstalled pending a separate compatibility proof. No fixed-Candidate tuning, open-ended mining, protected-test access, automatic promotion, paper/live trading, or capital authority. |
+| **335** | **Adopt the recovered VectorBT-native performance and bounded-study path:** revision `6fd109b` corrected intraday annualization and is deployed without rewriting sealed evidence. Remove the measured Results latency at its profiled server boundary; use maintained chart resampling only for compatible trace types. Later study setup exposes only approved Candidate ranges, search budget, costs, period, and objective; VectorBT Pro performs conditional/random/chunked execution with metric-only search results and complete evidence for selected finalists. Results emphasizes stable regions, return versus drawdown, cost/time validation, trade diagnostics, and exact finalist drilldowns. v2026.10.5 is the selected upgrade target but remains uninstalled pending a separate compatibility proof. No fixed-Candidate tuning, open-ended mining, protected-test access, automatic promotion, paper/live trading, or capital authority. |
 | **334** | **Authorize one private-beta deployment and real operator proof:** Terry requests that the connected Candidate UI be deployed and run properly, with no fixture or fabricated profitability proof. Fix the confirmed screening artifact and verified-data lineage gaps, complete the required repository/CI cycle, rebuild only the dashboard service, and prove the deployed path with one real approved Candidate run on existing data. Preserve sealed prior runs and separate Compare work. No protected test, new strategy research, paper/live trading, or capital authority. |
 | **333** | **Owner authorizes local browser-driven backtests of two exact MES Candidates:** run the previously accepted ORB/VWAP Candidate once and the separately approved fixed intraday 10/30 SMA Candidate once on existing verified MES 5-minute data, and repair root-cause local workflow blockers. The earlier no-PR/no-deployment gate remains. Protected test, optimization, paid data, paper/live trading, and capital remain closed. |
 | **332** | **Keep Set up reusable and selection-driven during R12:** Terry rejected MES-only controls and the prior Set up screenshots. The page must reflect each selected Candidate's exact approved saved contract across equities, futures, and timeframes; fixed values remain visible but disabled, and genuine approved choices use bounded backend contracts. The MES fee/stress assumptions are MES-specific. Set up is not approved or deployed; no strategy run is authorized. |
@@ -2238,6 +2238,16 @@ superseded.
      The proof uses the same sealed run without recomputation or evidence
      mutation and targets a usable Overview under 2 seconds and an interactive
      chart under 5 seconds on the private service.
+
+     Profiling then refined the implementation choice without changing that
+     outcome. The mixed candlestick-and-marker chart is outside
+     `plotly-resampler`'s line-trace support. The measured costs were native
+     JSON decoding of the 80 MB immutable artifact, a full bar scan for every
+     trade marker, and eager construction/serialization of inactive charts.
+     Correct those owning boundaries with a pinned byte-native decoder,
+     indexed marker lookup, and progressive chart loading. Retain maintained
+     resampling for a future measured line-only need rather than forcing it
+     around an incompatible figure.
 
      After that checkpoint, expose bounded studies through the existing
      Candidate and immutable-configuration contracts. Set up and Run test show
