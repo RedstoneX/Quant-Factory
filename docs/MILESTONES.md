@@ -12,10 +12,10 @@ create a competing queue.
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
 | Immediate objective | Finish and deploy the measured Results latency correction before Terry's owner walkthrough. The same sealed ORB/VWAP run must open as a usable Overview in under 2 seconds and an interactive chart in under 5 seconds on the private service. |
 | Phase | **R13 remains accepted. R12 private-beta workflow correction continues under Decisions 334–335.** |
-| Active work | **Revision `38ed00f` is deployed and healthy.** PR #172 removed duplicate inactive-tab trade hydration and corrected the price-chart initial trigger without changing the sealed run. The exact price chart now renders and its 1M/1W controls work, but representative cold-browser service timestamps remain about 7 seconds to Overview and 10 seconds to the chart. The supporting-chart disclosure also failed to issue its deferred Dash callback. The under-2-second/under-5-second owner target is not met. Preserve the separate Compare work. |
+| Active work | **Revision `11d66b3` is deployed and healthy.** PRs #175–176 reduced the mounted Dash layout from 428 KB to 94.7 KB, separated Overview and chart artifact reads, deferred inactive Results tabs and history, replaced the unreliable native disclosure event, and retriggered Trades after its dynamic mount. The exact sealed run now reaches Overview in 3.863 seconds and the interactive chart in 5.424 seconds; 1M/1W, supporting charts, and all 1,645 Trades rows pass with no console errors or pre-tab trade payload. The under-2-second/under-5-second owner target remains unmet. Preserve the separate Compare work. |
 | Existing assets | The generic Candidate runtime, bounded parameter plans, persisted Variants grid, OOS/walk-forward/robustness/Monte Carlo engines, Plotly Dash, Dash AG Grid, and licensed VectorBT Pro 2026.4.7 are present. The private VectorBT Pro repository and v2026.10.5 source are accessible; that upgrade is selected but not installed and has breaking defaults that require a separate compatibility proof. Bitwarden Secrets Manager remains operational through the scoped `Codex` machine account. |
-| Verified gap | The artifact algorithms and inactive Trades payload are no longer the dominant initial costs. The deployed trace now points to the shared mounted Dash layout and callback startup path: the browser receives a 428 KB layout, loads route-wide component bundles, and completes several unrelated initial callbacks before the selected-run detail. Separately, native `html.Details.open` did not produce the expected server callback when the operator opened the supporting charts. Plotly Resampler remains incompatible with the mixed candlestick-and-marker figure and would not correct these boundaries. The browser also cannot yet define and launch an approved bounded study. The deployed Compare empty-state defect remains separate preserved work. |
-| Next action | Replace the non-firing supporting-chart trigger with an explicit Dash-controlled disclosure, then profile and reduce only the shared initial layout/callback work that precedes selected-run detail. Reprove the same sealed run against the under-2-second Overview and under-5-second chart targets and stop for Terry's checkpoint. Do not build a custom optimizer. |
+| Verified gap | The shared layout, unrelated eager callbacks, disclosure trigger, and dynamically mounted Trades race are corrected. Browser startup still loads large Plotly and Dash AG Grid component bundles, and the measured end-to-end targets remain missed by 1.863 seconds for Overview and 0.424 seconds for the chart. No evidence shows that chart-library replacement or a strategy rerun would correct this remaining browser startup cost. The browser also cannot yet define and launch an approved bounded study. The deployed Compare empty-state defect remains separate preserved work. |
+| Next action | **Stop for Terry's checkpoint on the deployed partial performance pass.** The next implementation requires owner direction on whether to preserve the current under-2-second/under-5-second targets and continue profiling browser component startup. Do not build a custom optimizer or move to another page while this gate is open. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first. Parameter search requires an approved bounded study and fixed objective; no open-ended mining, retroactive tuning of the fixed MES Candidates, protected-evidence inspection, automatic promotion, data purchase, orders, or inferred paper/live authority. |
 
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Connected workflow proof passed; Results timing and Terry's acceptance remain open.** PR #172 is deployed at revision `38ed00f`; the sealed ORB/VWAP evidence remains immutable. Price-chart rendering, 1M/1W controls, and inactive-tab trade deferral pass. Cold-browser service timestamps remain about 7 seconds to Overview and 10 seconds to the chart, and the supporting disclosure did not load. The owner target is not met. Preserve separate Compare work. |
+| R12 | 1 | in_progress | none | **Connected workflow proof passed; Results timing and Terry's acceptance remain open.** Revision `11d66b3` is deployed; the sealed ORB/VWAP evidence remains immutable. Overview is 3.863 seconds and the chart is 5.424 seconds. Range controls, supporting charts, deferred Trades hydration, all 1,645 trade rows, and zero console errors pass. The owner target is not met. Preserve separate Compare work. |
 | R14 | 2 | blocked | R12 | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
 
@@ -54,13 +54,16 @@ is superseded by Terry's reported UI defects and current R12 correction authorit
   that rejected its simultaneous initial load/empty-selection event. The local
   follow-up in PR #172 gates trade hydration on the active tab, removes
   duplicate selector hydration, and allows the initial chart render. Deployed
-  revision `38ed00f` confirms those corrections, including working 1M/1W chart
-  controls. It also shows the remaining cold path at about 7 seconds to
-  Overview and 10 seconds to the chart, with a supporting disclosure that did
-  not issue its callback. The next owning boundaries are the shared mounted
-  layout/callback startup path and the disclosure trigger. Plotly Resampler
-  remains for future measured line-only needs; it does not safely wrap this
-  mixed candlestick-and-marker figure. Do not rerun a strategy.
+  revision `38ed00f` confirmed those corrections, including working 1M/1W chart
+  controls. Revisions `25cd6b1` and `11d66b3` then reduced the mounted layout
+  from 428 KB to 94.7 KB, split Overview from chart artifact reads, deferred
+  inactive tabs and history, replaced the disclosure trigger, and retriggered
+  Trades after its dynamic mount. The final scoped browser pass measured 3.863
+  seconds to Overview and 5.424 seconds to the chart; 1M/1W, supporting charts,
+  all 1,645 Trades rows, absence of a pre-tab trade payload, and zero console
+  errors passed. The latency target remains open. Plotly Resampler remains for
+  future measured line-only needs; it does not safely wrap this mixed
+  candlestick-and-marker figure. Do not rerun a strategy.
 - **Approved study direction:** After the performance checkpoint, Set up and
   Run test may expose only Candidate-approved parameter values, search budget,
   costs, data period, and declared objective. Use VectorBT Pro conditional or
