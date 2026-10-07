@@ -17,12 +17,11 @@ from typing import Any
 import pandas as pd
 
 from backtesting.experiments import ExecutionConfig, ExperimentConfig, execute_experiment
+from backtesting.experiments.metrics import configure_candidate_metric_policy
 from backtesting.monte_carlo import MonteCarloConfig, SourceSeries, run_monte_carlo
 from backtesting.monte_carlo.models import ExecutionCostScenario
 from backtesting.out_of_sample import (
-    ChronologicalSplitConfig,
-    OutOfSampleConfig,
-    OutOfSampleProgressionError,
+    ChronologicalSplitConfig, OutOfSampleConfig, OutOfSampleProgressionError,
     execute_out_of_sample,
 )
 from backtesting.robustness import (
@@ -39,10 +38,7 @@ from backtesting.screening import ScreeningConfig
 from backtesting.validation import WalkForwardWindowRules
 from backtesting.walk_forward import WalkForwardConfig, execute_walk_forward
 from market_data import MarketDataConfig, load_market_data
-from orchestration.candidate_run_service import (
-    CandidateRunService,
-    CandidateScreeningLaunchResult,
-)
+from orchestration.candidate_run_service import CandidateRunService, CandidateScreeningLaunchResult
 from orchestration.candidate_pipeline_contracts import CandidatePipelineLauncher
 from orchestration.candidate_screening_artifacts import persist_screening_artifacts
 from orchestration.candidate_runtime_robustness import execute_candidate_robustness
@@ -58,10 +54,7 @@ from orchestration.filter_chain import (
     FilterStageContext,
     PersistedStageReference,
 )
-from orchestration.research_launch_claims import (
-    CANDIDATE_SCREENING_LAUNCH_CONTRACT,
-    DurableResearchLaunchService,
-)
+from orchestration.research_launch_claims import CANDIDATE_SCREENING_LAUNCH_CONTRACT, DurableResearchLaunchService
 from persistence import (
     ArtifactType,
     EventSeverity,
@@ -146,6 +139,13 @@ class CandidatePipelineDefinition:
     experiment: ExperimentConfig
     strategy_version: str
     validation: CandidateValidationPlan
+
+    def __post_init__(self) -> None:
+        configured = configure_candidate_metric_policy(
+            self.experiment, self.validation.robustness_regimes.annualization_factor,
+            self.validation.data_as_of,
+        )
+        object.__setattr__(self, "experiment", configured)
 
     def configuration_document(self) -> dict[str, Any]:
         document = configuration_document_from_experiment_config(

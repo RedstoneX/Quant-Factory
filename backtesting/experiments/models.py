@@ -7,8 +7,6 @@ import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Mapping
 
-import pandas as pd
-
 from market_data import DataAudit, MarketDataConfig
 from backtesting.screening.models import ScreeningConfig
 
@@ -22,6 +20,38 @@ ExecutionMode = Literal["same_bar_close", "next_bar_open"]
 SignalTiming = Literal["completed_bar_close"]
 PositionSizing = Literal["all_available_cash", "fixed_units"]
 ExecutionPriceField = Literal["Open", "Close"]
+MetricSampling = Literal["exchange_session_close"]
+
+
+@dataclass(frozen=True)
+class MetricPolicy:
+    """Declared observation and annualization basis for screening metrics."""
+
+    sampling: MetricSampling
+    periods_per_year: float
+    risk_free_rate: float
+    basis: str
+    source: str
+
+    def __post_init__(self) -> None:
+        if self.sampling != "exchange_session_close":
+            raise ValueError(f"Unsupported metric sampling: {self.sampling}")
+        if (
+            isinstance(self.periods_per_year, bool)
+            or not isinstance(self.periods_per_year, (int, float))
+            or not math.isfinite(float(self.periods_per_year))
+            or self.periods_per_year <= 0
+        ):
+            raise ValueError("periods_per_year must be a positive finite number")
+        if (
+            isinstance(self.risk_free_rate, bool)
+            or not isinstance(self.risk_free_rate, (int, float))
+            or not math.isfinite(float(self.risk_free_rate))
+            or self.risk_free_rate <= -1
+        ):
+            raise ValueError("risk_free_rate must be finite and greater than -1")
+        if not self.basis.strip() or not self.source.strip():
+            raise ValueError("metric policy basis and source must not be empty")
 
 
 @dataclass(frozen=True)
@@ -223,6 +253,7 @@ class ExperimentConfig:
     ranking_columns: tuple[str, ...]
     ranking_ascending: tuple[bool, ...]
     output_path: Path
+    metric_policy: MetricPolicy | None = None
     screening: ScreeningConfig = field(
         default_factory=ScreeningConfig.provisional_defaults
     )

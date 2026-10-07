@@ -150,6 +150,22 @@ requested owner-visible outcome.
   owner-only gate, stop. Do not substitute cleanup, research, refactoring, or
   another queued item unless Terry requests it.
 
+### Root-cause implementation discipline
+
+- Correct the violated contract at its owning boundary; do not mask it in the
+  dashboard, fixtures, artifact copy, or a caller-specific exception.
+- For evidence-sensitive calculations, persist or deterministically derive the
+  measurement basis from the approved configuration, fail closed when that
+  basis is ambiguous, and label the basis in the resulting evidence.
+- A test must exercise the corrected behavior and assert the resulting value or
+  state. Argument-capture tests alone do not prove a numerical or evidence fix.
+- Treat an initial implementation as provisional until the exact diff and its
+  assumptions have been checked against representative real data. Do not merge
+  or deploy a draft that has an unresolved review finding.
+- When a review finds a root-cause defect, stop packaging work, replace the
+  faulty design, rerun one focused proof, and obtain the required review before
+  delivery.
+
 ### Escalated Mode — exception
 
 Use heavier preflight, review, or independent challenge only when the task

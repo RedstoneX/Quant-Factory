@@ -17,6 +17,7 @@ from backtesting.experiments.models import (
     ExperimentResult,
     RejectedParameters,
 )
+from backtesting.experiments.metrics import extract_metrics
 from backtesting.validation.gates import (
     normalize_signals,
     validate_execution,
@@ -70,12 +71,6 @@ SCREENING_COLUMNS = (
     "screening_failed_rule_count",
     "screening_rejection_reasons",
 )
-
-
-def _as_float(value: object) -> float:
-    if hasattr(value, "iloc"):
-        value = value.iloc[0]
-    return float(value)
 
 
 def _shift_signal(signal: pd.Series | None) -> pd.Series | None:
@@ -224,18 +219,6 @@ def build_portfolio(
     return _construct_portfolio(data, aligned, config)
 
 
-def extract_metrics(portfolio: Any) -> dict[str, float | int]:
-    """Extract the stable metric set shared by experiment outputs."""
-    return {
-        "total_return": _as_float(portfolio.total_return),
-        "annualized_return": _as_float(portfolio.annualized_return),
-        "sharpe_ratio": _as_float(portfolio.sharpe_ratio),
-        "max_drawdown": _as_float(portfolio.max_drawdown),
-        "number_of_trades": int(_as_float(portfolio.trades.count())),
-        "win_rate": _as_float(portfolio.trades.win_rate),
-    }
-
-
 def _provenance(audit: DataAudit) -> dict[str, Any]:
     return {
         "data_source": audit.provider,
@@ -345,7 +328,7 @@ def execute_experiment(
             {result.gate_id: result for result in validation_results}
         )
         portfolio = _construct_portfolio(data, aligned, config)
-        metrics = extract_metrics(portfolio)
+        metrics = extract_metrics(portfolio, data=data, config=config)
         screening = screen_metrics(
             experiment_id=config.experiment_id,
             strategy_id=strategy.spec.identity.strategy_id,

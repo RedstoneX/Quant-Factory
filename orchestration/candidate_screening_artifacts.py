@@ -47,6 +47,17 @@ def _screening_artifacts(*, result: Any, portfolio: Any, data: pd.DataFrame,
     metrics = {key: _artifact_value(row[key]) for key in (
         "total_return", "annualized_return", "sharpe_ratio", "max_drawdown",
         "number_of_trades", "win_rate")}
+    policy = config.metric_policy
+    annualization = None
+    if policy is not None:
+        annualization = {
+            "sampling": policy.sampling,
+            "sessions_per_year": int(policy.periods_per_year),
+            "risk_free_rate": float(policy.risk_free_rate),
+            "basis": policy.basis,
+            "source": policy.source,
+            "exchange_calendar": config.market_data.exchange_calendar,
+        }
     multiplier = config.execution.price_multiplier
     price_unit = "index_points" if multiplier != 1.0 else "currency"
     value = portfolio.value
@@ -62,7 +73,8 @@ def _screening_artifacts(*, result: Any, portfolio: Any, data: pd.DataFrame,
             "promotion_eligible": False, "broker_orders": "disabled",
         }),
         (ArtifactType.METRICS, "metrics", {
-            "parameter_row_id": parameter_row_id, "ranking_position": 1, "metrics": metrics,
+            "parameter_row_id": parameter_row_id, "ranking_position": 1,
+            "metrics": metrics, "annualization": annualization,
         }),
         (ArtifactType.TRADES_OR_ORDERS, "trades_and_orders", {
             "parameter_row_id": parameter_row_id, "ranking_position": 1,
