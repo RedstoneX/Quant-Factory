@@ -1599,7 +1599,7 @@ def register_backtest_results_callbacks(
     @app.callback(
         Output("selected-run-detail", "children"),
         Input("selected-run-state", "data"),
-        Input("selected-run-selector", "value"),
+        State("selected-run-selector", "value"),
         Input("refresh-runs", "n_clicks"),
         Input("launch-message", "children", allow_optional=True),
         Input("cancellation-message", "children", allow_optional=True),
