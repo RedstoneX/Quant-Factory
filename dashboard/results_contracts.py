@@ -21,5 +21,6 @@ class ResultsViewServices:
     recent_runs_panel: Callable[..., Any]
     run_detail_panel: Callable[..., Any]
     results_report_tabs: Callable[..., Any]
+    results_supporting_charts: Callable[..., Any]
     results_operator_context: Callable[..., Any]
     selector_options: Callable[..., Any]

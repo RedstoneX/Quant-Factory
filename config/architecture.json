@@ -3,8 +3,8 @@
   "size_growth_backstop": {
     "max_lines": 1000,
     "grandfathered_modules": {
-      "dashboard.application": 4716,
-      "dashboard.callbacks.backtest_results": 1969,
+      "dashboard.application": 4705,
+      "dashboard.callbacks.backtest_results": 1933,
       "dashboard.pages.home": 1317,
       "dashboard.run_detail_adapter": 1330,
       "orchestration.candidate_pipeline_runtime": 1109,

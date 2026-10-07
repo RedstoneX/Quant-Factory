@@ -606,7 +606,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 59
+    assert len(app.callback_map) == 60
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -4971,8 +4971,7 @@ def test_user_selected_spym_run_is_not_overwritten_by_delayed_selector_refresh(
     assert stored == "spym_persisted_run"
     assert service.run_detail_queries[-1] == "spym_persisted_run"
     assert detail_adapter.requests[-1] == "spym_persisted_run"
-    assert "Portfolio value and buy-and-hold comparison" in rendered
-    assert "Cumulative trade P&amp;L" in rendered or "Cumulative trade P&L" in rendered
+    assert "Open this section to load its saved equity" in rendered
     assert "Recent trades" in rendered
 
 
@@ -5945,9 +5944,7 @@ def test_run_detail_panel_renders_spym_fixture_persisted_evidence() -> None:
     assert "Price & recorded trades" in rendered
     assert "Evidence not recorded" in rendered
     assert "This run does not include a persisted underlying price" in rendered
-    assert "Portfolio value and buy-and-hold comparison" in rendered
-    assert "Drawdown over time" in rendered
-    assert "Portfolio value" in rendered
+    assert "Open this section to load its saved equity" in rendered
     assert "Validation and evidence" in rendered
     assert "EQUS.MINI" in rendered
     assert "ohlcv-1m" in rendered
@@ -6341,8 +6338,7 @@ def test_run_detail_panel_handles_missing_manifest_config_and_empty_summary() ->
     assert "Not recorded" in rendered
     assert "No artifact inventory is available" in rendered
     assert "No persisted parameter result summary is available" in rendered
-    assert "No persisted equity curve artifact is available for this run." in rendered
-    assert "No persisted drawdown artifact is available for this run." in rendered
+    assert "Open this section to load its saved equity" in rendered
     assert (
         "Completed trades appear here when the run has a persisted trades artifact."
         in rendered
@@ -6632,8 +6628,7 @@ def test_selected_run_detail_callback_renders_charts_and_tables_for_persisted_ru
     panel = inspect("run_dashboard_fixture", "run_dashboard_fixture", 0, 0, 0, 0)
     rendered = str(panel)
 
-    assert "Portfolio value and buy-and-hold comparison" in rendered
-    assert "Drawdown over time" in rendered
+    assert "Open this section to load its saved equity" in rendered
     assert "Price & recorded trades" in rendered
     assert "results-headline-metrics" in rendered
     assert "Recent trades" in rendered

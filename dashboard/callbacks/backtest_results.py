@@ -19,6 +19,7 @@ from dashboard.components.operator_context import (
 )
 from dashboard.candidate_launch_context import resolve_launch_selection
 from dashboard.callbacks.candidate_run import register_candidate_run_preview
+from dashboard.callbacks.results_charts import register_results_chart_callbacks
 from dashboard.results_contracts import ResultsViewServices
 from dashboard.routing import active_route as _active_route
 from dashboard.run_adapter import (
@@ -531,8 +532,20 @@ def register_backtest_results_callbacks(
     _recent_runs_panel = view.recent_runs_panel
     _run_detail_panel = view.run_detail_panel
     _results_report_tabs = view.results_report_tabs
+    _results_supporting_charts = view.results_supporting_charts
     _results_operator_context = view.results_operator_context
     _selector_options = view.selector_options
+
+    register_results_chart_callbacks(
+        app,
+        detail_adapter=detail_adapter,
+        active_route=_active_route,
+        selected_run_id=_persisted_selected_run_id,
+        callback_triggered_id=_callback_triggered_id,
+        empty_price_figure=_empty_price_marker_figure,
+        price_figure=_price_marker_figure,
+        supporting_charts=_results_supporting_charts,
+    )
 
     research_launches = research_launches or DurableResearchLaunchService(
         database=dashboard_database
@@ -1711,55 +1724,6 @@ def register_backtest_results_callbacks(
             detail=detail_view,
             selected_parameter_row_id=parameter_row_id,
         )
-
-    @app.callback(
-        Output("price-marker-chart", "figure"),
-        Output("price-marker-summary", "children"),
-        Input("price-chart-bars", "value"),
-        Input("price-chart-view", "value"),
-        Input("selected-trade-grid", "selectedRows"),
-        State("selected-run-state", "data"),
-        State("url", "pathname"),
-        prevent_initial_call=True,
-    )
-    def update_price_marker_chart(
-        interval: str | None,
-        view: str | None,
-        selected_rows: list[dict[str, Any]] | None,
-        run_id: str | None,
-        pathname: str | None,
-    ):
-        if not _active_route(pathname, "/research/backtest-results"):
-            raise PreventUpdate
-        if not interval or not view:
-            raise PreventUpdate
-        if _callback_triggered_id() == "selected-trade-grid" and not selected_rows:
-            raise PreventUpdate
-        run_id = _persisted_selected_run_id(run_id)
-        if not run_id:
-            message = "Select a completed run with persisted price evidence."
-            return _empty_price_marker_figure(message), message
-        try:
-            detail = detail_adapter.selected_run_detail(run_id)
-        except (KeyError, RuntimeError, ValueError) as exc:
-            message = f"Saved chart evidence could not be opened: {exc}"
-            return _empty_price_marker_figure(message), message
-        if not detail.evidence.price_series:
-            message = "This saved run has no persisted price series to chart."
-            return _empty_price_marker_figure(message), message
-        selected_trade_index: int | None = None
-        if selected_rows and selected_rows[0].get("__run_id") == run_id:
-            try:
-                selected_trade_index = int(selected_rows[0]["__trade_index"])
-            except (KeyError, TypeError, ValueError):
-                selected_trade_index = None
-        figure, summary = _price_marker_figure(
-            detail,
-            interval=interval,
-            view=view,
-            selected_trade_index=selected_trade_index,
-        )
-        return figure, summary
 
     @app.callback(
         Output("results-operator-context", "children"),
