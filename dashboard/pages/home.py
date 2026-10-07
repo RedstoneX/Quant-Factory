@@ -998,8 +998,8 @@ def _research_stops_panel(
                     dcc.Link(
                         "Inspect →",
                         href=f"/research/backtest-results?run_id={failure.run_id}",
-                        id="home-primary-action" if index == 0 else None,
                         className="atlas-text-link",
+                        **({"id": "home-primary-action"} if index == 0 else {}),
                     ),
                 ],
                 className="atlas-action-row atlas-action-row-link",
