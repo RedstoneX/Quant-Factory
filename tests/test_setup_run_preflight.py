@@ -242,12 +242,10 @@ def test_setup_and_run_callbacks_own_only_their_page_outputs_and_recovery_refres
     monkeypatch.setattr("dashboard.application.inspect_catalog", lambda: (None, (), "test"))
     app = create_app(review_database=tmp_path / "dashboard.sqlite3")
 
-    setup_key = next(key for key in app.callback_map if "configuration-preview.children" in key)
+    setup_key = next(key for key in app.callback_map if "setup-dynamic-view.children" in key)
     run_key = next(key for key in app.callback_map if "run-configuration-preview.children" in key)
     assert "run-configuration-preview" not in setup_key
-    assert "configuration-preview.children" not in run_key.replace(
-        "run-configuration-preview.children", ""
-    )
+    assert "setup-dynamic-view" not in run_key
 
     selected_owner = app.callback_map["selected-configuration-state.data"]
     assert selected_owner["inputs"] == [
@@ -278,20 +276,13 @@ def test_registered_run_preview_and_launch_fail_closed_on_preflight_blocker(
 
     run_preview = _callback(app, "run-configuration-preview.children")
     children = run_preview(configuration.configuration_id)
-    assert "Local dataset availability and checksum were not verified" in _text(
+    assert "No Candidate test is ready" in _text(
         html.Div(children)
     )
 
-    setup_preview = _callback(app, "configuration-preview.children")
-    _, href, class_name, setup_title, label, state, state_class = setup_preview(
-        configuration.configuration_id
-    )
-    assert href == "/research/ideas"
-    assert class_name == "secondary-action"
-    assert setup_title == "Review the accepted Candidate while its exact implementation is pending."
-    assert label == "Return to accepted idea"
-    assert state == "Candidate not ready"
-    assert "setup-context-state-blocked" in state_class
+    setup_preview = _callback(app, "setup-dynamic-view.children")
+    setup_content = setup_preview(None, None, {"display": "block"})
+    assert "No Candidate selected" in _text(setup_content)
 
     launch = _callback(app, "launch-message.children")
     _, message, class_name, _, _, disabled, title, label = launch(

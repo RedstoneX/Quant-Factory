@@ -23,7 +23,7 @@ def test_milestone21e_selects_schx_without_promoting_profitability() -> None:
     decisions = _normalized("docs/DECISIONS.md")
     adr = _read("docs/architecture/0005-execution-adapters-and-initial-venues.md")
 
-    assert "Candidate research remains paused." in milestones
+    assert "No generic new-candidate campaign" in milestones
     assert "Fixtures and previously inspected data prove infrastructure, not an edge." in decisions
     assert "**Broad-market whole-share forward-test instrument:** SCHX" in adr
     assert "This selection is not profitability approval" in adr
@@ -76,5 +76,5 @@ def test_historical_fixture_decision_is_retained_without_overriding_current_queu
     assert "R13 remains accepted" in milestones
     assert "| R12 | 1 | in_progress |" in milestones
     assert "| R14 | 2 | blocked |" in milestones
-    assert "Candidate research remains paused." in milestones
+    assert "No generic new-candidate campaign" in milestones
     assert "Fixtures and previously inspected data prove infrastructure, not an edge." in _normalized("docs/DECISIONS.md")

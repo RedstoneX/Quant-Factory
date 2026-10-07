@@ -52,6 +52,7 @@ from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
 class _FakeTrades:
     def __init__(self, count: int) -> None:
         self._count = count
+        self.records_readable = pd.DataFrame({"Trade Id": range(count)})
 
     def count(self) -> int:
         return self._count
@@ -60,7 +61,6 @@ class _FakeTrades:
     def win_rate(self) -> float:
         return 0.60
 
-
 class _FakePortfolioResult:
     def __init__(self, index: pd.Index, trade_count: int) -> None:
         self.total_return = 0.05
@@ -68,8 +68,9 @@ class _FakePortfolioResult:
         self.sharpe_ratio = 1.0
         self.max_drawdown = -0.02
         self.trades = _FakeTrades(max(1, trade_count))
+        self.orders = SimpleNamespace(records_readable=pd.DataFrame({"Order Id": range(max(1, trade_count))}))
+        self.value = pd.Series(10_000.0, index=index, dtype=float)
         self.returns = pd.Series(0.001, index=index, dtype=float)
-
 
 class _FakePortfolio:
     @staticmethod
@@ -104,7 +105,6 @@ class _FakeRSI:
 
 
 FAKE_VECTORBT = SimpleNamespace(Portfolio=_FakePortfolio, RSI=_FakeRSI)
-
 
 def _direct_pipeline_launcher(*, runtime, submission):
     """Exercise orchestration directly without importing or constructing Prefect."""

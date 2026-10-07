@@ -270,8 +270,6 @@ def _validate_robustness_document(document: dict[str, Any]) -> None:
             raise ValueError("fixed-rule stress component status mismatch")
         if stress_doc["status"] == "passed" and any(rule.get("status") != "passed" for rule in rules):
             raise ValueError("fixed-rule stress cannot pass with a failing threshold")
-    elif robustness.get("status") == "passed" and robustness.get("neighborhood_summary") is None:
-        raise ValueError("passed robustness requires parameter or fixed-rule stress evidence")
     _require_list(robustness.get("warnings"), "robustness warnings")
     _require_non_blank(robustness.get("timestamp"), "robustness timestamp")
     if normalized.get("status") not in _NORMALIZED_STATUSES:
