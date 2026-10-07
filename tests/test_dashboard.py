@@ -1130,7 +1130,7 @@ def test_selected_run_callbacks_use_mounted_backtest_selection_state(
     }
 
     assert ("selected-run-state", "data") in detail_inputs
-    assert ("selected-run-selector", "value") in detail_inputs
+    assert ("selected-run-selector", "value") in detail_states
     assert ("url", "pathname") not in detail_inputs
     assert ("url", "pathname") in detail_states
     assert ("launch-selected-run-configuration", "n_clicks") not in detail_inputs
