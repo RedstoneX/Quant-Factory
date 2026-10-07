@@ -37,25 +37,29 @@ def register_trade_explorer_callbacks(
         Output("trade-explorer-summary", "children"),
         Output("selected-trade-grid", "selectedRows"),
         Input("selected-run-state", "data"),
-        Input("selected-run-selector", "value"),
+        Input("run-detail-analysis-tabs", "value"),
         Input("trade-outcome-filter", "value"),
         Input("trade-direction-filter", "value"),
         Input("trade-date-range", "start_date"),
         Input("trade-date-range", "end_date"),
         Input("refresh-runs", "n_clicks"),
+        State("selected-run-selector", "value"),
         State("url", "pathname"),
     )
     def refresh_trade_rows(
         stored_run_id: str | None,
-        selected_run_id: str | None,
+        active_tab: str | None,
         outcome_filter: list[str] | None,
         direction_filter: list[str] | None,
         start_date: str | None,
         end_date: str | None,
         _: int | None,
+        selected_run_id: str | None,
         pathname: str | None,
     ):
         if not _active_route(pathname, "/research/backtest-results"):
+            raise PreventUpdate
+        if active_tab != "trades":
             raise PreventUpdate
         run_id = stored_run_id or selected_run_id
         if not run_id:
