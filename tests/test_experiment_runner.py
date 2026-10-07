@@ -1,6 +1,7 @@
 """Deterministic tests for the reusable experiment runner."""
 
 from dataclasses import replace
+import math
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,16 +9,19 @@ import pandas as pd
 import pytest
 
 import backtesting.experiments.runner as runner_module
+import backtesting.experiments.metrics as metrics_module
 import backtesting.run_rsi_demo as demo
 from backtesting.experiments import (
     ExecutionConfig,
     ExperimentConfig,
     METRIC_COLUMNS,
+    MetricPolicy,
     SignalResult,
     build_portfolio,
     execute_experiment,
     extract_metrics,
 )
+from backtesting.screening import screen_metrics
 from market_data import DataAudit, MarketDataConfig
 from strategies import get_strategy
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
@@ -130,7 +134,7 @@ def _install_portable_runner_boundaries(
     monkeypatch.setattr(
         runner_module,
         "extract_metrics",
-        lambda portfolio: {
+        lambda portfolio, **kwargs: {
             "total_return": 0.10,
             "annualized_return": 0.10,
             "sharpe_ratio": 1.0,
@@ -154,6 +158,173 @@ def test_typed_experiment_configuration(tmp_path: Path) -> None:
                 "ranking_ascending": (False,),
             }
         )
+
+
+def test_session_metrics_use_completed_exchange_sessions_not_overnight_bars(
+    tmp_path: Path,
+) -> None:
+    index = pd.DatetimeIndex(
+        [
+            "2024-01-02T00:00:00Z",
+            "2024-01-02T14:30:00Z",
+            "2024-01-02T20:55:00Z",
+            "2024-01-02T22:00:00Z",
+            "2024-01-03T14:30:00Z",
+            "2024-01-03T20:55:00Z",
+            "2024-01-03T22:00:00Z",
+        ]
+    )
+    values = pd.Series(
+        [
+            100_000.0,
+            100_000.0,
+            101_000.0,
+            101_000.0,
+            101_000.0,
+            100_500.0,
+            100_500.0,
+        ],
+        index=index,
+    )
+    portfolio = SimpleNamespace(
+        value=values,
+        total_return=99.0,
+        annualized_return=99.0,
+        sharpe_ratio=99.0,
+        max_drawdown=-0.10,
+        trades=SimpleNamespace(
+            count=lambda: 2,
+            win_rate=0.5,
+        ),
+    )
+    config = replace(
+        _config(tmp_path),
+        market_data=replace(_market_config(tmp_path), interval="5m"),
+        execution=replace(_config(tmp_path).execution, initial_cash=100_000.0),
+        metric_policy=MetricPolicy(
+            sampling="exchange_session_close",
+            periods_per_year=252.0,
+            risk_free_rate=0.0,
+            basis="complete exchange-session-close portfolio equity and session returns",
+            source="test contract",
+        ),
+    )
+    data = pd.DataFrame({"Close": 100.0}, index=index)
+    metrics = extract_metrics(portfolio, data=data, config=config)
+    returns = pd.Series([0.01, 100_500.0 / 101_000.0 - 1.0])
+
+    assert metrics["total_return"] == pytest.approx(0.005)
+    assert metrics["annualized_return"] == pytest.approx(1.005**126 - 1.0)
+    assert metrics["sharpe_ratio"] == pytest.approx(
+        returns.mean() / returns.std(ddof=1) * 252**0.5
+    )
+    assert metrics["max_drawdown"] == -0.10
+
+
+def test_session_metrics_fail_closed_without_exact_closing_bar(tmp_path: Path) -> None:
+    index = pd.DatetimeIndex(
+        [
+            "2024-01-02T14:30:00Z",
+            "2024-01-02T20:50:00Z",
+            "2024-01-03T14:30:00Z",
+            "2024-01-03T20:55:00Z",
+            "2024-01-03T22:00:00Z",
+        ]
+    )
+    portfolio = SimpleNamespace(value=pd.Series(100_000.0, index=index))
+    config = replace(
+        _config(tmp_path),
+        market_data=replace(_market_config(tmp_path), interval="5m"),
+        metric_policy=MetricPolicy(
+            sampling="exchange_session_close",
+            periods_per_year=252.0,
+            risk_free_rate=0.0,
+            basis="complete exchange-session-close portfolio equity and session returns",
+            source="test contract",
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="missing the closing bar"):
+        metrics_module.session_close_metrics(
+            portfolio,
+            pd.DataFrame({"Close": 100.0}, index=index),
+            config,
+        )
+
+
+def test_session_metrics_fail_closed_on_partial_final_session(tmp_path: Path) -> None:
+    index = pd.DatetimeIndex(
+        [
+            "2024-01-02T20:55:00Z",
+            "2024-01-03T20:55:00Z",
+            "2024-01-04T18:00:00Z",
+        ]
+    )
+    portfolio = SimpleNamespace(value=pd.Series(100_000.0, index=index))
+    config = replace(
+        _config(tmp_path),
+        market_data=replace(_market_config(tmp_path), interval="5m"),
+        metric_policy=MetricPolicy(
+            sampling="exchange_session_close",
+            periods_per_year=252.0,
+            risk_free_rate=0.0,
+            basis="complete exchange-session-close portfolio equity and session returns",
+            source="test contract",
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="partially observed final session"):
+        metrics_module.session_close_metrics(
+            portfolio,
+            pd.DataFrame({"Close": 100.0}, index=index),
+            config,
+        )
+
+
+def test_flat_session_metrics_are_truthfully_screened_out(tmp_path: Path) -> None:
+    index = pd.DatetimeIndex(
+        [
+            "2024-01-02T20:55:00Z",
+            "2024-01-02T22:00:00Z",
+            "2024-01-03T20:55:00Z",
+            "2024-01-03T22:00:00Z",
+        ]
+    )
+    portfolio = SimpleNamespace(
+        value=pd.Series(100_000.0, index=index),
+        max_drawdown=0.0,
+        trades=SimpleNamespace(count=lambda: 0, win_rate=float("nan")),
+    )
+    config = replace(
+        _config(tmp_path),
+        market_data=replace(_market_config(tmp_path), interval="5m"),
+        execution=replace(_config(tmp_path).execution, initial_cash=100_000.0),
+        metric_policy=MetricPolicy(
+            sampling="exchange_session_close",
+            periods_per_year=252.0,
+            risk_free_rate=0.0,
+            basis="complete exchange-session-close portfolio equity and session returns",
+            source="test contract",
+        ),
+    )
+    metrics = extract_metrics(
+        portfolio,
+        data=pd.DataFrame({"Close": 100.0}, index=index),
+        config=config,
+    )
+    screening = screen_metrics(
+        experiment_id=config.experiment_id,
+        strategy_id=config.strategy_id,
+        strategy_version="test",
+        parameters={},
+        execution_assumptions={},
+        metrics=metrics,
+        config=config.screening,
+    )
+
+    assert math.isnan(float(metrics["sharpe_ratio"]))
+    assert screening.passed is False
+    assert "sharpe_ratio" in screening.rule_results[1].details["non_finite"]
 
 
 def test_strategy_lookup_and_grid_execution(
@@ -277,7 +448,7 @@ def test_ranking_is_deterministic_on_ties(
     monkeypatch.setattr(
         runner_module,
         "extract_metrics",
-        lambda portfolio: {
+        lambda portfolio, **kwargs: {
             "total_return": 1.0,
             "annualized_return": 1.0,
             "sharpe_ratio": 1.0,

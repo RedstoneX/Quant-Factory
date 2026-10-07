@@ -1043,7 +1043,7 @@ def _evidence_view(
     )
     if isinstance(metrics, dict) and "annualized_return" in metrics:
         notices.append(
-            _persisted_annualization_notice(validation_doc)
+            _persisted_annualization_notice(validation_doc) or _persisted_annualization_notice(metrics_doc)
             or "Annualized return is the recorded engine output. Its frequency, annualization, and risk-free basis were not persisted; do not treat it as a separately calculated calendar growth rate."
         )
     if calendar_cagr is not None:

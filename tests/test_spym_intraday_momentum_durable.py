@@ -106,6 +106,21 @@ def test_durable_success_persists_one_dashboard_readable_row_and_integrity_manif
         service.close()
 
 
+def test_metrics_artifact_annualization_notice() -> None:
+    assert _persisted_annualization_notice(
+        {
+            "annualization": {
+                "sessions_per_year": 252,
+                "risk_free_rate": 0.0,
+                "basis": "complete exchange-session-close portfolio equity and session returns",
+            }
+        }
+    ) == (
+        "Annualized return uses the persisted 252 sessions/year and 0 risk-free basis "
+        "from complete exchange-session-close portfolio equity and session returns."
+    )
+
+
 def test_data_failure_marks_terminal_run_without_compute_or_success_evidence(tmp_path: Path) -> None:
     calls = []
 
