@@ -606,7 +606,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 60
+    assert len(app.callback_map) == 61
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -622,7 +622,6 @@ def test_dashboard_callback_outputs_are_singly_owned(tmp_path: Path) -> None:
     data = _data()
     context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
     app = create_app(context, tmp_path / "reviews.json")
-
     output_keys = "\n".join(app.callback_map)
 
     assert output_keys.count("selected-run-selector.value") == 1
@@ -658,7 +657,7 @@ def test_all_callback_components_exist_in_full_mounted_layout(tmp_path: Path) ->
     data = _data()
     context = DashboardContext(pd.DataFrame([_ranked_row()]), data, _audit(data))
     app = create_app(context, tmp_path / "reviews.json")
-    mounted_ids = set(_component_ids(_resolved_layout(app)))
+    mounted_ids = set(_component_ids(app.validation_layout))
 
     missing = sorted(
         reference
@@ -676,7 +675,7 @@ def test_full_mounted_layout_has_globally_unique_component_ids(tmp_path: Path) -
     app = create_app(context, tmp_path / "reviews.json")
     component_ids = [
         component_id
-        for component in _walk_components(_resolved_layout(app))
+        for component in _walk_components(app.validation_layout)
         if (component_id := getattr(component, "id", None)) is not None
     ]
 
@@ -698,6 +697,7 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
 
     route_callback_keys = {
         next(key for key in app.callback_map if key.startswith("..route-home.style")),
+        next(key for key in app.callback_map if "route-home.children" in key),
         next(
             key
             for key in app.callback_map
@@ -795,7 +795,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         path: _component_text(
             next(
                 component
-                for component in _walk_components(_resolved_layout(app))
+                for component in _walk_components(app.validation_layout)
                 if getattr(component, "id", None) == container_id
             )
         )
@@ -804,7 +804,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     mounted_pages["__not_found__"] = _component_text(
         next(
             component
-            for component in _walk_components(_resolved_layout(app))
+            for component in _walk_components(app.validation_layout)
             if getattr(component, "id", None) == "route-not-found"
         )
     )
@@ -5028,7 +5028,7 @@ def test_selected_run_store_recontrols_dropdown_after_detail_render_remount(
         run_service=service,
         run_detail_adapter=DetailByRun(),
     )
-    layout = _resolved_layout(app)
+    layout = app.validation_layout
     mounted_selector = next(
         component
         for component in _walk_components(layout)
@@ -6421,7 +6421,7 @@ def test_hidden_results_callbacks_skip_large_detail_reconstruction(
     )
     mounted_detail = next(
         component
-        for component in _walk_components(_resolved_layout(app))
+        for component in _walk_components(app.validation_layout)
         if getattr(component, "id", None) == "selected-run-detail"
     )
     assert "Choose a persisted run to inspect its recorded chart" in str(mounted_detail)

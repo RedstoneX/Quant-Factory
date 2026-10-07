@@ -20,6 +20,7 @@ from dashboard.components.trade_explorer import (
     layout as trade_explorer_layout,
     normalize_trade_rows,
 )
+from dashboard.components.results_supporting import results_supporting_charts_host
 from dashboard.run_detail_adapter import (
     DetailField,
     ResultSummaryView,
@@ -150,6 +151,18 @@ def test_supporting_results_charts_are_available_after_progressive_load() -> Non
     assert "Portfolio value and buy-and-hold comparison" in rendered
     assert "Drawdown over time" in rendered
     assert "Cumulative trade P&amp;L" in rendered or "Cumulative trade P&L" in rendered
+
+
+def test_supporting_results_disclosure_has_an_explicit_dash_click_trigger() -> None:
+    panel = results_supporting_charts_host(available=True)
+    toggle = next(
+        component
+        for component in _walk(panel)
+        if getattr(component, "id", None) == "results-supporting-charts-toggle"
+    )
+
+    assert toggle.n_clicks == 0
+    assert toggle.children == "Equity, benchmark and drawdown"
 
 
 def test_representative_drawdown_display_retains_the_worst_observation() -> None:

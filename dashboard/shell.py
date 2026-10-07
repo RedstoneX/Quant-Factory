@@ -136,22 +136,28 @@ def mounted_route_containers(
     selected_run_id: str | None = None,
     all_runs: tuple[Any, ...] = (),
     history_rows: tuple[dict[str, object], ...] = (),
+    progressive_routes: bool = False,
 ) -> list[html.Div]:
     containers: list[html.Div] = []
     initial_styles = route_container_styles_for_path(initial_pathname)
     for index, (path, container_id) in enumerate(ROUTE_REGISTRY):
+        should_render = not progressive_routes or path == initial_pathname
         containers.append(
             html.Div(
-                page_factory(
-                    path,
-                    context,
-                    configurations,
-                    recent_runs=recent_runs,
-                    recent_events=recent_events,
-                    selected_run_panel=selected_run_panel,
-                    selected_run_id=selected_run_id,
-                    all_runs=all_runs,
-                    history_rows=history_rows,
+                (
+                    page_factory(
+                        path,
+                        context,
+                        configurations,
+                        recent_runs=recent_runs,
+                        recent_events=recent_events,
+                        selected_run_panel=selected_run_panel,
+                        selected_run_id=selected_run_id,
+                        all_runs=all_runs,
+                        history_rows=history_rows,
+                    )
+                    if should_render
+                    else None
                 ),
                 id=container_id,
                 className="route-container",
@@ -160,7 +166,11 @@ def mounted_route_containers(
         )
     containers.append(
         html.Div(
-            not_found_page("this address"),
+            (
+                not_found_page(initial_pathname)
+                if not progressive_routes or initial_pathname not in dict(ROUTE_REGISTRY)
+                else None
+            ),
             id="route-not-found",
             className="route-container",
             style=initial_styles[-1],
@@ -181,6 +191,7 @@ def create_dashboard_layout(
     selected_run_id: str | None = None,
     all_runs: tuple[Any, ...] = (),
     history_rows: tuple[dict[str, object], ...] = (),
+    progressive_routes: bool = False,
 ) -> html.Div:
     return html.Div(
         [
@@ -268,6 +279,7 @@ def create_dashboard_layout(
                     selected_run_id=selected_run_id,
                     all_runs=all_runs,
                     history_rows=history_rows,
+                    progressive_routes=progressive_routes,
                 ),
                 id="page-content",
                 className="application-content",
