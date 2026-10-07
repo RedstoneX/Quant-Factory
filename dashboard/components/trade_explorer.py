@@ -21,6 +21,7 @@ def layout() -> html.Section:
 
     return html.Section(
         [
+            dcc.Interval(id="trade-explorer-load-trigger", interval=50, n_intervals=0, max_intervals=1),
             html.Div(
                 [
                     html.Div(
@@ -146,10 +147,7 @@ def layout() -> html.Section:
                 getRowId="params.data.__trade_key",
                 selectedRows=[],
                 columnSize="autoSize",
-                className=(
-                    "ag-theme-alpine qf-data-grid qf-trades-grid "
-                    "qf-trade-explorer-grid"
-                ),
+                className="ag-theme-alpine qf-data-grid qf-trades-grid qf-trade-explorer-grid",
                 style={"width": "100%"},
             ),
             html.Div(

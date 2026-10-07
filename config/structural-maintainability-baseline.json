@@ -56,7 +56,7 @@
     "dashboard/callbacks/backtest_results.py": 1928,
     "dashboard/callbacks/ideas.py": 816,
     "dashboard/compare_adapter.py": 939,
-    "dashboard/components/trade_explorer.py": 647,
+    "dashboard/components/trade_explorer.py": 645,
     "dashboard/pages/home.py": 1317,
     "dashboard/run_adapter.py": 823,
     "dashboard/run_detail_adapter.py": 1304,

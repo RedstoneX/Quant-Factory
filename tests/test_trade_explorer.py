@@ -424,12 +424,15 @@ def test_trade_explorer_outputs_exist_in_empty_database_layout(tmp_path: Path) -
         "trade-outcome-filter",
         "trade-direction-filter",
         "trade-date-range",
+        "trade-explorer-load-trigger",
         "trade-explorer-summary",
         "results-chart-focus-status",
         "selected-trade-grid",
         "selected-trade-detail",
     }.issubset(ids)
     assert any("selected-trade-grid" in key for key in app.callback_map)
+    trade_callback = next(value for key, value in app.callback_map.items() if "selected-trade-grid.rowData" in key)
+    assert {"id": "trade-explorer-load-trigger", "property": "n_intervals"} in trade_callback["inputs"]
     assert any("selected-trade-detail" in key for key in app.callback_map)
     assert any("results-chart-focus-status" in key for key in app.callback_map)
 
@@ -473,6 +476,7 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
     rows, summary, selected = refresh_rows(
         "run-a",
         "trades",
+        1,
         ["Loss"],
         ["Short"],
         "2026-01-03",
@@ -492,6 +496,7 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
     rows, _, selected = refresh_rows(
         "run-b",
         "trades",
+        1,
         [],
         [],
         None,
@@ -506,6 +511,7 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
     rows, summary, _ = refresh_rows(
         None,
         "trades",
+        1,
         [],
         [],
         None,
@@ -518,13 +524,14 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
     assert "Showing 2 of 2" in summary
 
     with pytest.raises(PreventUpdate):
-        refresh_rows("run-a", "trades", [], [], None, None, 0, "run-a", "/")
+        refresh_rows("run-a", "trades", 1, [], [], None, None, 0, "run-a", "/")
 
     adapter.requests.clear()
     with pytest.raises(PreventUpdate):
         refresh_rows(
             "run-a",
             "metrics",
+            0,
             [],
             [],
             None,
