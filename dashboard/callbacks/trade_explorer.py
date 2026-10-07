@@ -37,6 +37,7 @@ def register_trade_explorer_callbacks(
         Output("trade-explorer-summary", "children"),
         Output("selected-trade-grid", "selectedRows"),
         Input("selected-run-state", "data"),
+        Input("selected-run-selector", "value"),
         Input("trade-outcome-filter", "value"),
         Input("trade-direction-filter", "value"),
         Input("trade-date-range", "start_date"),
@@ -45,7 +46,8 @@ def register_trade_explorer_callbacks(
         State("url", "pathname"),
     )
     def refresh_trade_rows(
-        run_id: str | None,
+        stored_run_id: str | None,
+        selected_run_id: str | None,
         outcome_filter: list[str] | None,
         direction_filter: list[str] | None,
         start_date: str | None,
@@ -55,6 +57,7 @@ def register_trade_explorer_callbacks(
     ):
         if not _active_route(pathname, "/research/backtest-results"):
             raise PreventUpdate
+        run_id = stored_run_id or selected_run_id
         if not run_id:
             return (
                 [],
@@ -99,16 +102,19 @@ def register_trade_explorer_callbacks(
         Input("selected-trade-grid", "selectedRows"),
         Input("selected-trade-grid", "rowData"),
         State("selected-run-state", "data"),
+        State("selected-run-selector", "value"),
         State("url", "pathname"),
     )
     def focus_selected_trade(
         selected_rows: list[dict[str, Any]] | None,
         visible_rows: list[dict[str, Any]] | None,
-        run_id: str | None,
+        stored_run_id: str | None,
+        selected_run_id: str | None,
         pathname: str | None,
     ):
         if not _active_route(pathname, "/research/backtest-results"):
             raise PreventUpdate
+        run_id = stored_run_id or selected_run_id
         if not run_id:
             return no_trade_selected_message()
         if selected_rows and selected_rows[0].get("__run_id") != run_id:
