@@ -10,42 +10,60 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Terry's owner walkthrough of the deployed private dashboard workflow. One approved ORB/VWAP Candidate has completed a browser-operated run with immutable sealed evidence; Results now renders and filters that run. |
-| Phase | **R13 remains accepted. R12 private-beta workflow deployment is active under Decision 334.** |
-| Active work | **Technical Results correction passed on deployed revision `b202bb3`; owner acceptance remains open.** Browser-operated run `run_500380ed873f4c0e9ed20bf39dfab756` has a sealed full artifact, verified catalog checksum, and 1,645 trades. The actual Results view shows recorded performance and trade markers; Trades retained 1,645 rows after selector hydration and the Loss filter showed 877. Cold-browser Overview took about 23 seconds, and the current fixed Candidate has no general parameter-sweep or automatic optimization UI. Preserve separate Compare work. No generic new-candidate campaign, protected test, paper/live, or capital authority. |
-| Existing assets | The generic candidate runtime is complete. The architecture remediation is complete with mechanically enforced one-way component boundaries and zero runtime dependency cycles or forbidden directions. The Decision 310 MES screen has one valid result-bearing run using the checksum-matching owned MES file, complete Databento mapping, clean canonical Git SHA, and licensed VectorBT Pro 2026.4.7. Bitwarden Secrets Manager is operational through the `Codex` machine account scoped to the `Quant Factory` project; the named Databento secret authenticated successfully without paid data. |
-| Verified gap | The local Set up draft initially showed correct MES facts but treated fixed dropdowns as expendable text and then displayed MES-specific controls regardless of another selected strategy. Terry rejected this one-off behavior: Quant Factory must handle future equities, futures, and timeframes through actual approved saved contracts. Readable dates, relevant information, real permitted controls, and a usable start-to-finish web workflow remain acceptance needs. The deployed Compare page's earlier empty-state defect also remains open. |
-| Next action | Stop for Terry's browser walkthrough and explicit handoff acceptance or a reported product defect. Do not substitute more strategy runs or another page's work. |
+| Immediate objective | Remove the measured Results latency before Terry's owner walkthrough. The same sealed ORB/VWAP run must open as a usable Overview in under 2 seconds and an interactive chart in under 5 seconds on the private service, using dynamic server-side resampling rather than another static browser payload. |
+| Phase | **R13 remains accepted. R12 private-beta workflow correction continues under Decisions 334–335.** |
+| Active work | **Revision `6fd109b` is deployed and healthy.** PR #169 corrected intraday annualized return and Sharpe at their owning boundary by using completed exchange-session closing equity with an explicit metric basis; no Candidate was rerun and sealed evidence was not changed. The real browser-operated ORB/VWAP run remains sealed with 1,645 trades, a verified dataset checksum, and working Results filters. Its cold Overview still took about 23 seconds. Results performance is the next root-cause slice; preserve the separate Compare work. |
+| Existing assets | The generic Candidate runtime, bounded parameter plans, persisted Variants grid, OOS/walk-forward/robustness/Monte Carlo engines, Plotly Dash, Dash AG Grid, and licensed VectorBT Pro 2026.4.7 are present. The private VectorBT Pro repository and v2026.10.5 source are accessible; that upgrade is selected but not installed and has breaking defaults that require a separate compatibility proof. Bitwarden Secrets Manager remains operational through the scoped `Codex` machine account. |
+| Verified gap | Results currently sends a statically reduced view of 2,937 equity points and the latest 20,000 price bars; it has no dynamic server-side chart resampling and took about 23 seconds to reach Overview. The browser can inspect persisted variants but cannot define and launch an approved bounded study. It also lacks parameter-stability views, readable validation and cost sensitivity, richer trade diagnostics, and finalist-specific evidence drilldowns. The deployed Compare empty-state defect remains separate preserved work. |
+| Next action | Implement the smallest VectorBT/Plotly Resampler adapter for the existing Results chart, prove the same sealed run against the under-2-second Overview and under-5-second chart targets, deploy the dashboard-only correction, and stop for Terry's checkpoint. Then expose approved bounded study setup and native VectorBT Pro optimization; do not build a custom optimizer. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
-| Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first; do not repeat rejected or withdrawn work, optimize openly, inspect protected evidence, buy data, submit orders, or infer paper/live authority. |
+| Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first. Parameter search requires an approved bounded study and fixed objective; no open-ended mining, retroactive tuning of the fixed MES Candidates, protected-evidence inspection, automatic promotion, data purchase, orders, or inferred paper/live authority. |
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | blocked | none | **Deployed technical browser proof passed; Terry's acceptance remains open.** PRs #163–167 passed CI. The approved ORB/VWAP run succeeded with sealed evidence, verified dataset checksum, and 1,645 trades. On deployed revision `b202bb3`, Results rendered the real run, Trades retained all 1,645 rows after selector hydration, and Loss filtered to 877. Cold-browser Overview took about 23 seconds. No protected test or second strategy run occurred. Preserve separate Compare work. |
+| R12 | 1 | in_progress | none | **Connected workflow proof passed; performance correction and Terry's acceptance remain open.** PRs #163–169 passed CI. Revision `6fd109b` is deployed and healthy. The approved ORB/VWAP run has immutable sealed evidence, a verified dataset checksum, and 1,645 trades; Results retained all rows and filtered 877 losses. Intraday annualization is corrected for future runs without rewriting this sealed run. Cold Overview remained about 23 seconds, so dynamic chart resampling is the next slice. Preserve separate Compare work. |
 | R14 | 2 | blocked | R12 | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
 
 The former gate wording, `No Codex implementation is active while Terry performs the walkthrough`,
 is superseded by Terry's reported UI defects and current R12 correction authority.
 
-## Current R12 owner corrections and handoff (2026-10-06)
+## Current R12 correction sequence (2026-10-07)
 
-Decisions 333–334 and the current-phase table above supersede this section's
-earlier no-run and no-deployment pause for the exact approved MES Candidates and
-one private-beta workflow deployment. Historical page-review status below
-remains evidence of the earlier gate, not the active stop point.
-
-- **Product outcome:** Terry must be able to use Quant Factory from the web interface to test a strategy and follow it through the existing factory. Visual polish alone, a route smoke check, or a disconnected page is not a workflow pass. Terry wants bounded steps with his approval between them, and root causes corrected before dependent pages are rebuilt.
-- **Prioritization and economy:** Terry rejected treating a small date/copy correction as a whole step, redoing the already accepted mockup/design language, and rebuilding pages before checking shared workflow faults. Use the existing OVH Ubuntu installation, Dash application, backend, virtual environment, and persisted data. A missing shell utility or inaccessible Docker metadata is not a reason to create greenfield infrastructure. Keep checks and browser inspection focused; do not churn through speculative variants or duplicate proof.
-- **Reusable Set up, not an MES product:** MES is the current accepted Candidate example, not the only future backtest. Equities, other futures contracts, and other timeframes must be represented by their own approved strategy/data/configuration contracts. The approved SPYM Set up mockup defines this page's composition, not universal SPYM values; the Results chart-first preview does not define Set up. A selected Candidate must never silently show MES or an unrelated fixture. An accepted but unimplemented Candidate stays visibly blocked.
-- **Controls:** The mockup's fixed dropdowns are intentional inspection controls. For a fixed-rule saved setup they show the exact persisted value and are disabled; they are not decorative placeholders or a global ban on future selectable settings. Where an approved strategy actually allows choices, show only those bounded choices through the existing backend and save the resulting immutable contract. Dates, costs, instrument, timeframe, position assumptions, and the next safe action must be readable and relevant to the selection.
-- **Current MES contract:** Terry accepted the documented MES fee assumption of **$0.62 per contract per side** as this Candidate's baseline, with one adverse tick per side. The proposed higher-cost robustness screen is **$1.24 plus two adverse ticks per side**. These are MES-specific assumptions, not defaults for equities or other futures. Because this Candidate has no adjustable strategy parameters, parameter-variation robustness cannot be claimed as passed; the proposed actual higher-cost gate replaces that one check, while time-split, market-condition, and simulation checks remain. No strategy test or new evidence has been run.
-- **Local status, not closure:** Branch `codex/r12-compare-conformance` contains uncommitted Compare, Set up, and Run test work. Terry approved the selection-driven Set up review by saying “Proceed” and approved the subsequent Run test desktop review. Visual reviews used isolated copies of persisted state; the live database and deployed service were not changed. There is no PR, merge, deployment, research run, or paper/live action for this slice.
-
-Run test page approval is recorded. Do not start Compare or another page, launch a strategy, or treat local checks as workflow acceptance without Terry's next instruction.
+- **Connected workflow:** The deployed Ideas -> Set up -> Run test -> Results
+  path binds the selected approved Candidate to its immutable configuration and
+  verified local data. The browser-operated ORB/VWAP proof run completed and
+  sealed its full evidence. Set up remains reusable across asset classes and
+  timeframes; fixed controls are locked and genuine choices must come from an
+  approved contract.
+- **Evidence correctness:** PR #169 replaced VectorBT's default intraday
+  annualization behavior with explicit completed-session equity, calendar,
+  sessions-per-year, and risk-free-rate metadata. Revision `6fd109b` is deployed
+  and both dashboard and Agent Gateway containers are healthy. Existing sealed
+  runs remain unchanged and are not reinterpreted.
+- **Active performance correction:** The sealed run's bounded reader takes
+  about 2.2 seconds locally, but the deployed cold Results Overview took about
+  23 seconds because the chart still uses a static browser payload. Reuse
+  VectorBT/Plotly Resampler for dynamic line-trace aggregation in the existing
+  Dash app. Prove the same real run; do not rerun a strategy.
+- **Approved study direction:** After the performance checkpoint, Set up and
+  Run test may expose only Candidate-approved parameter values, search budget,
+  costs, data period, and declared objective. Use VectorBT Pro conditional or
+  random parameterization, chunking, and parallel execution. Return metrics
+  during search; create complete portfolios and immutable evidence only for
+  selected finalists.
+- **Trader analysis:** Results must favor stable parameter regions over an
+  isolated historical winner and expose return versus drawdown, heatmaps,
+  costs, OOS/walk-forward evidence, trade diagnostics, shortlist/reopen, and
+  exact finalist drilldowns. Automatic selection never means automatic edge
+  approval.
+- **Boundaries:** Both fixed MES proof Candidates screened out. They may not be
+  tuned. No generic Candidate campaign, protected test, paid data, paper/live
+  trading, broker order, or capital action is authorized. Preserve the separate
+  uncommitted Compare work.
 
 ## Architecture remediation — completed 2026-10-01
 
@@ -102,24 +120,28 @@ profitability, or the licensed engine itself.
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
 3. Dashboard and operator-product implementation — TECHNICAL PASS; OWNER HANDOFF AVAILABLE
 4. **Standardized QF Candidate v1 intake — COMPLETE; OWNER ACCEPTED 2026-10-02**
-5. Owner walkthrough / handoff acceptance — PENDING
+5. Results performance correction and owner walkthrough / handoff acceptance — ACTIVE
 6. Owner-approved candidate research
 7. Validation of a surviving edge
 8. Execution-vehicle comparison
 9. Paper operation
 10. Live operation later
 
-### Edge research — PAUSED DURING STANDARDIZED INTAKE WORK
+### Edge research — LIMITED TO COMPLETED WORKFLOW-PROOF RUNS
 
-No candidate research execution is active, and standardized intake work does not
-authorize a strategy test. Terry has since accepted one exact MES ORB/VWAP
-Candidate for bounded local implementation review; that acceptance has not
-authorized running it. QF Candidate v1 may be produced by Terry, an external LLM, or a
-future optional built-in analyzer, but importing a packet never authorizes
-implementation or execution. Before research begins, Terry must explicitly
-accept a bounded, source-attributed Candidate packet and its fixed evidence
-contract. The current mandate remains **day trading / intraday
-directional edge discovery** unless the owner explicitly changes it.
+Decisions 333–334 authorized one browser-operated run of each exact accepted
+fixed MES Candidate to prove the operator path. The ORB/VWAP Candidate screened
+out with 1,645 trades, +4.59% total return, 0.472 Sharpe, and 3.16% maximum
+drawdown. The 10/30 SMA Candidate screened out with 1,461 trades, -4.69% total
+return, and -0.485 Sharpe. Neither reached later validation or protected test;
+neither is a viable-edge claim or eligible for tuning.
+
+No generic Candidate campaign is active. QF Candidate v1 may be produced by
+Terry, an external LLM, or a future optional built-in analyzer, but importing a
+packet never authorizes implementation or execution. Before new research,
+Terry must accept a bounded, source-attributed Candidate packet and its fixed
+evidence contract. The mandate remains **day trading / intraday directional
+edge discovery** unless Terry explicitly changes it.
 The fixed MES overnight-gap reversal development screen in
 `docs/strategies/mes-overnight-gap-reversal.md` completed and was rejected. It
 observed the prior cash-session close and current cash open, entered at 09:35
@@ -180,15 +202,15 @@ private review service with a verified pre-deployment database backup, and
 passed revision, health, and private reachability checks. Terry accepted the
 rendered current-revision **overview screen** and authorized continuation on
 2026-09-30. That was not acceptance of the unfinished operator workflow.
-The earlier connected-workflow technical-pass claim is superseded by Decision
-326. Terry's walkthrough proved that Candidate identity did not remain connected
-after Ideas and that an infrastructure fixture could be presented and launched
-instead. R12 remains active until the exact-object correction is merged,
-privately deployed, and Terry completes and explicitly accepts the new
-walkthrough. Idea capture remains local-only; agents use the removable Gateway
-rather than an embedded provider. This acceptance does
-not qualify an edge or authorize paid data, protected testing, paper/live
-operation, orders, or capital exposure.
+The earlier connected-workflow technical-pass claim was superseded by Decision
+326 after Terry's walkthrough exposed Candidate identity loss and fixture
+substitution. Decisions 333–334 then authorized the exact-object correction,
+one private deployment, and one real workflow-proof run. That correction is
+deployed; R12 remains active for the measured Results performance defect and
+Terry's final walkthrough. Idea capture remains local-only, and agents use the
+removable Gateway rather than an embedded provider. This does not qualify an
+edge or authorize paid data, protected testing, paper/live operation, orders,
+or capital exposure.
 
 The current QF Candidate v1 revision is deployed through the existing
 tailnet-only private review service. Before deployment, the stopped schema-4

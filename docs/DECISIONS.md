@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **335** | **Adopt the recovered VectorBT-native performance and bounded-study path:** revision `6fd109b` corrected intraday annualization and is deployed without rewriting sealed evidence. Next, remove the measured Results latency through dynamic server-side chart resampling in the existing Dash app. Later study setup exposes only approved Candidate ranges, search budget, costs, period, and objective; VectorBT Pro performs conditional/random/chunked execution with metric-only search results and complete evidence for selected finalists. Results emphasizes stable regions, return versus drawdown, cost/time validation, trade diagnostics, and exact finalist drilldowns. v2026.10.5 is the selected upgrade target but remains uninstalled pending a separate compatibility proof. No fixed-Candidate tuning, open-ended mining, protected-test access, automatic promotion, paper/live trading, or capital authority. |
 | **334** | **Authorize one private-beta deployment and real operator proof:** Terry requests that the connected Candidate UI be deployed and run properly, with no fixture or fabricated profitability proof. Fix the confirmed screening artifact and verified-data lineage gaps, complete the required repository/CI cycle, rebuild only the dashboard service, and prove the deployed path with one real approved Candidate run on existing data. Preserve sealed prior runs and separate Compare work. No protected test, new strategy research, paper/live trading, or capital authority. |
 | **333** | **Owner authorizes local browser-driven backtests of two exact MES Candidates:** run the previously accepted ORB/VWAP Candidate once and the separately approved fixed intraday 10/30 SMA Candidate once on existing verified MES 5-minute data, and repair root-cause local workflow blockers. The earlier no-PR/no-deployment gate remains. Protected test, optimization, paid data, paper/live trading, and capital remain closed. |
 | **332** | **Keep Set up reusable and selection-driven during R12:** Terry rejected MES-only controls and the prior Set up screenshots. The page must reflect each selected Candidate's exact approved saved contract across equities, futures, and timeframes; fixed values remain visible but disabled, and genuine approved choices use bounded backend contracts. The MES fee/stress assumptions are MES-specific. Set up is not approved or deployed; no strategy run is authorized. |
@@ -2216,3 +2217,56 @@ superseded.
      Compare work and the protected-data boundary. No new candidate, data
      purchase, optimization, paper/live trading, broker order, or capital
      authority follows.
+
+
+335. **Adopt the VectorBT-native Results-performance and bounded-study path
+     (accepted 2026-10-07).** Terry approved continuation after the first
+     foundational root-cause correction and required the previously completed
+     VectorBT research to remain durable rather than be lost to chat
+     compaction. Revision `6fd109b` is deployed and healthy. It computes
+     intraday annualized return and Sharpe from completed exchange-session
+     closing equity with an explicit calendar, sessions-per-year,
+     risk-free-rate, and derivation basis. Existing sealed runs remain
+     unchanged and are not reinterpreted.
+
+     Results performance is the next active correction. The real sealed
+     ORB/VWAP run retained 1,645 trades, 2,937 extrema-preserving equity
+     points, and a latest-20,000-bar price view, yet its deployed cold Overview
+     took about 23 seconds. Reuse VectorBT Pro's resampling support or the
+     maintained `plotly-resampler` Dash integration through a thin adapter in
+     the existing application. Do not build another chart stack or frontend.
+     The proof uses the same sealed run without recomputation or evidence
+     mutation and targets a usable Overview under 2 seconds and an interactive
+     chart under 5 seconds on the private service.
+
+     After that checkpoint, expose bounded studies through the existing
+     Candidate and immutable-configuration contracts. Set up and Run test show
+     only approved parameter values, combination or sample budget, data period,
+     costs, and one declared objective. Use VectorBT Pro's conditional grids,
+     random subsets, chunking, caching, and appropriate parallel execution.
+     Search calls return only required metrics; create full portfolios, chart
+     data, trade ledgers, and sealed evidence only for selected finalists.
+     Quant Factory supplies persistence, lineage, evidence gates, and the
+     operator workflow rather than implementing another optimization engine.
+
+     Results must help Terry judge stable parameter regions instead of merely
+     selecting the highest historical profit. Required analysis includes
+     return versus drawdown, parameter heatmaps, neighbor stability, trade
+     counts, cost sensitivity, OOS/walk-forward results, relevant trade
+     diagnostics, shortlist/reopen actions, and finalist-specific evidence.
+     Selection-bias correction may be added only through a separately verified
+     method; public Discussion #866 is useful rationale, not an accepted
+     dependency or evidence result.
+
+     VectorBT Pro v2026.10.5 is the selected upgrade target. The private
+     repository is accessible, but the release has no wheel and changes stop,
+     risk-free-rate, and statistics defaults. The upgrade remains incomplete
+     until a separate source-build and compatibility proof passes. The current
+     deployed engine remains v2026.4.7.
+
+     This decision does not authorize changing or tuning either fixed MES
+     Candidate, a generic research campaign, unbounded optimization,
+     protected-test inspection, automatic edge promotion, paid data,
+     paper/live trading, broker orders, or capital exposure. Preserve the
+     separate Compare work and stop for Terry after each deployed foundational
+     correction.

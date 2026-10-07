@@ -15,17 +15,17 @@ PROJECT_STATUS = DashboardProjectStatus(
     current_milestone_number=23,
     current_milestone_title="Operator Product Completion",
     current_milestone_status=(
-        "QF Candidate v1 standardized browser intake is owner-accepted and complete; "
-        "the corrected connected Candidate workflow is ready for the owner walkthrough."
+        "The connected Candidate workflow and intraday metric-basis correction are deployed; "
+        "Results performance is the active correction before the owner walkthrough."
     ),
     strategy_status=(
-        "No candidate research is active. The MES overnight-gap reversal is rejected "
-        "and may not be tuned or rerun."
+        "No generic candidate research is active. Both fixed MES workflow-proof Candidates "
+        "screened out and may not be tuned."
     ),
     workspace_status=(
-        "R13 is complete and R12 is waiting for the owner walkthrough. The provider-neutral "
-        "agent gateway remains operational locally; no campaign or strategy test starts "
-        "while the walkthrough gate is open."
+        "R13 is complete. R12 is correcting the measured Results latency with the existing "
+        "Dash and VectorBT stack before the owner walkthrough; the provider-neutral agent "
+        "gateway remains operational."
     ),
     home_subtitle="Your strategy research workspace.",
 )
