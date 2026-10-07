@@ -90,13 +90,14 @@ def _read_valid_json_artifacts(
     *,
     artifact_root: Path,
     include_chart_data: bool = True,
-) -> tuple[dict[str, Any], list[str]]:
+) -> tuple[dict[str, Any], list[str], list[str]]:
     validation_by_id = {
         validation.artifact_id: validation
         for validation in retrieval.validations
     }
     documents: dict[str, Any] = {}
     warnings: list[str] = []
+    notices: list[str] = []
     for artifact in retrieval.artifacts:
         validation = validation_by_id.get(artifact.artifact_id)
         if validation is None or not validation.valid:
@@ -113,14 +114,16 @@ def _read_valid_json_artifacts(
             path = _safe_artifact_path(artifact_root, artifact.location)
             if artifact.logical_name == "equity_curve":
                 with _chart_lock:
-                    document, notices = _bounded_chart_document(str(path), artifact.checksum)
+                    document, chart_notices = _bounded_chart_document(
+                        str(path), artifact.checksum
+                    )
                 documents[artifact.logical_name] = document
-                warnings.extend(notices)
+                notices.extend(chart_notices)
             else:
                 documents[artifact.logical_name] = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
             warnings.append(f"Artifact {artifact.logical_name} content is invalid: {exc}.")
-    return documents, warnings
+    return documents, warnings, notices
 
 
 @lru_cache(maxsize=4)

@@ -6226,7 +6226,7 @@ def test_run_detail_adapter_reads_validated_spym_artifacts_for_dashboard(
         artifact_root=tmp_path,
     ).selected_run_detail("qf-dashboard-21d")
 
-    assert all("chart displays" in warning for warning in detail.warnings)
+    assert not detail.warnings and all(any(label in notice for notice in detail.evidence.notices) for label in ("Portfolio chart displays", "Price chart displays"))
     assert any(field.label == "Number Of Trades" and field.value == "366" for field in detail.evidence.metrics)
     assert len(detail.evidence.trades) == 366
     assert len(detail.evidence.orders) == 732

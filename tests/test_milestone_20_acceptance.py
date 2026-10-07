@@ -39,6 +39,7 @@ from prefect_spike.fixture_flow import (
 from tests.test_dashboard import _audit, _callback_function, _data, _ranked_row
 from tests.test_run_service import _configuration
 from tests.test_run_stale_recovery import _create_run
+from tests.results_rendering_support import render_selected_results
 
 
 def _runtime_lineage_document(label: str = "acceptance") -> dict[str, object]:
@@ -241,8 +242,7 @@ def _prepare_success_run_artifacts(database: Path, root: Path, run_id: str) -> N
 
 
 def _render_selected(app, run_id: str) -> str:
-    inspect = _callback_function(app, "selected-run-detail")
-    return str(inspect(run_id, 1, 0, 0, 0, 0))
+    return render_selected_results(app, _callback_function, run_id, (run_id, 1, 0, 0, 0, 0))
 
 
 def test_dashboard_success_workflow_and_restart_reopen(

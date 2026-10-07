@@ -980,10 +980,9 @@ def _evidence_view(
     retrieval: Any | None,
     artifact_root: Path, include_chart_data: bool = True,
 ) -> RunEvidenceView:
-    warnings: list[str] = []
-    documents: dict[str, Any] = {}
+    documents, warnings, chart_notices = {}, [], []
     if retrieval is not None:
-        documents, warnings = _read_valid_json_artifacts(
+        documents, warnings, chart_notices = _read_valid_json_artifacts(
             retrieval,
             artifact_root=artifact_root, include_chart_data=include_chart_data,
         )
@@ -1022,7 +1021,7 @@ def _evidence_view(
     benchmark = _validated_benchmark(equity_doc, warnings)
     if benchmark is None:
         benchmark_curve = ()
-    notices: list[str] = []
+    notices: list[str] = list(chart_notices)
     evidence_classification = None
     promotion_eligible = None
     for document in (summary_doc, validation_doc):

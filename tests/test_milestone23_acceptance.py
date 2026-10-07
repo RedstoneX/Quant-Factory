@@ -59,11 +59,11 @@ from tests.test_lockbox_gate import (
     _service as _m22_service,
 )
 from tests.test_review_context_artifacts import _source_lock_artifact
+from tests.results_rendering_support import render_results_tabs, render_selected_results
 
 
 def _render_selected(app, run_id: str) -> str:
-    inspect = _callback_function(app, "selected-run-detail")
-    return str(inspect(run_id, run_id, 1, 0, 0, 0))
+    return render_selected_results(app, _callback_function, run_id, (run_id, run_id, 1, 0, 0, 0))
 
 
 def _context() -> DashboardContext:
@@ -483,9 +483,9 @@ def test_milestone23_normalized_validation_outcome_reuses_milestone22_path(
 
 
 def _render_validation_panel(service, detail) -> object:
-    from dashboard.app import _run_detail_panel
+    from dashboard.application import _run_detail_panel
 
-    return _run_detail_panel(_m22_run_summary(service), detail=detail)
+    return str(_run_detail_panel(_m22_run_summary(service), detail=detail)) + render_results_tabs(detail)
 
 
 def test_milestone23_controlled_failure_is_diagnosable_without_false_success(

@@ -6,7 +6,7 @@
       "dashboard.application": 4633,
       "dashboard.callbacks.backtest_results": 1928,
       "dashboard.pages.home": 1317,
-      "dashboard.run_detail_adapter": 1305,
+      "dashboard.run_detail_adapter": 1304,
       "orchestration.candidate_pipeline_runtime": 1109,
       "orchestration.research_launch_claims": 1353,
       "persistence.repositories": 1223,
