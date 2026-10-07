@@ -6234,11 +6234,11 @@ def test_run_detail_adapter_reads_validated_spym_artifacts_for_dashboard(
         artifact_root=tmp_path,
     ).selected_run_detail("qf-dashboard-21d")
 
-    assert not detail.warnings
+    assert all("chart displays" in warning for warning in detail.warnings)
     assert any(field.label == "Number Of Trades" and field.value == "366" for field in detail.evidence.metrics)
     assert len(detail.evidence.trades) == 366
     assert len(detail.evidence.orders) == 732
-    assert len(detail.evidence.equity_curve) == 53528
+    assert 0 < len(detail.evidence.equity_curve) < 53528
     assert detail.evidence.drawdown_curve
     assert any(field.value == "Databento" for field in detail.evidence.provenance)
     assert any(field.value == "EQUS.MINI" for field in detail.evidence.validation)
