@@ -116,9 +116,11 @@ def test_explorer_keeps_all_two_thousand_rows_in_one_bounded_grid() -> None:
 
 
 def test_exact_variant_request_opens_variants_tab() -> None:
-    assert _results_report_tabs(None).value == "metrics"
+    assert _results_report_tabs(None).children[0].value == "metrics"
     assert (
-        _results_report_tabs(None, selected_parameter_row_id="row-0001").value
+        _results_report_tabs(
+            None, selected_parameter_row_id="row-0001"
+        ).children[0].value
         == "variants"
     )
 

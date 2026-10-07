@@ -38,14 +38,17 @@ def test_dashboard_defers_full_history_until_results_history_is_open(tmp_path: P
     assert service.all_runs_queries == 0
     assert service.all_history_queries == 0
 
-    refresh_history = _callback_function(app, "run-history-grid.rowData")
+    refresh_history = _callback_function(app, "run-history-grid-host.children")
     with pytest.raises(PreventUpdate):
-        refresh_history(True, 0, 0, 0, 0, 0, 0, 0, "/research/ideas")
+        refresh_history(1, 0, 0, 0, 0, 0, 0, 0, "/research/ideas")
     with pytest.raises(PreventUpdate):
-        refresh_history(False, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results")
+        refresh_history(0, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results")
     assert service.all_history_queries == 0
 
-    rows = refresh_history(True, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results")
+    hydrated_grid = refresh_history(
+        1, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results"
+    )
+    rows = hydrated_grid.rowData
     assert rows[0]["run_id"] == "run_dashboard_fixture"
     assert service.all_history_queries == 1
 
@@ -77,9 +80,10 @@ def test_results_history_grid_mounts_empty_then_hydrates_on_open(
         if getattr(component, "id", None) == "run-history-grid"
     )
     columns = {column["field"]: column for column in grid.columnDefs}
-    rows = _callback_function(app, "run-history-grid.rowData")(
-        True, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results"
+    hydrated_grid = _callback_function(app, "run-history-grid-host.children")(
+        1, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results"
     )
+    rows = hydrated_grid.rowData
 
     assert grid.rowData == []
     assert len(rows) == 21

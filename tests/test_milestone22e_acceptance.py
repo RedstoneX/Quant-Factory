@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from dashboard.app import _run_detail_panel
+from dashboard.application import _run_detail_panel
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from orchestration import RunSummary
 from persistence import StrategyLifecycle
@@ -15,6 +15,7 @@ from tests.test_lockbox_gate import (
     _persist_prerequisites,
     _service,
 )
+from tests.results_rendering_support import render_results_tabs
 
 
 def _database_path(base: Path) -> Path:
@@ -102,7 +103,7 @@ def test_milestone22e_outcomes_flow_through_service_and_run_detail_dashboard(
             artifact_root=root,
         ).selected_run_detail("mc-run")
         fields = _dashboard_fields(detail)
-        rendered = str(_run_detail_panel(_run_summary(service), detail=detail))
+        rendered = str(_run_detail_panel(_run_summary(service), detail=detail)) + render_results_tabs(detail)
 
         assert outcome.status == expected_status
         assert fields["Normalized status"] == outcome.status

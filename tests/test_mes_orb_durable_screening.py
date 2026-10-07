@@ -30,8 +30,7 @@ from backtesting.validation import ValidationResult
 from dashboard.callbacks.review_state import load_durable_review
 from dashboard.application import _run_detail_panel
 from dashboard.run_detail_adapter import (
-    RunDetailDashboardAdapter,
-    _calendar_cagr,
+    RunDetailDashboardAdapter, _calendar_cagr,
     _screening_outcome_fields,
 )
 from market_data import DataAudit
@@ -46,6 +45,7 @@ from persistence import (
     StrategyLifecycle,
 )
 from strategies import get_strategy
+from tests.results_rendering_support import render_results_tabs
 
 
 def _frame() -> pd.DataFrame:
@@ -560,7 +560,7 @@ def test_durable_pair_persists_ranked_evidence_and_opens_in_existing_results(
         for run in FixtureRunService(database=database).recent_runs(limit=10)
         if run.run_id == f"{plan}-long"
     )
-    rendered = str(_run_detail_panel(selected_run, detail=detail))
+    rendered = str(_run_detail_panel(selected_run, detail=detail)) + render_results_tabs(detail)
     assert "Development/reference only" in rendered
     assert "Promotion is blocked" in rendered
     assert "Open exact saved-run link" in rendered

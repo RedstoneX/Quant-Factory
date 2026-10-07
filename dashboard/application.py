@@ -48,6 +48,8 @@ from dashboard.components.results_supporting import (  # noqa: E402
     render_results_supporting_charts,
     results_supporting_charts_host,
 )
+from dashboard.components.results_tabs import results_report_tabs as _lazy_results_report_tabs  # noqa: E402
+from dashboard.components.run_history import run_history_grid as _run_history_grid  # noqa: E402
 from dashboard.compare_adapter import CompareDashboardAdapter  # noqa: E402
 from dashboard.candidate_workflow import displayed_candidate_identity  # noqa: E402
 from dashboard.project_status import PROJECT_STATUS, DashboardProjectStatus  # noqa: E402
@@ -2526,6 +2528,14 @@ def _price_marker_figure(
 
 def _price_marker_panel(detail: SelectedRunDetailView | None) -> Any:
     prices = detail.evidence.price_series if detail is not None else ()
+    chart_data_available = bool(prices) or bool(
+        detail
+        and any(
+            artifact.logical_name == "equity_curve"
+            and artifact.validation_state == "valid"
+            for artifact in detail.artifacts
+        )
+    )
     source_interval = detail.evidence.source_interval if detail is not None else None
     source_index = (
         _RESULTS_INTERVALS.index(source_interval)
@@ -2536,7 +2546,7 @@ def _price_marker_panel(detail: SelectedRunDetailView | None) -> Any:
         {
             "label": interval,
             "value": interval,
-            "disabled": not prices or index < source_index,
+            "disabled": not chart_data_available or index < source_index,
         }
         for index, interval in enumerate(_RESULTS_INTERVALS)
     ]
@@ -2546,7 +2556,7 @@ def _price_marker_panel(detail: SelectedRunDetailView | None) -> Any:
     initial_view = _RESULTS_DEFAULT_VIEWS.get(initial_interval, "1D")
     placeholder = (
         "Loading the selected saved chart…"
-        if prices
+        if chart_data_available
         else (
             "Evidence not recorded: This run does not include a persisted underlying "
             "price series or buy-and-hold benchmark. Older runs remain readable, but "
@@ -2559,7 +2569,7 @@ def _price_marker_panel(detail: SelectedRunDetailView | None) -> Any:
     initial_summary = placeholder
     unavailable_intervals = (
         _RESULTS_INTERVALS[:source_index]
-        if prices and source_interval in _RESULTS_INTERVALS
+        if chart_data_available and source_interval in _RESULTS_INTERVALS
         else ()
     )
     availability_note = (
@@ -2573,7 +2583,7 @@ def _price_marker_panel(detail: SelectedRunDetailView | None) -> Any:
         if unavailable_intervals
         else (
             "Unavailable Bars — the persisted source interval was not recorded."
-            if prices and source_interval not in _RESULTS_INTERVALS
+            if chart_data_available and source_interval not in _RESULTS_INTERVALS
             else None
         )
     )
@@ -2583,7 +2593,7 @@ def _price_marker_panel(detail: SelectedRunDetailView | None) -> Any:
                 id="price-chart-load-trigger",
                 interval=1,
                 max_intervals=1,
-                disabled=not bool(prices),
+                disabled=not chart_data_available,
             ),
             html.Div(
                 [
@@ -2873,56 +2883,47 @@ def _results_report_tabs(
     detail: SelectedRunDetailView | None,
     *,
     selected_parameter_row_id: str | None = None,
-) -> dcc.Tabs:
-    return dcc.Tabs(
-        [
-            _run_detail_analysis_tab(
-                label="Overview",
-                value="metrics",
-                children=html.Div(
-                    _results_metrics_report(detail),
-                    className="results-report-panel",
-                ),
-            ),
-            _run_detail_analysis_tab(
-                label="Trades",
-                value="trades",
-                children=html.Div(
-                    [html.H3("Recent trades"), _trade_explorer_layout()],
-                    className="results-report-panel",
-                ),
-            ),
-            _run_detail_analysis_tab(
-                label="Variants",
-                value="variants",
-                children=_parameter_variants_explorer(
-                    (
-                        detail.result_summary
-                        if detail is not None
-                        else ResultSummaryView(
-                            status="empty",
-                            message="No persisted parameter variants are available for this run.",
-                            rows=(),
-                        )
-                    ),
-                    selected_parameter_row_id=selected_parameter_row_id,
-                ),
-            ),
-            _run_detail_analysis_tab(
-                label="Evidence & review",
-                value="evidence",
-                children=_validation_evidence_tab(detail),
-            ),
-            _run_detail_analysis_tab(
-                label="Assumptions & lineage",
-                value="assumptions",
-                children=_results_assumptions_and_lineage(detail),
-            ),
-        ],
-        id="run-detail-analysis-tabs",
-        value="variants" if selected_parameter_row_id else "metrics",
-        className="run-analysis-tabs results-workspace-tabs", persistence=True, persistence_type="session",
-        parent_style={"display": "flex", "gap": "8px"},
+) -> html.Div:
+    active_tab = "variants" if selected_parameter_row_id else "metrics"
+    return _lazy_results_report_tabs(
+        active_tab=active_tab,
+        initial_content=_results_report_tab_content(
+            active_tab,
+            detail,
+            selected_parameter_row_id=selected_parameter_row_id,
+        ),
+        tab_factory=_run_detail_analysis_tab,
+    )
+
+
+def _results_report_tab_content(
+    active_tab: str | None,
+    detail: SelectedRunDetailView | None,
+    *,
+    selected_parameter_row_id: str | None = None,
+) -> Any:
+    if active_tab == "trades":
+        return html.Div(
+            [html.H3("Recent trades"), _trade_explorer_layout()],
+            className="results-report-panel",
+        )
+    if active_tab == "variants":
+        summary = detail.result_summary if detail is not None else ResultSummaryView(
+            status="empty",
+            message="No persisted parameter variants are available for this run.",
+            rows=(),
+        )
+        return _parameter_variants_explorer(
+            summary,
+            selected_parameter_row_id=selected_parameter_row_id,
+        )
+    if active_tab == "evidence":
+        return _validation_evidence_tab(detail)
+    if active_tab == "assumptions":
+        return _results_assumptions_and_lineage(detail)
+    return html.Div(
+        _results_metrics_report(detail),
+        className="results-report-panel",
     )
 
 
@@ -3655,6 +3656,7 @@ def _results_review_panel() -> html.Section:
     )
 
 
+
 def _runs_page(
     configurations: tuple[SavedConfigurationView, ...] | None = None,
     recent_runs: tuple[RunSummary, ...] = (),
@@ -3714,7 +3716,7 @@ def _runs_page(
             ),
             html.Details(
                 [
-                    html.Summary("Change run"),
+                    html.Summary("Change run", id="results-run-history-toggle", n_clicks=0),
                     html.H2("Persisted run history"),
                     html.P("Search and sort every persisted run. Selecting a row opens the backtest details.", className="field-help"),
                     html.Button(
@@ -3736,71 +3738,9 @@ def _runs_page(
                         clearable=False,
                         placeholder="No recent backtests",
                     ),
-                    dag.AgGrid(
-                        id="run-history-grid",
-                        rowData=list(history_rows) if history_rows else [_history_row(run) for run in all_runs],
-                        columnDefs=[
-                            {"field": "run_id", "headerName": "Run ID", "hide": True},
-                            {"field": "created_at", "headerName": "Date"},
-                            {"field": "instrument", "headerName": "Instrument", "filter": "agTextColumnFilter"},
-                            {"field": "strategy", "headerName": "Strategy", "filter": "agTextColumnFilter"},
-                            {"field": "stage", "headerName": "Stage", "filter": "agTextColumnFilter"},
-                            {"field": "status", "headerName": "Status", "filter": "agTextColumnFilter"},
-                            {"field": "review", "headerName": "Review", "filter": "agTextColumnFilter"},
-                            {"field": "evidence", "headerName": "Evidence", "filter": "agTextColumnFilter"},
-                            {"field": "metric_basis", "headerName": "Metric Basis"},
-                            {
-                                "field": "total_return",
-                                "headerName": "Total Return",
-                                "type": "numericColumn",
-                                "filter": "agNumberColumnFilter",
-                                "valueFormatter": {
-                                    "function": "params.value == null ? '' : (params.value * 100).toFixed(2) + '%'"
-                                },
-                            },
-                            {
-                                "field": "annualized_return",
-                                "headerName": "Annualized Return",
-                                "type": "numericColumn",
-                                "filter": "agNumberColumnFilter",
-                                "valueFormatter": {
-                                    "function": "params.value == null ? '' : (params.value * 100).toFixed(2) + '%'"
-                                },
-                            },
-                            {
-                                "field": "sharpe_ratio",
-                                "headerName": "Sharpe Ratio",
-                                "type": "numericColumn",
-                                "filter": "agNumberColumnFilter",
-                                "valueFormatter": {
-                                    "function": "params.value == null ? '' : Number(params.value).toFixed(2)"
-                                },
-                            },
-                            {
-                                "field": "number_of_trades",
-                                "headerName": "Number of Trades",
-                                "type": "numericColumn",
-                                "filter": "agNumberColumnFilter",
-                                "valueFormatter": {
-                                    "function": "params.value == null ? '' : Math.round(params.value).toLocaleString()"
-                                },
-                            },
-                            {"field": "artifact_status", "headerName": "Artifacts"},
-                            {"field": "reproducibility", "headerName": "Reproducibility"},
-                        ],
-                        defaultColDef={"sortable": True, "filter": True, "resizable": True},
-                        dashGridOptions={
-                            "rowSelection": {
-                                "mode": "singleRow",
-                                "checkboxes": False,
-                                "enableClickSelection": True,
-                            }
-                        },
-                        getRowId="params.data.run_id",
-                        selectedRows=[],
-                        columnSize="responsiveSizeToFit",
-                        columnSizeOptions={"defaultMinWidth": 72},
-                        style={"height": "360px", "width": "100%"},
+                    html.Div(
+                        html.P("Open Change run to load persisted history.", className="field-help"),
+                        id="run-history-grid-host",
                     ),
                 ],
                 id="results-run-history-disclosure", open=False,
@@ -4209,6 +4149,8 @@ def _results_view_services() -> ResultsViewServices:
         recent_events_panel=_recent_events_panel,
         recent_runs_panel=_recent_runs_panel,
         run_detail_panel=_run_detail_panel,
+        run_history_grid=_run_history_grid,
+        results_report_tab_content=_results_report_tab_content,
         results_report_tabs=_results_report_tabs,
         results_supporting_charts=_results_supporting_charts,
         results_operator_context=_results_operator_context,
@@ -4462,6 +4404,26 @@ def create_layout(
     )
 
 
+def _dashboard_validation_layout(
+    context: DashboardContext | None,
+    configurations: tuple[SavedConfigurationView, ...] | None,
+    layout_kwargs: dict[str, Any],
+) -> html.Div:
+    dynamic_results = (
+        _run_history_grid(()),
+        *(
+            _results_report_tab_content(tab, None)
+            for tab in ("trades", "variants", "evidence", "assumptions")
+        ),
+    )
+    return html.Div(
+        [
+            create_layout(context, configurations, **layout_kwargs),
+            html.Div(dynamic_results, hidden=True),
+        ]
+    )
+
+
 def create_app(
     context: DashboardContext | None = None,
     review_database: str | Path | None = None,
@@ -4592,10 +4554,8 @@ def create_app(
         )
 
     app.layout = serve_layout
-    app.validation_layout = create_layout(
-        context,
-        configurations,
-        **layout_kwargs,
+    app.validation_layout = _dashboard_validation_layout(
+        context, configurations, layout_kwargs
     )
     from dashboard.callbacks.backtest_results import (
         register_backtest_results_callbacks,

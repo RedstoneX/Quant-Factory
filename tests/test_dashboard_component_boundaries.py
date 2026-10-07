@@ -69,6 +69,8 @@ def test_results_callbacks_construct_with_an_independent_view_contract(tmp_path)
         recent_events_panel=present,
         recent_runs_panel=present,
         run_detail_panel=present,
+        run_history_grid=present,
+        results_report_tab_content=present,
         results_report_tabs=present,
         results_supporting_charts=present,
         results_operator_context=present,

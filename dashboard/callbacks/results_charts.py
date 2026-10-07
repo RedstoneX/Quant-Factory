@@ -27,7 +27,7 @@ def register_results_chart_callbacks(
         Output("price-marker-summary", "children"),
         Input("price-chart-bars", "value"),
         Input("price-chart-view", "value"),
-        Input("selected-trade-grid", "selectedRows"),
+        Input("selected-trade-grid", "selectedRows", allow_optional=True),
         Input("price-chart-load-trigger", "n_intervals"),
         State("selected-run-state", "data"),
         State("url", "pathname"),

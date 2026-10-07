@@ -440,6 +440,14 @@ def test_deep_linked_identity_remains_visible_when_detail_retrieval_fails(
         [{"label": "Default", "value": "default-run"}],
     )
     rendered_detail = str(inspect(stored, "default-run", 0, 0, 0, 0))
+    rendered_detail += str(
+        _callback(app, "results-report-tab-content")(
+            "evidence",
+            stored,
+            "/research/backtest-results",
+            "?run_id=second-run",
+        )
+    )
 
     assert selected == "second-run"
     assert "second-run" in {option["value"] for option in options}

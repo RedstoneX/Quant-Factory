@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from dash import dcc, html
+from dash import html
 
 from dashboard.candidate_workflow import candidate_configuration_binding
 from dashboard.components.configuration_summary import configuration_summary
@@ -17,8 +17,7 @@ def layout(*, configurations: tuple[SavedConfigurationView, ...] | None = None, 
     """Render one route-gated research launch without weakening confirmation."""
     del configurations, catalog_snapshot, readiness_by_id
     return html.Div(
-        [dcc.Store(id="run-test-launch-state", storage_type="session"),
-         html.Div(render_selected_run_test(None, None, database=database, loading=loading), id="run-test-dynamic-view")],
+        [html.Div(render_selected_run_test(None, None, database=database, loading=loading), id="run-test-dynamic-view")],
         className="page-container run-test-page",
     )
 
