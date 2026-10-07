@@ -232,6 +232,23 @@ def test_home_recent_failure_takes_precedence_over_active_run() -> None:
     )
 
 
+def test_home_renders_multiple_failures_with_one_primary_action() -> None:
+    first = _run("first-failure", "failed", error_summary="First failure.")
+    second = _run("second-failure", "failed", error_summary="Second failure.")
+
+    page = layout(build_home_view_model(recent_runs=(first, second), as_of=NOW))
+    actions = [
+        item
+        for item in _walk(page)
+        if getattr(item, "id", None) == "home-primary-action"
+    ]
+
+    assert len(actions) == 1
+    assert actions[0].href.endswith("run_id=first-failure")
+    assert "First failure." in _text(page)
+    assert "Second failure." in _text(page)
+
+
 def test_home_shows_operator_product_handoff_status() -> None:
     model = build_home_view_model(
         recent_runs=(_run("first", "succeeded"), _run("second", "succeeded")),
