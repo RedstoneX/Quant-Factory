@@ -3,7 +3,7 @@
   "size_growth_backstop": {
     "max_lines": 1000,
     "grandfathered_modules": {
-      "dashboard.application": 4705,
+      "dashboard.application": 4673,
       "dashboard.callbacks.backtest_results": 1932,
       "dashboard.pages.home": 1317,
       "dashboard.run_detail_adapter": 1330,
@@ -56,7 +56,7 @@
       "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
     },
     "dashboard_support": {
-      "patterns": ["dashboard.routing", "dashboard.shell"],
+      "patterns": ["dashboard.progressive_routes", "dashboard.routing", "dashboard.shell"],
       "allowed_dependencies": ["backtesting", "dashboard_models", "dashboard_pages", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
     },
     "deployment": {

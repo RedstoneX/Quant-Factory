@@ -56,6 +56,7 @@ from dashboard.health import (  # noqa: E402
     inspect_catalog,
     local_home_health_readings,
 )
+from dashboard import progressive_routes as _progressive_routes  # noqa: E402
 from dashboard.routing import (  # noqa: E402
     NAVIGATION_LINKS,
     ROUTE_CONTAINER_IDS,
@@ -106,7 +107,6 @@ from dashboard.shell import create_dashboard_layout, navigation as _navigation  
 
 RECENT_RUN_DISPLAY_LIMIT = 4
 RECENT_EVENT_DISPLAY_LIMIT = 5
-INITIAL_PATH_COOKIE = "qf_dash_initial_pathname"
 
 OPERATOR_LABEL_OVERRIDES = {
     "config_hash": "Configuration checksum",
@@ -130,37 +130,6 @@ OPERATOR_VALUE_LABELS = {
     "same_bar_close": "Same-bar close",
     "screened_out": "Screened out",
 }
-
-
-def _request_pathname_for_initial_layout() -> str:
-    try:
-        from flask import request
-    except RuntimeError:
-        return "/"
-    if not request:
-        return "/"
-    return request.cookies.get(INITIAL_PATH_COOKIE) or "/"
-
-
-def _register_initial_path_cookie(app: Dash) -> None:
-    @app.server.after_request
-    def _remember_initial_dashboard_path(response):
-        from flask import request
-
-        if request.method == "GET" and not request.path.startswith(
-            (
-                "/_dash-",
-                "/assets/",
-                "/_favicon.ico",
-            )
-        ):
-            response.set_cookie(
-                INITIAL_PATH_COOKIE,
-                request.path or "/",
-                max_age=30,
-                samesite="Lax",
-            )
-        return response
 
 
 @dataclass(frozen=True)
@@ -4452,6 +4421,7 @@ def create_layout(
     catalog_checked_at: datetime | None = None,
     health_stale_after: timedelta = timedelta(minutes=15),
     health_refresh_interval_ms: int = 30_000,
+    progressive_routes: bool = False,
 ) -> html.Div:
     if catalog_snapshot is None:
         resolved_catalog_snapshot = inspect_catalog()
@@ -4488,6 +4458,7 @@ def create_layout(
         selected_run_id=selected_run_id,
         all_runs=all_runs,
         history_rows=history_rows,
+        progressive_routes=progressive_routes,
     )
 
 
@@ -4584,22 +4555,7 @@ def create_app(
     # and an explicit history selection hydrate a persisted run later.
     selected_run_id: str | None = None
     selected_run_panel: Any | None = _run_detail_panel(None)
-    app = Dash(
-        __name__,
-        prevent_initial_callbacks=True,
-        suppress_callback_exceptions=True,
-        meta_tags=[
-            {
-                "name": "viewport",
-                "content": (
-                    "width=device-width, initial-scale=1, "
-                    "maximum-scale=5, user-scalable=yes"
-                ),
-            }
-        ],
-    )
-    _register_initial_path_cookie(app)
-    app.title = "Quant Factory"
+    app = _progressive_routes.create_progressive_dash_app(__name__)
     layout_kwargs = {
         "dashboard_database": dashboard_database,
         "artifact_root": artifact_root,
@@ -4630,7 +4586,8 @@ def create_app(
         return create_layout(
             context,
             configurations,
-            initial_pathname=_request_pathname_for_initial_layout(),
+            initial_pathname=_progressive_routes.request_pathname_for_initial_layout(),
+            progressive_routes=True,
             **current_layout_kwargs,
         )
 
@@ -4656,7 +4613,18 @@ def create_app(
         register_results_review_callbacks,
     )
     from dashboard.callbacks.trade_explorer import register_trade_explorer_callbacks
-    register_routing_callbacks(app)
+    register_routing_callbacks(
+        app,
+        route_renderer=_progressive_routes.live_route_renderer(
+            page_for_path,
+            context,
+            configurations,
+            runs,
+            layout_kwargs,
+            local_home_health_readings,
+            _active_configuration_dataset_ids(configurations),
+        ),
+    )
     register_health_callbacks(app)
     register_ideas_callbacks(app, database=dashboard_database)
     register_setup_callbacks(

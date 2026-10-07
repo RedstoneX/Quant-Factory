@@ -38,7 +38,7 @@ def test_explicit_dashboard_database_owns_configuration_and_run_views(tmp_path, 
     finally:
         persistence.close()
     app = create_app(review_database=database)
-    layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
+    layout = str(app.validation_layout)
     assert configuration_id not in layout
     assert "No Candidate selected" in layout
     assert not unrelated.exists()

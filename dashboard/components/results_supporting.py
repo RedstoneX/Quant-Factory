@@ -15,7 +15,11 @@ def results_supporting_charts_host(*, available: bool) -> html.Details:
     )
     return html.Details(
         [
-            html.Summary("Equity, benchmark and drawdown"),
+            html.Summary(
+                "Equity, benchmark and drawdown",
+                id="results-supporting-charts-toggle",
+                n_clicks=0,
+            ),
             html.Div(
                 html.P(message, className="empty-state-copy"),
                 id="results-supporting-charts-content",

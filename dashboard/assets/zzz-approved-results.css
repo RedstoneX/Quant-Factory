@@ -298,7 +298,18 @@
 }
 
 .results-page #price-marker-chart {
-  min-height: 330px;
+  height: 330px;
+  min-height: 0;
+}
+
+@media (min-width: 1200px) {
+  .application-shell:has(.results-page) {
+    grid-template-columns: 172px minmax(0, 1fr);
+  }
+
+  .application-shell:has(.results-page) .results-page.page-container {
+    padding: 22px 24px 28px;
+  }
 }
 
 .results-page .results-recorded-outcomes {

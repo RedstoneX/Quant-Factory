@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from dash import Dash, Input, Output, State, ctx
+from collections.abc import Callable
+from typing import Any
+
+from dash import Dash, Input, Output, State, ctx, no_update
 from dash.exceptions import PreventUpdate
 
 from dashboard.routing import (
     NAVIGATION_ITEMS,
     NAVIGATION_LINKS,
+    ROUTE_REGISTRY,
     ROUTE_CONTAINER_IDS,
     navigation_classes_for_path,
     navigation_current_states_for_path,
@@ -45,7 +49,11 @@ def responsive_navigation_state(
     )
 
 
-def register_routing_callbacks(app: Dash) -> None:
+def register_routing_callbacks(
+    app: Dash,
+    *,
+    route_renderer: Callable[[str], Any] | None = None,
+) -> None:
     """Register the only callbacks that derive UI state from the active route."""
 
     @app.callback(
@@ -57,6 +65,21 @@ def register_routing_callbacks(app: Dash) -> None:
         if pathname is None:
             raise PreventUpdate
         return route_container_styles_for_path(pathname)
+
+    if route_renderer is not None:
+
+        @app.callback(
+            *[Output(container_id, "children") for container_id in ROUTE_CONTAINER_IDS],
+            Input("url", "pathname"),
+            prevent_initial_call=True,
+        )
+        def hydrate_active_route(pathname: str | None):
+            route = pathname or "/"
+            target_id = dict(ROUTE_REGISTRY).get(route, "route-not-found")
+            return tuple(
+                route_renderer(route) if container_id == target_id else no_update
+                for container_id in ROUTE_CONTAINER_IDS
+            )
 
     @app.callback(
         *[

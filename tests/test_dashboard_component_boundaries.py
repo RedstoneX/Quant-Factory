@@ -93,6 +93,9 @@ def test_results_callbacks_construct_with_an_independent_view_contract(tmp_path)
 
     assert "..price-marker-chart.figure...price-marker-summary.children.." in app.callback_map
     assert "results-supporting-charts-content.children" in app.callback_map
+    assert app.callback_map["results-supporting-charts-content.children"]["inputs"] == [
+        {"id": "results-supporting-charts-toggle", "property": "n_clicks"}
+    ]
 
     callback = app.callback_map[
         "..price-marker-chart.figure...price-marker-summary.children.."

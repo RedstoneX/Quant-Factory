@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from dash import dcc, html
+from dash import Dash, dcc, html, no_update
 
-from dashboard.callbacks.routing import responsive_navigation_state
-from dashboard.routing import NAVIGATION_LINKS, ROUTE_REGISTRY
+from dashboard.callbacks.routing import register_routing_callbacks, responsive_navigation_state
+from dashboard.routing import NAVIGATION_LINKS, ROUTE_CONTAINER_IDS, ROUTE_REGISTRY
 from dashboard.shell import (
     create_dashboard_layout,
     responsive_drawer_class,
@@ -62,6 +62,57 @@ def test_responsive_shell_mounts_one_location_and_accessible_drawer_controls() -
         for component in components
         if getattr(component, "id", None) == "responsive-active-page"
     ).children == "Set up"
+
+
+def test_progressive_shell_renders_only_the_requested_route_content() -> None:
+    rendered_paths: list[str] = []
+
+    def page_factory(path: str, *_args: Any, **_kwargs: Any):
+        rendered_paths.append(path)
+        return html.Div(path)
+
+    layout = create_dashboard_layout(
+        None,
+        (),
+        page_factory=page_factory,
+        initial_pathname="/research/backtest-results",
+        progressive_routes=True,
+    )
+    containers = {
+        component.id: component
+        for component in _walk(layout)
+        if getattr(component, "id", None)
+        and str(component.id).startswith("route-")
+    }
+
+    assert rendered_paths == ["/research/backtest-results"]
+    assert containers["route-research-backtest-results"].children is not None
+    assert containers["route-research-setup"].children is None
+    assert containers["route-home"].children is None
+
+
+def test_route_navigation_hydrates_only_the_newly_active_container() -> None:
+    app = Dash(__name__)
+    register_routing_callbacks(
+        app,
+        route_renderer=lambda path: html.Div(path, id="rendered-route"),
+    )
+    entry = next(
+        value
+        for key, value in app.callback_map.items()
+        if "route-home.children" in key
+    )
+    callback = getattr(entry["callback"], "__wrapped__", entry["callback"])
+
+    result = callback("/research/setup")
+    target_index = ROUTE_CONTAINER_IDS.index("route-research-setup")
+
+    assert result[target_index].children == "/research/setup"
+    assert all(
+        value is no_update
+        for index, value in enumerate(result)
+        if index != target_index
+    )
 
 
 def test_responsive_page_labels_cover_registered_routes_and_unknowns() -> None:

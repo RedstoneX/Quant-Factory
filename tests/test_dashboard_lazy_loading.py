@@ -73,7 +73,7 @@ def test_results_history_grid_mounts_empty_then_hydrates_on_open(
 
     grid = next(
         component
-        for component in _walk_components(_resolved_layout(app))
+        for component in _walk_components(app.validation_layout)
         if getattr(component, "id", None) == "run-history-grid"
     )
     columns = {column["field"]: column for column in grid.columnDefs}

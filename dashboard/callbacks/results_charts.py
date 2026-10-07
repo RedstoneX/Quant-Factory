@@ -72,17 +72,19 @@ def register_results_chart_callbacks(
 
     @app.callback(
         Output("results-supporting-charts-content", "children"),
-        Input("results-supporting-charts", "open"),
+        Input("results-supporting-charts-toggle", "n_clicks"),
         State("selected-run-state", "data"),
         State("url", "pathname"),
         prevent_initial_call=True,
     )
     def load_results_supporting_charts(
-        opened: bool,
+        n_clicks: int | None,
         run_id: str | None,
         pathname: str | None,
     ):
-        if not opened or not active_route(pathname, "/research/backtest-results"):
+        if not n_clicks or n_clicks % 2 == 0:
+            raise PreventUpdate
+        if not active_route(pathname, "/research/backtest-results"):
             raise PreventUpdate
         run_id = selected_run_id(run_id)
         if not run_id:
