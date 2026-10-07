@@ -10,22 +10,22 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Finish and deploy the measured Results latency correction before Terry's owner walkthrough. The same sealed ORB/VWAP run must open as a usable Overview in under 2 seconds and an interactive chart in under 5 seconds on the private service. |
-| Phase | **R13 remains accepted. R12 private-beta workflow correction continues under Decisions 334–335.** |
-| Active work | **Revision `11d66b3` is deployed and healthy.** PRs #175–176 reduced the mounted Dash layout from 428 KB to 94.7 KB, separated Overview and chart artifact reads, deferred inactive Results tabs and history, replaced the unreliable native disclosure event, and retriggered Trades after its dynamic mount. The exact sealed run now reaches Overview in 3.863 seconds and the interactive chart in 5.424 seconds; 1M/1W, supporting charts, and all 1,645 Trades rows pass with no console errors or pre-tab trade payload. The under-2-second/under-5-second owner target remains unmet. Preserve the separate Compare work. |
+| Immediate objective | Reach owner acceptance of one new bounded same-session intraday QF Candidate v1 packet and its fixed evidence contract before any implementation or test. |
+| Phase | **R13 remains accepted, and the R12 operator handoff is owner-accepted. The owner-approved Candidate research gate is next under Decision 336.** |
+| Active work | **No executable Candidate is active.** Terry accepted the deployed private-beta workflow and its current 3.863-second Overview / 5.424-second chart latency on 2026-10-07. Revision `11d66b3` remains healthy. The required read-only prior-work check is complete; it found no already-accepted Candidate to implement. Both fixed MES workflow-proof Candidates remain screened out and may not be tuned or rerun. |
 | Existing assets | The generic Candidate runtime, bounded parameter plans, persisted Variants grid, OOS/walk-forward/robustness/Monte Carlo engines, Plotly Dash, Dash AG Grid, and licensed VectorBT Pro 2026.4.7 are present. The private VectorBT Pro repository and v2026.10.5 source are accessible; that upgrade is selected but not installed and has breaking defaults that require a separate compatibility proof. Bitwarden Secrets Manager remains operational through the scoped `Codex` machine account. |
-| Verified gap | The shared layout, unrelated eager callbacks, disclosure trigger, and dynamically mounted Trades race are corrected. Browser startup still loads large Plotly and Dash AG Grid component bundles, and the measured end-to-end targets remain missed by 1.863 seconds for Overview and 0.424 seconds for the chart. No evidence shows that chart-library replacement or a strategy rerun would correct this remaining browser startup cost. The browser also cannot yet define and launch an approved bounded study. The deployed Compare empty-state defect remains separate preserved work. |
-| Next action | **Stop for Terry's checkpoint on the deployed partial performance pass.** The next implementation requires owner direction on whether to preserve the current under-2-second/under-5-second targets and continue profiling browser component startup. Do not build a custom optimizer or move to another page while this gate is open. |
+| Verified gap | No new bounded Candidate packet and evidence contract have been accepted. Current latency is accepted for the private beta and is no longer an R12 blocker; future optimization remains optional measured work. The deployed Compare empty-state defect remains separate preserved work. |
+| Next action | Present or import one source-attributed same-session intraday QF Candidate v1 packet with fixed rules, parameter bounds, execution assumptions, data boundary, costs, objective, and predeclared evidence gates for Terry's explicit acceptance. Do not implement or run it before that acceptance. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
-| Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first. Parameter search requires an approved bounded study and fixed objective; no open-ended mining, retroactive tuning of the fixed MES Candidates, protected-evidence inspection, automatic promotion, data purchase, orders, or inferred paper/live authority. |
+| Hard boundaries | Candidate work remains same-session intraday only. Parameter search requires an approved bounded study and fixed objective; no open-ended mining, retroactive tuning of the fixed MES Candidates, protected-evidence inspection, automatic promotion, data purchase, orders, or inferred paper/live authority. |
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Connected workflow proof passed; Results timing and Terry's acceptance remain open.** Revision `11d66b3` is deployed; the sealed ORB/VWAP evidence remains immutable. Overview is 3.863 seconds and the chart is 5.424 seconds. Range controls, supporting charts, deferred Trades hydration, all 1,645 trade rows, and zero console errors pass. The owner target is not met. Preserve separate Compare work. |
-| R14 | 2 | blocked | R12 | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
+| R15 | 1 | blocked | none | **Owner-approved Candidate research gate.** R12 was owner-accepted on 2026-10-07. The read-only prior-work check found no already-accepted Candidate: the exact MES ORB baseline, ORB/VWAP, SMA, and overnight-gap hypotheses remain closed as tested; the MSFT transfer was withdrawn, SPYM was fixture evidence, and daily trend/turn-of-month work is outside the current mandate. Obtain Terry's explicit acceptance of one bounded QF Candidate v1 packet and evidence contract before implementation or execution. |
+| R14 | 2 | blocked | none | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
 
 The former gate wording, `No Codex implementation is active while Terry performs the walkthrough`,
@@ -44,7 +44,7 @@ is superseded by Terry's reported UI defects and current R12 correction authorit
   sessions-per-year, and risk-free-rate metadata. Revision `6fd109b` is deployed
   and both dashboard and Agent Gateway containers are healthy. Existing sealed
   runs remain unchanged and are not reinterpreted.
-- **Active performance correction:** PR #171 and deployed revision `b7ad084`
+- **Accepted performance correction:** PR #171 and deployed revision `b7ad084`
   decode the immutable JSON artifact directly from bytes with pinned `orjson`,
   map events to validated bars with binary search, and defer primary/supporting
   chart construction. Local server work measured about 1.77 seconds for
@@ -61,7 +61,9 @@ is superseded by Terry's reported UI defects and current R12 correction authorit
   Trades after its dynamic mount. The final scoped browser pass measured 3.863
   seconds to Overview and 5.424 seconds to the chart; 1M/1W, supporting charts,
   all 1,645 Trades rows, absence of a pre-tab trade payload, and zero console
-  errors passed. The latency target remains open. Plotly Resampler remains for
+  errors passed. Terry accepted the current latency for the private beta on
+  2026-10-07; the former under-2-second/under-5-second thresholds are no longer
+  an R12 blocking gate. Plotly Resampler remains for
   future measured line-only needs; it does not safely wrap this mixed
   candlestick-and-marker figure. Do not rerun a strategy.
 - **Approved study direction:** After the performance checkpoint, Set up and
@@ -135,8 +137,8 @@ profitability, or the licensed engine itself.
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
 3. Dashboard and operator-product implementation — TECHNICAL PASS; OWNER HANDOFF AVAILABLE
 4. **Standardized QF Candidate v1 intake — COMPLETE; OWNER ACCEPTED 2026-10-02**
-5. Results performance correction and owner walkthrough / handoff acceptance — ACTIVE
-6. Owner-approved candidate research
+5. Results performance correction and owner walkthrough / handoff acceptance — COMPLETE, OWNER ACCEPTED 2026-10-07
+6. Owner-approved candidate research — BLOCKED AT CANDIDATE ACCEPTANCE GATE
 7. Validation of a surviving edge
 8. Execution-vehicle comparison
 9. Paper operation

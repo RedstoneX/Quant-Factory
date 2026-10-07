@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **336** | **Accept the deployed R12 operator handoff and advance to the Candidate gate:** Terry accepts the current private-beta Results latency of 3.863 seconds to Overview and 5.424 seconds to the interactive chart as adequate to proceed. R12 is complete; further latency work is optional measured optimization rather than a handoff blocker. The next milestone begins with one new bounded same-session intraday QF Candidate v1 packet and fixed evidence contract for explicit owner acceptance. No implementation, strategy run, fixed-MES tuning, protected-test access, paper/live trading, or capital authority follows automatically. |
 | **335** | **Adopt the recovered VectorBT-native performance and bounded-study path:** revision `6fd109b` corrected intraday annualization and is deployed without rewriting sealed evidence. Remove the measured Results latency at its profiled server boundary; use maintained chart resampling only for compatible trace types. Later study setup exposes only approved Candidate ranges, search budget, costs, period, and objective; VectorBT Pro performs conditional/random/chunked execution with metric-only search results and complete evidence for selected finalists. Results emphasizes stable regions, return versus drawdown, cost/time validation, trade diagnostics, and exact finalist drilldowns. v2026.10.5 is the selected upgrade target but remains uninstalled pending a separate compatibility proof. No fixed-Candidate tuning, open-ended mining, protected-test access, automatic promotion, paper/live trading, or capital authority. |
 | **334** | **Authorize one private-beta deployment and real operator proof:** Terry requests that the connected Candidate UI be deployed and run properly, with no fixture or fabricated profitability proof. Fix the confirmed screening artifact and verified-data lineage gaps, complete the required repository/CI cycle, rebuild only the dashboard service, and prove the deployed path with one real approved Candidate run on existing data. Preserve sealed prior runs and separate Compare work. No protected test, new strategy research, paper/live trading, or capital authority. |
 | **333** | **Owner authorizes local browser-driven backtests of two exact MES Candidates:** run the previously accepted ORB/VWAP Candidate once and the separately approved fixed intraday 10/30 SMA Candidate once on existing verified MES 5-minute data, and repair root-cause local workflow blockers. The earlier no-PR/no-deployment gate remains. Protected test, optimization, paid data, paper/live trading, and capital remain closed. |
@@ -2280,3 +2281,21 @@ superseded.
      paper/live trading, broker orders, or capital exposure. Preserve the
      separate Compare work and stop for Terry after each deployed foundational
      correction.
+
+
+336. **Accept the R12 operator handoff and advance to the bounded Candidate
+     gate (accepted 2026-10-07).** Terry accepts the deployed private-beta
+     Results latency of 3.863 seconds to usable Overview and 5.424 seconds to
+     the interactive chart as adequate for the current stage. Revision
+     `11d66b3` remains the healthy deployed dashboard revision. The former
+     under-2-second Overview and under-5-second chart thresholds are retained
+     as possible future optimization targets but no longer block R12 handoff.
+
+     R12 is owner-accepted and complete. The next research milestone starts at
+     the existing owner gate: one source-attributed, bounded, same-session
+     intraday QF Candidate v1 packet and its fixed evidence contract must be
+     explicitly accepted before implementation or execution. This decision
+     does not authorize rerunning or tuning either screened-out fixed MES
+     Candidate, inspecting protected data, starting an open-ended optimization
+     campaign, promoting an edge automatically, buying data, submitting broker
+     orders, paper/live trading, or capital exposure.
