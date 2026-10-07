@@ -541,7 +541,6 @@ def register_backtest_results_callbacks(
         detail_adapter=detail_adapter,
         active_route=_active_route,
         selected_run_id=_persisted_selected_run_id,
-        callback_triggered_id=_callback_triggered_id,
         empty_price_figure=_empty_price_marker_figure,
         price_figure=_price_marker_figure,
         supporting_charts=_results_supporting_charts,

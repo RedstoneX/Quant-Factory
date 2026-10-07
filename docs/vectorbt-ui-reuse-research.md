@@ -60,6 +60,15 @@ active UI regions. The correct reusable pattern is one checksum-validated read,
 indexed event lookup, progressive chart construction, and bounded payloads.
 Dynamic resampling remains appropriate for a future measured line-only chart.
 
+The first deployed implementation at revision `b7ad084` removed those server
+hotspots, then a representative browser trace exposed the next owning boundary:
+the mounted callback graph loaded a 909 KB trade-grid response twice while the
+Trades tab was inactive, and the deferred chart callback rejected its own
+combined initial trigger. The durable pattern is therefore route- and tab-aware
+hydration driven by one canonical selection state, plus explicit handling of
+simultaneous Dash inputs. Server timings alone do not establish operator load
+time.
+
 ### Parameter studies and automatic optimization
 
 Use VectorBT Pro's native conditional parameter grids, random subsets,

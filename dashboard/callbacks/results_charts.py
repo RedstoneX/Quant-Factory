@@ -16,7 +16,6 @@ def register_results_chart_callbacks(
     detail_adapter: RunDetailDashboardAdapter,
     active_route: Callable[[str | None, str], bool],
     selected_run_id: Callable[[str | None], str | None],
-    callback_triggered_id: Callable[[], str | None],
     empty_price_figure: Callable[[str], Any],
     price_figure: Callable[..., tuple[Any, str]],
     supporting_charts: Callable[[Any], Any],
@@ -45,8 +44,6 @@ def register_results_chart_callbacks(
         if not active_route(pathname, "/research/backtest-results"):
             raise PreventUpdate
         if not interval or not view:
-            raise PreventUpdate
-        if callback_triggered_id() == "selected-trade-grid" and not selected_rows:
             raise PreventUpdate
         run_id = selected_run_id(run_id)
         if not run_id:

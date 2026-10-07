@@ -472,12 +472,13 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
 
     rows, summary, selected = refresh_rows(
         "run-a",
-        "run-a",
+        "trades",
         ["Loss"],
         ["Short"],
         "2026-01-03",
         "2026-01-03",
         0,
+        "run-a",
         "/research/backtest-results",
     )
 
@@ -490,12 +491,13 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
 
     rows, _, selected = refresh_rows(
         "run-b",
-        "run-b",
+        "trades",
         [],
         [],
         None,
         None,
         0,
+        "run-b",
         "/research/backtest-results",
     )
     assert [row["__run_id"] for row in rows] == ["run-b"]
@@ -503,19 +505,35 @@ def test_trade_callback_filters_rows_and_clears_selection_on_run_change(
 
     rows, summary, _ = refresh_rows(
         None,
-        "run-a",
+        "trades",
         [],
         [],
         None,
         None,
         0,
+        "run-a",
         "/research/backtest-results",
     )
     assert len(rows) == 2
     assert "Showing 2 of 2" in summary
 
     with pytest.raises(PreventUpdate):
-        refresh_rows("run-a", "run-a", [], [], None, None, 0, "/")
+        refresh_rows("run-a", "trades", [], [], None, None, 0, "run-a", "/")
+
+    adapter.requests.clear()
+    with pytest.raises(PreventUpdate):
+        refresh_rows(
+            "run-a",
+            "metrics",
+            [],
+            [],
+            None,
+            None,
+            0,
+            "run-a",
+            "/research/backtest-results",
+        )
+    assert adapter.requests == []
 
 
 def test_mes_trade_prices_are_points_while_fees_and_pnl_remain_dollars() -> None:

@@ -64,7 +64,7 @@ def test_results_callbacks_construct_with_an_independent_view_contract(tmp_path)
         operator_message=present,
         parameter_variant_selection=present,
         empty_price_marker_figure=present,
-        price_marker_figure=present,
+        price_marker_figure=lambda *_args, **_kwargs: ("price figure", "price summary"),
         preferred_backtest_id=present,
         recent_events_panel=present,
         recent_runs_panel=present,
@@ -78,7 +78,12 @@ def test_results_callbacks_construct_with_an_independent_view_contract(tmp_path)
     register_backtest_results_callbacks(
         app,
         runs=SimpleNamespace(),
-        detail_adapter=SimpleNamespace(artifact_root=tmp_path),
+        detail_adapter=SimpleNamespace(
+            artifact_root=tmp_path,
+            selected_run_detail=lambda _run_id: SimpleNamespace(
+                evidence=SimpleNamespace(price_series=({"Close": 1.0},))
+            ),
+        ),
         configurations=(),
         readiness_by_id={},
         dashboard_database=tmp_path / "dashboard.sqlite3",
@@ -88,3 +93,16 @@ def test_results_callbacks_construct_with_an_independent_view_contract(tmp_path)
 
     assert "..price-marker-chart.figure...price-marker-summary.children.." in app.callback_map
     assert "results-supporting-charts-content.children" in app.callback_map
+
+    callback = app.callback_map[
+        "..price-marker-chart.figure...price-marker-summary.children.."
+    ]["callback"]
+    callback = getattr(callback, "__wrapped__", callback)
+    assert callback(
+        "5m",
+        "1W",
+        [],
+        1,
+        "run-1",
+        "/research/backtest-results",
+    ) == ("price figure", "price summary")

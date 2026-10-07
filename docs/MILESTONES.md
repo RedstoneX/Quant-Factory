@@ -12,10 +12,10 @@ create a competing queue.
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
 | Immediate objective | Finish and deploy the measured Results latency correction before Terry's owner walkthrough. The same sealed ORB/VWAP run must open as a usable Overview in under 2 seconds and an interactive chart in under 5 seconds on the private service. |
 | Phase | **R13 remains accepted. R12 private-beta workflow correction continues under Decisions 334–335.** |
-| Active work | **Revision `6fd109b` is deployed and healthy.** PR #169 corrected intraday annualized return and Sharpe at their owning boundary; no Candidate was rerun and sealed evidence was not changed. The Results correction is implemented locally and not yet deployed: byte-native JSON decoding, indexed marker lookup, and progressive chart loading reduced measured server work on the same sealed ORB/VWAP run to about 1.77 seconds for Overview and 0.34 seconds for its deferred price chart. Focused checks are passing. Preserve the separate Compare work. |
+| Active work | **Revision `b7ad084` is deployed and healthy.** PR #171 added byte-native artifact decoding, indexed marker lookup, bounded chart data, and progressive chart loading without changing the sealed run. The first representative browser measurement exposed two remaining callback defects: usable Overview took 15.3 seconds because the inactive Trades tab sent the same 909 KB row payload twice, and the price chart stayed in its loading state because its combined initial trigger was rejected as an empty trade selection. The root corrections are implemented locally and focused checks pass. Preserve the separate Compare work. |
 | Existing assets | The generic Candidate runtime, bounded parameter plans, persisted Variants grid, OOS/walk-forward/robustness/Monte Carlo engines, Plotly Dash, Dash AG Grid, and licensed VectorBT Pro 2026.4.7 are present. The private VectorBT Pro repository and v2026.10.5 source are accessible; that upgrade is selected but not installed and has breaking defaults that require a separate compatibility proof. Bitwarden Secrets Manager remains operational through the scoped `Codex` machine account. |
-| Verified gap | Profiling the real 80 MB chart artifact found the 23-second path was dominated by standard-library decoding, an all-bars scan for every trade marker, and eager construction/serialization of charts whose controls or disclosure were not active. Plotly Resampler handles line traces, not the mixed candlestick-and-marker figure, so globally wrapping this chart would add an incompatible layer without fixing those causes. The browser can inspect persisted variants but cannot yet define and launch an approved bounded study. It also lacks parameter-stability views, readable validation and cost sensitivity, richer trade diagnostics, and finalist-specific evidence drilldowns. The deployed Compare empty-state defect remains separate preserved work. |
-| Next action | Complete the focused checks and repository workflow for the Results correction, deploy only the dashboard, prove the same sealed run against the under-2-second Overview and under-5-second chart targets, and stop for Terry's checkpoint. Then expose approved bounded study setup and native VectorBT Pro optimization; do not build a custom optimizer. |
+| Verified gap | The artifact and figure algorithms are no longer the dominant server cost. The deployed browser trace showed that route-wide callback hydration still loaded inactive trade data and that the price-chart trigger incorrectly treated a simultaneous empty selection as the sole cause. Plotly Resampler handles line traces, not the mixed candlestick-and-marker figure, so globally wrapping this chart would add an incompatible layer without fixing those causes. The browser can inspect persisted variants but cannot yet define and launch an approved bounded study. It also lacks parameter-stability views, readable validation and cost sensitivity, richer trade diagnostics, and finalist-specific evidence drilldowns. The deployed Compare empty-state defect remains separate preserved work. |
+| Next action | Merge and deploy the callback correction: hydrate the 1,645-row trade payload only when Trades is active, use the canonical selected-run state so selection hydration does not duplicate it, and let the chart's intended initial trigger render the chart. Then prove the same sealed run against the under-2-second Overview and under-5-second chart targets and stop for Terry's checkpoint. Do not build a custom optimizer. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
 | Hard boundaries | Candidate work remains same-session intraday only. Perform the cheap prior-work check first. Parameter search requires an approved bounded study and fixed objective; no open-ended mining, retroactive tuning of the fixed MES Candidates, protected-evidence inspection, automatic promotion, data purchase, orders, or inferred paper/live authority. |
 
@@ -24,7 +24,7 @@ create a competing queue.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | **Connected workflow proof passed; performance deployment and Terry's acceptance remain open.** PRs #163–169 passed CI. Revision `6fd109b` is deployed and healthy. The approved ORB/VWAP run has immutable sealed evidence, a verified dataset checksum, and 1,645 trades; Results retained all rows and filtered 877 losses. Intraday annualization is corrected for future runs without rewriting this sealed run. The measured Results root causes are corrected locally and focused checks pass; private-service timing and owner acceptance remain. Preserve separate Compare work. |
+| R12 | 1 | in_progress | none | **Connected workflow proof passed; Results timing and Terry's acceptance remain open.** PR #171 is deployed at revision `b7ad084`; the sealed ORB/VWAP evidence remains immutable. Its browser trace measured 15.3 seconds to usable Overview and found an unrendered deferred chart, so the owner target is not yet met. Inactive-tab trade hydration and the chart-trigger rejection are corrected locally with focused checks passing. Preserve separate Compare work. |
 | R14 | 2 | blocked | R12 | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
 
@@ -44,16 +44,19 @@ is superseded by Terry's reported UI defects and current R12 correction authorit
   sessions-per-year, and risk-free-rate metadata. Revision `6fd109b` is deployed
   and both dashboard and Agent Gateway containers are healthy. Existing sealed
   runs remain unchanged and are not reinterpreted.
-- **Active performance correction:** Profiling the same sealed run separated
-  artifact decoding, marker mapping, component construction, and
-  serialization. The local correction decodes the immutable JSON artifact
-  directly from bytes with pinned `orjson`, maps events to validated bars with
-  binary search, and builds primary/supporting charts only after their existing
-  controls become active. Local server work measured about 1.77 seconds for
-  Overview and 0.34 seconds for the deferred price chart. Plotly Resampler
-  remains available for future large line-only charts, but it does not safely
-  wrap the current mixed candlestick-and-marker figure. Private-service proof
-  remains; do not rerun a strategy.
+- **Active performance correction:** PR #171 and deployed revision `b7ad084`
+  decode the immutable JSON artifact directly from bytes with pinned `orjson`,
+  map events to validated bars with binary search, and defer primary/supporting
+  chart construction. Local server work measured about 1.77 seconds for
+  Overview and 0.34 seconds for the price chart, but the first representative
+  browser trace measured 15.3 seconds to usable Overview. It identified a
+  duplicated 909 KB payload for the inactive Trades tab and a chart callback
+  that rejected its simultaneous initial load/empty-selection event. The local
+  follow-up gates trade hydration on the active tab, removes duplicate selector
+  hydration, and allows the initial chart render. Plotly Resampler remains for
+  future measured line-only needs; it does not safely wrap this mixed
+  candlestick-and-marker figure. Reprove after deployment; do not rerun a
+  strategy.
 - **Approved study direction:** After the performance checkpoint, Set up and
   Run test may expose only Candidate-approved parameter values, search budget,
   costs, data period, and declared objective. Use VectorBT Pro conditional or
