@@ -140,7 +140,9 @@ def test_spym_fixture_persists_price_series_and_vectorbt_benchmark(
     assert benchmark["resampling"].startswith("none; full observed Databento")
     assert "zero configured fees/slippage" in benchmark["limitations"]
 
-    assert len(detail.evidence.price_series) == 53528
+    assert len(detail.evidence.price_series) == 20000
+    assert detail.evidence.price_series[-1] == payload["price_series"][-1]
+    assert any("latest 20,000 of 53,528" in warning for warning in detail.evidence.warnings)
     assert len(detail.evidence.benchmark_curve) == 53528
     assert detail.evidence.benchmark == benchmark
 
@@ -160,7 +162,8 @@ def test_price_and_benchmark_renderers_use_persisted_series(tmp_path: Path) -> N
         candlestick = next(trace for trace in figure.data if trace.type == "candlestick")
         assert candlestick.name.startswith("Synthetic fixture SPYM")
         counts.append(len(candlestick.x))
-    assert counts == [53528, 13340, 4474, 173]
+    assert counts == [20000, 5050, 1684, 65]
+    assert any("latest 20,000 of 53,528" in warning for warning in detail.evidence.warnings)
 
     benchmark_panel = _portfolio_value_panel(detail)
     benchmark_graph = _graph(benchmark_panel)

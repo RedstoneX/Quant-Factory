@@ -14,6 +14,7 @@ from persistence import ArtifactAvailability, ArtifactType, PersistenceService
 from persistence.database import database_path
 from persistence.serialization import canonical_json
 from dashboard.candidate_workflow import candidate_detail_fields, candidate_identity_for_configuration
+from dashboard.evidence_chart_window import _safe_artifact_path, _read_valid_json_artifacts
 from dashboard.formatting import format_metric
 from dashboard.results_model import ResultsDataError, validate_ohlc_rows
 
@@ -548,46 +549,6 @@ def _canonical_interval(value: Any) -> str | None:
         "daily": "1D",
     }
     return aliases.get(normalized)
-
-
-def _safe_artifact_path(root: Path, location: str) -> Path:
-    relative = Path(location)
-    if relative.is_absolute() or ".." in relative.parts:
-        raise ValueError("artifact location is unsafe")
-    candidate = (root.resolve() / relative).resolve()
-    candidate.relative_to(root.resolve())
-    return candidate
-
-
-def _read_valid_json_artifacts(
-    retrieval,
-    *,
-    artifact_root: Path,
-) -> tuple[dict[str, Any], list[str]]:
-    validation_by_id = {
-        validation.artifact_id: validation
-        for validation in retrieval.validations
-    }
-    documents: dict[str, Any] = {}
-    warnings: list[str] = []
-    for artifact in retrieval.artifacts:
-        validation = validation_by_id.get(artifact.artifact_id)
-        if validation is None or not validation.valid:
-            warnings.append(
-                f"Artifact {artifact.logical_name} is not readable: "
-                f"{validation.reason if validation else 'validation_not_run'}."
-            )
-            continue
-        if artifact.format != "json":
-            continue
-        try:
-            path = _safe_artifact_path(artifact_root, artifact.location)
-            documents[artifact.logical_name] = json.loads(
-                path.read_text(encoding="utf-8")
-            )
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
-            warnings.append(f"Artifact {artifact.logical_name} content is invalid: {exc}.")
-    return documents, warnings
 
 
 def _calendar_cagr(total_return: Any, actual_coverage: Any) -> float | None:

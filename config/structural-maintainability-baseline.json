@@ -59,7 +59,7 @@
     "dashboard/components/trade_explorer.py": 647,
     "dashboard/pages/home.py": 1317,
     "dashboard/run_adapter.py": 823,
-    "dashboard/run_detail_adapter.py": 1369,
+    "dashboard/run_detail_adapter.py": 1330,
     "execution/paper_observer_bootstrap.py": 989,
     "market_data/providers/alpaca.py": 954,
     "orchestration/candidate_pipeline_runtime.py": 1109,
