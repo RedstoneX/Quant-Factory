@@ -46,6 +46,7 @@ from dashboard.components.results_review import (  # noqa: E402
 )
 from dashboard.components.results_supporting import (  # noqa: E402
     render_results_supporting_charts,
+    results_supporting_charts_host,
 )
 from dashboard.compare_adapter import CompareDashboardAdapter  # noqa: E402
 from dashboard.candidate_workflow import displayed_candidate_identity  # noqa: E402
@@ -2794,6 +2795,7 @@ def _results_metrics_report(detail: SelectedRunDetailView | None) -> Any:
                     ],
                     className="results-chart-workspace",
                 ),
+                results_supporting_charts_host(available=False),
             ],
             className="results-overview",
         )
@@ -2827,20 +2829,7 @@ def _results_metrics_report(detail: SelectedRunDetailView | None) -> Any:
                 ],
                 className="results-chart-workspace",
             ),
-            html.Details(
-                [
-                    html.Summary("Equity, benchmark and drawdown"),
-                    html.Div(
-                        html.P(
-                            "Open this section to load its saved equity, benchmark and drawdown charts.",
-                            className="empty-state-copy",
-                        ),
-                        id="results-supporting-charts-content",
-                    ),
-                ],
-                id="results-supporting-charts",
-                className="operator-details results-supporting-charts",
-            ),
+            results_supporting_charts_host(available=True),
         ],
         className="results-overview",
     )

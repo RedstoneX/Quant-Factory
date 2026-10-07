@@ -7,6 +7,26 @@ from typing import Any, Callable
 from dash import html
 
 
+def results_supporting_charts_host(*, available: bool) -> html.Details:
+    message = (
+        "Open this section to load its saved equity, benchmark and drawdown charts."
+        if available
+        else "Select a completed run before loading supporting charts."
+    )
+    return html.Details(
+        [
+            html.Summary("Equity, benchmark and drawdown"),
+            html.Div(
+                html.P(message, className="empty-state-copy"),
+                id="results-supporting-charts-content",
+            ),
+        ],
+        id="results-supporting-charts",
+        hidden=not available,
+        className="operator-details results-supporting-charts",
+    )
+
+
 def render_results_supporting_charts(
     detail: Any,
     *,

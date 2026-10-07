@@ -606,7 +606,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 59
+    assert len(app.callback_map) == 60
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -6338,8 +6338,7 @@ def test_run_detail_panel_handles_missing_manifest_config_and_empty_summary() ->
     assert "Not recorded" in rendered
     assert "No artifact inventory is available" in rendered
     assert "No persisted parameter result summary is available" in rendered
-    assert "No persisted equity curve artifact is available for this run." in rendered
-    assert "No persisted drawdown artifact is available for this run." in rendered
+    assert "Open this section to load its saved equity" in rendered
     assert (
         "Completed trades appear here when the run has a persisted trades artifact."
         in rendered

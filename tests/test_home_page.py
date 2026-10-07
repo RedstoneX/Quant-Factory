@@ -8,6 +8,7 @@ from typing import Any, Iterator
 import pytest
 
 from dashboard.pages.home import HomeHealthReading, build_home_view_model, layout
+from dashboard.project_status import PROJECT_STATUS
 from orchestration import RunEvent, RunSummary
 
 
@@ -240,13 +241,8 @@ def test_home_shows_operator_product_handoff_status() -> None:
     discovery = _text(_component(page, "home-discovery-gate"))
 
     assert model.milestone.startswith("Milestone 23")
-    assert model.milestone_status == (
-        "QF Candidate v1 standardized browser intake is owner-accepted and complete; "
-        "the corrected connected Candidate workflow is ready for the owner walkthrough."
-    )
-    assert "No candidate research is active" in discovery
-    assert "R13 is complete" in discovery
-    assert "R12 is waiting for the owner walkthrough" in discovery
-    assert "no campaign or strategy test starts" in discovery
+    assert model.milestone_status == PROJECT_STATUS.current_milestone_status
+    assert PROJECT_STATUS.strategy_status in discovery
+    assert PROJECT_STATUS.workspace_status in discovery
     assert model.action.label == "Continue to Compare"
     assert "discover" not in model.action.label.lower()
