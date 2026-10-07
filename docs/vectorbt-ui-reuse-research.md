@@ -69,6 +69,16 @@ hydration driven by one canonical selection state, plus explicit handling of
 simultaneous Dash inputs. Server timings alone do not establish operator load
 time.
 
+Revision `38ed00f` confirmed that active-tab gating removes the initial trade
+payload and that the price chart and its range controls render correctly. The
+representative cold-browser trace still took about 7 seconds to selected-run
+Overview and about 10 seconds to the interactive chart according to service
+timestamps. The remaining initial path includes a 428 KB mounted layout,
+route-wide component bundles, and unrelated initial callbacks before the
+selected-run detail. The native details element also failed to emit the
+expected supporting-chart callback. These are the next measured boundaries;
+chart-library replacement or strategy reruns would not answer them.
+
 ### Parameter studies and automatic optimization
 
 Use VectorBT Pro's native conditional parameter grids, random subsets,
