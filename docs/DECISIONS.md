@@ -13,6 +13,7 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
+| **342** | **Approve the consolidated interface direction and authorize the first production slice:** Dashboard leads with truthful current Factory operations; Candidates defaults to Survivors and provides the high-density sortable/filterable gold-discovery surface; exact Results is the primary row drill-down and comparison is secondary. Implement primary navigation, Dashboard, and Candidates with focused non-browser proof and a pull request. No deployment, Candidate run, protected evidence, paper activation, broker access, orders, or capital follows. |
 | **341** | **Define Quant Factory's own Alpaca Paper boundary and authorize its dormant seams:** QAMC remains a separate project whose proven code may be inspected and adapted later, never a runtime, database, credential, or availability dependency. After separate owner activation of a bounded paper lane, eligible survivors may cross automatically through a fail-closed immutable handoff; current authority covers documentation, the non-executable handoff contract, and one Dashboard link to an inactive Paper surface only. Research Dashboard shows no paper P&L. No broker connection, credentials, deployment, orders, capital, or paper activation follows. |
 | **340** | **Replace the sequential six-page workflow with Dashboard-centered factory oversight:** Dashboard remains the front door and Candidate Universe is its dominant drill-down. Primary navigation becomes Dashboard, Candidates, Results, and Compare. Candidate workspace absorbs Ideas, Set up, and Run test responsibilities; Intake and Exceptions are contextual capabilities unless later volume justifies routes, and System status remains separate. This is the current information-architecture direction, not implementation or research authority. |
 | **339** | **Define Quant Factory as a high-throughput automated filtration system:** owner- or LLM-authored QF Candidate packets enter one provider-neutral intake; deterministic validation, bounded repair, prior-work checks, study construction, VectorBT parameter/variant sweeps, screening, OOS, walk-forward, robustness, and Monte Carlo stages progress automatically inside pre-authorized mandate, budget, data, and evidence policies. Ordinary Candidates do not require per-item owner approval. Owner intervention is exception-based and remains mandatory for mandate/cost/protected-data expansion, unresolved semantic ambiguity, edge promotion, and paper/live/capital authority. Decision 340 controls how this model is organized in the interface. This is not current authority to run a campaign or activate paper/live trading. |
@@ -2541,3 +2542,37 @@ or research authority. Current direction is the index above, Decisions 337–338
      authorize Alpaca access, credential retrieval, a paper worker, deployment,
      paper orders, a Candidate or research run, browser automation, QAMC
      changes, live work, or capital exposure.
+
+
+342. **Approve the consolidated Dashboard/Candidates direction and authorize
+     its first production slice (accepted 2026-10-08).** Terry approved the
+     final consolidated visual and workflow direction after reviewing the
+     seven-surface carousel. Dashboard remains the front door and must show
+     truthful current Factory operations above the fold: active and queued run
+     identities, stage and status, elapsed time, ETA when authoritative,
+     orchestrator acknowledgement, and failures. “Live” means research/factory
+     activity, never paper or live trading. Missing operational facts must say
+     unavailable rather than be inferred.
+
+     Candidates is the gold-discovery surface and defaults to **Survivors**.
+     Its Dash AG Grid supports high-density sorting, filtering, column
+     reordering and selection across Sharpe, net return, maximum drawdown, OOS
+     performance or retention, robustness, trade count, and paper eligibility.
+     Persisted-but-missing measures remain visibly unavailable. Selecting one
+     survivor opens its exact Results record; selecting two to four exposes
+     **Compare selected** as a secondary action. Dashboard survivor counts and
+     latest-survivor affordances drill into this same Survivors population. A
+     survivor is the screening Results identity bearing the pipeline's durable
+     `ready_for_protected_test` marker; page loads must not replay the evidence
+     chain or infer survival from presentation text.
+
+     Primary research navigation is Dashboard, Candidates, Results, and
+     Compare. Ideas, Set up, and Run test may remain registered temporarily for
+     compatibility but are removed from primary navigation and cannot govern
+     the new workflow. Terry authorizes implementation, focused non-browser
+     tests, documentation reconciliation, and a pull request for this first
+     Dashboard/Candidates slice. This does not authorize browser automation,
+     deployment, a Candidate or research run, protected-evidence access,
+     VectorBT upgrade, paper activation, broker credentials, orders, live
+     trading, or capital exposure. Later surfaces and deployment remain
+     separate gates.

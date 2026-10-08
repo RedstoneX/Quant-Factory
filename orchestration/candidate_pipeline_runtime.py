@@ -55,6 +55,7 @@ from orchestration.filter_chain import (
     PersistedStageReference,
 )
 from orchestration.research_launch_claims import CANDIDATE_SCREENING_LAUNCH_CONTRACT, DurableResearchLaunchService
+from orchestration.survivor_read_model import record_factory_outcome
 from persistence import (
     ArtifactType,
     EventSeverity,
@@ -754,8 +755,8 @@ class CandidatePipelineRuntime:
                 raise RuntimeError("candidate pipeline flow returned no filter-chain outcome")
         else:
             chain = self._reopen_completed_chain(launch.claim.run.run_id)
+        record_factory_outcome(database=self.database, screening_run_id=launch.claim.run.run_id, outcome=chain)
         return CandidatePipelineLaunchResult(launch=launch, chain=chain)
-
     def _configuration_id(self) -> str:
         expected = canonical_json(self.definition.configuration_document())
         persistence = PersistenceService(self.database)
@@ -772,7 +773,6 @@ class CandidatePipelineRuntime:
             return configuration.configuration_id
         finally:
             persistence.close()
-
     def _dispatch_adapter(
         self,
         submission: ResearchRunSubmissionRecord,

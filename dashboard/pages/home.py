@@ -45,6 +45,18 @@ class HomeRunView:
 
 
 @dataclass(frozen=True)
+class HomeOperationView:
+    run_id: str
+    candidate: str
+    stage: str
+    status: str
+    elapsed: str
+    eta: str
+    orchestrator: str
+    issue: str
+
+
+@dataclass(frozen=True)
 class HomeFailureView:
     run_id: str
     summary: str
@@ -83,6 +95,7 @@ class HomeViewModel:
     discovery_gate: str
     health: tuple[HomeHealthView, ...]
     run: HomeRunView | None
+    operations: tuple[HomeOperationView, ...]
     failures: tuple[HomeFailureView, ...]
     workflow: tuple[HomeWorkflowStep, ...]
     action: HomeAction
@@ -122,7 +135,7 @@ _FAILED_RUN_STATUSES = frozenset({"failed", "timed_out"})
 def build_home_view_model(
     *,
     health_readings: Iterable[HomeHealthReading] = (),
-    recent_runs: tuple[RunSummary, ...] = (),
+    recent_runs: tuple[RunSummary, ...] = (), operation_runs: tuple[RunSummary, ...] | None = None,
     recent_events: tuple[RunEvent, ...] = (),
     selected_run_id: str | None = None,
     idea_captured: bool = False,
@@ -188,6 +201,7 @@ def build_home_view_model(
         ),
         health=health,
         run=_run_view(run),
+        operations=_operation_views(operation_runs or recent_runs, resolved_as_of),
         failures=failures,
         workflow=workflow,
         action=action,
@@ -202,7 +216,7 @@ def build_home_view_model(
 
 
 def layout(view_model: HomeViewModel | None = None) -> html.Div:
-    """Render the chart-first Research Atlas from already-read state."""
+    """Render the current-operations-first Factory dashboard."""
 
     from dashboard.components.research_path import strategy_research_path
 
@@ -215,9 +229,9 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                     html.Div(
                         [
                             html.P("RESEARCH / DASHBOARD", className="page-eyebrow"),
-                            html.H1("Research Atlas"),
+                            html.H1("Dashboard"),
                             html.P(
-                                "See what research is exploring, what survived, and what needs you.",
+                                "Live Factory operations, survivors, and exceptions.",
                                 className="atlas-subtitle",
                             ),
                         ],
@@ -225,8 +239,8 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                     ),
                     html.Div(
                         [
-                            _status_item("Edge status", f"{_qualified_count(rows)} qualified"),
-                            _status_item("Live runs", str(_live_count(rows))),
+                            _status_item("Survivors", str(_qualified_count(rows)), href="/research/candidates"),
+                            _status_item("Running now", str(len(model.operations))),
                             _status_item("Completed", str(_completed_count(rows))),
                             _status_item("Needs you", str(_needs_count(model))),
                         ],
@@ -240,7 +254,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                             ),
                             html.Span("·", **{"aria-hidden": "true"}),
                             html.Span(_updated_label(rows, model.health)),
-                            dcc.Link("Capture idea", href="/research/ideas", className="atlas-header-action"),
+                            dcc.Link("View survivors", href="/research/candidates", className="atlas-header-action"),
                         ],
                         className="atlas-header-meta",
                     ),
@@ -284,6 +298,10 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
             html.Main(
                 [
                     html.Div(
+                        _current_operations_panel(model.operations),
+                        id="home-current-run",
+                    ),
+                    html.Div(
                         [
                             _panel(
                                 "Research Landscape",
@@ -313,10 +331,9 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                     ),
                     html.Div(
                         [
-                            _runs_panel(rows),
                             _latest_finding_panel(rows),
                         ],
-                        id="home-current-run",
+                        id="home-latest-finding",
                         className="atlas-grid atlas-grid-operational",
                     ),
                     html.Div(
@@ -370,14 +387,15 @@ def _panel(
     )
 
 
-def _status_item(label: str, value: str) -> html.Div:
-    return html.Div(
+def _status_item(label: str, value: str, *, href: str | None = None) -> html.Div:
+    content = html.Div(
         [
             html.Span(label),
             html.Strong(value),
         ],
         className="atlas-status-item",
     )
+    return dcc.Link(content, href=href, className="atlas-status-link") if href else content
 
 
 def _ordered_history(
@@ -469,26 +487,18 @@ def _integer(value: float | None) -> str:
 
 
 def _row_outcome(row: Mapping[str, object]) -> str:
-    haystack = " ".join(
-        _text(row, key, "").lower()
-        for key in ("status", "review", "evidence", "metric_basis")
-    )
-    if any(word in haystack for word in ("qualified", "approved", "accepted")):
-        return "Qualified"
-    if any(word in haystack for word in ("screened out", "rejected", "failed", "timed out", "invalid")):
-        return "Rejected"
-    if any(word in haystack for word in ("running", "queued", "retrying", "passed", "registered", "succeeded")):
-        return "Advancing"
-    return "Insufficient"
+    from dashboard.pages.candidates import candidate_population
+
+    return {
+        "Survivor": "Qualified",
+        "Rejected": "Rejected",
+        "Advancing": "Advancing",
+        "Needs review": "Insufficient",
+    }[candidate_population(row)]
 
 
 def _qualified_count(rows: tuple[dict[str, object], ...]) -> int:
     return sum(_row_outcome(row) == "Qualified" for row in rows)
-
-
-def _live_count(rows: tuple[dict[str, object], ...]) -> int:
-    live = ("created", "queued", "running", "retrying", "submission unknown")
-    return sum(_text(row, "status", "").lower() in live for row in rows)
 
 
 def _completed_count(rows: tuple[dict[str, object], ...]) -> int:
@@ -497,9 +507,7 @@ def _completed_count(rows: tuple[dict[str, object], ...]) -> int:
 
 
 def _needs_count(model: HomeViewModel) -> int:
-    if model.failures:
-        return len(model.failures)
-    return 0 if model.action.kind == "wait" else 1
+    return len(model.failures)
 
 
 def _factory_readiness(health: tuple[HomeHealthView, ...]) -> str:
@@ -752,30 +760,34 @@ def _evidence_survival_figure(rows: tuple[dict[str, object], ...]) -> go.Figure:
     return figure
 
 
-def _runs_panel(rows: tuple[dict[str, object], ...]) -> html.Section:
+def _current_operations_panel(
+    operations: tuple[HomeOperationView, ...],
+) -> html.Section:
     row_data = [
         {
-            "candidate": f"{_text(row, 'strategy')} · {_text(row, 'instrument')} · {_text(row, 'stage')}",
-            "progress": f"{_text(row, 'status')} · {_text(row, 'evidence')}",
-            "trades": _integer(_number(row, "number_of_trades")),
-            "return": _percent(_number(row, "total_return"), signed=True),
-            "sharpe": _decimal(_number(row, "sharpe_ratio")),
-            "drawdown": _percent(_number(row, "max_drawdown")),
-            "updated": _text(row, "created_at").replace("T", " ")[:16],
+            "run_id": operation.run_id,
+            "candidate": operation.candidate,
+            "stage": operation.stage,
+            "status": operation.status,
+            "elapsed": operation.elapsed,
+            "eta": operation.eta,
+            "orchestrator": operation.orchestrator,
+            "issue": operation.issue,
         }
-        for row in rows[:5]
+        for operation in operations
     ]
     grid = dag.AgGrid(
         id="home-live-runs-grid",
         rowData=row_data,
         columnDefs=[
-            {"field": "candidate", "headerName": "Candidate · market · stage", "flex": 2.3, "minWidth": 210},
-            {"field": "progress", "headerName": "Progress", "flex": 1.5, "minWidth": 150},
-            {"field": "trades", "headerName": "Trades", "width": 88},
-            {"field": "return", "headerName": "Return", "width": 92},
-            {"field": "sharpe", "headerName": "Sharpe", "width": 82},
-            {"field": "drawdown", "headerName": "Max DD", "width": 92},
-            {"field": "updated", "headerName": "Updated", "width": 130},
+            {"field": "run_id", "headerName": "Run ID", "hide": True},
+            {"field": "candidate", "headerName": "Candidate", "flex": 2, "minWidth": 190},
+            {"field": "stage", "headerName": "Stage", "minWidth": 110},
+            {"field": "status", "headerName": "State", "minWidth": 100},
+            {"field": "elapsed", "headerName": "Elapsed", "minWidth": 95},
+            {"field": "eta", "headerName": "ETA", "minWidth": 110},
+            {"field": "orchestrator", "headerName": "Orchestrator", "minWidth": 135},
+            {"field": "issue", "headerName": "Failure", "flex": 1.5, "minWidth": 150},
         ],
         defaultColDef={"sortable": True, "resizable": True, "suppressMovable": True},
         dashGridOptions={
@@ -788,9 +800,15 @@ def _runs_panel(rows: tuple[dict[str, object], ...]) -> html.Section:
         className="ag-theme-quartz atlas-runs-grid",
     )
     return _panel(
-        "Live Research Runs",
-        "The work being done now, with the evidence produced by each run",
-        grid,
+        "Current Factory operations",
+        "Active and queued research work from persisted orchestration state",
+        grid if operations else html.Div(
+            [
+                html.Strong("No research is running"),
+                html.P("No active or queued Factory operation is persisted."),
+            ],
+            className="atlas-empty atlas-operation-empty",
+        ),
         panel_class="atlas-runs-panel",
     )
 
@@ -1126,6 +1144,44 @@ def _run_view(run: RunSummary | None) -> HomeRunView | None:
     )
 
 
+def _operation_views(
+    runs: tuple[RunSummary, ...], as_of: datetime
+) -> tuple[HomeOperationView, ...]:
+    return tuple(
+        HomeOperationView(
+            run_id=run.run_id,
+            candidate=run.strategy_id.replace("_", " ").title(),
+            stage=run.stage.replace("_", " ").title(),
+            status=run.status.replace("_", " ").title(),
+            elapsed=_elapsed_label(run.started_at or run.created_at, as_of),
+            eta="Unavailable",
+            orchestrator=(
+                "Flow linked"
+                if run.prefect_flow_run_id
+                else "Unavailable"
+            ),
+            issue=run.error_summary or "None recorded",
+        )
+        for run in runs
+        if run.status.lower() in _ACTIVE_RUN_STATUSES
+    )
+
+
+def _elapsed_label(started_at: str | None, as_of: datetime) -> str:
+    if not started_at:
+        return "Unavailable"
+    try:
+        started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+    except ValueError:
+        return "Unavailable"
+    if started.tzinfo is None:
+        return "Unavailable"
+    seconds = max(0, int((as_of - started).total_seconds()))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    return f"{hours}h {minutes:02d}m" if hours else f"{minutes}m"
+
+
 def _recent_failures(
     runs: tuple[RunSummary, ...], events: tuple[RunEvent, ...]
 ) -> tuple[HomeFailureView, ...]:
@@ -1202,10 +1258,10 @@ def _workflow_and_action(
             kind="continue",
         )
     return 1, HomeAction(
-        label="Capture an idea",
-        description="Start with a local draft. Capturing it does not retrieve or run anything.",
-        href="/research/ideas",
-        kind="capture",
+        label="No owner decision required",
+        description="Research is paused; browse persisted Candidates or wait for an authorized campaign.",
+        href="/research/candidates",
+        kind="none",
     )
 
 
@@ -1251,65 +1307,9 @@ def health_cards_for_readings(
     return _health_cards(_health_views(readings, observed_at, stale_after))
 
 
-def _run_section(run: HomeRunView | None) -> html.Section:
-    if run is None:
-        content = html.P(
-            "No selected, active, or persisted run is available yet.",
-            className="empty-state-copy",
-        )
-    else:
-        content = html.Div(
-            [
-                html.Strong(run.label),
-                html.P(f"Last update: {run.timestamp}", className="summary-detail"),
-                html.P(run.detail, className="summary-detail"),
-                dcc.Link(
-                    "Open recorded run",
-                    href="/research/backtest-results",
-                    className="secondary-action",
-                ),
-            ],
-            className="summary-card",
-        )
-    return html.Section(
-        [html.H2("Current research run"), content],
-        id="home-current-run",
-        className="panel",
-    )
-
-
-def _failure_section(failures: tuple[HomeFailureView, ...]) -> html.Section:
-    if not failures:
-        content = html.P(
-            "No recent failures require attention.", className="empty-state-copy"
-        )
-    else:
-        content = html.Ul(
-            [
-                html.Li(
-                    [
-                        html.Strong("Test needs attention"),
-                        html.P(failure.summary),
-                        html.Small(failure.timestamp),
-                    ]
-                )
-                for failure in failures
-            ],
-            className="home-failure-list",
-        )
-    return html.Section(
-        [html.H2("Failures needing attention"), content],
-        id="home-attention-failures",
-        className="panel",
-    )
-
-
 __all__ = [
-    "HomeAction",
-    "HomeFailureView",
-    "HomeHealthReading",
-    "HomeHealthView",
-    "HomeRunView",
+    "HomeAction", "HomeFailureView", "HomeHealthReading",
+    "HomeHealthView", "HomeOperationView", "HomeRunView",
     "HomeViewModel",
     "HomeWorkflowStep",
     "build_home_view_model",

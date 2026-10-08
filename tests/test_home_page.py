@@ -66,7 +66,7 @@ def _component(component: Any, component_id: str) -> Any:
     return next(item for item in _walk(component) if getattr(item, "id", None) == component_id)
 
 
-def test_home_no_data_has_honest_empty_states_and_one_capture_action() -> None:
+def test_home_no_data_has_honest_empty_states_and_no_false_owner_decision() -> None:
     page = layout(build_home_view_model(as_of=NOW))
     rendered = _text(page)
 
@@ -74,14 +74,15 @@ def test_home_no_data_has_honest_empty_states_and_one_capture_action() -> None:
     assert "Research Landscape" in rendered
     assert "Data Readiness" in rendered
     assert "Why Research Stops" in rendered
-    assert "Capture an idea" in rendered
+    assert "No research is running" in rendered
+    assert "No owner decision required" in rendered
     actions = [
         item
         for item in _walk(page)
         if getattr(item, "id", None) == "home-primary-action"
     ]
     assert len(actions) == 1
-    assert actions[0].href == "/research/ideas"
+    assert actions[0].href == "/research/candidates"
 
 
 def test_home_links_to_paper_workspace_without_mixing_paper_pnl() -> None:
@@ -214,8 +215,23 @@ def test_home_active_run_is_selected_and_requires_waiting_not_resubmission() -> 
     assert "do not submit it again" in model.action.description
     assert model.workflow[3].state == "Current"
     grid = _component(page, "home-live-runs-grid")
-    assert grid.rowData == []
+    assert len(grid.rowData) == 1
+    assert grid.rowData[0]["run_id"] == "active"
+    assert grid.rowData[0]["eta"] == "Unavailable"
+    assert grid.rowData[0]["orchestrator"] == "Unavailable"
     assert "overlayNoRowsTemplate" not in grid.dashGridOptions
+
+
+def test_home_operations_use_complete_run_metadata_not_recent_window() -> None:
+    recent_terminal = tuple(_run(f"recent-{index}", "succeeded") for index in range(20))
+    older_active = _run("older-active", "running", created_at="2026-09-17T11:00:00Z")
+    model = build_home_view_model(
+        recent_runs=recent_terminal,
+        operation_runs=recent_terminal + (older_active,),
+        as_of=NOW,
+    )
+
+    assert [operation.run_id for operation in model.operations] == ["older-active"]
 
 
 def test_home_recent_failure_takes_precedence_over_active_run() -> None:

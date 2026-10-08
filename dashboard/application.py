@@ -545,7 +545,7 @@ def _fields_to_map(fields: tuple[DetailField, ...]) -> dict[str, str]:
 
 def _overview_page(
     recent_runs: tuple[RunSummary, ...] = (),
-    recent_events: tuple[RunEvent, ...] = (),
+    recent_events: tuple[RunEvent, ...] = (), operation_runs: tuple[RunSummary, ...] | None = None,
     selected_run_id: str | None = None,
     health_readings: tuple[HomeHealthReading, ...] = (),
     health_stale_after: timedelta = timedelta(minutes=15),
@@ -555,12 +555,12 @@ def _overview_page(
     project_status: DashboardProjectStatus = PROJECT_STATUS,
 ) -> html.Div:
     from dashboard.pages.home import build_home_view_model, layout as home_layout
-
     return home_layout(
         build_home_view_model(
             health_readings=health_readings,
             recent_runs=recent_runs,
             recent_events=recent_events,
+            operation_runs=operation_runs,
             selected_run_id=selected_run_id,
             stale_after=health_stale_after,
             health_refresh_interval_ms=health_refresh_interval_ms,
@@ -4220,6 +4220,7 @@ def page_for_path(
         return _overview_page(
             recent_runs=recent_runs,
             recent_events=recent_events,
+            operation_runs=all_runs or recent_runs,
             selected_run_id=selected_run_id,
             health_readings=home_health_readings,
             health_stale_after=health_stale_after,
@@ -4231,6 +4232,9 @@ def page_for_path(
         from dashboard.pages.ideas import layout as ideas_layout
 
         return ideas_layout(database=dashboard_database)
+    if route == "/research/candidates":
+        from dashboard.pages.candidates import layout as candidates_layout
+        return candidates_layout(history_rows=history_rows)
     if route == "/research/setup":
         from dashboard.pages.setup import layout as setup_layout
 
@@ -4529,26 +4533,9 @@ def create_app(
         "health_refresh_interval_ms": health_refresh_interval_ms,
     }
 
-    def serve_layout() -> html.Div:
-        # A new tab or refresh keeps the lightweight recent-run shell current.
-        # Full history and persisted evidence hydrate only in route-owned
-        # callbacks after Results or Compare becomes active.
-        current_layout_kwargs = {
-            **layout_kwargs,
-            "recent_runs": runs.recent_runs(limit=20),
-            "recent_events": runs.recent_events(limit=20),
-            "all_runs": (),
-            "history_rows": (),
-        }
-        return create_layout(
-            context,
-            configurations,
-            initial_pathname=_progressive_routes.request_pathname_for_initial_layout(),
-            progressive_routes=True,
-            **current_layout_kwargs,
-        )
-
-    app.layout = serve_layout
+    app.layout = _progressive_routes.live_layout_provider(
+        create_layout, context, configurations, runs, layout_kwargs
+    )
     app.validation_layout = _dashboard_validation_layout(
         context, configurations, layout_kwargs
     )
@@ -4558,6 +4545,7 @@ def create_app(
     from dashboard.callbacks.compare_backtests import (
         register_compare_backtests_callbacks,
     )
+    from dashboard.callbacks.candidates import register_candidates_callbacks
     from dashboard.callbacks.ideas import register_ideas_callbacks
     from dashboard.callbacks.health import register_health_callbacks
     from dashboard.callbacks.routing import register_routing_callbacks
@@ -4581,6 +4569,7 @@ def create_app(
         ),
     )
     register_health_callbacks(app)
+    register_candidates_callbacks(app)
     register_ideas_callbacks(app, database=dashboard_database)
     register_setup_callbacks(
         app,

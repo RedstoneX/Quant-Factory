@@ -7,8 +7,19 @@ from typing import Any
 
 from dash import Dash
 
+from orchestration.active_runs_read_model import active_run_summaries
+from orchestration.survivor_read_model import annotate_factory_outcomes
+
 
 INITIAL_PATH_COOKIE = "qf_dash_initial_pathname"
+
+
+def _factory_history(runs: Any, layout_options: Mapping[str, Any]):
+    rows = runs.all_history(artifact_root=layout_options["artifact_root"])
+    return annotate_factory_outcomes(
+        rows,
+        database=layout_options["dashboard_database"],
+    )
 
 
 def create_progressive_dash_app(name: str) -> Dash:
@@ -83,12 +94,22 @@ def live_route_renderer(
             if pathname in {"/", "/system"}
             else ()
         )
+        history_rows = (
+            _factory_history(runs, layout_options)
+            if pathname in {"/", "/research/candidates"}
+            else ()
+        )
         return page_renderer(
             pathname,
             context,
             configurations,
             recent_runs=runs.recent_runs(limit=20),
             recent_events=runs.recent_events(limit=20),
+            all_runs=(
+                active_run_summaries(layout_options["dashboard_database"])
+                if pathname == "/"
+                else ()
+            ),
             selected_run_panel=layout_options["selected_run_panel"],
             selected_run_id=None,
             dashboard_database=layout_options["dashboard_database"],
@@ -98,6 +119,44 @@ def live_route_renderer(
             home_health_readings=health_readings,
             health_stale_after=layout_options["health_stale_after"],
             health_refresh_interval_ms=layout_options["health_refresh_interval_ms"],
+            history_rows=history_rows,
         )
 
     return render
+
+
+def live_layout_provider(
+    layout_builder: Callable[..., Any],
+    context: Any,
+    configurations: tuple[Any, ...] | None,
+    runs: Any,
+    layout_options: Mapping[str, Any],
+) -> Callable[[], Any]:
+    """Return a fresh lightweight shell with history only for active overview routes."""
+
+    def serve() -> Any:
+        pathname = request_pathname_for_initial_layout()
+        options = {
+            **layout_options,
+            "recent_runs": runs.recent_runs(limit=20),
+            "recent_events": runs.recent_events(limit=20),
+            "all_runs": (
+                active_run_summaries(layout_options["dashboard_database"])
+                if pathname == "/"
+                else ()
+            ),
+            "history_rows": (
+                _factory_history(runs, layout_options)
+                if pathname in {"/", "/research/candidates"}
+                else ()
+            ),
+        }
+        return layout_builder(
+            context,
+            configurations,
+            initial_pathname=pathname,
+            progressive_routes=True,
+            **options,
+        )
+
+    return serve
