@@ -11,6 +11,24 @@ from dashboard.pages.compare_backtests import results_query_href
 def register_candidates_callbacks(app: Dash) -> None:
     app.clientside_callback(
         """
+        function (population) {
+            const copy = {
+                'Survivor': ['Survivors', 'Explicit survivors only. Missing evidence remains unavailable.'],
+                'Advancing': ['Advancing', 'Candidates currently progressing through the Factory.'],
+                'Needs review': ['Needs review', 'Candidates with missing, invalid, or unresolved evidence.'],
+                'Rejected': ['Rejected', 'Candidates stopped by persisted evidence or an explicit rejection.'],
+                'All': ['All candidates', 'Every persisted Candidate population in one sortable view.']
+            };
+            return copy[population] || copy['Survivor'];
+        }
+        """,
+        Output("candidate-population-title", "children"),
+        Output("candidate-population-description", "children"),
+        Input("candidate-population", "value"),
+        prevent_initial_call=False,
+    )
+    app.clientside_callback(
+        """
         function (population, records) {
             const rows = records || [];
             return population === 'All' ? rows : rows.filter(row => row.population === population);

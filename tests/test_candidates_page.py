@@ -72,6 +72,10 @@ def test_candidate_grid_defaults_to_survivors_and_keeps_missing_metrics_unavaila
     page = layout(history_rows=(survivor, rejected))
     grid = _component(page, "candidate-universe-grid")
     population = _component(page, "candidate-population")
+    assert _component(page, "candidate-population-title").children == "Survivors"
+    assert "Explicit survivors only" in _component(
+        page, "candidate-population-description"
+    ).children
 
     assert population.value == "Survivor"
     assert [row["run_id"] for row in grid.rowData] == ["gold-1"]
