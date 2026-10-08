@@ -24,6 +24,12 @@ from execution.contracts import (
 from execution.reconciliation import reconcile_snapshots
 from execution.paper_journal import JournalConflictError, JournalEntry, JournalState, PaperJournalError, PaperOrderJournal
 from execution.paper_binding import PaperDeploymentBinding, PaperDeploymentBindingError
+from execution.paper_handoff import (
+    PAPER_HANDOFF_SCHEMA,
+    PaperHandoffError,
+    PaperHandoffPackage,
+    paper_handoff_manifest,
+)
 
 __all__ = [
     "AccountSnapshot", "Cancellation", "ExecutionContractError", "ExecutionDomain",
@@ -33,4 +39,6 @@ __all__ = [
     "to_primitive",
     "JournalConflictError", "JournalEntry", "JournalState", "PaperJournalError", "PaperOrderJournal",
     "PaperDeploymentBinding", "PaperDeploymentBindingError",
+    "PAPER_HANDOFF_SCHEMA", "PaperHandoffError", "PaperHandoffPackage",
+    "paper_handoff_manifest",
 ]

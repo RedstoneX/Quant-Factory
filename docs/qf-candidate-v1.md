@@ -22,10 +22,10 @@ public source / owner idea / external LLM / optional built-in analyzer
                      QF Candidate v1
                             |
                             v
-                  owner review / clarification
+        deterministic validation / bounded repair
                             |
                             v
-                  approved candidate contract
+                 immutable bounded study
                             |
                             v
            candidate-specific deterministic implementation
@@ -66,8 +66,12 @@ Quant Factory internals.
 7. **Quant Factory owns deterministic defaults.** Fees, slippage, evidence
    gates, data availability, and runtime identities should normally remain QF
    concerns rather than being invented by an external LLM.
-8. **No automatic approval.** Importing or generating a packet never authorizes
-   a backtest.
+8. **Automatic bounded progression is not edge approval.** Importing or
+   generating a packet does not by itself authorize execution. After a
+   campaign-level research lane is activated, deterministic policy may derive
+   eligibility and advance an in-mandate packet through bounded research
+   without a per-Candidate owner click. No Candidate may promote itself to an
+   edge or paper/live operation.
 9. **Prior work matters.** The packet should make it easy for Quant Factory to
    identify duplicates or near-duplicates before research is repeated.
 10. **Minimum viable boundary.** QF Candidate v1 should not become a universal
@@ -79,14 +83,25 @@ Recommended states:
 
 - `draft` — incomplete idea or imported packet;
 - `needs_clarification` — one or more high-importance questions remain;
-- `ready_for_review` — sufficiently specified for owner review;
-- `owner_approved` — owner accepted the research contract;
+- `ready_for_policy` — sufficiently specified for deterministic mandate,
+  prior-work, budget, data, and study checks;
+- `repairing` — bounded deterministic or LLM-assisted repair is creating a new
+  provenance-preserving version;
+- `eligible` — an immutable bounded study passed current campaign policy;
 - `implemented` — deterministic strategy adapter exists and matches the
-  approved contract;
+  immutable contract;
 - `rejected` — candidate was rejected before or after testing;
 - `retired` — retained for history but no longer active.
 
-A packet should never advance automatically because an LLM claims confidence.
+A packet never advances because an LLM claims confidence. It may advance only
+because deterministic checks establish current campaign eligibility. Semantic
+ambiguity that cannot be repaired without changing meaning remains an
+exception.
+
+The existing persisted `ready_for_review` and `owner_approved` values remain
+historical compatibility states until a separately authorized implementation
+changes the lifecycle model. They do not define the future per-Candidate
+workflow under Decision 339.
 
 ## Recommended top-level structure
 
@@ -644,7 +659,9 @@ A proportionate first implementation would:
 4. call one configured analyst model;
 5. require structured QF Candidate v1 output;
 6. store the source reference and generated packet;
-7. require owner review before any candidate implementation or run.
+7. return the packet to deterministic validation and bounded repair; after a
+   future campaign-level research lane is activated, ordinary in-policy
+   Candidates may progress without per-item owner review.
 
 The provider is replaceable. Google Gemini direct may be attractive because
 another RedstoneX project already uses a Google AI Studio direct provider on a
@@ -712,13 +729,18 @@ It does **not** eliminate candidate-specific code.
 
 For a new strategy family:
 
-1. Candidate packet is reviewed and approved.
-2. Codex (or another implementation assistant) creates the smallest deterministic
-   strategy adapter that implements the approved logic.
-3. Focused tests prove the implementation matches the packet.
-4. Quant Factory binds approved data/execution assumptions.
-5. VectorBT performs the bounded parameter sweep.
-6. The existing screening/validation pipeline evaluates evidence.
+1. Candidate packet passes deterministic schema, mandate, prior-work,
+   ambiguity, data, budget, and bounded-study checks.
+2. An existing reusable archetype is bound, or Codex/another implementation
+   assistant creates the smallest deterministic strategy adapter under the
+   separately authorized implementation policy.
+3. Focused checks prove the implementation matches the immutable packet.
+4. Quant Factory binds permitted data/execution assumptions and seals the study
+   before results are visible.
+5. VectorBT performs the bounded parameter and structural-variant evaluation.
+6. The existing screening/OOS/walk-forward/robustness/Monte Carlo pipeline
+   evaluates evidence and routes only exceptions or survivors for owner
+   attention.
 
 As reusable archetypes accumulate, more future Candidate packets can map onto
 existing logic and require only configuration rather than new code.
@@ -728,10 +750,11 @@ existing logic and require only configuration rather than new code.
 The following should be resolved during a future intake milestone rather than
 silently decided by implementation:
 
-1. Exact minimum required fields for `ready_for_review`.
+1. Exact minimum required fields for `ready_for_policy` and deterministic
+   eligibility.
 2. Whether YAML, JSON, or both are canonical on disk.
 3. Whether one packet may contain multiple structural variants or whether each
-   approved variant becomes its own immutable child candidate.
+   eligible variant becomes its own immutable child Candidate.
 4. Exact field-level provenance representation.
 5. How Candidate family identity and duplicate detection are represented.
 6. Whether the dashboard can edit imported packets directly or creates a new
@@ -742,7 +765,7 @@ silently decided by implementation:
    provider is configured first.
 9. Whether public-source retrieval is handled by the model provider, a small
    Quant Factory retriever, or an external research tool.
-10. How approved Candidate packets map to immutable strategy specifications
+10. How eligible Candidate packets map to immutable strategy specifications
     without creating a generic arbitrary-strategy DSL.
 
 ## Suggested acceptance criteria for a future intake milestone
@@ -755,9 +778,10 @@ A future implementation can be considered minimally useful when Terry can:
    ambiguities, exclusions, and prior-work warnings;
 4. edit/clarify the packet without raw-file manipulation;
 5. receive deterministic validation errors;
-6. explicitly approve a finalized candidate;
-7. hand that approved candidate to the existing candidate-specific
-   implementation path;
+6. see deterministic policy either advance the Candidate, create a bounded
+   repair version, reject it with a reason, or route a genuine exception;
+7. hand an eligible Candidate to the existing candidate-specific implementation
+   path without a routine owner-approval click;
 8. export the packet again for use with any external LLM;
 9. optionally use one built-in analyzer that produces the exact same contract,
    without making that provider mandatory.

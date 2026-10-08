@@ -1,10 +1,8 @@
 """Truthful, side-effect-free Home overview for Milestone 23.
 
-The application integration layer supplies snapshots that it has already read.
-This module never probes a service, opens the research database, accesses a
-credential, or launches work.
+The application supplies snapshots already read. This module never probes a
+service, opens the research database, accesses a credential, or launches work.
 """
-
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -23,6 +21,7 @@ from dashboard.health import (
     redact_credential_health_reading,
 )
 from dashboard.components.research_campaign import research_campaign_overview
+from dashboard.components.paper_destination import paper_trading_destination
 from dashboard.components.research_stops_chart import research_stops_figure
 from dashboard.project_status import DashboardProjectStatus, PROJECT_STATUS
 from orchestration import RunEvent, RunSummary
@@ -338,6 +337,7 @@ def layout(view_model: HomeViewModel | None = None) -> html.Div:
                         ],
                         className="atlas-grid atlas-grid-secondary",
                     ),
+                    paper_trading_destination(),
                 ],
                 className="atlas-content",
             ),

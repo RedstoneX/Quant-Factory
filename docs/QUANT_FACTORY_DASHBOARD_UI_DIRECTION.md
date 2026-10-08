@@ -1,17 +1,20 @@
 # Quant Factory Dashboard UI Direction
 
-> **Current status:** Active supporting UX specification under Decision 313.
-> Reuse the approved chart-first experience, mature components, and thin
-> adapters while completing the existing operator product. Current work and
-> acceptance status are defined only in `docs/MILESTONES.md`.
-> Decisions 325, 327, and 328 govern execution: Terry performs browser QA;
-> Codex does not regenerate historical mockups/evidence, run automated browser
-> tests, or repeat accepted design research unless a specific current defect
-> requires it.
+> **Current status:** Historical UX evidence under Decisions 337–340.
+> The October 7 unaided owner walkthrough invalidated the seventh iteration's
+> usability acceptance and several requirements in this document. The current
+> reconstruction contract is `docs/operator-interface-reconstruction.md`;
+> current work and acceptance status are defined only in `docs/MILESTONES.md`.
+> Decision 339 supersedes this document's routine per-Candidate decision
+> and manual-launch model with automated bounded progression and exception-based
+> owner intervention. Decision 340 supersedes its six-step page topology.
+> Decisions 337–340 currently authorize documentation reconciliation and planning
+> only. Decisions 325, 327, and 328 remain retained proof, economy, and process
+> constraints for any later implementation the owner explicitly approves.
 
 
-- **Status:** Owner-approved UX direction and reusable implementation evidence
-  for the active operator-product completion
+- **Status:** Historical UX and domain evidence, subject to Decisions 337–340
+  and the current reconstruction contract; not a current visual contract
 - **Owner direction accepted:** 2026-09-18
 - **Historical evidence:** Focused Step 11 evidence and the Steps 13–14
   real-saved-result browser proof passed; PR #90's presentation corrections
@@ -19,19 +22,21 @@
 
 ## Purpose and authority
 
-This document is the implementation-ready page specification for the
-Milestone 23C operator experience. It supports, but does not replace,
+This document preserves page requirements and design evidence from the
+Milestone 23C operator experience. It is no longer an implementation-ready
+specification by itself. It supports, but does not replace,
 [`docs/MILESTONES.md`](MILESTONES.md),
 [`docs/dashboard-product-requirements.md`](dashboard-product-requirements.md),
 [`docs/milestones/milestone-23-acceptance.md`](milestones/milestone-23-acceptance.md),
 and [ADR 0008](architecture/0008-dashboard-mounted-route-architecture.md).
 
-The approved research flow is:
+The historical research flow was:
 
 **Home → Ideas → Set up → Run test → Results → Compare**
 
-The owner-authorized bounded 23C implementation follows this specification.
-Decision 279 supersedes Decision 277's acceptance for the former Results page;
+The historical bounded 23C implementation followed this specification.
+Decisions 337–340 now make `docs/operator-interface-reconstruction.md` controlling
+for any future work. Decision 279 supersedes Decision 277's acceptance for the former Results page;
 Decisions 280–281 establish the chart-first direction and validated preview
 constraints; Decision 282 approves the detailed selected-run Results
 specification; and Decision 293 approves the bounded Find & Compare design,
@@ -46,7 +51,7 @@ It does not authorize
 strategy discovery, external-source retrieval, paper execution or live
 trading.
 
-## Product and visual contract
+## Retained product and interaction evidence
 
 Quant Factory remains a Plotly Dash application. VectorBT Pro remains the
 portfolio analytics and Plotly-compatible chart engine. Dash Bootstrap
@@ -85,9 +90,9 @@ over-explain obvious actions. Add adjacent supporting copy only when it is
 needed to understand a risk, evidence limitation, authority boundary, or
 irreversible consequence.
 
-Palette revision is deferred. Temporary acceptance of the validated preview's
-palette does not establish a final palette or turn a recolour into current
-implementation scope.
+The palette, typography, shell, spacing system, and non-Results page
+composition are open design decisions. A recolour of the seventh iteration is
+not the required reconstruction.
 
 TradingView's current Strategy Report and backtesting-results interaction in
 its chart-first Supercharts context is the primary Results UX reference. This
@@ -97,13 +102,12 @@ chart/ledger-link mechanics; its information density and compressed content
 hierarchy are explicitly not the target.
 
 The standalone `results-page-flow-preview.html` chart-first preview and the
-accepted evidence in Decisions 280–282 are **Results-only** references. They
-define the selected-run chart/report interaction; they are not a global source
-of truth and must not be used to redesign or reinterpret Ideas, Set up, Run
-test, Compare, Dashboard, or support pages. Those pages use their own
-repository-owned references in the manifest below. Only non-conflicting shared
-principles—clear hierarchy, unmistakable controls, restrained density, and
-progressive disclosure—may carry across routes.
+accepted evidence in Decisions 280–282 are the exact **Results** interaction
+reference. Its page layout is Results-specific. Its principles—one dominant
+task or object, minimal chrome, compact context, controls beside the thing they
+change, progressive disclosure, connected evidence, stable selection, and
+recovery/reset—apply product-wide. Other pages require newly approved designs;
+the old repository mockups do not fill that gap.
 
 The primary-source interaction evidence checked on 2026-09-18 is TradingView's
 [Strategy Report overview](https://www.tradingview.com/support/solutions/43000764138-tradingview-strategy-report-how-to-start/)
@@ -113,11 +117,9 @@ bottom panel, and trade records provide a **Show on chart** path. These sources
 are UX references, not a runtime dependency or proof of Quant Factory behavior.
 
 The public-safe concept images in
-[`docs/assets/dashboard/approved/`](assets/dashboard/approved/) continue to
-define the accepted visual density and hierarchy outside the reopened Results
-experience. They contain synthetic data and do not establish implemented
-behavior or operating evidence. The prior Results image is retained as
-historical design evidence and is not the Decision 280 replacement mockup:
+[`docs/assets/dashboard/approved/`](assets/dashboard/approved/) are historical
+content and research evidence only. They do not define current visual density,
+hierarchy, implemented behavior, or operating evidence:
 
 1. `01_research_data_catalog.png` — data catalog and coverage inspection.
 2. `02_research_experiment_overview.png` — experiment and outcome overview.
@@ -130,22 +132,21 @@ historical design evidence and is not the Decision 280 replacement mockup:
 Paper mockups are not part of Milestone 23 and must not be used to introduce
 deployment, broker, order, position, capital-allocation or live controls.
 
-## Repository-owned operator-workflow references
+## Historical repository-owned operator-workflow references
 
-Decision 329 makes
+Decision 338 supersedes Decision 329's visual-contract effect.
 [`docs/assets/dashboard/operator-workflow-approved/`](assets/dashboard/operator-workflow-approved/)
-the current implementation reference. The HTML files preserve the approved
-composition and styling; the PNG files preserve the corresponding desktop
-appearance. They are design contracts to translate through existing Dash
-components and live data/actions, not standalone production code.
+is retained as a content inventory, record of intended page responsibilities,
+and evidence of a design that failed unaided use. Its HTML and PNG files do not
+control the future shell, composition, density, styling, or interaction.
 
-Two source gaps are explicit rather than silently reconstructed:
+Two historical source gaps remain recorded rather than silently reconstructed:
 
-- Dashboard has the accepted `dashboard.png` reference but no retained source
-  HTML/CSS. Preserve that accepted screen; do not infer new behavior from it.
+- Dashboard has `dashboard.png` but no retained source HTML/CSS. Use it only to
+  recover useful content and identify failed assumptions.
 - Ideas has the accepted `ideas.html` source but no unambiguous clean standalone
   PNG. Older Ideas workbench images and built-page comparisons are not the
-  contract.
+  contract; both are historical evidence only.
 
 `paper-overview-status-reference.png` and
 `strategy-monitor-status-reference.png` record the retained private-beta page
@@ -154,14 +155,15 @@ operation or new controls.
 
 ### Page acceptance manifest
 
-| Page | Current treatment | Repository reference | Required visible regions and working actions | Prohibited legacy/default content | Loading behavior |
+| Page | Current treatment | Governing or historical evidence | Required visible regions and working actions | Prohibited legacy/default content | Loading behavior |
 |---|---|---|---|---|---|
-| Dashboard | **Protected accepted baseline; regression check only** | `dashboard.png` | Research Atlas overview, live-research summary, readiness, research landscape, evidence survival, and clear next owner need | Replacement overview, invented metrics, new workflow controls, or visual change made only for loading work | Lightweight summary only; expensive detail waits for its destination page |
-| Ideas | **Protected substantially conforming baseline; regression check and specific confirmed defects only** | `ideas.html` | Idea queue/history, selected idea explanation, provenance, and obvious **Accept**, **Revise**, **Reject**, import/context/export actions | Redesign, broad restyling, ambiguous text posing as controls, hidden decision action, or legacy draft-editor composition | Preserve appearance, interaction, selected identity, and queue shell while active-route data loads |
-| Set up | **Verified visual/functional correction required** | `setup.html`, `setup.png` | Selected idea/campaign context, exact bounded test, test-day explanation, readable dates, instrument/timeframe/costs from the selected contract, readiness checks, and obvious save/revise/reject or next valid action | MES/SPYM hard-coding as a universal page, fake or decorative controls, unrelated fixture substitution, duplicated narrative panels | Load Candidate/configuration detail only while Set up is active; preserve the selected identity |
-| Run test | **Verified workflow/functional correction required** | `run-test.html`, `run-test.png` | Saved test identity, immutable contract, data/provenance, preflight checks, explicit confirmation, and one start action or truthful blocker | Editable setup, silent retry, duplicate launch, or unrelated runnable fixture | Hydrate preflight/run state only on the active route; never launch from hydration |
-| Results | **Verified visual/functional correction required** | `results.html`, `results.png` | Persistent quartet, selected-run identity, truthful price/trade workspace, chart controls, metrics/trades/variants, evidence, review, and technical disclosure | Long diagnostics-first page, fabricated charts, or dense evidence mounted as the default view | Load history, artifacts, chart, and evidence only when Results is active and a run is selected |
-| Compare | **Verified structural correction required** | `compare.html`, `compare.png` | Selected-run chips, comparability warning, per-run quartets, normalized equity, aligned metrics, material differences, and Results links | Exhaustive parameter dump, separate legacy drawdown report, or hidden old Compare renderer | Load selected runs and chart evidence only while Compare is active; retain identities during reads |
+| Dashboard | **New design required** | Decisions 338 and 340; `dashboard.png` is content evidence only | Factory control tower: truthful throughput, readiness, autonomous activity, Candidate Universe, budgets, exceptions, survivors, classified alerts, evidence survival, and data readiness | Intake forms, manual setup/launch workflow, invented metrics, or contradictory state | Lightweight truthful summary; expensive detail waits for the owning surface |
+| Candidates | **New design required** | Decision 340 and the reconstruction contract; Ideas/Set up/Run test references are content evidence only | Searchable Candidate Universe plus selected workspace for intake, repair, hypothesis, immutable study, execution, evidence timeline, lineage, and precise exceptions | Mandatory manual stage progression, unrelated fixture substitution, silent study edits, or ordinary rejections presented as owner decisions | Preserve Candidate selection; load detail only for the selected record |
+| Ideas | **Superseded as a destination** | Historical `ideas.html` content only | Intake content is absorbed by Candidates | Restoring an independent sequential Ideas step | Compatibility redirect only if needed |
+| Set up | **Superseded as a destination** | Historical `setup.html` and `setup.png` content only | Generated-study content is absorbed by Candidate workspace | Restoring manual setup as a normal step | Compatibility redirect only if needed |
+| Run test | **Superseded as a destination** | Historical `run-test.html` and `run-test.png` content only | Queue and execution content is absorbed by Candidate workspace | Restoring manual launch as a normal step | Compatibility redirect only if needed |
+| Results | **Greenfield restoration required** | Owner-approved Greenfield preview; `results.html` and `results.png` are content/failure evidence only | Persistent quartet, selected-run identity, truthful price/trade workspace, chart controls, metrics/trades/variants, evidence, review, and technical disclosure | Long diagnostics-first page, fabricated charts, or dense evidence mounted as the default view | Load history, artifacts, chart, and evidence only when Results is active and a run is selected |
+| Compare | **New design required** | Decision 338 reconstruction contract; `compare.html` and `compare.png` are content evidence only | Selected-run chips, comparability warning, per-run quartets, normalized equity, aligned metrics, material differences, and Results links | Exhaustive parameter dump, separate legacy drawdown report, or hidden old Compare renderer | Load selected runs and chart evidence only while Compare is active; retain identities during reads |
 | Market data | **Inspect first; preserve if conformant** | `market-data.html`, `market-data.png` | Usability summary, coverage landscape, selected dataset, and validated catalog | Raw storage inventory as the primary experience or acquisition controls | Load catalog/coverage only while active; show observation time and truthful unavailable states |
 | System status | **Inspect first; preserve if conformant** | `system-status.html`, `system-status.png` | Operability answer, component health, recent relevant events, and safe/needs-check meaning | Raw logs, stack traces, or internal process detail as default content | Load current health only while active; label stale observations |
 | Data sources | **Inspect first; preserve if conformant** | `data-sources.html`, `data-sources.png` | Recorded lineage, selected source, provenance records, and bounded acquisition guidance | Secrets, unrestricted provider output, or purchase/download action | Load provenance records only while active; retain the selected source during refresh |
@@ -169,8 +171,11 @@ operation or new controls.
 | Paper Trading Overview | **Status reference only; no redesign authority** | `paper-overview-status-reference.png` | Retained read-only status reference only | Any operational control or claim of paper authority | No paper data polling before the paper milestone is authorized |
 | Strategy Monitor | **Status reference only; no redesign authority** | `strategy-monitor-status-reference.png` | Retained read-only status reference only | Orders, positions, activation, allocation, or live monitoring claims | No strategy-monitor hydration before the paper milestone is authorized |
 
-Set up is a reusable backtesting-engine page, not a one-off MES form. The
-approved SPYM mockup supplies its composition and control language; the actual
+The historical Set up requirements describe reusable generated-study content,
+not a one-off MES form; Decision 340 moves that content into Candidate
+workspace. The
+historical SPYM mockup supplies useful field and domain facts, not composition
+or control language; the actual
 instrument, asset class, timeframe, dates, strategy settings, execution
 assumptions, and costs come from the browser-selected Candidate and its exact
 saved configuration. The mockup's disabled dropdowns deliberately expose
@@ -186,40 +191,42 @@ as its own contract, not reconstructed from whichever example was most recently
 implemented. MES's $0.62-per-side baseline and $1.24 higher-cost scenario are
 specific to that accepted MES Candidate, not global defaults for equities or
 other futures.
-Do not replace the accepted mockup's design language with an unrequested
-generic "plain language" rewrite; explain work plainly to Terry in the
-conversation while keeping the approved in-product terminology and hierarchy.
+Use capable trader-facing language that remains understandable without
+developer narration. Terminology follows domain truth; hierarchy and
+interaction follow the newly approved design rather than the historical mockup.
 
 Conformance means the required regions and real actions exist, prohibited
 content is absent rather than CSS-hidden, and the loading rule is respected.
 Text presence, component counts, or a passing callback helper test alone are
-insufficient. Terry performs final browser acceptance; Decision 330 permits
-only the bounded inspection described there.
+insufficient. Terry performs final browser acceptance. Decision 330's bounded
+inspection authority is exhausted; Decisions 337–340 authorize no current browser
+automation or implementation.
 
 For the active R12 correction, a page is not ready for merge or deployment
 until its actual rendered representative state has been visually inspected
-against that page's exact reference and shown to Terry side by side. Empty or
+against its newly owner-approved design and shown to Terry side by side.
+Results also requires exact Greenfield interaction conformance. Empty or
 loading states, route arrival, HTTP success, and zero browser errors are not a
 substitute for representative-state conformance. Navigation through all route
 URLs is a routing smoke check, not proof that the operator workflow works.
 The eventual workflow pass must let a human review the meaningful state and
-next safe transition at each included page from Ideas through Compare; a
+next safe transition across Dashboard, Candidates, Results, and Compare; a
 plausible static layout or disabled placeholder controls are not enough.
 
 ## Route and navigation contract
 
-The permanent shell contains the brand/Home link, the primary research steps,
-the support links, the active-route state and all registered route containers.
-The primary labels and URLs are exact:
+The product navigation contains the brand/Dashboard link, primary research
+surfaces, support links, active-route state, and registered route containers.
+Its visual shell is part of the new design. Decision 340 fixes the primary
+labels and target URLs; an authorized implementation may use redirects from
+legacy routes:
 
 | Order | Navigation label | URL | Page identity |
 |---:|---|---|---|
-| 0 | Quant Factory brand / Home | `/` | `Home` |
-| 1 | Ideas | `/research/ideas` | `Ideas` |
-| 2 | Set up | `/research/setup` | `Set up a test` |
-| 3 | Run test | `/research/run-test` | `Run test` |
-| 4 | Results | `/research/backtest-results` | `Results` |
-| 5 | Compare | `/research/compare-backtests` | `Compare results` |
+| 0 | Dashboard | `/` | `Dashboard` |
+| 1 | Candidates | `/research/candidates` | `Candidates` |
+| 2 | Results | `/research/backtest-results` | `Results` |
+| 3 | Compare | `/research/compare-backtests` | `Compare` |
 
 Support navigation remains visually separate from the numbered flow:
 
@@ -253,8 +260,9 @@ Every workflow page uses the same shell and page-heading pattern:
 3. one sentence explaining what the operator can decide here;
 4. workflow position communicated by the persistent sidebar; do not repeat it
    as a row of numbered stage cards inside each page;
-5. page-local primary action at the right on wide screens and below the heading
-   on narrow screens;
+5. a page-local primary action at the right on wide screens and below the
+   heading on narrow screens only when that page owns a currently valid action;
+   Dashboard has no workflow action;
 6. user-readable loading, empty, blocked and failed states in the content area.
 
 When a run is selected, the persistent run-context quartet defined below sits
@@ -267,21 +275,24 @@ state; placeholder values must not resemble evidence.
 
 ### Home — `/`
 
-**Purpose:** orient the operator and identify the next safe action.
+**Purpose:** answer what is happening in Quant Factory now.
 
 Show:
 
 - research-system and local data readiness in plain language;
-- current milestone and the discovery gate;
+- current milestone and human gates;
 - the most recent selected or active run, if one exists;
 - recent failures that require attention;
-- the six-step research path with completed, current and unavailable labels;
-- one primary **Continue research** action that opens the next valid step.
+- current autonomous campaigns, agent tasks, queued work and blocked work, or
+  the explicit statement **No research is running**;
+- the research path with completed, current and unavailable labels; and
+- concise classified alerts whose investigation remains on the owning page.
 
-Home is an overview, not an execution surface. It never launches, retries,
-cancels, reviews or reproduces a run. If health is not checked, say **Not
-checked** rather than implying healthy. If there is no work yet, the primary
-action is **Capture an idea**.
+Home is a read-only overview, not an execution or intake surface. It never
+captures an idea, launches, retries, cancels, approves, investigates, reviews
+or reproduces a run. If health is not checked, say **Not checked** rather than
+implying healthy. Idea intake belongs on Ideas; failure investigation belongs
+on Results or System status according to the failure type.
 
 ### Ideas — `/research/ideas`
 
@@ -335,15 +346,13 @@ Show:
 - a persistent warning that fixture results prove infrastructure, not profit;
 - a read-only summary of the exact configuration that will be used.
 
-The operator may edit a page-local setup draft. **Save setup draft** creates an
-immutable persisted record through existing service boundaries, but it does
-not supply research approval or concrete data binding. Those new drafts remain
-blocked from Run test. After the owner accepts a named candidate, Codex supplies
-the candidate's strategy-specific implementation and exact data binding through
-the existing controlled backend seam; the dashboard is not a universal idea-to-
-code converter. Separately, an already approved configuration with concrete
-data can expose **Review test**, linking to Run test with the persisted
-configuration identity. Set up does not launch a run.
+The historical page-local setup-draft interaction is superseded. In the target
+workflow the factory generates an immutable study from a policy-eligible
+Candidate, including concrete data binding and a versioned strategy adapter.
+Missing implementation is a typed implementation-blocked or exception state;
+the dashboard is not a universal idea-to-code converter. Set up observes the
+generated contract and links to Run test for queue and execution state. It does
+not launch a run or ask the owner to approve an ordinary Candidate.
 
 States:
 
@@ -359,20 +368,19 @@ States:
 
 ### Run test — `/research/run-test`
 
-**Purpose:** perform the final human review, launch exactly once, and observe
+**Purpose:** observe automatic eligibility, exactly-once queue admission, and
 run state without mixing launch controls into analysis.
 
-Before launch, show a read-only configuration summary, data/provenance summary,
-execution assumptions, preflight checks and fixture warning. The single primary
-action is **Run test**. It remains disabled until the configuration is persisted,
-launchable and passes preflight.
+Before admission, show a read-only configuration summary, data/provenance
+summary, execution assumptions, campaign budget and authority, preflight checks,
+and fixture warning. An ordinary eligible study enters the queue automatically.
+An action appears only for a typed exception that policy cannot resolve.
 
-Launch requires an explicit click. While submission is unresolved, disable the
-button and show **Starting test…**. A successful response displays the run
-identity, the persistent quartet, an event/status timeline, **View results** and
-only the safe actions valid for the current state. Refresh must reopen the same
-persisted run; an inactive mounted page must not submit, retry, cancel or
-recover anything.
+While submission is unresolved, show **Starting test…** without creating a
+second claim. A successful response displays the run identity, the persistent
+quartet, an event/status timeline, **View results**, and only the safe actions
+valid for the current state. Refresh must reopen the same persisted run; an
+inactive mounted page must not submit, retry, cancel, or recover anything.
 
 States:
 

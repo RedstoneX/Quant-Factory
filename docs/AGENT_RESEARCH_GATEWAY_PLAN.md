@@ -1,7 +1,7 @@
 # Quant Factory Agent Research Gateway
 
-> This remains a supporting implementation specification. Decision 323 and
-> `docs/MILESTONES.md` authorize ARG-0 through ARG-6; Tier 1 remains the sole
+> This remains a supporting implementation specification. Decisions 323 and
+> 339 plus `docs/MILESTONES.md` authorize ARG-0 through ARG-6; Tier 1 remains the sole
 > authority for current status and sequencing. ARG-7 remains optional and is
 > not authorized without a demonstrated client need.
 > When Tier 1 is at an owner walkthrough or other owner-only gate, this plan
@@ -124,7 +124,8 @@ This project does not:
 - permit paid-data acquisition;
 - permit unlimited parameter search or automated curve fitting;
 - permit an agent to declare a strategy qualified;
-- let a remote agent bypass owner gates;
+- let a remote agent bypass campaign policy, exception, survivor-promotion, or
+  trading/capital gates;
 - require MCP;
 - expose a new public web service by default.
 
@@ -222,13 +223,16 @@ Adds:
 - attach source references and research notes;
 - request deduplication/prior-work analysis.
 
-A submitted Candidate is not automatically approved for research.
+A submitted Candidate is not eligible merely because it was submitted or an
+agent claims confidence. Quant Factory derives eligibility through the active
+campaign policy and deterministic validation/repair gates.
 
 ### Level 2 — development research
 
 Adds only when the applicable owner/Tier-1 gate authorizes it:
 
-- request a development-stage test for an owner-approved Candidate;
+- request a development-stage test for a policy-eligible Candidate inside an
+  active campaign budget;
 - monitor the run;
 - retrieve structured results;
 - submit a new Candidate hypothesis based on evidence.
@@ -240,9 +244,10 @@ runtime. It must not create a parallel bypass.
 
 Optional future authority only.
 
-If later authorized, an agent may request permitted progression through existing
-validation stages. Quant Factory remains the authority that decides whether a
-stage is eligible.
+If later authorized, Quant Factory may progress an eligible Candidate
+automatically through existing validation stages. Agents may request status or
+submit evidence-linked child Candidates, but Quant Factory remains the
+authority that decides whether a stage is eligible.
 
 ### Never through this gateway
 
@@ -603,8 +608,8 @@ The target loop is:
 4. Form a bounded hypothesis
 5. Produce QF Candidate v1
 6. Validate and submit
-7. Obtain required owner approval when applicable
-8. Request permitted development test
+7. Let campaign policy repair, deduplicate, compile, and admit eligible work
+8. Observe automatic bounded testing or a typed exception
 9. Read structured result/evidence
 10. Explain success/failure
 11. Stop, or create a materially different child Candidate with lineage
@@ -735,7 +740,7 @@ Acceptance:
 ### ARG-4 — Development-run request boundary
 
 Goal: allow an authorized agent to request an existing QF development test
-without bypassing owner/Candidate gates.
+without bypassing campaign, Candidate-policy, budget, or exception gates.
 
 Implementation:
 
@@ -747,8 +752,9 @@ Implementation:
 
 Acceptance:
 
-- unapproved Candidate cannot launch;
-- approved Candidate uses the existing durable pipeline;
+- policy-ineligible Candidate cannot launch;
+- policy-eligible Candidate inside an active campaign budget uses the existing
+  durable pipeline;
 - duplicate request cannot create duplicate execution;
 - no protected stage is crossed;
 - no paper/live authority exists.

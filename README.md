@@ -7,25 +7,27 @@ an operator surface, not the purpose of the project.
 
 ## Current direction
 
-The active sequence is:
+The active sequence, summarized from `docs/MILESTONES.md`, is:
 
-**operator-product completion -> owner handoff -> owner-initiated candidate research -> validation -> execution-vehicle comparison -> paper operation -> live operation later.**
+**operator-interface reconstruction -> campaign-policy acceptance -> automated Candidate filtration and staged validation -> survivor review -> execution-vehicle comparison -> paper operation -> live operation later.**
 
 Backend completion is recorded. The generic candidate runtime now reuses the existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable-launch, and filter-handoff infrastructure. It stops at the protected-test gate and does not expand protected-data authority.
 
-The objective dashboard and operator-workflow implementation is ready for
-Terry's final walkthrough; explicit handoff acceptance remains pending.
-Existing technical and historical evidence, the approved chart-first UX, Find
-& Compare, the completed backend, and the audited MES run were reused for the
-practical single-user product. After handoff, Terry initiates or accepts
-controlled candidate work and operates approved strategy configurations
-through the product; this is not an arbitrary code-free strategy builder.
+The October 7 unaided owner walkthrough found the seventh dashboard and
+operator-workflow iteration unusable. Technical and Results-performance passes
+remain useful evidence, but do not establish usability. Decisions 337–338
+reopen R12 and retire the seventh iteration's visual and interaction language
+while preserving the existing backend. Decision 339 defines the intended
+product as a high-throughput automated filtration system: ordinary in-policy
+Candidates progress without per-item owner approval, while exceptions,
+survivors, and paper/live authority route to the owner. The current plan and exact authority remain in `docs/MILESTONES.md` and
+`docs/operator-interface-reconstruction.md`.
 
 The fixed Decision 310 MES overnight-gap reversal screen completed and was
 rejected after negative total and annualized returns and Sharpe below 0.5. No
 new strategy selection, proposal, optimization, screening, or profitability
-test occurs before operator handoff. After handoff, owner-initiated research is
-restricted to **intraday/day-trading directional edges** unless the owner
+test occurs before operator and campaign-policy acceptance. After activation,
+automated research is restricted to **intraday/day-trading directional edges** unless the owner
 changes the mandate: minutes-to-hours holding, flat by the strategy's defined
 session boundary, and no overnight or multi-day carry. The SPY turn-of-month
 idea remains out of scope under that mandate.

@@ -10,6 +10,9 @@ This page is navigation only. It never defines project status or priority.
 3. Read the **Current effective decision index** at the top of
    [`docs/DECISIONS.md`](DECISIONS.md), then only the decisions relevant to
    the active task.
+4. When R12 operator-interface reconstruction is active, read
+   [`docs/operator-interface-reconstruction.md`](operator-interface-reconstruction.md)
+   before proposing or implementing page work.
 
 Do not read the decision log chronologically to infer current work. Do not use
 README, ADRs, dashboard specifications, historical milestone records, or review

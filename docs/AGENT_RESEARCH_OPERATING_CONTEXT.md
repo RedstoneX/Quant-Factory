@@ -11,8 +11,8 @@ Quant Factory exists to find, reject, and rigorously validate repeatable
 trading edges with a credible path to profitable deployment. An agent is a
 researcher operating inside bounded authority. It may gather and compare
 sources, formulate hypotheses, prepare Candidates, read permitted evidence,
-and explain results. It does not approve Candidates, declare an edge qualified,
-change Quant Factory authority, or control trading or capital.
+and explain results. It does not assert Candidate eligibility, declare an edge
+qualified, change Quant Factory authority, or control trading or capital.
 
 Begin every new session with:
 
@@ -38,7 +38,9 @@ Candidate must state one bounded, falsifiable behavior; same-session market and
 holding boundaries; explicit entry and exit rules; fixed assumptions; justified
 bounded variables; genuine structural variants; data needs; exclusions;
 failure theory; evaluation intent; uncertainties; and source provenance.
-Validation or submission creates no approval or execution authority.
+Validation or submission alone creates no execution authority. Quant Factory
+derives eligibility from the active deterministic campaign policy; an agent
+cannot claim or override that state.
 
 For every source, preserve enough provenance to audit the relied-on claim:
 stable URL or identifier, source type, title and author when available,
@@ -143,11 +145,16 @@ authority can read context and permitted non-protected evidence, search prior
 work, validate/submit draft Candidates, and attach source-attributed notes when
 its registered level permits those actions.
 
-Stop for owner approval before Candidate research begins, before any run not
-already authorized by the returned gates, before progressing validation, or
-when a new product choice, cost, irreversible action, protected-data boundary,
-credential/security expansion, or materially different outcome is required.
-Do not substitute another Candidate or side project while a gate is blocked.
+Candidate research and runs remain stopped until the owner activates a bounded
+campaign lane. Once activated, ordinary in-policy work may progress through the
+returned deterministic gates without per-Candidate approval. Stop for owner
+attention when a new product or mandate choice, material cost, irreversible
+action, protected-data boundary, unresolved semantic or prior-work judgment,
+credential/security expansion, paper-lane activation or material expansion, or
+live authority is required. Inside an activated Decision 341 paper lane, an
+ordinary eligible survivor may cross automatically. Do not substitute another
+Candidate or side project while a genuine
+exception gate is blocked.
 
 The Gateway never grants authority to retrieve secrets or credentials, inspect
 protected evidence, purchase data, modify Quant Factory source, approve a

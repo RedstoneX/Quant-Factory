@@ -4271,14 +4271,9 @@ def page_for_path(
 
         return compare_backtests_layout(history_rows=history_rows)
     if route == "/paper/fleet":
-        return _pending_page(
-            "PAPER TRADING",
-            "Paper Trading Overview",
-            "Forward performance across approved strategies, kept separate and individually traceable.",
-            scope_note=(
-                "Paper-trading execution is intentionally not implemented in this milestone pass."
-            ),
-        )
+        from dashboard.pages.paper_trading import layout as paper_trading_layout
+
+        return paper_trading_layout()
     if route == "/paper/strategy":
         return _pending_page(
             "PAPER TRADING",

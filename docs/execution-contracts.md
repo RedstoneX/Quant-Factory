@@ -38,6 +38,22 @@ authorization, tolerance policies, currency conversion, P&L calculation, or
 dashboard behavior. Those require later separately accepted Milestone 24 work
 and paper/live isolation controls under ADR 0006.
 
+## Immutable research-to-paper handoff
+
+`execution/paper_handoff.py` defines the dormant `qf.paper-handoff.v1` seam.
+It is a frozen, JSON-native manifest containing Candidate/strategy/run identity,
+content-addressed evidence and strategy-package references, execution-vehicle
+identity, passed eligibility-gate identities, source revision, and the
+separately activated paper-lane and paper-risk policy identities.
+
+The manifest deliberately contains no executable strategy bytes, broker
+account identity, credentials, endpoint, order, position, P&L, or activation
+flag. It cannot submit, deploy, or authorize anything. A future isolated paper
+system must verify its checksums and all current admission gates independently;
+the research process cannot turn it into an `OrderIntent`. See
+[`paper-operation-contract.md`](paper-operation-contract.md) for the future
+consumer boundary.
+
 ## Offline paper account/deployment binding preflight
 
 `PaperDeploymentBinding` is the one reusable configuration boundary for a
