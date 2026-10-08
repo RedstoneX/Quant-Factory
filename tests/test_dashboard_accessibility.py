@@ -61,7 +61,7 @@ def test_setup_selector_is_exposed_as_a_named_control_group() -> None:
 
 
 def test_active_navigation_item_exposes_semantic_current_page_state() -> None:
-    active_path = "/research/setup"
+    active_path = "/research/candidates"
     layout = create_dashboard_layout(
         context=None,
         configurations=(),

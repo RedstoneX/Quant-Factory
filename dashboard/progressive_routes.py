@@ -7,6 +7,7 @@ from typing import Any
 
 from dash import Dash
 
+from orchestration.active_runs_read_model import active_run_summaries
 from orchestration.survivor_read_model import annotate_factory_outcomes
 
 
@@ -104,7 +105,11 @@ def live_route_renderer(
             configurations,
             recent_runs=runs.recent_runs(limit=20),
             recent_events=runs.recent_events(limit=20),
-            all_runs=runs.all_runs() if pathname == "/" else (),
+            all_runs=(
+                active_run_summaries(layout_options["dashboard_database"])
+                if pathname == "/"
+                else ()
+            ),
             selected_run_panel=layout_options["selected_run_panel"],
             selected_run_id=None,
             dashboard_database=layout_options["dashboard_database"],
@@ -135,7 +140,11 @@ def live_layout_provider(
             **layout_options,
             "recent_runs": runs.recent_runs(limit=20),
             "recent_events": runs.recent_events(limit=20),
-            "all_runs": runs.all_runs() if pathname == "/" else (),
+            "all_runs": (
+                active_run_summaries(layout_options["dashboard_database"])
+                if pathname == "/"
+                else ()
+            ),
             "history_rows": (
                 _factory_history(runs, layout_options)
                 if pathname in {"/", "/research/candidates"}

@@ -30,27 +30,27 @@ class _HistoryCountingRunService(_DashboardRunService):
         return super().all_history(artifact_root=artifact_root)
 
 
-def test_dashboard_defers_full_history_until_results_history_is_open(tmp_path: Path) -> None:
+def test_dashboard_reads_history_once_for_oversight_then_results_refreshes(tmp_path: Path) -> None:
     service = _HistoryCountingRunService()
     app = create_app(review_database=tmp_path / "lazy-history.sqlite3", run_service=service)
 
     app.layout()
     assert service.all_runs_queries == 0
-    assert service.all_history_queries == 0
+    assert service.all_history_queries == 1
 
     refresh_history = _callback_function(app, "run-history-grid-host.children")
     with pytest.raises(PreventUpdate):
         refresh_history(1, 0, 0, 0, 0, 0, 0, 0, "/research/ideas")
     with pytest.raises(PreventUpdate):
         refresh_history(0, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results")
-    assert service.all_history_queries == 0
+    assert service.all_history_queries == 1
 
     hydrated_grid = refresh_history(
         1, 0, 0, 0, 0, 0, 0, 0, "/research/backtest-results"
     )
     rows = hydrated_grid.rowData
     assert rows[0]["run_id"] == "run_dashboard_fixture"
-    assert service.all_history_queries == 1
+    assert service.all_history_queries == 2
 
 
 def test_results_history_grid_mounts_empty_then_hydrates_on_open(
