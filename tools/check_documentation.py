@@ -36,9 +36,9 @@ LEAN_CONTRACT_MARKERS = {
     ),
     "docs/DECISIONS.md": ("| **328** |",),
     "docs/MILESTONES.md": (
-        "No Candidate, broker, paper-runtime, deployment, or research activation",
-        "Decision 342 authorizes only the first Dashboard/Candidates production",
-        "slice and its focused checks and pull request",
+        "No Candidate, broker, paper-runtime, further deployment, or research activation",
+        "Decision 343 exercised the one private deployment and bounded",
+        "browser-QA authority for the first Dashboard/Candidates slice",
     ),
     "docs/operations/ovh-research-deployment.md": (
         "## Lean private-beta review deployment",

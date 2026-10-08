@@ -13,7 +13,8 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **342** | **Approve the consolidated interface direction and authorize the first production slice:** Dashboard leads with truthful current Factory operations; Candidates defaults to Survivors and provides the high-density sortable/filterable gold-discovery surface; exact Results is the primary row drill-down and comparison is secondary. Implement primary navigation, Dashboard, and Candidates with focused non-browser proof and a pull request. No deployment, Candidate run, protected evidence, paper activation, broker access, orders, or capital follows. |
+| **343** | **Deploy and browser-check the first Dashboard/Candidates slice:** PR #181 is merged and revision `2953b03` is healthy on the private service. One bounded desktop Chromium pass used only persisted read-only state and verified Dashboard, Candidate population/search/sort/selection, and exact Results drill-down. No persisted survivor exists, so survivor selection and Compare-selected remain unproved on the deployed state. Terry's unaided walkthrough remains the comprehension gate. No Candidate run, protected evidence, paper activation, broker access, orders, or capital follows. |
+| **342** | **Approve the consolidated interface direction and first production slice; implementation authority is now exercised by Decision 343:** Dashboard leads with truthful current Factory operations; Candidates defaults to Survivors and provides the high-density sortable/filterable gold-discovery surface; exact Results is the primary row drill-down and comparison is secondary. |
 | **341** | **Define Quant Factory's own Alpaca Paper boundary and authorize its dormant seams:** QAMC remains a separate project whose proven code may be inspected and adapted later, never a runtime, database, credential, or availability dependency. After separate owner activation of a bounded paper lane, eligible survivors may cross automatically through a fail-closed immutable handoff; current authority covers documentation, the non-executable handoff contract, and one Dashboard link to an inactive Paper surface only. Research Dashboard shows no paper P&L. No broker connection, credentials, deployment, orders, capital, or paper activation follows. |
 | **340** | **Replace the sequential six-page workflow with Dashboard-centered factory oversight:** Dashboard remains the front door and Candidate Universe is its dominant drill-down. Primary navigation becomes Dashboard, Candidates, Results, and Compare. Candidate workspace absorbs Ideas, Set up, and Run test responsibilities; Intake and Exceptions are contextual capabilities unless later volume justifies routes, and System status remains separate. This is the current information-architecture direction, not implementation or research authority. |
 | **339** | **Define Quant Factory as a high-throughput automated filtration system:** owner- or LLM-authored QF Candidate packets enter one provider-neutral intake; deterministic validation, bounded repair, prior-work checks, study construction, VectorBT parameter/variant sweeps, screening, OOS, walk-forward, robustness, and Monte Carlo stages progress automatically inside pre-authorized mandate, budget, data, and evidence policies. Ordinary Candidates do not require per-item owner approval. Owner intervention is exception-based and remains mandatory for mandate/cost/protected-data expansion, unresolved semantic ambiguity, edge promotion, and paper/live/capital authority. Decision 340 controls how this model is organized in the interface. This is not current authority to run a campaign or activate paper/live trading. |
@@ -2576,3 +2577,31 @@ or research authority. Current direction is the index above, Decisions 337–338
      VectorBT upgrade, paper activation, broker credentials, orders, live
      trading, or capital exposure. Later surfaces and deployment remain
      separate gates.
+
+
+343. **Deploy and browser-check the first Dashboard/Candidates slice
+     (accepted 2026-10-08).** After PR #181 passed dependency review,
+     documentation contracts, and all 1,790 portable non-browser tests, Terry
+     explicitly authorized merge, private deployment, and browser QA. Merge
+     revision `2953b03b0cdfec64a53c34bf00ed18c5b2c5d788` was built with the
+     existing licensed VectorBT Pro dependency and deployed through the lean
+     private-beta procedure. Only the dashboard container was recreated;
+     Prefect, the Agent Research Gateway, the database, and persisted research
+     evidence were unchanged. The dashboard health endpoint and private route
+     report the merged revision and HTTP 200.
+
+     One bounded 1440x1000 Chromium pass used only persisted read-only state.
+     Dashboard rendered current operations and the saved evidence overview.
+     Candidates truthfully showed 0 Survivors, 0 Advancing, 48 Needs review,
+     and 1 Rejected; population switching, search, Sharpe sorting, row
+     selection, and the exact Results action worked. The selected rejected MES
+     record opened its exact persisted Results page with chart and trade
+     markers and no console or page errors. No persisted survivor exists, so
+     survivor selection and Compare-selected could not be exercised on the
+     deployed state and are not claimed as browser-proven. Terry's unaided
+     walkthrough remains the comprehension and acceptance gate.
+
+     This one deployment and browser-QA authority is exercised. It does not
+     authorize a Candidate or research run, evidence mutation, protected-data
+     access, a VectorBT upgrade, paper activation, broker credentials, orders,
+     live trading, capital exposure, or implementation of later surfaces.
