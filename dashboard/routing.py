@@ -4,12 +4,10 @@ from __future__ import annotations
 
 NAVIGATION_GROUPS = (
     (
-        "Research workflow",
+        "Research",
         (
             ("/", "Dashboard"),
-            ("/research/ideas", "Ideas"),
-            ("/research/setup", "Set up"),
-            ("/research/run-test", "Run test"),
+            ("/research/candidates", "Candidates"),
             ("/research/backtest-results", "Results"),
             ("/research/compare-backtests", "Compare"),
         ),
@@ -46,12 +44,16 @@ NAVIGATION_ITEMS = NAVIGATION_LINKS
 # primary research-navigation group.  Its registered routes remain available
 # while the separately authorized paper system is dormant.
 RESPONSIVE_ROUTE_LABELS = {
+    "/research/ideas": "Ideas",
+    "/research/setup": "Set up",
+    "/research/run-test": "Run test",
     "/paper/fleet": "Paper trading",
     "/paper/strategy": "Paper strategy monitor",
 }
 
 ROUTE_REGISTRY = (
     ("/", "route-home"),
+    ("/research/candidates", "route-research-candidates"),
     ("/research/ideas", "route-research-ideas"),
     ("/research/setup", "route-research-setup"),
     ("/research/run-test", "route-research-run-test"),

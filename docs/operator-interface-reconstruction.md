@@ -422,6 +422,12 @@ The first viewport shows:
 5. exception and survivor gates; and
 6. classified research failures and system problems.
 
+The owner-approved first implementation slice leads with a **Current Factory
+operations** panel above the analytical charts. It uses persisted run state to
+show active and queued identities, stage/status, elapsed time, authoritative
+or unavailable ETA, orchestration acknowledgement, and failure state. It does
+not label paper or live trading as active research.
+
 For the current state it must say: no research is running; two tests completed;
 both fixed MES Candidates screened out; zero qualified edges; no Candidate
 currently requires owner intervention; and new research requires a future
@@ -455,6 +461,20 @@ hundreds of strategies and much larger parameter/variant cohorts. It preserves
 selection while moving between overview and detail. Its default view favors
 stage, family, campaign, disposition, recency, exception, survivor, and
 resource/budget signals rather than long static descriptions.
+
+The approved default population is **Survivors**: the gold that has explicitly
+survived the recorded filtration gates. The grid supports sorting, filtering,
+column reordering, and selection by Sharpe, net return, maximum drawdown, OOS
+performance/retention, robustness, trade count, and paper eligibility. Missing
+persisted metrics display **Unavailable** and are never synthesized. One
+selection opens exact Results; two to four selections expose **Compare
+selected** as a secondary action.
+
+Survivor membership is fail-closed. The authoritative filter-chain outcome
+appends one idempotent `ready_for_protected_test` marker to the screening run,
+which remains the Candidate row and exact Results identity because it owns the
+ranked metrics, portfolio, chart, and trades. Page loading reads that marker;
+it does not replay validation artifacts or infer survival from labels.
 
 The page owns:
 
@@ -555,7 +575,7 @@ Compare uses one comparable and one excluded persisted selection set. The
 high-volume proof must show that navigation and comprehension do not depend on
 opening every Candidate.
 
-## Sequence after owner approval
+## Authorized implementation sequence
 
 1. **Information architecture:** retain Dashboard as the front door; adopt
    Dashboard, Candidates, Results, and Compare as primary navigation; absorb
@@ -566,11 +586,10 @@ opening every Candidate.
    derived without inference.
 3. **Shared product design:** approve the navigation, shell, common state
    language, Dashboard, and Candidate-workspace relationship before code.
-4. **Dashboard:** reassess and refine the current design against the clarified
-   automation model; stop for owner approval.
-5. **Candidates:** design and implement the Candidate Universe/workspace,
-   including intake, immutable study, execution/evidence timeline, lineage, and
-   exception modes; stop for owner approval.
+4. **Dashboard:** implement the approved current-operations-first composition,
+   then stop for owner review before deployment.
+5. **Candidates:** implement the approved Survivors-first high-density Universe
+   and exact Results/secondary Compare actions, then stop for owner review.
 6. **Results:** restore discovery and Greenfield interaction; stop for approval.
 7. **Compare:** repair finalist/run discovery before comparison presentation;
    stop for approval.
@@ -622,18 +641,17 @@ Passing one gate does not compensate for failing another.
   changes.
 - Stop after each owner-visible surface for explicit owner approval.
 
-## Owner decisions before implementation
+## Owner decisions and remaining gates
 
-The owner has approved the automated-filtration product model in Decision 339
-and the Dashboard-centered information architecture in Decision 340. Before
-application implementation, obtain incremental owner approval of:
+The owner approved the automated-filtration product model in Decision 339,
+Dashboard-centered information architecture in Decision 340, and the
+consolidated visual/workflow direction plus first Dashboard/Candidates
+implementation slice in Decision 342. Remaining incremental gates are:
 
-1. the shared lifecycle/eligibility projection and common state language;
-2. the reassessed Dashboard composition, Candidate Universe, drill-downs, and
-   truthful inactive state;
-3. the Candidates/Candidate-workspace composition and its intake, study,
-   execution, evidence, lineage, and exception modes;
-4. Results integration while preserving Greenfield interaction; and
-5. Compare integration and the distinct Exceptions/System-status presentation.
+1. owner review of the implemented Dashboard and Candidates slice;
+2. Results integration while preserving Greenfield interaction;
+3. Compare integration and the distinct Exceptions/System-status presentation;
+4. deployment; and
+5. unaided owner comprehension on the deployed representative states.
 
 Approval of one surface does not silently approve the next.

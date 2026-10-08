@@ -606,7 +606,7 @@ def test_layout_and_app_creation_without_server(tmp_path: Path) -> None:
     app = create_app(context, tmp_path / "reviews.json")
     assert _resolved_layout(app) is not None
     assert app.title == "Quant Factory"
-    assert len(app.callback_map) == 62
+    assert len(app.callback_map) == 65
     assert app.config.meta_tags == [
         {
             "name": "viewport",
@@ -701,7 +701,7 @@ def test_page_specific_callbacks_do_not_control_routes_or_navigation(
         next(
             key
             for key in app.callback_map
-            if "navigation-link-research-ideas.className" in key
+                if "navigation-link-research-candidates.className" in key
         ),
         next(
             key
@@ -741,7 +741,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     navigation_output = next(
         key
         for key in app.callback_map
-        if "navigation-link-research-ideas.className" in key
+        if "navigation-link-research-candidates.className" in key
     )
     navigation_outputs = [
         {"id": navigation_link_id(path), "property": "className"}
@@ -857,7 +857,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
 
     home_visible = visible_routes(invoke_route("/"))
     home_text = mounted_pages["/"]
-    assert "Research Atlas" in home_text
+    assert "Dashboard" in home_text
     assert "Research Landscape" in home_text
     assert "Data Readiness" in home_text
     assert home_visible == ["/"]
@@ -881,8 +881,8 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     assert current_hrefs(invoke_navigation("/not-a-route")) == []
 
     expected_titles = {
-        "/": "Research Atlas",
-        "/research/ideas": "Review research ideas",
+        "/": "Dashboard",
+        "/research/candidates": "Candidate Universe", "/research/ideas": "Review research ideas",
         "/research/setup": "Define the experiment",
         "/research/run-test": "Review before running",
         "/research/market-data": "Know what data is usable",
@@ -1290,7 +1290,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
     home = page_for_path("/", context)
     home_text = _component_text(home)
     assert "research-atlas-page" in home.className
-    assert "Research Atlas" in home_text
+    assert "Dashboard" in home_text
     assert "Research Landscape" in home_text
     assert "Data Readiness" in home_text
     assert "Why Research Stops" in home_text
@@ -1382,7 +1382,8 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
     )
 
     expected = {
-        "/": "Research Atlas",
+        "/": "Dashboard",
+        "/research/candidates": "Candidate Universe",
         "/research/ideas": "Review research ideas",
         "/research/setup": "Define the experiment",
         "/research/run-test": "Review before running",
@@ -1418,8 +1419,9 @@ def test_location_route_renders_one_active_page_and_navigation() -> None:
             if "navigation-link-active" in link.className
         ]
 
-        assert len(active) == 1
-        assert active[0].href == pathname
+        assert len(active) == (1 if pathname in dict(NAVIGATION_LINKS) else 0)
+        if active:
+            assert active[0].href == pathname
 
 
 def test_ideas_page_is_durable_local_text_only() -> None:
@@ -1652,7 +1654,7 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
     rendered = _component_text(page)
 
     assert "research-atlas-page" in page.className
-    assert "Research Atlas" in rendered
+    assert "Dashboard" in rendered
     assert "Research Landscape" in rendered
     assert "Data Readiness" in rendered
     assert "Why Research Stops" in rendered
@@ -1665,7 +1667,7 @@ def test_home_registered_page_uses_honest_unchecked_health_and_one_action() -> N
         if getattr(component, "id", None) == "home-primary-action"
     )
     assert action.children == "Open →"
-    assert action.href == "/research/ideas"
+    assert action.href == "/research/candidates"
 
 
 def test_home_registered_page_uses_selected_run_and_recent_events() -> None:
@@ -1731,8 +1733,9 @@ def test_home_registered_page_uses_selected_run_and_recent_events() -> None:
         if getattr(component, "id", None) == "home-primary-action"
     )
 
-    assert "Live Research Runs" in _component_text(current_run)
-    assert "No persisted research finding is available yet." in _component_text(current_run)
+    assert "Current Factory operations" in _component_text(current_run)
+    live_grid = next(component for component in _walk_components(current_run) if getattr(component, "id", None) == "home-live-runs-grid")
+    assert live_grid.rowData[0]["candidate"] == "Another Fixture Strategy"
     assert "Recorded fixture failure requires attention." in _component_text(failures)
     assert "2026-07-13T12:00:03Z" in rendered
     assert action.children == "Inspect →"
@@ -1772,7 +1775,7 @@ def test_navigation_marks_current_page_active() -> None:
     ]
 
     assert labels == [
-        "Research workflow",
+        "Research",
         "Research support",
         "System",
     ]
@@ -1782,9 +1785,7 @@ def test_navigation_marks_current_page_active() -> None:
     assert "Quant Factory" in _component_text(brand)
     assert "/" in [link.href for link in links]
     assert {
-        "/research/ideas",
-        "/research/setup",
-        "/research/run-test",
+        "/research/candidates",
         "/research/market-data",
         "/research/backtest-results",
         "/research/compare-backtests",
@@ -1792,11 +1793,9 @@ def test_navigation_marks_current_page_active() -> None:
     assert "/research/strategy-review" not in {link.href for link in links}
     assert len(active) == 1
     assert active[0].href == "/research/backtest-results"
-    assert [link.children[0].children for link in links[:6]] == [
+    assert [link.children[0].children for link in links[:4]] == [
         "Dashboard",
-        "Ideas",
-        "Set up",
-        "Run test",
+        "Candidates",
         "Results",
         "Compare",
     ]

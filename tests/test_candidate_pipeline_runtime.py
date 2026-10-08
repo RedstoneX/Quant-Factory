@@ -37,6 +37,7 @@ from orchestration import (
     ResearchLaunchInvocationError,
     VALIDATION_RUNTIME_KEY,
 )
+from orchestration.survivor_read_model import SURVIVOR_EVENT_MESSAGE, verified_survivor_run_ids
 from persistence import (
     PersistenceService,
     ResearchLaunchOperation,
@@ -47,7 +48,6 @@ from persistence import (
     canonical_json,
 )
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
-
 
 class _FakeTrades:
     def __init__(self, count: int) -> None:
@@ -481,12 +481,10 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """One decisive proof: real runners, persistence, coordinator, and gate."""
     monkeypatch.setattr(experiment_runner, "require_vectorbtpro", lambda: FAKE_VECTORBT)
     monkeypatch.setattr(rsi_strategy, "require_vectorbtpro", lambda: FAKE_VECTORBT)
     runtime = _runtime(tmp_path)
     key = "backend_completion_decisive_fixture"
-
     first = runtime.launch(idempotency_key=key)
     assert first.chain.status == "ready_for_protected_test", first.chain
     assert first.chain.stopped_at is None
@@ -496,6 +494,7 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
     assert first.chain.protected_test_gate.eligible_to_progress is False
     second = runtime.launch(idempotency_key=key)
     assert second.chain == first.chain
+    assert verified_survivor_run_ids(database=runtime.database) == frozenset({first.launch.claim.run.run_id})
     assert first.launch.dispatch.invoked is True
     assert second.launch.dispatch.invoked is False
     assert first.launch.dispatch.submission.state == ResearchSubmissionState.ACKNOWLEDGED
@@ -513,6 +512,7 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
             RunStage.MONTE_CARLO,
         }
         assert all(run.status == RunStatus.SUCCEEDED for run in runs)
+        assert sum(event.message == SURVIVOR_EVENT_MESSAGE for event in persistence.events.list_for_run(first.launch.claim.run.run_id)) == 1
         assert all(persistence.read_persisted_run_manifest(run.run_id) for run in runs)
         assert len(persistence.list_run_artifacts(first.chain.completed[0].run_id)) == 1
         assert all(
