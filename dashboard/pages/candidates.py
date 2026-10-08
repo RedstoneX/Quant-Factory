@@ -126,7 +126,15 @@ def layout(*, history_rows: tuple[dict[str, object], ...] = ()) -> html.Div:
                 [
                     html.Div(
                         [
-                            html.Div([html.H2("Survivors"), html.P("Explicit survivors only. Missing evidence remains unavailable.")]),
+                            html.Div(
+                                [
+                                    html.H2("Survivors", id="candidate-population-title"),
+                                    html.P(
+                                        "Explicit survivors only. Missing evidence remains unavailable.",
+                                        id="candidate-population-description",
+                                    ),
+                                ]
+                            ),
                             html.Div(
                                 [
                                     dcc.Dropdown(
