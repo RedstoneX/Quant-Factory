@@ -168,7 +168,7 @@ candidate_output_contract:
   variant_rule: variants are genuinely different logic paths; do not disguise parameter
     changes or prior-work duplicates as new variants
   import_authority: External packets may describe research intent and bounded
-    variants, but they cannot assert eligibility, execution, promotion, or
+    variants, but they cannot assert owner approval, eligibility, execution, promotion, or
     trading authority. Quant Factory derives eligibility deterministically
     under the active campaign policy.
 external_research_instruction: Use this context before researching. Survey the requested

@@ -17,7 +17,7 @@ QF_RESEARCH_CONTEXT_SCHEMA = "qf_research_context_v1"
 
 _CONTEXT: dict[str, Any] = {
     "schema": QF_RESEARCH_CONTEXT_SCHEMA,
-    "snapshot_date": "2026-10-01",
+    "snapshot_date": "2026-10-08",
     "purpose": (
         "Portable context for external LLM/human strategy research before "
         "QF Candidate v1 intake."
@@ -42,7 +42,7 @@ _CONTEXT: dict[str, Any] = {
             "Options/0DTE are possible later execution vehicles, not the source "
             "of the trading edge."
         ),
-        "current_research_state": "paused_until_owner_accepts_a_bounded_candidate",
+        "current_research_state": "paused_during_operator_interface_design_and_campaign_policy_gate",
     },
     "research_rules": [
         "Treat a symbol, wrapper, source repository, or parameter change as insufficient by itself to create a new hypothesis.",
@@ -237,8 +237,10 @@ _CONTEXT: dict[str, Any] = {
             "parameter changes or prior-work duplicates as new variants"
         ),
         "import_authority": (
-            "External packets may be draft, needs_clarification, or ready_for_review "
-            "only; they cannot assert owner approval or execution authority."
+            "External packets may describe research intent and bounded variants, "
+            "but they cannot assert owner approval, eligibility, execution, promotion, or trading "
+            "authority. Quant Factory derives eligibility deterministically under "
+            "the active campaign policy."
         ),
     },
     "external_research_instruction": (
@@ -248,8 +250,9 @@ _CONTEXT: dict[str, Any] = {
         "variant. Exclude only exact/economically equivalent repeats or current mandate "
         "conflicts. Return QF Candidate v1 packets for genuinely distinct hypotheses, "
         "including materially different variants within previously touched families. "
-        "Preserve uncertainties. Do not backtest, optimize, implement, or rank a winner "
-        "unless the owner separately requests that work."
+        "Preserve uncertainties. Do not backtest, optimize, implement, or rank a winner. "
+        "Return Candidate packets to Quant Factory, which owns deterministic validation, "
+        "bounded repair, deduplication, study construction, execution eligibility, and evidence."
     ),
 }
 

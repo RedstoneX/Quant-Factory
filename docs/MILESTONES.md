@@ -264,7 +264,7 @@ also proven against a disposable copy of the same state. On 2026-10-02 Terry
 completed all seven Ideas-page checks, confirmed that the logic and interaction
 were usable, and successfully used an external LLM with the exported context to
 produce a Candidate YAML packet. Terry explicitly accepted the successful
-outcome. R13 is complete. The broader R12 operator-product walkthrough remains
+outcome. R13 remains accepted and complete. The broader R12 operator-product walkthrough remains
 the next owner gate; no candidate research or execution authority follows from
 R13 acceptance alone.
 
