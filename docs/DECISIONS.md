@@ -13,22 +13,27 @@ only when a task needs their evidence or rationale.
 
 | Decision | Current effect |
 |---:|---|
-| **336** | **Accept the deployed R12 operator handoff and advance to the Candidate gate:** Terry accepts the current private-beta Results latency of 3.863 seconds to Overview and 5.424 seconds to the interactive chart as adequate to proceed. R12 is complete; further latency work is optional measured optimization rather than a handoff blocker. The next milestone begins with one new bounded same-session intraday QF Candidate v1 packet and fixed evidence contract for explicit owner acceptance. No implementation, strategy run, fixed-MES tuning, protected-test access, paper/live trading, or capital authority follows automatically. |
-| **335** | **Adopt the recovered VectorBT-native performance and bounded-study path:** revision `6fd109b` corrected intraday annualization and is deployed without rewriting sealed evidence. Remove the measured Results latency at its profiled server boundary; use maintained chart resampling only for compatible trace types. Later study setup exposes only approved Candidate ranges, search budget, costs, period, and objective; VectorBT Pro performs conditional/random/chunked execution with metric-only search results and complete evidence for selected finalists. Results emphasizes stable regions, return versus drawdown, cost/time validation, trade diagnostics, and exact finalist drilldowns. v2026.10.5 is the selected upgrade target but remains uninstalled pending a separate compatibility proof. No fixed-Candidate tuning, open-ended mining, protected-test access, automatic promotion, paper/live trading, or capital authority. |
-| **334** | **Authorize one private-beta deployment and real operator proof:** Terry requests that the connected Candidate UI be deployed and run properly, with no fixture or fabricated profitability proof. Fix the confirmed screening artifact and verified-data lineage gaps, complete the required repository/CI cycle, rebuild only the dashboard service, and prove the deployed path with one real approved Candidate run on existing data. Preserve sealed prior runs and separate Compare work. No protected test, new strategy research, paper/live trading, or capital authority. |
-| **333** | **Owner authorizes local browser-driven backtests of two exact MES Candidates:** run the previously accepted ORB/VWAP Candidate once and the separately approved fixed intraday 10/30 SMA Candidate once on existing verified MES 5-minute data, and repair root-cause local workflow blockers. The earlier no-PR/no-deployment gate remains. Protected test, optimization, paid data, paper/live trading, and capital remain closed. |
-| **332** | **Keep Set up reusable and selection-driven during R12:** Terry rejected MES-only controls and the prior Set up screenshots. The page must reflect each selected Candidate's exact approved saved contract across equities, futures, and timeframes; fixed values remain visible but disabled, and genuine approved choices use bounded backend contracts. The MES fee/stress assumptions are MES-specific. Set up is not approved or deployed; no strategy run is authorized. |
-| **331** | **Require page-local UI references and representative-state visual proof during R12 recovery:** the standalone chart-first preview is Results-only; every other page uses its own approved reference. Before merge/deploy, Codex must visually inspect the actual meaningful page state against that exact reference, show Terry the side-by-side result, and obtain approval. Route arrival, HTTP success, empty shells, visible text, or zero browser errors cannot be called page or workflow completion. |
-| **330** | **Authorize narrowly scoped Playwright visual inspection for the active R12 correction:** one desktop viewport, exact approved-reference comparison, and read-only connected-workflow inspection. No browser suite, CI browser lane, multi-device matrix, evidence mutation, or general test infrastructure is authorized. This is a bounded exception to Decision 325, not a reversal of Terry's final browser acceptance. |
-| **329** | **Lock the current operator-workflow design contract into the repository:** repository-owned approved references control visual composition and interaction; keep Dash and the existing backend; translate the exact reference structure through live data/actions; keep permanently mounted route skeletons lightweight and hydrate expensive content only on the active route; remove rather than hide superseded dense renderers; and establish page-level conformance before merge/deploy. No framework migration or greenfield frontend is authorized. |
+| **341** | **Define Quant Factory's own Alpaca Paper boundary and authorize its dormant seams:** QAMC remains a separate project whose proven code may be inspected and adapted later, never a runtime, database, credential, or availability dependency. After separate owner activation of a bounded paper lane, eligible survivors may cross automatically through a fail-closed immutable handoff; current authority covers documentation, the non-executable handoff contract, and one Dashboard link to an inactive Paper surface only. Research Dashboard shows no paper P&L. No broker connection, credentials, deployment, orders, capital, or paper activation follows. |
+| **340** | **Replace the sequential six-page workflow with Dashboard-centered factory oversight:** Dashboard remains the front door and Candidate Universe is its dominant drill-down. Primary navigation becomes Dashboard, Candidates, Results, and Compare. Candidate workspace absorbs Ideas, Set up, and Run test responsibilities; Intake and Exceptions are contextual capabilities unless later volume justifies routes, and System status remains separate. This is the current information-architecture direction, not implementation or research authority. |
+| **339** | **Define Quant Factory as a high-throughput automated filtration system:** owner- or LLM-authored QF Candidate packets enter one provider-neutral intake; deterministic validation, bounded repair, prior-work checks, study construction, VectorBT parameter/variant sweeps, screening, OOS, walk-forward, robustness, and Monte Carlo stages progress automatically inside pre-authorized mandate, budget, data, and evidence policies. Ordinary Candidates do not require per-item owner approval. Owner intervention is exception-based and remains mandatory for mandate/cost/protected-data expansion, unresolved semantic ambiguity, edge promotion, and paper/live/capital authority. Decision 340 controls how this model is organized in the interface. This is not current authority to run a campaign or activate paper/live trading. |
+| **338** | **Retire the seventh iteration's visual and interaction language while retaining the proven architecture and domain semantics:** build a coherent greenfield presentation inside Plotly Dash and the existing VectorBT/persistence/evidence architecture. TradingView research and the owner-approved Greenfield Results preview control Results interaction and establish product-wide interaction principles. The other repository mockups are historical content inventories and failure evidence, not visual or composition targets. Decision 340 supersedes its six-page design requirement. |
+| **337** | **Reopen R12 usability acceptance and make operator-interface reconstruction the current owner gate:** the October 7 unaided walkthrough establishes that the seventh interface iteration is unusable despite retained technical and Results-performance passes. Reconcile canonical documentation now; then stop for approval of the reconstruction plan. No interface implementation, Candidate work, test run, browser automation, deployment, PR, VectorBT upgrade, or trading authority follows. |
+| **336** | **Retain the deployed Results-performance acceptance; usability and next-sequence effects superseded by Decision 337:** the 3.863-second Overview and 5.424-second chart measurements remain valid performance evidence. They no longer establish R12 usability completion or advance Candidate research. |
+| **335** | **Retain VectorBT-native performance evidence and later bounded-study requirements:** revision `6fd109b` corrected intraday annualization without rewriting sealed evidence. The selected v2026.10.5 upgrade and later bounded-study path remain deferred; Decision 337 authorizes neither. No fixed-Candidate tuning, optimization, protected-test access, automatic promotion, paper/live trading, or capital authority. |
+| **334** | **Completed one-time private-beta deployment and workflow proof:** its deployment and exact run authority are exhausted. Preserve its sealed evidence, lineage corrections, and separate Compare work; Decision 337 grants no current deployment or run authority. |
+| **333** | **Completed one-time MES workflow-proof runs:** both exact run permissions are exhausted and both Candidates screened out. They may not be rerun or tuned. |
+| **332** | **Retain reusable, Candidate-bound study requirements:** the immutable study must reflect the selected Candidate's exact contract across assets and timeframes. Decision 340 moves this content into Candidate workspace and supersedes Set up as a primary page. No implementation or run authority follows. |
+| **331** | **Retain representative-state proof; retire old page-local mockups as visual targets under Decision 338:** meaningful state, real controls, side-by-side review against the newly approved page design, and owner approval remain required. Route arrival, HTTP success, empty shells, visible text, or zero browser errors still cannot establish page or workflow completion. |
+| **330** | **Exhausted bounded Playwright exception:** its October 5 inspection authority is historical. Decision 337 authorizes no browser automation; any later proof authority requires the approved reconstruction stage and current owner direction. |
+| **329** | **Retain existing architecture; visual-contract effect superseded by Decision 338:** keep Dash, the backend, lightweight route behavior, active-route hydration, and removal rather than hiding of superseded renderers. The old page mockups no longer control composition, styling, density, or interaction. |
 | **328** | **Enforce cost and stop discipline for the one-owner experiment:** every action must change the next decision or produce the requested outcome; Direct Mode uses at most five plan items, one implementation path, one focused proof, no unchanged reruns, and no more than two identical failed attempts. After 15 minutes without owner-visible progress or whenever Terry questions necessity/cost/looping, stop and reassess. At an owner-only gate, do nothing else. Required CI remains full for code/core changes but becomes lightweight for documentation/static-asset-only changes. |
-| **327** | **Use a lean private-beta development and deployment process:** consolidate UI corrections, use focused non-browser checks, perform one PR/CI/deployment at the walkthrough boundary, restart only changed services, create no beta-iteration backup, and retain only the current plus immediately previous beta release/image. Backups remain required for an owner-accepted go-live, genuine persistent/schema migration or destructive state change, or explicit owner request. |
-| **326** | **Repair and complete the exact connected Candidate workflow before handoff:** one immutable Candidate identity/version must remain traceable through Ideas, Setup, Run Test, Results, and Compare; an unrelated fixture may never be substituted. Prepare the existing provider-neutral Gateway for bounded autonomous research campaigns and supply a copy/paste launcher, but do not run real strategy research before Terry accepts the first exact Candidate and evidence contract. |
+| **327** | **Retain lean private-beta process constraints for later authorized implementation:** focused proof, one integration/deployment boundary, and limited beta retention remain useful. Decision 337 currently authorizes no PR, CI, deployment, or implementation. |
+| **326** | **Retain exact Candidate identity and lineage across the workflow:** unrelated fixtures may never substitute for the selected object. Its former completion authority is superseded by Decision 337; no campaign or implementation is active. |
 | **325** | **Automated browser testing is prohibited:** Terry owns browser QA. Codex and CI use focused non-browser tests plus health/reachability evidence and hand the rendered workflow to Terry; retained browser assets are not executed unless Terry explicitly reverses this decision. |
 | **324** | **Complete provider-neutral agent onboarding through one shared operating context and trusted bootstrap:** every approved client uses the same Gateway semantics; identity is server-bound rather than caller-claimed; Codex and Claude are the first local proof clients. Existing owner, research, protected-data, trading, credential, and capital gates remain unchanged. |
-| **323** | **Activate the provider-neutral Agent Research Gateway side mission through ARG-6:** reuse the existing Candidate/context/persistence/orchestration/evidence boundaries; provide local Unix-socket/CLI and restricted forced-command SSH access; preserve all owner, protected-data, paper/live, broker, secret, and capital gates. R12 remains deployed for owner review and Candidate research remains paused. |
-| **322** | **R13 standardized intake is owner-accepted and complete:** Terry completed all seven Ideas-page checks and successfully used the exported context with an external LLM to produce a Candidate YAML packet. The existing R12 connected operator-product walkthrough is now the sole active handoff gate; strategy testing remains paused. |
-| **321** | **The owner explicitly lifts the development freeze for the preserved R13/R12 roadmap only:** prepare and privately deploy the current QF Candidate v1/operator workflow for owner walkthrough. Strategy research, new product direction, LLM/provider work, broker work, paper/live work, paid/protected data, and unrelated development remain unauthorized. |
+| **323** | **Retain the implemented provider-neutral Agent Research Gateway and its authority boundaries:** the Gateway is not current substitute work; no campaign or hosted-connection proof is active under Decision 337. |
+| **322** | **R13 standardized intake remains technically owner-accepted:** its former sequencing effect is superseded by Decision 337. Strategy testing and Candidate work remain paused. |
+| **321** | **Historical authorization for the prior R13/R12 roadmap:** its implementation/deployment authority is exhausted. Decision 337 controls current work and authorizes documentation reconciliation only. |
 | **320** | **Architecture completion does not lift the development freeze:** remediation is technically complete, but all normal feature/research development remains paused until Terry personally and explicitly authorizes lifting the freeze. The pre-freeze queue is preserved but blocked. |
 | **319** | **Quant Factory's measured one-way component architecture is accepted and mechanically enforced:** runtime cycles and forbidden directions are eliminated; independent launcher, evidence-storage, and dashboard-presentation contracts replace reverse ownership. Decision 320 corrects Decision 319's erroneous freeze-authority conclusion. |
 | **318** | **Prior work is scoped to the tested hypothesis, not the entire family:** a screened/rejected/withdrawn Candidate closes only its explicit rules and bounded search space. ORB, momentum, mean reversion, channel breakout, gap reversal, and other broader families remain open unless Tier 1 contains an explicit owner decision closing that family. QF Research Context v1 carries this rule to external LLM/human research. |
@@ -39,7 +44,7 @@ only when a task needs their evidence or rationale.
 | **313** | **Complete and hand off the working single-user operator product before further strategy research.** Its reuse, product-scope, and candidate-authority boundaries remain effective. |
 | **312** | **Quant Factory unattended credential standard finalized:** Bitwarden Secrets Manager is the durable machine-access source of truth; the `Codex` machine account is scoped to the `Quant Factory` project and accessed through the official `bws` CLI with a host-encrypted token. This supersedes Decision 311's selection of Password Manager plus Agent Access as the current mechanism. |
 | 311 | Historical correction that Quant Factory uses Bitwarden is retained; Decision 312 supersedes its Password Manager plus Agent Access mechanism. |
-| 310 | MES screen was accepted, executed once, independently audited, and **rejected** after negative total/annualized return and Sharpe below 0.5. It is inactive and must not be tuned or rerun; Decision 313 defers any next candidate until after operator handoff. |
+| 310 | MES screen was accepted, executed once, independently audited, and **rejected** after negative total/annualized return and Sharpe below 0.5. It is inactive and must not be tuned or rerun; Decision 337 defers any next Candidate until after reconstructed operator acceptance. |
 | **309** | **Intraday mission clarification:** active edge discovery is day trading only—same-session entry/exit, minutes-to-hours holding, no overnight or multi-day carry. Turn-of-month is retained but out of scope. Existing licensed VectorBT Pro must be located/reused before treating a checkout-local absence as a blocker. |
 | 308 | Backend completion correction satisfied: the generic candidate-to-validation runtime and decisive fixture proof close the backend phase; edge discovery may proceed under Decision 309's intraday bounds. |
 | 307 | Historical backend-first reset and dashboard-deferral rationale is retained; Decision 313 supersedes its active priority and sequencing, and Decision 314 supersedes its parallel-first orchestration rule. |
@@ -48,13 +53,16 @@ only when a task needs their evidence or rationale.
 | 290 | Codex remains the sole active project agent toolchain; Decision 314 supersedes earlier serial and parallel-first allocation rules with Direct Mode by default. |
 | 285 | Reuse mature components before custom implementation. |
 | 283 | Exact-repeat computation caching remains a deferred requirement, not active work. |
-| 282 | The chart-first Results prototype remains the approved UX reference for Decision 313 operator-product completion; it does not by itself establish current-revision workflow acceptance. |
+| 282 | The chart-first Results prototype remains the approved Results UX reference under Decision 338; it does not establish current-revision workflow acceptance or authorize implementation by itself. |
 | 276 | Independent green pull requests may proceed without strict up-to-date rebuilding; overlapping/dependent work remains serialized. |
 | 275 | `RedstoneX/Quant-Factory` is the canonical forward repository. |
 
-Decision 314 controls working mode, orchestration, proportional proof, and
-owner-authorization continuity. Decision 313 controls current priority,
-sequencing, and dashboard/product handoff scope. Decision 312 controls
+Decisions 337–341 control current priority, sequencing, operator-interface
+scope, visual direction, and the present documentation-only authority.
+Decision 314 controls working
+mode, orchestration, proportional proof, and owner-authorization continuity.
+Decision 313's product-before-research principle remains effective within
+Decisions 337–339. Decision 312 controls
 credential source and machine access, superseding
 Decision 311's Agent Access selection, Decision 269, ADR 0012, and ADR 0010 as
 current architecture while retaining their evidence as history. Where an older
@@ -84,7 +92,12 @@ superseded.
 - Supporting documents record architecture, procedures, specifications, or
   historical evidence; they cannot create a competing active queue.
 
-## Current accepted sequence
+## Historical accepted sequence
+
+The entries below preserve how earlier work was authorized. They do not define
+the current queue or revive exhausted implementation, deployment, run, browser,
+or research authority. Current direction is the index above, Decisions 337–338, and
+`docs/MILESTONES.md`.
 
 256. **Scoped revival authority.** The project owner authorized the current
      bounded revival, including root-cause repair, extensive testing, and
@@ -2299,3 +2312,232 @@ superseded.
      Candidate, inspecting protected data, starting an open-ended optimization
      campaign, promoting an edge automatically, buying data, submitting broker
      orders, paper/live trading, or capital exposure.
+
+
+337. **Reopen R12 usability acceptance and make operator-interface
+     reconstruction the current owner gate (accepted 2026-10-07).** After an
+     unaided walkthrough of Dashboard, Ideas, Set up, Run test, Results, and
+     Compare, Terry found the seventh interface iteration unusable. The later
+     walkthrough is current usability evidence and supersedes Decision 336's
+     claims that R12 usability was complete and that Candidate research was
+     next. Decision 336's measured Results-performance acceptance remains
+     valid technical evidence.
+
+     Preserve the proven generic runtime, persistence, evidence, lineage,
+     authority gates, Plotly Dash, Dash AG Grid, licensed VectorBT Pro, and
+     retained design research. Do not reduce the correction to isolated label,
+     button, or layout patches, and do not replace the proven backend or add a
+     second frontend. Reconstruct the operator interface around one shared,
+     truthful lifecycle and factory-state projection, clear page ownership,
+     the page-local repository references, and the owner-approved Greenfield
+     interaction for Results.
+
+     The Dashboard becomes a read-only factory control tower that answers what
+     is happening now. It contains no idea-intake, setup, launch, approval, or
+     investigation controls. Historical Candidate acceptance never implies
+     current eligibility. Technical correctness, working controls, visual
+     conformance, and unaided owner comprehension are separate acceptance
+     gates, and work stops for owner approval after each page.
+
+     This decision authorizes the canonical documentation reconciliation and
+     planning recorded in `docs/operator-interface-reconstruction.md`. It does
+     not yet authorize application implementation, tests, browser automation,
+     deployment, a Candidate, a pull request, Results optimization, a VectorBT
+     Pro upgrade, protected evidence, paper/live trading, orders, or capital.
+
+
+338. **Retire the seventh iteration's visual and interaction language while
+     retaining the proven architecture and domain semantics (accepted
+     2026-10-08).** Terry accepts the evidence-based conclusion that the current
+     dark-sidebar, pale-canvas, card-heavy, status-heavy administrative design
+     language must not constrain the next interface. Seven iterations and the
+     October 7 unaided walkthrough show a systemic comprehension failure, not a
+     collection of isolated wording or button defects.
+
+     Preserve Plotly Dash, VectorBT Pro, Plotly, Dash AG Grid, persistence,
+     evidence, lineage, immutable identities, orchestration, and every human,
+     protected-data, promotion, paper/live, broker, and capital gate. This is a
+     greenfield presentation and interaction system inside the existing
+     architecture, not a new frontend, chart engine, research engine,
+     persistence layer, or orchestration system.
+
+     TradingView's backtesting interaction research and the owner-approved
+     Greenfield Results preview are the strongest design evidence. Greenfield
+     remains the exact interaction reference for Results and supplies
+     product-wide principles: one dominant task or object, minimal chrome,
+     compact context, controls adjacent to what they change, progressive
+     disclosure, visibly connected evidence, stable selection, and explicit
+     recovery/reset behavior. Other pages apply those principles to their own
+     jobs rather than copying the Results layout.
+
+     The seventh-iteration repository mockups and screenshots remain available
+     only as content inventories, domain-requirement sources, and historical
+     evidence of failed assumptions. They do not control visual language,
+     shell, composition, density, hierarchy, styling, or interaction. Decisions
+     329 and 331 remain effective only for architecture, meaningful-state proof,
+     and owner review as narrowed in the current index.
+
+     Before application implementation, prepare one coherent six-page design
+     direction for Dashboard, Ideas, Set up, Run test, Results, and Compare;
+     demonstrate each page with meaningful representative state; and obtain
+     Terry's approval. Technical correctness, working controls, visual
+     conformance to the new approved design, and unaided owner comprehension
+     remain separate gates. This decision authorizes documentation
+     reconciliation and design planning only, not application code, tests,
+     browser automation, deployment, a Candidate, a pull request, VectorBT
+     upgrade, protected evidence, trading, orders, or capital.
+
+
+339. **Define Quant Factory as a high-throughput automated filtration system
+     with exception-based owner intervention (accepted 2026-10-08).** Terry
+     clarified that Quant Factory is not a manual Candidate-approval workflow.
+     Its purpose is to cast a wide net over source-attributed strategies from
+     Terry and external or future built-in LLM researchers, then move those
+     strategies and their bounded variations through one automated filtration
+     pipeline. QF Candidate v1 YAML or JSON remains the provider-neutral intake
+     contract. VectorBT Pro remains the engine for efficiently evaluating
+     declared parameter combinations and structural variants; it does not
+     invent strategy logic or justify unbounded mining.
+
+     Inside a separately activated research lane, an ordinary Candidate may
+     progress without per-item owner approval when deterministic policy can
+     establish all of the following: valid and source-attributed intake;
+     same-session mandate fit; no exact or economically equivalent closed-work
+     duplicate; resolved test semantics; a bounded parameter/variant search;
+     fixed objective, costs, data period, compute budget, and evidence gates;
+     an available or verified implementation path; and permitted unprotected
+     data. The factory may apply provenance-preserving syntactic normalization
+     and deterministic defaults. An LLM repair loop may propose a new Candidate
+     version for missing or ambiguous content, but it may not silently change
+     meaning, expand the search after seeing results, inspect protected
+     evidence, or promote its own output.
+
+     Owner attention is exception-based. Stop only when semantics remain
+     unresolved after bounded repair, a prior-work conflict needs judgment, a
+     new mandate or strategy authority is required, paid data or material
+     compute cost is requested, protected evidence or another restricted
+     boundary would be crossed, or a surviving edge is proposed for promotion.
+     Activation or material expansion of the isolated paper automation lane,
+     live operation, broker access, capital allocation, and changes to their
+     deterministic risk controls retain explicit owner authority. Inside a
+     separately approved paper lane, a qualified survivor may deploy and be
+     monitored automatically under ADR 0006; paper-to-live promotion remains
+     explicitly human. Ordinary rejection and progression through screening, OOS,
+     walk-forward, robustness/regime, and Monte Carlo filters do not require an
+     owner click.
+
+     The six operator pages are stage-specific observation and exception
+     surfaces over this conveyor: Dashboard is oversight; Ideas owns intake,
+     normalization, deduplication, and repair; Set up shows the immutable
+     bounded study generated for a Candidate; Run test shows eligibility,
+     queues, and execution; Results explains one Candidate/run/variant's
+     evidence; Compare judges survivors and comparable finalists. Static
+     Candidate rules, sources, and evidence contracts remain available for
+     audit and drill-down but do not dominate routine high-volume operation.
+
+     This decision supersedes the default per-Candidate owner-acceptance and
+     manual-launch assumptions in Decisions 317, 322, 326, 335, 336, and 338,
+     QF Candidate v1, the Agent Research Gateway boundary, and the current
+     reconstruction plan wherever they conflict. It does not authorize a
+     current Candidate campaign, rerun or tuning of the two screened-out MES
+     Candidates, application implementation, tests, browser automation,
+     deployment, protected-data access, a VectorBT Pro upgrade, paper/live
+     activation, orders, or capital. R12 design approval remains the current
+     gate; later activation must define explicit campaign budgets, concurrency,
+     repair limits, and fail-closed authority before unattended research runs.
+
+
+340. **Replace the sequential six-page workflow with Dashboard-centered
+     factory oversight (accepted 2026-10-08).** Terry accepted the conclusion
+     that the clarified automated-filtration product invalidates the inherited
+     Ideas -> Set up -> Run test page sequence. That sequence exposes backend
+     stages as mandatory owner steps and therefore preserves the manual
+     shepherding model that Decision 339 rejected.
+
+     Dashboard remains the product front door; it is not replaced by a page
+     named Factory. The factory is what Dashboard observes. Dashboard owns
+     system-wide throughput, stage movement, active campaigns, budget/resource
+     use, bottlenecks, rejection reasons, autonomous activity, exceptions, and
+     survivors. Candidate Universe is its dominant interactive section and
+     every meaningful mark or count must drill into the corresponding records.
+
+     Primary navigation is **Dashboard**, **Candidates**, **Results**, and
+     **Compare**. Candidates owns the searchable high-volume Candidate Universe
+     and a selected-Candidate workspace. That workspace combines intake,
+     hypothesis and sources, repair history, immutable generated StudyPlan,
+     queue/execution state, evidence timeline, artifacts, stop reasons, and
+     lineage. The current Ideas, Set up, and Run test routes may survive only as
+     temporary compatibility redirects; they are no longer independent product
+     destinations or owner acceptance units.
+
+     Results remains the specialist evidence workspace for one selected run or
+     finalist and continues to use the Greenfield interaction reference.
+     Compare remains the specialist surface for compatible finalists,
+     parameter regions, Candidates, or runs. Intake is an action and view within
+     Candidates. True Exceptions are available from Dashboard and Candidates
+     and request one precise owner decision; ordinary rejection is not an
+     exception. Infrastructure failures and corrupt or missing artifacts remain
+     a separate System status utility rather than strategy outcomes.
+
+     The next design action is to reassess the current Dashboard against this
+     architecture, then design the Candidate Universe/workspace relationship
+     before proceeding to Results and Compare. Work continues one owner-visible
+     surface at a time with technical correctness, working controls, visual
+     conformance, and unaided owner comprehension as separate gates.
+
+     This decision supersedes Decision 338's requirement to prepare six page
+     designs and Decision 339's allocation of automation stages across those
+     six pages. It retains the existing backend, Dash/Plotly/VectorBT stack,
+     Greenfield Results reference, immutable identities, evidence, lineage,
+     exactly-once launch, and every protected-data, paper/live, broker, capital,
+     and survivor-promotion boundary. It authorizes documentation
+     reconciliation and design planning only, not application implementation,
+     tests, browser automation, deployment, a Candidate, a research run, a pull
+     request, a VectorBT Pro upgrade, protected evidence, paper/live trading,
+     orders, or capital.
+
+
+341. **Define Quant Factory's separate Alpaca Paper subsystem and install only
+     its dormant integration seams (accepted 2026-10-08).** Quant Factory owns
+     its own paper-operation subsystem. QAMC remains a separate project with a
+     separate purpose. Proven QAMC Alpaca, chart, dashboard, reconciliation, or
+     operational patterns may be inspected and adapted into Quant Factory in a
+     later bounded implementation, but Quant Factory must not import QAMC as a
+     runtime service, share its database or credentials, require it to be
+     running, or present QAMC state as Quant Factory evidence.
+
+     Research, Paper, and later Live remain separate security and mutable-state
+     domains within the Quant Factory product. Research may offer only an
+     immutable, content-addressed survivor package through a narrow handoff.
+     That package contains identity, artifact references and checksums,
+     eligibility evidence, execution-vehicle identity, paper-lane policy, and
+     risk-policy identity. It contains no credentials, account identity,
+     endpoint, broker session, position, P&L, or order. The paper system must
+     independently verify package integrity, lane activation, eligibility,
+     supported Alpaca execution, capacity, risk policy, and duplicate state
+     before admission.
+
+     Once Terry separately activates a bounded paper lane and its deterministic
+     gates, an ordinary eligible survivor may cross automatically without a
+     per-survivor owner click. Exceptions, policy expansion, paper-lane
+     activation or material expansion, and all paper-to-live or capital
+     authority remain owner decisions. This supersedes Decision 339 only where
+     it required routine per-survivor promotion approval before entry into an
+     already authorized paper lane. No LLM or OpenRouter model belongs in the
+     execution loop; AI may analyze and alert outside deterministic execution
+     authority.
+
+     Dashboard exposes one contextual **Paper trading** destination, not paper
+     P&L mixed into research performance and not a second primary research
+     navigation group. Paper P&L, positions, orders, fills, reconciliation and
+     operating health belong only on the Quant Factory Paper surface and must
+     be backed by paper-system observations. The current Paper destination must
+     say that it is inactive and have no credentials or order capability.
+
+     This decision narrowly authorizes the future-build specification, a
+     dormant immutable handoff contract with focused non-browser tests, and the
+     Dashboard link/inactive Paper surface. It is an exact exception to
+     Decisions 337 and 340's documentation-only limitation. It does not
+     authorize Alpaca access, credential retrieval, a paper worker, deployment,
+     paper orders, a Candidate or research run, browser automation, QAMC
+     changes, live work, or capital exposure.

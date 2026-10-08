@@ -1,7 +1,7 @@
 # Quant Factory Infrastructure Completion Inventory
 
-> **Current status:** Historical/eventual inventory only. Decision 313 activates
-> completion of the existing operator product, not this inventory wholesale.
+> **Current status:** Historical/eventual inventory only. Decisions 337–338
+> supersede its interface sequencing and presentation assumptions.
 > Reopen a row only when a reproduced operator-workflow gap requires it. See
 > `docs/MILESTONES.md`.
 
@@ -80,9 +80,10 @@ not a list of tasks to execute now.
 6. Unified validation/evidence presentation.
 7. Full end-to-end equity research factory acceptance.
 
-## Hard gate
+## Historical hard gate — non-actionable
 
-Decision 287 authorizes controlled, bounded, source-attributed candidate
+The paragraph below records superseded authority and does not authorize current
+work. Decision 287 historically authorized controlled, bounded, source-attributed candidate
 intake, discovery and research/backtesting under Milestone 25 safeguards before
 Milestone 23 passes. Executable candidate launch requires explicit owner
 approval of its named, source-attributed hypothesis and predeclared evidence
@@ -96,5 +97,7 @@ the existing application. That correction merged through PR #70 at
 `4eaa03c761ffc4e90c4d1cf909c5f62d11bc614f` after focused, portable
 real-browser, independent-review, and required-CI evidence passed. It is not
 production-deployed, full beta completion, or Milestone 23 completion. The
-corrected private review workflow is owner-accepted under Decision 303.
-Multi-run analysis and caching remain pending.
+corrected private review workflow was accepted at that historical stage under
+Decision 303. Decisions 337–338 supersede any current usability or presentation
+inference;
+multi-run analysis and caching remain deferred.

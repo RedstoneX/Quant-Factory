@@ -124,6 +124,14 @@ def test_responsive_page_labels_cover_registered_routes_and_unknowns() -> None:
     assert responsive_page_label("/research/strategy-review") == "Page not found"
 
 
+def test_paper_is_contextual_not_primary_navigation() -> None:
+    primary_paths = dict(NAVIGATION_LINKS)
+
+    assert "/paper/fleet" not in primary_paths
+    assert "/paper/strategy" not in primary_paths
+    assert responsive_page_label("/paper/fleet") == "Paper trading"
+
+
 def test_strategy_review_route_is_retired_without_duplicate_navigation() -> None:
     assert "/research/strategy-review" not in dict(ROUTE_REGISTRY)
     assert "/research/strategy-review" not in dict(NAVIGATION_LINKS)

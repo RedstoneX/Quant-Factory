@@ -888,7 +888,7 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
         "/research/market-data": "Know what data is usable",
         "/research/backtest-results": "Understand this run",
         "/research/compare-backtests": "Compare persisted runs",
-        "/paper/fleet": "Paper Trading Overview",
+        "/paper/fleet": "Paper trading",
         "/paper/strategy": "Strategy Monitor",
         "/system": "Know whether research can operate",
         "/system/providers": "Know where research data came from",
@@ -897,8 +897,8 @@ def test_dash_route_callback_endpoint_keeps_workflow_pages_separate(
     for pathname, title in expected_titles.items():
         assert visible_routes(invoke_route(pathname)) == [pathname]
         assert title in mounted_pages[pathname]
-        assert active_hrefs(invoke_navigation(pathname)) == [pathname]
-        assert current_hrefs(invoke_navigation(pathname)) == [pathname]
+        assert active_hrefs(invoke_navigation(pathname)) == ([pathname] if pathname in dict(NAVIGATION_LINKS) else [])
+        assert current_hrefs(invoke_navigation(pathname)) == ([pathname] if pathname in dict(NAVIGATION_LINKS) else [])
 
 
 def test_route_visibility_callback_is_not_initial_call_suppressed(
@@ -1328,7 +1328,7 @@ def test_application_shell_routes_known_and_unknown_pages() -> None:
         "/research/strategy-review",
     ):
         assert "Page not found" in _component_text(page_for_path(legacy_path, context))
-    assert page_for_path("/paper/fleet", context).className == "page-container support-page pending-page"
+    assert page_for_path("/paper/fleet", context).className == "page-container support-page pending-page paper-trading-page"
     assert page_for_path("/paper/strategy", context).className == "page-container support-page pending-page"
     system = page_for_path("/system", context)
     system_text = _component_text(system)
@@ -1774,7 +1774,6 @@ def test_navigation_marks_current_page_active() -> None:
     assert labels == [
         "Research workflow",
         "Research support",
-        "Paper Trading",
         "System",
     ]
     assert brand.href == "/"

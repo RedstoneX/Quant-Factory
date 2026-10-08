@@ -1,8 +1,9 @@
 # Quant Factory Component Reuse Audit
 
-> **Current status:** Supporting reuse evidence for the active operator-product
-> completion under Decision 313. The approved prototype is a UX reference, not
-> implementation code. See `docs/MILESTONES.md` for current work.
+> **Current status:** Supporting reuse evidence for the Decisions 337–338
+> reconstruction proposal. The approved prototype is a UX reference, not
+> implementation code or current implementation authority. See
+> `docs/MILESTONES.md` and `docs/operator-interface-reconstruction.md`.
 
 
 - **Status:** Supporting inventory; Decision 285 and `AGENTS.md` are
@@ -115,9 +116,10 @@ application behavior.
 
 The approved prototype and validated integration evidence are active
 implementation input under Decision 313; the reuse choices below remain valid.
-Reuse the existing VectorBT engine, persistence, evidence, and dashboard and
-reproduce the approved UX with mature components rather than restarting a
-greenfield replacement.
+Reuse the existing VectorBT engine, persistence, evidence, and Dash application
+architecture. Decision 338 requires a greenfield presentation and interaction
+system within that stack; it does not authorize a second frontend or a rewrite
+of the technical foundation.
 
 The earlier Milestone 20 component recommendation was:
 
@@ -165,7 +167,7 @@ only current work queue and sequencing authority.
 6. Build the dashboard from existing Dash component libraries and VectorBT figures.
 7. Evaluate Optuna only when controlled strategy discovery begins.
 
-## Anti-greenfield gate
+## Anti-infrastructure-rewrite gate
 
 Before each remaining milestone, document:
 
@@ -177,3 +179,7 @@ Before each remaining milestone, document:
 6. fallback if the compatibility spike fails.
 
 No custom implementation of orchestration, generic run comparison, scheduling, retries, large tables, chart rendering, artifact storage or optimization is allowed without a documented reason that the selected mature component cannot meet the acceptance requirement.
+
+This gate constrains infrastructure and commodity component reinvention. It
+does not preserve the retired seventh-iteration visual language or prohibit
+the presentation redesign required by Decision 338.

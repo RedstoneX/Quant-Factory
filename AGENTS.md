@@ -28,8 +28,9 @@ approve paper/live trading and capital exposure.
 
 Follow the queue in `docs/MILESTONES.md`:
 
-**standardized non-executing intake -> owner handoff -> owner-approved
-candidate research -> validation -> execution-vehicle comparison -> paper
+**provider-neutral Candidate intake -> automated validation, bounded repair,
+and prior-work checks -> immutable bounded studies -> VectorBT screening and
+staged validation -> survivor review -> execution-vehicle comparison -> paper
 operation -> live operation later**
 
 Complete the objective dashboard and operator-workflow criteria before owner
@@ -43,22 +44,42 @@ owner decision, stop there. Do not substitute deferred work unless the active
 milestone or Terry explicitly authorizes it. A reported defect authorizes its
 smallest root-cause correction; it does not reopen adjacent scope.
 
-QF Candidate v1 is the provider-neutral intake boundary. During standardized
-intake, Quant Factory may parse, validate, persist, display, edit, import, and
-export Candidate packets. It may not fetch external sources, select an LLM
-provider, implement a candidate, launch a backtest, or test profitability until
-Tier 1 advances. External LLMs and any future built-in analyzer must produce
-the same Candidate contract; no model is required.
+QF Candidate v1 is the provider-neutral intake boundary. During the current
+R12 design gate, Quant Factory may parse, validate, persist, display, edit,
+import, and export Candidate packets but no research campaign is active.
+External LLMs, owner-authored submissions, and any future built-in analyzer
+must produce the same Candidate contract; no model is required. After Tier 1
+separately activates an automated research lane, an ordinary in-mandate
+Candidate may progress without per-item owner approval through deterministic
+validation, provenance-preserving normalization, bounded repair,
+deduplication, immutable study construction, screening, and staged validation
+within the accepted budgets and evidence policy.
 
 Use QF Research Context v1 as the portable companion for external research. It
 is a supporting snapshot of mandate, prior work, data, deduplication rules,
 and the Candidate output contract. Re-check current Tier 1 and local evidence
 before acting on it.
 
-Before candidate research, Terry must accept one bounded Candidate packet and
-its evidence contract. Prior work closes only its stated hypothesis, rules,
-and parameter space; it does not close a broader strategy family unless Tier 1
-says so.
+Before unattended Candidate research, Terry must accept the campaign-level
+mandate, data authority, compute/concurrency budgets, repair limits, search
+bounds, evidence gates, and stop conditions. Terry does not approve every
+ordinary Candidate or parameter combination. Route only genuine exceptions to
+the owner: unresolved strategy meaning, disputed prior-work equivalence,
+mandate or cost expansion, paid/protected data, paper-lane activation or
+material expansion, and all live/capital authority. Inside an already activated
+paper lane, an ordinary eligible survivor may cross automatically through the
+Decision 341 handoff. Prior work closes only its stated hypothesis,
+rules, and parameter space; it does not close a broader strategy family unless
+Tier 1 says so.
+
+The operator information architecture follows Decision 340. Dashboard remains
+the front door and observes the factory; it is not replaced by a separate
+Factory page. Primary research navigation is Dashboard, Candidates, Results,
+and Compare. Candidate Universe is the Dashboard's dominant drill-down, and
+the selected-Candidate workspace absorbs the former Ideas, Set up, and Run test
+responsibilities. Intake and true Exceptions are contextual capabilities;
+System status is separate. Do not recreate the old page-by-page manual
+workflow from historical documents or routes.
 
 ## Working mode
 
@@ -184,29 +205,36 @@ Prefer existing Quant Factory code, licensed dependencies, approved designs,
 official examples, and mature legally compatible components. Write only the
 smallest verified Quant Factory-specific adapter or gap.
 
-The chart-first prototype is a UX reference, not an implementation mandate.
-Do not rebuild generic chart, grid, docking, layout, or component systems.
-UI references are page-local: the standalone chart-first preview and
-Decisions 280–282 govern only selected-run **Results**. Every other page
-follows its own approved manifest entry. Shared visual language may carry over
-only when it does not replace that page's contract.
+Do not confuse a greenfield presentation with a greenfield technical rewrite.
+Keep Plotly Dash, VectorBT Pro, Plotly, Dash AG Grid, persistence, evidence,
+lineage, orchestration and authority gates. Do not rebuild generic chart, grid,
+docking, layout or component systems when mature components meet the approved
+interaction requirement.
 
-References in `docs/assets/dashboard/operator-workflow-approved/` are the
-current visual and interaction contract. Use their source structure where it
-exists. Do not reinterpret screenshots, hide a conflicting legacy renderer,
-or patch over it with broad late CSS. Reference HTML/CSS is design evidence,
-not permission to copy unsafe standalone behavior or create another frontend.
-Conformance requires the specified regions, meaningful real state, working
-actions, absence of prohibited legacy content, and correct active-route
-loading.
+Decision 338 retires the seventh iteration's visual and interaction language.
+Decision 339 defines the operator product as a high-throughput automated
+filtration system with exception-based owner intervention.
+The standalone Greenfield preview and Decisions 280–282 remain the exact
+selected-run **Results** interaction reference and supply product-wide
+principles: one dominant task or object, minimal chrome, compact context,
+controls adjacent to what they change, progressive disclosure, connected
+evidence, stable selection and explicit reset/recovery. Other pages apply those
+principles to their own jobs; they do not copy the Results layout.
 
-Before changing an operator page, record the single target page, exact
-reference, representative state, reported defect, and permitted change. For
-the active R12 trust-recovery work, before merge or deployment:
+Files under `docs/assets/dashboard/operator-workflow-approved/` are historical
+content inventories, domain-requirement sources and failure evidence. They are
+not visual, shell, composition, density, hierarchy, styling or interaction
+contracts. Do not use their HTML/CSS as the implementation structure or compare
+a reconstruction against them for visual conformance. Preserve useful fields,
+facts and safety boundaries only when the current plan requires them.
 
-1. render the actual page at the reference desktop viewport and a comparable
-   meaningful state;
-2. inspect the approved reference and actual render side by side;
+Before changing an operator page, record the target page, newly owner-approved
+design, representative state, owning state source, permitted change and proof
+plan. For any later owner-authorized R12 implementation, before merge or
+deployment:
+
+1. render the actual page at the approved viewport and meaningful state;
+2. inspect the new approved design and actual render side by side;
 3. correct material differences in composition, hierarchy, spacing, data,
    affordances, and primary action;
 4. exercise the page's safe read-only controls and transitions; and
@@ -228,12 +256,15 @@ Use the smallest proof that answers the requirement:
 - full suite: only when shared/core behavior, CI, or insufficient focused
   proof requires it.
 
-Do not run automated browser tests or browser checks in CI. For active R12
-corrections, Terry authorizes narrow Playwright inspection only as a visual
-instrument: one desktop viewport, the private review service or local
-equivalent, the repository-approved reference, and the exact page/workflow
-under repair. Do not create a browser harness, test multiple devices, mutate
-research evidence, or replace component/callback tests with browser checks.
+Do not run automated browser tests or browser checks in CI. Decision 330's
+October 5 Playwright exception is exhausted, and Decisions 337–338 authorize no
+current browser automation. If a later owner-approved reconstruction stage
+explicitly authorizes bounded visual inspection, limit it to one desktop
+viewport, the private review service or local equivalent, the exact page and
+representative state under repair, and its newly approved design. Do not create
+a browser harness, test multiple devices, mutate research evidence, or replace
+component/callback tests with browser checks. Terry's unaided walkthrough is
+the comprehension acceptance gate.
 
 ### Private-beta economy and retention
 
@@ -260,11 +291,17 @@ as a disposable single-owner beta:
   calendar-hold work requires a mandate change.
 - Fixtures and previously inspected data prove infrastructure, not an edge or
   independent profitability.
+- Cast a wide strategy-level intake net, but keep each Candidate's VectorBT
+  parameter and structural-variant space explicitly bounded before results are
+  visible. Large vectorized searches are permitted only within accepted
+  campaign compute, multiplicity, and evidence budgets.
 - Every executable Candidate needs a named hypothesis, source/rationale, fixed
   parameter boundaries, execution assumptions, data boundaries, and declared
   pass/fail evidence.
 - Prohibit open-ended optimization, blind data mining, protected-test
-  inspection, automatic promotion, and unapproved parameter changes.
+  inspection, automatic edge promotion, result-driven search expansion, and
+  unapproved parameter changes. Automatic progression through declared
+  research filters is expected and is not edge promotion.
 - Keep signal discovery separate from execution vehicle. Delta, liquidity,
   spreads, contract selection, and leverage do not establish an edge.
 - Prefer S&P 500/Nasdaq-100 intraday behavior that can be screened economically

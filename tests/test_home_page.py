@@ -84,6 +84,19 @@ def test_home_no_data_has_honest_empty_states_and_one_capture_action() -> None:
     assert actions[0].href == "/research/ideas"
 
 
+def test_home_links_to_paper_workspace_without_mixing_paper_pnl() -> None:
+    page = layout(build_home_view_model(as_of=NOW))
+    destination = _component(page, "home-paper-trading-destination")
+    link = _component(page, "home-paper-trading-link")
+    rendered = _text(destination)
+
+    assert link.href == "/paper/fleet"
+    assert "Not active" in rendered
+    assert "Forward paper performance stays out of research results" in rendered
+    assert "P&L" not in rendered
+    assert "Overall P&L" not in rendered
+
+
 def test_home_timestamp_less_health_is_not_presented_as_healthy() -> None:
     model = build_home_view_model(
         health_readings=(

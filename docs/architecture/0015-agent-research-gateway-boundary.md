@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-02
-- **Authority:** Decision 323
+- **Authority:** Decisions 323 and 339
 
 ## Context
 
@@ -39,12 +39,17 @@ research-note, and Candidate-lineage metadata lives in a separate SQLite store
 so disabling the gateway requires no QF schema migration. Agents never receive
 direct access to either database.
 
-Level 2 run requests require all of: explicit gateway authority, Candidate
-status `owner_approved`, a linked immutable configuration, and an active
-Candidate-lifecycle strategy. Execution uses the existing durable candidate
-pipeline and idempotency contract. OOS/protected records fail closed at the
-gateway result boundary. The gateway has no paper/live, broker, order, capital,
-secret-retrieval, data-purchase, or source-edit operation.
+Level 2 run requests require all of: explicit gateway and active campaign
+authority; deterministic Candidate eligibility under the mandate,
+prior-work, ambiguity, data, budget, and bounded-study policy; a linked
+immutable configuration; an available Candidate-lifecycle strategy; and
+idempotent capacity in the campaign budget. The currently implemented
+`owner_approved` status check remains a compatibility constraint until a
+separately authorized change replaces it with this policy decision. Execution
+uses the existing durable candidate pipeline and idempotency contract.
+OOS/protected records fail closed at the gateway result boundary. The gateway
+has no paper/live, broker, order, capital, secret-retrieval, data-purchase, or
+source-edit operation.
 
 ## Security and operations
 
@@ -71,6 +76,7 @@ audit history. Existing dashboard and research behavior remains unchanged.
 
 The gateway is removable and provider-neutral. It adds a small application and
 transport surface plus target-host identities and permissions, but no new QF
-schema, public service, agent framework, model dependency, research authority,
-or trading authority. ADR 0014's one-way boundaries and zero-violation guard
-remain controlling.
+schema, public service, agent framework, model dependency, independent research
+authority, or trading authority. Campaign-level research authority is defined
+in Tier 1 and evaluated by Quant Factory, not granted by a gateway caller. ADR
+0014's one-way boundaries and zero-violation guard remain controlling.

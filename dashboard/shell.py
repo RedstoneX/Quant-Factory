@@ -11,6 +11,7 @@ from dashboard.pages.common import not_found_page
 from dashboard.routing import (
     NAVIGATION_GROUPS,
     NAVIGATION_LINKS,
+    RESPONSIVE_ROUTE_LABELS,
     ROUTE_REGISTRY,
     navigation_item_id,
     navigation_link_id,
@@ -18,7 +19,7 @@ from dashboard.routing import (
 )
 
 
-RESPONSIVE_PAGE_LABELS = dict(NAVIGATION_LINKS)
+RESPONSIVE_PAGE_LABELS = {**dict(NAVIGATION_LINKS), **RESPONSIVE_ROUTE_LABELS}
 
 
 def responsive_page_label(pathname: str | None) -> str:

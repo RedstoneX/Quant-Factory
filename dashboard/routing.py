@@ -21,13 +21,6 @@ NAVIGATION_GROUPS = (
         ),
     ),
     (
-        "Paper Trading",
-        (
-            ("/paper/fleet", "Paper Trading Overview"),
-            ("/paper/strategy", "Strategy Monitor"),
-        ),
-    ),
-    (
         "System",
         (
             ("/system", "System status"),
@@ -48,6 +41,14 @@ NAVIGATION_LINKS = tuple(
     for path, label in links
 )
 NAVIGATION_ITEMS = NAVIGATION_LINKS
+
+# Paper is intentionally a contextual destination from Dashboard rather than a
+# primary research-navigation group.  Its registered routes remain available
+# while the separately authorized paper system is dormant.
+RESPONSIVE_ROUTE_LABELS = {
+    "/paper/fleet": "Paper trading",
+    "/paper/strategy": "Paper strategy monitor",
+}
 
 ROUTE_REGISTRY = (
     ("/", "route-home"),

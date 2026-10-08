@@ -2,9 +2,11 @@
 
 > **Historical foundation evaluation:** This document records early framework
 > selection evidence. It is not the current dashboard implementation plan.
-> Decision 313 resumes operator-product completion. The approved chart-first
-> prototype is the UX reference and reuse-before-custom remains mandatory. See
-> `docs/MILESTONES.md` for current work.
+> Decisions 337–338 reopen usability acceptance, retain this technical
+> foundation, and require a new presentation and interaction system. The operator-interface
+> reconstruction proposal current. The approved chart-first prototype remains
+> the Results UX reference and reuse-before-custom remains mandatory. See
+> `docs/MILESTONES.md` and `docs/operator-interface-reconstruction.md`.
 
 
 ## Executive recommendation
@@ -36,7 +38,7 @@ Candidates were assessed for:
 | QuantStats | Extend/use selectively | Broad return analytics and HTML tear sheets; Python 3.10+; optional Plotly conversion | Report-oriented rather than interactive workflow; overlaps with VectorBT metrics; additional dependency surface | Use later for generated deep-dive reports, not as the dashboard foundation |
 | Forven | Design inspiration only | Strong operator workflow, gauntlet states, paper/live concepts, visual status model | AGPL-3.0; broader architecture than needed; direct code integration would impose reciprocal licensing obligations | Do not copy or embed code; selectively reimplement workflow ideas |
 | Streamlit | Limited secondary role | Very fast prototypes; Apache-2.0; simple Python model | Rerun-centric state model and reduced control become awkward for a long-lived operational interface | Do not use as primary foundation; acceptable only for isolated prototypes |
-| Full greenfield web front end | Reject now | Maximum control | Highest development and maintenance cost; duplicates mature framework capabilities | Reject |
+| Full greenfield web front end | Reject as a technical rewrite | Maximum control | Highest development and maintenance cost; duplicates mature framework capabilities | Keep Dash; this does not reject a greenfield visual and interaction design inside Dash |
 
 ## Detailed findings
 

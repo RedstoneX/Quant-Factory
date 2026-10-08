@@ -10,28 +10,35 @@ create a competing queue.
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable trading edges. |
 | Secondary goal | Convert qualified edges into consistent income using capital-efficient execution. |
-| Immediate objective | Reach owner acceptance of one new bounded same-session intraday QF Candidate v1 packet and its fixed evidence contract before any implementation or test. |
-| Phase | **R13 remains accepted, and the R12 operator handoff is owner-accepted. The owner-approved Candidate research gate is next under Decision 336.** |
-| Active work | **No executable Candidate is active.** Terry accepted the deployed private-beta workflow and its current 3.863-second Overview / 5.424-second chart latency on 2026-10-07. Revision `11d66b3` remains healthy. The required read-only prior-work check is complete; it found no already-accepted Candidate to implement. Both fixed MES workflow-proof Candidates remain screened out and may not be tuned or rerun. |
+| Immediate objective | Complete Decision 341's dormant Quant Factory Paper handoff seam and contextual Dashboard destination, then return to the approved Dashboard/Candidate Universe design sequence before broader interface implementation or new Candidate work. |
+| Phase | **R12 technical and Results-performance evidence remains accepted. Decisions 337–340 reopen usability acceptance, retire the seventh iteration's visual language and sequential six-page workflow, and redefine the operator product around automated filtration with exception-based owner intervention. Candidate research remains paused.** |
+| Active work | **One narrow dormant Paper seam is authorized by Decision 341:** future-build documentation, a non-executable immutable survivor-handoff contract, and a Dashboard link to an explicitly inactive Quant Factory Paper surface. Revision `11d66b3` remains the retained deployed technical baseline; no Candidate, broker connection, credential use, paper worker, order, deployment, or broader interface reconstruction is active. Both fixed MES workflow-proof Candidates remain screened out and may not be tuned or rerun. |
 | Existing assets | The generic Candidate runtime, bounded parameter plans, persisted Variants grid, OOS/walk-forward/robustness/Monte Carlo engines, Plotly Dash, Dash AG Grid, and licensed VectorBT Pro 2026.4.7 are present. The private VectorBT Pro repository and v2026.10.5 source are accessible; that upgrade is selected but not installed and has breaking defaults that require a separate compatibility proof. Bitwarden Secrets Manager remains operational through the scoped `Codex` machine account. |
-| Verified gap | No new bounded Candidate packet and evidence contract have been accepted. Current latency is accepted for the private beta and is no longer an R12 blocker; future optimization remains optional measured work. The deployed Compare empty-state defect remains separate preserved work. |
-| Next action | Present or import one source-attributed same-session intraday QF Candidate v1 packet with fixed rules, parameter bounds, execution assumptions, data boundary, costs, objective, and predeclared evidence gates for Terry's explicit acceptance. Do not implement or run it before that acceptance. |
+| Verified gap | The deployed six-page workflow is unusable without explanation, and its Ideas -> Set up -> Run test sequence models manual shepherding rather than an automated factory. The old page mockups are content inventories only. The current contract is [`docs/operator-interface-reconstruction.md`](operator-interface-reconstruction.md). |
+| Next action | Finish and verify the Decision 341 seam without broker access, then resume the Dashboard/Candidate Universe design sequence. Results and Compare remain specialist evidence surfaces. Stop for owner design approval before broader interface implementation. |
 | Deferred | Paid data, protected-test execution, execution-vehicle work, broker expansion, paper activation, live work, and capital exposure until their later gates and separate owner authority. |
-| Hard boundaries | Candidate work remains same-session intraday only. Parameter search requires an approved bounded study and fixed objective; no open-ended mining, retroactive tuning of the fixed MES Candidates, protected-evidence inspection, automatic promotion, data purchase, orders, or inferred paper/live authority. |
+| Hard boundaries | Candidate work remains same-session intraday only. Wide Candidate intake is intended, but every parameter/variant search must be bounded and precommitted with a fixed objective, data period, costs, compute budget, and evidence gates. No open-ended mining, result-driven search expansion, retroactive tuning of the fixed MES Candidates, protected-evidence inspection, automatic edge promotion, data purchase, orders, or inferred paper/live authority. |
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R15 | 1 | blocked | none | **Owner-approved Candidate research gate.** R12 was owner-accepted on 2026-10-07. The read-only prior-work check found no already-accepted Candidate: the exact MES ORB baseline, ORB/VWAP, SMA, and overnight-gap hypotheses remain closed as tested; the MSFT transfer was withdrawn, SPYM was fixture evidence, and daily trend/turn-of-month work is outside the current mandate. Obtain Terry's explicit acceptance of one bounded QF Candidate v1 packet and evidence contract before implementation or execution. |
-| R14 | 2 | blocked | none | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
+| R12 | 1 | blocked | none | **Operator-interface reconstruction design gate.** Decisions 337–340 retain technical architecture and evidence while replacing the seventh iteration and its sequential six-page workflow. Primary research navigation is Dashboard, Candidates, Results, and Compare. Candidate workspace absorbs Ideas, Set up, and Run test responsibilities; Exceptions are contextual and System status remains separate. Decision 341 authorizes only the dormant paper-handoff contract and contextual Dashboard Paper destination; broader implementation still waits for owner approval of the shared state model and new Dashboard/Candidates visual and interaction system. |
+| R15 | 2 | blocked | R12 | **Automated bounded-research activation gate.** The exact MES ORB baseline, ORB/VWAP, SMA, and overnight-gap hypotheses remain closed as tested; the MSFT transfer was withdrawn, SPYM was fixture evidence, and daily trend/turn-of-month work is outside the current mandate. Before unattended research is activated, define and obtain owner acceptance of campaign-level mandate, data authority, compute/concurrency budgets, bounded repair, parameter/variant limits, multiplicity controls, evidence gates, and stop conditions. Ordinary in-policy Candidates then progress without per-item owner approval; genuine exceptions route to Terry. A qualified survivor may cross automatically only inside a separately activated Decision 341 paper lane. |
+| R14 | 3 | blocked | none | **Provider-neutral Agent Research Gateway ARG-0 through ARG-6 remains implemented and operational locally.** Decision 326 reuses it and adds campaign discipline/launcher guidance without changing its authority. The separate actual Grok-hosted connection proof still requires Terry's public key and is not current substitute work. |
 <!-- active-work:end -->
 
-The former gate wording, `No Codex implementation is active while Terry performs the walkthrough`,
-is superseded by Terry's reported UI defects and current R12 correction authority.
+No Candidate, broker, paper-runtime, deployment, or broader interface
+implementation is active. Decisions 337–340 otherwise limit work to canonical
+documentation reconciliation and reconstruction planning; Decision 341 is the
+sole narrow exception for the dormant handoff seam and contextual Paper
+destination.
 
-## Current R12 correction sequence (2026-10-07)
+## Retained R12 technical evidence and reconstruction constraints (2026-10-07)
+
+The following technical findings remain valid inputs. They do not establish
+current interface usability or authorize Candidate research.
 
 - **Connected workflow:** The deployed Ideas -> Set up -> Run test -> Results
   path binds the selected approved Candidate to its immutable configuration and
@@ -66,12 +73,24 @@ is superseded by Terry's reported UI defects and current R12 correction authorit
   an R12 blocking gate. Plotly Resampler remains for
   future measured line-only needs; it does not safely wrap this mixed
   candlestick-and-marker figure. Do not rerun a strategy.
-- **Approved study direction:** After the performance checkpoint, Set up and
-  Run test may expose only Candidate-approved parameter values, search budget,
-  costs, data period, and declared objective. Use VectorBT Pro conditional or
-  random parameterization, chunking, and parallel execution. Return metrics
-  during search; create complete portfolios and immutable evidence only for
-  selected finalists.
+- **Approved study direction:** After R15 activation, the Candidate workspace
+  exposes the immutable system-generated study and automatic execution state:
+  declared parameter/variant bounds,
+  search and multiplicity budget, costs, data period, objective, evidence
+  gates, and eligibility. Use VectorBT Pro conditional or random
+  parameterization, chunking, and parallel execution. Return metrics during
+  search; create complete portfolios and immutable evidence only for selected
+  finalists. Ordinary in-policy studies progress automatically; exceptions
+  stop with a specific reason.
+- **Implementation contract:**
+  `docs/operator-interface-reconstruction.md` defines the required automatic
+  gates, two-attempt immutable repair boundary, canonical StudyPlan, campaign
+  policy fields, owner/system exception split, implementation slices, and
+  deterministic proof set. Reuse `CandidatePipelineRuntime`,
+  `FactoryFilterChainService`, and durable launch claims; replace the legacy
+  `owner_approved_candidate_screening_only` predicate rather than adding
+  another orchestrator. This contract is design authority, not current run or
+  implementation authority.
 - **Trader analysis:** Results must favor stable parameter regions over an
   isolated historical winner and expose return versus drawdown, heatmaps,
   costs, OOS/walk-forward evidence, trade diagnostics, shortlist/reopen, and
@@ -135,14 +154,15 @@ profitability, or the licensed engine itself.
 
 1. Backend completion — COMPLETE
 2. R11 fixed MES screen — COMPLETE, REJECTED, NO SURVIVOR
-3. Dashboard and operator-product implementation — TECHNICAL PASS; OWNER HANDOFF AVAILABLE
+3. Dashboard and operator-product implementation — TECHNICAL PASS; USABILITY ACCEPTANCE REOPENED
 4. **Standardized QF Candidate v1 intake — COMPLETE; OWNER ACCEPTED 2026-10-02**
-5. Results performance correction and owner walkthrough / handoff acceptance — COMPLETE, OWNER ACCEPTED 2026-10-07
-6. Owner-approved candidate research — BLOCKED AT CANDIDATE ACCEPTANCE GATE
-7. Validation of a surviving edge
-8. Execution-vehicle comparison
-9. Paper operation
-10. Live operation later
+5. Results performance correction — TECHNICAL/PERFORMANCE PASS RETAINED
+6. Operator-interface reconstruction — BLOCKED AT OWNER PLAN APPROVAL
+7. Automated bounded Candidate campaigns — DEFERRED UNTIL OPERATOR AND CAMPAIGN-POLICY ACCEPTANCE
+8. Validation of a surviving edge
+9. Execution-vehicle comparison
+10. Paper operation
+11. Live operation later
 
 ### Edge research — LIMITED TO COMPLETED WORKFLOW-PROOF RUNS
 
@@ -197,7 +217,7 @@ answer the hypothesis. A surviving signal must later be validated on the
 intended SPY/QQQ/index underlying before any options edge is claimed, and 0DTE
 implementation requires defensible historical option quote/execution evidence.
 
-### Dashboard and operator product — CONNECTED-WORKFLOW CORRECTION IN PROGRESS
+### Dashboard and operator product — USABILITY ACCEPTANCE REOPENED
 
 The current Plotly Dash product contains the backend connections and owner-facing surfaces for the single-owner workflow:
 idea and configuration setup; approved configuration launch and status;
@@ -207,12 +227,14 @@ and failure recovery; and clear navigation and operator language. Approved
 candidate configurations connect through the completed generic runtime using
 exact persisted configuration reconstruction and cache-only local data.
 
-Focused unit, integration, and rendered-browser evidence proves the current
-operator workflow without creating a new candidate or profitability result.
+Focused unit, integration, and rendered-browser evidence proved bounded
+technical behavior without creating a new candidate or profitability result.
 The implementation reused the existing application, mature components,
 chart-first UX, backend and accepted evidence; it added no second frontend,
 generic arbitrary-strategy builder, orchestration layer, paid-data dependency,
-deployment, or trading authority. The objective technical gate is a pass.
+deployment, or trading authority. The objective technical gate is a pass. The
+October 7 unaided owner walkthrough later established that technical evidence
+did not prove a usable workflow.
 The Research Atlas implementation merged at revision
 `dbb94148712cdffae04f00ff7b0544ede869c718`, was deployed to the existing
 private review service with a verified pre-deployment database backup, and
@@ -223,8 +245,9 @@ The earlier connected-workflow technical-pass claim was superseded by Decision
 326 after Terry's walkthrough exposed Candidate identity loss and fixture
 substitution. Decisions 333–334 then authorized the exact-object correction,
 one private deployment, and one real workflow-proof run. That correction is
-deployed; R12 remains active for the measured Results performance defect and
-Terry's final walkthrough. Idea capture remains local-only, and agents use the
+deployed. Its performance evidence is retained, but Decision 337 reopens the
+interface for reconstruction after the owner found the seventh iteration
+unusable. Idea capture remains local-only, and agents use the
 removable Gateway rather than an embedded provider. This does not qualify an
 edge or authorize paid data, protected testing, paper/live operation, orders,
 or capital exposure.
@@ -241,7 +264,7 @@ also proven against a disposable copy of the same state. On 2026-10-02 Terry
 completed all seven Ideas-page checks, confirmed that the logic and interaction
 were usable, and successfully used an external LLM with the exported context to
 produce a Candidate YAML packet. Terry explicitly accepted the successful
-outcome. R13 is complete. The broader R12 operator-product walkthrough remains
+outcome. R13 remains accepted and complete. The broader R12 operator-product walkthrough remains
 the next owner gate; no candidate research or execution authority follows from
 R13 acceptance alone.
 

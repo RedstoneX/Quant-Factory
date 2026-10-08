@@ -36,7 +36,9 @@ LEAN_CONTRACT_MARKERS = {
     ),
     "docs/DECISIONS.md": ("| **328** |",),
     "docs/MILESTONES.md": (
-        "No Codex implementation is active while Terry performs the walkthrough",
+        "No Candidate, broker, paper-runtime, deployment, or broader interface",
+        "Decision 341 is the",
+        "sole narrow exception",
     ),
     "docs/operations/ovh-research-deployment.md": (
         "## Lean private-beta review deployment",

@@ -1,5 +1,11 @@
 # Milestone 20 Dashboard Acceptance
 
+> **Historical acceptance procedure — do not execute as current work.**
+> Decisions 337–338 authorize documentation reconciliation and reconstruction
+> planning only. It does not authorize starting the dashboard, running a
+> fixture, browser inspection, or application implementation. See
+> `docs/MILESTONES.md` and `docs/operator-interface-reconstruction.md`.
+
 ## Scope
 
 This checklist supports the pending manual Milestone 20E operator browser

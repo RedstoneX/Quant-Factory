@@ -1,22 +1,22 @@
 # Milestone 23 Acceptance
 
-> **Active supporting acceptance record:** Decision 313 restored completion of
-> the existing dashboard and operator workflow. The objective technical
-> evidence is reconciled below; `docs/MILESTONES.md` remains the only authority
-> for the active queue, status, and owner gate.
+> **Historical supporting acceptance record:** Decisions 337–338 reopened R12
+> usability acceptance after the October 7 unaided walkthrough found the
+> seventh interface iteration unusable. The technical evidence below remains
+> discoverable, but it does not define current work, authorize implementation,
+> or establish usability. `docs/MILESTONES.md` and
+> `docs/operator-interface-reconstruction.md` control the current gate.
 
 
 > **Sequencing record:** Decisions 298 and 303 recorded Step 15 acceptance and
-> bounded beta entry in September 2026. Decision 307 later superseded that
-> sequence; Decision 313 now resumes product completion and final handoff while
-> preserving the rule never to deploy merely to prove deployment.
+> bounded beta entry in September 2026. Later decisions changed that sequence;
+> Decisions 337–338 now control the reconstruction gate and pause Candidate work.
 
-Milestone 23 records the complete equity research workflow acceptance model.
-Decision 313 resumes its objective product and operator-workflow criteria while
-the active status and exact next action remain controlled by MILESTONES.
-Decision 313 supersedes Decision 287's permission for candidate research before
-this milestone closes. No new candidate selection, proposal, optimization,
-screening, or profitability testing occurs before handoff.
+Milestone 23 records the historical equity research workflow acceptance model.
+Its useful technical criteria remain evidence for the reconstruction, subject
+to Decisions 337–338 and the current specification. No new candidate selection,
+proposal, optimization, screening, or profitability testing occurs before the
+reconstructed operator workflow is owner-accepted.
 
 Decision 279 supersedes Decision 277's acceptance for the former Results-page
 experience. Decisions 280–281 establish the chart-first direction and validated

@@ -1,9 +1,13 @@
 # Quant Factory Dashboard Product Requirements
 
-> **Current status:** Retained product requirements, not the active queue.
-> Decision 313 resumes completion of the existing single-user dashboard and
-> operator workflow. The approved chart-first UX and historical evidence remain
-> implementation input. See `docs/MILESTONES.md` for current work and status.
+> **Current status:** Retained product requirements and historical evidence,
+> revised by Decisions 337–340. The October 7 unaided walkthrough invalidated the
+> seventh iteration's usability acceptance and reopened the operator interface
+> for reconstruction over the existing backend. The controlling specification
+> is `docs/operator-interface-reconstruction.md`; see `docs/MILESTONES.md` for
+> current work and status. Decision 340 supersedes this document's sequential
+> Ideas -> Set up -> Run test topology with Dashboard, Candidates, Results, and
+> Compare; retain old page material only as content and backend evidence.
 > Historical prototype, responsiveness, browser, and performance evidence in
 > this document is not an instruction to rerun it. Under Decisions 325, 327,
 > and 328, repeat only the smallest check required by a newly reported defect;
@@ -24,7 +28,7 @@ commercial, enterprise, SaaS, multitenant, billing, customer-onboarding, or
 team dashboard. Capabilities needed only for hypothetical external users are
 out of scope without separate owner approval.
 
-VectorBT Pro remains the portfolio analytics and Plotly-compatible chart engine. Plotly Dash remains the application framework. Quant Factory owns workflow, records, evidence, orchestration, lifecycle state, and the human decision interface.
+VectorBT Pro remains the portfolio analytics and Plotly-compatible chart engine. Plotly Dash remains the application framework. Quant Factory owns workflow, records, evidence, orchestration, lifecycle state, deterministic eligibility, exception routing, and survivor authority.
 
 Apply Decision 285 before custom dashboard work: inventory and evaluate the
 existing dashboard, VectorBT Pro and other licensed dependencies,
@@ -38,18 +42,20 @@ behavior.
 
 Historical Decisions 287, 292, and 298 progressively bounded the dashboard
 beta work. Their implementation evidence and reuse constraints remain useful.
-Under Decision 313, preserve the approved chart-first Results experience, reuse the
-existing VectorBT engine, persistence, evidence and dashboard, and prefer
+Under Decision 338, preserve the approved chart-first Results interaction,
+reuse the existing VectorBT engine, persistence, evidence and Dash architecture, and prefer
 mature maintained components over custom infrastructure.
 
-## Connected-screen blueprint — owner-approved boundary (2026-09-20)
+## Historical connected-screen blueprint — retained content evidence (2026-09-20)
 
-Terry explicitly approves the following connected-screen blueprint as the
-bounded R05 design direction. Preserve **Home**, **Ideas**, **Set up**, and
-**Run test**, with the approved chart-first **Results** experience as the
-product anchor. Economically reuse the existing **Compare** route as the
-separate **Find & Compare** surface rather than creating a second comparison
-system.
+Terry approved the following connected-screen blueprint as the bounded R05
+design direction. Decisions 337–340 retain its useful domain content and
+backend boundaries, but supersede its topology, visual, composition, styling,
+and interaction authority. The former Ideas, Set up, and Run test
+responsibilities now belong inside Candidates and its selected-Candidate
+workspace. Greenfield remains the exact Results interaction reference
+and supplies product-wide principles without imposing its Results layout on
+other pages.
 
 One selected saved test opens its exact **Results** view. Selecting two to
 four saved tests feeds the existing **Compare** route. Each table row
@@ -62,8 +68,9 @@ synthetic approximately 1,000-row responsiveness and data-path check. The
 check is a measurement gate for the blueprint, not production or market-data
 evidence. That check passed in 0.152 seconds for 1,000 rows (~438KB), after
 which the smallest slice was implemented and merged.
-No new framework, schema, cache, backend store, or global restyle is planned
-unless evidence proves one unavoidable. Broad redesign, deployment,
+No new framework, schema, cache, or backend store is planned unless evidence
+proves one unavoidable. Decision 338 now requires the global presentation and
+interaction redesign that this historical paragraph had deferred. Deployment,
 backtests, market data, paper/live work, caching, export, and polish are
 deferred.
 
@@ -108,10 +115,11 @@ inform bounded resizing, truthful state panels, responsive layout, table
 behavior and linked chart/trade interactions, within Decision 280's narrower
 reference boundary.
 
-Decision 291 confirms one such verified defect: the existing page could not
+Decision 291 historically confirmed one verified defect: the existing page could not
 truthfully expose the preserved R07 native interval, MES units, complete ranked
-rejections and evidence limits. It authorizes only the smallest correction to
-the existing selected-run page. Missing interval, unit or protected-data facts
+rejections and evidence limits. Its narrow correction authority is exhausted;
+Decision 338 now controls the presentation direction. The retained semantic
+rule is that missing interval, unit or protected-data facts
 remain unavailable rather than inferred; recorded annualized return retains its
 saved value and discloses that its calculation basis was not persisted. A
 separate calendar CAGR may be derived only from persisted total return and
@@ -124,7 +132,7 @@ expansion, deployment, beta completion, or the full workflow. Inactive and
 secondary pages remain deferred unless a demonstrated essential-beta blocker
 is recorded.
 
-## Current owner review outcome — refreshed 2026-09-20
+## Historical owner review outcome — recorded 2026-09-20
 
 Private target checks cover mounted routes, refresh and selection behavior,
 fixture launch, charts, trade inspection, comparison, reproduction, durable
@@ -168,10 +176,13 @@ production remains
 unchanged. See the retained
 prototype and validation evidence referenced in [MILESTONES](MILESTONES.md#current-phase).
 
-## Target operator information hierarchy
+## Historical operator information hierarchy
 
-Decision 274 extends the Decision 273 navigation direction to Home → Ideas →
-Set up → Run test → Results → Compare. Decisions 280–282 accept the chart-first
+Decision 274 extended the Decision 273 navigation direction to Home → Ideas →
+Set up → Run test → Results → Compare. Decision 340 supersedes that
+sequential topology. Current primary research navigation is Dashboard,
+Candidates, Results, and Compare, with the generated study and execution state
+inside Candidate workspace. Decisions 280–282 retain the chart-first
 Results direction, validated preview constraints and detailed selected-run
 specification while leaving implementation and eventual operator acceptance
 open; implementation conformance and M23 technical completion remain unconfirmed.
@@ -210,21 +221,22 @@ these presentation rules do not alter calculations or saved evidence.
 
 ## Primary operator workflow
 
-The dashboard must support this complete path, including the approved Ideas
-navigation and review flow:
+The product must support this complete automated path through Dashboard,
+Candidates, Results, and Compare:
 
-1. Confirm system and data-source health.
-2. Capture an Idea draft or source reference without fetching or executing it.
-3. After M23 acceptance, retrieve a public source under M25 and treat its
-   content as untrusted; extract a hypothesis for clarification and review.
-4. Explicitly approve a reviewed hypothesis and prepare its configuration.
-5. Launch a backtest only after the required explicit human approval.
+1. Observe system, data-source, campaign-budget, and queue health.
+2. Capture or import owner- and LLM-authored QF Candidate packets.
+3. Validate, normalize, repair, and compare them with prior work under the
+   active deterministic policy.
+4. Generate and seal an immutable bounded study for each eligible Candidate.
+5. Progress ordinary in-policy studies automatically through screening and
+   staged validation without a per-Candidate owner click.
 6. Observe queued, running, succeeded, failed, cancelled, or retrying status.
 7. Review metrics, equity, drawdown, benchmark, trades, assumptions, and provenance.
 8. Review screening and validation evidence with clear stop reasons.
-9. Compare the run with prior runs.
-10. Save a human review decision and note; reproduce the run from its
-    immutable configuration.
+9. Compare survivors and comparable finalists.
+10. Route only unresolved exceptions and survivor-promotion decisions to the
+    owner; preserve every configuration, run, and decision in lineage.
 
 ## Required navigation
 
@@ -238,16 +250,16 @@ navigation and review flow:
 - latest runs and failures;
 - current project milestone and discovery gate.
 
-### Experiment launch
+### Study queue and execution
 
-- approved instrument selector;
-- approved strategy/fixture selector;
+- permitted instrument and strategy identity;
 - saved configuration selector;
-- bounded parameter controls generated from the approved specification;
+- bounded parameter/variant plan generated from the immutable specification;
 - data range and provider display;
 - execution timing, sizing, fees and slippage display;
 - preflight validation summary;
-- launch control;
+- automatic eligibility, budget, queue, and idempotency state;
+- exception action only when policy cannot continue;
 - explicit warning that fixtures validate infrastructure and do not imply profitability.
 
 ### Run history
@@ -614,7 +626,7 @@ overflow, nested vertical report scrollbar, or reliance on hover alone.
 | Condition | Required operator behavior |
 |---|---|
 | Results is hydrating | Keep route and selected-run identity stable; mark the affected region busy and show plain loading text without presenting stale data as current. |
-| No persisted runs | Show a neutral empty Results state and a link to Run test; do not render sample metrics, trades or chart points as real evidence. |
+| No persisted runs | Show a neutral empty Results state and a link to Candidates; do not render sample metrics, trades or chart points as real evidence. |
 | Run is queued/running/retrying | Show truthful status and next safe action; unavailable result regions say that persisted evidence is not ready. |
 | Run failed/cancelled/timed out | Keep it selectable and show the user-readable error/stop reason before technical diagnostics. |
 | Price evidence missing or invalid | Replace the chart with an unavailable/corrupt-evidence state; do not infer bars or markers. |
@@ -761,7 +773,7 @@ A unified stage timeline must show:
 
 - versioned strategy registry;
 - fixture, candidate, rejected, watchlist, paper, live-test and retired lifecycle states;
-- approved parameter definitions and sources;
+- precommitted parameter definitions, classifications, rationales, and sources;
 - saved immutable experiment configurations;
 - links to runs generated from each version.
 
@@ -778,15 +790,17 @@ video, or web page. Retain the original submitted text or source reference and
 attribution with the intake record. Treat fetched external content as
 untrusted data: do not follow instructions embedded in it or present its
 claims as verified facts. Extract a structured strategy hypothesis and show
-its source, assumptions, and uncertainties for clarification and human review.
-Require explicit operator approval before creating or launching any backtest;
-never run one automatically from submitted content. Intake does not approve a
-strategy for promotion or paper operation and cannot create or submit a paper
-order. The accepted v1 backend deterministically validates and durably attaches the
+its source, assumptions, and uncertainties for deterministic validation,
+bounded repair, and exception review. Submission alone never establishes
+eligibility, but after a campaign-level lane is activated, an in-policy
+Candidate may progress automatically without explicit operator approval for
+each backtest. Intake and automatic research do not approve a strategy for
+promotion or paper operation and cannot create or submit a paper order. The
+accepted v1 backend deterministically validates and durably attaches the
 canonical packet to the existing idea draft. Public-source fetching and
 LLM-backed extraction remain separate optional work. Structural variants are
 distinct logic paths; bounded `variables` are the dimensions VectorBT may
-enumerate after an approved implementation exists.
+enumerate after a verified implementation and policy-eligible immutable study exist.
 
 ### Artifacts and lineage
 
@@ -806,22 +820,27 @@ enumerate after an approved implementation exists.
 - A partial artifact must never be displayed as a successful result.
 - Unsupported configurations must fail before simulation.
 
-## Human review controls
+## Decision and authority controls
 
-Required research review states:
+Retain historical review records, but do not require a human transition between
+ordinary automatic evidence stages. The presentation must distinguish:
 
 - unreviewed;
 - reject;
 - revise;
 - infrastructure fixture;
 - watchlist;
-- approved for next evidence stage;
+- automatically eligible for the next evidence stage;
+- exception hold;
+- qualified survivor review;
 - paper candidate;
 - live-test candidate;
 - paused;
 - retired.
 
-Every state change must record timestamp, prior state, new state, note, and responsible operator.
+Every state change must record timestamp, prior state, new state, reason,
+policy identity, and responsible actor. Only exception resolution, survivor
+promotion, and paper/live authority require an owner actor.
 
 ## Initial equity fixture requirements
 

@@ -95,8 +95,9 @@ artifact algorithms or rerun a strategy.
 
 Use VectorBT Pro's native conditional parameter grids, random subsets,
 chunking, caching, and supported parallel execution. Quant Factory supplies the
-approved Candidate bounds, immutable configuration identity, search budget,
-costs, data period, objective, lineage, evidence stages, and operator review.
+precommitted policy-eligible Candidate bounds, immutable configuration identity,
+search budget, costs, data period, objective, lineage, evidence stages, and
+exception/survivor review.
 
 During a sweep, return only the metrics required for ranking and rejection,
 such as return, Sharpe, drawdown, Sortino, and trade count. Do not retain a full
@@ -105,7 +106,7 @@ chart, trade, and evidence artifacts only for selected finalists.
 
 The operator experience should expose:
 
-- approved parameter ranges and conditional relationships;
+- precommitted parameter ranges and conditional relationships;
 - combination count or random-sample budget before launch;
 - progress, cancellation, and readable failures;
 - sortable/filterable metrics, including return versus drawdown;

@@ -39,29 +39,32 @@ For each hypothesis branch:
    after seeing results, inspect protected evidence, or feed protected/OOS
    information back into the rules.
 6. Save the packet locally, then use `qf-agent candidate validate <file>` and
-   `qf-agent candidate submit <file>`. Never claim submission is approval.
+   `qf-agent candidate submit <file>`. Never claim submission alone establishes
+   eligibility; Quant Factory derives that from deterministic campaign policy.
 7. For a revision, inspect lineage first and submit a child with every required
    lineage field. Revise only when permitted evidence supports a materially
    different falsifiable rule—not to tune a failed result until it passes.
 8. Request a development run only when bootstrap explicitly permits it and the
-   Candidate is already owner-approved and exactly linked to an executable
-   configuration. Otherwise stop at the owner gate.
+   Candidate is policy-eligible, exactly linked to an immutable executable
+   configuration, and inside the active campaign budget. Otherwise follow the
+   returned repair/rejection/exception state; do not invent a bypass.
 9. Use only Gateway-returned status, results, and evidence. Never infer missing
    evidence or treat infrastructure fixtures as Candidate results.
-10. Never approve, auto-promote, paper trade, live trade, place orders, allocate
-    capital, buy data, access credentials, or bypass a gate.
+10. Never assert eligibility, auto-promote an edge, paper trade, live trade,
+    place orders, allocate capital, buy data, access credentials, or bypass a
+    gate.
 
 Continue autonomously only while the next permitted action has meaningful
 expected information gain at proportionate compute, token, data, and review
 cost. Stop when work is duplicate, the bounded branch is exhausted, the next
 move is mere tuning, required inputs are unavailable, evidence already answers
-the question, marginal value no longer justifies cost, or an owner/authority
+the question, marginal value no longer justifies cost, or an exception/authority
 gate is reached. Do not use an arbitrary number of experiments as the stopping
 rule.
 
 When you stop, report concisely: Candidate and parent IDs; what was learned;
 sources and permitted evidence used; cost/effort so far; why the branch should
-continue, pause, or close; and the single next owner decision, if any. If owner
-approval is required, make no substitute Candidate run while waiting.
+continue, pause, or close; and the single next owner intervention, if any. If
+restricted authority is required, make no substitute Candidate run while waiting.
 
 ## Stop copying here

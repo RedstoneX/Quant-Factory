@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-09
-- **Updated:** 2026-09-17
+- **Updated:** 2026-10-08
 - **Scope:** Forward testing, brokerage connectivity, credentials, deployment, state, monitoring, promotion, and independent risk supervision
 
 ## Context
@@ -37,6 +37,11 @@ micro-live execution system
 bounded live operation
 ```
 
+Decision 341 clarifies the product boundary: Quant Factory owns this paper
+subsystem. QAMC is a separate project. Its proven implementation may inform a
+later adaptation, but it is not a runtime service, database, credential source,
+or availability dependency for Quant Factory.
+
 ## Shared components allowed
 
 The following may be shared when broker-neutral, deterministic, immutable where appropriate, and independently tested:
@@ -53,6 +58,14 @@ Shared libraries must not contain environment-selection logic that can expose li
 ## Automatic paper deployment
 
 A strategy may deploy to paper automatically only when every predeclared eligibility gate passes, including valid evidence and lineage, supported execution assumptions, available deployment capacity, and absence of a duplicate active deployment.
+
+The automatic boundary is enabled only after the owner activates a bounded
+paper lane and its policy. Once active, ordinary eligible survivors do not
+require a per-survivor click. Research emits only the immutable
+`qf.paper-handoff.v1` manifest defined in
+[`paper-operation-contract.md`](../paper-operation-contract.md); the paper
+system independently verifies and admits it. Creating the manifest does not
+activate or deploy a strategy.
 
 Paper deployment must be:
 
@@ -166,6 +179,8 @@ switch.
 The graphics-rich Research dashboard supports configuration, backtests,
 validation, evidence, comparison, trade analysis and approval-state review. It
 has no live-broker credentials and no direct live-order capability.
+It links contextually to Paper operations but does not display paper P&L or
+combine historical research returns with broker-observed forward performance.
 
 ### Paper operations
 
