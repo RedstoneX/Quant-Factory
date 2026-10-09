@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=ubuntu
 Group=ubuntu
-WorkingDirectory=/home/ubuntu/projects/Quant-Factory-canonical
+WorkingDirectory=/home/ubuntu/projects/Quant-Factory
 EnvironmentFile=/etc/quant-factory/dashboard.env
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/home/ubuntu/.local/share/quant-factory-dashboard/venv/bin/gunicorn --bind 127.0.0.1:8050 --workers 1 --threads 4 --timeout 120 dashboard.ui.app:server
