@@ -10,6 +10,14 @@ persistence, evidence, lineage, and authority boundaries. The presentation
 lives only under `dashboard.ui`; no parallel presentation composition root is
 permitted.
 
+Dashboard implementation and owner acceptance run directly, outside the
+research Compose stack. Prefect and the agent gateway remain containerized
+factory services. A separately approved production Dashboard defaults to a
+normal Linux service. Its process availability is operationally independent:
+Dashboard failure may remove visibility and controls, but it must not stop or
+change active filtration work. Paper trading remains a separate system with
+its own stronger availability, reconciliation, and recovery requirements.
+
 The production component responsibilities are:
 
 - Dash Mantine Components: default navigation, layout, panels, drawers,

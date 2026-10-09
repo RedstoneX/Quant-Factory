@@ -108,6 +108,12 @@ choosing a fallback. A standalone React frontend requires a separate owner
 decision. Do not implement another surface until Terry accepts the real
 Dashboard render.
 
+Run the Dashboard directly for implementation and owner acceptance. Do not add
+it to the research Compose stack. Prefect and the agent gateway remain
+containerized factory infrastructure. After separate deployment approval, the
+default Dashboard production target is a normal Linux service. Dashboard
+unavailability must not stop active filtration work or mutate research state.
+
 Use the stack by responsibility: Mantine for the polished application and
 commodity component layer; Dash Core Components for analytical state and
 controls when they are the appropriate Dash primitive; Dash AG Grid for dense

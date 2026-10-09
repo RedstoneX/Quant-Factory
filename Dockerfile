@@ -34,7 +34,6 @@ RUN chmod 0555 /app/deployment/entrypoint.sh
 USER 10001:10001
 WORKDIR /var/lib/quant-factory
 ENTRYPOINT ["/app/deployment/entrypoint.sh"]
-# This reconstruction branch intentionally has no default Dashboard process.
-# Compose services must provide an explicit command until the approved
-# dashboard.ui composition root exists.
+# This image is for explicitly configured factory services. The Dashboard is
+# developed and operated separately from this container runtime.
 CMD ["python", "-c", "raise SystemExit('No default service is configured')"]
