@@ -50,10 +50,10 @@ owner approves a replacement contract and checksum.
 For Candidates, Results, Factory runs, Submit Strategies, Compare Selected,
 and the Paper Trading destination, verify
 `docs/assets/workspaces/current-workflow-contract/workspaces.html` has SHA-256
-`d87f311127c513cefb50e75472a49aeb27d3031ac76c84e26a9940b73b23264a`.
+`313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31`.
 Use the named surface in that file for exact regions, controls, hierarchy, and
 workflow. Use the accepted Dashboard contract for the shared modern visual
-language. Never use the workspace file's embedded older Dashboard slide.
+language.
 
 Implement one complete surface, connect truthful state, publish it at the
 existing private application, and show Terry the working route. A screenshot or

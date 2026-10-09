@@ -310,11 +310,10 @@ the approved interaction requirement.
 
 The repository-owned Dashboard HTML is the sole Dashboard visual contract. The
 repository-owned workspace HTML is the sole composition and workflow contract
-for the other six named surfaces. Its embedded older Dashboard slide is
-prohibited and has no authority. No external copy, earlier mockup, preview,
-screenshot, local implementation branch, CSS, browser test, or deployed
-interface is a visual or implementation source. Required product semantics
-also come from `docs/factory-operating-contract.md`.
+for the other six named surfaces; it contains no Dashboard composition. No
+external copy, earlier mockup, preview, screenshot, local implementation branch,
+CSS, browser test, or deployed interface is a visual or implementation source.
+Required product semantics also come from `docs/factory-operating-contract.md`.
 
 Before changing an operator page, record the target page, owner-approved design,
 proof state, owning state source, permitted change and proof plan. Keep source

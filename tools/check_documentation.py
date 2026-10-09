@@ -27,7 +27,7 @@ VISUAL_CONTRACT_SHA256 = "266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375
 WORKSPACE_CONTRACT = Path(
     "docs/assets/workspaces/current-workflow-contract/workspaces.html"
 )
-WORKSPACE_CONTRACT_SHA256 = "d87f311127c513cefb50e75472a49aeb27d3031ac76c84e26a9940b73b23264a"
+WORKSPACE_CONTRACT_SHA256 = "313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31"
 REQUIRED_VISUAL_MARKERS = (
     'id="qf-toolset-preview"',
     "Candidate universe",
@@ -46,6 +46,13 @@ REQUIRED_WORKSPACE_MARKERS = (
     'data-variant="Submit Strategies"',
     'data-variant="Compare Selected"',
     'data-variant="Paper Trading"',
+)
+FORBIDDEN_WORKSPACE_MARKERS = (
+    'data-variant="Dashboard"',
+    "qfr-dashboard",
+    "dashboardPresets",
+    "dashFindings",
+    "seven-screen mockups",
 )
 REQUIRED_FRONTEND_FILES = (
     VISUAL_CONTRACT,
@@ -239,6 +246,9 @@ def _validate_frontend_authority(root: Path) -> list[str]:
         for marker in REQUIRED_WORKSPACE_MARKERS:
             if marker not in text:
                 errors.append(f"workspace contract marker is missing: {marker}")
+        for marker in FORBIDDEN_WORKSPACE_MARKERS:
+            if marker in text:
+                errors.append(f"prohibited Dashboard marker remains in workspace contract: {marker}")
     dashboard = root / "dashboard"
     if dashboard.is_dir():
         for path in dashboard.iterdir():
