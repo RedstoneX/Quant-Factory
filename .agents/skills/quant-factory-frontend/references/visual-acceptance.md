@@ -33,11 +33,12 @@ Only after Terry explicitly approves Gate A:
 3. Capture the truthful actual page at 1440 by 980 and compare it with the same
    visual contract, allowing only necessary compact empty/stale/unavailable
    state differences.
-4. Run the secondary `web-interface-audit` and resolve blocking findings.
-5. Give the reference, truthful actual render, and state identity to an
-   independent read-only Quant Factory adversary and resolve material findings.
-6. Show Terry the pair again. Only his explicit approval permits a private
-   deployment request. His later unaided use closes comprehension.
+4. Run the Dashboard as a persistent private service at the established
+   tailnet URL with the external canonical database configured read-only.
+5. Show Terry the URL, truthful render, and state identity for unaided use. A
+   screenshot or temporary local process does not close this gate.
+6. After Terry's walkthrough, run the secondary `web-interface-audit` and the
+   independent read-only Quant Factory adversary before merge.
 
 The approved HTML file must have SHA-256
 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`

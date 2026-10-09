@@ -8,22 +8,22 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Produce the real Mantine Dashboard visual shell matching the checksum-locked modern reference, then stop before behavior work. |
-| Phase | **R12-A Dashboard visual recovery. Backend and scaling are accepted and frozen. Candidate research remains paused.** |
-| Active work | Use a new clean checkout from `main`. Build only presentation under `dashboard.ui`; the two local Dashboard implementation branches and current deployment are rejected inputs, not reusable UI. |
-| Technology | Use Dash Mantine Components for the real shell. Plotly and AG Grid may appear only where the reference visibly requires them. Do not change or re-prove SQL, persistence, schemas, lineage, orchestration, evidence, scaling, or performance. |
+| Immediate objective | Deliver the approved Mantine Dashboard as a working private review service at the established tailnet URL, connected read-only to the real Quant Factory runtime state. |
+| Phase | **R12-B Dashboard working-review recovery. Gate A appearance is owner-approved. Candidate research remains paused.** |
+| Active work | Preserve the approved shell in the clean canonical checkout. Correct its state adapter and run it as the private Dashboard service. Rejected frontend branches remain prohibited presentation inputs; their presence does not prohibit reading the external canonical runtime database. |
+| Technology | Use Dash Mantine Components, Plotly, and AG Grid for presentation. `dashboard.ui` may consume accepted read models but may not own SQL, persistence, schemas, lineage, orchestration, evidence, or lifecycle semantics. |
 | Visual authority | Only `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. |
-| Visual proof state | Use the reference's representative values only in a clearly labeled, local, non-operational visual proof. It may not read persistence, be deployed, be merged as operational truth, or satisfy technical/control gates. |
-| Next action | Render the real Mantine shell at 1440×980, inspect it directly beside the exact reference, correct material visual differences, show both to Terry, and stop. No callbacks, persistence integration, backend tests, deployment, or other surface before his explicit visual approval. |
-| Owner checkpoints | Gate A: Terry approves the real visual shell. Gate B: after approval, existing read-only state and controls are connected and Terry approves the truthful local render. Gate C: only separately authorized private deployment and unaided use close comprehension. |
-| Deferred | Dashboard data wiring and controls until Gate A; all other surfaces; all backend/scaling changes; Candidate campaigns; VectorBT Pro upgrade; paid/protected data; paper activation; broker work; orders; live trading; capital exposure. |
+| Visual proof state | **Gate A passed on 2026-10-09.** Representative values are retired from implementation evidence and may remain only inside the checksum-locked reference. |
+| Next action | Bind the approved shell to the external canonical runtime database through explicit service configuration, preserve legacy persisted runs as truthful factory history, start the private Dashboard service, verify the established URL, and stop for Terry's unaided walkthrough. A screenshot alone is insufficient. |
+| Owner checkpoints | The current checkpoint ends only when Terry receives a reachable private URL and can use the truthful connected Dashboard. There is no intervening screenshot-only or deployment-request gate. |
+| Deferred | All other surfaces until Dashboard walkthrough acceptance; Candidate campaigns; VectorBT Pro upgrade; paid/protected data; paper activation; broker work; orders; live trading; capital exposure. |
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | Modern Dashboard contract is checksum-locked; Gate A visual shell is the only authorized implementation slice. |
+| R12 | 1 | in_progress | none | Gate A appearance is approved. Current work is the connected private Dashboard review service; no other surface begins before Terry's walkthrough. |
 | R15 | 2 | blocked | R12 | Automated bounded-research activation requires a separately approved campaign policy after usable product handoff. |
 | R14 | 3 | blocked | none | Provider-neutral Agent Research Gateway is retained but is not current substitute work. |
 <!-- active-work:end -->
@@ -50,16 +50,12 @@ and next action. Git history preserves completed milestone narratives.
 No supporting document creates another queue, visual target, or implementation
 authority.
 
-## R12-A visual-shell acceptance
+## R12-B working-review acceptance
 
-Gate A passes only when the real Dash/Mantine render materially matches the
-reference at 1440×980 in shell, typography, scale, spacing, contrast, density,
-panel geometry, chart proportions, table treatment, controls, and primary
-emphasis. The visible composition is fixed: application rail/header, four
-current-state cards, Candidate universe, selected finding, Factory now, Top
-survivors, and contextual drawer treatment.
-
-A route load, backend test, callback, SQL aggregate, scale test, clean console,
-HTTP status, accessibility audit, or agent assertion cannot compensate for a
-visual mismatch. Gate A stops immediately after Terry sees the real/reference
-pair. No behavior or truth-state work is authorized until he approves it.
+R12-B passes only when the approved composition is reachable at the established
+private URL, reads the explicitly configured external runtime database without
+mutation, shows every persisted run that belongs in factory oversight even when
+no Candidate draft exists, and its included controls operate on exact records.
+The service must survive the implementation shell that launched it. A screenshot,
+temporary development server, empty default database, HTTP check, test, audit,
+or agent assertion cannot substitute for Terry's unaided walkthrough.

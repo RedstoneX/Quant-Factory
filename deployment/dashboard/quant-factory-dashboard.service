@@ -1,0 +1,20 @@
+[Unit]
+Description=Quant Factory private Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/projects/Quant-Factory-canonical
+EnvironmentFile=/etc/quant-factory/dashboard.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/home/ubuntu/.local/share/quant-factory-dashboard/venv/bin/gunicorn --bind 127.0.0.1:8050 --workers 1 --threads 4 --timeout 120 dashboard.ui.app:server
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
