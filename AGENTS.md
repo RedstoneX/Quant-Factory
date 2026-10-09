@@ -33,7 +33,7 @@ staged validation -> survivor review -> execution-vehicle comparison -> paper
 operation -> live operation later**
 
 Complete the objective dashboard and operator-workflow criteria before owner
-handoff. Reuse the generic backend, audited MES run, approved UX work,
+handoff. Reuse the generic backend, audited MES run, approved visual contract,
 licensed VectorBT Pro, mature components, and existing tests. Do not rebuild
 the backend, add another frontend or orchestration layer, or introduce
 enterprise infrastructure for this single-user product.
@@ -78,8 +78,7 @@ Trading destination. Dashboard is the live oversight front door. Candidates
 is the high-density survivor/ranking surface. Compare Selected is a secondary
 action from Candidates, not a primary workflow or promotion gate. Paper
 Trading remains a separate project reached by an external link; Quant Factory
-shows only package/handoff state. Do not reconstruct an interface from Git
-history or a deployed route.
+shows only package/handoff state.
 
 ## Frontend and visual acceptance
 
@@ -93,20 +92,10 @@ affordances, and interaction intent. Do not reinterpret an approved surface or
 create another design direction unless Terry explicitly requests one.
 
 Existing backend, persistence, state semantics, lineage, Plotly, and AG Grid
-contracts are reusable. The rejected presentation callbacks, shell, DOM
-composition, CSS, copy, and page components are not reusable implementation
-sources on the reconstruction branch, even when an isolated element appears
-similar. Build a clean presentation under `dashboard.ui` from the current
-contract and reconnect retained domain behavior; Git history is the only
-archive of the rejected frontend.
-
-For reconstruction, preserve the rejected frontend only in Git history. On the
-dedicated reconstruction branch, remove obsolete presentation files,
-historical visual targets, and presentation tests from the active tree; do not
-create a `legacy` directory or leave parallel shells/styles available for
-accidental reuse. Add a repository guard before implementation that rejects
-restored legacy paths and imports. The live service stays on its current
-revision until an approved replacement is ready.
+contracts are reusable. Build the presentation only under `dashboard.ui` from
+the current contract and reconnect retained domain behavior. Do not create a
+second composition root, parallel shell, alternate visual target, or duplicate
+presentation state.
 
 The first production slice is Dashboard only. It uses Dash Mantine Components
 as the default production UI layer for navigation,

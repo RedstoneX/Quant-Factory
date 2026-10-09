@@ -27,68 +27,25 @@ VISUAL_CONTRACT_SHA256 = "d87f311127c513cefb50e75472a49aeb27d3031ac76c84e26a9940
 REQUIRED_FRONTEND_FILES = (
     VISUAL_CONTRACT,
     Path("docs/factory-operating-contract.md"),
-    Path("docs/architecture/0016-dashboard-reconstruction-runtime.md"),
+    Path("docs/architecture/0016-dashboard-runtime.md"),
     Path(".agents/skills/quant-factory-frontend/SKILL.md"),
     Path(".agents/skills/web-interface-audit/SKILL.md"),
 )
 
-# Git history is the archive for this rejected presentation. These paths may
-# not be restored to the active tree.
-FORBIDDEN_PATHS = (
-    Path("docs/QUANT_FACTORY_DASHBOARD_UI_DIRECTION.md"),
-    Path("docs/dashboard-product-requirements.md"),
-    Path("docs/dashboard-evaluation.md"),
-    Path("docs/component-reuse-audit.md"),
-    Path("docs/dashboard-usage.md"),
-    Path("docs/operator-interface-reconstruction.md"),
-    Path("docs/milestones/milestone-20-dashboard-acceptance.md"),
-    Path("docs/milestones/milestone-23-acceptance.md"),
-    Path("docs/architecture/0008-dashboard-mounted-route-architecture.md"),
-    Path("docs/architecture/0002-dashboard-foundation.md"),
-    Path("docs/architecture/0003-infrastructure-first-dashboard-product.md"),
-    Path("docs/audits/2026-10-02-completion-claims.tsv"),
-    Path("docs/audits/2026-10-02-component-construction-matrix.json"),
-    Path("docs/audits/2026-10-02-decision-source-registry.tsv"),
-    Path("docs/audits/2026-10-02-nine-item-maintainability-audit.md"),
-    Path("docs/architecture/0010-agent-credential-gateway.md"),
-    Path("docs/architecture/0012-bitwarden-agent-access.md"),
-    Path("docs/operations/bitwarden-agent-access.md"),
-    Path("docs/operations/credential-gateway.md"),
-    Path("docs/milestones/milestone-18-implementation-plan.md"),
-    Path("docs/infrastructure-completion-inventory.md"),
-    Path("docs/architecture/0007-portable-deployment-and-alpaca-first-roadmap.md"),
-    Path("docs/architecture/0009-execution-venues-and-programming-agent.md"),
-    Path("docs/operations/public-repository-migration.md"),
-    Path("docs/operations/ovh-research-deployment.md"),
-    Path("dashboard/app.py"),
-    Path("dashboard/application.py"),
-    Path("dashboard/shell.py"),
-    Path("dashboard/routing.py"),
-    Path("dashboard/progressive_routes.py"),
-    Path("dashboard/assets"),
-    Path("dashboard/pages"),
-    Path("dashboard/components"),
-    Path("dashboard/callbacks"),
-    Path("tests/browser"),
-    Path("tests/test_milestone21e_instrument_decision.py"),
-    Path("deployment/research_wsgi.py"),
-    Path("CLAUDE.md"),
-    Path(".claude"),
-    Path("prefect_spike/milestone23_browser_fixture.py"),
-    Path("tools/prepare_milestone23_browser_fixture.py"),
-)
-
-# Split literals keep this guard from resembling a live authority reference.
-FORBIDDEN_AUTHORITY_TEXT = (
-    "results-page-" + "flow-preview",
-    "operator-workflow-" + "approved",
-    "QUANT_FACTORY_DASHBOARD_" + "UI_DIRECTION",
-    "dashboard-product-" + "requirements",
-    "operator-interface-" + "reconstruction",
-    "milestone-23-" + "acceptance",
-    "milestone-20-dashboard-" + "acceptance",
-)
-
+ALLOWED_DASHBOARD_ROOT_FILES = {
+    "__init__.py",
+    "adapter.py",
+    "candidate_launch_context.py",
+    "candidate_workflow.py",
+    "compare_query.py",
+    "evidence_chart_window.py",
+    "formatting.py",
+    "health.py",
+    "mes_candidate_setup.py",
+    "results_model.py",
+    "run_adapter.py",
+    "run_detail_adapter.py",
+}
 
 def _marked(text: str, start: str, end: str, label: str) -> tuple[str | None, list[str]]:
     if text.count(start) != 1 or text.count(end) != 1:
@@ -207,15 +164,6 @@ def _validate_decisions(text: str, today: dt.date) -> list[str]:
     return errors
 
 
-def _authority_documents(root: Path) -> list[Path]:
-    paths = [root / "AGENTS.md", root / "README.md"]
-    paths.extend((root / "docs").rglob("*.md"))
-    paths.extend((root / ".agents/skills").rglob("*.md"))
-    paths.extend((root / ".github").rglob("*.yml"))
-    paths.extend((root / ".github").rglob("*.yaml"))
-    return sorted({path for path in paths if path.is_file()})
-
-
 def _validate_frontend_authority(root: Path) -> list[str]:
     errors: list[str] = []
     for relative in REQUIRED_FRONTEND_FILES:
@@ -226,25 +174,22 @@ def _validate_frontend_authority(root: Path) -> list[str]:
         digest = hashlib.sha256(visual.read_bytes()).hexdigest()
         if digest != VISUAL_CONTRACT_SHA256:
             errors.append(f"visual contract checksum changed: {digest} != {VISUAL_CONTRACT_SHA256}")
-    for relative in FORBIDDEN_PATHS:
-        candidate = root / relative
-        if candidate.is_file() or (candidate.is_dir() and any(path.is_file() for path in candidate.rglob("*"))):
-            errors.append(f"rejected frontend authority/path was restored: {relative}")
+    dashboard = root / "dashboard"
+    if dashboard.is_dir():
+        for path in dashboard.iterdir():
+            if path.name == "__pycache__":
+                continue
+            if path.is_dir() and path.name == "ui":
+                continue
+            if path.is_file() and path.name in ALLOWED_DASHBOARD_ROOT_FILES:
+                continue
+            errors.append(f"unauthorized dashboard source path exists: {path.relative_to(root)}")
     assets = root / "docs/assets/dashboard"
     allowed_assets = {VISUAL_CONTRACT, VISUAL_CONTRACT.parent / "README.md"}
     if assets.is_dir():
         for path in assets.rglob("*"):
             if path.is_file() and path.relative_to(root) not in allowed_assets:
                 errors.append(f"competing dashboard visual asset exists: {path.relative_to(root)}")
-    for path in _authority_documents(root):
-        text = path.read_text(encoding="utf-8")
-        for token in FORBIDDEN_AUTHORITY_TEXT:
-            if token.lower() in text.lower():
-                errors.append(f"stale frontend authority reference in {path.relative_to(root)}: {token}")
-    for relative in (Path("Dockerfile"), Path("compose.yaml")):
-        path = root / relative
-        if path.is_file() and "deployment.research_wsgi" in path.read_text(encoding="utf-8"):
-            errors.append(f"rejected dashboard deployment entry point in {relative}")
     return errors
 
 

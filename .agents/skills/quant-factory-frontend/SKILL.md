@@ -20,9 +20,8 @@ working callbacks.
 4. Preserve Dash, Dash Core Components, Plotly, Dash AG Grid, VectorBT,
    persistence, lineage, state semantics, and authority boundaries; use
    Mantine as the default polished UI layer. Reuse data and behavior
-   contracts, not the removed presentation callbacks or component tree. Do
-   not inherit obsolete layout, DOM composition, CSS, wording, or interaction
-   patterns merely because they once existed.
+   contracts. Presentation composition comes only from the current visual
+   contract.
 
 The approved reference controls visual language, composition, hierarchy,
 density, spacing, affordances, and interaction intent. Product facts must still
@@ -43,11 +42,8 @@ explicitly approved continuing. Later work remains one coherent surface or
 shared visual primitive at a time.
 
 Build the approved composition as a clean Dash UI under `dashboard.ui`.
-Working backend contracts may be retained; rejected presentation code may not.
-On the reconstruction branch, delete obsolete page composition, shell, CSS,
-visual assets, and presentation tests rather than preserving a local legacy
-copy. Git history is the backup. Do not replace working backend contracts or
-create a second frontend.
+Working backend contracts may be retained. Do not replace working backend
+contracts or create a second frontend.
 
 Dash Mantine Components is the default production UI layer for the approved
 shell and commodity components. The first real Dashboard implementation is its

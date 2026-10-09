@@ -12,7 +12,7 @@ This page is navigation only. It never defines project status or priority.
    the active task.
 4. For frontend work, read
    [`docs/factory-operating-contract.md`](factory-operating-contract.md),
-   [ADR 0016](architecture/0016-dashboard-reconstruction-runtime.md), and the
+   [ADR 0016](architecture/0016-dashboard-runtime.md), and the
    repository frontend skill. Open no other visual reference.
 
 Do not read the decision log chronologically to infer current work. Do not use

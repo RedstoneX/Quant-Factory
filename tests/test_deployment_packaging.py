@@ -27,7 +27,7 @@ def test_container_context_includes_candidate_intake_package():
     assert "!docs/AGENT_RESEARCH_OPERATING_CONTEXT.md" in dockerignore
 
 
-def test_compose_does_not_package_rejected_dashboard_and_keeps_research_private():
+def test_compose_has_no_dashboard_service_and_keeps_research_private():
     compose = (ROOT / "compose.yaml").read_text()
     assert "dashboard:" not in compose
     assert "deployment.research_wsgi" not in compose

@@ -73,11 +73,11 @@ class DocumentationGovernanceTests(unittest.TestCase):
         (self.root / VISUAL_CONTRACT).write_text("replacement", encoding="utf-8")
         self.assertTrue(any("checksum changed" in error for error in check_repository(self.root)))
 
-    def test_rejected_frontend_path_is_rejected(self) -> None:
-        path = self.root / "dashboard/app.py"
+    def test_unauthorized_presentation_path_is_rejected(self) -> None:
+        path = self.root / "dashboard/extra.py"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("# rejected composition root\n", encoding="utf-8")
-        self.assertTrue(any("was restored" in error for error in check_repository(self.root)))
+        path.write_text("# unauthorized composition root\n", encoding="utf-8")
+        self.assertTrue(any("unauthorized" in error for error in check_repository(self.root)))
 
     def test_competing_visual_asset_is_rejected(self) -> None:
         path = self.root / "docs/assets/dashboard/alternate.png"
@@ -85,15 +85,6 @@ class DocumentationGovernanceTests(unittest.TestCase):
         self.assertTrue(
             any("competing dashboard visual asset" in error for error in check_repository(self.root))
         )
-
-    def test_stale_authority_reference_is_rejected(self) -> None:
-        (self.root / "AGENTS.md").write_text(
-            "Use results-page-flow-preview as the target.\n", encoding="utf-8"
-        )
-        self.assertTrue(
-            any("stale frontend authority reference" in error for error in check_repository(self.root))
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

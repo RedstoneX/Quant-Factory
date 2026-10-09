@@ -9,13 +9,11 @@ an operator surface, not the purpose of the project.
 
 The active sequence, summarized from `docs/MILESTONES.md`, is:
 
-**operator-interface reconstruction -> campaign-policy acceptance -> automated Candidate filtration and staged validation -> survivor review -> execution-vehicle comparison -> paper operation -> live operation later.**
+**Dashboard implementation -> campaign-policy acceptance -> automated Candidate filtration and staged validation -> survivor review -> execution-vehicle comparison -> paper operation -> live operation later.**
 
 Backend completion is recorded. The generic candidate runtime now reuses the existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable-launch, and filter-handoff infrastructure. It stops at the protected-test gate and does not expand protected-data authority.
 
-The deployed operator interface was owner-rejected. Its technical evidence is
-retained, but its presentation has no design authority. Quant Factory is a
-high-throughput automated filtration system: ordinary in-policy Candidates
+Quant Factory is a high-throughput automated filtration system: ordinary in-policy Candidates
 progress without per-item owner approval, while exceptions, survivors, and
 paper/live authority route to the owner. Current work is defined only in
 `docs/MILESTONES.md`; product behavior is defined in
