@@ -41,6 +41,8 @@ REQUIRED_FRONTEND_FILES = (
     Path("docs/architecture/0016-dashboard-runtime.md"),
     Path(".agents/skills/quant-factory-frontend/SKILL.md"),
     Path(".agents/skills/web-interface-audit/SKILL.md"),
+    Path("deployment/dashboard/quant-factory-dashboard.service"),
+    Path("deployment/dashboard/README.md"),
 )
 
 ALLOWED_DASHBOARD_ROOT_FILES = {
@@ -53,6 +55,7 @@ ALLOWED_DASHBOARD_ROOT_FILES = {
     "formatting.py",
     "health.py",
     "mes_candidate_setup.py",
+    "overview_projection.py",
     "results_model.py",
     "run_adapter.py",
     "run_detail_adapter.py",
@@ -71,6 +74,7 @@ ALLOWED_DEPLOYMENT_ROOT_FILES = {
 ALLOWED_DEPLOYMENT_ROOT_DIRECTORIES = {
     "agent-gateway",
     "config",
+    "dashboard",
 }
 
 def _marked(text: str, start: str, end: str, label: str) -> tuple[str | None, list[str]]:
@@ -218,6 +222,14 @@ def _validate_frontend_authority(root: Path) -> list[str]:
             if path.is_file() and path.name in ALLOWED_DASHBOARD_ROOT_FILES:
                 continue
             errors.append(f"unauthorized dashboard source path exists: {path.relative_to(root)}")
+    presentation = dashboard / "ui"
+    if presentation.is_dir():
+        for path in presentation.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            if "import sqlite3" in text or "from sqlite3" in text or ".execute(" in text:
+                errors.append(
+                    f"dashboard presentation owns persistence logic: {path.relative_to(root)}"
+                )
     assets = root / "docs/assets/dashboard"
     allowed_assets = {VISUAL_CONTRACT, VISUAL_CONTRACT.parent / "README.md"}
     if assets.is_dir():
@@ -248,6 +260,16 @@ def _validate_runtime_authority(root: Path) -> list[str]:
             if path.is_dir() and path.name in ALLOWED_DEPLOYMENT_ROOT_DIRECTORIES:
                 continue
             errors.append(f"unauthorized deployment source path exists: {path.relative_to(root)}")
+    service = root / "deployment/dashboard/quant-factory-dashboard.service"
+    if service.is_file():
+        text = service.read_text(encoding="utf-8")
+        for marker in (
+            "EnvironmentFile=/etc/quant-factory/dashboard.env",
+            "dashboard.ui.app:server",
+            "Restart=on-failure",
+        ):
+            if marker not in text:
+                errors.append(f"Dashboard service marker is missing: {marker}")
     return errors
 
 

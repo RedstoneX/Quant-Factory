@@ -66,6 +66,14 @@ approved controls with Dash Core Components, Plotly, VectorBT, and Dash AG Grid
 without changing composition. If existing contracts cannot supply a visible
 requirement, stop with the exact blocker; do not redesign the backend.
 
+The Gate B deliverable is a persistent private review service at the established
+tailnet URL, not a screenshot or a temporary development process. The service
+must receive the external canonical database through `QUANT_FACTORY_DB_PATH`.
+Never infer that a clean source checkout should contain runtime state, and never
+treat a prohibited old UI checkout as prohibiting read-only access to canonical
+state stored there. `dashboard.ui` is presentation only and must not contain SQL
+or recreate lifecycle/read-model semantics.
+
 Preserve the approved information behavior: Dashboard exposes current factory
 operations and survivors; Candidates defaults to sortable/filterable survivors;
 one selected survivor opens exact Results; Compare Selected is secondary.
@@ -112,9 +120,10 @@ and saved views belong to Candidates. Any Dashboard drawer that offers record
 browsing must implement real server-side paging plus the sorting/filtering it
 visibly offers; cosmetic grid controls do not satisfy the contract.
 
-After Gate B implementation and self-review, use `web-interface-audit` as the
-secondary accessibility and interaction audit and resolve its blocking
-findings before the independent adversary review. When a generic guideline
+After Terry has inspected the working private URL, use `web-interface-audit` as
+the secondary accessibility and interaction audit and resolve its blocking
+findings before the independent adversary review and merge. These reviews must
+not delay the first connected owner walkthrough. When a generic guideline
 conflicts with the approved Quant Factory contract or trader workflow, report
 the conflict and follow Tier 1 plus the approved contract.
 
@@ -127,8 +136,8 @@ do not prove visual conformance. A material mismatch means the surface is
 incomplete.
 
 Gate A ends with Terry's visual decision and cannot be merged or deployed as an
-operational Dashboard. Before a later Gate B merge or deployment, the truthful
-local render must pass technical, control, visual-conformance, interface-audit,
-and independent adversarial review. Only Terry's explicit approval authorizes a
-private interactive deployment. Do not claim comprehension or begin another
-surface until Terry has used that deployed Dashboard unaided and accepted it.
+operational Dashboard. Gate B ends only when the truthful connected Dashboard
+is running at the established private URL and Terry has used it unaided. Before
+merge, perform the secondary interface audit and independent adversarial review.
+Do not claim comprehension or begin another surface until Terry accepts the
+private Dashboard walkthrough.

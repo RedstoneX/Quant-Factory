@@ -1,3 +1,4 @@
 # Supplemental dashboard UI dependency.
 dash-ag-grid==35.2.0
+dash-mantine-components==2.8.0
 tsdownsample==0.1.5.1

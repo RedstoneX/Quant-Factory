@@ -12,8 +12,8 @@ permitted.
 
 Dashboard implementation and owner acceptance run directly, outside the
 research Compose stack. Prefect and the agent gateway remain containerized
-factory services. A separately approved production Dashboard defaults to a
-normal Linux service. Its process availability is operationally independent:
+factory services. The private review Dashboard runs as a normal Linux service
+at the established tailnet URL. Its process availability is operationally independent:
 Dashboard failure may remove visibility and controls, but it must not stop or
 change active filtration work. Paper trading remains a separate system with
 its own stronger availability, reconciliation, and recovery requirements.
@@ -60,11 +60,12 @@ uses the reference's representative state solely to prove visual composition at
 1440 by 980. It does not connect persistence, register production callbacks,
 run backend work, or claim technical truth. Terry's approval of that real render
 is required before the second gate may connect existing read-only projections
-and working controls. The truthful implementation then passes technical,
-controls, secondary interface audit, actual/reference comparison, and
-independent trader-workflow review before any deployment request. Unaided owner
-use of a separately approved private deployment closes comprehension. No other
-surface begins before all Dashboard checkpoints.
+and working controls. The truthful implementation is connected to the external
+canonical database through explicit read-only service configuration and
+published to the private review URL. Unaided owner use is the next checkpoint.
+Secondary interface and independent trader-workflow reviews follow that
+walkthrough and precede merge. No other surface begins before Dashboard
+acceptance.
 
 If Mantine presents a demonstrated compatibility or load blocker, work stops
 for an owner decision before any fallback component strategy. A standalone

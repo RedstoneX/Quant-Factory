@@ -109,10 +109,10 @@ alerts, badges, and commodity controls. Work is split by a hard owner gate:
    persistence, build data projections, register production callbacks, optimize,
    run backend tests, deploy, or implement another surface. Show Terry the real
    render beside the exact contract and stop.
-2. Only after Terry explicitly approves that render, bind existing read-only
-   state and add the approved controls without changing the composition. Then
-   run the technical, control, accessibility, adversarial, and truthful-state
-   gates.
+2. After Terry approves that render, bind existing read-only state and add the
+   approved controls without changing the composition. Run the private review
+   service at its established tailnet URL and stop only after giving Terry the
+   reachable URL. A screenshot is not the Gate B deliverable.
 
 The representative first render is not operational truth and may never be
 deployed. Abandon Mantine only for a demonstrated blocker and stop for an owner
@@ -121,8 +121,8 @@ separate owner decision.
 
 Run the Dashboard directly for implementation and owner acceptance. Do not add
 it to the research Compose stack. Prefect and the agent gateway remain
-containerized factory infrastructure. After separate deployment approval, the
-default Dashboard production target is a normal Linux service. Dashboard
+containerized factory infrastructure. The Dashboard private-review target is a
+normal Linux service at the established tailnet URL. Dashboard
 unavailability must not stop active filtration work or mutate research state.
 
 Use the stack by responsibility: Mantine for the polished application and
@@ -162,10 +162,10 @@ the visual or comprehension gates. Gate A is deliberately earlier and cheaper:
 capture the real visual shell, compare it side by side with the contract, show
 Terry, and stop before callbacks, backend work, audits, adversarial review,
 merge, or deployment. After Terry approves appearance, Gate B adds truthful
-state and controls and then requires the secondary audit and independent
-trader-workflow/visual review before another owner checkpoint. Only Terry may
-authorize a subsequent private deployment. His unaided use closes
-comprehension. Do not begin the next surface before all checkpoints pass.
+state and controls and publishes the reversible private review service. Terry's
+unaided use is the next checkpoint. Secondary audits and repository packaging
+follow a successful walkthrough; they may not delay the first working URL or
+stand in for it. Do not begin the next surface before that walkthrough passes.
 
 ## Working mode
 
@@ -308,27 +308,28 @@ authority. Required product behavior comes from
 `docs/factory-operating-contract.md`, not from an older presentation artifact.
 
 Before changing an operator page, record the target page, owner-approved design,
-proof state, owning state source, permitted change and proof plan. For Dashboard,
-the first checkpoint is visual only. Before any behavior merge or deployment:
+proof state, owning state source, permitted change and proof plan. Keep source
+code and runtime state distinct: a clean checkout must not contain a database,
+but the Dashboard service must receive the external canonical database path via
+`QUANT_FACTORY_DB_PATH`. A rejected checkout is prohibited as a UI source, not
+as the location of canonical runtime state. Before any behavior merge:
 
 1. render the actual page at the approved viewport and meaningful state;
 2. inspect the new approved design and actual render side by side;
 3. correct material differences in composition, hierarchy, spacing, data,
    affordances, and primary action;
 4. exercise the page's safe read-only controls and transitions; and
-5. obtain one independent read-only adversarial review against trader workflow,
-   the approved reference, truthful state, and working affordances; resolve its
-   material findings; and
-6. show Terry both renders and obtain visual approval before requesting merge
-   or private deployment authority. After an authorized private deployment,
-   Terry's unaided hands-on use closes comprehension. Do not begin another
-   surface before that second checkpoint.
+5. run the normal Linux private-review service at the established tailnet URL;
+6. show Terry the URL and state identity for unaided hands-on use; and
+7. only after that walkthrough, perform the secondary audit and independent
+   review required before merge.
 
-A loading or empty state, route change, HTTP 200, expected text, or clean
-console proves only that condition unless it is the reported defect. Call
-navigation-only evidence a routing smoke check. A workflow pass requires each
-included page to show meaningful state and its transition to the next safe
-action. Terry's walkthrough is the browser acceptance gate.
+A loading or empty state, screenshot, route change, HTTP 200, expected text, or
+clean console proves only that condition unless it is the reported defect. A
+workflow pass requires meaningful configured state and its transition to the
+next safe action at the private URL. If the configured state source is missing,
+stop before implementation completion; do not call an unavailable-state render
+Gate B. Terry's walkthrough is the browser acceptance gate.
 
 ## Proportional proof and private-beta operations
 

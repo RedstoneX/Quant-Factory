@@ -25,11 +25,12 @@ rail and header, four current-state cards, Candidate universe, selected finding,
 Factory now, Top survivors, and contextual drawers. Its representative values
 exist only to prove composition and interaction intent.
 
-The first checkpoint is a local, non-operational Mantine render of this exact
+The first checkpoint was a local, non-operational Mantine render of this exact
 representative state. It may not read or change persistence and may not be
 deployed or described as operational truth. After Terry approves that real
 render, the next authorized slice replaces representative values with existing
-read-only projections and adds working controls without changing composition.
+read-only projections, adds working controls without changing composition, and
+runs at the established private review URL for Terry's unaided walkthrough.
 
 The other six named workflow surfaces retain their product behavior but have no
 active visual implementation authority. Their visual references will be added
