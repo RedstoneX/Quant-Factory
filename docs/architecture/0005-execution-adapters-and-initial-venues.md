@@ -3,7 +3,7 @@
 - **Status:** Accepted, amended 2026-07-14 for Milestone 21E
 - **Date:** 2026-07-13
 - **Scope:** Research portability, order contracts, execution adapters, initial paper and micro-live venues
-- **Supersedes:** The provisional SPYM language in the README, AGENTS.md, and ADR 0003 infrastructure-first dashboard product
+- **Supersedes:** Earlier provisional SPYM language
 - **Does not change:** Current milestone ordering or Milestone 20 implementation scope
 
 ## Context
@@ -211,7 +211,7 @@ will ultimately produce the strongest validated opportunities.
   broker SDK objects.
 - Broker-neutral order, execution, position, and reconciliation models must be
   defined before the first production adapter.
-- Alpaca paper and future live credentials remain isolated under ADR 0003.
+- Alpaca paper and future live credentials remain isolated under ADR 0006.
 - SPYM remains a valid ingestion fixture with its own Databento dataset identity,
   but it is no longer locked as the first micro-live instrument.
 - SCHX is the selected broad-market whole-share paper and micro-live execution

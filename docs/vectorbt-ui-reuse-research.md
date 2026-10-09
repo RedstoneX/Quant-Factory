@@ -1,7 +1,10 @@
 # VectorBT UI and Optimization Reuse Research
 
-This is supporting technical research. `docs/MILESTONES.md` remains the sole
-authority for current status, priority, sequencing, and next action.
+This is supporting runtime/performance research only. It has no visual,
+interaction, layout, component-style, wording, or information-architecture
+authority. `docs/MILESTONES.md` remains the sole authority for current status,
+priority, sequencing, and next action; ADR 0016 and the checksum-locked HTML
+own frontend implementation.
 
 ## Purpose
 
@@ -27,8 +30,6 @@ protected-test access, paper/live trading, or capital exposure.
   on correcting a selected Sharpe for the number of trials. It is rationale,
   not an accepted Quant Factory evidence method.
 - Plotly Resampler's maintained Dash integration and trace limitations.
-- Two community dashboards reviewed as interaction references only. Neither
-  declared a software license, so their code is not a Quant Factory source.
 
 The private GitHub repository is available through the configured GitHub CLI.
 The members site rejected unattended access through Cloudflare; browser cookies

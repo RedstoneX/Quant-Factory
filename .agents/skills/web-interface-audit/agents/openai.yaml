@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web Interface Audit"
+  short_description: "Audit implemented Quant Factory interface behavior"
+  default_prompt: "Use $web-interface-audit as a secondary audit of this implemented Quant Factory surface."

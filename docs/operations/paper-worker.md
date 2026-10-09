@@ -1,7 +1,7 @@
 # Paper Worker and Read-Only Observer
 
 > **Historical implementation / do not deploy:** Paper-runtime work is dormant.
-> The existing worker and `deployment/paper` stack use the superseded ADR 0010
+> The existing worker and `deployment/paper` stack use a superseded credential
 > transport and are retained only as implementation evidence. Their safety
 > requirements remain inputs, but a new ADR 0013-compatible credential and
 > isolation design must be reviewed before a paper milestone can activate any

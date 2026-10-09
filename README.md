@@ -13,15 +13,13 @@ The active sequence, summarized from `docs/MILESTONES.md`, is:
 
 Backend completion is recorded. The generic candidate runtime now reuses the existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable-launch, and filter-handoff infrastructure. It stops at the protected-test gate and does not expand protected-data authority.
 
-The October 7 unaided owner walkthrough found the seventh dashboard and
-operator-workflow iteration unusable. Technical and Results-performance passes
-remain useful evidence, but do not establish usability. Decisions 337–338
-reopen R12 and retire the seventh iteration's visual and interaction language
-while preserving the existing backend. Decision 339 defines the intended
-product as a high-throughput automated filtration system: ordinary in-policy
-Candidates progress without per-item owner approval, while exceptions,
-survivors, and paper/live authority route to the owner. The current plan and exact authority remain in `docs/MILESTONES.md` and
-`docs/operator-interface-reconstruction.md`.
+The deployed operator interface was owner-rejected. Its technical evidence is
+retained, but its presentation has no design authority. Quant Factory is a
+high-throughput automated filtration system: ordinary in-policy Candidates
+progress without per-item owner approval, while exceptions, survivors, and
+paper/live authority route to the owner. Current work is defined only in
+`docs/MILESTONES.md`; product behavior is defined in
+`docs/factory-operating-contract.md`.
 
 The fixed Decision 310 MES overnight-gap reversal screen completed and was
 rejected after negative total and annualized returns and Sharpe below 0.5. No
@@ -71,7 +69,7 @@ The repository already contains:
 - screening, OOS, walk-forward, robustness, and Monte Carlo engines;
 - durable run claims, persistence, artifacts, lineage, and review records;
 - a generic durable candidate runtime connected to the persisted filter-chain coordinator;
-- Plotly Dash Results and Find & Compare work;
+- reusable read models for persisted Results evidence and exact run selection;
 - broker-neutral execution contracts and conservative Alpaca paper preparation.
 
 Implementation is not evidence of profitability. Current work and exact

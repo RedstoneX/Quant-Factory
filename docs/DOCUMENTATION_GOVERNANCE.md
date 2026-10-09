@@ -1,121 +1,51 @@
-# Quant Factory Documentation Governance
+# Quant Factory documentation governance
 
-Repository documentation is durable project memory. The purpose of governance
-is to keep Codex from reconstructing current direction from sprawling historical
-material.
+Repository documentation is active instruction material. Superseded directives
+are removed from the active tree and remain recoverable in Git history; they
+are not retained beside current instructions as historical alternatives.
 
 ## Closed authority map
 
-The Tier 1 set is closed to additions:
+1. `AGENTS.md` — stable operating and repository rules.
+2. `docs/MILESTONES.md` — sole current goal, phase, queue, sequence, blockers,
+   and next action.
+3. `docs/DECISIONS.md` — concise decisions that still change current behavior.
 
-1. `AGENTS.md` — stable operating contract and orchestration rules.
-2. `docs/MILESTONES.md` — **only** authority for current goal, phase, active
-   queue, sequencing, blockers, next action, and milestone status.
-3. `docs/DECISIONS.md` — append-only accepted owner decisions,
-   supersessions, and the current-effective decision index.
+Supporting documents define one named mechanism only. They never contain a
+current queue, visual target, completion claim, or competing authority.
 
-Changing this set requires an explicit owner decision.
+## Frontend authority
 
-## Supporting documents
+- Sole visual contract:
+  `docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`
+- Product behavior: `docs/factory-operating-contract.md`
+- Runtime architecture: ADR 0016.
+- Execution discipline: `.agents/skills/quant-factory-frontend/SKILL.md`.
 
-Supporting documents may explain a mechanism, requirement, procedure, or
-historical evidence. They **must not maintain a competing current queue or
-project-status narrative**.
+No other mockup, screenshot, preview, acceptance package, UI direction file,
+CSS file, deployed page, browser test, or historical decision controls frontend
+implementation. Repository tooling enforces the contract checksum and rejects
+known superseded paths or directives.
 
-| Information | Authority | Supporting role |
-|---|---|---|
-| Agent behavior/orchestration | `AGENTS.md` | `docs/ai-programming-agent-policy.md` |
-| Current goal/status/order/next action | `docs/MILESTONES.md` | none |
-| Accepted decisions/supersessions | `docs/DECISIONS.md` | ADR rationale where relevant |
-| Architecture | accepted ADR | implementation rationale only |
-| Product requirements | named specification | requirements only |
-| Historical acceptance/incidents | milestone record | evidence only |
-| Dataset/provider facts | data catalog/source policy | facts/provenance only |
-| Startup navigation | `docs/CHAT_HANDOFF.md` | links to Tier 1 |
-| Public orientation | `README.md` | concise purpose and links |
+## Lifecycle
 
-When a supporting document contains historical status language that could be
-mistaken for current direction, place a short banner at the top pointing to
-`docs/MILESTONES.md`. Do not continually synchronize long current-status
-sections across supporting documents.
+- Accepted current behavior stays concise in Tier 1 or its named contract.
+- Rejected proposals, superseded directives, old milestone narratives, and
+  obsolete visual assets are deleted from the active tree after any still-valid
+  nonvisual invariant is moved to its current owner.
+- Git history is the archive. Do not create `legacy`, `archive`, `old`, or
+  `historical` copies inside the active repository.
+- Generated proof debris, screenshots, browser captures, temporary databases,
+  logs, caches, releases, and repeated backups are removed when their slice
+  ends unless they are the current approved contract.
+- Distinguish proposed, implemented, tested, merged, deployed, and explicitly
+  owner-accepted states.
+- Only the owner changes mandate, priority, acceptance, deployment, paper/live,
+  broker, order, or capital authority.
 
-## Lifecycle and cleanup rules
+## Completion
 
-- Preserve accepted decisions, canonical research evidence, incident history,
-  and evidence required to reproduce an accepted result. Generated proof
-  debris—temporary databases, screenshots, browser captures, test XML/logs,
-  build archives, extracted releases, caches, and repeated beta backups—is not
-  durable evidence and is removed when its slice ends.
-- Retire duplicated plans by marking them historical/supporting or replacing
-  their current-status prose with a Tier 1 pointer.
-- ADRs describe architecture and rationale, not the active queue.
-- Specifications describe requirements, not completion status.
-- README and CHAT_HANDOFF remain short orientation documents.
-- Investigations and rejected proposals remain discoverable but cannot silently
-  reactivate work.
-- Conceptual documents are labelled `CONCEPTUAL / NOT AUTHORIZED`.
-- Do not create a new roadmap, status, handoff, or decision-summary file when
-  Tier 1 can hold the information.
-- Routine bug fixes, styling corrections, refactors with unchanged contracts,
-  and private beta redeployments do not create decisions or milestone essays.
-  Update Tier 1 only when authority, durable behavior, current status, or a
-  documented contract actually changes.
-
-## Evidence and ratification
-
-Distinguish proposed, implemented, tested, merged, deployed, and explicitly
-accepted. Current-state claims require current repository/runtime evidence where
-material.
-
-Only the owner changes mandate, product priority, milestone acceptance,
-deployment authority, or paper/live capital authority. Agent proposals, commits,
-tests, and merges do not create owner acceptance.
-
-Correct factual drift without inventing scope. If an older supporting document
-conflicts with Tier 1, Tier 1 wins and the supporting document is corrected or
-marked historical.
-
-## Executable documentation controls
-
-`tools/check_documentation.py` enforces the milestone active-work structure,
-size and selected historical-record constraints. Preserve its marker-delimited
-active-work table and append-only incident history.
-
-CI execution is not target-environment proof. Runtime/deployment claims require
-the applicable target proof separately.
-
-## Documentation-impact assessment
-
-For a durable change, evaluate:
-
-| Change | Required authority |
-|---|---|
-| permanent agent behavior/allocation | `AGENTS.md` and agent policy |
-| current direction/order/status/acceptance | `docs/MILESTONES.md` |
-| accepted owner decision/supersession | append `docs/DECISIONS.md` |
-| architecture/security/data-flow integration | relevant ADR |
-| startup navigation | `docs/CHAT_HANDOFF.md` |
-| public orientation | `README.md` |
-| operator/recovery/migration procedure | named runbook/spec |
-| dashboard-displayed project status | align `dashboard/project_status.py` |
-
-For ordinary implementation with no durable authority/status/contract change,
-the documentation-impact result is **none**. Do not manufacture documentation
-work merely because code changed.
-
-Do not update unrelated supporting documents merely to restate the same current
-status.
-
-## Completion gate
-
-Documentation cleanup is complete when:
-
-- Tier 1 agrees internally;
-- supporting docs do not claim a conflicting active queue;
-- supersessions are explicit;
-- historical evidence remains discoverable;
-- documentation checks pass;
-- the change is committed through the normal branch/PR process.
-
-Completion reporting should identify the decision classification, files changed,
-checks run, PR/commit state, and any unresolved contradiction.
+Documentation cleanup is complete only when Tier 1 agrees, the authority guard
+passes, the normal documentation check passes, and the change is published
+through the repository's branch/PR process. Local uncommitted files are not the
+canonical source of truth.

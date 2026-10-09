@@ -4,7 +4,6 @@ from dataclasses import asdict
 
 import pytest
 
-import dashboard.app as dashboard_app
 from market_data.equity_contract import (
     EquityDatasetUnsuitableError,
     SPYM_EQUITY_DATA_CONTRACT,
@@ -114,19 +113,3 @@ def test_manifest_fails_closed_for_unsuitable_data(field: str, value: object) ->
     with pytest.raises(EquityDatasetUnsuitableError):
         validate_spym_manifest(manifest)
     assert spym_dashboard_health(manifest)["dataset_status"] == "unsuitable"
-
-
-def test_system_page_exposes_pending_provider_and_dataset_health(monkeypatch) -> None:
-    monkeypatch.setattr(dashboard_app, "load_spym_manifest", lambda: None)
-    page = dashboard_app._system_page()
-    rendered = str(page)
-    assert "SPYM equity data contract" in rendered
-    assert "EQUS.MINI" in rendered
-    assert "fail_closed" in rendered
-
-
-def test_system_page_exposes_validated_spym_manifest(monkeypatch) -> None:
-    monkeypatch.setattr(dashboard_app, "load_spym_manifest", _manifest)
-    rendered = str(dashboard_app._system_page())
-    assert "validated" in rendered
-    assert "suitable" in rendered

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Quant Factory Frontend"
+  short_description: "Enforce the approved Quant Factory visual contract"
+  default_prompt: "Use $quant-factory-frontend to implement or review this UI against the approved visual contract."

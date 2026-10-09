@@ -5,14 +5,15 @@ This page is navigation only. It never defines project status or priority.
 ## Start here
 
 1. Read [`AGENTS.md`](../AGENTS.md).
-2. Read the **Current phase**, **Active work**, and **Operating sequence** in
+2. Read the **Current phase** and **Active work** in
    [`docs/MILESTONES.md`](MILESTONES.md).
 3. Read the **Current effective decision index** at the top of
    [`docs/DECISIONS.md`](DECISIONS.md), then only the decisions relevant to
    the active task.
-4. When R12 operator-interface reconstruction is active, read
-   [`docs/operator-interface-reconstruction.md`](operator-interface-reconstruction.md)
-   before proposing or implementing page work.
+4. For frontend work, read
+   [`docs/factory-operating-contract.md`](factory-operating-contract.md),
+   [ADR 0016](architecture/0016-dashboard-reconstruction-runtime.md), and the
+   repository frontend skill. Open no other visual reference.
 
 Do not read the decision log chronologically to infer current work. Do not use
 README, ADRs, dashboard specifications, historical milestone records, or review

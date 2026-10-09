@@ -1,70 +1,94 @@
 #!/usr/bin/env python3
-"""Validate the small set of machine-readable documentation contracts."""
+"""Enforce Quant Factory's current documentation and frontend authority."""
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import re
-import subprocess
 import sys
 from pathlib import Path
 
 MAX_MILESTONES_BYTES = 100_000
 QUEUE_START = "<!-- active-work:start -->"
 QUEUE_END = "<!-- active-work:end -->"
-HISTORY_START = "<!-- incident-history:start -->"
-HISTORY_END = "<!-- incident-history:end -->"
 DECISIONS_START = "<!-- pending-decisions:start -->"
 DECISIONS_END = "<!-- pending-decisions:end -->"
 QUEUE_COLUMNS = ("ID", "Priority", "Status", "Depends", "Evidence")
 VALID_STATUSES = {"pending", "in_progress", "blocked"}
 DEADLINE_RE = re.compile(r"^- \[ \] DECIDE BY (\d{4}-\d{2}-\d{2}) — (\S.*)$")
 ID_RE = re.compile(r"^R[0-9]{2,}$")
-LINK_RE = re.compile(r"\]\(milestones/milestone-23-acceptance\.md#incident-history\)")
 
-LEAN_CONTRACT_MARKERS = {
-    "AGENTS.md": (
-        "### Private-beta economy and retention",
-        "### Cost, time, and stop discipline",
-        "Do not run an unchanged check twice",
-        "Do not retry the same failed operation more than twice",
-    ),
-    "docs/ai-programming-agent-policy.md": (
-        "## Cost and stop controls",
-        "The same failed operation gets at most two attempts",
-    ),
-    "docs/DECISIONS.md": ("| **328** |",),
-    "docs/MILESTONES.md": (
-        "No Candidate, broker, paper-runtime, further deployment, or research activation",
-        "Decision 343 exercised the one private deployment and bounded",
-        "browser-QA authority for the first Dashboard/Candidates slice",
-    ),
-    "docs/operations/ovh-research-deployment.md": (
-        "## Lean private-beta review deployment",
-        "Do not create a backup",
-    ),
-    "docs/DOCUMENTATION_GOVERNANCE.md": ("Generated proof", "repeated beta backups"),
-    ".github/workflows/test.yml": (
-        "Classify change scope",
-        "Lightweight documentation/static-asset proof",
-    ),
-    ".github/workflows/dependency-review.yml": (
-        "Classify dependency scope",
-        "No dependency change",
-    ),
-}
+VISUAL_CONTRACT = Path(
+    "docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html"
+)
+VISUAL_CONTRACT_SHA256 = "d87f311127c513cefb50e75472a49aeb27d3031ac76c84e26a9940b73b23264a"
+REQUIRED_FRONTEND_FILES = (
+    VISUAL_CONTRACT,
+    Path("docs/factory-operating-contract.md"),
+    Path("docs/architecture/0016-dashboard-reconstruction-runtime.md"),
+    Path(".agents/skills/quant-factory-frontend/SKILL.md"),
+    Path(".agents/skills/web-interface-audit/SKILL.md"),
+)
+
+# Git history is the archive for this rejected presentation. These paths may
+# not be restored to the active tree.
+FORBIDDEN_PATHS = (
+    Path("docs/QUANT_FACTORY_DASHBOARD_UI_DIRECTION.md"),
+    Path("docs/dashboard-product-requirements.md"),
+    Path("docs/dashboard-evaluation.md"),
+    Path("docs/component-reuse-audit.md"),
+    Path("docs/dashboard-usage.md"),
+    Path("docs/operator-interface-reconstruction.md"),
+    Path("docs/milestones/milestone-20-dashboard-acceptance.md"),
+    Path("docs/milestones/milestone-23-acceptance.md"),
+    Path("docs/architecture/0008-dashboard-mounted-route-architecture.md"),
+    Path("docs/architecture/0002-dashboard-foundation.md"),
+    Path("docs/architecture/0003-infrastructure-first-dashboard-product.md"),
+    Path("docs/audits/2026-10-02-completion-claims.tsv"),
+    Path("docs/audits/2026-10-02-component-construction-matrix.json"),
+    Path("docs/audits/2026-10-02-decision-source-registry.tsv"),
+    Path("docs/audits/2026-10-02-nine-item-maintainability-audit.md"),
+    Path("docs/architecture/0010-agent-credential-gateway.md"),
+    Path("docs/architecture/0012-bitwarden-agent-access.md"),
+    Path("docs/operations/bitwarden-agent-access.md"),
+    Path("docs/operations/credential-gateway.md"),
+    Path("docs/milestones/milestone-18-implementation-plan.md"),
+    Path("docs/infrastructure-completion-inventory.md"),
+    Path("dashboard/app.py"),
+    Path("dashboard/application.py"),
+    Path("dashboard/shell.py"),
+    Path("dashboard/routing.py"),
+    Path("dashboard/progressive_routes.py"),
+    Path("dashboard/assets"),
+    Path("dashboard/pages"),
+    Path("dashboard/components"),
+    Path("dashboard/callbacks"),
+    Path("tests/browser"),
+    Path("deployment/research_wsgi.py"),
+)
+
+# Split literals keep this guard from resembling a live authority reference.
+FORBIDDEN_AUTHORITY_TEXT = (
+    "results-page-" + "flow-preview",
+    "operator-workflow-" + "approved",
+    "QUANT_FACTORY_DASHBOARD_" + "UI_DIRECTION",
+    "dashboard-product-" + "requirements",
+    "operator-interface-" + "reconstruction",
+    "milestone-23-" + "acceptance",
+    "milestone-20-dashboard-" + "acceptance",
+)
 
 
 def _marked(text: str, start: str, end: str, label: str) -> tuple[str | None, list[str]]:
-    errors: list[str] = []
     if text.count(start) != 1 or text.count(end) != 1:
         return None, [f"{label} markers must each occur exactly once"]
     begin = text.index(start) + len(start)
     finish = text.index(end)
     if finish < begin:
         return None, [f"{label} markers are out of order"]
-    return text[begin:finish], errors
+    return text[begin:finish], []
 
 
 def _validate_queue(text: str) -> list[str]:
@@ -77,20 +101,15 @@ def _validate_queue(text: str) -> list[str]:
     header = tuple(cell.strip() for cell in lines[0].strip("|").split("|"))
     if header != QUEUE_COLUMNS:
         errors.append(f"active-work columns must be {QUEUE_COLUMNS}")
-    rows: dict[str, tuple[int, str, list[str], str]] = {}
-    delimiter = lines[1]
-    delimiter_cells = [cell.strip() for cell in delimiter.strip("|").split("|")]
+    delimiter_cells = [cell.strip() for cell in lines[1].strip("|").split("|")]
     if len(delimiter_cells) != len(QUEUE_COLUMNS) or any(
         not re.fullmatch(r":?-{3,}:?", cell) for cell in delimiter_cells
     ):
         errors.append("active-work table delimiter is malformed")
+
+    rows: dict[str, tuple[int, list[str]]] = {}
     for line in lines[2:]:
-        if not line.startswith("|"):
-            errors.append(f"invalid active-work row: {line}")
-            continue
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) == 5 and cells[0] == "---":
-            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")] if line.startswith("|") else []
         if len(cells) != len(QUEUE_COLUMNS):
             errors.append(f"invalid active-work row: {line}")
             continue
@@ -111,16 +130,18 @@ def _validate_queue(text: str) -> list[str]:
         if not evidence:
             errors.append(f"active-work evidence is required: {ident}")
         deps = [] if depends.lower() == "none" else [item.strip() for item in depends.split(",")]
-        rows[ident] = (number, status, deps, evidence)
+        rows[ident] = (number, deps)
+
+    priorities = [row[0] for row in rows.values() if row[0]]
     if not rows:
         errors.append("active-work queue must contain at least one row")
-    priorities = [row[0] for row in rows.values() if row[0]]
     if len(priorities) != len(set(priorities)):
         errors.append("active-work priorities must be unique")
-    for ident, (_, _, deps, _) in rows.items():
-        for dep in deps:
-            if dep not in rows:
-                errors.append(f"unknown active-work dependency {dep} for {ident}")
+    for ident, (_, deps) in rows.items():
+        for dependency in deps:
+            if dependency not in rows:
+                errors.append(f"unknown active-work dependency {dependency} for {ident}")
+
     visiting: set[str] = set()
     visited: set[str] = set()
 
@@ -131,8 +152,8 @@ def _validate_queue(text: str) -> list[str]:
         if ident in visited or ident not in rows:
             return
         visiting.add(ident)
-        for dep in rows[ident][2]:
-            visit(dep)
+        for dependency in rows[ident][1]:
+            visit(dependency)
         visiting.remove(ident)
         visited.add(ident)
 
@@ -143,17 +164,15 @@ def _validate_queue(text: str) -> list[str]:
 
 def _validate_decisions(text: str, today: dt.date) -> list[str]:
     errors: list[str] = []
-    lines = text.splitlines()
-    if text.count(DECISIONS_START) > 1 or text.count(DECISIONS_END) > 1:
-        errors.append("pending-decisions markers must each occur at most once")
     in_section = False
-    for line in lines:
-        if line.strip() == DECISIONS_START:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == DECISIONS_START:
             if in_section:
                 errors.append("nested pending-decisions section")
             in_section = True
             continue
-        if line.strip() == DECISIONS_END:
+        if stripped == DECISIONS_END:
             if not in_section:
                 errors.append("stray pending-decisions end marker")
             in_section = False
@@ -163,9 +182,9 @@ def _validate_decisions(text: str, today: dt.date) -> list[str]:
         if not in_section:
             errors.append("DECIDE BY line must be inside pending-decisions markers")
             continue
-        match = DEADLINE_RE.match(line.strip())
+        match = DEADLINE_RE.match(stripped)
         if not match:
-            errors.append(f"malformed DECIDE BY line: {line.strip()}")
+            errors.append(f"malformed DECIDE BY line: {stripped}")
             continue
         try:
             deadline = dt.date.fromisoformat(match.group(1))
@@ -179,63 +198,45 @@ def _validate_decisions(text: str, today: dt.date) -> list[str]:
     return errors
 
 
-def _history(text: str) -> tuple[str | None, list[str]]:
-    return _marked(text, HISTORY_START, HISTORY_END, "incident-history")
+def _authority_documents(root: Path) -> list[Path]:
+    paths = [root / "AGENTS.md", root / "README.md"]
+    paths.extend((root / "docs").rglob("*.md"))
+    paths.extend((root / ".agents/skills").rglob("*.md"))
+    paths.extend((root / ".github").rglob("*.yml"))
+    paths.extend((root / ".github").rglob("*.yaml"))
+    return sorted({path for path in paths if path.is_file()})
 
 
-def _validate_history(root: Path, milestones: str, base_ref: str | None) -> list[str]:
+def _validate_frontend_authority(root: Path) -> list[str]:
     errors: list[str] = []
-    history_path = root / "docs/milestones/milestone-23-acceptance.md"
-    if not history_path.is_file():
-        return ["Milestone 23 acceptance document is missing"]
-    history, history_errors = _history(history_path.read_text(encoding="utf-8"))
-    errors.extend(history_errors)
-    if history is not None and not history.strip():
-        errors.append("incident-history section must be nonempty")
-    if not LINK_RE.search(milestones):
-        errors.append("MILESTONES must link the Milestone 23 incident history")
-    if base_ref is not None and history is not None:
-        try:
-            old = subprocess.run(
-                ["git", "show", f"{base_ref}:docs/milestones/milestone-23-acceptance.md"],
-                cwd=root, check=True, capture_output=True, text=True,
-            ).stdout
-        except (subprocess.CalledProcessError, OSError):
-            return errors + [f"base ref cannot be resolved: {base_ref}"]
-        old_has_start = HISTORY_START in old
-        old_has_end = HISTORY_END in old
-        if not old_has_start and not old_has_end:
-            old_history = None
-        else:
-            old_history, old_errors = _history(old)
-            errors.extend(old_errors)
-        if old_history is not None and not history.startswith(old_history):
-            errors.append("incident-history was truncated or altered relative to base ref")
-    return errors
-
-
-def _validate_lean_contract(root: Path) -> list[str]:
-    agents_path = root / "AGENTS.md"
-    if not agents_path.is_file():
-        return []
-    agents_text = agents_path.read_text(encoding="utf-8")
-    policy_path = root / "docs/ai-programming-agent-policy.md"
-    if "### Private-beta economy and retention" not in agents_text and not policy_path.is_file():
-        return []
-    errors: list[str] = []
-    for relative, markers in LEAN_CONTRACT_MARKERS.items():
-        path = root / relative
-        if not path.is_file():
-            errors.append(f"lean operating contract file is missing: {relative}")
-            continue
+    for relative in REQUIRED_FRONTEND_FILES:
+        if not (root / relative).is_file():
+            errors.append(f"required frontend authority is missing: {relative}")
+    visual = root / VISUAL_CONTRACT
+    if visual.is_file():
+        digest = hashlib.sha256(visual.read_bytes()).hexdigest()
+        if digest != VISUAL_CONTRACT_SHA256:
+            errors.append(f"visual contract checksum changed: {digest} != {VISUAL_CONTRACT_SHA256}")
+    for relative in FORBIDDEN_PATHS:
+        candidate = root / relative
+        if candidate.is_file() or (candidate.is_dir() and any(path.is_file() for path in candidate.rglob("*"))):
+            errors.append(f"rejected frontend authority/path was restored: {relative}")
+    assets = root / "docs/assets/dashboard"
+    allowed_assets = {VISUAL_CONTRACT, VISUAL_CONTRACT.parent / "README.md"}
+    if assets.is_dir():
+        for path in assets.rglob("*"):
+            if path.is_file() and path.relative_to(root) not in allowed_assets:
+                errors.append(f"competing dashboard visual asset exists: {path.relative_to(root)}")
+    for path in _authority_documents(root):
         text = path.read_text(encoding="utf-8")
-        for marker in markers:
-            if marker not in text:
-                errors.append(f"lean operating contract marker is missing from {relative}: {marker}")
+        for token in FORBIDDEN_AUTHORITY_TEXT:
+            if token.lower() in text.lower():
+                errors.append(f"stale frontend authority reference in {path.relative_to(root)}: {token}")
     return errors
 
 
 def check_repository(root: Path, base_ref: str | None = None, today: dt.date | None = None) -> list[str]:
+    del base_ref  # Historical documents are in Git; active governance is not append-only.
     today = today or dt.datetime.now(dt.timezone.utc).date()
     milestones_path = root / "docs/MILESTONES.md"
     if not milestones_path.is_file():
@@ -246,8 +247,7 @@ def check_repository(root: Path, base_ref: str | None = None, today: dt.date | N
         errors.append("docs/MILESTONES.md exceeds 100000 UTF-8 bytes")
     errors.extend(_validate_queue(milestones))
     errors.extend(_validate_decisions(milestones, today))
-    errors.extend(_validate_history(root, milestones, base_ref))
-    errors.extend(_validate_lean_contract(root))
+    errors.extend(_validate_frontend_authority(root))
     return errors
 
 
@@ -261,7 +261,7 @@ def main() -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print("Documentation governance checks passed")
+    print("Documentation and frontend authority checks passed")
     return 0
 
 
