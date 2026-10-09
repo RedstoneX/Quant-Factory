@@ -41,7 +41,7 @@ implement the remaining surfaces.
    surface before this checkpoint.
 
 The approved HTML file must have SHA-256
-`0cf9b1ea704402c5d0cda42b45d277a4ca4c1c50dc8c8680ab5c998a89c5d35a`
+`903554196439f3c7fa5cca4a48d8938fb7b9d212f5fae942a2bccc7ec34bb422`
 before it is used as a reference. A mismatch stops the comparison until the
 owner approves a replacement contract and checksum.
 

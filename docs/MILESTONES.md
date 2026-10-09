@@ -8,13 +8,13 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Build Dashboard only from the checksum-locked visual contract in a clean implementation session. |
+| Immediate objective | Build the complete Dashboard only from the checksum-locked visual contract in a clean implementation session. |
 | Phase | **R12 Dashboard implementation. Technical engine and Results-performance evidence remain accepted. Candidate research remains paused.** |
 | Active work | The source boundary is merged and the canonical local checkout is clean. Build one Dashboard slice under `dashboard.ui`; do not begin another surface, deploy, or start research. |
 | Technology | Keep Plotly Dash, Dash Core Components, Plotly, Dash AG Grid, VectorBT Pro, persistence, evidence, lineage, and orchestration. Dash Mantine Components is the default production UI layer and is not yet installed. Implement and review Dashboard directly; Prefect and the agent gateway remain containerized. A separately approved Dashboard deployment defaults to a normal Linux service. |
-| Visual authority | Only `docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`, SHA-256 `0cf9b1ea704402c5d0cda42b45d277a4ca4c1c50dc8c8680ab5c998a89c5d35a`. |
+| Visual authority | Only `docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`, SHA-256 `903554196439f3c7fa5cca4a48d8938fb7b9d212f5fae942a2bccc7ec34bb422`. |
 | Truthful first state | Use an identified read-only snapshot of canonical persisted inputs. Do not create a Candidate, run, or survivor to populate the interface. If no survivor exists, show the approved compact empty-state treatment. |
-| Next action | Start a clean session and build one real Dashboard slice with Mantine, Dash Core Components, Plotly, VectorBT Pro, and Dash AG Grid. Complete focused technical/control proof, secondary interface audit, actual/reference comparison, and independent adversarial review; then stop for Terry's pre-deployment visual decision. |
+| Next action | Start a clean session and build the complete real Dashboard slice with Mantine, Dash Core Components, Plotly, VectorBT Pro, and Dash AG Grid. Do not accept a summary-only subset. Complete focused technical/control proof, secondary interface audit, actual/reference comparison, and independent adversarial review; then stop for Terry's pre-deployment visual decision. |
 | Owner checkpoints | Terry first approves the local actual/reference Dashboard pair. Only a separate approval permits private deployment. Terry's later unaided hands-on use closes comprehension. No other surface begins before both checkpoints. |
 | Deferred | All other surfaces; Candidate campaigns; VectorBT Pro upgrade; paid/protected data; paper activation; broker work; orders; live trading; capital exposure. |
 
@@ -49,3 +49,27 @@ and next action. Git history preserves completed milestone narratives.
 
 No supporting document creates another queue, visual target, or implementation
 authority.
+
+## R12 Dashboard acceptance inventory
+
+The Dashboard is incomplete unless one truthful render preserves all of these
+approved regions and behaviors:
+
+- linked time, market, and strategy-family filters with visible observation
+  freshness and overall factory health;
+- full-population status summaries and a bounded interactive Candidate-universe
+  plot with exact identities;
+- Latest finding for the highest-ranked newly qualified survivor, with a compact
+  truthful empty state when none exists;
+- Factory now: filtration counts plus running/queued work, worker capacity,
+  bottleneck, completion estimate, and exact Factory drill-down;
+- Top survivors: a bounded server-ranked shortlist with exact Results and
+  Candidates handoffs; full population management remains in Candidates; and
+- Operational attention: genuine owner exceptions, active system failures,
+  recent closed failures, and data readiness shown as separate categories with
+  exact drill-downs.
+
+Every aggregate covers the complete filtered persisted population. Initial
+plots and shortlists are bounded, while exact record browsing is server-paged.
+Empty, stale, inactive, failed, and unavailable states retain the approved
+hierarchy without fabricated values or oversized blank regions.
