@@ -28,7 +28,7 @@ The production component responsibilities are:
 - Plotly plus VectorBT Pro: analytical charts and evidence.
 
 The authoritative visual contract is only
-`docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`.
+`docs/assets/dashboard/current-visual-contract/dashboard.html`.
 Its checksum is enforced by repository tooling. No other mockup, preview,
 screenshot, historical page, or external design source controls presentation.
 
@@ -55,14 +55,16 @@ screenshot, historical page, or external design source controls presentation.
 
 ## Acceptance sequence
 
-Dashboard is the only first production slice. Its local real render uses an
-identified read-only persisted-state snapshot, the default Mantine layer, and
-the retained analytical stack. It must pass technical, controls, secondary
-interface audit, actual/reference visual comparison, and independent
-trader-workflow adversarial review before owner visual review. Only explicit
-owner approval permits a private deployment. Unaided owner use of that deployed
-Dashboard closes comprehension. No other surface begins before both owner
-checkpoints.
+Dashboard proceeds in two gates. First, a local non-operational Mantine render
+uses the reference's representative state solely to prove visual composition at
+1440 by 980. It does not connect persistence, register production callbacks,
+run backend work, or claim technical truth. Terry's approval of that real render
+is required before the second gate may connect existing read-only projections
+and working controls. The truthful implementation then passes technical,
+controls, secondary interface audit, actual/reference comparison, and
+independent trader-workflow review before any deployment request. Unaided owner
+use of a separately approved private deployment closes comprehension. No other
+surface begins before all Dashboard checkpoints.
 
 If Mantine presents a demonstrated compatibility or load blocker, work stops
 for an owner decision before any fallback component strategy. A standalone

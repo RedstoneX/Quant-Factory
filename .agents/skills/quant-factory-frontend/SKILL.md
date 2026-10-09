@@ -15,8 +15,8 @@ working callbacks.
 2. Read
    `docs/assets/dashboard/current-visual-contract/README.md` and open the
    repository-owned interactive reference it identifies.
-3. Name the exact surface, approved reference state, representative persisted
-   state, viewport, data/state owner, and permitted change before editing.
+3. Name the exact surface, approved reference state, checkpoint, viewport,
+   data/state owner, and permitted change before editing.
 4. Preserve Dash, Dash Core Components, Plotly, Dash AG Grid, VectorBT,
    persistence, lineage, state semantics, and authority boundaries; use
    Mantine as the default polished UI layer. Reuse data and behavior
@@ -36,24 +36,35 @@ No competing visual reference may be added to the active tree.
 
 ## Implement in bounded slices
 
-The first production slice is Dashboard only. Do not implement another surface
-until the actual Dashboard render has passed the four gates and Terry has
-explicitly approved continuing. Later work remains one coherent surface or
-shared visual primitive at a time.
+The first production slice is Dashboard only. The remaining surfaces have no
+active visual authority and may not be implemented until the Dashboard passes
+all owner gates and a new reference is separately approved.
 
 Build the approved composition as a clean Dash UI under `dashboard.ui`.
-Working backend contracts may be retained. Do not replace working backend
-contracts or create a second frontend.
+Backend contracts are accepted and frozen. Do not change SQL, persistence,
+schemas, lineage, orchestration, evidence logic, scaling, performance paths, or
+backend tests, and do not create a second frontend.
 
-Dash Mantine Components is the default production UI layer for the approved
-shell and commodity components. The first real Dashboard implementation is its
-integration proof; do not build a separate hand-crafted Dashboard first.
-Combine Mantine with Dash Core Components for appropriate analytical controls,
-Plotly and VectorBT for charts/evidence, and Dash AG Grid for dense sortable and
-filterable records. Confirm visual fit, callback compatibility, and payload/load
-cost while implementing the slice. If a demonstrated blocker appears, stop for
-an owner decision before selecting a fallback. Do not begin a standalone React
-frontend without a separate owner decision.
+Dash Mantine Components is the production UI layer for the approved shell and
+commodity components. The work has a mandatory two-stage boundary:
+
+### Gate A — visual shell only
+
+- Build the real Dash/Mantine composition at 1440×980 from `dashboard.html`.
+- Use its representative values only in a clearly labeled local visual proof.
+- Limit edits to `dashboard.ui`, its presentation assets, and the minimum
+  dependency declaration needed to render it.
+- Do not read persistence, build projections, register production callbacks,
+  optimize, run backend tests, deploy, or implement another surface.
+- Capture the actual/reference pair, correct material visual differences, show
+  Terry, and stop. No agent or audit can approve this gate for him.
+
+### Gate B — truthful behavior after owner approval
+
+Only after Terry approves Gate A, bind existing read-only state and add the
+approved controls with Dash Core Components, Plotly, VectorBT, and Dash AG Grid
+without changing composition. If existing contracts cannot supply a visible
+requirement, stop with the exact blocker; do not redesign the backend.
 
 Preserve the approved information behavior: Dashboard exposes current factory
 operations and survivors; Candidates defaults to sortable/filterable survivors;
@@ -65,13 +76,11 @@ styling when no action exists.
 Realize the approved surfaces with the production component capabilities they
 require; do not reduce the contract to static HTML-shaped cards:
 
-- Dashboard uses linked overview filters, freshness, contextual hover/detail,
-  exact drill-down drawers, and the complete approved inventory: status
-  summaries, a bounded Candidate-universe plot, Latest finding, live Factory
-  flow/operations, a bounded Top survivors shortlist, and Operational attention.
-  Owner exceptions, active system failures, closed failure history, and data
-  readiness remain distinct. Empty or stale data compacts these regions; it
-  never removes them or turns the plot into an oversized blank panel.
+- Dashboard uses the exact approved composition: application rail/header, four
+  current-state cards, Candidate universe, selected finding, Factory now, Top
+  survivors, and contextual drawers. Gate A may not add, remove, reorder,
+  restyle, or substitute these regions. Gate B adds linked filters,
+  hover/selection, exact drill-downs, and truthful compact empty/stale states.
 - Candidates uses Dash AG Grid with server-side or infinite loading, fast
   ranking/sorting/filtering, pinned columns, saved views, and selection that
   persists into Results and Compare Selected.
@@ -90,7 +99,7 @@ require; do not reduce the contract to static HTML-shaped cards:
   loading/error states, notifications, keyboard access, responsive layout, and
   preserved user selection where the contract promises it.
 
-At factory scale, page polish may not create eager or unbounded work. Use
+After Gate A approval, page polish may not create eager or unbounded work. Use
 server-side grids, aggregate cohorts before plotting, lazy-mount routes and
 heavy evidence panels, and hydrate only the selected Candidate, run, window,
 or comparison. Do not initialize hidden charts, complete trade history, or the
@@ -103,7 +112,7 @@ and saved views belong to Candidates. Any Dashboard drawer that offers record
 browsing must implement real server-side paging plus the sorting/filtering it
 visibly offers; cosmetic grid controls do not satisfy the contract.
 
-After implementation and self-review, use `web-interface-audit` as the
+After Gate B implementation and self-review, use `web-interface-audit` as the
 secondary accessibility and interaction audit and resolve its blocking
 findings before the independent adversary review. When a generic guideline
 conflicts with the approved Quant Factory contract or trader workflow, report
@@ -111,16 +120,15 @@ the conflict and follow Tier 1 plus the approved contract.
 
 ## Prove the rendered result
 
-For each implemented surface, follow
+For each implementation gate, follow
 [references/visual-acceptance.md](references/visual-acceptance.md). Functional
 tests, HTTP success, expected text, callback success, and clean console output
 do not prove visual conformance. A material mismatch means the surface is
 incomplete.
 
-Before requesting merge or deployment, the local actual Dash render must pass
-technical, control, and visual-conformance checks plus a separate read-only
-Quant Factory adversary review. Resolve every material trader-workflow,
-visual-contract, truthful-state, component-use, or affordance finding, then show
-Terry the actual/reference pair. Only his explicit approval authorizes a
+Gate A ends with Terry's visual decision and cannot be merged or deployed as an
+operational Dashboard. Before a later Gate B merge or deployment, the truthful
+local render must pass technical, control, visual-conformance, interface-audit,
+and independent adversarial review. Only Terry's explicit approval authorizes a
 private interactive deployment. Do not claim comprehension or begin another
 surface until Terry has used that deployed Dashboard unaided and accepted it.
