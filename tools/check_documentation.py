@@ -71,6 +71,7 @@ ALLOWED_DASHBOARD_ROOT_FILES = {
     "adapter.py",
     "candidate_launch_context.py",
     "candidate_workflow.py",
+    "candidates_projection.py",
     "compare_query.py",
     "evidence_chart_window.py",
     "formatting.py",
