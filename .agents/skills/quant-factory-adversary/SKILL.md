@@ -1,6 +1,6 @@
 ---
 name: quant-factory-adversary
-description: Challenge an Escalated Mode Quant Factory proposal or closure claim for goal drift, unsupported evidence, excess cost, and missed reuse. Use only for genuinely difficult-to-reverse or high-consequence architecture, migration, paid-resource, credential-authority, public-exposure, protected-evidence, broker/order, paper/live, capital/risk, destructive-state, or edge-readiness decisions. Do not use for owner walkthrough acceptance, Direct Mode routine implementation, bug fixes, UI work, configuration, private operations, redeploys, documentation, or reversible reuse of established architecture.
+description: Challenge a high-consequence Quant Factory proposal or closure claim for goal drift, unsupported evidence, excess cost, and missed reuse, or perform an explicitly requested independent trader-workflow and visual-contract challenge of an implemented frontend. Do not use for routine implementation, bug fixes, configuration, documentation, or ordinary owner walkthroughs.
 ---
 
 # Quant Factory Adversary
@@ -8,14 +8,16 @@ description: Challenge an Escalated Mode Quant Factory proposal or closure claim
 Argue against the proposal before it proceeds. Return argument, never a
 verdict, approval, rejection, score, implementation, or new gate.
 
-Direct Mode work does not invoke this skill. File count, diff size, the words
-`runtime` or `deployment`, and touching production-like infrastructure do not
-by themselves make work material.
+Direct Mode work does not invoke this skill unless Terry explicitly requests a
+devil's-advocate frontend review or the current accepted frontend gate calls
+for that independent challenge. File count, diff size, the words `runtime` or
+`deployment`, and touching production-like infrastructure do not by themselves
+make work material.
 
-If loaded for an owner walkthrough, ordinary milestone status update, routine
+If loaded for an ordinary owner walkthrough, milestone status update, routine
 documentation, UI/style/copy correction, private beta deployment, or other
-Direct Mode work, stop immediately without producing an adversary record or
-commissioning a subagent.
+Direct Mode work without that explicit frontend-review authority, stop without
+producing an adversary record or commissioning a subagent.
 
 When delegation is available, the lead assigns this check to a separate
 read-only Codex subagent. The adversary does not contact the owner or spawn
@@ -42,6 +44,14 @@ Return one concise pass of at most seven bullets: proposal challenged, verified
 load-bearing claim, strongest objections, cheaper or shorter path if one
 exists, and unresolved unknowns. Mark claims as measured, inferred, or unknown.
 Do not start a debate loop or request a second adversary.
+
+For an authorized frontend challenge, inspect the approved reference and the
+actual representative-state render independently. Challenge whether it serves
+the high-volume trader workflow, preserves truthful state, makes every apparent
+action functional, uses charts/grids/components effectively, and materially
+matches the approved hierarchy and visual language. Report omissions and
+regressions; do not invent a new design direction or treat functional success
+as visual acceptance.
 
 The lead answers every material objection before proceeding:
 

@@ -211,7 +211,7 @@ Allowed availability states:
 
 The database indexes artifacts; it does not absorb large generated payloads during this milestone.
 
-#### Milestone 23 chart evidence extension
+#### Chart evidence extension
 
 New SPYM fixture runs retain optional `price_series`, `benchmark_curve`, and
 `benchmark` fields in the existing external `equity_curve` JSON artifact.

@@ -29,22 +29,21 @@ shrink. The accepted direction is:
 | Backtesting and validation | Experiments, gates and evidence coordination | Experiment results, validation results and the `ValidationPersistence` protocol | Market data, strategies, licensed engine and persistence contracts | Orchestration, Prefect or dashboard |
 | Orchestration | Durable claims and candidate/fixture sequencing | Injected pipeline and fixture launcher contracts | Backtesting, market data, persistence and strategies | Prefect implementation details or dashboard composition |
 | Prefect adapter | External scheduling and flow entry points | Implements orchestration launcher contracts | Orchestration and lower-level research components | Ownership of core candidate behavior |
-| Dashboard components/pages/callbacks | Operator presentation and interaction units | Explicit renderer and `ResultsViewServices` collaborators | Stable models and lower-level services allowed by policy | Back-imports to `dashboard.application` |
-| Dashboard composition | Construction and wiring of the one private UI | Injects page renderers, callback collaborators and runtime adapters | Dashboard units and lower-level services | Ownership of domain or persistence semantics |
+| Dashboard read models | Read-only projections over persisted evidence and runtime state | Typed view data without Dash presentation | Stable models and lower-level services allowed by policy | Ownership of domain or persistence semantics |
+| Dashboard UI | Construction and wiring of the one private interface under `dashboard.ui` | Mantine/Dash components connected to retained read models | Dashboard models and lower-level services | Back-imports into rejected presentation modules or ownership of domain semantics |
 | Deployment and tools | Outermost operational entry points and checks | Process/configuration inputs and observable operational results | Inward components allowed by policy | New domain authority |
 
 State remains with its owning component: persistence owns durable database and
 artifact state; orchestration owns durable launch/claim transitions through
-persistence; dashboard session state remains in the established dashboard
-stores; Prefect owns only adapter scheduling state. No compatibility bridge or
-global mutation may transfer ownership across these boundaries.
+persistence; the reconstructed Dashboard will own only browser-session state;
+Prefect owns only adapter scheduling state. No compatibility bridge or global
+mutation may transfer ownership across these boundaries.
 
 Independent construction is part of the boundary definition. The candidate
 runtime accepts a pipeline launcher, the fixture service accepts a fixture
-launcher, validation evidence coordination accepts `ValidationPersistence`,
-and Results callbacks/pages accept explicit presentation collaborators. Their
-contract tests construct and exercise those units without constructing the
-whole application or importing the outer adapter/composition module.
+launcher, and validation evidence coordination accepts
+`ValidationPersistence`. The clean Dashboard must likewise keep read models
+independent from its outer UI composition.
 
 ## Enforcement and secondary size backstop
 

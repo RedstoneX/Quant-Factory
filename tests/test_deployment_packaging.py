@@ -2,13 +2,8 @@ from __future__ import annotations
 
 import importlib
 import json
-import sqlite3
 import subprocess
 from pathlib import Path
-
-import pytest
-from flask import Flask
-
 
 ROOT = Path(__file__).parents[1]
 
@@ -32,11 +27,12 @@ def test_container_context_includes_candidate_intake_package():
     assert "!docs/AGENT_RESEARCH_OPERATING_CONTEXT.md" in dockerignore
 
 
-def test_compose_binds_dashboard_only_to_loopback_and_uses_external_root():
+def test_compose_does_not_package_rejected_dashboard_and_keeps_research_private():
     compose = (ROOT / "compose.yaml").read_text()
-    assert '"127.0.0.1:8050:8050"' in compose
+    assert "dashboard:" not in compose
+    assert "deployment.research_wsgi" not in compose
+    assert '"127.0.0.1:8050:8050"' not in compose
     assert "${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}" in compose
-    assert "vectorbt_private:" in compose
     assert "internal: true" in compose
     assert "cap_drop: [ALL]" in compose
     assert "no-new-privileges:true" in compose
@@ -50,7 +46,7 @@ def test_compose_binds_dashboard_only_to_loopback_and_uses_external_root():
     assert "HOME: /tmp" in compose
     assert "PREFECT_HOME: /tmp/qf-prefect" in compose
     assert "agent-gateway:" in compose
-    assert "ports:" not in compose.split("  agent-gateway:", 1)[1]
+    assert "ports:" not in compose
 
 
 def test_gateway_identity_registry_is_provider_neutral_and_configuration_driven(tmp_path):
@@ -122,88 +118,6 @@ def test_entrypoint_rejects_database_path_that_escapes_runtime_root(tmp_path):
 
     assert result.returncode != 0
     assert "QUANT_FACTORY_DB_PATH must be an absolute path below" in result.stderr
-
-
-def test_build_dashboard_app_propagates_explicit_external_paths(monkeypatch, tmp_path):
-    monkeypatch.setenv("QUANT_FACTORY_DB_PATH", str(tmp_path / "state" / "qf.sqlite3"))
-    monkeypatch.setenv("QUANT_FACTORY_ARTIFACT_ROOT", str(tmp_path / "artifacts"))
-    wsgi = importlib.import_module("deployment.research_wsgi")
-    captured = {}
-
-    class Adapter:
-        def __init__(self, **kwargs):
-            captured["adapter"] = kwargs
-
-    def fake_create_app(**kwargs):
-        captured["create_app"] = kwargs
-        return object()
-
-    monkeypatch.setattr(wsgi, "RunDetailDashboardAdapter", Adapter)
-    monkeypatch.setattr(wsgi, "create_app", fake_create_app)
-
-    wsgi.build_dashboard_app()
-
-    expected_database = tmp_path / "state" / "qf.sqlite3"
-    assert captured["create_app"]["review_database"] == expected_database
-    assert captured["adapter"] == {
-        "database": expected_database,
-        "artifact_root": tmp_path / "artifacts",
-    }
-
-
-@pytest.mark.parametrize("value", [None, "relative.sqlite3"])
-def test_build_dashboard_app_fails_closed_for_missing_or_relative_database(monkeypatch, value):
-    if value is None:
-        monkeypatch.delenv("QUANT_FACTORY_DB_PATH", raising=False)
-    else:
-        monkeypatch.setenv("QUANT_FACTORY_DB_PATH", value)
-    monkeypatch.setenv("QUANT_FACTORY_ARTIFACT_ROOT", "/var/lib/quant-factory/artifacts")
-    wsgi = importlib.import_module("deployment.research_wsgi")
-    with pytest.raises(RuntimeError, match="QUANT_FACTORY_DB_PATH"):
-        wsgi.build_dashboard_app()
-
-
-def test_health_is_unhealthy_when_database_is_missing(tmp_path):
-    wsgi = importlib.import_module("deployment.research_wsgi")
-    server = Flask(__name__)
-    wsgi.register_health_endpoint(server, tmp_path / "missing.sqlite3")
-
-    response = server.test_client().get("/healthz")
-
-    assert response.status_code == 503
-    assert response.json["status"] == "unhealthy"
-    assert set(response.json) == {"status", "revision"}
-
-
-def test_health_uses_read_only_database_check(tmp_path):
-    wsgi = importlib.import_module("deployment.research_wsgi")
-    database = tmp_path / "state.sqlite3"
-    from persistence.database import initialize_database
-
-    connection = initialize_database(database)
-    connection.close()
-    before = database.stat().st_mtime_ns
-    server = Flask(__name__)
-    wsgi.register_health_endpoint(server, database)
-
-    response = server.test_client().get("/healthz")
-
-    assert response.status_code == 200
-    assert response.json["status"] == "healthy"
-    assert database.stat().st_mtime_ns == before
-
-
-def test_health_rejects_database_without_quant_factory_schema(tmp_path):
-    wsgi = importlib.import_module("deployment.research_wsgi")
-    database = tmp_path / "wrong-schema.sqlite3"
-    sqlite3.connect(database).close()
-    server = Flask(__name__)
-    wsgi.register_health_endpoint(server, database)
-
-    response = server.test_client().get("/healthz")
-
-    assert response.status_code == 503
-    assert response.json["status"] == "unhealthy"
 
 
 def test_container_data_configuration_satisfies_catalog_contract():

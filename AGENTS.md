@@ -19,10 +19,9 @@ top of `docs/DECISIONS.md`, and only the decisions and supporting material the
 task requires. Supporting documents cannot set current priority, status, or
 authority. Follow `docs/DOCUMENTATION_GOVERNANCE.md` for documentation changes.
 
-Codex is the sole active project agent toolchain. During normal project work,
-do not load, invoke, rely on, update, or follow `CLAUDE.md` or `.claude/**`.
-Only Terry may change the mandate, accept milestones, authorize deployment, or
-approve paper/live trading and capital exposure.
+Codex is the sole active project agent toolchain. Only Terry may change the
+mandate, accept milestones, authorize deployment, or approve paper/live
+trading and capital exposure.
 
 ## Current sequence and gates
 
@@ -72,14 +71,87 @@ Decision 341 handoff. Prior work closes only its stated hypothesis,
 rules, and parameter space; it does not close a broader strategy family unless
 Tier 1 says so.
 
-The operator information architecture follows Decision 340. Dashboard remains
-the front door and observes the factory; it is not replaced by a separate
-Factory page. Primary research navigation is Dashboard, Candidates, Results,
-and Compare. Candidate Universe is the Dashboard's dominant drill-down, and
-the selected-Candidate workspace absorbs the former Ideas, Set up, and Run test
-responsibilities. Intake and true Exceptions are contextual capabilities;
-System status is separate. Do not recreate the old page-by-page manual
-workflow from historical documents or routes.
+The operator information architecture follows the owner-approved current visual
+contract. Its seven approved surfaces are Dashboard, Submit Strategies,
+Factory runs, Candidates, Results, Compare Selected, and the external Paper
+Trading destination. Dashboard is the live oversight front door. Candidates
+is the high-density survivor/ranking surface. Compare Selected is a secondary
+action from Candidates, not a primary workflow or promotion gate. Paper
+Trading remains a separate project reached by an external link; Quant Factory
+shows only package/handoff state. Do not reconstruct an interface from Git
+history or a deployed route.
+
+## Frontend and visual acceptance
+
+For every operator-facing frontend, UI, UX, styling, interaction, or visual-
+conformance task, load and follow
+`.agents/skills/quant-factory-frontend/SKILL.md` before editing. The current
+repository-owned visual contract is
+`docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`.
+It controls visual language, composition, hierarchy, density, spacing,
+affordances, and interaction intent. Do not reinterpret an approved surface or
+create another design direction unless Terry explicitly requests one.
+
+Existing backend, persistence, state semantics, lineage, Plotly, and AG Grid
+contracts are reusable. The rejected presentation callbacks, shell, DOM
+composition, CSS, copy, and page components are not reusable implementation
+sources on the reconstruction branch, even when an isolated element appears
+similar. Build a clean presentation under `dashboard.ui` from the current
+contract and reconnect retained domain behavior; Git history is the only
+archive of the rejected frontend.
+
+For reconstruction, preserve the rejected frontend only in Git history. On the
+dedicated reconstruction branch, remove obsolete presentation files,
+historical visual targets, and presentation tests from the active tree; do not
+create a `legacy` directory or leave parallel shells/styles available for
+accidental reuse. Add a repository guard before implementation that rejects
+restored legacy paths and imports. The live service stays on its current
+revision until an approved replacement is ready.
+
+The first production slice is Dashboard only. It uses Dash Mantine Components
+as the default production UI layer for navigation,
+layout, panels, drawers, modals, alerts, badges, and commodity controls. The
+first real Dashboard slice is its integration proof, not a competing hand-built
+version: validate visual fit, callback compatibility, and load cost with Dash
+Core Components, Plotly, and Dash AG Grid while building that slice. Abandon
+Mantine only for a demonstrated blocker and stop for an owner decision before
+choosing a fallback. A standalone React frontend requires a separate owner
+decision. Do not implement another surface until Terry accepts the real
+Dashboard render.
+
+Use the stack by responsibility: Mantine for the polished application and
+commodity component layer; Dash Core Components for analytical state and
+controls when they are the appropriate Dash primitive; Dash AG Grid for dense
+sortable/filterable Candidate and run data; Plotly plus VectorBT for analytical
+charts and evidence. Use components because they improve the approved workflow,
+not to showcase a library.
+
+Dashboard must answer what is happening now: running and queued work, failures,
+throughput, genuine exceptions, evidence survival, data readiness, and newly
+qualified survivors. Candidates is the gold-discovery surface: it defaults to
+survivors and supports high-density ranking, sorting, and filtering by return,
+drawdown, Sharpe, OOS performance, robustness, and paper eligibility. Selecting
+one exact survivor opens its Results charts, trades, drawdown, evidence, and
+lineage; Compare Selected remains a secondary multi-selection action.
+
+Every element styled as interactive must work. A summary metric, chart mark,
+status, alert, or table aggregate that promises deeper analysis must open the
+exact filtered records or contextual detail. If no drill-down exists, remove
+the interactive styling. Do not make every decoration clickable merely to meet
+this rule.
+
+Frontend acceptance has separate gates: technical truth, working controls,
+visual conformance, and Terry's unaided comprehension. A route load, HTTP 200,
+expected text, passing callback, clean console, or agent assertion cannot close
+the visual or comprehension gates. For owner-authorized frontend work, bounded
+read-only browser capture at the approved viewport, direct side-by-side
+inspection against the current visual contract, and correction of material
+differences are mandatory implementation proof rather than an optional browser
+test. Before merge or deployment, show Terry the local real render beside the
+reference after it passes independent trader-workflow/visual adversarial
+review. Only Terry may authorize the subsequent private interactive deployment.
+His unaided use of that deployed surface closes comprehension. Do not begin the
+next surface until both checkpoints pass.
 
 ## Working mode
 
@@ -94,7 +166,8 @@ Use Direct Mode for routine implementation, bug fixes, UI work,
 configuration, private operations, redeploys, and other reversible reuse of
 established architecture.
 
-- Work directly without implementation preflight or adversarial review.
+- Work directly without implementation preflight or adversarial review, except
+  for the explicitly required independent frontend review at the visual gate.
 - Keep a plan to at most five short steps. Avoid broad audits, speculative
   architecture, adjacent cleanup, alternative implementations, and unrelated
   testing.
@@ -205,28 +278,18 @@ Prefer existing Quant Factory code, licensed dependencies, approved designs,
 official examples, and mature legally compatible components. Write only the
 smallest verified Quant Factory-specific adapter or gap.
 
-Do not confuse a greenfield presentation with a greenfield technical rewrite.
-Keep Plotly Dash, VectorBT Pro, Plotly, Dash AG Grid, persistence, evidence,
-lineage, orchestration and authority gates. Do not rebuild generic chart, grid,
-docking, layout or component systems when mature components meet the approved
-interaction requirement.
+Do not confuse a new presentation with a technical rewrite.
+Keep Plotly Dash, Dash Core Components, VectorBT Pro, Plotly, Dash AG Grid,
+persistence, evidence, lineage, orchestration and authority gates. Use Dash
+Mantine Components as the default polished UI layer. Do not rebuild generic
+chart, grid, docking, layout or component systems when mature components meet
+the approved interaction requirement.
 
-Decision 338 retires the seventh iteration's visual and interaction language.
-Decision 339 defines the operator product as a high-throughput automated
-filtration system with exception-based owner intervention.
-The standalone Greenfield preview and Decisions 280–282 remain the exact
-selected-run **Results** interaction reference and supply product-wide
-principles: one dominant task or object, minimal chrome, compact context,
-controls adjacent to what they change, progressive disclosure, connected
-evidence, stable selection and explicit reset/recovery. Other pages apply those
-principles to their own jobs; they do not copy the Results layout.
-
-Files under `docs/assets/dashboard/operator-workflow-approved/` are historical
-content inventories, domain-requirement sources and failure evidence. They are
-not visual, shell, composition, density, hierarchy, styling or interaction
-contracts. Do not use their HTML/CSS as the implementation structure or compare
-a reconstruction against them for visual conformance. Preserve useful fields,
-facts and safety boundaries only when the current plan requires them.
+The repository-owned seven-surface HTML is the sole current visual contract,
+including Results. No earlier mockup, preview, screenshot, page specification,
+CSS, browser test, or deployed interface is a visual or implementation source.
+Required product behavior comes from `docs/factory-operating-contract.md`, not
+from an older presentation artifact.
 
 Before changing an operator page, record the target page, newly owner-approved
 design, representative state, owning state source, permitted change and proof
@@ -238,7 +301,13 @@ deployment:
 3. correct material differences in composition, hierarchy, spacing, data,
    affordances, and primary action;
 4. exercise the page's safe read-only controls and transitions; and
-5. show Terry both renders and obtain approval.
+5. obtain one independent read-only adversarial review against trader workflow,
+   the approved reference, truthful state, and working affordances; resolve its
+   material findings; and
+6. show Terry both renders and obtain visual approval before requesting merge
+   or private deployment authority. After an authorized private deployment,
+   Terry's unaided hands-on use closes comprehension. Do not begin another
+   surface before that second checkpoint.
 
 A loading or empty state, route change, HTTP 200, expected text, or clean
 console proves only that condition unless it is the reported defect. Call
@@ -256,15 +325,13 @@ Use the smallest proof that answers the requirement:
 - full suite: only when shared/core behavior, CI, or insufficient focused
   proof requires it.
 
-Do not run automated browser tests or browser checks in CI. Decision 330's
-October 5 Playwright exception is exhausted, and Decisions 337–338 authorize no
-current browser automation. If a later owner-approved reconstruction stage
-explicitly authorizes bounded visual inspection, limit it to one desktop
-viewport, the private review service or local equivalent, the exact page and
-representative state under repair, and its newly approved design. Do not create
-a browser harness, test multiple devices, mutate research evidence, or replace
-component/callback tests with browser checks. Terry's unaided walkthrough is
-the comprehension acceptance gate.
+Do not run browser tests or visual comparisons in CI. For owner-authorized
+frontend work, the current visual-proof rule permits bounded
+read-only browser capture locally at one approved desktop viewport, the exact
+surface and representative state under repair, and the repository-owned visual
+contract. Do not create a broad browser suite, test unrelated routes or device
+matrices, mutate research evidence, or replace component/callback tests with
+visual inspection. Terry's unaided walkthrough remains the comprehension gate.
 
 ### Private-beta economy and retention
 

@@ -4,7 +4,6 @@ from dashboard.candidate_workflow import (
     candidate_configuration_binding,
     candidate_identity_for_configuration,
 )
-from dashboard.compare_adapter import CompareDashboardAdapter
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter
 from persistence import PersistenceService, RunStage, StrategyLifecycle
 from research_intake import import_candidate_as_idea, record_candidate_decision
@@ -92,28 +91,15 @@ def test_owner_decision_and_exact_candidate_binding_are_durable(tmp_path) -> Non
     assert len(identity.version_fingerprint) == 64
 
 
-def test_results_and_compare_retain_candidate_identity(tmp_path) -> None:
+def test_run_detail_retains_candidate_identity(tmp_path) -> None:
     path = tmp_path / "qf.sqlite3"
     candidate_id, _configuration_id, run_id = _linked_candidate(path)
 
     detail = RunDetailDashboardAdapter(database=path).selected_run_detail(run_id)
     fields = {field.label: field.value for field in detail.configuration_fields}
-    comparison = CompareDashboardAdapter(database=path).compare((run_id,))
-    candidate_group = next(
-        group for group in comparison.difference_groups if group.key == "candidate"
-    )
-    differences = {
-        field.key: field.values[0].value for field in candidate_group.fields
-    }
-
     assert fields["Candidate"] == "MES first-hour continuation"
     assert fields["Candidate ID"] == candidate_id
     assert len(fields["Candidate version"]) == 64
     assert "first-hour move" in fields["Candidate rationale"]
     assert "flat_by_close" in fields["Candidate fixed definition"]
     assert "use_qf_standard_screen" in fields["Candidate evidence contract"]
-    assert comparison.runs[0].strategy.startswith("MES first-hour continuation")
-    assert differences["candidate_id"] == candidate_id
-    assert differences["candidate_version"] == fields["Candidate version"]
-    assert differences["candidate_rationale"] == fields["Candidate rationale"]
-    assert differences["candidate_evidence_contract"] == fields["Candidate evidence contract"]

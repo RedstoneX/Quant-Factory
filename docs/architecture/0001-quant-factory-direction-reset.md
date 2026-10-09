@@ -51,7 +51,7 @@ Reuse existing VectorBT Pro visualizations, dashboard examples, QuantStats repor
 
 ### 4. Integrate before building
 
-Quant Factory is an integration project, not a greenfield rewrite of tools that already exist.
+Quant Factory is an integration project, not a from-scratch rewrite of tools that already exist.
 
 Before building any substantial component, ask:
 

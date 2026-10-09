@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-30
 - **Authority:** Decision 312
-- **Supersedes:** ADR 0012 and ADR 0010 as current credential architecture
+- **Supersedes:** all earlier credential-agent designs
 
 ## Context
 

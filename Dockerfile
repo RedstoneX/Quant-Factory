@@ -34,4 +34,7 @@ RUN chmod 0555 /app/deployment/entrypoint.sh
 USER 10001:10001
 WORKDIR /var/lib/quant-factory
 ENTRYPOINT ["/app/deployment/entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:8050", "--workers", "1", "--worker-class", "gthread", "--threads", "2", "--timeout", "120", "--graceful-timeout", "30", "--access-logfile", "-", "--error-logfile", "-", "deployment.research_wsgi:create_server()"]
+# This reconstruction branch intentionally has no default Dashboard process.
+# Compose services must provide an explicit command until the approved
+# dashboard.ui composition root exists.
+CMD ["python", "-c", "raise SystemExit('No default service: Dashboard reconstruction is incomplete')"]

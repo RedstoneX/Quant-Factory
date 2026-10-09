@@ -3,8 +3,8 @@
 - **Status:** Accepted, amended 2026-07-14 for Milestone 21E
 - **Date:** 2026-07-13
 - **Scope:** Research portability, order contracts, execution adapters, initial paper and micro-live venues
-- **Supersedes:** The provisional SPYM language in the README, AGENTS.md, and ADR 0003 infrastructure-first dashboard product
-- **Does not change:** Current milestone ordering or Milestone 20 implementation scope
+- **Supersedes:** Earlier provisional SPYM language
+- **Does not change:** Current milestone ordering or implementation authority
 
 ## Context
 
@@ -83,7 +83,7 @@ Its purpose is to prove:
 - risk controls and kill-switch behavior;
 - dashboard operation.
 
-This decision does not authorize implementation during Milestone 20 and does
+This decision does not itself authorize implementation and does
 not bypass the existing paper/live isolation ADR or later milestone gates.
 
 ### 4. Approved equity fixture structure
@@ -161,13 +161,11 @@ This selection is not profitability approval and does not promote a strategy.
 Before paper or live orders are submitted, the broker adapter and dashboard
 workflow still require their own later milestone acceptance.
 
-### 7. Second connector: Hyperliquid testnet
+### 7. Any second connector requires a current decision
 
-Hyperliquid testnet was the preferred second execution adapter in the
-historical design. ADR 0007 and ADR 0009 now govern venue order; WEEX is the
-conditional current preference subject to eligibility checks.
-
-It is intended to validate that the common execution lifecycle also works for:
+No historical venue preference authorizes another connector. If Tier 1 later
+selects one, it should validate that the common execution lifecycle also works
+for:
 
 - cryptocurrency markets;
 - continuous 24/7 operation;
@@ -211,7 +209,7 @@ will ultimately produce the strongest validated opportunities.
   broker SDK objects.
 - Broker-neutral order, execution, position, and reconciliation models must be
   defined before the first production adapter.
-- Alpaca paper and future live credentials remain isolated under ADR 0003.
+- Alpaca paper and future live credentials remain isolated under ADR 0006.
 - SPYM remains a valid ingestion fixture with its own Databento dataset identity,
   but it is no longer locked as the first micro-live instrument.
 - SCHX is the selected broad-market whole-share paper and micro-live execution

@@ -18,7 +18,7 @@ comment or write permission.
 The required `Portable tests` check has two cost-proportional lanes under the
 same protected check name:
 
-- documentation plus static dashboard assets (`dashboard/assets` CSS/images)
+- documentation plus the checksum-locked visual contract
   use the separate required `Documentation contracts` job as their proof; the
   `Portable tests` job classifies and exits without Python setup, dependency
   installation, report upload, or application tests because these files cannot
@@ -42,8 +42,9 @@ therefore limited to a newer run on the same ref. Independent pull-request refs
 can run concurrently. The repository uses no merge queue.
 
 For a push whose `github.event.before` value is all zeroes, run the
-documentation validator without `--base-ref`; otherwise preserve the append-
-only incident check against the supplied base revision.
+documentation validator without `--base-ref`. On other pushes the base
+revision may still be supplied for workflow compatibility; active governance
+is current-state validation and Git history is the archive.
 
 ## Required-gate proof
 
