@@ -16,18 +16,22 @@ current queue, visual target, completion claim, or competing authority.
 
 ## Frontend authority
 
-- Sole visual contract:
+- Sole Dashboard visual contract:
   `docs/assets/dashboard/current-visual-contract/dashboard.html`
+- Sole composition and workflow contract for Candidates, Results, Factory
+  runs, Submit Strategies, Compare Selected, and the external Paper Trading
+  destination:
+  `docs/assets/workspaces/current-workflow-contract/workspaces.html`
 - Product behavior: `docs/factory-operating-contract.md`
 - Runtime architecture: ADR 0016.
 - Execution discipline: `.agents/skills/quant-factory-frontend/SKILL.md`.
 
 No other mockup, screenshot, preview, acceptance package, UI direction file,
 CSS file, deployed page, browser test, local branch, or historical decision
-controls frontend implementation. The other six workflow surfaces have no
-active visual authority until individually approved after Dashboard acceptance.
-Repository tooling enforces the contract checksum and rejects known superseded
-paths or directives.
+controls frontend implementation. The workspace file's embedded older
+Dashboard slide has no authority; only its six named non-Dashboard surfaces are
+active. Repository tooling enforces both contract checksums and rejects known
+superseded paths or directives.
 
 ## Lifecycle
 

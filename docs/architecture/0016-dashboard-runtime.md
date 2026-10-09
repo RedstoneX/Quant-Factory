@@ -27,10 +27,14 @@ The production component responsibilities are:
 - Dash AG Grid: dense sortable/filterable Candidate and run records; and
 - Plotly plus VectorBT Pro: analytical charts and evidence.
 
-The authoritative visual contract is only
-`docs/assets/dashboard/current-visual-contract/dashboard.html`.
-Its checksum is enforced by repository tooling. No other mockup, preview,
-screenshot, historical page, or external design source controls presentation.
+The authoritative Dashboard contract is
+`docs/assets/dashboard/current-visual-contract/dashboard.html`. The other six
+workflow surfaces are controlled by
+`docs/assets/workspaces/current-workflow-contract/workspaces.html`, while the
+Dashboard contract supplies their shared modern visual language. Both checksums
+are enforced by repository tooling. The workspace file's embedded older
+Dashboard slide is excluded. No other mockup, preview, screenshot, historical
+page, or external design source controls presentation.
 
 ## Runtime invariants
 
@@ -64,8 +68,9 @@ and working controls. The truthful implementation is connected to the external
 canonical database through explicit read-only service configuration and
 published to the private review URL. Unaided owner use is the next checkpoint.
 Secondary interface and independent trader-workflow reviews follow that
-walkthrough and precede merge. No other surface begins before Dashboard
-acceptance.
+walkthrough and precede merge. Dashboard is now accepted; later surfaces follow
+the milestone queue and their repository-owned workspace contract one complete
+surface at a time.
 
 If Mantine presents a demonstrated compatibility or load blocker, work stops
 for an owner decision before any fallback component strategy. A standalone

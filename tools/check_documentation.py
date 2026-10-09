@@ -24,6 +24,10 @@ VISUAL_CONTRACT = Path(
     "docs/assets/dashboard/current-visual-contract/dashboard.html"
 )
 VISUAL_CONTRACT_SHA256 = "266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1"
+WORKSPACE_CONTRACT = Path(
+    "docs/assets/workspaces/current-workflow-contract/workspaces.html"
+)
+WORKSPACE_CONTRACT_SHA256 = "d87f311127c513cefb50e75472a49aeb27d3031ac76c84e26a9940b73b23264a"
 REQUIRED_VISUAL_MARKERS = (
     'id="qf-toolset-preview"',
     "Candidate universe",
@@ -35,8 +39,18 @@ FORBIDDEN_VISUAL_MARKERS = (
     "qfr-dashboard-overview",
     "quant-factory-reconciled-mockups",
 )
+REQUIRED_WORKSPACE_MARKERS = (
+    'data-variant="Candidates"',
+    'data-variant="Results"',
+    'data-variant="Factory"',
+    'data-variant="Submit Strategies"',
+    'data-variant="Compare Selected"',
+    'data-variant="Paper Trading"',
+)
 REQUIRED_FRONTEND_FILES = (
     VISUAL_CONTRACT,
+    WORKSPACE_CONTRACT,
+    WORKSPACE_CONTRACT.parent / "README.md",
     Path("docs/factory-operating-contract.md"),
     Path("docs/architecture/0016-dashboard-runtime.md"),
     Path(".agents/skills/quant-factory-frontend/SKILL.md"),
@@ -212,6 +226,19 @@ def _validate_frontend_authority(root: Path) -> list[str]:
         for marker in FORBIDDEN_VISUAL_MARKERS:
             if marker in text:
                 errors.append(f"superseded visual contract marker remains: {marker}")
+    workspaces = root / WORKSPACE_CONTRACT
+    if workspaces.is_file():
+        content = workspaces.read_bytes()
+        digest = hashlib.sha256(content).hexdigest()
+        if digest != WORKSPACE_CONTRACT_SHA256:
+            errors.append(
+                "workspace contract checksum changed: "
+                f"{digest} != {WORKSPACE_CONTRACT_SHA256}"
+            )
+        text = content.decode("utf-8", errors="replace")
+        for marker in REQUIRED_WORKSPACE_MARKERS:
+            if marker not in text:
+                errors.append(f"workspace contract marker is missing: {marker}")
     dashboard = root / "dashboard"
     if dashboard.is_dir():
         for path in dashboard.iterdir():

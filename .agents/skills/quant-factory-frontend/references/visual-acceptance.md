@@ -45,6 +45,22 @@ The approved HTML file must have SHA-256
 before it is used as a reference. A mismatch stops the comparison until the
 owner approves a replacement contract and checksum.
 
+## Later workflow surfaces
+
+For Candidates, Results, Factory runs, Submit Strategies, Compare Selected,
+and the Paper Trading destination, verify
+`docs/assets/workspaces/current-workflow-contract/workspaces.html` has SHA-256
+`d87f311127c513cefb50e75472a49aeb27d3031ac76c84e26a9940b73b23264a`.
+Use the named surface in that file for exact regions, controls, hierarchy, and
+workflow. Use the accepted Dashboard contract for the shared modern visual
+language. Never use the workspace file's embedded older Dashboard slide.
+
+Implement one complete surface, connect truthful state, publish it at the
+existing private application, and show Terry the working route. A screenshot or
+new mockup is not the deliverable. Keep proof lean: targeted technical checks,
+one exercise of each visible safe control, direct visual inspection, and the
+required secondary review only after the owner walkthrough.
+
 ## Gate vocabulary
 
 - **Technical:** the application loads and the data/state contracts are true.
