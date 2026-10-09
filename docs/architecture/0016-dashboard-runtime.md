@@ -1,4 +1,4 @@
-# ADR 0016: Dashboard reconstruction runtime
+# ADR 0016: Dashboard runtime
 
 - **Status:** Accepted
 - **Date:** 2026-10-09
@@ -6,12 +6,9 @@
 ## Decision
 
 Quant Factory remains a Plotly Dash application over the existing backend,
-persistence, evidence, lineage, and authority boundaries. The rejected
-presentation is removed; it is not retained as a local legacy implementation.
-The replacement presentation will live under `dashboard.ui`; removed
-`dashboard.app`, `dashboard.application`, `dashboard.pages`,
-`dashboard.components`, `dashboard.callbacks`, and `dashboard.assets` paths
-are prohibited so the former implementation cannot become a scaffold again.
+persistence, evidence, lineage, and authority boundaries. The presentation
+lives only under `dashboard.ui`; no parallel presentation composition root is
+permitted.
 
 The production component responsibilities are:
 
@@ -40,7 +37,7 @@ screenshot, historical page, or external design source controls presentation.
 - Exact Candidate/run selection survives refresh and deep links when that
   identity still exists. Missing identities fail visibly and never substitute
   a fixture.
-- Callbacks are registered against real components. Hidden legacy component
+- Callbacks are registered against real components. Hidden parallel component
   trees are prohibited.
 - Loading, empty, stale, failed, unavailable, and inactive states are truthful
   and compact. Illustrative values from the visual contract are never runtime

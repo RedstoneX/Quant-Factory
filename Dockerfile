@@ -37,4 +37,4 @@ ENTRYPOINT ["/app/deployment/entrypoint.sh"]
 # This reconstruction branch intentionally has no default Dashboard process.
 # Compose services must provide an explicit command until the approved
 # dashboard.ui composition root exists.
-CMD ["python", "-c", "raise SystemExit('No default service: Dashboard reconstruction is incomplete')"]
+CMD ["python", "-c", "raise SystemExit('No default service is configured')"]

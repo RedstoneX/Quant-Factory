@@ -6,7 +6,7 @@ deployment, Candidate run, research mutation, broker connection, or trading.
 
 ## Required evidence
 
-For the first reconstruction slice, perform this procedure for Dashboard only
+For the first implementation slice, perform this procedure for Dashboard only
 and stop for Terry's decision. Do not use Dashboard acceptance as authority to
 implement the remaining surfaces.
 

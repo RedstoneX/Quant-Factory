@@ -30,7 +30,7 @@ shrink. The accepted direction is:
 | Orchestration | Durable claims and candidate/fixture sequencing | Injected pipeline and fixture launcher contracts | Backtesting, market data, persistence and strategies | Prefect implementation details or dashboard composition |
 | Prefect adapter | External scheduling and flow entry points | Implements orchestration launcher contracts | Orchestration and lower-level research components | Ownership of core candidate behavior |
 | Dashboard read models | Read-only projections over persisted evidence and runtime state | Typed view data without Dash presentation | Stable models and lower-level services allowed by policy | Ownership of domain or persistence semantics |
-| Dashboard UI | Construction and wiring of the one private interface under `dashboard.ui` | Mantine/Dash components connected to retained read models | Dashboard models and lower-level services | Back-imports into rejected presentation modules or ownership of domain semantics |
+| Dashboard UI | Construction and wiring of the one private interface under `dashboard.ui` | Mantine/Dash components connected to retained read models | Dashboard models and lower-level services | Parallel presentation modules or ownership of domain semantics |
 | Deployment and tools | Outermost operational entry points and checks | Process/configuration inputs and observable operational results | Inward components allowed by policy | New domain authority |
 
 State remains with its owning component: persistence owns durable database and
