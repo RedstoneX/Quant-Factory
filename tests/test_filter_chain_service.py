@@ -32,13 +32,13 @@ from backtesting.validation.evidence_service import (
     ValidationEvidenceArtifactService,
 )
 from persistence.models import normalized_configuration_document
-from prefect_spike.milestone23_browser_fixture import (
+from tests.filter_chain_fixtures import (
     FIXTURE_LABEL,
     SOURCE_LOCK_ARTIFACT_ID,
-    _monte_carlo_result,
-    _robustness_result,
-    _walk_forward_result,
-    _walk_forward_rules,
+    monte_carlo_result,
+    robustness_result,
+    walk_forward_result,
+    walk_forward_rules,
 )
 from strategies.spym_rsi_mean_reversion_fixture import (
     SPYM_RSI_ENTRY_THRESHOLD,
@@ -209,7 +209,7 @@ def _stage_adapter(
         if stage == RunStage.OOS:
             _persist_source_lock(service, root, run_id)
         elif stage == RunStage.WALK_FORWARD:
-            result = _walk_forward_result(
+            result = walk_forward_result(
                 experiment_id="connected-filter-chain",
                 strategy_id=STRATEGY_ID,
                 strategy_version=STRATEGY_VERSION,
@@ -235,14 +235,14 @@ def _stage_adapter(
             evidence.persist_walk_forward(
                 run_id=run_id,
                 result=result,
-                rules=_walk_forward_rules(),
+                rules=walk_forward_rules(),
                 artifact_root=root,
             )
         elif stage == RunStage.ROBUSTNESS:
             source = evidence.source_document(run_id)
             evidence.persist_robustness(
                 run_id=run_id,
-                result=_robustness_result(
+                result=robustness_result(
                     experiment_id="connected-filter-chain",
                     strategy_id=STRATEGY_ID,
                     strategy_version=STRATEGY_VERSION,
@@ -256,7 +256,7 @@ def _stage_adapter(
         else:
             evidence.persist_monte_carlo(
                 run_id=run_id,
-                result=_monte_carlo_result(
+                result=monte_carlo_result(
                     experiment_id="connected-filter-chain",
                     strategy_id=STRATEGY_ID,
                     strategy_version=STRATEGY_VERSION,

@@ -57,5 +57,5 @@ These checks do not activate paper execution. Order activation additionally
 requires a qualified edge, the applicable research/operator gates recorded in
 MILESTONES, broker-neutral submission/reconciliation proof, duplicate
 prevention, restart safety, capacity controls, and explicit milestone/owner
-authorization. Formal Milestone 23 closure is not independently inferred as a
+authorization. Formal product acceptance is not independently inferred as a
 paper prerequisite when current MILESTONES defines a narrower applicable gate.

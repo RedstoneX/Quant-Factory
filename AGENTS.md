@@ -19,10 +19,9 @@ top of `docs/DECISIONS.md`, and only the decisions and supporting material the
 task requires. Supporting documents cannot set current priority, status, or
 authority. Follow `docs/DOCUMENTATION_GOVERNANCE.md` for documentation changes.
 
-Codex is the sole active project agent toolchain. During normal project work,
-do not load, invoke, rely on, update, or follow `CLAUDE.md` or `.claude/**`.
-Only Terry may change the mandate, accept milestones, authorize deployment, or
-approve paper/live trading and capital exposure.
+Codex is the sole active project agent toolchain. Only Terry may change the
+mandate, accept milestones, authorize deployment, or approve paper/live
+trading and capital exposure.
 
 ## Current sequence and gates
 
@@ -79,8 +78,8 @@ Trading destination. Dashboard is the live oversight front door. Candidates
 is the high-density survivor/ranking surface. Compare Selected is a secondary
 action from Candidates, not a primary workflow or promotion gate. Paper
 Trading remains a separate project reached by an external link; Quant Factory
-shows only package/handoff state. Do not reconstruct the superseded Home ->
-Ideas -> Set up -> Run test sequence from historical documents or routes.
+shows only package/handoff state. Do not reconstruct an interface from Git
+history or a deployed route.
 
 ## Frontend and visual acceptance
 

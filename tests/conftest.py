@@ -14,8 +14,6 @@ from market_data.models import MarketDataConfig
 
 LICENSED_VECTORBT_NODE_IDS = frozenset(
     {
-        "tests/test_dashboard.py::test_run_detail_adapter_reads_validated_spym_artifacts_for_dashboard",
-        "tests/test_dashboard.py::test_selected_parameter_reconstruction_outputs_series_and_metadata",
         "tests/test_execution_assumptions.py::test_execution_comparison_reports_metric_and_ranking_change",
         "tests/test_execution_assumptions.py::test_futures_costs_scale_with_contract_quantity",
         "tests/test_execution_assumptions.py::test_long_futures_fee_and_slippage_direction",
@@ -27,10 +25,7 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_experiment_runner.py::test_portfolio_metrics_and_result_provenance",
         "tests/test_milestone21c_spym_fixture.py::test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades",
         "tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage",
-        "tests/test_milestone23_acceptance.py::test_milestone23_successful_spym_workflow_compare_reproduce_and_review",
-        "tests/test_milestone23_browser_fixture.py::test_preparer_builds_valid_idempotent_acceptance_fixture",
         "tests/test_rsi_mean_reversion.py::test_common_interface_signal_result_matches_preserved_rsi_rules",
-        "tests/test_spym_price_benchmark.py::test_spym_fixture_persists_price_series_and_vectorbt_benchmark",
     }
 )
 

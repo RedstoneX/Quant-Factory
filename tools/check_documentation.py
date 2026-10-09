@@ -56,6 +56,10 @@ FORBIDDEN_PATHS = (
     Path("docs/operations/credential-gateway.md"),
     Path("docs/milestones/milestone-18-implementation-plan.md"),
     Path("docs/infrastructure-completion-inventory.md"),
+    Path("docs/architecture/0007-portable-deployment-and-alpaca-first-roadmap.md"),
+    Path("docs/architecture/0009-execution-venues-and-programming-agent.md"),
+    Path("docs/operations/public-repository-migration.md"),
+    Path("docs/operations/ovh-research-deployment.md"),
     Path("dashboard/app.py"),
     Path("dashboard/application.py"),
     Path("dashboard/shell.py"),
@@ -67,6 +71,10 @@ FORBIDDEN_PATHS = (
     Path("dashboard/callbacks"),
     Path("tests/browser"),
     Path("deployment/research_wsgi.py"),
+    Path("CLAUDE.md"),
+    Path(".claude"),
+    Path("prefect_spike/milestone23_browser_fixture.py"),
+    Path("tools/prepare_milestone23_browser_fixture.py"),
 )
 
 # Split literals keep this guard from resembling a live authority reference.
@@ -232,6 +240,10 @@ def _validate_frontend_authority(root: Path) -> list[str]:
         for token in FORBIDDEN_AUTHORITY_TEXT:
             if token.lower() in text.lower():
                 errors.append(f"stale frontend authority reference in {path.relative_to(root)}: {token}")
+    for relative in (Path("Dockerfile"), Path("compose.yaml")):
+        path = root / relative
+        if path.is_file() and "deployment.research_wsgi" in path.read_text(encoding="utf-8"):
+            errors.append(f"rejected dashboard deployment entry point in {relative}")
     return errors
 
 

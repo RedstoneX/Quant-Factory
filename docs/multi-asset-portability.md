@@ -185,7 +185,8 @@ Currently operational:
 
 - SPY daily RSI mean reversion;
 - Yahoo Finance daily adjusted equity data;
-- reusable experiment, validation, screening, out-of-sample, walk-forward, robustness, Monte Carlo, and minimal dashboard foundations.
+- reusable experiment, validation, screening, out-of-sample, walk-forward,
+  robustness, Monte Carlo, and read-model foundations.
 
 Not yet operational:
 
