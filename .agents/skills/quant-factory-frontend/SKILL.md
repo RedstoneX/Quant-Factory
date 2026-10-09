@@ -62,6 +62,35 @@ Every interactive-looking summary, chart mark, status, alert, row, link, or
 button must perform its promised exact drill-down or action. Remove interactive
 styling when no action exists.
 
+Realize the approved surfaces with the production component capabilities they
+require; do not reduce the contract to static HTML-shaped cards:
+
+- Dashboard uses linked overview filters, live-operation state, contextual
+  hover/detail, exact drill-down drawers, and clear genuine-exception alerts.
+- Candidates uses Dash AG Grid with server-side or infinite loading, fast
+  ranking/sorting/filtering, pinned columns, saved views, and selection that
+  persists into Results and Compare Selected.
+- Results uses linked Plotly candlesticks and trades, a synchronized trade
+  ledger, equity and drawdown views, robustness heatmaps, walk-forward and
+  Monte Carlo evidence, and truthful zoom/range controls.
+- Factory distinguishes queued, running, completed, and failed work and shows
+  progress, worker capacity, bottlenecks, completion estimates, and exact
+  diagnostics without creating owner approval steps.
+- Submit Strategies provides polished structured/manual entry, validated file
+  upload, batch and LLM/API intake, explicit parameter bounds, and clear
+  validation/submission feedback.
+- Compare Selected remains a secondary workspace with linked equity, drawdown,
+  robustness, exact identities, and explicit comparability warnings.
+- Shared Mantine behavior includes consistent drawers, menus, tooltips,
+  loading/error states, notifications, keyboard access, responsive layout, and
+  preserved user selection where the contract promises it.
+
+At factory scale, page polish may not create eager or unbounded work. Use
+server-side grids, aggregate cohorts before plotting, lazy-mount routes and
+heavy evidence panels, and hydrate only the selected Candidate, run, window,
+or comparison. Do not initialize hidden charts, complete trade history, or the
+full Candidate universe on first load.
+
 After implementation and self-review, use `web-interface-audit` as the
 secondary accessibility and interaction audit and resolve its blocking
 findings before the independent adversary review. When a generic guideline

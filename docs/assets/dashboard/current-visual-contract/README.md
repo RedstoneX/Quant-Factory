@@ -11,7 +11,7 @@ on October 8, 2026 after iterative trader-workflow review.
   Factory runs, Candidates, Results, Compare Selected, and Paper Trading.
 
 The HTML source has SHA-256
-`d87f311127c513cefb50e75472a49aeb27d3031ac76c84e26a9940b73b23264a`.
+`0cf9b1ea704402c5d0cda42b45d277a4ca4c1c50dc8c8680ab5c998a89c5d35a`.
 
 ## How to use it
 
