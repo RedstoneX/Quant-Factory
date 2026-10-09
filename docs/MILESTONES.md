@@ -8,13 +8,13 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Design and implement Candidates as the high-density gold-discovery workspace, then put that exact surface at the existing private review URL for owner walkthrough. |
+| Immediate objective | Implement the already-approved Candidates workspace as the high-density gold-discovery surface, then put that exact surface at the existing private review URL for owner walkthrough. |
 | Phase | **R13 Candidates surface. Dashboard walkthrough accepted on 2026-10-09. Candidate research remains paused.** |
-| Active work | Preserve the accepted Dashboard unchanged. Establish one Candidates visual contract in the same modern visual system, then implement its sortable/filterable AG Grid and exact selection behavior without starting Results. |
+| Active work | Preserve the accepted Dashboard unchanged. Implement the Candidates section of the checksum-locked workspace contract using the Dashboard's accepted modern visual language, sortable/filterable AG Grid, and exact selection behavior without starting Results. |
 | Technology | Reuse the accepted Dash/Mantine shell. Candidates uses Dash AG Grid for server-side ranking, sorting, filtering, pinned columns, saved views, and bounded loading. `dashboard.ui` remains presentation-only. |
-| Visual authority | Only `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. |
+| Visual authority | Dashboard: `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. Remaining workflow surfaces: `docs/assets/workspaces/current-workflow-contract/workspaces.html`, SHA-256 `d87f311127c513cefb50e75472a49aeb27d3031ac76c84e26a9940b73b23264a`; its older Dashboard slide is excluded. |
 | Visual proof state | **Gate A passed on 2026-10-09.** Representative values are retired from implementation evidence and may remain only inside the checksum-locked reference. |
-| Next action | Produce the Candidates visual contract and real Mantine/AG Grid surface as the next bounded slice. Show the owner-visible Candidates result before starting Results or another page. |
+| Next action | Build the real Candidates Mantine/AG Grid surface from the approved contract and show the working private route before starting Results or another page. Do not create another mockup or redesign. |
 | Owner checkpoints | Dashboard is accepted. Candidates requires its own owner-visible design and working private-route acceptance; internal checks cannot substitute for the walkthrough. |
 | Deferred | Results, Factory runs, Submit Strategies, Compare Selected, and Paper destination UI until Candidates acceptance; Candidate campaigns; VectorBT Pro upgrade; paid/protected data; paper activation; broker work; orders; live trading; capital exposure. |
 
@@ -45,7 +45,8 @@ and next action. Git history preserves completed milestone narratives.
 - Product behavior: `docs/factory-operating-contract.md`
 - Runtime architecture: `docs/architecture/0016-dashboard-runtime.md`
 - Frontend execution discipline: `.agents/skills/quant-factory-frontend/SKILL.md`
-- Visual contract: `docs/assets/dashboard/current-visual-contract/dashboard.html`
+- Dashboard visual contract: `docs/assets/dashboard/current-visual-contract/dashboard.html`
+- Remaining-workspace contract: `docs/assets/workspaces/current-workflow-contract/workspaces.html`
 
 No supporting document creates another queue, visual target, or implementation
 authority.

@@ -12,9 +12,11 @@ working callbacks.
 
 1. Read `AGENTS.md`, the current `docs/MILESTONES.md`, the current decision
    index, and only the decisions relevant to the requested surface.
-2. Read
-   `docs/assets/dashboard/current-visual-contract/README.md` and open the
-   repository-owned interactive reference it identifies.
+2. Read the README and interactive HTML for the target surface:
+   `docs/assets/dashboard/current-visual-contract/` for Dashboard, or
+   `docs/assets/workspaces/current-workflow-contract/` for the other six
+   workflow surfaces. For a non-Dashboard surface, also use the Dashboard
+   contract as the shared modern visual-language reference.
 3. Name the exact surface, approved reference state, checkpoint, viewport,
    data/state owner, and permitted change before editing.
 4. Preserve Dash, Dash Core Components, Plotly, Dash AG Grid, VectorBT,
@@ -30,15 +32,19 @@ show the truthful unavailable, empty, loading, failure, or inactive state in
 the same design language; never fabricate data to make the page resemble the
 reference.
 
-Do not generate another creative direction, use Figma, consult an earlier
-visual artifact, or let a generic design skill reinterpret an approved surface.
-No competing visual reference may be added to the active tree.
+Do not generate another creative direction, use Figma, consult an external or
+earlier visual artifact, or let a generic design skill reinterpret an approved
+surface. The workspace contract's embedded older Dashboard slide is explicitly
+non-authoritative. No competing visual reference may be added to the active
+tree.
 
 ## Implement in bounded slices
 
-The first production slice is Dashboard only. The remaining surfaces have no
-active visual authority and may not be implemented until the Dashboard passes
-all owner gates and a new reference is separately approved.
+Dashboard is accepted. The remaining surfaces already have an approved
+composition and workflow contract and are implemented one at a time in the
+order set by `docs/MILESTONES.md`. Do not create a replacement mockup or
+greenfield their structure. Stop after each working private-route walkthrough
+for Terry's acceptance before starting the next surface.
 
 Build the approved composition as a clean Dash UI under `dashboard.ui`.
 Backend contracts are accepted and frozen. Do not change SQL, persistence,

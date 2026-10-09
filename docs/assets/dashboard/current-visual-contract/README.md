@@ -8,7 +8,7 @@ visually rejected Dashboard implementations.
 ## Authoritative reference
 
 - `dashboard.html` — the exact approved modern Dashboard composition and the
-  sole current visual target.
+  sole Dashboard visual target.
 
 The HTML source has SHA-256
 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`.
@@ -32,10 +32,10 @@ render, the next authorized slice replaces representative values with existing
 read-only projections, adds working controls without changing composition, and
 runs at the established private review URL for Terry's unaided walkthrough.
 
-The other six named workflow surfaces retain their product behavior but have no
-active visual implementation authority. Their visual references will be added
-one surface at a time only after the deployed Dashboard passes Terry's unaided
-comprehension gate.
+The other six named workflow surfaces are controlled by
+`docs/assets/workspaces/current-workflow-contract/workspaces.html`. This
+Dashboard contract supplies their shared modern visual language; it does not
+erase or replace their approved structure and workflow.
 
 Render at 1440 by 980 and compare directly with this reference. Follow
 `.agents/skills/quant-factory-frontend/SKILL.md`.

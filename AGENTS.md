@@ -77,20 +77,28 @@ external Paper Trading destination. Dashboard is the live oversight front
 door. Candidates is the high-density survivor/ranking surface. Compare Selected
 is a secondary action from Candidates, not a primary workflow or promotion
 gate. Paper Trading remains a separate project reached by an external link;
-Quant Factory shows only package/handoff state. Only Dashboard currently has an
-approved visual contract. Do not visually implement another surface until its
-own reference is approved after Dashboard acceptance.
+Quant Factory shows only package/handoff state. Dashboard has its own exact
+approved contract. The other six surfaces share the approved workspace
+contract; implement them in milestone order and stop after each owner-visible
+surface for acceptance.
 
 ## Frontend and visual acceptance
 
 For every operator-facing frontend, UI, UX, styling, interaction, or visual-
 conformance task, load and follow
-`.agents/skills/quant-factory-frontend/SKILL.md` before editing. The current
-repository-owned visual contract is
-`docs/assets/dashboard/current-visual-contract/dashboard.html`.
-It controls visual language, composition, hierarchy, density, spacing,
-affordances, and interaction intent. Do not reinterpret an approved surface or
-create another design direction unless Terry explicitly requests one.
+`.agents/skills/quant-factory-frontend/SKILL.md` before editing. The two
+non-overlapping repository-owned contracts are:
+
+- `docs/assets/dashboard/current-visual-contract/dashboard.html` for Dashboard;
+- `docs/assets/workspaces/current-workflow-contract/workspaces.html` for
+  Candidates, Results, Factory runs, Submit Strategies, Compare Selected, and
+  the external Paper Trading destination.
+
+The Dashboard contract also establishes the shared modern visual language and
+component treatment. The workspace contract establishes the remaining pages'
+composition, hierarchy, controls, drill-downs, and cross-page workflow. Do not
+reinterpret an approved surface, omit its regions, or create another design
+direction unless Terry explicitly requests one.
 
 Existing backend, persistence, state semantics, lineage, Plotly, and AG Grid
 contracts are accepted and frozen for the Dashboard visual checkpoint. Build
@@ -300,12 +308,13 @@ Mantine Components as the default polished UI layer. Do not rebuild generic
 chart, grid, docking, layout or component systems when mature components meet
 the approved interaction requirement.
 
-The repository-owned Dashboard HTML is the sole current visual contract. No
-earlier mockup, preview, screenshot, seven-surface file, local implementation
-branch, CSS, browser test, or deployed interface is a visual or implementation
-source. The remaining named surfaces retain behavior but have no active visual
-authority. Required product behavior comes from
-`docs/factory-operating-contract.md`, not from an older presentation artifact.
+The repository-owned Dashboard HTML is the sole Dashboard visual contract. The
+repository-owned workspace HTML is the sole composition and workflow contract
+for the other six named surfaces. Its embedded older Dashboard slide is
+prohibited and has no authority. No external copy, earlier mockup, preview,
+screenshot, local implementation branch, CSS, browser test, or deployed
+interface is a visual or implementation source. Required product semantics
+also come from `docs/factory-operating-contract.md`.
 
 Before changing an operator page, record the target page, owner-approved design,
 proof state, owning state source, permitted change and proof plan. Keep source
