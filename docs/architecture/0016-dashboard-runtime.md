@@ -32,9 +32,9 @@ The authoritative Dashboard contract is
 workflow surfaces are controlled by
 `docs/assets/workspaces/current-workflow-contract/workspaces.html`, while the
 Dashboard contract supplies their shared modern visual language. Both checksums
-are enforced by repository tooling. The workspace file's embedded older
-Dashboard slide is excluded. No other mockup, preview, screenshot, historical
-page, or external design source controls presentation.
+are enforced by repository tooling. The workspace contract contains no
+Dashboard composition. No other mockup, preview, screenshot, historical page,
+or external design source controls presentation.
 
 ## Runtime invariants
 

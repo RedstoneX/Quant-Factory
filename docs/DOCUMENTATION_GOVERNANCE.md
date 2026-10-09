@@ -28,10 +28,9 @@ current queue, visual target, completion claim, or competing authority.
 
 No other mockup, screenshot, preview, acceptance package, UI direction file,
 CSS file, deployed page, browser test, local branch, or historical decision
-controls frontend implementation. The workspace file's embedded older
-Dashboard slide has no authority; only its six named non-Dashboard surfaces are
-active. Repository tooling enforces both contract checksums and rejects known
-superseded paths or directives.
+controls frontend implementation. The workspace file contains only its six
+named non-Dashboard surfaces. Repository tooling enforces both contract
+checksums and rejects known superseded paths or directives.
 
 ## Lifecycle
 

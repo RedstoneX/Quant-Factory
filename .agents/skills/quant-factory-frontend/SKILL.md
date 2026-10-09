@@ -34,9 +34,7 @@ reference.
 
 Do not generate another creative direction, use Figma, consult an external or
 earlier visual artifact, or let a generic design skill reinterpret an approved
-surface. The workspace contract's embedded older Dashboard slide is explicitly
-non-authoritative. No competing visual reference may be added to the active
-tree.
+surface. No competing visual reference may be added to the active tree.
 
 ## Implement in bounded slices
 
