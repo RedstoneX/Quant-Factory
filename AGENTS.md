@@ -71,14 +71,15 @@ Decision 341 handoff. Prior work closes only its stated hypothesis,
 rules, and parameter space; it does not close a broader strategy family unless
 Tier 1 says so.
 
-The operator information architecture follows the owner-approved current visual
-contract. Its seven approved surfaces are Dashboard, Submit Strategies,
-Factory runs, Candidates, Results, Compare Selected, and the external Paper
-Trading destination. Dashboard is the live oversight front door. Candidates
-is the high-density survivor/ranking surface. Compare Selected is a secondary
-action from Candidates, not a primary workflow or promotion gate. Paper
-Trading remains a separate project reached by an external link; Quant Factory
-shows only package/handoff state.
+The operator information architecture has seven named surfaces: Dashboard,
+Submit Strategies, Factory runs, Candidates, Results, Compare Selected, and the
+external Paper Trading destination. Dashboard is the live oversight front
+door. Candidates is the high-density survivor/ranking surface. Compare Selected
+is a secondary action from Candidates, not a primary workflow or promotion
+gate. Paper Trading remains a separate project reached by an external link;
+Quant Factory shows only package/handoff state. Only Dashboard currently has an
+approved visual contract. Do not visually implement another surface until its
+own reference is approved after Dashboard acceptance.
 
 ## Frontend and visual acceptance
 
@@ -86,27 +87,37 @@ For every operator-facing frontend, UI, UX, styling, interaction, or visual-
 conformance task, load and follow
 `.agents/skills/quant-factory-frontend/SKILL.md` before editing. The current
 repository-owned visual contract is
-`docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`.
+`docs/assets/dashboard/current-visual-contract/dashboard.html`.
 It controls visual language, composition, hierarchy, density, spacing,
 affordances, and interaction intent. Do not reinterpret an approved surface or
 create another design direction unless Terry explicitly requests one.
 
 Existing backend, persistence, state semantics, lineage, Plotly, and AG Grid
-contracts are reusable. Build the presentation only under `dashboard.ui` from
-the current contract and reconnect retained domain behavior. Do not create a
-second composition root, parallel shell, alternate visual target, or duplicate
-presentation state.
+contracts are accepted and frozen for the Dashboard visual checkpoint. Build
+the presentation only under `dashboard.ui` from the current contract. Do not
+change SQL, persistence, schemas, lineage, orchestration, evidence logic,
+scaling, performance paths, or backend tests during that checkpoint. Do not
+create a second composition root, parallel shell, alternate visual target, or
+duplicate presentation state.
 
 The first production slice is Dashboard only. It uses Dash Mantine Components
-as the default production UI layer for navigation,
-layout, panels, drawers, modals, alerts, badges, and commodity controls. The
-first real Dashboard slice is its integration proof, not a competing hand-built
-version: validate visual fit, callback compatibility, and load cost with Dash
-Core Components, Plotly, and Dash AG Grid while building that slice. Abandon
-Mantine only for a demonstrated blocker and stop for an owner decision before
-choosing a fallback. A standalone React frontend requires a separate owner
-decision. Do not implement another surface until Terry accepts the real
-Dashboard render.
+as the default production UI layer for navigation, layout, panels, drawers,
+alerts, badges, and commodity controls. Work is split by a hard owner gate:
+
+1. Build only the real Mantine visual shell at 1440 by 980 using the contract's
+   representative state, clearly labeled local visual proof. Do not connect
+   persistence, build data projections, register production callbacks, optimize,
+   run backend tests, deploy, or implement another surface. Show Terry the real
+   render beside the exact contract and stop.
+2. Only after Terry explicitly approves that render, bind existing read-only
+   state and add the approved controls without changing the composition. Then
+   run the technical, control, accessibility, adversarial, and truthful-state
+   gates.
+
+The representative first render is not operational truth and may never be
+deployed. Abandon Mantine only for a demonstrated blocker and stop for an owner
+decision before choosing a fallback. A standalone React frontend requires a
+separate owner decision.
 
 Run the Dashboard directly for implementation and owner acceptance. Do not add
 it to the research Compose stack. Prefect and the agent gateway remain
@@ -129,16 +140,14 @@ drawdown, Sharpe, OOS performance, robustness, and paper eligibility. Selecting
 one exact survivor opens its Results charts, trades, drawdown, evidence, and
 lineage; Compare Selected remains a secondary multi-selection action.
 
-The Dashboard contract is aggregate-first but not summary-only. Its required
-composition includes the linked status summaries, bounded Candidate-universe
-plot, Latest finding, live Factory-now flow and operations, bounded Top
-survivors shortlist, and Operational attention with owner exceptions, active
-system failures, recent closed failures, and data readiness kept visibly
-separate. At scale, aggregate the full population server-side, hydrate only a
-bounded plotted or ranked cohort, and route complete sorting/filtering to
-Candidates or an exact server-paged drill-down. A zero, empty, inactive, stale,
-or unavailable state keeps this composition compact; it does not delete the
-region or replace it with a large blank chart.
+The Dashboard composition is exact: polished rail and header, four current-state
+cards, Candidate universe, selected finding, Factory now, Top survivors, and
+contextual drawers. Do not add, remove, reorder, restyle, or substitute regions
+before the first visual checkpoint. Later truthful empty, inactive, stale, or
+unavailable states must preserve its hierarchy compactly. At scale, existing
+read models aggregate the full population server-side and hydrate bounded
+cohorts; complete sorting/filtering remains in Candidates. Scale work is not
+authorized during the visual checkpoint.
 
 Every element styled as interactive must work. A summary metric, chart mark,
 status, alert, or table aggregate that promises deeper analysis must open the
@@ -149,15 +158,14 @@ this rule.
 Frontend acceptance has separate gates: technical truth, working controls,
 visual conformance, and Terry's unaided comprehension. A route load, HTTP 200,
 expected text, passing callback, clean console, or agent assertion cannot close
-the visual or comprehension gates. For owner-authorized frontend work, bounded
-read-only browser capture at the approved viewport, direct side-by-side
-inspection against the current visual contract, and correction of material
-differences are mandatory implementation proof rather than an optional browser
-test. Before merge or deployment, show Terry the local real render beside the
-reference after it passes independent trader-workflow/visual adversarial
-review. Only Terry may authorize the subsequent private interactive deployment.
-His unaided use of that deployed surface closes comprehension. Do not begin the
-next surface until both checkpoints pass.
+the visual or comprehension gates. Gate A is deliberately earlier and cheaper:
+capture the real visual shell, compare it side by side with the contract, show
+Terry, and stop before callbacks, backend work, audits, adversarial review,
+merge, or deployment. After Terry approves appearance, Gate B adds truthful
+state and controls and then requires the secondary audit and independent
+trader-workflow/visual review before another owner checkpoint. Only Terry may
+authorize a subsequent private deployment. His unaided use closes
+comprehension. Do not begin the next surface before all checkpoints pass.
 
 ## Working mode
 
@@ -172,8 +180,9 @@ Use Direct Mode for routine implementation, bug fixes, UI work,
 configuration, private operations, redeploys, and other reversible reuse of
 established architecture.
 
-- Work directly without implementation preflight or adversarial review, except
-  for the explicitly required independent frontend review at the visual gate.
+- Work directly without implementation preflight or adversarial review. The
+  independent frontend review begins only in Gate B after Terry approves the
+  Gate A appearance.
 - Keep a plan to at most five short steps. Avoid broad audits, speculative
   architecture, adjacent cleanup, alternative implementations, and unrelated
   testing.
@@ -291,16 +300,16 @@ Mantine Components as the default polished UI layer. Do not rebuild generic
 chart, grid, docking, layout or component systems when mature components meet
 the approved interaction requirement.
 
-The repository-owned seven-surface HTML is the sole current visual contract,
-including Results. No earlier mockup, preview, screenshot, page specification,
-CSS, browser test, or deployed interface is a visual or implementation source.
-Required product behavior comes from `docs/factory-operating-contract.md`, not
-from an older presentation artifact.
+The repository-owned Dashboard HTML is the sole current visual contract. No
+earlier mockup, preview, screenshot, seven-surface file, local implementation
+branch, CSS, browser test, or deployed interface is a visual or implementation
+source. The remaining named surfaces retain behavior but have no active visual
+authority. Required product behavior comes from
+`docs/factory-operating-contract.md`, not from an older presentation artifact.
 
-Before changing an operator page, record the target page, newly owner-approved
-design, representative state, owning state source, permitted change and proof
-plan. For any later owner-authorized R12 implementation, before merge or
-deployment:
+Before changing an operator page, record the target page, owner-approved design,
+proof state, owning state source, permitted change and proof plan. For Dashboard,
+the first checkpoint is visual only. Before any behavior merge or deployment:
 
 1. render the actual page at the approved viewport and meaningful state;
 2. inspect the new approved design and actual render side by side;

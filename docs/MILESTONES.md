@@ -8,22 +8,22 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Build the complete Dashboard only from the checksum-locked visual contract in a clean implementation session. |
-| Phase | **R12 Dashboard implementation. Technical engine and Results-performance evidence remain accepted. Candidate research remains paused.** |
-| Active work | The source boundary is merged and the canonical local checkout is clean. Build one Dashboard slice under `dashboard.ui`; do not begin another surface, deploy, or start research. |
-| Technology | Keep Plotly Dash, Dash Core Components, Plotly, Dash AG Grid, VectorBT Pro, persistence, evidence, lineage, and orchestration. Dash Mantine Components is the default production UI layer and is not yet installed. Implement and review Dashboard directly; Prefect and the agent gateway remain containerized. A separately approved Dashboard deployment defaults to a normal Linux service. |
-| Visual authority | Only `docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`, SHA-256 `903554196439f3c7fa5cca4a48d8938fb7b9d212f5fae942a2bccc7ec34bb422`. |
-| Truthful first state | Use an identified read-only snapshot of canonical persisted inputs. Do not create a Candidate, run, or survivor to populate the interface. If no survivor exists, show the approved compact empty-state treatment. |
-| Next action | Start a clean session and build the complete real Dashboard slice with Mantine, Dash Core Components, Plotly, VectorBT Pro, and Dash AG Grid. Do not accept a summary-only subset. Complete focused technical/control proof, secondary interface audit, actual/reference comparison, and independent adversarial review; then stop for Terry's pre-deployment visual decision. |
-| Owner checkpoints | Terry first approves the local actual/reference Dashboard pair. Only a separate approval permits private deployment. Terry's later unaided hands-on use closes comprehension. No other surface begins before both checkpoints. |
-| Deferred | All other surfaces; Candidate campaigns; VectorBT Pro upgrade; paid/protected data; paper activation; broker work; orders; live trading; capital exposure. |
+| Immediate objective | Produce the real Mantine Dashboard visual shell matching the checksum-locked modern reference, then stop before behavior work. |
+| Phase | **R12-A Dashboard visual recovery. Backend and scaling are accepted and frozen. Candidate research remains paused.** |
+| Active work | Use a new clean checkout from `main`. Build only presentation under `dashboard.ui`; the two local Dashboard implementation branches and current deployment are rejected inputs, not reusable UI. |
+| Technology | Use Dash Mantine Components for the real shell. Plotly and AG Grid may appear only where the reference visibly requires them. Do not change or re-prove SQL, persistence, schemas, lineage, orchestration, evidence, scaling, or performance. |
+| Visual authority | Only `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. |
+| Visual proof state | Use the reference's representative values only in a clearly labeled, local, non-operational visual proof. It may not read persistence, be deployed, be merged as operational truth, or satisfy technical/control gates. |
+| Next action | Render the real Mantine shell at 1440×980, inspect it directly beside the exact reference, correct material visual differences, show both to Terry, and stop. No callbacks, persistence integration, backend tests, deployment, or other surface before his explicit visual approval. |
+| Owner checkpoints | Gate A: Terry approves the real visual shell. Gate B: after approval, existing read-only state and controls are connected and Terry approves the truthful local render. Gate C: only separately authorized private deployment and unaided use close comprehension. |
+| Deferred | Dashboard data wiring and controls until Gate A; all other surfaces; all backend/scaling changes; Candidate campaigns; VectorBT Pro upgrade; paid/protected data; paper activation; broker work; orders; live trading; capital exposure. |
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R12 | 1 | in_progress | none | Owner-approved visual contract and clean canonical checkout are ready; Dashboard is the only authorized implementation slice. |
+| R12 | 1 | in_progress | none | Modern Dashboard contract is checksum-locked; Gate A visual shell is the only authorized implementation slice. |
 | R15 | 2 | blocked | R12 | Automated bounded-research activation requires a separately approved campaign policy after usable product handoff. |
 | R14 | 3 | blocked | none | Provider-neutral Agent Research Gateway is retained but is not current substitute work. |
 <!-- active-work:end -->
@@ -45,31 +45,21 @@ and next action. Git history preserves completed milestone narratives.
 - Product behavior: `docs/factory-operating-contract.md`
 - Runtime architecture: `docs/architecture/0016-dashboard-runtime.md`
 - Frontend execution discipline: `.agents/skills/quant-factory-frontend/SKILL.md`
-- Visual contract: `docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`
+- Visual contract: `docs/assets/dashboard/current-visual-contract/dashboard.html`
 
 No supporting document creates another queue, visual target, or implementation
 authority.
 
-## R12 Dashboard acceptance inventory
+## R12-A visual-shell acceptance
 
-The Dashboard is incomplete unless one truthful render preserves all of these
-approved regions and behaviors:
+Gate A passes only when the real Dash/Mantine render materially matches the
+reference at 1440×980 in shell, typography, scale, spacing, contrast, density,
+panel geometry, chart proportions, table treatment, controls, and primary
+emphasis. The visible composition is fixed: application rail/header, four
+current-state cards, Candidate universe, selected finding, Factory now, Top
+survivors, and contextual drawer treatment.
 
-- linked time, market, and strategy-family filters with visible observation
-  freshness and overall factory health;
-- full-population status summaries and a bounded interactive Candidate-universe
-  plot with exact identities;
-- Latest finding for the highest-ranked newly qualified survivor, with a compact
-  truthful empty state when none exists;
-- Factory now: filtration counts plus running/queued work, worker capacity,
-  bottleneck, completion estimate, and exact Factory drill-down;
-- Top survivors: a bounded server-ranked shortlist with exact Results and
-  Candidates handoffs; full population management remains in Candidates; and
-- Operational attention: genuine owner exceptions, active system failures,
-  recent closed failures, and data readiness shown as separate categories with
-  exact drill-downs.
-
-Every aggregate covers the complete filtered persisted population. Initial
-plots and shortlists are bounded, while exact record browsing is server-paged.
-Empty, stale, inactive, failed, and unavailable states retain the approved
-hierarchy without fabricated values or oversized blank regions.
+A route load, backend test, callback, SQL aggregate, scale test, clean console,
+HTTP status, accessibility audit, or agent assertion cannot compensate for a
+visual mismatch. Gate A stops immediately after Terry sees the real/reference
+pair. No behavior or truth-state work is authorized until he approves it.

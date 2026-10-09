@@ -4,44 +4,43 @@ Use this procedure only for an owner-authorized frontend implementation or
 frontend review. It is a read-only proof procedure; it does not authorize a
 deployment, Candidate run, research mutation, broker connection, or trading.
 
-## Required evidence
+## Gate A: visual shell
 
-For the first implementation slice, perform this procedure for Dashboard only
-and stop for Terry's decision. Do not use Dashboard acceptance as authority to
-implement the remaining surfaces.
+For the first implementation slice, perform only this procedure for Dashboard
+and stop for Terry's decision:
 
-1. Render the real Dash route with deterministic representative state at the
-   approved desktop viewport. Use 1440 by 980 unless the visual-contract README
-   records a more specific viewport for that surface. Use a read-only identified
-   snapshot of canonical persisted inputs; do not create a Candidate, survivor,
-   run, or owner-facing fake record to populate the reference.
-2. Capture the actual page after fonts, callbacks, Plotly figures, and AG Grid
-   content have settled. Preserve the exact route, revision, state identity,
+1. Render the real Dash/Mantine shell at 1440 by 980 using only the exact
+   reference's representative state. Mark the render as local visual proof; it
+   is not operational truth and may not read persistence or be deployed.
+2. Capture it after fonts and visible components settle. Preserve the revision,
    viewport, and capture time.
-3. Place the approved reference and actual render side by side. Also create an
-   overlay or image difference when the available tooling supports it.
-4. Inspect at minimum: global shell, above-the-fold priority, grid and panel
+3. Place the approved reference and actual render side by side.
+4. Inspect: global shell, above-the-fold priority, grid and panel
    geometry, typography, spacing, color and contrast, information density,
-   charts, tables, controls, affordances, selected/hover/focus states, empty or
-   unavailable states, and primary drill-down behavior.
-5. Record every material difference. Correct it or identify the exact truthful
-   state constraint that requires a deliberate deviation.
-6. Exercise safe read-only controls separately. Do not treat working controls
-   as evidence that the page looks correct.
-7. Run the secondary `web-interface-audit` and resolve blocking accessibility,
-   semantics, keyboard, responsive, state, and affordance findings.
-8. Give the approved reference, actual render, and representative-state identity
-   to an independent read-only Quant Factory adversary. Resolve every material
-   workflow, visual, truthfulness, component-use, and affordance finding.
-9. Show the approved reference and actual render to Terry for the pre-deployment
-   visual checkpoint. Only his explicit approval authorizes a private
-   interactive deployment.
-10. After that separately authorized deployment, Terry uses the Dashboard
-   unaided. His hands-on acceptance closes comprehension. Do not begin another
-   surface before this checkpoint.
+   chart proportions, table treatment, controls, and primary emphasis.
+5. Correct every material difference. Backend behavior, callbacks, tests,
+   accessibility audits, or scale evidence cannot excuse a visual mismatch.
+6. Show Terry the actual/reference pair and stop. Do not wire state, continue to
+   controls, request merge, deploy, or begin another surface.
+
+## Gate B: truthful working Dashboard
+
+Only after Terry explicitly approves Gate A:
+
+1. Replace representative values with an identified read-only persisted-state
+   projection. Never fabricate a Candidate, survivor, run, chart, or trade.
+2. Exercise every included safe control and exact identity transition.
+3. Capture the truthful actual page at 1440 by 980 and compare it with the same
+   visual contract, allowing only necessary compact empty/stale/unavailable
+   state differences.
+4. Run the secondary `web-interface-audit` and resolve blocking findings.
+5. Give the reference, truthful actual render, and state identity to an
+   independent read-only Quant Factory adversary and resolve material findings.
+6. Show Terry the pair again. Only his explicit approval permits a private
+   deployment request. His later unaided use closes comprehension.
 
 The approved HTML file must have SHA-256
-`903554196439f3c7fa5cca4a48d8938fb7b9d212f5fae942a2bccc7ec34bb422`
+`266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`
 before it is used as a reference. A mismatch stops the comparison until the
 owner approves a replacement contract and checksum.
 

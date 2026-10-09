@@ -1,17 +1,17 @@
 # Current Quant Factory visual contract
 
-This directory contains the repository-owned visual contract approved by Terry
-on October 8, 2026 after iterative trader-workflow review.
+This directory contains the repository-owned Dashboard visual contract approved
+by Terry after the modern Mantine/toolset preview received explicit visual
+approval. It replaces the denser seven-surface composition that produced two
+visually rejected Dashboard implementations.
 
 ## Authoritative reference
 
-- `quant-factory-reconciled-mockups.html` — authoritative interactive
-  seven-surface reference and sole current visual target, in this order:
-  Dashboard, Submit Strategies,
-  Factory runs, Candidates, Results, Compare Selected, and Paper Trading.
+- `dashboard.html` — the exact approved modern Dashboard composition and the
+  sole current visual target.
 
 The HTML source has SHA-256
-`903554196439f3c7fa5cca4a48d8938fb7b9d212f5fae942a2bccc7ec34bb422`.
+`266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`.
 
 ## How to use it
 
@@ -20,16 +20,24 @@ spacing, affordances, and interaction intent. It does not authorize fabricated
 runtime facts: the implementation must bind those surfaces to truthful
 persisted and operational state.
 
-The Dashboard reference is intentionally complete rather than summary-only. It
-includes status summaries, Candidate universe, Latest finding, Factory now with
-live operations, Top survivors, and Operational attention. Its representative
-values demonstrate composition only; production renders must preserve the same
-regions using truthful populated, empty, stale, inactive, failed, or unavailable
-states.
+The required visible composition is the reference itself: polished application
+rail and header, four current-state cards, Candidate universe, selected finding,
+Factory now, Top survivors, and contextual drawers. Its representative values
+exist only to prove composition and interaction intent.
 
-For any frontend implementation, render the actual Dash surface at the same
-desktop viewport and compare it directly with the matching reference surface.
-Follow `.agents/skills/quant-factory-frontend/SKILL.md`.
+The first checkpoint is a local, non-operational Mantine render of this exact
+representative state. It may not read or change persistence and may not be
+deployed or described as operational truth. After Terry approves that real
+render, the next authorized slice replaces representative values with existing
+read-only projections and adds working controls without changing composition.
+
+The other six named workflow surfaces retain their product behavior but have no
+active visual implementation authority. Their visual references will be added
+one surface at a time only after the deployed Dashboard passes Terry's unaided
+comprehension gate.
+
+Render at 1440 by 980 and compare directly with this reference. Follow
+`.agents/skills/quant-factory-frontend/SKILL.md`.
 
 No other mockup, preview, screenshot, page specification, CSS, browser test, or
 deployed page is a visual or implementation target.

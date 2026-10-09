@@ -17,15 +17,17 @@ current queue, visual target, completion claim, or competing authority.
 ## Frontend authority
 
 - Sole visual contract:
-  `docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html`
+  `docs/assets/dashboard/current-visual-contract/dashboard.html`
 - Product behavior: `docs/factory-operating-contract.md`
 - Runtime architecture: ADR 0016.
 - Execution discipline: `.agents/skills/quant-factory-frontend/SKILL.md`.
 
 No other mockup, screenshot, preview, acceptance package, UI direction file,
-CSS file, deployed page, browser test, or historical decision controls frontend
-implementation. Repository tooling enforces the contract checksum and rejects
-known superseded paths or directives.
+CSS file, deployed page, browser test, local branch, or historical decision
+controls frontend implementation. The other six workflow surfaces have no
+active visual authority until individually approved after Dashboard acceptance.
+Repository tooling enforces the contract checksum and rejects known superseded
+paths or directives.
 
 ## Lifecycle
 

@@ -21,9 +21,20 @@ DEADLINE_RE = re.compile(r"^- \[ \] DECIDE BY (\d{4}-\d{2}-\d{2}) — (\S.*)$")
 ID_RE = re.compile(r"^R[0-9]{2,}$")
 
 VISUAL_CONTRACT = Path(
-    "docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html"
+    "docs/assets/dashboard/current-visual-contract/dashboard.html"
 )
-VISUAL_CONTRACT_SHA256 = "903554196439f3c7fa5cca4a48d8938fb7b9d212f5fae942a2bccc7ec34bb422"
+VISUAL_CONTRACT_SHA256 = "266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1"
+REQUIRED_VISUAL_MARKERS = (
+    'id="qf-toolset-preview"',
+    "Candidate universe",
+    "Factory now",
+    "Top survivors",
+    'class="drawer"',
+)
+FORBIDDEN_VISUAL_MARKERS = (
+    "qfr-dashboard-overview",
+    "quant-factory-reconciled-mockups",
+)
 REQUIRED_FRONTEND_FILES = (
     VISUAL_CONTRACT,
     Path("docs/factory-operating-contract.md"),
@@ -186,9 +197,17 @@ def _validate_frontend_authority(root: Path) -> list[str]:
             errors.append(f"required frontend authority is missing: {relative}")
     visual = root / VISUAL_CONTRACT
     if visual.is_file():
-        digest = hashlib.sha256(visual.read_bytes()).hexdigest()
+        content = visual.read_bytes()
+        digest = hashlib.sha256(content).hexdigest()
         if digest != VISUAL_CONTRACT_SHA256:
             errors.append(f"visual contract checksum changed: {digest} != {VISUAL_CONTRACT_SHA256}")
+        text = content.decode("utf-8", errors="replace")
+        for marker in REQUIRED_VISUAL_MARKERS:
+            if marker not in text:
+                errors.append(f"visual contract marker is missing: {marker}")
+        for marker in FORBIDDEN_VISUAL_MARKERS:
+            if marker in text:
+                errors.append(f"superseded visual contract marker remains: {marker}")
     dashboard = root / "dashboard"
     if dashboard.is_dir():
         for path in dashboard.iterdir():
