@@ -34,6 +34,22 @@ Keep these dimensions independent:
 Never collapse these dimensions into generic labels such as Accepted, Ready,
 or Failed. Every aggregate must reconcile with its exact underlying records.
 
+## Operator projections
+
+Dashboard is aggregate-first oversight of the complete filtered population. It
+reports current operations, queue and worker capacity, bottlenecks, evidence
+survival, newly qualified survivors, genuine owner exceptions, system failures,
+closed failure history, data readiness, and observation freshness without
+loading every Candidate into the browser. Its plots and survivor shortlist are
+bounded views whose counts still reconcile to the full population.
+
+Candidates is the complete high-density survivor and Candidate workspace. It
+owns full ranking, sorting, filtering, saved views, and selection across large
+populations. Dashboard drill-downs either open one exact record, provide real
+server-paged record access, or transfer the current filter context to
+Candidates. Results owns one selected Candidate's charts, trades, drawdown,
+evidence, and lineage. These projections never create lifecycle state.
+
 ## Automated conveyor
 
 For every imported Candidate, one idempotent coordinator:

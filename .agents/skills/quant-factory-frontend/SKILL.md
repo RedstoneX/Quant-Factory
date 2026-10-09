@@ -65,8 +65,13 @@ styling when no action exists.
 Realize the approved surfaces with the production component capabilities they
 require; do not reduce the contract to static HTML-shaped cards:
 
-- Dashboard uses linked overview filters, live-operation state, contextual
-  hover/detail, exact drill-down drawers, and clear genuine-exception alerts.
+- Dashboard uses linked overview filters, freshness, contextual hover/detail,
+  exact drill-down drawers, and the complete approved inventory: status
+  summaries, a bounded Candidate-universe plot, Latest finding, live Factory
+  flow/operations, a bounded Top survivors shortlist, and Operational attention.
+  Owner exceptions, active system failures, closed failure history, and data
+  readiness remain distinct. Empty or stale data compacts these regions; it
+  never removes them or turns the plot into an oversized blank panel.
 - Candidates uses Dash AG Grid with server-side or infinite loading, fast
   ranking/sorting/filtering, pinned columns, saved views, and selection that
   persists into Results and Compare Selected.
@@ -90,6 +95,13 @@ server-side grids, aggregate cohorts before plotting, lazy-mount routes and
 heavy evidence panels, and hydrate only the selected Candidate, run, window,
 or comparison. Do not initialize hidden charts, complete trade history, or the
 full Candidate universe on first load.
+
+For Dashboard specifically, aggregate every count over the full filtered
+population, cap the initial plot and Top survivors cohort, and disclose that
+bounded scope. Complete survivor ranking, sorting, filtering, pinned columns,
+and saved views belong to Candidates. Any Dashboard drawer that offers record
+browsing must implement real server-side paging plus the sorting/filtering it
+visibly offers; cosmetic grid controls do not satisfy the contract.
 
 After implementation and self-review, use `web-interface-audit` as the
 secondary accessibility and interaction audit and resolve its blocking

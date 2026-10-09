@@ -11,7 +11,7 @@ on October 8, 2026 after iterative trader-workflow review.
   Factory runs, Candidates, Results, Compare Selected, and Paper Trading.
 
 The HTML source has SHA-256
-`0cf9b1ea704402c5d0cda42b45d277a4ca4c1c50dc8c8680ab5c998a89c5d35a`.
+`903554196439f3c7fa5cca4a48d8938fb7b9d212f5fae942a2bccc7ec34bb422`.
 
 ## How to use it
 
@@ -19,6 +19,13 @@ The reference controls visual language, composition, hierarchy, density,
 spacing, affordances, and interaction intent. It does not authorize fabricated
 runtime facts: the implementation must bind those surfaces to truthful
 persisted and operational state.
+
+The Dashboard reference is intentionally complete rather than summary-only. It
+includes status summaries, Candidate universe, Latest finding, Factory now with
+live operations, Top survivors, and Operational attention. Its representative
+values demonstrate composition only; production renders must preserve the same
+regions using truthful populated, empty, stale, inactive, failed, or unavailable
+states.
 
 For any frontend implementation, render the actual Dash surface at the same
 desktop viewport and compare it directly with the matching reference surface.

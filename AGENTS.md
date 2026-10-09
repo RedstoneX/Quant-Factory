@@ -129,6 +129,17 @@ drawdown, Sharpe, OOS performance, robustness, and paper eligibility. Selecting
 one exact survivor opens its Results charts, trades, drawdown, evidence, and
 lineage; Compare Selected remains a secondary multi-selection action.
 
+The Dashboard contract is aggregate-first but not summary-only. Its required
+composition includes the linked status summaries, bounded Candidate-universe
+plot, Latest finding, live Factory-now flow and operations, bounded Top
+survivors shortlist, and Operational attention with owner exceptions, active
+system failures, recent closed failures, and data readiness kept visibly
+separate. At scale, aggregate the full population server-side, hydrate only a
+bounded plotted or ranked cohort, and route complete sorting/filtering to
+Candidates or an exact server-paged drill-down. A zero, empty, inactive, stale,
+or unavailable state keeps this composition compact; it does not delete the
+region or replace it with a large blank chart.
+
 Every element styled as interactive must work. A summary metric, chart mark,
 status, alert, or table aggregate that promises deeper analysis must open the
 exact filtered records or contextual detail. If no drill-down exists, remove

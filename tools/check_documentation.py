@@ -23,7 +23,7 @@ ID_RE = re.compile(r"^R[0-9]{2,}$")
 VISUAL_CONTRACT = Path(
     "docs/assets/dashboard/current-visual-contract/quant-factory-reconciled-mockups.html"
 )
-VISUAL_CONTRACT_SHA256 = "0cf9b1ea704402c5d0cda42b45d277a4ca4c1c50dc8c8680ab5c998a89c5d35a"
+VISUAL_CONTRACT_SHA256 = "903554196439f3c7fa5cca4a48d8938fb7b9d212f5fae942a2bccc7ec34bb422"
 REQUIRED_FRONTEND_FILES = (
     VISUAL_CONTRACT,
     Path("docs/factory-operating-contract.md"),
