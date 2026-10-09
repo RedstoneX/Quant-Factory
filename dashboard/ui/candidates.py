@@ -8,7 +8,7 @@ import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, dcc, html, no_update
 
-from dashboard.overview_projection import (
+from dashboard.candidates_projection import (
     load_candidate_detail,
     load_candidates_page,
     load_candidates_summary,
@@ -16,6 +16,19 @@ from dashboard.overview_projection import (
 
 
 GLYPHS = {"dashboard": "▦", "file": "+", "flow": "⌁", "list": "☷", "chart": "⌁", "external": "↗", "bookmark": "◇", "columns": "▥", "search": "⌕"}
+
+HUMAN_LABELS = {
+    "needs_review": "Needs review",
+    "not_run": "Not run",
+    "oos": "Out of sample",
+    "walk_forward": "Walk-forward",
+    "monte_carlo": "Monte Carlo",
+}
+
+
+def _human_label(value: Any) -> str:
+    text = str(value or "not_run")
+    return HUMAN_LABELS.get(text, text.replace("_", " ").title())
 
 
 def _icon(name: str) -> html.Span:
@@ -27,15 +40,15 @@ def _rail(name: str, label: str, item_id: str, *, active: bool = False, disabled
 
 
 CANDIDATE_COLUMNS = [
-    {"field": "title", "headerName": "Candidate", "minWidth": 175, "flex": 1.55, "pinned": "left", "filter": "agTextColumnFilter"},
-    {"field": "symbol", "headerName": "Market", "minWidth": 64, "flex": .5, "pinned": "left", "filter": "agTextColumnFilter"},
-    {"field": "lifecycle", "headerName": "Lifecycle", "minWidth": 90, "flex": .7, "filter": "agTextColumnFilter", "valueFormatter": {"function": "params.value ? params.value.replace('_',' ').replace(/\\b\\w/g, c => c.toUpperCase()) : '—'"}},
-    {"field": "sharpe", "headerName": "OOS Sharpe", "type": "numericColumn", "minWidth": 80, "flex": .65, "filter": "agNumberColumnFilter", "sort": "desc", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
-    {"field": "max_drawdown", "headerName": "Max DD", "type": "numericColumn", "minWidth": 70, "flex": .58, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
-    {"field": "retained", "headerName": "OOS retain", "type": "numericColumn", "minWidth": 75, "flex": .62, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
-    {"field": "net_return", "headerName": "Net return", "type": "numericColumn", "minWidth": 75, "flex": .62, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : (params.value > 0 ? '+' : '') + params.value.toFixed(1) + '%'"}},
-    {"field": "robustness", "headerName": "Robustness", "minWidth": 80, "flex": .65, "filter": "agTextColumnFilter"},
-    {"field": "paper", "headerName": "Paper", "minWidth": 90, "flex": .72, "filter": "agTextColumnFilter"},
+    {"field": "title", "headerName": "Candidate", "width": 190, "pinned": "left", "filter": "agTextColumnFilter"},
+    {"field": "symbol", "headerName": "Market", "width": 72, "pinned": "left", "filter": "agTextColumnFilter"},
+    {"field": "lifecycle", "headerName": "Lifecycle", "minWidth": 92, "flex": .85, "filter": "agTextColumnFilter", "valueFormatter": {"function": "params.value === 'needs_review' ? 'Needs review' : params.value ? params.value.charAt(0).toUpperCase() + params.value.slice(1) : '—'"}},
+    {"field": "sharpe", "headerName": "OOS Sharpe", "type": "numericColumn", "minWidth": 112, "flex": 1, "filter": "agNumberColumnFilter", "sort": "desc", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
+    {"field": "max_drawdown", "headerName": "Max DD", "type": "numericColumn", "minWidth": 76, "flex": .7, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
+    {"field": "retained", "headerName": "OOS retain", "type": "numericColumn", "minWidth": 82, "flex": .75, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
+    {"field": "net_return", "headerName": "Net return", "type": "numericColumn", "minWidth": 82, "flex": .75, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : (params.value > 0 ? '+' : '') + params.value.toFixed(1) + '%'"}},
+    {"field": "robustness", "headerName": "Robustness", "minWidth": 84, "flex": .78, "filter": "agTextColumnFilter"},
+    {"field": "paper", "headerName": "Paper", "minWidth": 86, "flex": .8, "filter": "agTextColumnFilter"},
 ]
 
 
@@ -90,6 +103,7 @@ def candidates_layout() -> dmc.MantineProvider:
         defaultColDef={"sortable": True, "resizable": True, "filter": True, "floatingFilter": False},
         dashGridOptions={
             "rowSelection": {"mode": "multiRow", "checkboxes": True, "headerCheckbox": False, "enableClickSelection": True},
+            "selectionColumnDef": {"pinned": "left", "width": 38, "minWidth": 38, "maxWidth": 38, "resizable": False, "sortable": False},
             "cacheBlockSize": 50, "maxBlocksInCache": 4, "rowBuffer": 10, "animateRows": False,
             "suppressCellFocus": False, "enableCellTextSelection": True, "suppressPropertyNamesCheck": True,
         },
@@ -136,7 +150,7 @@ def _outcome(record: dict[str, Any]) -> tuple[str, str]:
     if lifecycle == "survivor":
         return "Qualified survivor marker persisted", "Paper lane inactive; no broker or capital authority"
     if lifecycle == "advancing":
-        return f"{str(record.get('stage')).replace('_',' ').title()} · {record.get('run_status')}", "Continues automatically inside existing authority"
+        return f"{_human_label(record.get('stage'))} · {_human_label(record.get('run_status'))}", "Continues automatically inside existing authority"
     if lifecycle == "needs_review":
         return "Semantic exception recorded", "Resolve the exact recorded ambiguity"
     if lifecycle == "rejected":
@@ -160,7 +174,7 @@ def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
         ]
     if tab == "history":
         return [dmc.Title("Evidence progression", order=3), *[
-            html.Div([html.Span(className=f"candidate-dot{' failed' if item.get('status') == 'failed' else ''}"), html.Div([html.Strong(str(item.get("stage") or "not run").replace("_", " ").title()), html.P(str(item.get("run_id") or "No run identity"))]), html.Time(str(item.get("status") or "not run").title())], className="candidate-stage-row")
+            html.Div([html.Span(className=f"candidate-dot{' failed' if item.get('status') == 'failed' else ''}"), html.Div([html.Strong(_human_label(item.get("stage"))), html.P(str(item.get("run_id") or "No run identity"))]), html.Time(_human_label(item.get("status")))], className="candidate-stage-row")
             for item in progression
         ], *([] if progression else [dmc.Text("No persisted run history is linked to this Candidate.", className="candidate-empty")])]
     if tab == "lineage":
@@ -177,7 +191,7 @@ def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
         html.Div(record.get("error_summary") or record.get("description") or "No additional persisted explanation is available.", className=f"candidate-explanation {record.get('lifecycle') or ''}"),
         dmc.Group([dmc.Button("Results unavailable", className="primary", disabled=True), dmc.Button("View persisted sensitivity", id="candidate-open-evidence", className="ghost", variant="default")], gap=8, className="candidate-detail-actions"),
         dmc.Title("Evidence progression", order=3, className="candidate-progression-title"),
-        *[html.Div([html.Span(str(item.get("stage") or "not run").replace("_", " ").title()), html.Strong(str(item.get("status") or "not run").title()), html.Span("✓" if item.get("status") == "succeeded" else "")], className="candidate-evidence-item") for item in progression],
+        *[html.Div([html.Span(_human_label(item.get("stage"))), html.Strong(_human_label(item.get("status"))), html.Span("✓" if item.get("status") == "succeeded" else "")], className="candidate-evidence-item") for item in progression],
         *([] if progression else [dmc.Text("No persisted evidence stages are linked.", className="candidate-empty")]),
     ]
 
@@ -242,7 +256,7 @@ def register_candidate_callbacks(application: Any) -> None:
     def render_detail(record: dict[str, Any] | None, tab: str):
         if not record:
             return "No selection", "No Candidate selected", "Choose an exact Candidate record from the ranked universe.", _detail_body(None, tab)
-        state = str(record.get("lifecycle") or "received").replace("_", " ").title()
+        state = _human_label(record.get("lifecycle") or "received")
         rank = f"Rank {record.get('rank')}" if record.get("rank") else "Exact record"
         meta = f"{record.get('candidate_id')} · {record.get('symbol')} · {record.get('family')} · {rank}"
         return state, record.get("title") or "Untitled Candidate", meta, _detail_body(record, tab)

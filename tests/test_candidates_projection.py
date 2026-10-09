@@ -5,13 +5,12 @@ import json
 from pathlib import Path
 import sqlite3
 
-from dashboard.overview_projection import (
-    SURVIVOR_EVENT_MESSAGE,
-    SURVIVOR_EVENT_SOURCE,
+from dashboard.candidates_projection import (
     load_candidate_detail,
     load_candidates_page,
     load_candidates_summary,
 )
+from dashboard.overview_projection import SURVIVOR_EVENT_MESSAGE, SURVIVOR_EVENT_SOURCE
 
 
 def _candidate_database(path: Path) -> None:
