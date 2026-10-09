@@ -70,6 +70,7 @@ FORBIDDEN_PATHS = (
     Path("dashboard/components"),
     Path("dashboard/callbacks"),
     Path("tests/browser"),
+    Path("tests/test_milestone21e_instrument_decision.py"),
     Path("deployment/research_wsgi.py"),
     Path("CLAUDE.md"),
     Path(".claude"),

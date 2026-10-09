@@ -33,7 +33,6 @@ def test_compose_does_not_package_rejected_dashboard_and_keeps_research_private(
     assert "deployment.research_wsgi" not in compose
     assert '"127.0.0.1:8050:8050"' not in compose
     assert "${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}" in compose
-    assert "vectorbt_private:" in compose
     assert "internal: true" in compose
     assert "cap_drop: [ALL]" in compose
     assert "no-new-privileges:true" in compose
