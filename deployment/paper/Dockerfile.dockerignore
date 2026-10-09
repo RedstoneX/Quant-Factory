@@ -1,8 +1,0 @@
-**
-!execution/
-!execution/*.py
-!deployment/
-!deployment/paper/
-!deployment/paper/requirements.txt
-!deployment/paper/Dockerfile
-!deployment/paper/Dockerfile.dockerignore

@@ -68,7 +68,7 @@ The repository already contains:
 - durable run claims, persistence, artifacts, lineage, and review records;
 - a generic durable candidate runtime connected to the persisted filter-chain coordinator;
 - reusable read models for persisted Results evidence and exact run selection;
-- broker-neutral execution contracts and conservative Alpaca paper preparation.
+- an immutable handoff contract to a separately operated paper-trading system.
 
 Implementation is not evidence of profitability. Current work and exact
 limitations are recorded only in

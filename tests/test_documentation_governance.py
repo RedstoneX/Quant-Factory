@@ -86,5 +86,21 @@ class DocumentationGovernanceTests(unittest.TestCase):
             any("competing dashboard visual asset" in error for error in check_repository(self.root))
         )
 
+    def test_unauthorized_execution_source_is_rejected(self) -> None:
+        path = self.root / "execution/extra.py"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# unauthorized execution source\n", encoding="utf-8")
+        self.assertTrue(
+            any("unauthorized execution source path" in error for error in check_repository(self.root))
+        )
+
+    def test_unauthorized_deployment_source_is_rejected(self) -> None:
+        path = self.root / "deployment/extra/service.py"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# unauthorized deployment source\n", encoding="utf-8")
+        self.assertTrue(
+            any("unauthorized deployment source path" in error for error in check_repository(self.root))
+        )
+
 if __name__ == "__main__":
     unittest.main()

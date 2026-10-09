@@ -1,112 +1,48 @@
-# Quant Factory Paper operation contract
+# External paper-system handoff contract
 
-**Status: FUTURE BUILD / NOT ACTIVATED.** Current phase and authority remain in
-[`MILESTONES.md`](MILESTONES.md). Decision 341 authorizes only the dormant
-handoff seam and inactive Dashboard destination described here.
+**Status: future integration; not activated.** Current phase and authority are
+defined only in `docs/MILESTONES.md` and `docs/DECISIONS.md`.
 
-## Product relationship
+Quant Factory ends at an immutable handoff package and an external destination
+link. It does not run an Alpaca worker, store paper credentials, maintain a
+paper-order journal, reconcile broker state, display paper P&L, or provide
+paper-order controls.
 
-Quant Factory Research finds and validates an edge. Quant Factory Paper then
-operates a qualified strategy against Alpaca Paper and measures forward
-behavior. They are two isolated operating domains of the same product, not one
-privileged process and not an environment toggle.
+The paper-trading system is a separate project and operating domain. It may
+reuse suitable QAMC implementation patterns or code after its own review, but
+its runtime, database, credentials, deployment, monitoring, dashboard, and
+availability are never Quant Factory dependencies.
 
-QAMC remains a separate project. A later implementation may inspect and adapt
-its proven Alpaca connectivity, charts, order ledger, reconciliation, or
-operational patterns after a bounded reuse review. Quant Factory must own the
-adapted code and its tests. It must not depend on a running QAMC service, read
-or write QAMC databases, share credentials or deployment identity, or report
-QAMC observations as Quant Factory evidence.
+## Quant Factory responsibility
 
-## Narrow data flow
+After a paper lane is separately authorized, Quant Factory may create a
+`qf.paper-handoff.v1` manifest using `execution/paper_handoff.py`. The package
+contains only:
 
-```text
-qualified survivor + execution-vehicle decision
-  -> deterministic eligibility decision under an activated paper-lane policy
-  -> immutable qf.paper-handoff.v1 manifest
-  -> isolated paper admission checks
-  -> Alpaca Paper worker, journal and reconciliation
-  -> read-only paper status projection
-  -> Quant Factory Paper dashboard
-```
-
-Research never emits orders and never receives paper credentials. Paper never
-rewrites research evidence. A read-only status projection may return package,
-deployment, health, and forward-evidence identities; it may not provide an
-order channel back through the Research dashboard.
-
-## Handoff package
-
-The implemented seam in `execution/paper_handoff.py` carries only:
-
-- handoff, Candidate, strategy/version and source-run identity;
-- evidence-bundle and executable-strategy-package references plus SHA-256
-  digests;
-- execution-vehicle and instrument identity;
-- deterministic eligibility decision and passed-gate identities;
-- activated paper-lane policy and paper-risk-policy identity;
+- handoff, Candidate, strategy/version, and source-run identities;
+- evidence-bundle and executable-package references plus SHA-256 digests;
+- execution-vehicle and instrument identities;
+- the deterministic eligibility decision and passed-gate identities;
+- paper-lane and paper-risk-policy identities;
 - source revision and UTC creation time.
 
-The package carries no code bytes, account identifier, credential, endpoint,
-broker session, order, position or P&L. Package creation is not admission,
-deployment or trading authority.
+The package contains no code bytes, account identifier, credential, endpoint,
+broker session, order, position, or P&L. Creating it is not admission,
+deployment, or trading authority. The Dashboard may show package/handoff status
+and one external link to the paper system—nothing more.
 
-## Future admission and operation
+## External paper-system responsibility
 
-After Terry explicitly activates a bounded paper lane, the paper admission
-service must independently and fail-closed verify:
+The separate paper project owns Alpaca connectivity, credentials, admission,
+signal execution, risk controls, idempotency, order/fill journals,
+reconciliation, recovery, monitoring, P&L, and its operator dashboard. It must
+independently verify the handoff schema, identities, checksums, lineage,
+eligibility, policy authority, executable compatibility, market support,
+capacity, duplicate deployment, and risk limits before accepting a package.
 
-1. schema, identity, checksums, lineage and immutable artifact availability;
-2. current lane-policy identity and non-revoked authority;
-3. every predeclared evidence/eligibility gate and the execution-vehicle
-   decision;
-4. current Alpaca support for the requested asset and order semantics;
-5. executable package compatibility, data freshness and market schedule;
-6. capacity, duplicate deployment, exposure and paper-risk limits;
-7. isolated paper account, endpoint, credential grant, journal and deployment
-   binding; and
-8. recovery, reconciliation, pause and kill-switch readiness.
+No OpenRouter or other LLM holds order authority. AI may analyze evidence and
+raise alerts outside the deterministic order path.
 
-An ordinary survivor that passes all gates may be admitted automatically. A
-missing or ambiguous value, unsupported vehicle, duplicate, exhausted capacity,
-policy expansion, or integrity mismatch stops admission. Paper-to-live remains
-an explicit owner decision and a different security domain.
-
-The operating loop is deterministic code: signal evaluation, risk checks,
-idempotent order intent, Alpaca adapter, journal, broker observation,
-reconciliation and state transition. No OpenRouter or other LLM is required or
-permitted to hold execution authority. AI may analyze evidence and alert the
-owner outside the order path.
-
-## Dashboard boundary
-
-The Research Dashboard has one contextual **Paper trading** link and no paper
-P&L. The Paper dashboard owns:
-
-- active/paused/retired paper deployments and their package identity;
-- broker-observed realized and unrealized P&L, equity and drawdown;
-- positions, orders, fills, rejections and missed/expired signals;
-- model-to-broker reconciliation and execution deviation;
-- data, worker, broker and credential-health observations without secret
-  values; and
-- risk state, automatic pauses, recovery state and audit timeline.
-
-Historical backtest returns and paper results remain visibly distinct. Before
-activation the Paper destination states **Not active**, reads no broker state,
-and exposes no controls that can submit an order.
-
-## Future proof gates
-
-Later implementation is not complete until each gate is proved separately:
-
-- package/admission contract tests and incompatible-package rejection;
-- isolated Alpaca Paper account, endpoint and credential identity;
-- idempotency, duplicate prevention and ambiguous-submission recovery;
-- broker snapshots, order/fill lifecycle and model-to-broker reconciliation;
-- stale data, mismatch, repeated rejection, risk breach and kill-switch faults;
-- paper Dashboard correctness and working read-only controls;
-- visual conformance and performance with representative deployments; and
-- Terry's unaided comprehension and separate activation approval.
-
-None of those later proofs is supplied by the dormant seam, existing fixtures,
-QAMC behavior, a page render, or an agent statement that the system looks good.
+Paper-to-live remains a separate owner decision and security domain. No
+Quant Factory implementation, fixture, page render, or agent statement proves
+paper readiness or authorizes an order.

@@ -47,6 +47,21 @@ ALLOWED_DASHBOARD_ROOT_FILES = {
     "run_detail_adapter.py",
 }
 
+ALLOWED_EXECUTION_ROOT_FILES = {
+    "__init__.py",
+    "paper_handoff.py",
+}
+
+ALLOWED_DEPLOYMENT_ROOT_FILES = {
+    "agent_gateway_server.py",
+    "entrypoint.sh",
+}
+
+ALLOWED_DEPLOYMENT_ROOT_DIRECTORIES = {
+    "agent-gateway",
+    "config",
+}
+
 def _marked(text: str, start: str, end: str, label: str) -> tuple[str | None, list[str]]:
     if text.count(start) != 1 or text.count(end) != 1:
         return None, [f"{label} markers must each occur exactly once"]
@@ -193,6 +208,30 @@ def _validate_frontend_authority(root: Path) -> list[str]:
     return errors
 
 
+def _validate_runtime_authority(root: Path) -> list[str]:
+    errors: list[str] = []
+    execution = root / "execution"
+    if execution.is_dir():
+        for path in execution.iterdir():
+            if path.name == "__pycache__":
+                continue
+            if path.is_file() and path.name in ALLOWED_EXECUTION_ROOT_FILES:
+                continue
+            errors.append(f"unauthorized execution source path exists: {path.relative_to(root)}")
+
+    deployment = root / "deployment"
+    if deployment.is_dir():
+        for path in deployment.iterdir():
+            if path.name == "__pycache__":
+                continue
+            if path.is_file() and path.name in ALLOWED_DEPLOYMENT_ROOT_FILES:
+                continue
+            if path.is_dir() and path.name in ALLOWED_DEPLOYMENT_ROOT_DIRECTORIES:
+                continue
+            errors.append(f"unauthorized deployment source path exists: {path.relative_to(root)}")
+    return errors
+
+
 def check_repository(root: Path, base_ref: str | None = None, today: dt.date | None = None) -> list[str]:
     del base_ref  # Historical documents are in Git; active governance is not append-only.
     today = today or dt.datetime.now(dt.timezone.utc).date()
@@ -206,6 +245,7 @@ def check_repository(root: Path, base_ref: str | None = None, today: dt.date | N
     errors.extend(_validate_queue(milestones))
     errors.extend(_validate_decisions(milestones, today))
     errors.extend(_validate_frontend_authority(root))
+    errors.extend(_validate_runtime_authority(root))
     return errors
 
 
