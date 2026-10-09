@@ -5,7 +5,11 @@ import json
 from pathlib import Path
 import sqlite3
 
-from dashboard.overview_projection import load_dashboard_snapshot
+from dashboard.overview_projection import (
+    SURVIVOR_EVENT_MESSAGE,
+    SURVIVOR_EVENT_SOURCE,
+    load_dashboard_snapshot,
+)
 
 
 def _legacy_runtime_database(path: Path) -> None:
@@ -76,3 +80,36 @@ def test_legacy_persisted_run_remains_visible_without_candidate_draft(tmp_path: 
     assert snapshot["latest_finding"]["run_id"] == "run-ok"
     assert snapshot["latest_finding"]["outcome"] == "screened_out"
     assert hashlib.sha256(database.read_bytes()).hexdigest() == before
+
+
+def test_survivor_uses_exact_oos_metrics_and_remains_in_universe(tmp_path: Path) -> None:
+    database = tmp_path / "state.sqlite3"
+    _legacy_runtime_database(database)
+    connection = sqlite3.connect(database)
+    packet = json.dumps({"candidate": {"title": "OOS survivor", "family": "breakout"}})
+    connection.execute(
+        "INSERT INTO idea_drafts VALUES (?,?,?,?,?,?)",
+        ("candidate-1", "OOS survivor", "", packet, "cfg", "2026-09-02T00:00:00Z"),
+    )
+    connection.execute(
+        "INSERT INTO experiment_runs VALUES (?,?,?,?,?,?,?,?,?,?)",
+        ("run-oos", "cfg", "legacy", "1", "oos", "succeeded", "2026-09-02T00:00:00Z", "2026-09-02T00:10:00Z", None, "2026-09-02T00:00:00Z"),
+    )
+    connection.execute(
+        "INSERT INTO parameter_results VALUES (?,?,?,?,?)",
+        ("run-oos", "best", json.dumps({"sharpe_ratio": 1.7, "max_drawdown": -0.06}), 1, "passed"),
+    )
+    connection.execute(
+        "INSERT INTO run_operator_events VALUES (?,?,?)",
+        ("run-oos", SURVIVOR_EVENT_SOURCE, SURVIVOR_EVENT_MESSAGE),
+    )
+    connection.commit()
+    connection.close()
+
+    snapshot = load_dashboard_snapshot(database=database, window="all", market="all")
+
+    assert snapshot["counts"]["survivors"] == 1
+    assert snapshot["chart"][0]["candidate_id"] == "candidate-1"
+    assert snapshot["chart"][0]["sharpe"] == 1.7
+    assert snapshot["survivors"][0]["run_id"] == "run-oos"
+    assert snapshot["survivors"][0]["sharpe"] == 1.7

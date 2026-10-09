@@ -145,6 +145,7 @@ def _factory_content(snapshot: dict[str, Any]) -> list[Any]:
     operation = snapshot.get("operation", {})
     active = int(operation.get("active") or 0)
     terminal = int(operation.get("terminal") or 0)
+    failed = int(snapshot.get("counts", {}).get("failed") or 0)
     median = operation.get("median_minutes")
     secondary = f"{operation.get('bottleneck', 'Unavailable')} bottleneck"
     secondary += f" · recorded median {median:.0f}m" if median is not None else " · duration unavailable"
@@ -154,7 +155,14 @@ def _factory_content(snapshot: dict[str, Any]) -> list[Any]:
         html.Div([html.Span(label) for _, label, _ in stage_defs], className="flow-labels"),
         dmc.Group([
             dmc.ActionIcon(icon("loader"), className="operation-icon", variant="light", disabled=True),
-            html.Div([html.Strong(f"{active} active Candidate runs"), html.Span(secondary if active else f"{terminal} terminal factory attempts retained")], className="operation-copy"),
+            html.Div([
+                html.Strong(f"{active} active Candidate runs"),
+                html.Span(
+                    secondary
+                    if active
+                    else f"{failed} failed · {terminal} terminal attempts · data state available · throughput unavailable"
+                ),
+            ], className="operation-copy"),
             dmc.Group([html.Span(className=f"health-dot{' muted' if active == 0 else ''}"), dmc.Text("Idle" if active == 0 else "Active")], gap=6, className="operation-pulse"),
         ], gap=10, className="operation"),
     ]
@@ -212,7 +220,7 @@ def dashboard_layout() -> dmc.MantineProvider:
     finding = dmc.Paper(_finding_content(None, {"available": False, "message": "Loading read-only research state."}), id="finding-panel", className="panel finding", radius="md", withBorder=True)
     factory = dmc.Paper(_factory_content({"stages": {}, "operation": {}, "population_count": 0}), id="factory-panel", className="panel flow", radius="md", withBorder=True)
     survivors = dmc.Paper([
-        dmc.Group([dmc.Title("Top survivors", order=2), dmc.Text("bounded verified cohort", id="survivor-note"), html.Div(className="head-spacer"), dmc.Button("Columns", id="toggle-columns", leftSection=icon("settings"), className="ghost", variant="default")], gap=8, className="grid-head"),
+        dmc.Group([dmc.Title("Top survivors", order=2), dmc.Text("bounded cohort ranked by OOS Sharpe", id="survivor-note"), html.Div(className="head-spacer"), dmc.Button("Columns", id="toggle-columns", leftSection=icon("settings"), className="ghost", variant="default")], gap=8, className="grid-head"),
         dag.AgGrid(id="survivor-grid", columnDefs=SURVIVOR_COLUMNS, rowData=[], defaultColDef={"sortable": True, "resizable": True, "filter": True}, dashGridOptions={"rowSelection": {"mode": "singleRow", "enableClickSelection": True}, "animateRows": False, "suppressCellFocus": False}, getRowId="params.data.candidate_id", className="ag-theme-quartz-dark qf-grid"),
     ], className="panel survivors", radius="md", withBorder=True)
 
@@ -260,16 +268,14 @@ def register_callbacks(application: Dash) -> None:
     def refresh_snapshot(window: str, market: str, _refresh: int | None, _dashboard: int | None) -> dict[str, Any]:
         return load_dashboard_snapshot(window=window or "90d", market=market or "all")
 
-    @application.callback(Output("selected-candidate", "data"), Input("candidate-chart", "clickData"), Input("survivor-grid", "selectedRows"), Input("drawer-grid", "selectedRows"), Input("snapshot-store", "data"), State("selected-candidate", "data"))
-    def sync_selection(click_data: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, drawer_rows: list[dict[str, Any]] | None, snapshot: dict[str, Any] | None, current: dict[str, Any] | None) -> dict[str, Any] | None:
+    @application.callback(Output("selected-candidate", "data"), Input("candidate-chart", "clickData"), Input("survivor-grid", "selectedRows"), Input("snapshot-store", "data"), State("selected-candidate", "data"))
+    def sync_selection(click_data: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, snapshot: dict[str, Any] | None, current: dict[str, Any] | None) -> dict[str, Any] | None:
         snapshot = snapshot or {}
         if ctx.triggered_id == "candidate-chart" and click_data:
             candidate_id = str(click_data["points"][0]["customdata"][0])
             return next((row for row in snapshot.get("chart", []) if row.get("candidate_id") == candidate_id), None)
         if ctx.triggered_id == "survivor-grid" and selected_rows:
             return selected_rows[0]
-        if ctx.triggered_id == "drawer-grid" and drawer_rows:
-            return drawer_rows[0]
         rows = [*snapshot.get("survivors", []), *snapshot.get("chart", [])]
         if snapshot.get("latest_finding"):
             rows.append(snapshot["latest_finding"])
@@ -302,7 +308,7 @@ def register_callbacks(application: Dash) -> None:
             _candidate_figure(snapshot.get("chart", [])), snapshot.get("survivors", []), _finding_content(item, snapshot), _factory_content(snapshot), health, health_class,
             f"{population:,} complete filtered Candidates · {chart_count:,} plotted exact OOS rows",
             f"Bounded to {snapshot.get('chart_limit', 200):,} points · click a point to inspect exact identity",
-            f"showing {survivor_count:,} of {int(counts.get('survivors', 0)):,} verified survivors",
+            f"showing {survivor_count:,} of {int(counts.get('survivors', 0)):,} verified survivors ranked by OOS Sharpe",
         )
 
     @application.callback(Output("survivor-grid", "columnDefs"), Input("toggle-columns", "n_clicks"), prevent_initial_call=True)

@@ -91,21 +91,35 @@ WITH candidate_base AS (
         PARTITION BY p.run_id ORDER BY p.ranking_position, p.row_id
     ) AS result_rank
     FROM parameter_results p
+), latest_oos_runs AS (
+    SELECT r.*, ROW_NUMBER() OVER (
+        PARTITION BY r.configuration_id ORDER BY r.created_at DESC, r.run_id DESC
+    ) AS oos_recency
+    FROM experiment_runs r
+    WHERE r.stage='oos' AND r.status='succeeded'
+), best_oos_results AS (
+    SELECT p.*, ROW_NUMBER() OVER (
+        PARTITION BY p.run_id ORDER BY p.ranking_position, p.row_id
+    ) AS oos_result_rank
+    FROM parameter_results p
 ), candidates AS (
-    SELECT cb.*, COALESCE(sr.run_id, lr.run_id) AS run_id,
-           COALESCE(sr.stage, lr.stage) AS stage,
-           COALESCE(sr.status, lr.status) AS run_status,
-           COALESCE(sr.created_at, lr.created_at) AS run_created_at,
-           COALESCE(sr.started_at, lr.started_at) AS started_at,
-           COALESCE(sr.completed_at, lr.completed_at) AS completed_at,
-           COALESCE(sr.error_summary, lr.error_summary) AS error_summary,
+    SELECT cb.*, lr.run_id AS run_id,
+           lr.stage AS stage,
+           lr.status AS run_status,
+           lr.created_at AS run_created_at,
+           lr.started_at AS started_at,
+           lr.completed_at AS completed_at,
+           lr.error_summary AS error_summary,
            br.metrics_json, br.screening_status,
+           obr.metrics_json AS oos_metrics_json,
            CASE WHEN sr.run_id IS NULL THEN 0 ELSE 1 END AS survivor,
-           COALESCE(sr.created_at, lr.created_at, cb.updated_at) AS observed_at
+           COALESCE(lr.created_at, cb.updated_at) AS observed_at
     FROM candidate_base cb
     LEFT JOIN latest_runs lr ON lr.configuration_id = cb.configuration_id AND lr.recency = 1
     LEFT JOIN survivor_runs sr ON sr.configuration_id = cb.configuration_id AND sr.survivor_rank = 1
-    LEFT JOIN best_results br ON br.run_id = COALESCE(sr.run_id, lr.run_id) AND br.result_rank = 1
+    LEFT JOIN best_results br ON br.run_id = lr.run_id AND br.result_rank = 1
+    LEFT JOIN latest_oos_runs oor ON oor.configuration_id=cb.configuration_id AND oor.oos_recency=1
+    LEFT JOIN best_oos_results obr ON obr.run_id=oor.run_id AND obr.oos_result_rank=1
 )
 """
 
@@ -141,7 +155,12 @@ def _row_view(row: sqlite3.Row, *, oos_metric: bool) -> dict[str, Any]:
     except (json.JSONDecodeError, AttributeError):
         candidate = {}
     try:
-        metrics = json.loads(str(row["metrics_json"] or "{}"))
+        metric_field = (
+            "oos_metrics_json"
+            if oos_metric and "oos_metrics_json" in row.keys() and row["oos_metrics_json"]
+            else "metrics_json"
+        )
+        metrics = json.loads(str(row[metric_field] or "{}"))
     except json.JSONDecodeError:
         metrics = {}
     drawdown = _finite_number(metrics.get("max_drawdown"))
@@ -281,13 +300,10 @@ def load_dashboard_snapshot(*, window: str = "90d", market: str = "all", databas
 
         def stage_count(stages: tuple[str, ...], *, passed: bool = False) -> int:
             placeholders = ",".join("?" for _ in stages)
-            join = "JOIN parameter_results p ON p.run_id=r.run_id" if passed else ""
-            condition = "p.screening_status='passed'" if passed else f"r.status='succeeded' AND r.stage IN ({placeholders})"
+            condition = "c.screening_status='passed'" if passed else f"c.run_status='succeeded' AND c.stage IN ({placeholders})"
             stage_params: list[Any] = [] if passed else list(stages)
             return _scalar(connection, BASE_CTE + f"""
-                SELECT COUNT(DISTINCT cb.candidate_id)
-                FROM candidate_base cb JOIN experiment_runs r ON r.configuration_id=cb.configuration_id
-                {join} JOIN candidates c ON c.candidate_id=cb.candidate_id
+                SELECT COUNT(*) FROM candidates c
                 WHERE {condition} AND {historical_filter}
             """, _base_params() + stage_params + historical_params)
 
@@ -301,13 +317,15 @@ def load_dashboard_snapshot(*, window: str = "90d", market: str = "all", databas
 
         chart_sql = BASE_CTE + f"""
             SELECT c.* FROM candidates c
-            WHERE c.stage='oos' AND c.metrics_json IS NOT NULL AND {historical_filter}
-            ORDER BY c.observed_at DESC, c.candidate_id LIMIT ?
+            WHERE c.oos_metrics_json IS NOT NULL AND {historical_filter}
+            ORDER BY CAST(json_extract(c.oos_metrics_json, '$.sharpe_ratio') AS REAL) DESC,
+                     c.observed_at DESC, c.candidate_id LIMIT ?
         """
         chart_rows = list(connection.execute(chart_sql, _base_params() + historical_params + [CHART_LIMIT]))
         survivor_sql = BASE_CTE + f"""
             SELECT c.* FROM candidates c WHERE c.survivor=1 AND {historical_filter}
-            ORDER BY c.observed_at DESC, c.candidate_id LIMIT ?
+            ORDER BY CAST(json_extract(c.oos_metrics_json, '$.sharpe_ratio') AS REAL) DESC,
+                     c.observed_at DESC, c.candidate_id LIMIT ?
         """
         survivor_rows = list(connection.execute(survivor_sql, _base_params() + historical_params + [SURVIVOR_LIMIT]))
         latest_row = connection.execute(
@@ -326,7 +344,7 @@ def load_dashboard_snapshot(*, window: str = "90d", market: str = "all", databas
             "counts": {"running": running, "queued": queued, "survivors": survivors_count, "advancing": advancing, "needs": None, "failed": failed},
             "stages": stages, "operation": {"active": running + queued, "terminal": terminal, "bottleneck": str(bottleneck).replace("_", " ").title(), "median_minutes": None},
             "chart": [_row_view(row, oos_metric=True) for row in chart_rows],
-            "survivors": [_row_view(row, oos_metric=False) for row in survivor_rows],
+            "survivors": [_row_view(row, oos_metric=True) for row in survivor_rows],
             "latest_finding": _row_view(latest_row, oos_metric=True) if latest_row else None,
             "chart_limit": CHART_LIMIT, "survivor_limit": SURVIVOR_LIMIT, "population_count": population,
         }
@@ -353,14 +371,11 @@ def load_drilldown_page(
     connection, _error = _validated_connection(database_path)
     if connection is None or kind in {"needs", "destination"}:
         return {"rowData": [], "rowCount": 0}
-    run_kinds = {"running", "queued", "advancing", "costs", "oos", "walk_forward", "robustness"}
+    run_kinds = {"running", "queued"}
     try:
         if kind in run_kinds:
             status_stage = {
-                "running": "r.run_status='running'", "queued": "r.run_status='created'", "advancing": "r.run_status IN ('created','running')",
-                "costs": "r.screening_status='passed'", "oos": "r.run_status='succeeded' AND r.stage IN ('oos','walk_forward','robustness','monte_carlo')",
-                "walk_forward": "r.run_status='succeeded' AND r.stage IN ('walk_forward','robustness','monte_carlo')",
-                "robustness": "r.run_status='succeeded' AND r.stage IN ('robustness','monte_carlo')",
+                "running": "r.run_status='running'", "queued": "r.run_status='created'",
             }[kind]
             source = f"""
                 SELECT DISTINCT r.candidate_id, r.title, r.symbol, r.run_id,
@@ -368,10 +383,19 @@ def load_drilldown_page(
                 FROM run_records r
                 WHERE {status_stage}
             """
-            include_window = kind not in {"running", "queued", "advancing"}
+            include_window = False
         else:
-            condition = "c.survivor=1" if kind in {"survivors", "ranked"} else "1=1"
-            include_window = True
+            condition = {
+                "advancing": "c.run_status IN ('created','running')",
+                "costs": "c.screening_status='passed'",
+                "oos": "c.run_status='succeeded' AND c.stage IN ('oos','walk_forward','robustness','monte_carlo')",
+                "walk_forward": "c.run_status='succeeded' AND c.stage IN ('walk_forward','robustness','monte_carlo')",
+                "robustness": "c.run_status='succeeded' AND c.stage IN ('robustness','monte_carlo')",
+                "survivors": "c.survivor=1",
+                "ranked": "c.survivor=1",
+                "submitted": "1=1",
+            }.get(kind, "1=0")
+            include_window = kind != "advancing"
         if kind in run_kinds:
             filter_clause, filter_params = _run_filter_clause(
                 window=window, market=market, alias="r", include_window=include_window
