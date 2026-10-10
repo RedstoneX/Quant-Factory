@@ -19,6 +19,7 @@ from dashboard.overview_projection import load_dashboard_snapshot, load_drilldow
 from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
 from dashboard.ui.factory import factory_layout, register_factory_callbacks
 from dashboard.ui.results import register_results_callbacks, results_layout
+from dashboard.ui.submit import register_submit_callbacks, submit_layout
 
 
 GLYPHS = {
@@ -194,7 +195,7 @@ def dashboard_layout() -> dmc.MantineProvider:
     nav = dmc.Stack([
         dmc.Paper("Q", className="logo", radius="md"),
         rail_item("dashboard", "Dashboard and refresh", "nav-dashboard", active=True),
-        rail_item("file", "Submit strategies unavailable", "nav-submit", disabled=True), rail_item("flow", "Factory runs", "nav-factory"),
+        rail_item("file", "Submit strategies", "nav-submit"), rail_item("flow", "Factory runs", "nav-factory"),
         rail_item("list", "Candidates", "nav-candidates"), rail_item("chart", "Results", "nav-results"),
         html.Div(className="rail-spacer"), rail_item("external", "Paper Trading destination not configured", "nav-paper", disabled=True),
         dmc.Avatar("TO", className="avatar", radius="xl"),
@@ -377,6 +378,7 @@ def create_app() -> Dash:
         if pathname == "/candidates": return candidates_layout()
         if pathname == "/results": return results_layout(search)
         if pathname == "/factory": return factory_layout()
+        if pathname == "/submit": return submit_layout()
         return dashboard_layout()
 
     @application.callback(
@@ -387,25 +389,29 @@ def create_app() -> Dash:
         Input("nav-factory", "n_clicks", allow_optional=True), Input("candidates-nav-factory", "n_clicks", allow_optional=True), Input("results-nav-factory", "n_clicks", allow_optional=True),
         Input("factory-nav-dashboard", "n_clicks", allow_optional=True), Input("factory-nav-candidates", "n_clicks", allow_optional=True), Input("factory-nav-results", "n_clicks", allow_optional=True),
         Input("factory-open-candidates", "n_clicks", allow_optional=True), Input("factory-open-results", "n_clicks", allow_optional=True),
+        Input("nav-submit", "n_clicks", allow_optional=True), Input("candidates-nav-submit", "n_clicks", allow_optional=True), Input("results-nav-submit", "n_clicks", allow_optional=True), Input("factory-nav-submit", "n_clicks", allow_optional=True),
+        Input("submit-nav-dashboard", "n_clicks", allow_optional=True), Input("submit-nav-factory", "n_clicks", allow_optional=True), Input("submit-nav-candidates", "n_clicks", allow_optional=True), Input("submit-nav-results", "n_clicks", allow_optional=True),
         State("selected-candidate", "data", allow_optional=True), State("candidate-detail-record", "data", allow_optional=True), State("factory-selected", "data", allow_optional=True), prevent_initial_call=True,
     )
     def navigate(*values: Any):
         trigger = ctx.triggered_id
         if not ctx.triggered or not ctx.triggered[0].get("value"):
             return no_update, no_update
-        if trigger in {"nav-candidates", "results-nav-candidates", "results-back-candidates", "factory-nav-candidates", "factory-open-candidates"}: return "/candidates", ""
+        if trigger in {"nav-candidates", "results-nav-candidates", "results-back-candidates", "factory-nav-candidates", "factory-open-candidates", "submit-nav-candidates"}: return "/candidates", ""
         if trigger in {"open-results", "candidate-open-results", "factory-open-results"}:
             selected = values[-3] if trigger == "open-results" else values[-2] if trigger == "candidate-open-results" else values[-1]
             run_id = (selected or {}).get("run_id")
             return "/results", f"?run_id={run_id}" if run_id else ""
-        if trigger in {"nav-results", "candidates-nav-results", "factory-nav-results"}: return "/results", ""
-        if trigger in {"nav-factory", "candidates-nav-factory", "results-nav-factory"}: return "/factory", ""
+        if trigger in {"nav-results", "candidates-nav-results", "factory-nav-results", "submit-nav-results"}: return "/results", ""
+        if trigger in {"nav-factory", "candidates-nav-factory", "results-nav-factory", "submit-nav-factory"}: return "/factory", ""
+        if trigger in {"nav-submit", "candidates-nav-submit", "results-nav-submit", "factory-nav-submit"}: return "/submit", ""
         return "/", ""
 
     register_callbacks(application)
     register_candidate_callbacks(application)
     register_results_callbacks(application)
     register_factory_callbacks(application)
+    register_submit_callbacks(application)
     return application
 
 

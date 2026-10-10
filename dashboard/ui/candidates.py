@@ -59,7 +59,7 @@ def candidates_layout() -> dmc.MantineProvider:
     nav = dmc.Stack([
         dmc.Paper("Q", className="logo", radius="md"),
         _rail("dashboard", "Dashboard", "candidates-nav-dashboard"),
-        _rail("file", "Submit strategies unavailable", "candidates-nav-submit", disabled=True),
+        _rail("file", "Submit strategies", "candidates-nav-submit"),
         _rail("flow", "Factory runs", "candidates-nav-factory"),
         _rail("list", "Candidates", "candidates-nav-candidates", active=True),
         _rail("chart", "Results", "candidates-nav-results"),
