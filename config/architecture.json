@@ -37,7 +37,7 @@
       "allowed_dependencies": ["backtesting", "dashboard_models", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "research_entrypoints", "research_intake", "strategies"]
     },
     "dashboard_models": {
-      "patterns": ["dashboard.adapter", "dashboard.candidate_workflow", "dashboard.candidate_launch_context", "dashboard.candidates_projection", "dashboard.mes_candidate_setup", "dashboard.compare_query", "dashboard.formatting", "dashboard.health", "dashboard.overview_projection", "dashboard.results_model", "dashboard.results_projection", "dashboard.run_adapter", "dashboard.run_detail_adapter", "dashboard.evidence_chart_window"],
+      "patterns": ["dashboard.adapter", "dashboard.candidate_workflow", "dashboard.candidate_launch_context", "dashboard.candidates_projection", "dashboard.factory_projection", "dashboard.mes_candidate_setup", "dashboard.compare_query", "dashboard.formatting", "dashboard.health", "dashboard.overview_projection", "dashboard.results_model", "dashboard.results_projection", "dashboard.run_adapter", "dashboard.run_detail_adapter", "dashboard.evidence_chart_window"],
       "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "research_intake", "strategies"]
     },
     "deployment": {

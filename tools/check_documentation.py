@@ -74,6 +74,7 @@ ALLOWED_DASHBOARD_ROOT_FILES = {
     "candidates_projection.py",
     "compare_query.py",
     "evidence_chart_window.py",
+    "factory_projection.py",
     "formatting.py",
     "health.py",
     "mes_candidate_setup.py",

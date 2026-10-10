@@ -60,7 +60,7 @@ def candidates_layout() -> dmc.MantineProvider:
         dmc.Paper("Q", className="logo", radius="md"),
         _rail("dashboard", "Dashboard", "candidates-nav-dashboard"),
         _rail("file", "Submit strategies unavailable", "candidates-nav-submit", disabled=True),
-        _rail("flow", "Factory runs unavailable", "candidates-nav-factory", disabled=True),
+        _rail("flow", "Factory runs", "candidates-nav-factory"),
         _rail("list", "Candidates", "candidates-nav-candidates", active=True),
         _rail("chart", "Results", "candidates-nav-results"),
         html.Div(className="rail-spacer"), _rail("external", "Paper Trading unavailable", "candidates-nav-paper", disabled=True),

@@ -100,7 +100,7 @@ def results_layout(search: str | None = None) -> dmc.MantineProvider:
     choices = [{"value": row["run_id"], "label": f"{row['title']} · {row['stage']} · {row['status']}"} for row in runs]
     nav = dmc.Stack([
         dmc.Paper("Q", className="logo", radius="md"), _rail("dashboard", "Dashboard", "results-nav-dashboard"),
-        _rail("file", "Submit strategies unavailable", "results-nav-submit", disabled=True), _rail("flow", "Factory runs unavailable", "results-nav-factory", disabled=True),
+        _rail("file", "Submit strategies unavailable", "results-nav-submit", disabled=True), _rail("flow", "Factory runs", "results-nav-factory"),
         _rail("list", "Candidates", "results-nav-candidates"), _rail("chart", "Results", "results-nav-results", active=True),
         html.Div(className="rail-spacer"), _rail("external", "Paper Trading unavailable", "results-nav-paper", disabled=True), dmc.Avatar("TO", className="avatar", radius="xl"),
     ], gap=7, align="center", className="rail")
