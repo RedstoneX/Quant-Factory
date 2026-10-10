@@ -102,7 +102,7 @@ def results_layout(search: str | None = None) -> dmc.MantineProvider:
         dmc.Paper("Q", className="logo", radius="md"), _rail("dashboard", "Dashboard", "results-nav-dashboard"),
         _rail("file", "Submit strategies", "results-nav-submit"), _rail("flow", "Factory runs", "results-nav-factory"),
         _rail("list", "Candidates", "results-nav-candidates"), _rail("chart", "Results", "results-nav-results", active=True),
-        html.Div(className="rail-spacer"), _rail("external", "Paper Trading unavailable", "results-nav-paper", disabled=True), dmc.Avatar("TO", className="avatar", radius="xl"),
+        html.Div(className="rail-spacer"), _rail("external", "Paper Trading", "results-nav-paper"), dmc.Avatar("TO", className="avatar", radius="xl"),
     ], gap=7, align="center", className="rail")
     header = dmc.Group([
         html.Div([dmc.Title("Results", id="results-title", order=1), dmc.Text("Exact persisted run evidence", id="results-meta", className="eyebrow")]),

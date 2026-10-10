@@ -63,7 +63,7 @@ def candidates_layout() -> dmc.MantineProvider:
         _rail("flow", "Factory runs", "candidates-nav-factory"),
         _rail("list", "Candidates", "candidates-nav-candidates", active=True),
         _rail("chart", "Results", "candidates-nav-results"),
-        html.Div(className="rail-spacer"), _rail("external", "Paper Trading unavailable", "candidates-nav-paper", disabled=True),
+        html.Div(className="rail-spacer"), _rail("external", "Paper Trading", "candidates-nav-paper"),
         dmc.Avatar("TO", className="avatar", radius="xl"),
     ], gap=7, align="center", className="rail")
 
