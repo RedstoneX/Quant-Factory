@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 import sys
 from typing import Any
+from urllib.parse import quote
 
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
@@ -17,6 +18,7 @@ if not __package__:
 
 from dashboard.overview_projection import load_dashboard_snapshot, load_drilldown_page
 from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
+from dashboard.ui.compare import compare_layout, register_compare_callbacks
 from dashboard.ui.factory import factory_layout, register_factory_callbacks
 from dashboard.ui.results import register_results_callbacks, results_layout
 from dashboard.ui.submit import register_submit_callbacks, submit_layout
@@ -379,6 +381,7 @@ def create_app() -> Dash:
         if pathname == "/results": return results_layout(search)
         if pathname == "/factory": return factory_layout()
         if pathname == "/submit": return submit_layout()
+        if pathname == "/compare": return compare_layout(search)
         return dashboard_layout()
 
     @application.callback(
@@ -391,20 +394,26 @@ def create_app() -> Dash:
         Input("factory-open-candidates", "n_clicks", allow_optional=True), Input("factory-open-results", "n_clicks", allow_optional=True),
         Input("nav-submit", "n_clicks", allow_optional=True), Input("candidates-nav-submit", "n_clicks", allow_optional=True), Input("results-nav-submit", "n_clicks", allow_optional=True), Input("factory-nav-submit", "n_clicks", allow_optional=True),
         Input("submit-nav-dashboard", "n_clicks", allow_optional=True), Input("submit-nav-factory", "n_clicks", allow_optional=True), Input("submit-nav-candidates", "n_clicks", allow_optional=True), Input("submit-nav-results", "n_clicks", allow_optional=True),
-        State("selected-candidate", "data", allow_optional=True), State("candidate-detail-record", "data", allow_optional=True), State("factory-selected", "data", allow_optional=True), prevent_initial_call=True,
+        Input("compare-selected", "n_clicks", allow_optional=True), Input("compare-back", "n_clicks", allow_optional=True), Input("compare-clear", "n_clicks", allow_optional=True),
+        Input("compare-nav-dashboard", "n_clicks", allow_optional=True), Input("compare-nav-submit", "n_clicks", allow_optional=True), Input("compare-nav-factory", "n_clicks", allow_optional=True), Input("compare-nav-candidates", "n_clicks", allow_optional=True), Input("compare-nav-results", "n_clicks", allow_optional=True),
+        State("selected-candidate", "data", allow_optional=True), State("candidate-detail-record", "data", allow_optional=True), State("factory-selected", "data", allow_optional=True), State("candidate-compare-selection", "data", allow_optional=True), prevent_initial_call=True,
     )
     def navigate(*values: Any):
         trigger = ctx.triggered_id
         if not ctx.triggered or not ctx.triggered[0].get("value"):
             return no_update, no_update
-        if trigger in {"nav-candidates", "results-nav-candidates", "results-back-candidates", "factory-nav-candidates", "factory-open-candidates", "submit-nav-candidates"}: return "/candidates", ""
+        if trigger in {"nav-candidates", "results-nav-candidates", "results-back-candidates", "factory-nav-candidates", "factory-open-candidates", "submit-nav-candidates", "compare-back", "compare-nav-candidates"}: return "/candidates", ""
+        if trigger == "compare-clear": return "/candidates", "?clear_compare=1"
         if trigger in {"open-results", "candidate-open-results", "factory-open-results"}:
-            selected = values[-3] if trigger == "open-results" else values[-2] if trigger == "candidate-open-results" else values[-1]
+            selected = values[-4] if trigger == "open-results" else values[-3] if trigger == "candidate-open-results" else values[-2]
             run_id = (selected or {}).get("run_id")
             return "/results", f"?run_id={run_id}" if run_id else ""
-        if trigger in {"nav-results", "candidates-nav-results", "factory-nav-results", "submit-nav-results"}: return "/results", ""
-        if trigger in {"nav-factory", "candidates-nav-factory", "results-nav-factory", "submit-nav-factory"}: return "/factory", ""
-        if trigger in {"nav-submit", "candidates-nav-submit", "results-nav-submit", "factory-nav-submit"}: return "/submit", ""
+        if trigger == "compare-selected":
+            run_ids = [str(row.get("run_id")) for row in (values[-1] or []) if row.get("run_id")]
+            return "/compare", "?" + "&".join(f"run_id={quote(run_id, safe='')}" for run_id in run_ids)
+        if trigger in {"nav-results", "candidates-nav-results", "factory-nav-results", "submit-nav-results", "compare-nav-results"}: return "/results", ""
+        if trigger in {"nav-factory", "candidates-nav-factory", "results-nav-factory", "submit-nav-factory", "compare-nav-factory"}: return "/factory", ""
+        if trigger in {"nav-submit", "candidates-nav-submit", "results-nav-submit", "factory-nav-submit", "compare-nav-submit"}: return "/submit", ""
         return "/", ""
 
     register_callbacks(application)
@@ -412,6 +421,7 @@ def create_app() -> Dash:
     register_results_callbacks(application)
     register_factory_callbacks(application)
     register_submit_callbacks(application)
+    register_compare_callbacks(application)
     return application
 
 

@@ -237,16 +237,19 @@ def register_candidate_callbacks(application: Any) -> None:
         rows = (response or {}).get("rowData") or []
         return {"candidate_id": rows[0].get("candidate_id"), "run_id": rows[0].get("run_id")} if rows else None
 
-    @application.callback(Output("candidate-compare-selection", "data"), Input("candidate-grid", "selectedRows"), State("candidate-compare-selection", "data"), prevent_initial_call=True)
-    def persist_compare_selection(rows: list[dict[str, Any]] | None, current: list[dict[str, Any]] | None):
+    @application.callback(Output("candidate-compare-selection", "data"), Input("candidate-grid", "selectedRows"), Input("router-location", "search"), State("candidate-compare-selection", "data"), prevent_initial_call=True)
+    def persist_compare_selection(rows: list[dict[str, Any]] | None, search: str | None, current: list[dict[str, Any]] | None):
+        if "router-location.search" in ctx.triggered_prop_ids and search == "?clear_compare=1":
+            return []
         if rows is None:
             return current or []
         return [{"candidate_id": row.get("candidate_id"), "run_id": row.get("run_id"), "title": row.get("title")} for row in rows if row.get("lifecycle") == "survivor"]
 
     @application.callback(Output("compare-selected", "children"), Output("compare-selected", "disabled"), Input("candidate-compare-selection", "data"))
     def compare_state(rows: list[dict[str, Any]] | None):
-        count = len(rows or [])
-        return (f"Compare selected · {count} · unavailable" if count >= 2 else f"Compare selected · {count}"), True
+        valid = [row for row in (rows or []) if row.get("run_id")]
+        count = len(valid)
+        return f"Compare selected · {count}", not 2 <= count <= 4
 
     @application.callback(Output("candidate-detail-record", "data"), Input("candidate-selection", "data"))
     def load_detail(selection: dict[str, Any] | None):
