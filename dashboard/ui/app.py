@@ -17,6 +17,7 @@ if not __package__:
 
 from dashboard.overview_projection import load_dashboard_snapshot, load_drilldown_page
 from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
+from dashboard.ui.results import register_results_callbacks, results_layout
 
 
 GLYPHS = {
@@ -126,7 +127,7 @@ def _finding_content(item: dict[str, Any] | None, snapshot: dict[str, Any]) -> l
             dmc.Text(f"{stage} · {status} · {outcome}. This retained study is factory history, not a qualified survivor.", className="signal"),
             html.Div([metric("Screening Sharpe", _format_number(item.get("sharpe"))), metric("Maximum DD", _format_number(item.get("max_drawdown"), percent=True)), metric("OOS retained", "—")], className="metrics"),
             html.Div(dmc.Text("Exact persisted run identity retained for Results when that surface is enabled", className="mini-empty"), className="mini-equity"),
-            dmc.Group([dmc.Button("Results unavailable", id="open-results", className="primary", disabled=True), dmc.Button("Candidate unavailable", id="open-candidate", className="ghost", variant="default", disabled=True)], gap=7, className="finding-actions"),
+            dmc.Group([dmc.Button("Open persisted Results", id="open-results", className="primary", disabled=not item.get("run_id")), dmc.Button("Candidate unavailable", id="open-candidate", className="ghost", variant="default", disabled=True)], gap=7, className="finding-actions"),
         ]
     version = str(item.get("candidate_version") or "")[:12] or "version unavailable"
     return [
@@ -136,7 +137,7 @@ def _finding_content(item: dict[str, Any] | None, snapshot: dict[str, Any]) -> l
         dmc.Text(f"{stage} · {status}. Paper lane remains inactive.", className="signal"),
         html.Div([metric("OOS Sharpe", _format_number(item.get("sharpe"))), metric("Maximum DD", _format_number(item.get("max_drawdown"), percent=True)), metric("OOS retained", _format_number(item.get("retained"), percent=True))], className="metrics"),
         html.Div(dmc.Text("Full persisted evidence is lazy-loaded in Results", className="mini-empty"), className="mini-equity"),
-        dmc.Group([dmc.Button("Open full Results", id="open-results", className="primary", disabled=True), dmc.Button("View in Candidates", id="open-candidate", className="ghost", variant="default", disabled=True)], gap=7, className="finding-actions"),
+        dmc.Group([dmc.Button("Open full Results", id="open-results", className="primary", disabled=not item.get("run_id")), dmc.Button("View in Candidates", id="open-candidate", className="ghost", variant="default", disabled=True)], gap=7, className="finding-actions"),
     ]
 
 
@@ -193,7 +194,7 @@ def dashboard_layout() -> dmc.MantineProvider:
         dmc.Paper("Q", className="logo", radius="md"),
         rail_item("dashboard", "Dashboard and refresh", "nav-dashboard", active=True),
         rail_item("file", "Submit strategies unavailable", "nav-submit", disabled=True), rail_item("flow", "Factory unavailable", "nav-factory", disabled=True),
-        rail_item("list", "Candidates", "nav-candidates"), rail_item("chart", "Results unavailable", "nav-results", disabled=True),
+        rail_item("list", "Candidates", "nav-candidates"), rail_item("chart", "Results", "nav-results"),
         html.Div(className="rail-spacer"), rail_item("external", "Paper Trading destination not configured", "nav-paper", disabled=True),
         dmc.Avatar("TO", className="avatar", radius="xl"),
     ], gap=7, align="center", className="rail")
@@ -370,16 +371,32 @@ def create_app() -> Dash:
     application = Dash(__name__, title="Quant Factory", suppress_callback_exceptions=True)
     application.layout = html.Div([dcc.Location(id="router-location", refresh=False), html.Div(id="route-page")])
 
-    @application.callback(Output("route-page", "children"), Input("router-location", "pathname"))
-    def route(pathname: str | None):
-        return candidates_layout() if pathname == "/candidates" else dashboard_layout()
+    @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
+    def route(pathname: str | None, search: str | None):
+        if pathname == "/candidates": return candidates_layout()
+        if pathname == "/results": return results_layout(search)
+        return dashboard_layout()
 
-    @application.callback(Output("router-location", "pathname"), Input("nav-candidates", "n_clicks", allow_optional=True), Input("candidates-nav-dashboard", "n_clicks", allow_optional=True), prevent_initial_call=True)
-    def navigate(_candidates: int | None, _dashboard: int | None):
-        return "/candidates" if ctx.triggered_id == "nav-candidates" else "/"
+    @application.callback(
+        Output("router-location", "pathname"), Output("router-location", "search"),
+        Input("nav-candidates", "n_clicks", allow_optional=True), Input("nav-results", "n_clicks", allow_optional=True), Input("open-results", "n_clicks", allow_optional=True),
+        Input("candidates-nav-dashboard", "n_clicks", allow_optional=True), Input("candidates-nav-results", "n_clicks", allow_optional=True), Input("candidate-open-results", "n_clicks", allow_optional=True),
+        Input("results-nav-dashboard", "n_clicks", allow_optional=True), Input("results-nav-candidates", "n_clicks", allow_optional=True), Input("results-back-candidates", "n_clicks", allow_optional=True),
+        State("selected-candidate", "data", allow_optional=True), State("candidate-detail-record", "data", allow_optional=True), prevent_initial_call=True,
+    )
+    def navigate(*values: Any):
+        trigger = ctx.triggered_id
+        if trigger in {"nav-candidates", "results-nav-candidates", "results-back-candidates"}: return "/candidates", ""
+        if trigger in {"open-results", "candidate-open-results"}:
+            selected = values[-2] if trigger == "open-results" else values[-1]
+            run_id = (selected or {}).get("run_id")
+            return "/results", f"?run_id={run_id}" if run_id else ""
+        if trigger in {"nav-results", "candidates-nav-results"}: return "/results", ""
+        return "/", ""
 
     register_callbacks(application)
     register_candidate_callbacks(application)
+    register_results_callbacks(application)
     return application
 
 

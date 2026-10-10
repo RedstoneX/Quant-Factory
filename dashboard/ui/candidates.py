@@ -62,7 +62,7 @@ def candidates_layout() -> dmc.MantineProvider:
         _rail("file", "Submit strategies unavailable", "candidates-nav-submit", disabled=True),
         _rail("flow", "Factory runs unavailable", "candidates-nav-factory", disabled=True),
         _rail("list", "Candidates", "candidates-nav-candidates", active=True),
-        _rail("chart", "Results unavailable", "candidates-nav-results", disabled=True),
+        _rail("chart", "Results", "candidates-nav-results"),
         html.Div(className="rail-spacer"), _rail("external", "Paper Trading unavailable", "candidates-nav-paper", disabled=True),
         dmc.Avatar("TO", className="avatar", radius="xl"),
     ], gap=7, align="center", className="rail")
@@ -189,7 +189,7 @@ def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
         html.Div([html.Span("Outcome"), html.Strong(outcome), html.Span("Exact")], className="candidate-evidence-item"),
         html.Div([html.Span("Next state"), html.Strong(next_state), html.Span()], className="candidate-evidence-item"),
         html.Div(record.get("error_summary") or record.get("description") or "No additional persisted explanation is available.", className=f"candidate-explanation {record.get('lifecycle') or ''}"),
-        dmc.Group([dmc.Button("Results unavailable", className="primary", disabled=True), dmc.Button("View persisted sensitivity", id="candidate-open-evidence", className="ghost", variant="default")], gap=8, className="candidate-detail-actions"),
+        dmc.Group([dmc.Button("Open Results", id="candidate-open-results", className="primary", disabled=not record.get("run_id")), dmc.Button("View persisted sensitivity", id="candidate-open-evidence", className="ghost", variant="default")], gap=8, className="candidate-detail-actions"),
         dmc.Title("Evidence progression", order=3, className="candidate-progression-title"),
         *[html.Div([html.Span(_human_label(item.get("stage"))), html.Strong(_human_label(item.get("status"))), html.Span("✓" if item.get("status") == "succeeded" else "")], className="candidate-evidence-item") for item in progression],
         *([] if progression else [dmc.Text("No persisted evidence stages are linked.", className="candidate-empty")]),

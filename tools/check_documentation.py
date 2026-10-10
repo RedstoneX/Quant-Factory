@@ -79,6 +79,7 @@ ALLOWED_DASHBOARD_ROOT_FILES = {
     "mes_candidate_setup.py",
     "overview_projection.py",
     "results_model.py",
+    "results_projection.py",
     "run_adapter.py",
     "run_detail_adapter.py",
 }
