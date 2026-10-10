@@ -61,6 +61,12 @@ new mockup is not the deliverable. Keep proof lean: targeted technical checks,
 one exercise of each visible safe control, direct visual inspection, and the
 required secondary review only after the owner walkthrough.
 
+When `docs/MILESTONES.md` records an owner-authorized continuous completion
+batch, the working route and lean proof remain required for every surface, but
+the owner walkthrough occurs once after the entire named batch. Do not wait for
+intermediate approval, repeat broad audits, or stop merely because one surface
+has been published successfully.
+
 ## Gate vocabulary
 
 - **Technical:** the application loads and the data/state contracts are true.

@@ -79,8 +79,11 @@ is a secondary action from Candidates, not a primary workflow or promotion
 gate. Paper Trading remains a separate project reached by an external link;
 Quant Factory shows only package/handoff state. Dashboard has its own exact
 approved contract. The other six surfaces share the approved workspace
-contract; implement them in milestone order and stop after each owner-visible
-surface for acceptance.
+contract. Implement them in milestone order. Normally stop after each
+owner-visible surface; when `docs/MILESTONES.md` explicitly records an
+owner-authorized continuous completion batch, continue through that complete
+batch without intermediate owner pauses and present one consolidated final
+review.
 
 ## Frontend and visual acceptance
 
@@ -173,7 +176,10 @@ merge, or deployment. After Terry approves appearance, Gate B adds truthful
 state and controls and publishes the reversible private review service. Terry's
 unaided use is the next checkpoint. Secondary audits and repository packaging
 follow a successful walkthrough; they may not delay the first working URL or
-stand in for it. Do not begin the next surface before that walkthrough passes.
+stand in for it. Do not begin the next surface before that walkthrough passes
+unless the active milestone explicitly records an owner-authorized continuous
+completion batch; in that case, perform the same lean proof for each surface,
+publish it, and continue without waiting for intermediate approval.
 
 ## Working mode
 
