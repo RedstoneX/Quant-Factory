@@ -20,6 +20,7 @@ SURVIVOR_EVENT_SOURCE = "candidate_pipeline_runtime"
 SURVIVOR_EVENT_MESSAGE = "Factory filter chain completed and is ready for the protected-test gate."
 CHART_LIMIT = 200
 SURVIVOR_LIMIT = 50
+CANDIDATE_PAGE_LIMIT = 100
 
 
 def configured_database_path() -> Path:
@@ -431,4 +432,6 @@ def load_drilldown_page(
         connection.close()
 
 
-__all__ = ["configured_database_path", "load_dashboard_snapshot", "load_drilldown_page"]
+__all__ = [
+    "configured_database_path", "load_dashboard_snapshot", "load_drilldown_page",
+]

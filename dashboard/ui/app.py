@@ -16,6 +16,7 @@ if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from dashboard.overview_projection import load_dashboard_snapshot, load_drilldown_page
+from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
 
 
 GLYPHS = {
@@ -192,7 +193,7 @@ def dashboard_layout() -> dmc.MantineProvider:
         dmc.Paper("Q", className="logo", radius="md"),
         rail_item("dashboard", "Dashboard and refresh", "nav-dashboard", active=True),
         rail_item("file", "Submit strategies unavailable", "nav-submit", disabled=True), rail_item("flow", "Factory unavailable", "nav-factory", disabled=True),
-        rail_item("list", "Candidates unavailable", "nav-candidates", disabled=True), rail_item("chart", "Results unavailable", "nav-results", disabled=True),
+        rail_item("list", "Candidates", "nav-candidates"), rail_item("chart", "Results unavailable", "nav-results", disabled=True),
         html.Div(className="rail-spacer"), rail_item("external", "Paper Trading destination not configured", "nav-paper", disabled=True),
         dmc.Avatar("TO", className="avatar", radius="xl"),
     ], gap=7, align="center", className="rail")
@@ -366,8 +367,20 @@ def register_callbacks(application: Dash) -> None:
 
 
 def create_app() -> Dash:
-    application = Dash(__name__, title="Quant Factory · Dashboard", suppress_callback_exceptions=False)
-    application.layout = dashboard_layout(); register_callbacks(application); return application
+    application = Dash(__name__, title="Quant Factory", suppress_callback_exceptions=True)
+    application.layout = html.Div([dcc.Location(id="router-location", refresh=False), html.Div(id="route-page")])
+
+    @application.callback(Output("route-page", "children"), Input("router-location", "pathname"))
+    def route(pathname: str | None):
+        return candidates_layout() if pathname == "/candidates" else dashboard_layout()
+
+    @application.callback(Output("router-location", "pathname"), Input("nav-candidates", "n_clicks", allow_optional=True), Input("candidates-nav-dashboard", "n_clicks", allow_optional=True), prevent_initial_call=True)
+    def navigate(_candidates: int | None, _dashboard: int | None):
+        return "/candidates" if ctx.triggered_id == "nav-candidates" else "/"
+
+    register_callbacks(application)
+    register_candidate_callbacks(application)
+    return application
 
 
 app = create_app()
