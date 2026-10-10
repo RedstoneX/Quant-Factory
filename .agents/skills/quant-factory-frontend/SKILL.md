@@ -42,7 +42,10 @@ Dashboard is accepted. The remaining surfaces already have an approved
 composition and workflow contract and are implemented one at a time in the
 order set by `docs/MILESTONES.md`. Do not create a replacement mockup or
 greenfield their structure. Stop after each working private-route walkthrough
-for Terry's acceptance before starting the next surface.
+unless the active milestone explicitly records Terry's authorization for a
+continuous multi-surface completion batch. During such a batch, preserve the
+same per-surface contract and lean proof, publish each working route, continue
+without intermediate owner pauses, and request one consolidated final review.
 
 Build the approved composition as a clean Dash UI under `dashboard.ui`.
 Backend contracts are accepted and frozen. Do not change SQL, persistence,
