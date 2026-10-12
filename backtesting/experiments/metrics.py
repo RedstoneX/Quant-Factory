@@ -59,7 +59,10 @@ def configure_candidate_metric_policy(
         sampling="exchange_session_close",
         periods_per_year=float(rounded_periods),
         risk_free_rate=0.0,
-        basis="complete exchange-session-close portfolio equity and session returns",
+        basis=(
+            "complete exchange-session-close portfolio equity, or the final "
+            "deterministically unchanged cash equity across a verified-flat data gap"
+        ),
         source=(
             "saved robustness annualization factor divided by full-session bars "
             f"({annualization_factor:g}/{rounded_bars})"
@@ -86,6 +89,21 @@ def _portfolio_value_series(portfolio: Any) -> pd.Series:
     if not values.map(math.isfinite).all() or (values <= 0).any():
         raise RuntimeError("portfolio values must be positive and finite")
     return values
+
+
+def _portfolio_asset_series(portfolio: Any) -> pd.Series | None:
+    """Return aligned net asset units when the engine exposes them."""
+    assets = getattr(portfolio, "assets", None)
+    if assets is None:
+        return None
+    assets = assets() if callable(assets) else assets
+    if isinstance(assets, pd.DataFrame):
+        if assets.shape[1] != 1:
+            return None
+        assets = assets.iloc[:, 0]
+    if not isinstance(assets, pd.Series):
+        return None
+    return assets.astype(float)
 
 
 def session_close_metrics(
@@ -119,15 +137,48 @@ def session_close_metrics(
         raise RuntimeError("session metrics require a fixed source interval") from exc
     session_values: list[float] = []
     session_labels: list[object] = []
+    assets = _portfolio_asset_series(portfolio)
     for session_label, row in completed.iterrows():
+        market_open = pd.Timestamp(row["market_open"]).tz_convert(value.index.tz)
         market_close = pd.Timestamp(row["market_close"]).tz_convert(value.index.tz)
         closing_bar = market_close - interval
         try:
             closing_value = value.loc[closing_bar]
         except KeyError as exc:
-            raise RuntimeError(
-                f"source data is missing the closing bar for exchange session {session_label}"
-            ) from exc
+            observed = value.loc[(value.index >= market_open) & (value.index < market_close)]
+            if observed.empty:
+                before = value.index[value.index < market_open]
+                after = value.index[value.index >= market_close]
+                if (
+                    assets is not None
+                    and assets.index.equals(value.index)
+                    and len(before)
+                    and len(after)
+                    and float(assets.loc[before[-1]]) == 0.0
+                    and float(assets.loc[after[0]]) == 0.0
+                ):
+                    # A wholly absent exchange session bracketed by verified
+                    # flat exposure has the same exact cash equity as the last
+                    # observation before it. Retain the zero-return session in
+                    # the annualization sample instead of shrinking the sample.
+                    closing_value = value.loc[before[-1]]
+                else:
+                    raise RuntimeError(
+                        f"source data is missing the closing bar for exchange session {session_label}"
+                    ) from exc
+            elif assets is None or not assets.index.equals(value.index):
+                raise RuntimeError(
+                    f"source data is missing the closing bar for exchange session {session_label}"
+                ) from exc
+            else:
+                last_observed = observed.index[-1]
+                if last_observed >= closing_bar or float(assets.loc[last_observed]) != 0.0:
+                    raise RuntimeError(
+                        f"source data is missing the closing bar for exchange session {session_label}"
+                    ) from exc
+                # With zero asset exposure, portfolio equity is cash and cannot vary
+                # with the missing market-price observation before the session close.
+                closing_value = observed.iloc[-1]
         session_labels.append(session_label)
         session_values.append(float(closing_value))
     equity = pd.Series(session_values, index=session_labels, dtype=float)
