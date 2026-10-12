@@ -19,6 +19,7 @@ from strategies.mes_overnight_gap_reversal import (
 )
 from strategies.mes_vwap_orb_candidate import MES_VWAP_ORB_CANDIDATE_STRATEGY
 from strategies.mes_sma_crossover_candidate import MES_SMA_CANDIDATE_STRATEGY
+from strategies.mes_five_bar_run_exhaustion import MES_FIVE_BAR_RUN_EXHAUSTION_STRATEGY
 from strategies.parameter_governance import (
     PROVISIONAL_GRID_WARNING_THRESHOLD,
     ParameterGridContribution,
@@ -57,6 +58,7 @@ REGISTRY.register(SPYM_INTRADAY_MOMENTUM_STRATEGY)
 REGISTRY.register(MES_OVERNIGHT_GAP_REVERSAL_STRATEGY)
 REGISTRY.register(MES_VWAP_ORB_CANDIDATE_STRATEGY)
 REGISTRY.register(MES_SMA_CANDIDATE_STRATEGY)
+REGISTRY.register(MES_FIVE_BAR_RUN_EXHAUSTION_STRATEGY)
 
 
 def get_strategy(strategy_id: str) -> Strategy:

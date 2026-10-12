@@ -252,6 +252,77 @@ def test_session_metrics_fail_closed_without_exact_closing_bar(tmp_path: Path) -
         )
 
 
+def test_session_metrics_use_last_observation_only_when_portfolio_is_flat(
+    tmp_path: Path,
+) -> None:
+    index = pd.DatetimeIndex(
+        [
+            "2024-01-02T14:30:00Z",
+            "2024-01-02T20:50:00Z",
+            "2024-01-03T14:30:00Z",
+            "2024-01-03T20:55:00Z",
+            "2024-01-03T22:00:00Z",
+        ]
+    )
+    portfolio = SimpleNamespace(
+        value=pd.Series(
+            [100_000.0, 101_000.0, 101_000.0, 102_000.0, 102_000.0],
+            index=index,
+        ),
+        assets=pd.Series(0.0, index=index),
+    )
+    config = replace(
+        _config(tmp_path),
+        market_data=replace(_market_config(tmp_path), interval="5m"),
+        execution=replace(_config(tmp_path).execution, initial_cash=100_000.0),
+        metric_policy=MetricPolicy(
+            sampling="exchange_session_close",
+            periods_per_year=252.0,
+            risk_free_rate=0.0,
+            basis="flat fallback proof",
+            source="test contract",
+        ),
+    )
+    total_return, annualized_return, sharpe = metrics_module.session_close_metrics(
+        portfolio, pd.DataFrame({"Close": 100.0}, index=index), config
+    )
+    assert total_return == pytest.approx(0.02)
+    returns = pd.Series([0.01, 102_000.0 / 101_000.0 - 1.0])
+    assert annualized_return == pytest.approx(1.02 ** (252 / 2) - 1.0)
+    assert sharpe == pytest.approx(returns.mean() / returns.std(ddof=1) * 252**0.5)
+
+
+def test_session_metrics_exclude_wholly_absent_exchange_session(tmp_path: Path) -> None:
+    index = pd.DatetimeIndex(
+        [
+            "2024-01-02T20:55:00Z",
+            "2024-01-02T22:00:00Z",
+            "2024-01-04T20:55:00Z",
+            "2024-01-04T22:00:00Z",
+        ]
+    )
+    portfolio = SimpleNamespace(
+        value=pd.Series([101_000.0, 101_000.0, 102_000.0, 102_000.0], index=index),
+        assets=pd.Series(0.0, index=index),
+    )
+    config = replace(
+        _config(tmp_path),
+        market_data=replace(_market_config(tmp_path), interval="5m"),
+        execution=replace(_config(tmp_path).execution, initial_cash=100_000.0),
+        metric_policy=MetricPolicy(
+            sampling="exchange_session_close", periods_per_year=252.0,
+            risk_free_rate=0.0, basis="absent-session proof", source="test contract",
+        ),
+    )
+    total_return, annualized_return, sharpe = metrics_module.session_close_metrics(
+        portfolio, pd.DataFrame({"Close": 100.0}, index=index), config
+    )
+    assert total_return == pytest.approx(0.02)
+    returns = pd.Series([0.01, 0.0, 102_000.0 / 101_000.0 - 1.0])
+    assert annualized_return == pytest.approx(1.02 ** (252 / 3) - 1.0)
+    assert sharpe == pytest.approx(returns.mean() / returns.std(ddof=1) * 252**0.5)
+
+
 def test_session_metrics_fail_closed_on_partial_final_session(tmp_path: Path) -> None:
     index = pd.DatetimeIndex(
         [
