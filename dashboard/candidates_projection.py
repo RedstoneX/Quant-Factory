@@ -33,6 +33,8 @@ def _candidate_source() -> str:
                COALESCE(json_extract(c.candidate_json, '$.candidate.family'), 'Not recorded') AS family,
                COALESCE(json_extract(c.candidate_json, '$.candidate.status'), 'received') AS packet_status,
                c.run_id, c.stage, c.run_status, c.screening_status, c.error_summary,
+               c.campaign_policy_id, c.campaign_state, c.campaign_reason_code,
+               c.campaign_reason_detail,
                c.survivor, c.observed_at,
                CAST(json_extract(c.oos_metrics_json, '$.sharpe_ratio') AS REAL) AS sharpe,
                CAST(json_extract(c.oos_metrics_json, '$.max_drawdown') AS REAL) AS max_drawdown,
@@ -40,8 +42,10 @@ def _candidate_source() -> str:
                NULL AS retained,
                CASE
                  WHEN c.survivor=1 THEN 'survivor'
+                 WHEN c.campaign_state='exception_hold' THEN 'needs_review'
                  WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), '')) IN ('needs_review','exception_hold') THEN 'needs_review'
-                 WHEN c.run_status IN ('created','running') THEN 'advancing'
+                 WHEN c.run_status IN ('created','running') OR c.campaign_state IN ('admitted','queued','running') THEN 'advancing'
+                 WHEN c.campaign_state IN ('duplicate_closed','invalid','prior_work_conflict','implementation_blocked','budget_blocked','deterministic_failure','screened_out','insufficient','failed') THEN 'rejected'
                  WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), ''))='rejected'
                    OR c.run_status IN ('failed','cancelled')
                    OR c.screening_status IN ('screened_out','invalid','insufficient') THEN 'rejected'
@@ -98,6 +102,10 @@ def _candidate_grid_row(row: sqlite3.Row, *, rank: int | None = None) -> dict[st
         "lifecycle": str(row["lifecycle"]), "packet_status": str(row["packet_status"]),
         "stage": str(row["stage"] or "not_run"), "run_status": str(row["run_status"] or "not_run"),
         "screening_status": str(row["screening_status"] or "not_run"), "error_summary": row["error_summary"],
+        "campaign_policy_id": str(row["campaign_policy_id"] or ""),
+        "campaign_state": str(row["campaign_state"] or "not_admitted"),
+        "campaign_reason_code": str(row["campaign_reason_code"] or ""),
+        "campaign_reason_detail": str(row["campaign_reason_detail"] or ""),
         "sharpe": _finite_number(row["sharpe"]), "max_drawdown": percent(row["max_drawdown"], absolute=True),
         "retained": _finite_number(row["retained"]), "net_return": percent(row["net_return"]),
         "robustness": str(row["robustness"]), "paper": str(row["paper"]),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from pathlib import Path
 import sys
 from typing import Any
@@ -11,6 +12,7 @@ from urllib.parse import quote
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
+from flask import jsonify, request
 import plotly.graph_objects as go
 
 if not __package__:
@@ -31,6 +33,24 @@ GLYPHS = {
     "up": "⇈", "alert": "!", "table": "▦", "check": "✓",
     "settings": "☷", "loader": "◌",
 }
+
+
+def _application_revision() -> str:
+    configured = os.environ.get("QF_REVISION", "").strip()
+    if configured:
+        return configured
+    root = Path(__file__).resolve().parents[2]
+    built = root / ".qf-build-revision"
+    if built.is_file():
+        return built.read_text(encoding="utf-8").strip()
+    head = root / ".git" / "HEAD"
+    try:
+        value = head.read_text(encoding="utf-8").strip()
+        if value.startswith("ref: "):
+            return (root / ".git" / value[5:]).read_text(encoding="utf-8").strip()
+        return value
+    except OSError:
+        return "revision-unavailable"
 
 
 def icon(name: str) -> html.Span:
@@ -374,6 +394,40 @@ def register_callbacks(application: Dash) -> None:
 
 def create_app() -> Dash:
     application = Dash(__name__, title="Quant Factory", suppress_callback_exceptions=True)
+    revision = _application_revision()
+    server = application.server
+
+    @server.get("/__qf_revision__")
+    def revision_document():
+        response = jsonify({"revision": revision, "reload_required": False})
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-QF-Revision"] = revision
+        return response
+
+    @server.before_request
+    def reject_stale_callback_client():
+        if request.path != "/_dash-update-component":
+            return None
+        client_revision = request.cookies.get("qf_revision")
+        if client_revision == revision:
+            return None
+        response = jsonify({
+            "error": "revision_mismatch",
+            "message": "Quant Factory was updated. Reload this page before continuing.",
+            "revision": revision,
+        })
+        response.status_code = 409
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-QF-Revision-Mismatch"] = revision
+        return response
+
+    @server.after_request
+    def publish_revision(response):
+        response.headers["X-QF-Revision"] = revision
+        if request.method == "GET" and response.content_type and response.content_type.startswith("text/html"):
+            response.set_cookie("qf_revision", revision, secure=True, httponly=False, samesite="Strict")
+        return response
+
     application.layout = html.Div([dcc.Location(id="router-location", refresh=False), html.Div(id="route-page")])
 
     @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
@@ -390,6 +444,7 @@ def create_app() -> Dash:
         Output("router-location", "pathname"), Output("router-location", "search"),
         Input("nav-candidates", "n_clicks", allow_optional=True), Input("nav-results", "n_clicks", allow_optional=True), Input("open-results", "n_clicks", allow_optional=True),
         Input("candidates-nav-dashboard", "n_clicks", allow_optional=True), Input("candidates-nav-results", "n_clicks", allow_optional=True), Input("candidate-open-results", "n_clicks", allow_optional=True),
+        Input("candidate-submit", "n_clicks", allow_optional=True),
         Input("results-nav-dashboard", "n_clicks", allow_optional=True), Input("results-nav-candidates", "n_clicks", allow_optional=True), Input("results-back-candidates", "n_clicks", allow_optional=True),
         Input("nav-factory", "n_clicks", allow_optional=True), Input("candidates-nav-factory", "n_clicks", allow_optional=True), Input("results-nav-factory", "n_clicks", allow_optional=True),
         Input("factory-nav-dashboard", "n_clicks", allow_optional=True), Input("factory-nav-candidates", "n_clicks", allow_optional=True), Input("factory-nav-results", "n_clicks", allow_optional=True),
@@ -417,7 +472,7 @@ def create_app() -> Dash:
             return "/compare", "?" + "&".join(f"run_id={quote(run_id, safe='')}" for run_id in run_ids)
         if trigger in {"nav-results", "candidates-nav-results", "factory-nav-results", "submit-nav-results", "compare-nav-results", "paper-nav-results"}: return "/results", ""
         if trigger in {"nav-factory", "candidates-nav-factory", "results-nav-factory", "submit-nav-factory", "compare-nav-factory", "paper-nav-factory"}: return "/factory", ""
-        if trigger in {"nav-submit", "candidates-nav-submit", "results-nav-submit", "factory-nav-submit", "compare-nav-submit", "paper-nav-submit"}: return "/submit", ""
+        if trigger in {"nav-submit", "candidates-nav-submit", "candidate-submit", "results-nav-submit", "factory-nav-submit", "compare-nav-submit", "paper-nav-submit"}: return "/submit", ""
         if trigger in {"nav-paper", "candidates-nav-paper", "results-nav-paper", "factory-nav-paper", "submit-nav-paper", "compare-nav-paper"}: return "/paper-trading", ""
         return "/", ""
 

@@ -72,6 +72,16 @@ Decision 341 handoff. Prior work closes only its stated hypothesis,
 rules, and parameter space; it does not close a broader strategy family unless
 Tier 1 says so.
 
+An executable campaign has a mandatory positive-path precondition before it is
+activated or allowed to generate or persist Candidates. Enumerate the actual
+registered active adapters and immutable configurations allowed after all
+policy and prior-work exclusions, then prove that at least one exact Candidate
+can resolve to one executable StudyPlan. The admission implementation and its
+focused tests must contain both a reachable admitted path and a rejected path.
+If the eligible count is zero, stop before research generation, canonical
+mutation, deployment, or owner walkthrough. Intake records that all terminate
+as missing adapters do not validate campaign execution or the product workflow.
+
 The operator information architecture has seven named surfaces: Dashboard,
 Submit Strategies, Factory runs, Candidates, Results, Compare Selected, and the
 external Paper Trading destination. Dashboard is the live oversight front

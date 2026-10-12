@@ -66,6 +66,17 @@ def _gateway(tmp_path: Path, *, launcher=None) -> AgentResearchGateway:
     )
 
 
+def test_fresh_gateway_state_has_no_active_campaign_storage(tmp_path):
+    gateway = _gateway(tmp_path)
+    gateway.handle(_request("bootstrap"), GatewayIdentity("reader", "local", "test", "local", 0))
+    connection = sqlite3.connect(tmp_path / "gateway.sqlite3")
+    try:
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    finally:
+        connection.close()
+    assert "campaign_events" not in tables
+
+
 @pytest.fixture
 def identities():
     return {
@@ -113,7 +124,7 @@ def test_provider_neutral_bootstrap_is_complete_for_codex_and_claude(tmp_path, i
         assert "bootstrap" in result["permitted_operations"]
         assert "broker.order" in result["prohibited_operations"]
 
-    assert "run.request" in gateway.handle(_request("bootstrap"), identities["codex"]).result["permitted_operations"]
+    assert "run.request" in gateway.handle(_request("bootstrap"), identities["codex"]).result["prohibited_operations"]
     assert "run.request" in gateway.handle(_request("bootstrap"), identities["claude"]).result["prohibited_operations"]
 
 
@@ -293,7 +304,7 @@ def _approved_candidate_database(path: Path) -> tuple[str, str]:
         service.close()
 
 
-def test_run_request_requires_approval_and_uses_idempotent_existing_launcher(tmp_path, identities):
+def test_run_request_fails_closed_without_an_active_campaign(tmp_path, identities):
     calls = []
 
     def launcher(candidate_id, configuration_id, idempotency_key):
@@ -309,11 +320,10 @@ def test_run_request_requires_approval_and_uses_idempotent_existing_launcher(tmp
     )
     launched = gateway.handle(request, identities["codex"])
     replay = gateway.handle(request, identities["codex"])
-    assert launched.ok and launched.result["run_id"] == "run_existingpipeline123"
+    assert launched.ok is False
+    assert launched.error["code"] == "campaign_inactive"
     assert replay.document() == launched.document()
-    assert len(calls) == 1
-    assert calls[0][0:2] == (candidate_id, configuration_id)
-    assert calls[0][2].startswith("agent_")
+    assert calls == []
 
 
 def test_unapproved_candidate_cannot_launch(tmp_path, identities):
@@ -331,7 +341,7 @@ def test_unapproved_candidate_cannot_launch(tmp_path, identities):
         ),
         identities["codex"],
     )
-    assert denied.error["code"] == "owner_approval_required"
+    assert denied.error["code"] == "campaign_inactive"
     assert calls == []
 
 

@@ -12,10 +12,7 @@ from typing import Any, Callable, Mapping
 
 from agent_gateway.authority import OPERATION_LEVELS
 from agent_gateway.bootstrap import build_bootstrap
-from agent_gateway.candidate_workflow import (
-    executable_candidate_configuration,
-    persist_submitted_candidate,
-)
+from agent_gateway.candidate_workflow import persist_submitted_candidate
 from agent_gateway.contracts import (
     GatewayError,
     GatewayIdentity,
@@ -31,8 +28,6 @@ from research_intake import (
     parse_candidate_packet,
     validate_candidate_packet,
 )
-
-
 RunLauncher = Callable[[str, str, str], str]
 _STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request"}
 _SAFE_EVIDENCE_STATES = {"gated", "not_applicable", None}
@@ -146,7 +141,7 @@ class AgentResearchGateway:
             return build_bootstrap(
                 identity,
                 operation_levels=OPERATION_LEVELS,
-                run_requests_enabled=self.run_launcher is not None,
+                run_requests_enabled=False,
             )
         handlers = {
             "context.get": self._context_get,
@@ -306,11 +301,11 @@ class AgentResearchGateway:
     ) -> dict[str, Any]:
         if self.run_launcher is None:
             raise GatewayError("run_unavailable", "development-run requests are disabled")
-        candidate_id = _identifier(request.arguments.get("candidate_id"), "candidate")
-        configuration_id = executable_candidate_configuration(candidate_id, self.database)
-        idempotency_key = f"agent_{hashlib.sha256(candidate_id.encode()).hexdigest()[:48]}"
-        run_id = self.run_launcher(candidate_id, configuration_id, idempotency_key)
-        return {"candidate_id": candidate_id, "run_id": run_id, "idempotency_key": idempotency_key}
+        _identifier(request.arguments.get("candidate_id"), "candidate")
+        raise GatewayError(
+            "campaign_inactive",
+            "No executable Candidate campaign is active; Candidate intake does not authorize research execution.",
+        )
 
     def _run_status(
         self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore

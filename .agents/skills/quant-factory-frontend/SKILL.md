@@ -91,6 +91,11 @@ invoke the existing authenticated, audited, idempotent Candidate-intake service
 and display the exact returned identity. It still may not mutate SQL directly
 or authorize research execution.
 
+Do not use terminal intake failures as representative proof of an executable
+workflow. If every Candidate is blocked before StudyPlan construction, label
+that as a prerequisite failure and stop; do not deploy it as a completed
+campaign, request an owner walkthrough, or claim cross-page validation.
+
 Preserve the approved information behavior: Dashboard exposes current factory
 operations and survivors; Candidates defaults to sortable/filterable survivors;
 one selected survivor opens exact Results; Compare Selected is secondary.

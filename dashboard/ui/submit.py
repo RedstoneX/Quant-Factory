@@ -8,6 +8,7 @@ import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Input, Output, State, dcc, html, no_update
 
+from dashboard.ui.gateway_client import gateway_status, submit_candidate
 from dashboard.submit_projection import candidate_example, validate_candidate_text, validate_upload
 
 
@@ -29,7 +30,7 @@ def _line(label: str, value: Any, suffix: Any = "") -> html.Div:
     return html.Div([html.Span(label), html.Strong(value), html.Span(suffix)], className="candidate-evidence-item")
 
 
-def _batch_panel() -> html.Div:
+def _batch_panel(*, gateway_ready: bool) -> html.Div:
     upload = dcc.Upload(
         id="submit-upload",
         children=html.Div([_icon("upload"), html.H3("Choose a Candidate package"), html.P("JSON, JSONL, YAML, or ZIP · validated in memory · 5 MB limit"), dmc.Button("Choose package", className="ghost", variant="default")]),
@@ -37,29 +38,31 @@ def _batch_panel() -> html.Div:
     )
     summary = html.Div([html.Div([html.Span(label), html.Strong("0", id=item_id, className=tone)]) for label,item_id,tone in [("Definitions","submit-count",""),("Valid","submit-valid","positive"),("Needs attention","submit-attention","warning"),("Review ready","submit-ready","positive")]], className="submit-summary-grid")
     grid = dag.AgGrid(id="submit-grid", columnDefs=SUBMIT_COLUMNS, rowData=[], defaultColDef={"sortable": True, "resizable": True, "filter": True}, dashGridOptions={"rowSelection":{"mode":"singleRow","enableClickSelection":True}}, className="ag-theme-quartz-dark submit-grid")
-    left = dmc.Paper([html.Div([html.Div([html.H3("Batch package"),html.P("QF Candidate v1 packets using the published portable contract")])],className="panel-head"),upload,summary,html.Div([html.Div([html.Span("Projected variations"),html.Strong("0 / 250,000",id="submit-variations")],className="line"),dmc.Progress(id="submit-budget",value=0,color="blue",size="sm"),html.P("Valid definitions only · validation does not persist or launch research",className="muted tiny")],className="submit-budget"),grid],className="panel submit-package",radius="md")
-    right = dmc.Paper([html.Div([html.Div([html.H3("Validation and batch policy"),html.P("Enforced mandates are not overridable")])],className="panel-head"),html.Div([_line("Intake contract","QF Candidate v1","Accepted"),_line("Packet ceiling","250 definitions","Enforced"),_line("Variation ceiling","250,000 / batch","Enforced"),html.Div([html.Strong("Enforced mandate · not overridable"),html.P("Positions must open and close in the same trading session.")],className="submit-mandate"),html.H3("Validation detail"),html.Div("Load a package to validate its definitions without changing canonical state.",id="submit-issues",className="submit-empty"),html.Div("Validated definitions remain local to this browser session. Canonical submission is unavailable in this read-only operator deployment.",className="candidate-explanation")],className="side-body")],className="panel submit-policy",radius="md")
+    left = dmc.Paper([html.Div([html.Div([html.H3("Batch package"),html.P("QF Candidate v1 packets using the published portable contract")])],className="panel-head"),upload,summary,html.Div([html.Div([html.Span("Projected variations"),html.Strong("0 / 250,000",id="submit-variations")],className="line"),dmc.Progress(id="submit-budget",value=0,color="blue",size="sm"),html.P("Validation and intake do not authorize research execution",className="muted tiny")],className="submit-budget"),grid],className="panel submit-package",radius="md")
+    right = dmc.Paper([html.Div([html.Div([html.H3("Validation and intake"),html.P("Canonical intake is separate from research execution")])],className="panel-head"),html.Div([_line("Intake contract","QF Candidate v1","Accepted"),_line("Authenticated gateway","Available" if gateway_ready else "Unavailable","Audited" if gateway_ready else "Retry later"),_line("Research campaign","None active","Execution disabled"),html.Div([html.Strong("Current safety boundary"),html.P("Candidates may be validated and persisted. No Candidate can launch until an executable campaign passes its adapter preflight.")],className="submit-mandate"),html.H3("Validation detail"),html.Div("Load a package to validate its definitions before canonical intake.",id="submit-issues",className="submit-empty"),html.Div(id="submit-canonical-result",className="candidate-explanation")],className="side-body")],className="panel submit-policy",radius="md")
     return html.Div([left,right],id="submit-batch",className="submit-workspace")
 
 
-def _manual_panel() -> html.Div:
-    editor = dmc.Paper([html.Div([html.Div([html.H3("Manual Candidate definition"),html.P("Paste one provider-neutral QF Candidate v1 packet")]),dmc.SegmentedControl(id="submit-manual-format",value="yaml",data=[{"value":"yaml","label":"YAML"},{"value":"json","label":"JSON"}],size="xs")],className="panel-head"),dmc.Textarea(id="submit-manual-text",value="",placeholder="Paste a QF Candidate v1 YAML or JSON packet…",autosize=False,className="submit-editor"),dmc.Group([dmc.Button("Load example",id="submit-load-example",className="ghost",variant="default"),dmc.Button("Validate definition",id="submit-manual-validate",className="primary")],gap=8,className="submit-editor-actions")],className="panel",radius="md")
+def _manual_panel(*, gateway_ready: bool) -> html.Div:
+    editor = dmc.Paper([html.Div([html.Div([html.H3("Manual Candidate definition"),html.P("Paste one provider-neutral QF Candidate v1 packet")]),dmc.SegmentedControl(id="submit-manual-format",value="yaml",data=[{"value":"yaml","label":"YAML"},{"value":"json","label":"JSON"}],size="xs")],className="panel-head"),dmc.Textarea(id="submit-manual-text",value="",placeholder="Paste a QF Candidate v1 YAML or JSON packet…",autosize=False,className="submit-editor"),dmc.Group([dmc.Button("Load example",id="submit-load-example",className="ghost",variant="default"),dmc.Button("Validate definition",id="submit-manual-validate",className="ghost",variant="default"),dmc.Button("Submit immutable Candidate",id="submit-manual-canonical",disabled=not gateway_ready,className="primary")],gap=8,className="submit-editor-actions"),html.Div(id="submit-manual-submit-result",className="submit-api-result")],className="panel",radius="md")
     parsed = dmc.Paper([html.Div([html.Div([html.H3("Parsed research contract"),html.P("Review before anything enters the factory")]),dmc.Badge("Draft",id="submit-manual-state",color="yellow",variant="light")],className="panel-head"),html.Div(id="submit-manual-result",children=[html.Div("No definition validated.",className="submit-empty")],className="side-body")],className="panel",radius="md")
     return html.Div([editor,parsed],id="submit-manual",className="submit-workspace",style={"display":"none"})
 
 
-def _api_panel() -> html.Div:
-    info = dmc.Paper([html.Div([html.Div([html.H3("LLM and API intake"),html.P("Machine submissions use the same Candidate contract and validation gates")]),dmc.Badge("Contract ready",color="blue",variant="light")],className="panel-head"),html.Div([_line("Endpoint","Unavailable in read-only deployment","Not exposed"),_line("Schema","qf_candidate_v1",dcc.Clipboard(id="submit-copy-schema",content="qf_candidate_v1")),_line("Authentication","No machine intake credential loaded","Unavailable"),_line("Idempotency","Required when intake is activated","Enforced"),_line("Batch ceiling","250 definitions / 250,000 variations","")],className="side-body")],className="panel",radius="md")
-    recent = dmc.Paper([html.Div([html.Div([html.H3("Recent machine submissions"),html.P("Exact source, validation, and resulting Candidate IDs")])],className="panel-head"),html.Div([html.Div("No machine submission audit is available in the canonical read-only state.",className="submit-empty"),dmc.Button("Validate repository example",id="submit-api-validate",className="primary"),html.Div(id="submit-api-result",className="submit-api-result")],className="side-body")],className="panel",radius="md")
+def _api_panel(status: dict[str, Any]) -> html.Div:
+    gateway_ready = bool(status.get("ok"))
+    info = dmc.Paper([html.Div([html.Div([html.H3("LLM and API intake"),html.P("Machine submissions use the same Candidate contract and validation gates")]),dmc.Badge("Gateway ready" if gateway_ready else "Gateway unavailable",color="green" if gateway_ready else "red",variant="light")],className="panel-head"),html.Div([_line("Boundary","Private Agent Research Gateway","Authenticated" if gateway_ready else "Unavailable"),_line("Schema","qf_candidate_v1",dcc.Clipboard(id="submit-copy-schema",content="qf_candidate_v1")),_line("Authentication","Transport-bound machine identity","Required"),_line("Idempotency","One content-bound request identity","Enforced"),_line("Research execution","No active campaign","Disabled")],className="side-body")],className="panel",radius="md")
+    recent = dmc.Paper([html.Div([html.Div([html.H3("Machine intake status"),html.P("Exact source, validation, and resulting Candidate IDs")])],className="panel-head"),html.Div([html.Div("Use the authenticated gateway client for provider-neutral machine submissions.",className="submit-empty"),dmc.Button("Validate repository example",id="submit-api-validate",className="primary"),html.Div(id="submit-api-result",className="submit-api-result")],className="side-body")],className="panel",radius="md")
     return html.Div([info,recent],id="submit-api",className="submit-workspace",style={"display":"none"})
 
 
 def submit_layout() -> dmc.MantineProvider:
+    status=gateway_status(); gateway_ready=bool(status.get("ok"))
     nav=dmc.Stack([dmc.Paper("Q",className="logo",radius="md"),_rail("dashboard","Dashboard","submit-nav-dashboard"),_rail("file","Submit strategies","submit-nav-submit",active=True),_rail("flow","Factory runs","submit-nav-factory"),_rail("list","Candidates","submit-nav-candidates"),_rail("chart","Results","submit-nav-results"),html.Div(className="rail-spacer"),_rail("external","Paper Trading","submit-nav-paper"),dmc.Avatar("TO",className="avatar",radius="xl")],gap=7,align="center",className="rail")
-    header=dmc.Group([html.Div([dmc.Title("Submit strategies",order=1),dmc.Text("Manual, batch, and machine intake",className="eyebrow")]),html.Div(className="top-spacer"),dmc.Button("Download schema",id="submit-download",className="ghost",variant="default"),dmc.Button("Canonical submission unavailable",disabled=True,className="primary")],gap=9,className="topbar")
-    modes=dmc.Group([dmc.SegmentedControl(id="submit-mode",value="batch",data=[{"value":"manual","label":"Manual"},{"value":"batch","label":"Batch upload"},{"value":"api","label":"LLM / API"}],className="candidate-tabs"),html.Div(className="top-spacer"),dmc.Text("Validation is local and non-operational; canonical state is read-only",className="candidate-context")],className="candidate-filters submit-toolbar")
-    body=html.Div([modes,_batch_panel(),_manual_panel(),_api_panel()],className="body submit-body")
-    return dmc.MantineProvider(html.Div([dcc.Store(id="submit-batch-data"),dcc.Download(id="submit-download-file"),html.Div([nav,html.Main([header,body],className="main")],className="app submit-app")]),forceColorScheme="dark",theme={"fontFamily":"Inter, ui-sans-serif, sans-serif","primaryColor":"blue"})
+    header=dmc.Group([html.Div([dmc.Title("Submit strategies",order=1),dmc.Text("Manual, batch, and machine intake",className="eyebrow")]),html.Div(className="top-spacer"),dmc.Button("Download schema",id="submit-download",className="ghost",variant="default"),dmc.Button("Submit valid Candidates",id="submit-canonical",disabled=True,className="primary")],gap=9,className="topbar")
+    modes=dmc.Group([dmc.SegmentedControl(id="submit-mode",value="batch",data=[{"value":"manual","label":"Manual"},{"value":"batch","label":"Batch upload"},{"value":"api","label":"LLM / API"}],className="candidate-tabs"),html.Div(className="top-spacer"),dmc.Text("Validation precedes authenticated, audited, idempotent canonical intake",className="candidate-context")],className="candidate-filters submit-toolbar")
+    body=html.Div([modes,_batch_panel(gateway_ready=gateway_ready),_manual_panel(gateway_ready=gateway_ready),_api_panel(status)],className="body submit-body")
+    return dmc.MantineProvider(html.Div([dcc.Store(id="submit-batch-data"),dcc.Store(id="submit-gateway-ready",data=gateway_ready),dcc.Download(id="submit-download-file"),html.Div([nav,html.Main([header,body],className="main")],className="app submit-app")]),forceColorScheme="dark",theme={"fontFamily":"Inter, ui-sans-serif, sans-serif","primaryColor":"blue"})
 
 
 def register_submit_callbacks(application: Any) -> None:
@@ -78,6 +81,25 @@ def register_submit_callbacks(application: Any) -> None:
         variations=int(data.get("variations") or 0)
         return grid,str(data.get("definitions",0)),str(data.get("valid",0)),str(data.get("needs_attention",0)),str(data.get("ready",0)),f"{variations:,} / 250,000",min(100,variations/2500),detail
 
+    @application.callback(Output("submit-canonical","disabled"),Output("submit-canonical","children"),Input("submit-batch-data","data"),Input("submit-gateway-ready","data"))
+    def canonical_button(data,gateway_ready):
+        ready=int((data or {}).get("ready") or 0)
+        if not gateway_ready: return True,"Gateway unavailable"
+        return ready == 0, f"Submit {ready:,} valid Candidate" + ("s" if ready != 1 else "")
+
+    @application.callback(Output("submit-canonical-result","children"),Input("submit-canonical","n_clicks"),State("submit-batch-data","data"),prevent_initial_call=True)
+    def submit_batch(clicks,data):
+        if not clicks: return no_update
+        rows=[row for row in ((data or {}).get("rows") or []) if row.get("review_ready") and row.get("canonical_json")]
+        responses=[submit_candidate(str(row["canonical_json"])) for row in rows]
+        accepted=[item for item in responses if item.get("ok")]
+        identities=[str((item.get("result") or {}).get("candidate_id")) for item in accepted]
+        failures=[str((item.get("error") or {}).get("message") or "Submission failed") for item in responses if not item.get("ok")]
+        children=[]
+        if identities: children.append(html.Div([html.Strong(f"{len(identities):,} canonical Candidate(s) persisted"),html.P(" · ".join(identities))],className="submit-issue"))
+        children.extend(html.Div(message,className="submit-issue") for message in failures)
+        return children or "No review-ready Candidate was submitted."
+
     @application.callback(Output("submit-manual-text","value"),Input("submit-load-example","n_clicks"),prevent_initial_call=True)
     def example(clicks): return candidate_example() if clicks else no_update
 
@@ -89,6 +111,18 @@ def register_submit_callbacks(application: Any) -> None:
         children=[_line("Candidate",row.get("title"),"Parsed"),_line("Markets",row.get("market"),""),_line("Variations",f"{int(row.get('variations') or 0):,}","Bounded"),_line("Review readiness","Ready" if row.get("review_ready") else "Needs attention","")]
         children += [html.Div([html.Strong(f"{item['path']} · {item['severity'].title()}"),html.P(item["message"])],className="submit-issue") for item in issues[:6]]
         return ("Valid" if row.get("valid") else "Invalid"),("green" if row.get("valid") else "red"),children
+
+    @application.callback(Output("submit-manual-submit-result","children"),Input("submit-manual-canonical","n_clicks"),State("submit-manual-text","value"),State("submit-manual-format","value"),prevent_initial_call=True)
+    def submit_manual(clicks,text,format_name):
+        if not clicks: return no_update
+        row=validate_candidate_text(text or "",filename=f"candidate.{format_name or 'yaml'}")
+        if not row.get("review_ready") or not row.get("canonical_json"):
+            return "Candidate is not review-ready; correct validation issues before submission."
+        response=submit_candidate(str(row["canonical_json"]))
+        if not response.get("ok"):
+            return str((response.get("error") or {}).get("message") or "Canonical submission failed.")
+        result=response.get("result") or {}
+        return f"Persisted {result.get('candidate_id')} · research execution remains disabled"
 
     @application.callback(Output("submit-api-result","children"),Input("submit-api-validate","n_clicks"),prevent_initial_call=True)
     def api_example(clicks):

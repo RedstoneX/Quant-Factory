@@ -15,6 +15,7 @@ from typing import Any
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE_PATH = REPOSITORY_ROOT / "state" / "quant_factory.sqlite3"
 DATABASE_ENVIRONMENT_VARIABLE = "QUANT_FACTORY_DB_PATH"
+GATEWAY_DATABASE_ENVIRONMENT_VARIABLE = "QF_GATEWAY_DB_PATH"
 EXPECTED_SCHEMA_VERSION = 7
 SURVIVOR_EVENT_SOURCE = "candidate_pipeline_runtime"
 SURVIVOR_EVENT_MESSAGE = "Factory filter chain completed and is ready for the protected-test gate."
@@ -62,6 +63,10 @@ BASE_CTE = """
 WITH candidate_base AS (
     SELECT d.draft_id AS candidate_id, d.title, d.description, d.candidate_json,
            d.configuration_id, d.updated_at,
+           campaign.policy_id AS campaign_policy_id,
+           campaign.state AS campaign_state,
+           campaign.reason_code AS campaign_reason_code,
+           campaign.reason_detail AS campaign_reason_detail,
            COALESCE(c.canonical_config_json, '{}') AS canonical_config_json,
            COALESCE(json_extract(c.canonical_config_json, '$.market_data.symbol'),
                     json_extract(d.candidate_json, '$.market.instruments.preferred[0]'),
@@ -74,6 +79,7 @@ WITH candidate_base AS (
              ELSE 'unclassified' END AS asset_class
     FROM idea_drafts d
     LEFT JOIN experiment_configurations c ON c.configuration_id = d.configuration_id
+    LEFT JOIN qf_campaign_admissions campaign ON campaign.candidate_id=d.draft_id
     WHERE d.candidate_json <> ''
 ), latest_runs AS (
     SELECT r.*, ROW_NUMBER() OVER (
@@ -262,6 +268,24 @@ def _validated_connection(database: Path) -> tuple[sqlite3.Connection | None, st
         version = int(version_row[0]) if version_row else None
         if version != EXPECTED_SCHEMA_VERSION:
             connection.close(); return None, f"Research state schema {version!r} is unsupported; expected {EXPECTED_SCHEMA_VERSION}."
+        connection.execute("""CREATE TEMP TABLE qf_campaign_admissions (
+            candidate_id TEXT PRIMARY KEY, policy_id TEXT, state TEXT,
+            reason_code TEXT, reason_detail TEXT
+        )""")
+        gateway_path = os.environ.get(GATEWAY_DATABASE_ENVIRONMENT_VARIABLE, "").strip()
+        if gateway_path and Path(gateway_path).is_file():
+            gateway = _open_read_only(Path(gateway_path))
+            try:
+                gateway_tables = {str(row[0]) for row in gateway.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if "campaign_events" in gateway_tables:
+                    rows = gateway.execute("""SELECT event.candidate_id,event.policy_id,event.state,
+                        event.reason_code,event.reason_detail
+                        FROM campaign_events event JOIN (
+                          SELECT candidate_id,MAX(event_id) event_id FROM campaign_events GROUP BY candidate_id
+                        ) latest ON latest.event_id=event.event_id""").fetchall()
+                    connection.executemany("INSERT INTO qf_campaign_admissions VALUES (?,?,?,?,?)", [tuple(row) for row in rows])
+            finally:
+                gateway.close()
         return connection, None
     except (OSError, sqlite3.Error, ValueError) as exc:
         return None, f"Research state is unavailable: {exc}"

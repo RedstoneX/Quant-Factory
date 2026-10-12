@@ -42,7 +42,7 @@ _CONTEXT: dict[str, Any] = {
             "Options/0DTE are possible later execution vehicles, not the source "
             "of the trading edge."
         ),
-        "current_research_state": "bounded_product_validation_authorized_pending_r13_recovery",
+        "current_research_state": "campaign_aborted_execution_precondition_unsatisfied",
     },
     "research_rules": [
         "Treat a symbol, wrapper, source repository, or parameter change as insufficient by itself to create a new hypothesis.",
@@ -239,8 +239,8 @@ _CONTEXT: dict[str, Any] = {
         "import_authority": (
             "External packets may describe research intent and bounded variants, "
             "but they cannot assert owner approval, eligibility, execution, promotion, or trading "
-            "authority. Quant Factory derives eligibility deterministically under "
-            "the active campaign policy."
+            "authority. Quant Factory derives eligibility only after an executable "
+            "campaign policy passes its positive-path preflight."
         ),
     },
     "external_research_instruction": (

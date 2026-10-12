@@ -40,7 +40,8 @@ For each hypothesis branch:
    information back into the rules.
 6. Save the packet locally, then use `qf-agent candidate validate <file>` and
    `qf-agent candidate submit <file>`. Never claim submission alone establishes
-   eligibility; Quant Factory derives that from deterministic campaign policy.
+   eligibility; Quant Factory derives that only after an executable deterministic
+   campaign policy passes its positive-path preflight.
 7. For a revision, inspect lineage first and submit a child with every required
    lineage field. Revise only when permitted evidence supports a materially
    different falsifiable rule—not to tune a failed result until it passes.

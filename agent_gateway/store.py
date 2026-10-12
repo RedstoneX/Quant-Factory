@@ -9,7 +9,7 @@ import sqlite3
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class GatewayStore:
@@ -96,6 +96,8 @@ class GatewayStore:
         row = self.connection.execute("SELECT version FROM gateway_schema").fetchone()
         if row is None:
             self.connection.execute("INSERT INTO gateway_schema(version) VALUES (?)", (SCHEMA_VERSION,))
+        elif row["version"] == 1:
+            self.connection.execute("UPDATE gateway_schema SET version=?", (SCHEMA_VERSION,))
         elif row["version"] != SCHEMA_VERSION:
             raise RuntimeError("unsupported agent gateway state schema")
         self.connection.commit()

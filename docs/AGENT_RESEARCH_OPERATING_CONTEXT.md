@@ -39,8 +39,9 @@ holding boundaries; explicit entry and exit rules; fixed assumptions; justified
 bounded variables; genuine structural variants; data needs; exclusions;
 failure theory; evaluation intent; uncertainties; and source provenance.
 Validation or submission alone creates no execution authority. Quant Factory
-derives eligibility from the active deterministic campaign policy; an agent
-cannot claim or override that state.
+derives eligibility only after an executable deterministic campaign policy
+passes its positive-path preflight; an agent cannot claim or override that
+state.
 
 For every source, preserve enough provenance to audit the relied-on claim:
 stable URL or identifier, source type, title and author when available,
