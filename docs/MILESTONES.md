@@ -8,14 +8,14 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Recover the failed R13 live workflow, then prove it with one owner-authorized bounded canonical validation campaign. |
-| Phase | **R13 live-workflow recovery is active. The seven routes exist, but the product is not technically or operationally accepted end to end.** |
-| Active work | Fix the fresh-session Factory grid and stale-client deployment defects; connect Submit Strategies to the existing audited Candidate-intake service without direct database writes; implement the missing deterministic campaign-policy decision at the existing gateway/runtime boundary; then execute R15 under the fixed policy below. |
+| Immediate objective | Owner walkthrough of the deployed R13 recovery and the truthful terminal R15 campaign state. |
+| Phase | **R13 live-workflow recovery is active at the final owner-review gate. R15 reached its 12-Candidate terminal ceiling without an executable Candidate; the product remains unaccepted end to end.** |
+| Active work | No further mutation is authorized before the owner walkthrough. Factory row hydration, stale-client revision handling, canonical Submit, deterministic admission, and campaign-state presentation are deployed on the review branch. |
 | Technology | Reuse the accepted Dash/Mantine shell, existing projections, Plotly/VectorBT evidence, and Dash AG Grid. Keep `dashboard.ui` presentation-only, lazy-load heavy evidence, and preserve bounded server-side data paths. |
 | Visual authority | Dashboard: `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. Remaining workflow surfaces: `docs/assets/workspaces/current-workflow-contract/workspaces.html`, SHA-256 `313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31`; it contains no Dashboard composition. |
-| Visual proof state | The approved contracts and deployed routes remain the visual baseline. Dashboard and Candidates retain visual/composition acceptance only. The suite failed live workflow acceptance: canonical Candidates is empty, Results lacks a suitable evidence-complete run, Factory can hide persisted rows, Submit is non-operational, and survivor-only surfaces have no genuine survivor. |
-| Next action | Complete R13 recovery and proceed directly into the preauthorized R15 validation campaign without an intermediate owner pause. Use the resulting canonical state for one final live walkthrough; do not substitute fixtures for operational proof. |
-| Owner checkpoints | One consolidated live walkthrough after R13 recovery and R15 execution. No intermediate owner decision is required inside the policy below. A genuine new exception stops only the affected Candidate, not the batch. |
+| Visual proof state | The approved contracts remain the visual baseline. Fresh-browser proof shows Factory's persisted rows, 12 exact canonical Candidate admission outcomes, working Candidate search/sort/selection/detail, truthful retained Results, and unavailable Compare/Paper states. No genuine survivor or evidence-complete new run exists. |
+| Next action | Terry performs the consolidated live walkthrough of the deployed review revision. A later executable campaign requires a new decision about implementing exact Candidate adapters; do not bind these hypotheses to nearby retained adapters or reopen R15. |
+| Owner checkpoints | One consolidated live walkthrough now. Merge remains behind that walkthrough. R15 is terminal and grants no further Candidate or run authority. |
 | Deferred | Broad or open-ended edge discovery; VectorBT Pro upgrade; new or paid/protected data; paper-lane activation; broker work; orders; live trading; and capital exposure. |
 
 ## Active work
@@ -23,9 +23,8 @@ and next action. Git history preserves completed milestone narratives.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | The prior walkthrough failed. Repair the Factory/stale-client defects and operationalize canonical Submit plus deterministic campaign admission through existing service boundaries. |
-| R15 | 2 | blocked | R13 | Owner-authorized product-validation campaign. Its policy is fixed below; begin automatically when R13 prerequisites pass. |
-| R14 | 3 | blocked | R15 | Broad unattended Candidate research remains outside the product-validation campaign and requires a later owner decision. |
+| R13 | 1 | in_progress | none | Recovery revision deployed: persisted Factory rows hydrate, obsolete callback clients fail visibly and reload, Submit uses the audited gateway, and canonical admission outcomes project into Candidates. Final acceptance remains Terry's unaided walkthrough. |
+| R14 | 2 | blocked | R13 | Broad unattended Candidate research remains outside the completed product-validation campaign and requires a later owner decision. |
 <!-- active-work:end -->
 
 ## Authorized R15 product-validation campaign
@@ -54,6 +53,16 @@ proof remains capacity evidence only. If no real survivor appears, one clearly
 labelled isolated noncanonical fixture may prove survivor-only presentation;
 it cannot close canonical survivor or paper-handoff acceptance.
 
+R15 reached its permanent terminal ceiling on 2026-10-12. Twelve distinct
+LLM-authored, source-attributed QF Candidate v1 packets were persisted through
+the authenticated gateway. Their fixed grids totalled 47 combinations. The
+deterministic policy closed every Candidate as
+`implementation_blocked / adapter_unavailable` because no exact registered MES
+adapter and immutable StudyPlan compiler matched the submitted hypothesis.
+No run, protected evidence, survivor, paper package, broker action, or capital
+state was created. This is a valid campaign outcome, not authority to substitute
+a nearby implementation or tune a closed proof Candidate.
+
 ## Retained technical evidence
 
 - The generic Candidate runtime, bounded study inputs, screening,
@@ -63,9 +72,14 @@ it cannot close canonical survivor or paper-handoff acceptance.
 - Intraday annualization corrections and the accepted lazy Results data path
   remain valid. Historical measured Results performance is technical evidence,
   not usability or visual acceptance.
-- The deployed inspection found zero persisted Candidate packets, two older
-  MES runs, and no survivor. One old successful run lacks the OHLC/trade
-  evidence needed for meaningful Results review.
+- Canonical state now contains 12 R15 Candidate packets and the two retained
+  older MES runs. All 12 R15 Candidates are terminal implementation blocks;
+  there is still no survivor. The old successful run remains evidence-invalid
+  and has no persisted OHLC bars or trades suitable for a meaningful new
+  Results review.
+- Recovery revision `46cc5ff6568d653229eaf1d2cb3aa4c565005a0f` is deployed
+  for review. Its pre-mutation canonical and gateway databases were backed up
+  recoverably before campaign submission.
 - Results, Factory runs, Submit Strategies, Compare Selected, and the external
   Paper Trading destination were merged through PRs 198–202 and deployed, but
   route existence, isolated fixtures, and shallow controls did not establish a

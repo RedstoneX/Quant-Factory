@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 User=ubuntu
 Group=ubuntu
+SupplementaryGroups=qf-agent-access qf-gateway
 WorkingDirectory=/home/ubuntu/projects/Quant-Factory
 EnvironmentFile=/etc/quant-factory/dashboard.env
 Environment=PYTHONDONTWRITEBYTECODE=1

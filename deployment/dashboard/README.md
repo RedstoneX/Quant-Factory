@@ -18,6 +18,10 @@ needs read access to the configured files. Dashboard projections open SQLite in
 read-only mode. The sole state-changing Dashboard action sends QF Candidate v1
 packets through the authenticated Agent Research Gateway; presentation code
 never writes persistence directly. Missing gateway configuration fails visibly.
+The installed unit joins `qf-agent-access` for the gateway socket and
+`qf-gateway` for read-only campaign-state projection. Keep the gateway state
+directory non-writable to those supplementary readers and the database itself
+group-readable, never group-writable.
 
 The established tailnet listener proxies port 8050 to `127.0.0.1:8050`. The
 systemd service, rather than an agent shell, owns that local process so the
