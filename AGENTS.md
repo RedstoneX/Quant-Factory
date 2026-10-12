@@ -43,9 +43,10 @@ owner decision, stop there. Do not substitute deferred work unless the active
 milestone or Terry explicitly authorizes it. A reported defect authorizes its
 smallest root-cause correction; it does not reopen adjacent scope.
 
-QF Candidate v1 is the provider-neutral intake boundary. During the current
-R12 design gate, Quant Factory may parse, validate, persist, display, edit,
-import, and export Candidate packets but no research campaign is active.
+QF Candidate v1 is the provider-neutral intake boundary. The current campaign
+state and any executable policy are recorded only in `docs/MILESTONES.md`.
+Quant Factory may parse, validate, persist, display, edit, import, and export
+Candidate packets; execution requires an active Tier 1 campaign policy.
 External LLMs, owner-authored submissions, and any future built-in analyzer
 must produce the same Candidate contract; no model is required. After Tier 1
 separately activates an automated research lane, an ordinary in-mandate
@@ -104,26 +105,32 @@ reinterpret an approved surface, omit its regions, or create another design
 direction unless Terry explicitly requests one.
 
 Existing backend, persistence, state semantics, lineage, Plotly, and AG Grid
-contracts are accepted and frozen for the Dashboard visual checkpoint. Build
-the presentation only under `dashboard.ui` from the current contract. Do not
-change SQL, persistence, schemas, lineage, orchestration, evidence logic,
-scaling, performance paths, or backend tests during that checkpoint. Do not
-create a second composition root, parallel shell, alternate visual target, or
-duplicate presentation state.
+contracts remain frozen during a visual checkpoint. Build presentation under
+`dashboard.ui` from the current contract. A separately authorized operational
+slice may connect an approved state-changing control to an existing application
+service, but presentation code never writes SQL, owns lifecycle decisions, or
+reimplements persistence, orchestration, evidence, scaling, or lineage. Treat
+any missing service capability as an application-boundary gap, not permission
+to hide backend logic in the UI. Do not create a second composition root,
+parallel shell, alternate visual target, or duplicate presentation state.
 
-The first production slice is Dashboard only. It uses Dash Mantine Components
-as the default production UI layer for navigation, layout, panels, drawers,
-alerts, badges, and commodity controls. Work is split by a hard owner gate:
+The approved Dashboard established Dash Mantine Components as the production
+UI layer for navigation, layout, panels, drawers, alerts, badges, and commodity
+controls. For a new or materially redesigned surface, work remains split by a
+hard owner gate:
 
 1. Build only the real Mantine visual shell at 1440 by 980 using the contract's
    representative state, clearly labeled local visual proof. Do not connect
    persistence, build data projections, register production callbacks, optimize,
    run backend tests, deploy, or implement another surface. Show Terry the real
    render beside the exact contract and stop.
-2. After Terry approves that render, bind existing read-only state and add the
-   approved controls without changing the composition. Run the private review
+2. After Terry approves that render, bind truthful state and add the approved
+   controls without changing the composition. Read-only surfaces use existing
+   projections. An explicitly authorized Submit action calls the existing
+   audited Candidate-intake application boundary with idempotency and visible
+   feedback; it never writes persistence directly. Run the private review
    service at its established tailnet URL and stop only after giving Terry the
-   reachable URL. A screenshot is not the Gate B deliverable.
+   reachable URL. A screenshot is not the behavior deliverable.
 
 The representative first render is not operational truth and may never be
 deployed. Abandon Mantine only for a demonstrated blocker and stop for an owner
@@ -332,7 +339,9 @@ as the location of canonical runtime state. Before any behavior merge:
 2. inspect the new approved design and actual render side by side;
 3. correct material differences in composition, hierarchy, spacing, data,
    affordances, and primary action;
-4. exercise the page's safe read-only controls and transitions; and
+4. exercise the page's safe controls and transitions; state-changing controls
+   require explicit Tier 1 authority, an existing audited service boundary,
+   idempotency, and focused mutation proof;
 5. run the normal Linux private-review service at the established tailnet URL;
 6. show Terry the URL and state identity for unaided hands-on use; and
 7. only after that walkthrough, perform the secondary audit and independent

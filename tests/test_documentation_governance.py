@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from tools.check_documentation import (
+    CURRENT_AUTHORITY_MARKERS,
     REQUIRED_FRONTEND_FILES,
     VISUAL_CONTRACT,
     check_repository,
@@ -36,6 +37,11 @@ class DocumentationGovernanceTests(unittest.TestCase):
         (self.root / "docs/MILESTONES.md").write_text(
             "# Milestones\n\n" + VALID_QUEUE + "\n", encoding="utf-8"
         )
+        for relative, markers in CURRENT_AUTHORITY_MARKERS.items():
+            target = self.root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            existing = target.read_text(encoding="utf-8") if target.exists() else ""
+            target.write_text(existing + "\n".join(markers) + "\n", encoding="utf-8")
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -72,6 +78,17 @@ class DocumentationGovernanceTests(unittest.TestCase):
     def test_visual_contract_checksum_is_locked(self) -> None:
         (self.root / VISUAL_CONTRACT).write_text("replacement", encoding="utf-8")
         self.assertTrue(any("checksum changed" in error for error in check_repository(self.root)))
+
+    def test_superseded_completion_directive_is_rejected(self) -> None:
+        path = self.root / "docs/MILESTONES.md"
+        path.write_text(
+            path.read_text(encoding="utf-8")
+            + "\nR13 seven-surface suite deployed for consolidated owner review.\n",
+            encoding="utf-8",
+        )
+        self.assertTrue(
+            any("superseded active directive" in error for error in check_repository(self.root))
+        )
 
     def test_unauthorized_presentation_path_is_rejected(self) -> None:
         path = self.root / "dashboard/extra.py"

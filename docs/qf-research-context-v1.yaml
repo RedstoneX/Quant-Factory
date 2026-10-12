@@ -27,7 +27,7 @@ mandate:
   - index products
   options_role: Options/0DTE are possible later execution vehicles, not the source
     of the trading edge.
-  current_research_state: paused_during_operator_interface_design_and_campaign_policy_gate
+  current_research_state: bounded_product_validation_authorized_pending_r13_recovery
 research_rules:
 - Treat a symbol, wrapper, source repository, or parameter change as insufficient
   by itself to create a new hypothesis.

@@ -9,7 +9,7 @@ an operator surface, not the purpose of the project.
 
 The active sequence, summarized from `docs/MILESTONES.md`, is:
 
-**Dashboard implementation -> campaign-policy acceptance -> automated Candidate filtration and staged validation -> survivor review -> execution-vehicle comparison -> paper operation -> live operation later.**
+**Live-workflow recovery -> bounded canonical product-validation campaign -> owner walkthrough -> later broad Candidate filtration -> survivor review -> execution-vehicle comparison -> paper operation -> live operation later.**
 
 Backend completion is recorded. The generic candidate runtime now reuses the existing screening, OOS, walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage, durable-launch, and filter-handoff infrastructure. It stops at the protected-test gate and does not expand protected-data authority.
 
@@ -20,17 +20,18 @@ paper/live authority route to the owner. Current work is defined only in
 `docs/factory-operating-contract.md`.
 
 The fixed Decision 310 MES overnight-gap reversal screen completed and was
-rejected after negative total and annualized returns and Sharpe below 0.5. No
-new strategy selection, proposal, optimization, screening, or profitability
-test occurs before operator and campaign-policy acceptance. After activation,
-automated research is restricted to **intraday/day-trading directional edges** unless the owner
+rejected after negative total and annualized returns and Sharpe below 0.5. The
+fixed bounded product-validation campaign in `docs/MILESTONES.md` may begin only
+after its runtime and submission prerequisites pass. Broader strategy
+selection, optimization, screening, or profitability research remains deferred.
+Authorized research is restricted to **intraday/day-trading directional edges** unless the owner
 changes the mandate: minutes-to-hours holding, flat by the strategy's defined
 session boundary, and no overnight or multi-day carry. The SPY turn-of-month
 idea remains out of scope under that mandate.
 
-No paid market-data acquisition, external deployment, options execution
-adapter, futures broker stack, paper activation, or live-capital work is
-authorized by the current product-completion phase.
+No paid or protected-data acquisition, new credential authority, external
+deployment, options execution adapter, futures broker stack, paper activation,
+or live-capital work is authorized by the product-validation campaign.
 
 ## Project authority
 
