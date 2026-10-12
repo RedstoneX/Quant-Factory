@@ -66,6 +66,35 @@ REQUIRED_FRONTEND_FILES = (
     Path("deployment/dashboard/README.md"),
 )
 
+CURRENT_AUTHORITY_MARKERS = {
+    Path("AGENTS.md"): (
+        "approved state-changing control",
+    ),
+    Path("docs/MILESTONES.md"): (
+        "R13 live-workflow recovery is active",
+        "r15-product-validation-v1",
+    ),
+    Path("docs/DECISIONS.md"): (
+        "R13 acceptance reopened; bounded canonical product-validation campaign authorized",
+    ),
+    Path(".agents/skills/quant-factory-frontend/SKILL.md"): (
+        "audited, idempotent Candidate-intake service",
+    ),
+    Path("docs/qf-research-context-v1.yaml"): (
+        "bounded_product_validation_authorized_pending_r13_recovery",
+    ),
+    Path("research_intake/qf_research_context.py"): (
+        "bounded_product_validation_authorized_pending_r13_recovery",
+    ),
+}
+
+SUPERSEDED_ACTIVE_DIRECTIVES = (
+    "R13 seven-surface suite deployed for consolidated owner review",
+    "Seven-surface operator suite technically complete and privately deployed",
+    "paused_during_operator_interface_design_and_campaign_policy_gate",
+    "Dashboard is accepted. The remaining surfaces already have an approved",
+)
+
 ALLOWED_DASHBOARD_ROOT_FILES = {
     "__init__.py",
     "adapter.py",
@@ -315,6 +344,26 @@ def _validate_runtime_authority(root: Path) -> list[str]:
     return errors
 
 
+def _validate_current_authority(root: Path) -> list[str]:
+    errors: list[str] = []
+    texts: dict[Path, str] = {}
+    for relative, markers in CURRENT_AUTHORITY_MARKERS.items():
+        path = root / relative
+        if not path.is_file():
+            errors.append(f"current authority file is missing: {relative}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        texts[relative] = text
+        for marker in markers:
+            if marker not in text:
+                errors.append(f"current authority marker is missing from {relative}: {marker}")
+    for relative, text in texts.items():
+        for marker in SUPERSEDED_ACTIVE_DIRECTIVES:
+            if marker in text:
+                errors.append(f"superseded active directive remains in {relative}: {marker}")
+    return errors
+
+
 def check_repository(root: Path, base_ref: str | None = None, today: dt.date | None = None) -> list[str]:
     del base_ref  # Historical documents are in Git; active governance is not append-only.
     today = today or dt.datetime.now(dt.timezone.utc).date()
@@ -327,6 +376,7 @@ def check_repository(root: Path, base_ref: str | None = None, today: dt.date | N
         errors.append("docs/MILESTONES.md exceeds 100000 UTF-8 bytes")
     errors.extend(_validate_queue(milestones))
     errors.extend(_validate_decisions(milestones, today))
+    errors.extend(_validate_current_authority(root))
     errors.extend(_validate_frontend_authority(root))
     errors.extend(_validate_runtime_authority(root))
     return errors

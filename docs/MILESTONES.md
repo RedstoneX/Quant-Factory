@@ -8,25 +8,51 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Complete Terry's consolidated unaided walkthrough of the privately deployed seven-surface operator product. |
-| Phase | **R13 seven-surface suite deployed for consolidated owner review. Candidate research remains paused.** |
-| Active work | Preserve the merged and privately deployed Dashboard, Candidates, Results, Factory runs, Submit Strategies, Compare Selected, and external Paper Trading destination. Dashboard and Candidates retain owner acceptance; the five continuously completed surfaces have technical, control, and direct visual passes and now await the single consolidated owner walkthrough. |
+| Immediate objective | Recover the failed R13 live workflow, then prove it with one owner-authorized bounded canonical validation campaign. |
+| Phase | **R13 live-workflow recovery is active. The seven routes exist, but the product is not technically or operationally accepted end to end.** |
+| Active work | Fix the fresh-session Factory grid and stale-client deployment defects; connect Submit Strategies to the existing audited Candidate-intake service without direct database writes; implement the missing deterministic campaign-policy decision at the existing gateway/runtime boundary; then execute R15 under the fixed policy below. |
 | Technology | Reuse the accepted Dash/Mantine shell, existing projections, Plotly/VectorBT evidence, and Dash AG Grid. Keep `dashboard.ui` presentation-only, lazy-load heavy evidence, and preserve bounded server-side data paths. |
 | Visual authority | Dashboard: `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. Remaining workflow surfaces: `docs/assets/workspaces/current-workflow-contract/workspaces.html`, SHA-256 `313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31`; it contains no Dashboard composition. |
-| Visual proof state | **All seven surfaces are implemented from the two checksum-locked contracts and privately deployed.** Dashboard and Candidates are owner-accepted. Results, Factory runs, Submit Strategies, Compare Selected, and Paper Trading passed bounded 1440×980 direct comparison and await consolidated owner comprehension. Representative proof state was isolated and deleted; live routes remain canonical and truthful. |
-| Next action | Terry performs one unaided walkthrough of the deployed seven-surface suite. Do not start research, another surface, or deferred work before that checkpoint changes Tier 1. |
-| Owner checkpoints | Consolidated owner walkthrough and acceptance of the five newly completed surfaces. Technical completion and deployment do not substitute for that comprehension gate. |
-| Deferred | Candidate campaigns; VectorBT Pro upgrade; paid/protected data; paper activation; broker work; orders; live trading; and capital exposure. |
+| Visual proof state | The approved contracts and deployed routes remain the visual baseline. Dashboard and Candidates retain visual/composition acceptance only. The suite failed live workflow acceptance: canonical Candidates is empty, Results lacks a suitable evidence-complete run, Factory can hide persisted rows, Submit is non-operational, and survivor-only surfaces have no genuine survivor. |
+| Next action | Complete R13 recovery and proceed directly into the preauthorized R15 validation campaign without an intermediate owner pause. Use the resulting canonical state for one final live walkthrough; do not substitute fixtures for operational proof. |
+| Owner checkpoints | One consolidated live walkthrough after R13 recovery and R15 execution. No intermediate owner decision is required inside the policy below. A genuine new exception stops only the affected Candidate, not the batch. |
+| Deferred | Broad or open-ended edge discovery; VectorBT Pro upgrade; new or paid/protected data; paper-lane activation; broker work; orders; live trading; and capital exposure. |
 
 ## Active work
 
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | Seven surfaces are merged and privately deployed. Dashboard and Candidates are accepted; Results, Factory, Submit, Compare, and Paper await one consolidated owner walkthrough. |
-| R15 | 2 | blocked | R13 | Automated bounded-research activation requires a separately approved campaign policy after usable product handoff. |
-| R14 | 3 | blocked | none | Provider-neutral Agent Research Gateway is retained but is not current substitute work. |
+| R13 | 1 | in_progress | none | The prior walkthrough failed. Repair the Factory/stale-client defects and operationalize canonical Submit plus deterministic campaign admission through existing service boundaries. |
+| R15 | 2 | blocked | R13 | Owner-authorized product-validation campaign. Its policy is fixed below; begin automatically when R13 prerequisites pass. |
+| R14 | 3 | blocked | R15 | Broad unattended Candidate research remains outside the product-validation campaign and requires a later owner decision. |
 <!-- active-work:end -->
+
+## Authorized R15 product-validation campaign
+
+Terry authorizes this one campaign to create canonical Candidate and research
+state after R13's submission and campaign-admission prerequisites pass. It is
+for truthful end-to-end product validation, not a demand to discover an edge.
+
+| Boundary | Fixed authority |
+|---|---|
+| Policy identity and expiry | `r15-product-validation-v1`; expires permanently when 12 accepted Candidates reach terminal admission/outcome state or four compute hours elapse after the first run starts, whichever occurs first. |
+| Intake | At most 12 distinct, source-attributed QF Candidate v1 packets produced by an LLM or the owner. Duplicate and invalid packets do not consume execution budget. |
+| Mandate | Same-session intraday directional research only; flat by the declared session boundary; no overnight or multi-day positions. |
+| Instruments, sessions, and data | MES only, using the already verified `futures_MES_5m_databento` local dataset, its fixed 2019-05-06 through 2023-12-29 coverage, and the existing NYSE same-session calendar/boundary. No external acquisition, paid/protected data, or new credential use. |
+| Families | Distinct explainable intraday archetypes compatible with existing registered MES adapters. Do not rerun, paraphrase, or tune the two prohibited MES proof Candidates. |
+| Search | Reference-first, precommitted bounded values only; at most 100 parameter combinations per study and 1,200 across the campaign. No adaptive search, widening, post-result refinement, or arbitrary indicator assembly. |
+| Studies and finalists | At most one initial study per accepted Candidate and at most three evidence finalists across the campaign. A refinement is not authorized. |
+| Horizon and evidence | Each immutable study must precommit the existing accepted costs, chronological splits, objective, family-level multiplicity controls, and screening/OOS/walk-forward/robustness/Monte Carlo gates without weakening or substitution; a missing value fails admission closed. Stop before any protected-test boundary. |
+| Repair and retry | At most two provenance-preserving semantic repair attempts per Candidate and one infrastructure retry per failed operation. Repair may not change the hypothesis. |
+| Compute | One concurrent worker, four elapsed hours maximum, 2 GiB additional retained artifacts maximum, and zero incremental monetary spend. |
+| Stop conditions | Stop admission at any campaign ceiling. Stop only the affected Candidate for unresolved meaning, missing local data or adapter, prior-work conflict, or deterministic failure. Stop the campaign for repeated infrastructure failure or any need for paid/protected data, new credentials, mandate expansion, paper/live/broker/order/capital authority, or larger budgets. |
+| Success | Canonical submission, progression, truthful terminal outcomes, exact lineage, and evidence-complete live page behavior are proven. A qualified survivor is not required. |
+
+Synthetic populations are not part of R15. The completed temporary large-row
+proof remains capacity evidence only. If no real survivor appears, one clearly
+labelled isolated noncanonical fixture may prove survivor-only presentation;
+it cannot close canonical survivor or paper-handoff acceptance.
 
 ## Retained technical evidence
 
@@ -37,12 +63,13 @@ and next action. Git history preserves completed milestone narratives.
 - Intraday annualization corrections and the accepted lazy Results data path
   remain valid. Historical measured Results performance is technical evidence,
   not usability or visual acceptance.
-- No persisted survivor was present in the last recorded deployed inspection.
-  Survivor behavior remains unproved until a real survivor exists.
+- The deployed inspection found zero persisted Candidate packets, two older
+  MES runs, and no survivor. One old successful run lacks the OHLC/trade
+  evidence needed for meaningful Results review.
 - Results, Factory runs, Submit Strategies, Compare Selected, and the external
-  Paper Trading destination were merged through PRs 198–202 and deployed to
-  the existing private Dashboard service. Their live routes use canonical
-  read-only state; the isolated comparison proof database was deleted.
+  Paper Trading destination were merged through PRs 198–202 and deployed, but
+  route existence, isolated fixtures, and shallow controls did not establish a
+  working product. The isolated comparison proof database was deleted.
 
 ## Current contracts
 
@@ -57,8 +84,6 @@ authority.
 
 ## Accepted Dashboard evidence
 
-On 2026-10-09 Terry used the connected Dashboard at the established private URL,
-opened and dismissed multiple contextual drawers, and accepted the surface as
-working. It runs as the persistent Linux service against the explicitly
-configured external database. This closes Dashboard comprehension and unlocks
-Candidates; it does not authorize another surface or research campaign.
+On 2026-10-09 Terry accepted the connected Dashboard's composition and basic
+drawer interactions. That acceptance remains visual and surface-specific; it
+does not prove the later seven-surface workflow or canonical campaign path.

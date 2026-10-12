@@ -38,24 +38,28 @@ surface. No competing visual reference may be added to the active tree.
 
 ## Implement in bounded slices
 
-Dashboard is accepted. The remaining surfaces already have an approved
-composition and workflow contract and are implemented one at a time in the
-order set by `docs/MILESTONES.md`. Do not create a replacement mockup or
-greenfield their structure. Stop after each working private-route walkthrough
-unless the active milestone explicitly records Terry's authorization for a
-continuous multi-surface completion batch. During such a batch, preserve the
-same per-surface contract and lean proof, publish each working route, continue
-without intermediate owner pauses, and request one consolidated final review.
+The visual contracts are approved; current implementation and acceptance state
+comes only from `docs/MILESTONES.md`. Do not create a replacement mockup or
+greenfield an approved structure. Stop after each working private-route
+walkthrough unless the active milestone authorizes a continuous batch. During
+such a batch, preserve the per-surface contract and lean proof, publish each
+working route, continue without intermediate owner pauses, and request one
+consolidated final review.
 
 Build the approved composition as a clean Dash UI under `dashboard.ui`.
-Backend contracts are accepted and frozen. Do not change SQL, persistence,
-schemas, lineage, orchestration, evidence logic, scaling, performance paths, or
-backend tests, and do not create a second frontend.
+Backend contracts are frozen for visual/presentation work. Read-only pages call
+existing projections. When Tier 1 explicitly authorizes a state-changing
+operator action, presentation code may call an existing audited application
+service; it must not write SQL, define lifecycle policy, or recreate
+persistence, lineage, orchestration, evidence, scaling, or performance logic.
+If the required service capability is missing, treat it as a separate
+application-boundary implementation under the active milestone and the normal
+preflight—never conceal it inside the frontend. Do not create a second frontend.
 
 Dash Mantine Components is the production UI layer for the approved shell and
 commodity components. The work has a mandatory two-stage boundary:
 
-### Gate A — visual shell only
+### Gate A — visual shell only, when the active milestone requires one
 
 - Build the real Dash/Mantine composition at 1440×980 from `dashboard.html`.
 - Use its representative values only in a clearly labeled local visual proof.
@@ -68,10 +72,12 @@ commodity components. The work has a mandatory two-stage boundary:
 
 ### Gate B — truthful behavior after owner approval
 
-Only after Terry approves Gate A, bind existing read-only state and add the
+Only after Terry approves a required Gate A, bind truthful state and add the
 approved controls with Dash Core Components, Plotly, VectorBT, and Dash AG Grid
-without changing composition. If existing contracts cannot supply a visible
-requirement, stop with the exact blocker; do not redesign the backend.
+without changing composition. Existing approved surfaces do not repeat Gate A
+for a defect correction. If existing contracts cannot supply a visible
+requirement, report the exact owning-boundary gap; do not improvise it in the
+presentation layer.
 
 The Gate B deliverable is a persistent private review service at the established
 tailnet URL, not a screenshot or a temporary development process. The service
@@ -79,7 +85,11 @@ must receive the external canonical database through `QUANT_FACTORY_DB_PATH`.
 Never infer that a clean source checkout should contain runtime state, and never
 treat a prohibited old UI checkout as prohibiting read-only access to canonical
 state stored there. `dashboard.ui` is presentation only and must not contain SQL
-or recreate lifecycle/read-model semantics.
+or recreate lifecycle/read-model semantics. Submit Strategies is the exception
+to read-only user intent only when Tier 1 activates canonical intake: its UI may
+invoke the existing authenticated, audited, idempotent Candidate-intake service
+and display the exact returned identity. It still may not mutate SQL directly
+or authorize research execution.
 
 Preserve the approved information behavior: Dashboard exposes current factory
 operations and survivors; Candidates defaults to sortable/filterable survivors;
@@ -143,8 +153,10 @@ do not prove visual conformance. A material mismatch means the surface is
 incomplete.
 
 Gate A ends with Terry's visual decision and cannot be merged or deployed as an
-operational Dashboard. Gate B ends only when the truthful connected Dashboard
-is running at the established private URL and Terry has used it unaided. Before
-merge, perform the secondary interface audit and independent adversarial review.
-Do not claim comprehension or begin another surface until Terry accepts the
-private Dashboard walkthrough.
+operational surface. Gate B ends only when the truthful connected surface is
+running at the established private URL and Terry has used it unaided. A
+campaign-validation recovery may continue across approved surfaces without an
+intermediate pause only when `docs/MILESTONES.md` explicitly says so. Before
+merge, perform the proportionate secondary interface audit and required
+independent review. Do not claim comprehension from tests, fixtures, or agent
+inspection.
