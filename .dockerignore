@@ -27,6 +27,8 @@
 !prefect_spike/**
 !strategies/
 !strategies/**
+!tools/
+!tools/run_five_bar_candidate.py
 !config/
 !config/*.py
 !config/*.example.toml
