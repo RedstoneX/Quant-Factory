@@ -13,7 +13,6 @@ import pytest
 from agent_gateway.cli import build_parser, request_document, send
 from agent_gateway.contracts import GATEWAY_PROTOCOL, GatewayIdentity, GatewayRequest
 from agent_gateway.service import AgentResearchGateway
-from agent_gateway.campaign_policy import R15_POLICY_ID
 from agent_gateway.socket_server import GatewayUnixServer, IdentityRegistration, PeerPolicy
 from agent_gateway.ssh_command import allowed_arguments
 from persistence import PersistenceService, RunStage, StrategyLifecycle, save_candidate_idea
@@ -58,14 +57,24 @@ def _request(operation: str, *, arguments=None, payload=None, request_id="req_12
     )
 
 
-def _gateway(tmp_path: Path, *, launcher=None, campaign_policy_id=None) -> AgentResearchGateway:
+def _gateway(tmp_path: Path, *, launcher=None) -> AgentResearchGateway:
     return AgentResearchGateway(
         database=tmp_path / "qf.sqlite3",
         gateway_database=tmp_path / "gateway.sqlite3",
         artifact_root=tmp_path / "artifacts",
         run_launcher=launcher,
-        campaign_policy_id=campaign_policy_id,
     )
+
+
+def test_fresh_gateway_state_has_no_active_campaign_storage(tmp_path):
+    gateway = _gateway(tmp_path)
+    gateway.handle(_request("bootstrap"), GatewayIdentity("reader", "local", "test", "local", 0))
+    connection = sqlite3.connect(tmp_path / "gateway.sqlite3")
+    try:
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    finally:
+        connection.close()
+    assert "campaign_events" not in tables
 
 
 @pytest.fixture
@@ -115,7 +124,7 @@ def test_provider_neutral_bootstrap_is_complete_for_codex_and_claude(tmp_path, i
         assert "bootstrap" in result["permitted_operations"]
         assert "broker.order" in result["prohibited_operations"]
 
-    assert "run.request" in gateway.handle(_request("bootstrap"), identities["codex"]).result["permitted_operations"]
+    assert "run.request" in gateway.handle(_request("bootstrap"), identities["codex"]).result["prohibited_operations"]
     assert "run.request" in gateway.handle(_request("bootstrap"), identities["claude"]).result["prohibited_operations"]
 
 
@@ -333,58 +342,6 @@ def test_unapproved_candidate_cannot_launch(tmp_path, identities):
         identities["codex"],
     )
     assert denied.error["code"] == "campaign_inactive"
-    assert calls == []
-
-
-def test_r15_submission_records_deterministic_terminal_admission(tmp_path, identities):
-    document = _candidate(title="MES volume imbalance continuation")
-    document["candidate"]["family"] = "order_flow_continuation"
-    document["market"]["instruments"] = {"preferred": ["MES"]}
-    document["fixed"]["dataset_id"] = "futures_MES_5m_databento"
-    document["implementation"] = {"strategy_id": "mes_volume_imbalance_continuation"}
-    gateway = _gateway(tmp_path, launcher=lambda *_: "unused", campaign_policy_id=R15_POLICY_ID)
-
-    first = gateway.handle(
-        _request("candidate.submit", payload=json.dumps(document), request_id="req_r15_submit_000001"),
-        identities["codex"],
-    )
-    second = gateway.handle(
-        _request("candidate.submit", payload=json.dumps(document), request_id="req_r15_submit_000002"),
-        identities["codex"],
-    )
-
-    assert first.ok and second.ok
-    assert first.result["candidate_id"] == second.result["candidate_id"]
-    assert first.result["campaign"] == second.result["campaign"]
-    assert first.result["campaign"]["state"] == "implementation_blocked"
-    assert first.result["campaign"]["reason_code"] == "adapter_mapping_unavailable"
-    connection = sqlite3.connect(tmp_path / "gateway.sqlite3")
-    assert connection.execute("SELECT count(*) FROM campaign_events").fetchone()[0] == 1
-
-
-def test_r15_prior_work_adapter_is_closed_without_launch(tmp_path, identities):
-    document = _candidate(title="Plain MES opening range breakout")
-    document["candidate"]["family"] = "opening_range_breakout"
-    document["market"]["instruments"] = {"preferred": ["MES"]}
-    document["fixed"]["dataset_id"] = "futures_MES_5m_databento"
-    document["implementation"] = {"strategy_id": "mes_opening_range_breakout_long"}
-    calls = []
-    gateway = _gateway(tmp_path, launcher=lambda *args: calls.append(args), campaign_policy_id=R15_POLICY_ID)
-    submitted = gateway.handle(
-        _request("candidate.submit", payload=json.dumps(document), request_id="req_r15_prior_000001"),
-        identities["codex"],
-    )
-    denied = gateway.handle(
-        _request(
-            "run.request",
-            arguments={"candidate_id": submitted.result["candidate_id"]},
-            request_id="req_r15_prior_run01",
-        ),
-        identities["codex"],
-    )
-    assert submitted.result["campaign"]["state"] == "prior_work_conflict"
-    assert denied.ok is False
-    assert denied.error["code"] == "plain_orb_matrix_closed"
     assert calls == []
 
 

@@ -156,6 +156,8 @@ def _outcome(record: dict[str, Any]) -> tuple[str, str]:
         return "Semantic exception recorded", "Resolve the exact recorded ambiguity"
     if lifecycle == "rejected":
         campaign_state = record.get("campaign_state")
+        if campaign_state == "implementation_blocked":
+            return "Unexecuted · adapter mapping missing", "No StudyPlan or run was created"
         if campaign_state and campaign_state != "not_admitted":
             return f"Closed · {_human_label(campaign_state)}", record.get("campaign_reason_detail") or "Admission decision and lineage retained"
         return f"Closed · {record.get('screening_status') or record.get('run_status')}", "Evidence and lineage retained"

@@ -13,10 +13,6 @@ from typing import Any, Callable, Mapping
 from agent_gateway.authority import OPERATION_LEVELS
 from agent_gateway.bootstrap import build_bootstrap
 from agent_gateway.candidate_workflow import persist_submitted_candidate
-from agent_gateway.campaign_policy import (
-    attach_campaign_decision, campaign_status, ensure_campaign_intake_open,
-    executable_campaign_configuration,
-)
 from agent_gateway.contracts import (
     GatewayError,
     GatewayIdentity,
@@ -52,13 +48,11 @@ class AgentResearchGateway:
         gateway_database: str | Path,
         artifact_root: str | Path,
         run_launcher: RunLauncher | None = None,
-        campaign_policy_id: str | None = None,
     ) -> None:
         self.database = Path(database)
         self.gateway_database = Path(gateway_database)
         self.artifact_root = Path(artifact_root)
         self.run_launcher = run_launcher
-        self.campaign_policy_id = campaign_policy_id
 
     def handle(
         self,
@@ -144,10 +138,11 @@ class AgentResearchGateway:
         if identity.authority_level < required:
             raise GatewayError("authority_denied", "agent authority does not permit this operation")
         if request.operation == "bootstrap":
-            result = build_bootstrap(identity, operation_levels=OPERATION_LEVELS,
-                                     run_requests_enabled=self.run_launcher is not None)
-            result["campaign"] = campaign_status(store, self.campaign_policy_id)
-            return result
+            return build_bootstrap(
+                identity,
+                operation_levels=OPERATION_LEVELS,
+                run_requests_enabled=False,
+            )
         handlers = {
             "context.get": self._context_get,
             "prior.search": self._prior_search,
@@ -221,14 +216,13 @@ class AgentResearchGateway:
         candidate_id = f"qfc_{content_hash[:32]}"
         existing = store.candidate_for_hash(content_hash)
         if existing is not None:
-            return attach_campaign_decision({
+            return {
                 "candidate_id": existing["candidate_id"],
                 "duplicate": True,
                 "validation": _validation_document(validation),
-            }, policy_id=self.campaign_policy_id, database=self.database, store=store)
-        ensure_campaign_intake_open(store, self.campaign_policy_id)
+            }
         lineage = _validated_lineage(request.arguments, self.database)
-        result = persist_submitted_candidate(
+        return persist_submitted_candidate(
             validation=validation,
             validation_document=_validation_document(validation),
             candidate_id=candidate_id,
@@ -237,9 +231,6 @@ class AgentResearchGateway:
             identity=identity,
             store=store,
             database=self.database,
-        )
-        return attach_campaign_decision(
-            result, policy_id=self.campaign_policy_id, database=self.database, store=store,
         )
 
     def _candidate_get(
@@ -310,18 +301,11 @@ class AgentResearchGateway:
     ) -> dict[str, Any]:
         if self.run_launcher is None:
             raise GatewayError("run_unavailable", "development-run requests are disabled")
-        candidate_id = _identifier(request.arguments.get("candidate_id"), "candidate")
-        if not self.campaign_policy_id:
-            raise GatewayError("campaign_inactive", "no Candidate campaign policy is active")
-        configuration_id = executable_campaign_configuration(
-            candidate_id,
-            self.database,
-            _store,
-            self.campaign_policy_id,
+        _identifier(request.arguments.get("candidate_id"), "candidate")
+        raise GatewayError(
+            "campaign_inactive",
+            "No executable Candidate campaign is active; Candidate intake does not authorize research execution.",
         )
-        idempotency_key = f"agent_{hashlib.sha256(candidate_id.encode()).hexdigest()[:48]}"
-        run_id = self.run_launcher(candidate_id, configuration_id, idempotency_key)
-        return {"candidate_id": candidate_id, "run_id": run_id, "idempotency_key": idempotency_key}
 
     def _run_status(
         self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore

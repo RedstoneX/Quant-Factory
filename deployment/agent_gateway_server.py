@@ -68,7 +68,6 @@ def build_server() -> GatewayUnixServer:
     socket_path = _required_path("QF_GATEWAY_SOCKET_PATH")
     identity_registry = _required_path("QF_GATEWAY_IDENTITY_REGISTRY")
     run_enabled = os.environ.get("QF_GATEWAY_RUN_REQUESTS_ENABLED", "false") == "true"
-    campaign_policy_id = os.environ.get("QF_GATEWAY_CAMPAIGN_POLICY_ID") or None
 
     def launch(_candidate_id: str, configuration_id: str, idempotency_key: str) -> str:
         runtime = CandidatePipelineRuntime.from_saved_configuration(
@@ -86,7 +85,6 @@ def build_server() -> GatewayUnixServer:
         gateway_database=gateway_database,
         artifact_root=artifact_root,
         run_launcher=launch if run_enabled else None,
-        campaign_policy_id=campaign_policy_id,
     )
     try:
         remote_uid = int(os.environ["QF_GATEWAY_REMOTE_UID"])

@@ -69,22 +69,24 @@ REQUIRED_FRONTEND_FILES = (
 CURRENT_AUTHORITY_MARKERS = {
     Path("AGENTS.md"): (
         "approved state-changing control",
+        "mandatory positive-path precondition",
     ),
     Path("docs/MILESTONES.md"): (
-        "R13 live-workflow recovery is active",
-        "r15-product-validation-v1",
+        "R13 live-workflow recovery remains active",
+        "R15 aborted campaign record",
+        "Executable-campaign precondition",
     ),
     Path("docs/DECISIONS.md"): (
-        "R13 acceptance reopened; bounded canonical product-validation campaign authorized",
+        "R15 activation invalidated; executable preflight is mandatory",
     ),
     Path(".agents/skills/quant-factory-frontend/SKILL.md"): (
         "audited, idempotent Candidate-intake service",
     ),
     Path("docs/qf-research-context-v1.yaml"): (
-        "bounded_product_validation_authorized_pending_r13_recovery",
+        "campaign_aborted_execution_precondition_unsatisfied",
     ),
     Path("research_intake/qf_research_context.py"): (
-        "bounded_product_validation_authorized_pending_r13_recovery",
+        "campaign_aborted_execution_precondition_unsatisfied",
     ),
 }
 
@@ -93,6 +95,10 @@ SUPERSEDED_ACTIVE_DIRECTIVES = (
     "Seven-surface operator suite technically complete and privately deployed",
     "paused_during_operator_interface_design_and_campaign_policy_gate",
     "Dashboard is accepted. The remaining surfaces already have an approved",
+    "R15 reached its permanent terminal ceiling",
+    "This is a valid campaign outcome",
+    "R13 acceptance reopened; bounded canonical product-validation campaign authorized",
+    "bounded_product_validation_authorized_pending_r13_recovery",
 )
 
 ALLOWED_DASHBOARD_ROOT_FILES = {

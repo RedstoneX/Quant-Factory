@@ -8,14 +8,14 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Owner walkthrough of the deployed R13 recovery and the truthful terminal R15 campaign state. |
-| Phase | **R13 live-workflow recovery is active at the final owner-review gate. R15 reached its 12-Candidate terminal ceiling without an executable Candidate; the product remains unaccepted end to end.** |
-| Active work | No further mutation is authorized before the owner walkthrough. Factory row hydration, stale-client revision handling, canonical Submit, deterministic admission, and campaign-state presentation are deployed on the review branch. |
+| Immediate objective | Correct the invalid R15 activation, preserve only independently useful R13 fixes, and prove one exact executable Candidate path before any new campaign. |
+| Phase | **R13 live-workflow recovery remains active. R15 was aborted because its executable-adapter prerequisite was never satisfied; it did not validate the factory workflow.** |
+| Active work | PR 205 is a correction branch, not a completion candidate. Retain the Factory grid, stale-client, and authenticated Submit improvements; remove the impossible R15 policy and false completion claims; keep research execution disabled. |
 | Technology | Reuse the accepted Dash/Mantine shell, existing projections, Plotly/VectorBT evidence, and Dash AG Grid. Keep `dashboard.ui` presentation-only, lazy-load heavy evidence, and preserve bounded server-side data paths. |
 | Visual authority | Dashboard: `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. Remaining workflow surfaces: `docs/assets/workspaces/current-workflow-contract/workspaces.html`, SHA-256 `313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31`; it contains no Dashboard composition. |
-| Visual proof state | The approved contracts remain the visual baseline. Fresh-browser proof shows Factory's persisted rows, 12 exact canonical Candidate admission outcomes, working Candidate search/sort/selection/detail, truthful retained Results, and unavailable Compare/Paper states. No genuine survivor or evidence-complete new run exists. |
-| Next action | Terry performs the consolidated live walkthrough of the deployed review revision. A later executable campaign requires a new decision about implementing exact Candidate adapters; do not bind these hypotheses to nearby retained adapters or reopen R15. |
-| Owner checkpoints | One consolidated live walkthrough now. Merge remains behind that walkthrough. R15 is terminal and grants no further Candidate or run authority. |
+| Visual proof state | The approved contracts remain the visual baseline. The live routes and some controls work, but no new Candidate progressed into a StudyPlan or run. The 12 R15 packets are unexecuted intake records, not product-validation evidence. |
+| Next action | Select one of the retained hypotheses only after proving an exact adapter and immutable StudyPlan can be built within current authority; implement that one mapping and run one bounded end-to-end proof. If no mapping is feasible, stop before another intake campaign. |
+| Owner checkpoints | Do not ask Terry to review the failed R15 state as a completed workflow. The next walkthrough follows one genuinely executable Candidate path or a concise blocker report. |
 | Deferred | Broad or open-ended edge discovery; VectorBT Pro upgrade; new or paid/protected data; paper-lane activation; broker work; orders; live trading; and capital exposure. |
 
 ## Active work
@@ -23,46 +23,39 @@ and next action. Git history preserves completed milestone narratives.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | Recovery revision deployed: persisted Factory rows hydrate, obsolete callback clients fail visibly and reload, Submit uses the audited gateway, and canonical admission outcomes project into Candidates. Final acceptance remains Terry's unaided walkthrough. |
-| R14 | 2 | blocked | R13 | Broad unattended Candidate research remains outside the completed product-validation campaign and requires a later owner decision. |
+| R13 | 1 | in_progress | none | The prior recovery bundled useful UI/runtime fixes with an impossible campaign. Correct that bundle and keep execution disabled until a positive executable path exists. |
+| R14 | 2 | blocked | R13 | Broad unattended Candidate research remains unauthorized until one exact Candidate-to-adapter/StudyPlan path succeeds end to end. |
 <!-- active-work:end -->
 
-## Authorized R15 product-validation campaign
+## R15 aborted campaign record
 
-Terry authorizes this one campaign to create canonical Candidate and research
-state after R13's submission and campaign-admission prerequisites pass. It is
-for truthful end-to-end product validation, not a demand to discover an edge.
+R15 was activated without proving its load-bearing prerequisite: at least one
+eligible exact Candidate-to-adapter and immutable StudyPlan mapping. Its policy
+had no reachable admitted state. Between 13:40 and 15:28 UTC on 2026-10-12 it
+persisted 12 genuine, source-attributed Candidate packets and deterministically
+marked all 12 `implementation_blocked / adapter_mapping_unavailable`. It created
+no StudyPlan, run, result, evidence, survivor, paper package, broker action, or
+capital state. The packets and append-only gateway events remain audit records;
+they are not tested strategies and do not prove the product workflow.
 
-| Boundary | Fixed authority |
-|---|---|
-| Policy identity and expiry | `r15-product-validation-v1`; expires permanently when 12 accepted Candidates reach terminal admission/outcome state or four compute hours elapse after the first run starts, whichever occurs first. |
-| Intake | At most 12 distinct, source-attributed QF Candidate v1 packets produced by an LLM or the owner. Duplicate and invalid packets do not consume execution budget. |
-| Mandate | Same-session intraday directional research only; flat by the declared session boundary; no overnight or multi-day positions. |
-| Instruments, sessions, and data | MES only, using the already verified `futures_MES_5m_databento` local dataset, its fixed 2019-05-06 through 2023-12-29 coverage, and the existing NYSE same-session calendar/boundary. No external acquisition, paid/protected data, or new credential use. |
-| Families | Distinct explainable intraday archetypes compatible with existing registered MES adapters. Do not rerun, paraphrase, or tune the two prohibited MES proof Candidates. |
-| Search | Reference-first, precommitted bounded values only; at most 100 parameter combinations per study and 1,200 across the campaign. No adaptive search, widening, post-result refinement, or arbitrary indicator assembly. |
-| Studies and finalists | At most one initial study per accepted Candidate and at most three evidence finalists across the campaign. A refinement is not authorized. |
-| Horizon and evidence | Each immutable study must precommit the existing accepted costs, chronological splits, objective, family-level multiplicity controls, and screening/OOS/walk-forward/robustness/Monte Carlo gates without weakening or substitution; a missing value fails admission closed. Stop before any protected-test boundary. |
-| Repair and retry | At most two provenance-preserving semantic repair attempts per Candidate and one infrastructure retry per failed operation. Repair may not change the hypothesis. |
-| Compute | One concurrent worker, four elapsed hours maximum, 2 GiB additional retained artifacts maximum, and zero incremental monetary spend. |
-| Stop conditions | Stop admission at any campaign ceiling. Stop only the affected Candidate for unresolved meaning, missing local data or adapter, prior-work conflict, or deterministic failure. Stop the campaign for repeated infrastructure failure or any need for paid/protected data, new credentials, mandate expansion, paper/live/broker/order/capital authority, or larger budgets. |
-| Success | Canonical submission, progression, truthful terminal outcomes, exact lineage, and evidence-complete live page behavior are proven. A qualified survivor is not required. |
+R15 is aborted, not successfully completed and not eligible to reopen. A future
+campaign is a new authorization after the executable-precondition rule below is
+satisfied.
 
-Synthetic populations are not part of R15. The completed temporary large-row
-proof remains capacity evidence only. If no real survivor appears, one clearly
-labelled isolated noncanonical fixture may prove survivor-only presentation;
-it cannot close canonical survivor or paper-handoff acceptance.
+## Executable-campaign precondition
 
-R15 reached its permanent terminal ceiling on 2026-10-12. Twelve distinct
-LLM-authored, source-attributed QF Candidate v1 packets were persisted through
-the authenticated gateway. Their fixed grids totalled 47 combinations. The
-deterministic policy closed every Candidate as
-`implementation_blocked / adapter_mapping_unavailable` because the fixed R15
-policy contained no approved exact Candidate-to-adapter and immutable StudyPlan
-mapping for the submitted hypothesis; it did not infer a nearby implementation.
-No run, protected evidence, survivor, paper package, broker action, or capital
-state was created. This is a valid campaign outcome, not authority to substitute
-a nearby implementation or tune a closed proof Candidate.
+Before a Candidate campaign is activated, generated, or allowed to mutate
+canonical state, its implementation must:
+
+1. inventory the registered active adapters/configurations allowed by the
+   proposed policy after prior-work exclusions;
+2. prove at least one exact Candidate can resolve to one immutable StudyPlan
+   and configuration without title matching or a nearby-strategy substitution;
+3. exercise one positive admission path and one rejection path in focused tests;
+4. stop before Candidate generation or persistence when the eligible count is
+   zero; and
+5. define success as actual progression beyond intake. A collection of terminal
+   intake blocks cannot validate the workflow.
 
 ## Retained technical evidence
 
@@ -73,14 +66,13 @@ a nearby implementation or tune a closed proof Candidate.
 - Intraday annualization corrections and the accepted lazy Results data path
   remain valid. Historical measured Results performance is technical evidence,
   not usability or visual acceptance.
-- Canonical state now contains 12 R15 Candidate packets and the two retained
-  older MES runs. All 12 R15 Candidates are terminal implementation blocks;
-  there is still no survivor. The old successful run remains evidence-invalid
-  and has no persisted OHLC bars or trades suitable for a meaningful new
-  Results review.
-- The recovery branch is deployed for review; its exact immutable revision is
-  exposed by the live revision endpoint and the PR head. Pre-mutation canonical
-  and gateway databases were backed up recoverably before submission.
+- Canonical state contains 12 unexecuted R15 Candidate packets and the two
+  retained older MES runs. There is still no survivor. The old successful run
+  remains evidence-invalid and has no persisted OHLC bars or trades suitable
+  for a meaningful Results review.
+- Pre-R15 canonical and gateway backups remain available. Do not delete or
+  rewrite the 12 packets or their append-only events; correct their meaning in
+  projections and Tier 1 instead.
 - Results, Factory runs, Submit Strategies, Compare Selected, and the external
   Paper Trading destination were merged through PRs 198–202 and deployed, but
   route existence, isolated fixtures, and shallow controls did not establish a
