@@ -12,9 +12,9 @@ from typing import Any, Callable, Mapping
 
 from agent_gateway.authority import OPERATION_LEVELS
 from agent_gateway.bootstrap import build_bootstrap
-from agent_gateway.candidate_workflow import (
-    executable_candidate_configuration,
-    persist_submitted_candidate,
+from agent_gateway.candidate_workflow import persist_submitted_candidate
+from agent_gateway.campaign_policy import (
+    attach_campaign_decision, executable_campaign_configuration,
 )
 from agent_gateway.contracts import (
     GatewayError,
@@ -31,8 +31,6 @@ from research_intake import (
     parse_candidate_packet,
     validate_candidate_packet,
 )
-
-
 RunLauncher = Callable[[str, str, str], str]
 _STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request"}
 _SAFE_EVIDENCE_STATES = {"gated", "not_applicable", None}
@@ -53,11 +51,13 @@ class AgentResearchGateway:
         gateway_database: str | Path,
         artifact_root: str | Path,
         run_launcher: RunLauncher | None = None,
+        campaign_policy_id: str | None = None,
     ) -> None:
         self.database = Path(database)
         self.gateway_database = Path(gateway_database)
         self.artifact_root = Path(artifact_root)
         self.run_launcher = run_launcher
+        self.campaign_policy_id = campaign_policy_id
 
     def handle(
         self,
@@ -221,13 +221,13 @@ class AgentResearchGateway:
         candidate_id = f"qfc_{content_hash[:32]}"
         existing = store.candidate_for_hash(content_hash)
         if existing is not None:
-            return {
+            return attach_campaign_decision({
                 "candidate_id": existing["candidate_id"],
                 "duplicate": True,
                 "validation": _validation_document(validation),
-            }
+            }, policy_id=self.campaign_policy_id, database=self.database, store=store)
         lineage = _validated_lineage(request.arguments, self.database)
-        return persist_submitted_candidate(
+        result = persist_submitted_candidate(
             validation=validation,
             validation_document=_validation_document(validation),
             candidate_id=candidate_id,
@@ -236,6 +236,9 @@ class AgentResearchGateway:
             identity=identity,
             store=store,
             database=self.database,
+        )
+        return attach_campaign_decision(
+            result, policy_id=self.campaign_policy_id, database=self.database, store=store,
         )
 
     def _candidate_get(
@@ -307,7 +310,14 @@ class AgentResearchGateway:
         if self.run_launcher is None:
             raise GatewayError("run_unavailable", "development-run requests are disabled")
         candidate_id = _identifier(request.arguments.get("candidate_id"), "candidate")
-        configuration_id = executable_candidate_configuration(candidate_id, self.database)
+        if not self.campaign_policy_id:
+            raise GatewayError("campaign_inactive", "no Candidate campaign policy is active")
+        configuration_id = executable_campaign_configuration(
+            candidate_id,
+            self.database,
+            _store,
+            self.campaign_policy_id,
+        )
         idempotency_key = f"agent_{hashlib.sha256(candidate_id.encode()).hexdigest()[:48]}"
         run_id = self.run_launcher(candidate_id, configuration_id, idempotency_key)
         return {"candidate_id": candidate_id, "run_id": run_id, "idempotency_key": idempotency_key}

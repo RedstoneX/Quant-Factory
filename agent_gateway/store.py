@@ -9,7 +9,7 @@ import sqlite3
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class GatewayStore:
@@ -75,6 +75,19 @@ class GatewayStore:
                 parent_lineage_json TEXT NOT NULL,
                 response_json TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS campaign_events (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                policy_id TEXT NOT NULL,
+                candidate_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                reason_code TEXT NOT NULL,
+                reason_detail TEXT NOT NULL,
+                parameter_combinations INTEGER NOT NULL,
+                configuration_id TEXT,
+                run_id TEXT,
+                occurred_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                UNIQUE(policy_id, candidate_id, state, reason_code, configuration_id, run_id)
+            );
             CREATE TRIGGER IF NOT EXISTS gateway_audit_no_update
             BEFORE UPDATE ON gateway_audit BEGIN
                 SELECT RAISE(ABORT, 'gateway audit is append-only');
@@ -91,11 +104,21 @@ class GatewayStore:
             BEFORE DELETE ON research_notes BEGIN
                 SELECT RAISE(ABORT, 'research notes are append-only');
             END;
+            CREATE TRIGGER IF NOT EXISTS campaign_events_no_update
+            BEFORE UPDATE ON campaign_events BEGIN
+                SELECT RAISE(ABORT, 'campaign events are append-only');
+            END;
+            CREATE TRIGGER IF NOT EXISTS campaign_events_no_delete
+            BEFORE DELETE ON campaign_events BEGIN
+                SELECT RAISE(ABORT, 'campaign events are append-only');
+            END;
             """
         )
         row = self.connection.execute("SELECT version FROM gateway_schema").fetchone()
         if row is None:
             self.connection.execute("INSERT INTO gateway_schema(version) VALUES (?)", (SCHEMA_VERSION,))
+        elif row["version"] == 1:
+            self.connection.execute("UPDATE gateway_schema SET version=?", (SCHEMA_VERSION,))
         elif row["version"] != SCHEMA_VERSION:
             raise RuntimeError("unsupported agent gateway state schema")
         self.connection.commit()
@@ -191,6 +214,61 @@ class GatewayStore:
             "notes": [dict(row) for row in notes],
             "children": [row["candidate_id"] for row in children],
         }
+
+    def record_campaign_event(
+        self,
+        *,
+        policy_id: str,
+        candidate_id: str,
+        state: str,
+        reason_code: str,
+        reason_detail: str,
+        parameter_combinations: int,
+        configuration_id: str | None = None,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
+        with self.immediate():
+            self.connection.execute(
+                """INSERT OR IGNORE INTO campaign_events
+                (policy_id,candidate_id,state,reason_code,reason_detail,
+                 parameter_combinations,configuration_id,run_id)
+                VALUES (?,?,?,?,?,?,?,?)""",
+                (
+                    policy_id,
+                    candidate_id,
+                    state,
+                    reason_code,
+                    reason_detail,
+                    parameter_combinations,
+                    configuration_id,
+                    run_id,
+                ),
+            )
+        result = self.campaign_state(policy_id, candidate_id)
+        if result is None:
+            raise RuntimeError("campaign event was not persisted")
+        return result
+
+    def campaign_state(self, policy_id: str, candidate_id: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            """SELECT * FROM campaign_events
+               WHERE policy_id=? AND candidate_id=?
+               ORDER BY event_id DESC LIMIT 1""",
+            (policy_id, candidate_id),
+        ).fetchone()
+        return dict(row) if row is not None else None
+
+    def campaign_states(self, policy_id: str) -> list[dict[str, Any]]:
+        rows = self.connection.execute(
+            """SELECT event.* FROM campaign_events event
+               JOIN (
+                 SELECT candidate_id, MAX(event_id) AS event_id
+                 FROM campaign_events WHERE policy_id=? GROUP BY candidate_id
+               ) latest ON latest.event_id=event.event_id
+               ORDER BY event.event_id""",
+            (policy_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
 
     def audit(
         self,

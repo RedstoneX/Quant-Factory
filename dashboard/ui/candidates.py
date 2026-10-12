@@ -80,7 +80,7 @@ def candidates_layout() -> dmc.MantineProvider:
         html.Div([dmc.Title("Candidate universe", order=1), dmc.Text("Every lifecycle population · one ranked workspace", className="eyebrow")]),
         html.Div(className="top-spacer"), saved_views,
         dmc.Button("Columns", id="candidate-columns", leftSection=_icon("columns"), className="ghost", variant="default"),
-        dmc.Button("Submit strategy unavailable", className="primary", disabled=True),
+        dmc.Button("Submit strategy", id="candidate-submit", className="primary"),
     ], gap=9, className="topbar candidates-topbar")
 
     lifecycle = dmc.SegmentedControl(
@@ -127,7 +127,7 @@ def candidates_layout() -> dmc.MantineProvider:
     ], className="candidate-workspace", radius="md", withBorder=True)
 
     stores = [
-        dcc.Store(id="candidate-summary", data=summary), dcc.Store(id="candidate-query"),
+        dcc.Store(id="candidate-summary", data=summary), dcc.Store(id="candidate-query", data={"lifecycle":"survivor","market":"all","family":"all","evidence":"any","search":""}),
         dcc.Store(id="candidate-selection", storage_type="local"),
         dcc.Store(id="candidate-compare-selection", storage_type="local"),
         dcc.Store(id="candidate-detail-record"),
@@ -154,6 +154,9 @@ def _outcome(record: dict[str, Any]) -> tuple[str, str]:
     if lifecycle == "needs_review":
         return "Semantic exception recorded", "Resolve the exact recorded ambiguity"
     if lifecycle == "rejected":
+        campaign_state = record.get("campaign_state")
+        if campaign_state and campaign_state != "not_admitted":
+            return f"Closed · {_human_label(campaign_state)}", record.get("campaign_reason_detail") or "Admission decision and lineage retained"
         return f"Closed · {record.get('screening_status') or record.get('run_status')}", "Evidence and lineage retained"
     return "Candidate received", "Next eligibility is not recorded"
 
@@ -188,7 +191,7 @@ def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
     return [
         html.Div([html.Span("Outcome"), html.Strong(outcome), html.Span("Exact")], className="candidate-evidence-item"),
         html.Div([html.Span("Next state"), html.Strong(next_state), html.Span()], className="candidate-evidence-item"),
-        html.Div(record.get("error_summary") or record.get("description") or "No additional persisted explanation is available.", className=f"candidate-explanation {record.get('lifecycle') or ''}"),
+        html.Div(record.get("campaign_reason_detail") or record.get("error_summary") or record.get("description") or "No additional persisted explanation is available.", className=f"candidate-explanation {record.get('lifecycle') or ''}"),
         dmc.Group([dmc.Button("Open Results", id="candidate-open-results", className="primary", disabled=not record.get("run_id")), dmc.Button("View persisted sensitivity", id="candidate-open-evidence", className="ghost", variant="default")], gap=8, className="candidate-detail-actions"),
         dmc.Title("Evidence progression", order=3, className="candidate-progression-title"),
         *[html.Div([html.Span(_human_label(item.get("stage"))), html.Strong(_human_label(item.get("status"))), html.Span("✓" if item.get("status") == "succeeded" else "")], className="candidate-evidence-item") for item in progression],
@@ -224,7 +227,7 @@ def register_candidate_callbacks(application: Any) -> None:
     @application.callback(Output("candidate-grid", "getRowsResponse"), Output("candidate-page-count", "children"), Output("candidate-total-count", "children"), Input("candidate-grid", "getRowsRequest"), Input("candidate-query", "data"))
     def load_grid(request: dict[str, Any] | None, query: dict[str, Any] | None):
         if not request or not query:
-            empty = {"rowData": [], "rowCount": 0}; return empty, "0 loaded", "0 total · infinite row loading"
+            return no_update, no_update, no_update
         page = load_candidates_page(start=int(request.get("startRow") or 0), end=int(request.get("endRow") or 50), sort_model=request.get("sortModel"), filter_model=request.get("filterModel"), **query)
         return page, f"{len(page['rowData']):,} loaded", f"{int(page['rowCount']):,} total · infinite row loading"
 
