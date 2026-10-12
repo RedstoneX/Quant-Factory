@@ -57,8 +57,9 @@ R15 reached its permanent terminal ceiling on 2026-10-12. Twelve distinct
 LLM-authored, source-attributed QF Candidate v1 packets were persisted through
 the authenticated gateway. Their fixed grids totalled 47 combinations. The
 deterministic policy closed every Candidate as
-`implementation_blocked / adapter_unavailable` because no exact registered MES
-adapter and immutable StudyPlan compiler matched the submitted hypothesis.
+`implementation_blocked / adapter_mapping_unavailable` because the fixed R15
+policy contained no approved exact Candidate-to-adapter and immutable StudyPlan
+mapping for the submitted hypothesis; it did not infer a nearby implementation.
 No run, protected evidence, survivor, paper package, broker action, or capital
 state was created. This is a valid campaign outcome, not authority to substitute
 a nearby implementation or tune a closed proof Candidate.
@@ -77,9 +78,9 @@ a nearby implementation or tune a closed proof Candidate.
   there is still no survivor. The old successful run remains evidence-invalid
   and has no persisted OHLC bars or trades suitable for a meaningful new
   Results review.
-- Recovery revision `46cc5ff6568d653229eaf1d2cb3aa4c565005a0f` is deployed
-  for review. Its pre-mutation canonical and gateway databases were backed up
-  recoverably before campaign submission.
+- The recovery branch is deployed for review; its exact immutable revision is
+  exposed by the live revision endpoint and the PR head. Pre-mutation canonical
+  and gateway databases were backed up recoverably before submission.
 - Results, Factory runs, Submit Strategies, Compare Selected, and the external
   Paper Trading destination were merged through PRs 198–202 and deployed, but
   route existence, isolated fixtures, and shallow controls did not establish a

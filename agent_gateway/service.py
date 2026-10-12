@@ -14,7 +14,8 @@ from agent_gateway.authority import OPERATION_LEVELS
 from agent_gateway.bootstrap import build_bootstrap
 from agent_gateway.candidate_workflow import persist_submitted_candidate
 from agent_gateway.campaign_policy import (
-    attach_campaign_decision, executable_campaign_configuration,
+    attach_campaign_decision, campaign_status, ensure_campaign_intake_open,
+    executable_campaign_configuration,
 )
 from agent_gateway.contracts import (
     GatewayError,
@@ -143,11 +144,10 @@ class AgentResearchGateway:
         if identity.authority_level < required:
             raise GatewayError("authority_denied", "agent authority does not permit this operation")
         if request.operation == "bootstrap":
-            return build_bootstrap(
-                identity,
-                operation_levels=OPERATION_LEVELS,
-                run_requests_enabled=self.run_launcher is not None,
-            )
+            result = build_bootstrap(identity, operation_levels=OPERATION_LEVELS,
+                                     run_requests_enabled=self.run_launcher is not None)
+            result["campaign"] = campaign_status(store, self.campaign_policy_id)
+            return result
         handlers = {
             "context.get": self._context_get,
             "prior.search": self._prior_search,
@@ -226,6 +226,7 @@ class AgentResearchGateway:
                 "duplicate": True,
                 "validation": _validation_document(validation),
             }, policy_id=self.campaign_policy_id, database=self.database, store=store)
+        ensure_campaign_intake_open(store, self.campaign_policy_id)
         lineage = _validated_lineage(request.arguments, self.database)
         result = persist_submitted_candidate(
             validation=validation,

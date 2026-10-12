@@ -124,7 +124,7 @@ def evaluate_r15_candidate(
         return _record(store, candidate_id, "implementation_blocked", "adapter_unspecified", "No exact registered MES strategy adapter was identified.", combinations)
     if strategy_id in PROHIBITED_IMPLEMENTATIONS:
         return _record(store, candidate_id, "prior_work_conflict", PROHIBITED_IMPLEMENTATIONS[strategy_id], "The exact implemented hypothesis is closed retained prior work and may not be rerun or tuned.", combinations)
-    return _record(store, candidate_id, "implementation_blocked", "adapter_unavailable", "No exact policy-approved registered MES adapter and immutable StudyPlan compiler exists for this hypothesis.", combinations)
+    return _record(store, candidate_id, "implementation_blocked", "adapter_mapping_unavailable", "R15 has no approved exact Candidate-to-adapter and immutable StudyPlan mapping for this hypothesis; admission fails closed without inferring a nearby implementation.", combinations)
 
 
 def executable_campaign_configuration(
@@ -138,6 +138,34 @@ def executable_campaign_configuration(
     if decision["state"] != "admitted" or not decision.get("configuration_id"):
         raise GatewayError(str(decision["reason_code"]), str(decision["reason_detail"]))
     return str(decision["configuration_id"])
+
+
+def campaign_status(store: GatewayStore, policy_id: str | None) -> dict[str, Any] | None:
+    """Return deterministic intake availability without mutating campaign state."""
+    if policy_id != R15_POLICY_ID:
+        return None
+    states = store.campaign_states(R15_POLICY_ID)
+    accepted = len(states)
+    combinations = sum(int(row["parameter_combinations"]) for row in states)
+    closed = accepted >= R15_MAX_CANDIDATES
+    return {
+        "policy_id": R15_POLICY_ID,
+        "state": "closed" if closed else "active",
+        "intake_open": not closed,
+        "accepted_candidates": accepted,
+        "candidate_ceiling": R15_MAX_CANDIDATES,
+        "parameter_combinations": combinations,
+        "parameter_ceiling": R15_MAX_PARAMETERS,
+    }
+
+
+def ensure_campaign_intake_open(store: GatewayStore, policy_id: str | None) -> None:
+    status = campaign_status(store, policy_id)
+    if status is not None and not status["intake_open"]:
+        raise GatewayError(
+            "campaign_closed",
+            "The R15 campaign reached its permanent twelve-Candidate terminal ceiling.",
+        )
 
 
 def attach_campaign_decision(
@@ -185,6 +213,7 @@ def _source_attributed(value: Any) -> bool:
 
 __all__ = [
     "CampaignDecision", "R15_POLICY_ID", "TERMINAL_STATES",
-    "attach_campaign_decision", "evaluate_r15_candidate",
+    "attach_campaign_decision", "campaign_status", "ensure_campaign_intake_open",
+    "evaluate_r15_candidate",
     "executable_campaign_configuration",
 ]

@@ -357,7 +357,7 @@ def test_r15_submission_records_deterministic_terminal_admission(tmp_path, ident
     assert first.result["candidate_id"] == second.result["candidate_id"]
     assert first.result["campaign"] == second.result["campaign"]
     assert first.result["campaign"]["state"] == "implementation_blocked"
-    assert first.result["campaign"]["reason_code"] == "adapter_unavailable"
+    assert first.result["campaign"]["reason_code"] == "adapter_mapping_unavailable"
     connection = sqlite3.connect(tmp_path / "gateway.sqlite3")
     assert connection.execute("SELECT count(*) FROM campaign_events").fetchone()[0] == 1
 
