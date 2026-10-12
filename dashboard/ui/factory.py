@@ -39,12 +39,22 @@ def factory_layout() -> dmc.MantineProvider:
     grid=dag.AgGrid(id="factory-grid",columnDefs=RUN_COLUMNS,rowModelType="infinite",defaultColDef={"sortable":True,"resizable":True,"filter":True},dashGridOptions={"rowSelection":{"mode":"singleRow","enableClickSelection":True},"cacheBlockSize":50,"maxBlocksInCache":4,"animateRows":False},getRowId="params.data.run_id",className="ag-theme-quartz-dark factory-grid")
     detail=dmc.Paper([html.Div([dmc.Badge("No selection",id="factory-detail-state",className="candidate-state"),dmc.Title("No run selected",id="factory-detail-title",order=2),dmc.Text("Choose an exact persisted run.",id="factory-detail-meta",className="candidate-detail-meta")],className="candidate-detail-head"),html.Div(id="factory-detail-stages",className="factory-stage-list"),html.Div(id="factory-detail-body",className="candidate-detail-body")],className="candidate-detail",radius=0,withBorder=False)
     workspace=dmc.Paper([html.Div([grid,html.Footer([html.Span("0 loaded",id="factory-page-count"),html.Span("•"),html.Span("0 total",id="factory-total-count"),html.Div(className="top-spacer"),html.Span("Exact logs and outcomes retained")],className="candidate-grid-footer")],className="candidate-grid-region"),detail],className="factory-workspace",radius="md",withBorder=True)
-    stores=[dcc.Store(id="factory-query",data={"cohort":"completed","search":"","market":"all","stage":"all","resource":"all"}),dcc.Store(id="factory-selected")]
+    stores=[dcc.Store(id="factory-query",data={"cohort":"completed","search":"","market":"all","stage":"all","resource":"all"}),dcc.Store(id="factory-selected"),dcc.Store(id="factory-cache-reset")]
     body=html.Div([toolbar,cards,filters,workspace],className="body factory-body")
     return dmc.MantineProvider(html.Div([*stores,html.Div([nav,html.Main([header,body],className="main")],className="app factory-app")]),forceColorScheme="dark",theme={"fontFamily":"Inter, ui-sans-serif, sans-serif","primaryColor":"blue"})
 
 
 def register_factory_callbacks(application: Any) -> None:
+    application.clientside_callback(
+        """async function(query) {
+            const api = await dash_ag_grid.getApiAsync('factory-grid');
+            api.purgeInfiniteCache();
+            return Date.now();
+        }""",
+        Output("factory-cache-reset","data"), Input("factory-query","data"),
+        prevent_initial_call=True,
+    )
+
     @application.callback(Output("factory-query","data"),Input("factory-cohort","value"),Input("factory-search","value"),Input("factory-market","value"),Input("factory-stage","value"),Input("factory-resource","value"))
     def query(cohort,search,market,stage,resource): return {"cohort":cohort or "completed","search":search or "","market":market or "all","stage":stage or "all","resource":resource or "all"}
 

@@ -131,6 +131,7 @@ def candidates_layout() -> dmc.MantineProvider:
         dcc.Store(id="candidate-selection", storage_type="local"),
         dcc.Store(id="candidate-compare-selection", storage_type="local"),
         dcc.Store(id="candidate-detail-record"),
+        dcc.Store(id="candidate-cache-reset"),
     ]
     body = html.Div([
         dmc.Group([lifecycle, html.Div(className="top-spacer"), dmc.Text("Virtualized universe · persisted selection", className="candidate-context")], className="candidate-lifecycle-row"),
@@ -200,6 +201,16 @@ def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
 
 
 def register_candidate_callbacks(application: Any) -> None:
+    application.clientside_callback(
+        """async function(query) {
+            const api = await dash_ag_grid.getApiAsync('candidate-grid');
+            api.purgeInfiniteCache();
+            return Date.now();
+        }""",
+        Output("candidate-cache-reset", "data"), Input("candidate-query", "data"),
+        prevent_initial_call=True,
+    )
+
     @application.callback(Output("candidate-lifecycle", "data"), Output("candidate-family", "data"), Input("candidate-summary", "data"))
     def render_summary(summary: dict[str, Any] | None):
         summary = summary or {}; counts = summary.get("counts", {})
