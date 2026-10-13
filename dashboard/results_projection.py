@@ -164,7 +164,11 @@ def load_screening_configuration_evidence(
             "outcome": (group.outcome or group.status).replace("_", " ").title(),
             "status": group.status,
         }
-        for group in grouped.groups[:TRADE_LIMIT]
+        # Results investigates the newest retained evidence.  Keep the bounded
+        # trade cohort aligned with the newest persisted price window so entry
+        # and exit markers cannot silently disappear when a configuration has
+        # more trades than the UI limit.
+        for group in grouped.groups[-TRADE_LIMIT:]
     ]
     equity = [row for row in equity_document.get("equity_curve") or [] if isinstance(row, dict)]
     prepared_rows = [

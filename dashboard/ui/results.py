@@ -69,10 +69,14 @@ def _empty_figure(message: str, *, height: int = 300) -> go.Figure:
 def _style(figure: go.Figure, *, height: int) -> go.Figure:
     figure.update_layout(
         height=height, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        margin={"l": 44, "r": 16, "t": 18, "b": 34}, font={"family": "Inter, sans-serif", "size": 9, "color": "#8a97a8"},
+        margin={"l": 44, "r": 16, "t": 18, "b": 48}, font={"family": "Inter, sans-serif", "size": 9, "color": "#8a97a8"},
         legend={"orientation": "h", "y": 1.08}, hovermode="x unified",
     )
-    figure.update_xaxes(gridcolor="#202936", linecolor="#344050", zeroline=False)
+    figure.update_xaxes(
+        gridcolor="#202936", linecolor="#344050", zeroline=False,
+        type="date", tickformat="%b %d<br>%H:%M", title_text="Time (UTC)",
+        title_standoff=7, showticklabels=True, ticks="outside", automargin=True,
+    )
     figure.update_yaxes(gridcolor="#202936", linecolor="#344050", zeroline=False)
     return figure
 
@@ -116,7 +120,7 @@ def _configuration_price_figure(evidence: dict[str, Any], nonce: Any) -> go.Figu
         figure.add_trace(go.Scatter(
             x=[trade["entry_timestamp"] for trade in visible],
             y=[trade["entry_price"] for trade in visible], mode="markers", name="Entries",
-            marker={"symbol": "triangle-up", "size": 9, "color": "#4aa8ff"},
+            marker={"symbol": "triangle-up", "size": 13, "color": "#4aa8ff", "line": {"color": "#d9efff", "width": 1}},
             text=[f"Trade {trade['trade_id']} · {trade['direction']}" for trade in visible],
             hovertemplate="%{text}<br>%{x}<br>%{y}<extra></extra>",
         ))
@@ -125,7 +129,7 @@ def _configuration_price_figure(evidence: dict[str, Any], nonce: Any) -> go.Figu
             figure.add_trace(go.Scatter(
                 x=[trade["exit_timestamp"] for trade in exited],
                 y=[trade["exit_price"] for trade in exited], mode="markers", name="Exits",
-                marker={"symbol": "triangle-down", "size": 9, "color": "#ffbd59"},
+                marker={"symbol": "triangle-down", "size": 13, "color": "#ffbd59", "line": {"color": "#fff0c7", "width": 1}},
                 text=[f"Trade {trade['trade_id']} · {trade['outcome']}" for trade in exited],
                 hovertemplate="%{text}<br>%{x}<br>%{y}<extra></extra>",
             ))
