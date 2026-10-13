@@ -9,7 +9,7 @@ an operator surface, not the purpose of the project.
 
 The active sequence, summarized from `docs/MILESTONES.md`, is:
 
-**Live-workflow recovery -> prove one exact executable Candidate path -> bounded Candidate filtration -> survivor review -> execution-vehicle comparison -> paper operation -> live operation later.**
+**Connected live-workflow verification -> bounded Candidate filtration -> survivor review -> execution-vehicle comparison -> paper operation -> live operation later.**
 
 Reusable backend components are recorded, but end-to-end product completion is
 not. The generic candidate runtime reuses the existing screening, OOS,
@@ -26,9 +26,11 @@ paper/live authority route to the owner. Current work is defined only in
 The fixed Decision 310 MES overnight-gap reversal screen completed and was
 rejected after negative total and annualized returns and Sharpe below 0.5. The
 R15 product-validation attempt was aborted because no exact executable adapter
-mapping existed. No new campaign may open until at least one positive
-Candidate-to-adapter/StudyPlan path is proven. Broader strategy selection,
-optimization, screening, or profitability research remains deferred.
+mapping existed. One exact Candidate-to-adapter/StudyPlan path has since been
+proven and screened out. No new campaign may open until R13's connected live
+workflow is accepted and a new campaign is explicitly authorized. Broader
+strategy selection, optimization, screening, or profitability research remains
+deferred.
 Authorized research is restricted to **intraday/day-trading directional edges** unless the owner
 changes the mandate: minutes-to-hours holding, flat by the strategy's defined
 session boundary, and no overnight or multi-day carry. The SPY turn-of-month
