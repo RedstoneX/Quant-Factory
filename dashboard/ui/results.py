@@ -194,6 +194,24 @@ def _configuration_metric_cards(evidence: dict[str, Any]) -> list[Any]:
     return [html.Div([html.Span(label), html.Strong(value)], className="results-metric") for label, value in values]
 
 
+def _configuration_chart_caption(evidence: dict[str, Any], identity: str) -> str:
+    rows = evidence.get("price") or []
+    trades = evidence.get("trades") or []
+    if not rows:
+        return f"Selected configuration · {identity} · no retained price session"
+    first, last = str(rows[0]["timestamp"]), str(rows[-1]["timestamp"])
+    plotted = sum(
+        1 for trade in trades
+        if trade.get("entry_timestamp") and first <= str(trade["entry_timestamp"]) <= last
+    )
+    try:
+        session = datetime.fromisoformat(first).strftime("%b %d, %Y")
+    except ValueError:
+        session = first[:10]
+    total = int(evidence.get("trade_count") or len(trades))
+    return f"Selected configuration · {identity} · retained session {session} UTC · {plotted} of {total:,} trades shown"
+
+
 def _run_from_search(search: str | None, runs: list[dict[str, Any]]) -> str | None:
     requested = parse_qs((search or "").lstrip("?")).get("run_id", [None])[0]
     if requested and any(row["run_id"] == requested for row in runs):
@@ -329,7 +347,7 @@ def register_results_callbacks(application: Any) -> None:
             identity = f"{selected.get('run_length', '—')} run bars · {selected.get('minimum_ticks_per_bar', '—')} minimum ticks"
             return (
                 f"{configuration_evidence.get('interval', '—')} bars",
-                f"Selected configuration · {identity} · exact retained bars and completed trades",
+                _configuration_chart_caption(configuration_evidence, identity),
                 _configuration_metric_cards(configuration_evidence),
             )
         metrics = record.get("metrics") or []

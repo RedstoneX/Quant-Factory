@@ -36,4 +36,17 @@
 /* Paper handoff: a deliberate system boundary, not a settings card. */
 .paper-body{min-height:850px}.paper-card{position:relative;width:min(780px,100%);border-radius:14px!important;background:linear-gradient(145deg,rgba(18,27,38,.98),rgba(10,15,21,.98));box-shadow:0 28px 90px rgba(0,0,0,.34),0 0 70px rgba(74,168,255,.045)}.paper-card-body{padding:34px 38px 38px}.paper-symbol{width:62px;height:62px;border-radius:17px;background:linear-gradient(145deg,rgba(74,168,255,.18),rgba(74,168,255,.055));box-shadow:0 12px 34px rgba(74,168,255,.12)}.paper-card .candidate-evidence-item{padding:11px 12px;margin-top:7px;border:1px solid var(--line);border-radius:8px;background:rgba(7,10,15,.28)}
 
-@media(max-width:1100px){.submit-workspace,.compare-primary{grid-template-columns:minmax(0,1fr) 300px}.candidate-workspace,.factory-workspace{grid-template-columns:minmax(0,1fr) 320px}}
+@media(max-width:1100px){
+  .submit-workspace,.compare-primary{grid-template-columns:minmax(0,1fr) 300px}.candidate-workspace,.factory-workspace{grid-template-columns:minmax(0,1fr) 320px}
+  .results-app{height:auto;min-height:100vh;overflow:visible}.results-primary,.results-lower{grid-template-columns:minmax(0,1fr)}
+  .results-metrics{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:none}.results-price,.results-ledger,.results-linked{min-width:0}
+  .results-toolbar,.results-context{flex-wrap:wrap}.results-trade-grid,.results-linked-trade-grid{max-width:100%}
+}
+@media(max-width:700px){
+  .results-app{grid-template-columns:52px minmax(0,1fr)}.results-app .rail{width:52px;padding-left:6px;padding-right:6px}
+  .results-topbar{height:auto;min-height:0;padding:12px;align-items:flex-start}.results-topbar>.top-spacer{display:none}.results-run-identity{order:3;width:100%;min-width:0;padding:9px 0 0;border-left:0;border-top:1px solid var(--line)}
+  .results-body{padding:10px 8px 20px}.results-run-select,.results-control,.results-session{width:100%}.results-toolbar>*,.results-context>*{flex:1 1 135px}.results-toolbar>.top-spacer,.results-context>.top-spacer{display:none}
+  .results-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.results-assumptions{grid-template-columns:repeat(2,minmax(0,1fr))}.results-assumption:nth-child(2){border-right:0}
+  .results-price .panel-head,.results-ledger .panel-head,.results-linked .panel-head{height:auto;min-height:58px;flex-wrap:wrap}.results-trade-search{width:100%;margin-top:8px}
+  .results-linked .candidate-detail-tabs [role=tablist]{overflow-x:auto;flex-wrap:nowrap}.results-linked .candidate-detail-tabs button{flex:0 0 auto;margin-right:12px}
+}
