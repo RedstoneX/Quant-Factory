@@ -21,6 +21,7 @@ from strategies.mes_overnight_gap_reversal import (
 from strategies.mes_vwap_orb_candidate import MES_VWAP_ORB_CANDIDATE_STRATEGY
 from strategies.mes_sma_crossover_candidate import MES_SMA_CANDIDATE_STRATEGY
 from strategies.mes_five_bar_run_exhaustion import MES_FIVE_BAR_RUN_EXHAUSTION_STRATEGY
+from strategies.rule_spec_strategy import RULE_STRATEGY_PREFIX, load_rule_strategy
 from strategies.parameter_governance import (
     PROVISIONAL_GRID_WARNING_THRESHOLD,
     ParameterGridContribution,
@@ -64,8 +65,17 @@ REGISTRY.register(MES_FIVE_BAR_RUN_EXHAUSTION_STRATEGY)
 
 
 def get_strategy(strategy_id: str) -> Strategy:
-    """Return the strategy registered under a stable ID."""
-    return REGISTRY.get(strategy_id)
+    """Return the strategy registered under a stable ID.
+
+    Rule-spec strategies (``rules_`` IDs) are loaded lazily from their immutable
+    definition files the first time they are requested.
+    """
+    try:
+        return REGISTRY.get(strategy_id)
+    except KeyError:
+        if not (isinstance(strategy_id, str) and strategy_id.startswith(RULE_STRATEGY_PREFIX)):
+            raise
+    return load_rule_strategy(strategy_id)
 
 
 __all__ = [
