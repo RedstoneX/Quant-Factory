@@ -11,7 +11,11 @@ import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, dcc, html, no_update
 import plotly.graph_objects as go
 
-from dashboard.results_projection import list_results_runs, load_results_record
+from dashboard.results_projection import (
+    list_results_runs,
+    load_results_record,
+    load_screening_configuration_evidence,
+)
 
 
 GLYPHS = {"dashboard": "▦", "file": "+", "flow": "⌁", "list": "☷", "chart": "⌁", "external": "↗", "back": "←", "reset": "↻"}
@@ -25,15 +29,15 @@ TRADE_COLUMNS = [
     {"field": "outcome", "headerName": "Outcome", "width": 86},
 ]
 SCREENING_COLUMNS = [
-    {"field": "rank", "headerName": "Rank", "width": 58, "pinned": "left"},
-    {"field": "run_length", "headerName": "Run bars", "width": 78},
-    {"field": "minimum_ticks_per_bar", "headerName": "Min ticks", "width": 78},
-    {"field": "total_return", "headerName": "Net return", "type": "numericColumn", "width": 88, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
-    {"field": "sharpe_ratio", "headerName": "Sharpe", "type": "numericColumn", "width": 76, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
-    {"field": "max_drawdown", "headerName": "Max DD", "type": "numericColumn", "width": 78, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
-    {"field": "number_of_trades", "headerName": "Trades", "type": "numericColumn", "width": 70},
-    {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 78, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
-    {"field": "screening_status", "headerName": "Outcome", "minWidth": 105, "flex": .7, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Screened out' : params.value"}},
+    {"field": "rank", "headerName": "Rank", "width": 64, "pinned": "left", "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
+    {"field": "run_length", "headerName": "Run bars", "width": 86, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
+    {"field": "minimum_ticks_per_bar", "headerName": "Minimum ticks", "width": 106, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
+    {"field": "total_return", "headerName": "Net return", "type": "numericColumn", "width": 98, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
+    {"field": "sharpe_ratio", "headerName": "Sharpe", "type": "numericColumn", "width": 84, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
+    {"field": "max_drawdown", "headerName": "Maximum DD", "type": "numericColumn", "width": 102, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
+    {"field": "number_of_trades", "headerName": "Trades", "type": "numericColumn", "width": 80, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
+    {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 88, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
+    {"field": "screening_status", "headerName": "Outcome", "minWidth": 112, "flex": 1, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Screened out' : params.value"}},
 ]
 
 
@@ -42,7 +46,7 @@ def _icon(name: str) -> html.Span:
 
 
 def _rail(name: str, label: str, item_id: str, *, active: bool = False, disabled: bool = False) -> dmc.ActionIcon:
-    return dmc.ActionIcon(_icon(name), id=item_id, className=f"rail-item{' active' if active else ''}", variant="subtle", disabled=disabled, **{"aria-label": label})
+    return dmc.Tooltip(dmc.ActionIcon(_icon(name), id=item_id, className=f"rail-item{' active' if active else ''}", variant="subtle", disabled=disabled, **{"aria-label": label}), label=label, position="right", withArrow=True, openDelay=300)
 
 
 def _empty_figure(message: str, *, height: int = 300) -> go.Figure:
@@ -93,6 +97,42 @@ def _price_figure(record: dict[str, Any] | None, selected: dict[str, Any] | None
     return _style(figure, height=326)
 
 
+def _configuration_price_figure(evidence: dict[str, Any], nonce: Any) -> go.Figure:
+    rows = evidence.get("price") or []
+    if not rows:
+        return _empty_figure(evidence.get("message") or "No persisted configuration bars are available.", height=326)
+    figure = go.Figure(go.Candlestick(
+        x=[row["timestamp"] for row in rows], open=[row["open"] for row in rows],
+        high=[row["high"] for row in rows], low=[row["low"] for row in rows],
+        close=[row["close"] for row in rows], name="Persisted OHLC",
+        increasing_line_color="#38d39f", decreasing_line_color="#ff5f6d",
+    ))
+    first, last = str(rows[0]["timestamp"]), str(rows[-1]["timestamp"])
+    visible = [
+        trade for trade in evidence.get("trades") or []
+        if trade.get("entry_timestamp") and first <= str(trade["entry_timestamp"]) <= last
+    ]
+    if visible:
+        figure.add_trace(go.Scatter(
+            x=[trade["entry_timestamp"] for trade in visible],
+            y=[trade["entry_price"] for trade in visible], mode="markers", name="Entries",
+            marker={"symbol": "triangle-up", "size": 9, "color": "#4aa8ff"},
+            text=[f"Trade {trade['trade_id']} · {trade['direction']}" for trade in visible],
+            hovertemplate="%{text}<br>%{x}<br>%{y}<extra></extra>",
+        ))
+        exited = [trade for trade in visible if trade.get("exit_timestamp") and trade.get("exit_price") is not None]
+        if exited:
+            figure.add_trace(go.Scatter(
+                x=[trade["exit_timestamp"] for trade in exited],
+                y=[trade["exit_price"] for trade in exited], mode="markers", name="Exits",
+                marker={"symbol": "triangle-down", "size": 9, "color": "#ffbd59"},
+                text=[f"Trade {trade['trade_id']} · {trade['outcome']}" for trade in exited],
+                hovertemplate="%{text}<br>%{x}<br>%{y}<extra></extra>",
+            ))
+    figure.update_layout(xaxis_rangeslider_visible=False, uirevision=f"configuration-{evidence.get('parameter_row_id')}-{nonce}")
+    return _style(figure, height=326)
+
+
 def _evidence_figure(record: dict[str, Any], tab: str) -> go.Figure:
     if tab != "equity":
         return _empty_figure(f"{tab.replace('_', ' ').title()} chart evidence is not persisted for this run.", height=168)
@@ -104,6 +144,25 @@ def _evidence_figure(record: dict[str, Any], tab: str) -> go.Figure:
     if drawdown:
         figure.add_trace(go.Scatter(x=[row.get("timestamp") for row in drawdown], y=[row.get("drawdown") for row in drawdown], name="Drawdown", yaxis="y2", line={"color": "#ff5f6d", "width": 1.4}))
         figure.update_layout(yaxis2={"overlaying": "y", "side": "right", "showgrid": False})
+    return _style(figure, height=168)
+
+
+def _configuration_equity_figure(evidence: dict[str, Any]) -> go.Figure:
+    rows = evidence.get("equity") or []
+    if not rows:
+        return _empty_figure("No persisted equity series is available for this configuration.", height=168)
+    values = [float(row["value"]) for row in rows]
+    peaks: list[float] = []
+    peak = values[0]
+    for value in values:
+        peak = max(peak, value)
+        peaks.append(peak)
+    drawdown = [((value / high) - 1) * 100 if high else 0 for value, high in zip(values, peaks)]
+    timestamps = [row.get("timestamp") for row in rows]
+    figure = go.Figure()
+    figure.add_trace(go.Scatter(x=timestamps, y=values, name="Equity", line={"color": "#4aa8ff", "width": 2}))
+    figure.add_trace(go.Scatter(x=timestamps, y=drawdown, name="Drawdown %", yaxis="y2", line={"color": "#ff5f6d", "width": 1.4}))
+    figure.update_layout(yaxis2={"overlaying": "y", "side": "right", "showgrid": False, "ticksuffix": "%"})
     return _style(figure, height=168)
 
 
@@ -125,7 +184,8 @@ def results_layout(search: str | None = None) -> dmc.MantineProvider:
         html.Div(className="rail-spacer"), _rail("external", "Paper Trading", "results-nav-paper"), dmc.Avatar("TO", className="avatar", radius="xl"),
     ], gap=7, align="center", className="rail")
     header = dmc.Group([
-        html.Div([dmc.Title("Results", id="results-title", order=1), dmc.Text("Exact persisted run evidence", id="results-meta", className="eyebrow")]),
+        html.Div([dmc.Title("Results", order=1), dmc.Text("Select a run and inspect its persisted evidence", className="eyebrow")]),
+        html.Div([dmc.Text("Selected run", className="results-run-kicker"), dmc.Text("Loading", id="results-run-name", className="results-run-name"), dmc.Text("Exact persisted run evidence", id="results-meta", className="results-run-meta")], className="results-run-identity"),
         html.Div(className="top-spacer"), dmc.Badge("Loading", id="results-state", className="candidate-state"),
         dmc.Button("View screening decision", id="results-sensitivity", className="ghost", variant="default"),
         dmc.Button("Compare selected unavailable", className="ghost", variant="default", disabled=True),
@@ -153,15 +213,15 @@ def results_layout(search: str | None = None) -> dmc.MantineProvider:
     metrics = html.Aside(id="results-metrics", className="results-metrics")
     ledger = dmc.Paper([
         dmc.Group([html.Div([dmc.Title("Completed trade ledger", id="results-ledger-title", order=3), dmc.Text("Select a trade to focus its exact persisted interval", id="results-ledger-subtitle", className="panel-subtitle")]), html.Div(className="top-spacer"), dmc.TextInput(id="results-trade-search", placeholder="Search trades", className="results-trade-search", debounce=True)], className="panel-head"),
-        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={"sortable": True, "resizable": True, "filter": True}, dashGridOptions={"rowSelection": {"mode": "singleRow", "enableClickSelection": True}, "pagination": True, "paginationPageSize": 6, "paginationPageSizeSelector": False, "animateRows": False}, getRowId="params.data.trade_id || params.data.row_id", className="ag-theme-quartz-dark results-trade-grid"),
+        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={"sortable": True, "resizable": True, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True}, dashGridOptions={"rowSelection": {"mode": "singleRow", "enableClickSelection": True}, "pagination": True, "paginationPageSize": 6, "paginationPageSizeSelector": False, "animateRows": False}, getRowId="params.data.trade_id || params.data.row_id", className="ag-theme-quartz-dark results-trade-grid"),
         html.Footer([html.Span("0 persisted trades", id="results-trade-count"), html.Div(className="top-spacer"), html.Span("Bounded ledger")], className="candidate-grid-footer"),
     ], className="panel results-ledger", radius="md", withBorder=True)
     linked = dmc.Paper([
         dmc.Group([html.Div([dmc.Title("Linked evidence", order=3), dmc.Text("Selection remains synchronized across analysis", className="panel-subtitle")])], className="panel-head"),
-        dmc.Tabs([dmc.TabsList([dmc.TabsTab("Equity & DD", value="equity"), dmc.TabsTab("Robustness", value="robustness"), dmc.TabsTab("Walk-forward", value="walk_forward"), dmc.TabsTab("Monte Carlo", value="monte_carlo"), dmc.TabsTab("Lineage", value="lineage")])], id="results-evidence-tab", value="equity", className="candidate-detail-tabs"),
+        dmc.Tabs([dmc.TabsList([dmc.TabsTab("Trades", value="trades"), dmc.TabsTab("Equity & DD", value="equity"), dmc.TabsTab("Robustness", value="robustness"), dmc.TabsTab("Walk-forward", value="walk_forward"), dmc.TabsTab("Monte Carlo", value="monte_carlo"), dmc.TabsTab("Lineage", value="lineage")])], id="results-evidence-tab", value="trades", className="candidate-detail-tabs"),
         html.Div(id="results-evidence-body", className="results-evidence-body"),
     ], className="panel results-linked", radius="md", withBorder=True)
-    stores = [dcc.Store(id="results-record"), dcc.Store(id="results-range-nonce", data=0)]
+    stores = [dcc.Store(id="results-record"), dcc.Store(id="results-configuration-evidence"), dcc.Store(id="results-range-nonce", data=0)]
     body = html.Div([toolbar, context, html.Div([price_panel, metrics], className="results-primary"), html.Div([ledger, linked], className="results-lower")], className="body results-body")
     return dmc.MantineProvider(html.Div([*stores, html.Div([nav, html.Main([header, body], className="main")], className="app results-app")]), forceColorScheme="dark", theme={"fontFamily": "Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif", "primaryColor": "blue"})
 
@@ -184,7 +244,7 @@ def register_results_callbacks(application: Any) -> None:
         return load_results_record(run_id, interval=interval or "15m")
 
     @application.callback(
-        Output("results-title", "children"), Output("results-meta", "children"), Output("results-state", "children"), Output("results-state", "className"),
+        Output("results-run-name", "children"), Output("results-meta", "children"), Output("results-state", "children"), Output("results-state", "className"),
         Output("results-run-chip", "children"), Output("results-bars-chip", "children"), Output("results-chart-caption", "children"),
         Output("results-metrics", "children"), Output("results-assumptions", "children"), Output("results-session", "data"), Output("results-session", "value"),
         Output("results-chart-title", "children"), Output("results-ledger-title", "children"), Output("results-ledger-subtitle", "children"), Output("results-trade-search", "placeholder"), Output("results-toolbar-context", "children"),
@@ -200,7 +260,7 @@ def register_results_callbacks(application: Any) -> None:
         state = "Screened out" if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
         metric_cards = [
             ("Best net return" if screened_out else "Net return", _metric_value(metrics, "Total Return")), ("Screening Sharpe" if screened_out else "OOS Sharpe", _metric_value(metrics, "Sharpe Ratio")),
-            ("Maximum drawdown", _metric_value(metrics, "Max Drawdown")), ("Completed trades", _metric_value(metrics, "Number Of Trades")),
+            ("Maximum drawdown", _metric_value(metrics, "Max Drawdown")), ("Screening trades" if screened_out else "Completed trades", _metric_value(metrics, "Number Of Trades")),
             ("Win rate", _metric_value(metrics, "Win Rate")), ("Profit factor", _metric_value(metrics, "Profit Factor")),
             ("Screening outcome" if screened_out else "Evidence", f"{len(screening_rows)} rejected" if screened_out else record.get("result_status") or "Unavailable"),
         ]
@@ -208,16 +268,16 @@ def register_results_callbacks(application: Any) -> None:
         assumptions = [html.Div([html.Span("Run"), html.Strong(run_id)], className="results-assumption"), html.Div([html.Span("Market"), html.Strong(run.get("symbol") or "Unrecorded")], className="results-assumption"), html.Div([html.Span("Stage"), html.Strong(str(run.get("stage") or "Unrecorded").replace("_", " ").title())], className="results-assumption"), html.Div([html.Span("Authority"), html.Strong("Research evidence only")], className="results-assumption")]
         sessions = sorted({str(row.get("entry_timestamp") or "")[:10] for row in record.get("trades") or [] if row.get("entry_timestamp")})
         session_data = [{"value": "all", "label": "All persisted sessions"}] + [{"value": day, "label": f"Session · {day}"} for day in sessions]
-        caption = "All declared configurations failed initial screening; no finalist chart or trade ledger was persisted." if screened_out else record.get("price_reason") or "Persisted OHLC · scroll to zoom · select a trade to focus"
+        caption = "Select a configuration to load its exact retained bars and completed trades" if screened_out else record.get("price_reason") or "Persisted OHLC · scroll to zoom · select a trade to focus"
         return (
             title, f"{run_id} · exact persisted evidence", state, "candidate-state rejected" if screened_out else "candidate-state", f"Sealed run · {run_id[:12]}",
-            "No finalist bars" if screened_out else f"{record.get('interval', '—')} bars", caption, cards, assumptions, session_data, "all",
-            "Initial screening outcome" if screened_out else "Price and completed trades",
+            "Configuration evidence" if screened_out else f"{record.get('interval', '—')} bars", caption, cards, assumptions, session_data, "all",
+            "Selected configuration price and trades" if screened_out else "Price and completed trades",
             "Six declared configurations" if screened_out else "Completed trade ledger",
             "Select a configuration to inspect its exact rejection reasons" if screened_out else "Select a trade to focus its exact persisted interval",
             "Search configurations" if screened_out else "Search trades",
-            "Initial screening records · no finalist evidence was produced" if screened_out else "Persisted OHLC and completed trades",
-            screened_out, screened_out, screened_out, screened_out,
+            "Select a configuration to inspect its persisted screening evidence" if screened_out else "Persisted OHLC and completed trades",
+            False, screened_out, False, screened_out,
         )
 
     @application.callback(Output("results-trade-grid", "rowData"), Output("results-trade-grid", "columnDefs"), Output("results-trade-count", "children"), Output("results-trade-grid", "selectedRows"), Input("results-record", "data"), Input("results-trade-search", "value"), Input("results-session", "value"))
@@ -231,28 +291,47 @@ def register_results_callbacks(application: Any) -> None:
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
         return rows, TRADE_COLUMNS, f"{len(rows):,} shown · {total:,} persisted" + (f" · first {bounded:,} loaded" if total > bounded else ""), []
 
-    @application.callback(Output("results-price-chart", "figure"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"))
-    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any) -> go.Figure:
-        if (record or {}).get("screening_rows") and not (record or {}).get("price"):
-            return _empty_figure("No finalist chart exists: every declared configuration failed initial screening.", height=326)
+    @application.callback(
+        Output("results-configuration-evidence", "data"),
+        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-bars", "value"),
+    )
+    def load_configuration_evidence(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, interval: str) -> dict[str, Any]:
+        record = record or {}
+        screening_rows = record.get("screening_rows") or []
+        if not screening_rows:
+            return {}
+        selected = (selected_rows or screening_rows[:1])[-1]
+        run_id = (record.get("run") or {}).get("run_id")
+        return load_screening_configuration_evidence(run_id, selected.get("row_id"), interval=interval or "15m")
+
+    @application.callback(Output("results-price-chart", "figure"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"))
+    def render_price(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any) -> go.Figure:
+        if (record or {}).get("screening_rows"):
+            return _configuration_price_figure(configuration_evidence or {}, nonce)
         return _price_figure(record, (selected_rows or [None])[-1], view or "session", nonce)
 
-    @application.callback(Output("results-evidence-body", "children"), Input("results-record", "data"), Input("results-evidence-tab", "value"), Input("results-trade-grid", "selectedRows"))
-    def render_evidence(record: dict[str, Any] | None, tab: str, selected_rows: list[dict[str, Any]] | None):
+    @application.callback(Output("results-evidence-body", "children"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-evidence-tab", "value"), Input("results-trade-grid", "selectedRows"))
+    def render_evidence(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, tab: str, selected_rows: list[dict[str, Any]] | None):
         record = record or {}
+        configuration_evidence = configuration_evidence or {}
         screening_rows = record.get("screening_rows") or []
         if screening_rows:
             if tab == "lineage":
                 fields = record.get("lineage") or []
                 return html.Div([html.Div([html.Span(item["label"]), html.Strong(item["value"])], className="candidate-evidence-item") for item in fields[:8]], className="results-evidence-list")
-            if tab != "equity":
-                return html.Div(f"{tab.replace('_', ' ').title()} was not reached because all configurations failed initial screening.", className="results-stage-stop")
-            selected = (selected_rows or screening_rows[:1])[-1]
-            return html.Div([
-                html.Div([html.Span("Selected parameters"), html.Strong(f"{selected.get('run_length')} bars · {selected.get('minimum_ticks_per_bar')} minimum ticks")], className="candidate-evidence-item"),
-                html.Div([html.Span("Outcome"), html.Strong("Screened out")], className="candidate-evidence-item"),
-                html.Div(selected.get("rejection_reasons") or "No rejection reason persisted.", className="results-rejection-reasons"),
-            ], className="results-evidence-list")
+            if not configuration_evidence.get("available"):
+                return html.Div(configuration_evidence.get("message") or "Select a configuration with retained evidence.", className="results-stage-stop")
+            if tab == "trades":
+                rows = configuration_evidence.get("trades") or []
+                return dag.AgGrid(
+                    columnDefs=TRADE_COLUMNS, rowData=rows,
+                    defaultColDef={"sortable": True, "resizable": True, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
+                    dashGridOptions={"pagination": True, "paginationPageSize": 4, "paginationPageSizeSelector": False, "animateRows": False},
+                    getRowId="params.data.trade_id", className="ag-theme-quartz-dark results-linked-trade-grid",
+                )
+            if tab == "equity":
+                return dcc.Graph(figure=_configuration_equity_figure(configuration_evidence), config={"displayModeBar": False, "responsive": True})
+            return html.Div(f"{tab.replace('_', ' ').title()} was not reached because all configurations failed initial screening.", className="results-stage-stop")
         if tab == "equity": return dcc.Graph(figure=_evidence_figure(record, tab), config={"displayModeBar": False, "responsive": True})
         fields = record.get("lineage") if tab == "lineage" else []
         if fields:

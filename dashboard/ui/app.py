@@ -58,9 +58,12 @@ def icon(name: str) -> html.Span:
 
 
 def rail_item(name: str, label: str, item_id: str, *, active: bool = False, disabled: bool = False) -> dmc.ActionIcon:
-    return dmc.ActionIcon(
-        icon(name), id=item_id, className=f"rail-item{' active' if active else ''}",
-        variant="subtle", disabled=disabled, **{"aria-label": label},
+    return dmc.Tooltip(
+        dmc.ActionIcon(
+            icon(name), id=item_id, className=f"rail-item{' active' if active else ''}",
+            variant="subtle", disabled=disabled, **{"aria-label": label},
+        ),
+        label=label, position="right", withArrow=True, openDelay=300,
     )
 
 

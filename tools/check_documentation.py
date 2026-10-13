@@ -73,11 +73,12 @@ CURRENT_AUTHORITY_MARKERS = {
     ),
     Path("docs/MILESTONES.md"): (
         "R13 live-workflow verification and six-surface frontend conformance remain active",
-        "Complete one owner-authorized visual-conformance batch",
+        "selected Five-bar run exhaustion screening configuration exposes exact persisted bars",
         "R15 aborted campaign record",
         "Executable-campaign precondition",
     ),
     Path("docs/DECISIONS.md"): (
+        "Results must provide configuration-level chart and trade inspection",
         "Exact execution proof accepted; R13 live workflow is the current gate",
         "R15 activation invalidated; executable preflight is mandatory",
     ),

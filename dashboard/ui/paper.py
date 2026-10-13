@@ -14,7 +14,7 @@ PAPER_URL_ENVIRONMENT_VARIABLE="QUANT_FACTORY_PAPER_URL"
 
 
 def _icon(name): return html.Span(GLYPHS[name],className="icon",**{"aria-hidden":"true"})
-def _rail(name,label,item_id,*,active=False): return dmc.ActionIcon(_icon(name),id=item_id,className=f"rail-item{' active' if active else ''}",variant="subtle",**{"aria-label":label})
+def _rail(name,label,item_id,*,active=False): return dmc.Tooltip(dmc.ActionIcon(_icon(name),id=item_id,className=f"rail-item{' active' if active else ''}",variant="subtle",**{"aria-label":label}),label=label,position="right",withArrow=True,openDelay=300)
 
 
 def _configured_url() -> str | None:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from dataclasses import asdict
+import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -10,7 +12,7 @@ from typing import Any
 
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_model import group_trade_rows, prepare_interval
-from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from dashboard.run_detail_adapter import RunDetailDashboardAdapter, _candidate_trade_rows
 
 
 PRICE_LIMIT = 2_000
@@ -68,6 +70,129 @@ def _screening_rows(connection: sqlite3.Connection, run_id: str) -> list[dict[st
             "rejection_reasons": str(row["rejection_reasons"] or ""),
         })
     return result
+
+
+def _artifact_document(*, database: Path, run_id: str, logical_name: str) -> dict[str, Any] | None:
+    root = _artifact_root(database).resolve()
+    connection, _error = _validated_connection(database)
+    if connection is None:
+        return None
+    try:
+        artifact = connection.execute(
+            """
+            SELECT location, checksum, size_bytes, availability
+            FROM artifact_references
+            WHERE run_id=? AND logical_name=?
+            """,
+            [run_id, logical_name],
+        ).fetchone()
+        if artifact is None or str(artifact["availability"]) != "available":
+            return None
+        path = (root / str(artifact["location"])).resolve()
+        if path != root and root not in path.parents:
+            return None
+        content = path.read_bytes()
+        if len(content) != int(artifact["size_bytes"]):
+            return None
+        if hashlib.sha256(content).hexdigest() != str(artifact["checksum"]):
+            return None
+        document = json.loads(content)
+        return document if isinstance(document, dict) else None
+    except (sqlite3.Error, OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+    finally:
+        connection.close()
+
+
+def load_screening_configuration_evidence(
+    run_id: str | None,
+    parameter_row_id: str | None,
+    *,
+    interval: str = "15m",
+    database: str | Path | None = None,
+) -> dict[str, Any]:
+    """Load bounded, exact artifacts for one persisted screening configuration."""
+    if not run_id or not parameter_row_id:
+        return {"available": False, "message": "Select a persisted configuration."}
+    database_path = Path(database) if database is not None else configured_database_path()
+    namespace = f"screening_configuration/{parameter_row_id}"
+    price_document = _artifact_document(
+        database=database_path, run_id=run_id, logical_name="screening_price_series"
+    )
+    trades_document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"{namespace}/trades_and_orders",
+    )
+    equity_document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"{namespace}/equity_curve",
+    )
+    metrics_document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"{namespace}/metrics",
+    )
+    if not all((price_document, trades_document, equity_document, metrics_document)):
+        return {
+            "available": False,
+            "message": "This historical configuration retained aggregate metrics only; chart and trade evidence were not persisted.",
+            "run_id": run_id,
+            "parameter_row_id": parameter_row_id,
+        }
+    source_interval = str(price_document.get("source_interval") or "5m")
+    prepared = prepare_interval(
+        price_document.get("price_series") or [], interval,
+        source_interval=source_interval,
+    )
+    grouped = group_trade_rows(_candidate_trade_rows(trades_document))
+    trades = [
+        {
+            "trade_id": group.trade_id,
+            "direction": (group.direction or "Unrecorded").title(),
+            "entry_timestamp": group.entry.timestamp.isoformat() if group.entry else None,
+            "entry_price": group.entry.price if group.entry else None,
+            "exit_timestamp": group.exit.timestamp.isoformat() if group.exit else None,
+            "exit_price": group.exit.price if group.exit else None,
+            "duration": (
+                f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
+                if group.entry and group.exit else "—"
+            ),
+            "pnl": group.pnl,
+            "outcome": (group.outcome or group.status).replace("_", " ").title(),
+            "status": group.status,
+        }
+        for group in grouped.groups[:TRADE_LIMIT]
+    ]
+    equity = [row for row in equity_document.get("equity_curve") or [] if isinstance(row, dict)]
+    prepared_rows = [
+        {"timestamp": bar.timestamp.isoformat(), "open": bar.open, "high": bar.high,
+         "low": bar.low, "close": bar.close, "source_count": bar.source_count}
+        for bar in prepared.bars
+    ] if prepared.available else []
+    if prepared_rows and trades:
+        focus = str(trades[-1].get("entry_timestamp") or prepared_rows[-1]["timestamp"])
+        position = bisect_left([str(row["timestamp"]) for row in prepared_rows], focus)
+        prepared_rows = prepared_rows[max(0, position - 30):position + 60]
+    else:
+        prepared_rows = prepared_rows[-PRICE_LIMIT:]
+    return {
+        "available": bool(prepared.available),
+        "message": (
+            "Exact persisted configuration evidence loaded."
+            if prepared.available else prepared.reason or "No persisted price bars are available."
+        ),
+        "run_id": run_id,
+        "parameter_row_id": parameter_row_id,
+        "interval": interval,
+        "source_interval": source_interval,
+        "price": prepared_rows,
+        "price_available": prepared.available,
+        "price_reason": prepared.reason,
+        "trades": trades,
+        "trade_count": len(grouped.groups),
+        "trade_limit": TRADE_LIMIT,
+        "equity": equity[-EQUITY_LIMIT:],
+        "metrics": metrics_document.get("metrics") or {},
+    }
 
 
 def list_results_runs(*, database: str | Path | None = None) -> list[dict[str, Any]]:
@@ -225,4 +350,4 @@ def load_results_record(
         }
 
 
-__all__ = ["list_results_runs", "load_results_record"]
+__all__ = ["list_results_runs", "load_results_record", "load_screening_configuration_evidence"]

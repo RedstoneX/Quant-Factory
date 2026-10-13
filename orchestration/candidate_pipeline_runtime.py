@@ -40,7 +40,11 @@ from backtesting.walk_forward import WalkForwardConfig, execute_walk_forward
 from market_data import MarketDataConfig, load_market_data
 from orchestration.candidate_run_service import CandidateRunService, CandidateScreeningLaunchResult
 from orchestration.candidate_pipeline_contracts import CandidatePipelineLauncher
-from orchestration.candidate_screening_artifacts import persist_screening_artifacts
+from orchestration.candidate_screening_artifacts import (
+    persist_screening_artifacts,
+    persist_screening_price_series,
+    snapshot_screening_portfolio,
+)
 from orchestration.candidate_runtime_robustness import execute_candidate_robustness
 from orchestration.candidate_pipeline_parsing import (
     _strict_object, _strict_list, _strict_text, _strict_bool, _strict_int,
@@ -816,6 +820,8 @@ class CandidatePipelineRuntime:
                     ),
                     allow_download=not self.cache_only,
                 )
+                combination_count = len(self.definition.experiment.parameter_combinations)
+                evidence_capture_limit = 16
                 captured_portfolios: dict[str, Any] = {}
                 screening_result = execute_experiment(
                     self.definition.experiment,
@@ -823,8 +829,12 @@ class CandidatePipelineRuntime:
                     market.audit,
                     write_output=False,
                     portfolio_observer=(
-                        (lambda row_id, portfolio: captured_portfolios.setdefault(row_id, portfolio))
-                        if len(self.definition.experiment.parameter_combinations) == 1
+                        (
+                            lambda row_id, portfolio: captured_portfolios.setdefault(
+                                row_id, snapshot_screening_portfolio(portfolio)
+                            )
+                        )
+                        if combination_count <= evidence_capture_limit
                         else None
                     ),
                 )
@@ -836,15 +846,23 @@ class CandidatePipelineRuntime:
                     include_parameter_results=True,
                 )
                 if captured_portfolios:
-                    if len(captured_portfolios) != 1:
-                        raise RuntimeError("single-configuration screening captured multiple portfolios")
-                    row_id, portfolio = next(iter(captured_portfolios.items()))
-                    persist_screening_artifacts(
-                        persistence=persistence, artifact_root=self.artifact_root,
-                        run_id=submission.run_id, result=screening_result,
-                        portfolio=portfolio, data=market.data,
-                        config=self.definition.experiment, parameter_row_id=row_id,
-                    )
+                    if len(captured_portfolios) != combination_count:
+                        raise RuntimeError("bounded screening evidence capture is incomplete")
+                    if combination_count > 1:
+                        persist_screening_price_series(
+                            persistence=persistence, artifact_root=self.artifact_root,
+                            run_id=submission.run_id, data=market.data,
+                            source_interval=self.definition.experiment.market_data.interval,
+                        )
+                    for row_id, portfolio in captured_portfolios.items():
+                        persist_screening_artifacts(
+                            persistence=persistence, artifact_root=self.artifact_root,
+                            run_id=submission.run_id, result=screening_result,
+                            portfolio=portfolio, data=market.data,
+                            config=self.definition.experiment, parameter_row_id=row_id,
+                            namespace=(f"screening_configuration/{row_id}" if combination_count > 1 else None),
+                            include_price_series=combination_count == 1,
+                        )
                 persistence.persist_run_manifest(
                     persistence.build_run_manifest(submission.run_id)
                 )

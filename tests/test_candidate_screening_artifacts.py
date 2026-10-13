@@ -23,6 +23,7 @@ def test_metrics_artifact_persists_candidate_annualization() -> None:
     )
     row = {
         "parameter_row_id": "row-1",
+        "ranking_position": 1,
         "total_return": 0.01,
         "annualized_return": 0.02,
         "sharpe_ratio": 0.5,
@@ -73,8 +74,9 @@ def test_metrics_artifact_persists_candidate_annualization() -> None:
         orders=SimpleNamespace(records_readable=pd.DataFrame({"Price": [100.5]})),
         value=pd.Series([100_000.0, 100_001.0, 100_002.0], index=index),
     )
+    other = {**row, "parameter_row_id": "row-0", "total_return": 0.02}
     result = SimpleNamespace(
-        ranked_results=pd.DataFrame([row]),
+        ranked_results=pd.DataFrame([other, row]),
         strategy_id="strategy",
         strategy_version="1.0.0",
     )
@@ -85,8 +87,11 @@ def test_metrics_artifact_persists_candidate_annualization() -> None:
         data=data,
         config=config,
         parameter_row_id="row-1",
+        include_price_series=False,
     )
     metrics = next(document for _, name, document in artifacts if name == "metrics")
+    summary = next(document for _, name, document in artifacts if name == "run_summary")
+    equity = next(document for _, name, document in artifacts if name == "equity_curve")
 
     assert metrics["annualization"] == {
         "sampling": "exchange_session_close",
@@ -96,3 +101,5 @@ def test_metrics_artifact_persists_candidate_annualization() -> None:
         "source": "saved contract test",
         "exchange_calendar": "NYSE",
     }
+    assert summary["selected_ranking_position"] == 2
+    assert equity["price_series"] == []
