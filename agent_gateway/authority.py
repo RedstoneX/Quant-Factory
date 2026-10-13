@@ -10,6 +10,7 @@ OPERATION_LEVELS = {
     "run.results": 0,
     "run.evidence": 0,
     "lineage.get": 0,
+    "campaign.status": 0,
     "candidate.validate": 1,
     "candidate.submit": 1,
     "research.note.add": 1,

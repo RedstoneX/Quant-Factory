@@ -22,6 +22,7 @@ from agent_gateway.contracts import (
     success,
 )
 from agent_gateway.store import GatewayStore
+from orchestration.auto_campaign import POLICY_ID as CAMPAIGN_POLICY_ID
 from persistence import PersistenceService, RunStage
 from research_intake import (
     build_research_context,
@@ -29,6 +30,7 @@ from research_intake import (
     validate_candidate_packet,
 )
 RunLauncher = Callable[[str, str, str], str]
+_AUTOMATIC_RUNS_MESSAGE = "Runs start automatically for every valid idea that has a rule_spec; submit or update the idea instead."
 _STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request"}
 _SAFE_EVIDENCE_STATES = {"gated", "not_applicable", None}
 _WORD = re.compile(r"[a-z0-9]+")
@@ -48,8 +50,10 @@ class AgentResearchGateway:
         gateway_database: str | Path,
         artifact_root: str | Path,
         run_launcher: RunLauncher | None = None,
+        automatic_testing_enabled: bool = False,
     ) -> None:
         self.database = Path(database)
+        self.automatic_testing_enabled = automatic_testing_enabled
         self.gateway_database = Path(gateway_database)
         self.artifact_root = Path(artifact_root)
         self.run_launcher = run_launcher
@@ -138,11 +142,13 @@ class AgentResearchGateway:
         if identity.authority_level < required:
             raise GatewayError("authority_denied", "agent authority does not permit this operation")
         if request.operation == "bootstrap":
-            return build_bootstrap(
+            document = build_bootstrap(
                 identity,
                 operation_levels=OPERATION_LEVELS,
                 run_requests_enabled=False,
             )
+            document["automatic_testing"] = {"enabled": self.automatic_testing_enabled, "policy_id": CAMPAIGN_POLICY_ID}
+            return document
         handlers = {
             "context.get": self._context_get,
             "prior.search": self._prior_search,
@@ -156,6 +162,7 @@ class AgentResearchGateway:
             "run.status": self._run_status,
             "run.results": self._run_results,
             "run.evidence": self._run_evidence,
+            "campaign.status": self._campaign_status,
         }
         return handlers[request.operation](request, identity, store)
 
@@ -300,12 +307,16 @@ class AgentResearchGateway:
         self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore
     ) -> dict[str, Any]:
         if self.run_launcher is None:
-            raise GatewayError("run_unavailable", "development-run requests are disabled")
+            raise GatewayError("run_unavailable", _AUTOMATIC_RUNS_MESSAGE)
         _identifier(request.arguments.get("candidate_id"), "candidate")
-        raise GatewayError(
-            "campaign_inactive",
-            "No executable Candidate campaign is active; Candidate intake does not authorize research execution.",
-        )
+        raise GatewayError("campaign_inactive", _AUTOMATIC_RUNS_MESSAGE)
+
+    def _campaign_status(
+        self, request: GatewayRequest, _identity: GatewayIdentity, store: GatewayStore
+    ) -> dict[str, Any]:
+        candidate_id = _identifier(request.arguments.get("candidate_id"), "candidate")
+        latest = store.latest_campaign_event(candidate_id)
+        return {"candidate_id": candidate_id, "policy_id": CAMPAIGN_POLICY_ID, "latest_event": latest}
 
     def _run_status(
         self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore
