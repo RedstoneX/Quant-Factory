@@ -60,8 +60,12 @@ def _screening_rows(connection: sqlite3.Connection, run_id: str) -> list[dict[st
         result.append({
             "row_id": str(row["row_id"]),
             "rank": int(row["ranking_position"]),
+            "parameters": parameters,
             "run_length": parameters.get("run_length"),
             "minimum_ticks_per_bar": parameters.get("minimum_ticks_per_bar"),
+            "range_minutes": parameters.get("range_minutes"),
+            "breakout_offset_ticks": parameters.get("breakout_offset_ticks"),
+            "direction_variant": parameters.get("direction_variant"),
             "total_return": _percent(metrics.get("total_return")),
             "annualized_return": _percent(metrics.get("annualized_return")),
             "sharpe_ratio": metrics.get("sharpe_ratio"),

@@ -39,6 +39,13 @@ SCREENING_COLUMNS = [
     {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 88, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
     {"field": "screening_status", "headerName": "Outcome", "minWidth": 112, "flex": 1, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Screened out' : params.value"}},
 ]
+ORB_SCREENING_COLUMNS = [
+    {"field": "rank", "headerName": "Rank", "width": 64, "pinned": "left", "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
+    {"field": "range_minutes", "headerName": "Opening range", "width": 112, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value + ' min'"}},
+    {"field": "breakout_offset_ticks", "headerName": "Entry offset", "width": 104, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value + (params.value === 1 ? ' tick' : ' ticks')"}},
+    {"field": "direction_variant", "headerName": "Direction", "width": 94, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.charAt(0).toUpperCase() + params.value.slice(1)"}},
+    *SCREENING_COLUMNS[3:],
+]
 
 
 def _icon(name: str) -> html.Span:
@@ -209,6 +216,17 @@ def _configuration_chart_caption(evidence: dict[str, Any], identity: str) -> str
     return f"Selected configuration · {identity} · session {session} Eastern · {plotted} of {total:,} trades shown"
 
 
+def _configuration_identity(selected: dict[str, Any]) -> str:
+    if selected.get("range_minutes") is not None:
+        offset = int(selected.get("breakout_offset_ticks") or 0)
+        tick_label = "tick" if offset == 1 else "ticks"
+        direction = str(selected.get("direction_variant") or "Unrecorded").title()
+        return f"{int(selected['range_minutes'])}-minute opening range · {offset} {tick_label} · {direction}"
+    if selected.get("run_length") is not None:
+        return f"{selected['run_length']} run bars · {selected.get('minimum_ticks_per_bar', '—')} minimum ticks"
+    return "Exact persisted parameters"
+
+
 def _run_from_search(search: str | None, runs: list[dict[str, Any]]) -> str | None:
     requested = parse_qs((search or "").lstrip("?")).get("run_id", [None])[0]
     if requested and any(row["run_id"] == requested for row in runs):
@@ -308,7 +326,7 @@ def register_results_callbacks(application: Any) -> None:
             title, f"{run_id} · exact persisted evidence", state, "candidate-state rejected" if screened_out else "candidate-state", f"Sealed run · {run_id[:12]}",
             assumptions,
             "Selected configuration price and trades" if screened_out else "Price and completed trades",
-            "Six declared configurations" if screened_out else "Completed trade ledger",
+            f"{len(screening_rows):,} declared configurations" if screened_out else "Completed trade ledger",
             "Select a configuration to inspect its exact rejection reasons" if screened_out else "Select a trade to focus its exact persisted interval",
             "Search configurations" if screened_out else "Search trades",
             "Select a configuration to inspect its persisted screening evidence" if screened_out else "Persisted OHLC and completed trades",
@@ -356,7 +374,7 @@ def register_results_callbacks(application: Any) -> None:
                 return "Configuration evidence", configuration_evidence.get("message") or "Select a configuration to load its exact retained evidence", cards
             row_id = configuration_evidence.get("parameter_row_id")
             selected = next((row for row in screening_rows if row.get("row_id") == row_id), {})
-            identity = f"{selected.get('run_length', '—')} run bars · {selected.get('minimum_ticks_per_bar', '—')} minimum ticks"
+            identity = _configuration_identity(selected)
             return (
                 f"{configuration_evidence.get('interval', '—')} bars",
                 _configuration_chart_caption(configuration_evidence, identity),
@@ -384,7 +402,8 @@ def register_results_callbacks(application: Any) -> None:
         if not screening and session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
         if screening:
             total = int(record.get("screening_count") or 0)
-            return rows, SCREENING_COLUMNS, f"{len(rows):,} shown · {total:,} declared configurations · all screened out"
+            columns = ORB_SCREENING_COLUMNS if any(row.get("range_minutes") is not None for row in rows) else SCREENING_COLUMNS
+            return rows, columns, f"{len(rows):,} shown · {total:,} declared configurations · all screened out"
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
         return rows, TRADE_COLUMNS, f"{len(rows):,} shown · {total:,} persisted" + (f" · first {bounded:,} loaded" if total > bounded else "")
 
