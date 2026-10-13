@@ -302,7 +302,7 @@ def _display_trades(record: dict[str, Any], search: str | None) -> list[dict[str
     return rows
 
 
-def register_results_callbacks(application: Any) -> None:
+def _register_record_callbacks(application: Any) -> None:
     @application.callback(Output("results-record", "data"), Input("results-run", "value"), Input("results-bars", "value"))
     def load_record(run_id: str | None, interval: str) -> dict[str, Any]:
         return load_results_record(run_id, interval=interval or "15m")
@@ -350,6 +350,8 @@ def register_results_callbacks(application: Any) -> None:
         data = [{"value": "all", "label": "All persisted sessions"}] + [{"value": day, "label": f"Session · {day}"} for day in sessions]
         return data, "all", False
 
+
+def _register_configuration_callbacks(application: Any) -> None:
     @application.callback(
         Output("results-bars-chip", "children"), Output("results-chart-caption", "children"), Output("results-metrics", "children"),
         Input("results-record", "data"), Input("results-configuration-evidence", "data"),
@@ -422,6 +424,8 @@ def register_results_callbacks(application: Any) -> None:
             run_id, selected.get("row_id"), interval=interval or "15m", session=session,
         )
 
+
+def _register_figure_callbacks(application: Any) -> None:
     @application.callback(Output("results-price-chart", "figure"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"))
     def render_price(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any) -> go.Figure:
         if (record or {}).get("screening_rows"):
@@ -465,6 +469,12 @@ def register_results_callbacks(application: Any) -> None:
         if ctx.triggered_id == "results-sensitivity": return no_update, "equity"
         if ctx.triggered_id == "results-package": return no_update, "lineage"
         return "session", "equity"
+
+
+def register_results_callbacks(application: Any) -> None:
+    _register_record_callbacks(application)
+    _register_configuration_callbacks(application)
+    _register_figure_callbacks(application)
 
 
 __all__ = ["register_results_callbacks", "results_layout"]
