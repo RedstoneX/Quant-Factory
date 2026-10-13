@@ -24,14 +24,6 @@ def test_selected_screening_configuration_loads_exact_chart_and_trade_evidence(t
     row_id = "parameter-row-2"
     namespace = f"screening_configuration/{row_id}"
     try:
-        _register_document(service, tmp_path, name="screening_price_series", artifact_type=ArtifactType.EQUITY_CURVE, document={
-            "source_interval": "5m",
-            "price_series": [
-                {"timestamp": "2026-01-02T14:30:00+00:00", "open": 6000, "high": 6002, "low": 5999, "close": 6001},
-                {"timestamp": "2026-01-02T14:35:00+00:00", "open": 6001, "high": 6004, "low": 6000, "close": 6003},
-                {"timestamp": "2026-01-02T14:40:00+00:00", "open": 6003, "high": 6005, "low": 6002, "close": 6004},
-            ],
-        })
         _register_document(service, tmp_path, name=f"{namespace}/trades_and_orders", artifact_type=ArtifactType.TRADES_OR_ORDERS, document={
             "trades": [{
                 "Exit Trade Id": 7, "Status": "Closed", "Direction": "Short",
@@ -40,6 +32,12 @@ def test_selected_screening_configuration_loads_exact_chart_and_trade_evidence(t
             }],
         })
         _register_document(service, tmp_path, name=f"{namespace}/equity_curve", artifact_type=ArtifactType.EQUITY_CURVE, document={
+            "source_interval": "5m",
+            "price_series": [
+                {"timestamp": "2026-01-02T14:30:00+00:00", "open": 6000, "high": 6002, "low": 5999, "close": 6001},
+                {"timestamp": "2026-01-02T14:35:00+00:00", "open": 6001, "high": 6004, "low": 6000, "close": 6003},
+                {"timestamp": "2026-01-02T14:40:00+00:00", "open": 6003, "high": 6005, "low": 6002, "close": 6004},
+            ],
             "equity_curve": [
                 {"timestamp": "2026-01-02T14:30:00+00:00", "value": 100_000},
                 {"timestamp": "2026-01-02T14:40:00+00:00", "value": 99_990},
@@ -63,4 +61,3 @@ def test_selected_screening_configuration_loads_exact_chart_and_trade_evidence(t
     assert evidence["trades"][0]["trade_id"] == "7"
     assert evidence["trades"][0]["entry_timestamp"] == "2026-01-02T14:35:00+00:00"
     assert evidence["metrics"]["number_of_trades"] == 1
-

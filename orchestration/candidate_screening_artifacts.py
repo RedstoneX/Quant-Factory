@@ -51,9 +51,33 @@ def _artifact_records(frame: pd.DataFrame, *, price_multiplier: float = 1.0) -> 
     return rows
 
 
+def _bounded_equity(value: pd.Series) -> tuple[pd.Series, str]:
+    if len(value) <= 2_000:
+        return value, "complete_bar_equity"
+    if not isinstance(value.index, pd.DatetimeIndex):
+        positions = sorted({0, len(value) - 1, *(range(0, len(value), max(1, len(value) // 2_000)))})
+        return value.iloc[positions], "bounded_even_sample_from_complete_bar_equity"
+    return value.resample("1D").last().dropna(), "daily_last_from_complete_bar_equity"
+
+
+def _trade_centered_price_window(data: pd.DataFrame, trades: pd.DataFrame) -> pd.DataFrame:
+    if trades.empty or "Entry Index" not in trades:
+        return data.tail(160)
+    focus = pd.Timestamp(trades.iloc[-1]["Entry Index"])
+    index = data.index
+    if isinstance(index, pd.DatetimeIndex):
+        if focus.tzinfo is None and index.tz is not None:
+            focus = focus.tz_localize(index.tz)
+        elif focus.tzinfo is not None and index.tz is not None:
+            focus = focus.tz_convert(index.tz)
+    position = int(index.searchsorted(focus))
+    return data.iloc[max(0, position - 60):position + 100]
+
+
 def _screening_artifacts(*, result: Any, portfolio: Any, data: pd.DataFrame,
                          config: ExperimentConfig, parameter_row_id: str,
-                         include_price_series: bool = True) -> tuple[tuple[ArtifactType, str, dict[str, Any]], ...]:
+                         include_price_series: bool = True,
+                         price_window_only: bool = False) -> tuple[tuple[ArtifactType, str, dict[str, Any]], ...]:
     """Serialize the screened portfolio itself, never a second simulation."""
     matches = result.ranked_results.loc[
         result.ranked_results["parameter_row_id"] == parameter_row_id
@@ -89,6 +113,8 @@ def _screening_artifacts(*, result: Any, portfolio: Any, data: pd.DataFrame,
         if value.shape[1] != 1:
             raise RuntimeError("expected one-column portfolio equity series")
         value = value.iloc[:, 0]
+    bounded_value, equity_sampling = _bounded_equity(value)
+    price_data = _trade_centered_price_window(data, trades) if price_window_only else data
     return (
         (ArtifactType.RUN_SUMMARY, "run_summary", {
             "strategy_id": result.strategy_id, "strategy_version": result.strategy_version,
@@ -110,10 +136,12 @@ def _screening_artifacts(*, result: Any, portfolio: Any, data: pd.DataFrame,
         }),
         (ArtifactType.EQUITY_CURVE, "equity_curve", {
             "parameter_row_id": parameter_row_id, "ranking_position": ranking_position,
-            "equity_curve": [{"timestamp": _artifact_value(index), "value": _artifact_value(item)} for index, item in value.items()],
+            "source_interval": config.market_data.interval,
+            "equity_sampling": equity_sampling,
+            "equity_curve": [{"timestamp": _artifact_value(index), "value": _artifact_value(item)} for index, item in bounded_value.items()],
             "price_series": ([{"timestamp": _artifact_value(index),
                                **{key.lower(): _artifact_value(item[key]) for key in ("Open", "High", "Low", "Close")}}
-                              for index, item in data[["Open", "High", "Low", "Close"]].iterrows()]
+                              for index, item in price_data[["Open", "High", "Low", "Close"]].iterrows()]
                              if include_price_series else []),
             "benchmark_omission": "No benchmark was declared for this bounded screening run.",
         }),
@@ -124,10 +152,12 @@ def persist_screening_artifacts(*, persistence: PersistenceService, artifact_roo
                                 run_id: str, result: Any, portfolio: Any,
                                 data: pd.DataFrame, config: ExperimentConfig,
                                 parameter_row_id: str, namespace: str | None = None,
-                                include_price_series: bool = True) -> None:
+                                include_price_series: bool = True,
+                                price_window_only: bool = False) -> None:
     for artifact_type, logical_name, document in _screening_artifacts(
         result=result, portfolio=portfolio, data=data, config=config,
         parameter_row_id=parameter_row_id, include_price_series=include_price_series,
+        price_window_only=price_window_only,
     ):
         qualified_name = f"{namespace}/{logical_name}" if namespace else logical_name
         relative_path = f"state/artifacts/{run_id}/{qualified_name}.json"
@@ -142,30 +172,3 @@ def persist_screening_artifacts(*, persistence: PersistenceService, artifact_roo
             media_type="application/json", format="json",
             location=relative_path, content=content,
         )
-
-
-def persist_screening_price_series(*, persistence: PersistenceService,
-                                   artifact_root: Path, run_id: str,
-                                   data: pd.DataFrame, source_interval: str) -> None:
-    """Persist one shared source-bar series for bounded configuration evidence."""
-    logical_name = "screening_price_series"
-    relative_path = f"state/artifacts/{run_id}/{logical_name}.json"
-    document = {
-        "source_interval": source_interval,
-        "price_series": [
-            {"timestamp": _artifact_value(index),
-             **{key.lower(): _artifact_value(item[key]) for key in ("Open", "High", "Low", "Close")}}
-            for index, item in data[["Open", "High", "Low", "Close"]].iterrows()
-        ],
-    }
-    destination = artifact_root / relative_path
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    content = (canonical_json(document) + "\n").encode("utf-8")
-    staging = destination.with_suffix(".json.tmp")
-    staging.write_bytes(content)
-    staging.replace(destination)
-    persistence.register_artifact(
-        run_id=run_id, artifact_type=ArtifactType.EQUITY_CURVE,
-        logical_name=logical_name, media_type="application/json", format="json",
-        location=relative_path, content=content,
-    )

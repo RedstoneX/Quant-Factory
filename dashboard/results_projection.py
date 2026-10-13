@@ -116,9 +116,6 @@ def load_screening_configuration_evidence(
         return {"available": False, "message": "Select a persisted configuration."}
     database_path = Path(database) if database is not None else configured_database_path()
     namespace = f"screening_configuration/{parameter_row_id}"
-    price_document = _artifact_document(
-        database=database_path, run_id=run_id, logical_name="screening_price_series"
-    )
     trades_document = _artifact_document(
         database=database_path, run_id=run_id,
         logical_name=f"{namespace}/trades_and_orders",
@@ -126,6 +123,13 @@ def load_screening_configuration_evidence(
     equity_document = _artifact_document(
         database=database_path, run_id=run_id,
         logical_name=f"{namespace}/equity_curve",
+    )
+    price_document = (
+        equity_document
+        if equity_document and equity_document.get("price_series")
+        else _artifact_document(
+            database=database_path, run_id=run_id, logical_name="screening_price_series"
+        )
     )
     metrics_document = _artifact_document(
         database=database_path, run_id=run_id,
