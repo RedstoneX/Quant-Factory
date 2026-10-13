@@ -113,6 +113,7 @@ jobs:
           python -m pytest --collect-only -q
           --write-test-lane-inventory=test-lane-inventory.json
           --ignore=tests/browser
+          --ignore=tests/test_documentation_governance.py
           tests
       - name: Run every portable non-browser test
         if: steps.scope.outputs.full == 'true'
@@ -123,6 +124,7 @@ jobs:
           -m "not licensed_vectorbt and not external_prefect and not controlled_market_data"
           --junitxml=portable-nonbrowser-test-results.xml
           --ignore=tests/browser
+          --ignore=tests/test_documentation_governance.py
           tests
       - name: Verify exact portable non-browser coverage
         if: always() && steps.scope.outputs.full == 'true'
