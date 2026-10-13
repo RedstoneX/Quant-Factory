@@ -1,0 +1,12 @@
+[Unit]
+Description=Quant Factory: put merged main live (code only)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+ExecStart=/usr/local/sbin/qf-deploy
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=45min

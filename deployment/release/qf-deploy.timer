@@ -1,0 +1,10 @@
+[Unit]
+Description=Quant Factory: check GitHub main every 3 minutes and deploy what merged
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*:0/3
+AccuracySec=20s
+
+[Install]
+WantedBy=timers.target
