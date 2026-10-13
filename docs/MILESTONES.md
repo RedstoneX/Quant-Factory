@@ -8,14 +8,14 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Complete the connected R13 Factory → Candidates → Results workflow using the exact Five-bar run exhaustion Candidate and its canonical screened-out run; do not start a second Candidate or a new campaign. |
-| Phase | **R13 live-workflow verification and repair remains active. The exact executable-path prerequisite passed. R15 remains aborted and did not validate the factory workflow.** |
-| Active work | Project the retained Candidate, immutable StudyPlan, canonical run, six screened-out configurations, metrics, and rejection reasons truthfully across Factory, Candidates, and Results. Correct only projection, navigation, and presentation defects required for that connected path. Broad research execution remains disabled. |
+| Immediate objective | Complete one owner-authorized visual-conformance batch across Candidates, Results, Factory runs, Submit Strategies, Compare Selected, and the Paper Trading destination while preserving the exact connected Five-bar run exhaustion review state. Do not start a second Candidate or a new campaign. |
+| Phase | **R13 live-workflow verification and six-surface frontend conformance remain active. The exact executable-path prerequisite passed. R15 remains aborted and did not validate the factory workflow.** |
+| Active work | Apply the approved workspace composition and the accepted Dashboard visual language consistently across all six non-Dashboard surfaces. Preserve their existing truthful projections, controls, exact identities, state authority, and bounded loading. Broad research execution remains disabled. |
 | Technology | Reuse the accepted Dash/Mantine shell, existing projections, Plotly/VectorBT evidence, and Dash AG Grid. Keep `dashboard.ui` presentation-only, lazy-load heavy evidence, and preserve bounded server-side data paths. |
 | Visual authority | Dashboard: `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. Remaining workflow surfaces: `docs/assets/workspaces/current-workflow-contract/workspaces.html`, SHA-256 `313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31`; it contains no Dashboard composition. |
 | Visual proof state | The approved contracts remain the visual baseline. The exact execution proof is accepted as the technical prerequisite for R13; UI comprehension and connected workflow behavior remain unaccepted until Terry completes the live walkthrough. |
-| Next action | Verify and, where necessary, correct the private Factory → Candidates → Results path against canonical Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` and run `run_16cd4442080d40d5afd746f7507b0f07`; deploy that bounded correction and stop with the private URL for Terry's unaided walkthrough. |
-| Owner checkpoints | Terry's unaided walkthrough is the only R13 acceptance gate. Tests, fixtures, screenshots, audits, and agent assertions cannot close it. Stop before a second Candidate, another campaign, protected evidence, paper trading, or broker work. |
+| Next action | Implement and privately deploy the six-surface visual-conformance batch, run one lean technical/control/visual proof per route, and stop with the private URL for Terry's consolidated unaided walkthrough. |
+| Owner checkpoints | Terry's consolidated unaided walkthrough is the only R13 acceptance gate. The authorized batch continues across all six surfaces without intermediate owner pauses. Tests, fixtures, screenshots, audits, and agent assertions cannot close it. Stop before a second Candidate, another campaign, protected evidence, paper activation, broker work, or capital authority. |
 | Deferred | Broad or open-ended edge discovery; VectorBT Pro upgrade; new or paid/protected data; paper-lane activation; broker work; orders; live trading; and capital exposure. |
 
 ## Active work
@@ -23,7 +23,7 @@ and next action. Git history preserves completed milestone narratives.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | Exact execution is proven and accepted as the technical prerequisite. Complete and deploy the truthful Factory → Candidates → Results path for Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` and canonical run `run_16cd4442080d40d5afd746f7507b0f07`, then stop for Terry's unaided walkthrough. |
+| R13 | 1 | in_progress | none | Exact execution is proven and accepted as the technical prerequisite. Complete and deploy the approved six-surface visual-conformance batch while preserving the truthful connected path for Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` and canonical run `run_16cd4442080d40d5afd746f7507b0f07`, then stop for Terry's consolidated unaided walkthrough. |
 | R14 | 2 | blocked | R13 | Broad unattended Candidate research remains unauthorized pending Terry's R13 walkthrough acceptance and a new campaign authority. |
 <!-- active-work:end -->
 

@@ -47,9 +47,18 @@ def _rail(name: str, label: str, item_id: str, *, active: bool = False, disabled
 
 def _empty_figure(message: str, *, height: int = 300) -> go.Figure:
     figure = go.Figure()
-    figure.add_annotation(text=message, x=.5, y=.5, xref="paper", yref="paper", showarrow=False, font={"color": "#8a97a8", "size": 11})
+    figure.add_shape(
+        type="rect", x0=.16, x1=.84, y0=.31, y1=.69, xref="paper", yref="paper",
+        line={"color": "rgba(74,168,255,.22)", "width": 1},
+        fillcolor="rgba(74,168,255,.035)", layer="below",
+    )
+    figure.add_annotation(
+        text=f"<b>Evidence boundary</b><br><span style='font-size:10px'>{message}</span>",
+        x=.5, y=.5, xref="paper", yref="paper", showarrow=False, align="center",
+        font={"color": "#aebdce", "size": 12},
+    )
     figure.update_xaxes(visible=False); figure.update_yaxes(visible=False)
-    figure.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin={"l": 20, "r": 20, "t": 20, "b": 20})
+    figure.update_layout(height=height, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(7,10,15,.32)", margin={"l": 20, "r": 20, "t": 20, "b": 20})
     return figure
 
 

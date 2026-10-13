@@ -59,7 +59,9 @@ def candidates_layout(search: str | None = None) -> dmc.MantineProvider:
     requested_candidate = parse_qs((search or "").lstrip("?")).get("candidate_id", [None])[0]
     initial_detail = load_candidate_detail(requested_candidate) if requested_candidate else None
     initial_lifecycle = str((initial_detail or {}).get("lifecycle") or "survivor")
-    initial_search = requested_candidate or ""
+    # Deep links select the exact record without narrowing the surrounding
+    # universe. Operators must retain ranking and neighborhood context.
+    initial_search = ""
     family_options = [{"value": "all", "label": "All families"}] + [{"value": family, "label": family} for family in summary.get("families", [])]
     nav = dmc.Stack([
         dmc.Paper("Q", className="logo", radius="md"),
@@ -251,7 +253,7 @@ def register_candidate_callbacks(application: Any) -> None:
             candidate_id = parse_qs(str(_clicks[-1] or "").lstrip("?")).get("candidate_id", [None])[0]
             detail = load_candidate_detail(candidate_id) if candidate_id else None
             if detail:
-                return detail.get("lifecycle") or "all", "all", "all", "any", candidate_id
+                return detail.get("lifecycle") or "all", "all", "all", "any", ""
             return no_update, no_update, no_update, no_update, no_update
         if ctx.triggered_id == "view-survivors":
             return "survivor", "all", "all", "all_gates", ""
