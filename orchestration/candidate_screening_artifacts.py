@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import math
 from numbers import Real
 from pathlib import Path
+import sqlite3
 from typing import Any
 
 import pandas as pd
@@ -172,3 +173,55 @@ def persist_screening_artifacts(*, persistence: PersistenceService, artifact_roo
             media_type="application/json", format="json",
             location=relative_path, content=content,
         )
+
+
+def persist_screening_price_series(
+    *,
+    persistence: PersistenceService,
+    artifact_root: Path,
+    run_id: str,
+    data: pd.DataFrame,
+) -> None:
+    """Persist one shared immutable OHLC history for every configuration in a run."""
+    required = ["Open", "High", "Low", "Close"]
+    if not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
+        raise ValueError("screening price history requires a timezone-aware DatetimeIndex")
+    if any(column not in data for column in required):
+        raise ValueError("screening price history is missing required OHLC columns")
+    relative_path = f"state/artifacts/{run_id}/screening_price_series.sqlite3"
+    destination = artifact_root / relative_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    staging = destination.with_suffix(".sqlite3.tmp")
+    frame = data.loc[:, required].rename(columns=str.lower).copy()
+    if staging.exists():
+        staging.unlink()
+    connection = sqlite3.connect(staging)
+    try:
+        connection.execute(
+            "CREATE TABLE price_bars (timestamp TEXT PRIMARY KEY, open REAL NOT NULL, "
+            "high REAL NOT NULL, low REAL NOT NULL, close REAL NOT NULL) WITHOUT ROWID"
+        )
+        connection.executemany(
+            "INSERT INTO price_bars VALUES (?, ?, ?, ?, ?)",
+            (
+                (index.tz_convert("UTC").isoformat(), float(open_), float(high_),
+                 float(low_), float(close_))
+                for index, open_, high_, low_, close_ in frame.itertuples(
+                    index=True, name=None
+                )
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    content = staging.read_bytes()
+    staging.replace(destination)
+    persistence.register_artifact(
+        run_id=run_id,
+        artifact_type=ArtifactType.DATASET_MANIFEST,
+        logical_name="screening_price_series",
+        media_type="application/vnd.sqlite3",
+        format="sqlite3",
+        location=relative_path,
+        content=content,
+    )

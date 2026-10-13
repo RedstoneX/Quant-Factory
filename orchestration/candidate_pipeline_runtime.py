@@ -42,6 +42,7 @@ from orchestration.candidate_run_service import CandidateRunService, CandidateSc
 from orchestration.candidate_pipeline_contracts import CandidatePipelineLauncher
 from orchestration.candidate_screening_artifacts import (
     persist_screening_artifacts,
+    persist_screening_price_series,
     snapshot_screening_portfolio,
 )
 from orchestration.candidate_runtime_robustness import execute_candidate_robustness
@@ -847,6 +848,12 @@ class CandidatePipelineRuntime:
                 if captured_portfolios:
                     if len(captured_portfolios) != combination_count:
                         raise RuntimeError("bounded screening evidence capture is incomplete")
+                    persist_screening_price_series(
+                        persistence=persistence,
+                        artifact_root=self.artifact_root,
+                        run_id=submission.run_id,
+                        data=market.data,
+                    )
                     for row_id, portfolio in captured_portfolios.items():
                         persist_screening_artifacts(
                             persistence=persistence, artifact_root=self.artifact_root,
@@ -854,8 +861,8 @@ class CandidatePipelineRuntime:
                             portfolio=portfolio, data=market.data,
                             config=self.definition.experiment, parameter_row_id=row_id,
                             namespace=(f"screening_configuration/{row_id}" if combination_count > 1 else None),
-                            include_price_series=True,
-                            price_window_only=combination_count > 1,
+                            include_price_series=False,
+                            price_window_only=False,
                         )
                 persistence.persist_run_manifest(
                     persistence.build_run_manifest(submission.run_id)

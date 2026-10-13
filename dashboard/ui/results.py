@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -13,6 +12,7 @@ import plotly.graph_objects as go
 
 from dashboard.results_projection import (
     list_results_runs,
+    list_screening_configuration_sessions,
     load_results_record,
     load_screening_configuration_evidence,
 )
@@ -22,8 +22,8 @@ GLYPHS = {"dashboard": "▦", "file": "+", "flow": "⌁", "list": "☷", "chart"
 TRADE_COLUMNS = [
     {"field": "trade_id", "headerName": "Trade", "width": 72, "pinned": "left"},
     {"field": "direction", "headerName": "Side", "width": 70},
-    {"field": "entry_timestamp", "headerName": "Entry", "minWidth": 150, "flex": 1},
-    {"field": "exit_timestamp", "headerName": "Exit", "minWidth": 150, "flex": 1},
+    {"field": "entry_display", "headerName": "Entry (Eastern)", "minWidth": 170, "flex": 1},
+    {"field": "exit_display", "headerName": "Exit (Eastern)", "minWidth": 170, "flex": 1},
     {"field": "duration", "headerName": "Duration", "width": 84},
     {"field": "pnl", "headerName": "Net P&L", "type": "numericColumn", "width": 90},
     {"field": "outcome", "headerName": "Outcome", "width": 86},
@@ -74,7 +74,7 @@ def _style(figure: go.Figure, *, height: int) -> go.Figure:
     )
     figure.update_xaxes(
         gridcolor="#202936", linecolor="#344050", zeroline=False,
-        type="date", tickformat="%b %d<br>%H:%M", title_text="Time (UTC)",
+        type="date", tickformat="%b %d<br>%I:%M %p", title_text="Eastern time",
         title_standoff=7, showticklabels=True, ticks="outside", automargin=True,
     )
     figure.update_yaxes(gridcolor="#202936", linecolor="#344050", zeroline=False)
@@ -204,12 +204,9 @@ def _configuration_chart_caption(evidence: dict[str, Any], identity: str) -> str
         1 for trade in trades
         if trade.get("entry_timestamp") and first <= str(trade["entry_timestamp"]) <= last
     )
-    try:
-        session = datetime.fromisoformat(first).strftime("%b %d, %Y")
-    except ValueError:
-        session = first[:10]
+    session = str(evidence.get("selected_session") or first[:10])
     total = int(evidence.get("trade_count") or len(trades))
-    return f"Selected configuration · {identity} · retained session {session} UTC · {plotted} of {total:,} trades shown"
+    return f"Selected configuration · {identity} · session {session} Eastern · {plotted} of {total:,} trades shown"
 
 
 def _run_from_search(search: str | None, runs: list[dict[str, Any]]) -> str | None:
@@ -294,9 +291,9 @@ def register_results_callbacks(application: Any) -> None:
 
     @application.callback(
         Output("results-run-name", "children"), Output("results-meta", "children"), Output("results-state", "children"), Output("results-state", "className"),
-        Output("results-run-chip", "children"), Output("results-assumptions", "children"), Output("results-session", "data"), Output("results-session", "value"),
+        Output("results-run-chip", "children"), Output("results-assumptions", "children"),
         Output("results-chart-title", "children"), Output("results-ledger-title", "children"), Output("results-ledger-subtitle", "children"), Output("results-trade-search", "placeholder"), Output("results-toolbar-context", "children"),
-        Output("results-bars", "disabled"), Output("results-view", "disabled"), Output("results-reset-range", "disabled"), Output("results-session", "disabled"),
+        Output("results-bars", "disabled"), Output("results-view", "disabled"), Output("results-reset-range", "disabled"),
         Input("results-record", "data"),
     )
     def render_record(record: dict[str, Any] | None):
@@ -307,18 +304,33 @@ def register_results_callbacks(application: Any) -> None:
         screened_out = bool(screening_rows) and int(record.get("screened_out_count") or 0) == len(screening_rows)
         state = "Screened out" if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
         assumptions = [html.Div([html.Span("Run"), html.Strong(run_id)], className="results-assumption"), html.Div([html.Span("Market"), html.Strong(run.get("symbol") or "Unrecorded")], className="results-assumption"), html.Div([html.Span("Stage"), html.Strong(str(run.get("stage") or "Unrecorded").replace("_", " ").title())], className="results-assumption"), html.Div([html.Span("Authority"), html.Strong("Research evidence only")], className="results-assumption")]
-        sessions = sorted({str(row.get("entry_timestamp") or "")[:10] for row in record.get("trades") or [] if row.get("entry_timestamp")})
-        session_data = [{"value": "all", "label": "All persisted sessions"}] + [{"value": day, "label": f"Session · {day}"} for day in sessions]
         return (
             title, f"{run_id} · exact persisted evidence", state, "candidate-state rejected" if screened_out else "candidate-state", f"Sealed run · {run_id[:12]}",
-            assumptions, session_data, "all",
+            assumptions,
             "Selected configuration price and trades" if screened_out else "Price and completed trades",
             "Six declared configurations" if screened_out else "Completed trade ledger",
             "Select a configuration to inspect its exact rejection reasons" if screened_out else "Select a trade to focus its exact persisted interval",
             "Search configurations" if screened_out else "Search trades",
             "Select a configuration to inspect its persisted screening evidence" if screened_out else "Persisted OHLC and completed trades",
-            False, screened_out, False, screened_out,
+            False, screened_out, False,
         )
+
+    @application.callback(
+        Output("results-session", "data"), Output("results-session", "value"), Output("results-session", "disabled"),
+        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"),
+    )
+    def configure_sessions(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None):
+        record = record or {}; screening_rows = record.get("screening_rows") or []
+        if screening_rows:
+            selected = (selected_rows or screening_rows[:1])[-1]
+            sessions = list_screening_configuration_sessions(
+                (record.get("run") or {}).get("run_id"), selected.get("row_id")
+            )
+            data = [{"value": day, "label": f"Session · {day} (Eastern)"} for day in sessions]
+            return data, (sessions[-1] if sessions else None), not bool(sessions)
+        sessions = sorted({str(row.get("entry_timestamp") or "")[:10] for row in record.get("trades") or [] if row.get("entry_timestamp")})
+        data = [{"value": "all", "label": "All persisted sessions"}] + [{"value": day, "label": f"Session · {day}"} for day in sessions]
+        return data, "all", False
 
     @application.callback(
         Output("results-bars-chip", "children"), Output("results-chart-caption", "children"), Output("results-metrics", "children"),
@@ -365,29 +377,31 @@ def register_results_callbacks(application: Any) -> None:
         ]
         return f"{record.get('interval', '—')} bars", record.get("price_reason") or "Persisted OHLC · scroll to zoom · select a trade to focus", cards
 
-    @application.callback(Output("results-trade-grid", "rowData"), Output("results-trade-grid", "columnDefs"), Output("results-trade-count", "children"), Output("results-trade-grid", "selectedRows"), Input("results-record", "data"), Input("results-trade-search", "value"), Input("results-session", "value"))
+    @application.callback(Output("results-trade-grid", "rowData"), Output("results-trade-grid", "columnDefs"), Output("results-trade-count", "children"), Input("results-record", "data"), Input("results-trade-search", "value"), Input("results-session", "value"))
     def render_trades(record: dict[str, Any] | None, search: str | None, session: str):
         record = record or {}; rows = _display_trades(record, search)
         screening = bool(record.get("screening_rows"))
         if not screening and session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
         if screening:
             total = int(record.get("screening_count") or 0)
-            return rows, SCREENING_COLUMNS, f"{len(rows):,} shown · {total:,} declared configurations · all screened out", rows[:1]
+            return rows, SCREENING_COLUMNS, f"{len(rows):,} shown · {total:,} declared configurations · all screened out"
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
-        return rows, TRADE_COLUMNS, f"{len(rows):,} shown · {total:,} persisted" + (f" · first {bounded:,} loaded" if total > bounded else ""), []
+        return rows, TRADE_COLUMNS, f"{len(rows):,} shown · {total:,} persisted" + (f" · first {bounded:,} loaded" if total > bounded else "")
 
     @application.callback(
         Output("results-configuration-evidence", "data"),
-        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-bars", "value"),
+        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-bars", "value"), Input("results-session", "value"),
     )
-    def load_configuration_evidence(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, interval: str) -> dict[str, Any]:
+    def load_configuration_evidence(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, interval: str, session: str | None) -> dict[str, Any]:
         record = record or {}
         screening_rows = record.get("screening_rows") or []
         if not screening_rows:
             return {}
         selected = (selected_rows or screening_rows[:1])[-1]
         run_id = (record.get("run") or {}).get("run_id")
-        return load_screening_configuration_evidence(run_id, selected.get("row_id"), interval=interval or "15m")
+        return load_screening_configuration_evidence(
+            run_id, selected.get("row_id"), interval=interval or "15m", session=session,
+        )
 
     @application.callback(Output("results-price-chart", "figure"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"))
     def render_price(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any) -> go.Figure:

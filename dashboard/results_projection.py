@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from bisect import bisect_left
 from dataclasses import asdict
 import hashlib
 import json
@@ -10,9 +9,12 @@ from pathlib import Path
 import sqlite3
 from typing import Any
 
+import pandas as pd
+
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_model import group_trade_rows, prepare_interval
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter, _candidate_trade_rows
+from dashboard.time_display import eastern_label, eastern_plot_timestamp, eastern_session
 
 
 PRICE_LIMIT = 2_000
@@ -72,7 +74,7 @@ def _screening_rows(connection: sqlite3.Connection, run_id: str) -> list[dict[st
     return result
 
 
-def _artifact_document(*, database: Path, run_id: str, logical_name: str) -> dict[str, Any] | None:
+def _artifact_reference(*, database: Path, run_id: str, logical_name: str) -> tuple[Path, sqlite3.Row] | None:
     root = _artifact_root(database).resolve()
     connection, _error = _validated_connection(database)
     if connection is None:
@@ -80,7 +82,7 @@ def _artifact_document(*, database: Path, run_id: str, logical_name: str) -> dic
     try:
         artifact = connection.execute(
             """
-            SELECT location, checksum, size_bytes, availability
+            SELECT location, checksum, size_bytes, availability, format
             FROM artifact_references
             WHERE run_id=? AND logical_name=?
             """,
@@ -91,6 +93,19 @@ def _artifact_document(*, database: Path, run_id: str, logical_name: str) -> dic
         path = (root / str(artifact["location"])).resolve()
         if path != root and root not in path.parents:
             return None
+        return path, artifact
+    except (sqlite3.Error, OSError, ValueError, TypeError):
+        return None
+    finally:
+        connection.close()
+
+
+def _artifact_document(*, database: Path, run_id: str, logical_name: str) -> dict[str, Any] | None:
+    reference = _artifact_reference(database=database, run_id=run_id, logical_name=logical_name)
+    if reference is None:
+        return None
+    path, artifact = reference
+    try:
         content = path.read_bytes()
         if len(content) != int(artifact["size_bytes"]):
             return None
@@ -98,10 +113,66 @@ def _artifact_document(*, database: Path, run_id: str, logical_name: str) -> dic
             return None
         document = json.loads(content)
         return document if isinstance(document, dict) else None
-    except (sqlite3.Error, OSError, ValueError, TypeError, json.JSONDecodeError):
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return None
-    finally:
-        connection.close()
+
+
+def _shared_price_rows(
+    *, database: Path, run_id: str, session: str | None,
+) -> list[dict[str, Any]] | None:
+    reference = _artifact_reference(
+        database=database, run_id=run_id, logical_name="screening_price_series"
+    )
+    if reference is None:
+        return None
+    path, artifact = reference
+    if str(artifact["format"]) != "sqlite3":
+        return None
+    try:
+        content = path.read_bytes()
+        if len(content) != int(artifact["size_bytes"]):
+            return None
+        if hashlib.sha256(content).hexdigest() != str(artifact["checksum"]):
+            return None
+        query = "SELECT timestamp, open, high, low, close FROM price_bars"
+        parameters: list[str] = []
+        if session:
+            start = pd.Timestamp(session, tz="America/New_York")
+            end = start + pd.Timedelta(days=1)
+            query += " WHERE timestamp>=? AND timestamp<?"
+            parameters = [start.tz_convert("UTC").isoformat(), end.tz_convert("UTC").isoformat()]
+        query += " ORDER BY timestamp"
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            rows = connection.execute(query, parameters).fetchall()
+        finally:
+            connection.close()
+        return [
+            {
+                "timestamp": str(row[0]),
+                "open": float(row[1]), "high": float(row[2]),
+                "low": float(row[3]), "close": float(row[4]),
+            }
+            for row in rows
+        ]
+    except (OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+        return None
+
+
+def list_screening_configuration_sessions(
+    run_id: str | None, parameter_row_id: str | None, *, database: str | Path | None = None,
+) -> list[str]:
+    if not run_id or not parameter_row_id:
+        return []
+    database_path = Path(database) if database is not None else configured_database_path()
+    document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"screening_configuration/{parameter_row_id}/trades_and_orders",
+    )
+    if not document:
+        return []
+    grouped = group_trade_rows(_candidate_trade_rows(document))
+    return sorted({eastern_session(group.entry.timestamp) for group in grouped.groups if group.entry})
 
 
 def load_screening_configuration_evidence(
@@ -109,6 +180,7 @@ def load_screening_configuration_evidence(
     parameter_row_id: str | None,
     *,
     interval: str = "15m",
+    session: str | None = None,
     database: str | Path | None = None,
 ) -> dict[str, Any]:
     """Load bounded, exact artifacts for one persisted screening configuration."""
@@ -124,12 +196,19 @@ def load_screening_configuration_evidence(
         database=database_path, run_id=run_id,
         logical_name=f"{namespace}/equity_curve",
     )
+    sessions = list_screening_configuration_sessions(
+        run_id, parameter_row_id, database=database_path,
+    )
+    selected_session = session if session in sessions else (sessions[-1] if sessions else None)
+    shared_price = _shared_price_rows(
+        database=database_path, run_id=run_id, session=selected_session,
+    )
     price_document = (
-        equity_document
+        {"source_interval": equity_document.get("source_interval", "5m"), "price_series": shared_price}
+        if shared_price is not None and equity_document
+        else equity_document
         if equity_document and equity_document.get("price_series")
-        else _artifact_document(
-            database=database_path, run_id=run_id, logical_name="screening_price_series"
-        )
+        else None
     )
     metrics_document = _artifact_document(
         database=database_path, run_id=run_id,
@@ -148,13 +227,18 @@ def load_screening_configuration_evidence(
         source_interval=source_interval,
     )
     grouped = group_trade_rows(_candidate_trade_rows(trades_document))
+    groups = [group for group in grouped.groups if not selected_session or (
+        group.entry and eastern_session(group.entry.timestamp) == selected_session
+    )]
     trades = [
         {
             "trade_id": group.trade_id,
             "direction": (group.direction or "Unrecorded").title(),
-            "entry_timestamp": group.entry.timestamp.isoformat() if group.entry else None,
+            "entry_timestamp": eastern_plot_timestamp(group.entry.timestamp) if group.entry else None,
+            "entry_display": eastern_label(group.entry.timestamp) if group.entry else "—",
             "entry_price": group.entry.price if group.entry else None,
-            "exit_timestamp": group.exit.timestamp.isoformat() if group.exit else None,
+            "exit_timestamp": eastern_plot_timestamp(group.exit.timestamp) if group.exit else None,
+            "exit_display": eastern_label(group.exit.timestamp) if group.exit else "—",
             "exit_price": group.exit.price if group.exit else None,
             "duration": (
                 f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
@@ -164,24 +248,17 @@ def load_screening_configuration_evidence(
             "outcome": (group.outcome or group.status).replace("_", " ").title(),
             "status": group.status,
         }
-        # Results investigates the newest retained evidence.  Keep the bounded
-        # trade cohort aligned with the newest persisted price window so entry
-        # and exit markers cannot silently disappear when a configuration has
-        # more trades than the UI limit.
-        for group in grouped.groups[-TRADE_LIMIT:]
+        # Keep the bounded trade cohort aligned with the selected session so
+        # entry and exit markers cannot silently disappear from its chart.
+        for group in groups[-TRADE_LIMIT:]
     ]
     equity = [row for row in equity_document.get("equity_curve") or [] if isinstance(row, dict)]
     prepared_rows = [
-        {"timestamp": bar.timestamp.isoformat(), "open": bar.open, "high": bar.high,
+        {"timestamp": eastern_plot_timestamp(bar.timestamp), "open": bar.open, "high": bar.high,
          "low": bar.low, "close": bar.close, "source_count": bar.source_count}
         for bar in prepared.bars
     ] if prepared.available else []
-    if prepared_rows and trades:
-        focus = str(trades[-1].get("entry_timestamp") or prepared_rows[-1]["timestamp"])
-        position = bisect_left([str(row["timestamp"]) for row in prepared_rows], focus)
-        prepared_rows = prepared_rows[max(0, position - 30):position + 60]
-    else:
-        prepared_rows = prepared_rows[-PRICE_LIMIT:]
+    prepared_rows = prepared_rows[-PRICE_LIMIT:]
     return {
         "available": bool(prepared.available),
         "message": (
@@ -198,8 +275,13 @@ def load_screening_configuration_evidence(
         "trades": trades,
         "trade_count": len(grouped.groups),
         "trade_limit": TRADE_LIMIT,
-        "equity": equity[-EQUITY_LIMIT:],
+        "equity": [
+            {**row, "timestamp": eastern_plot_timestamp(row["timestamp"])}
+            for row in equity[-EQUITY_LIMIT:] if row.get("timestamp")
+        ],
         "metrics": metrics_document.get("metrics") or {},
+        "sessions": sessions,
+        "selected_session": selected_session,
     }
 
 
@@ -292,7 +374,7 @@ def load_results_record(
         )
         price = [
             {
-                "timestamp": bar.timestamp.isoformat(), "open": bar.open, "high": bar.high,
+                "timestamp": eastern_plot_timestamp(bar.timestamp), "open": bar.open, "high": bar.high,
                 "low": bar.low, "close": bar.close, "source_count": bar.source_count,
             }
             for bar in prepared.bars[-PRICE_LIMIT:]
@@ -302,9 +384,11 @@ def load_results_record(
             {
                 "trade_id": group.trade_id,
                 "direction": (group.direction or "Unrecorded").title(),
-                "entry_timestamp": group.entry.timestamp.isoformat() if group.entry else None,
+                "entry_timestamp": eastern_plot_timestamp(group.entry.timestamp) if group.entry else None,
+                "entry_display": eastern_label(group.entry.timestamp) if group.entry else "—",
                 "entry_price": group.entry.price if group.entry else None,
-                "exit_timestamp": group.exit.timestamp.isoformat() if group.exit else None,
+                "exit_timestamp": eastern_plot_timestamp(group.exit.timestamp) if group.exit else None,
+                "exit_display": eastern_label(group.exit.timestamp) if group.exit else "—",
                 "exit_price": group.exit.price if group.exit else None,
                 "duration": (
                     f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
@@ -330,8 +414,14 @@ def load_results_record(
             "price_reason": prepared.reason,
             "source_interval": evidence.source_interval,
             "interval": interval,
-            "equity": [dict(row) for row in evidence.equity_curve[-EQUITY_LIMIT:]],
-            "drawdown": [dict(row) for row in evidence.drawdown_curve[-EQUITY_LIMIT:]],
+            "equity": [
+                {**dict(row), "timestamp": eastern_plot_timestamp(row["timestamp"])}
+                for row in evidence.equity_curve[-EQUITY_LIMIT:] if row.get("timestamp")
+            ],
+            "drawdown": [
+                {**dict(row), "timestamp": eastern_plot_timestamp(row["timestamp"])}
+                for row in evidence.drawdown_curve[-EQUITY_LIMIT:] if row.get("timestamp")
+            ],
             "validation": _fields(evidence.validation_outcome or evidence.validation),
             "provenance": _fields(evidence.provenance),
             "lineage": _fields(detail.lineage_fields),
@@ -358,4 +448,7 @@ def load_results_record(
         }
 
 
-__all__ = ["list_results_runs", "load_results_record", "load_screening_configuration_evidence"]
+__all__ = [
+    "list_results_runs", "list_screening_configuration_sessions",
+    "load_results_record", "load_screening_configuration_evidence",
+]
