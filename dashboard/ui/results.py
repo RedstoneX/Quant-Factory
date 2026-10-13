@@ -200,7 +200,10 @@ def _run_from_search(search: str | None, runs: list[dict[str, Any]]) -> str | No
 def results_layout(search: str | None = None) -> dmc.MantineProvider:
     runs = list_results_runs()
     selected = _run_from_search(search, runs)
-    choices = [{"value": row["run_id"], "label": f"{row['title']} · {row['stage']} · {row['status']}"} for row in runs]
+    choices = [
+        {"value": row["run_id"], "label": f"{row['title']} · {row['stage']} · {row['status']} · {row['run_id'][:12]}"}
+        for row in runs
+    ]
     nav = dmc.Stack([
         dmc.Paper("Q", className="logo", radius="md"), _rail("dashboard", "Dashboard", "results-nav-dashboard"),
         _rail("file", "Submit strategies", "results-nav-submit"), _rail("flow", "Factory runs", "results-nav-factory"),
