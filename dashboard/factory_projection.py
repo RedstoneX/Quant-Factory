@@ -60,6 +60,16 @@ def _duration_minutes(start: Any, end: Any) -> float | None:
         return None
 
 
+def _display_timestamp(value: Any) -> str:
+    if not value:
+        return "—"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return f"{parsed.strftime('%b')} {parsed.day}, {parsed.strftime('%H:%M')}"
+    except ValueError:
+        return str(value)
+
+
 def _row(row: sqlite3.Row) -> dict[str, Any]:
     duration = _duration_minutes(row["started_at"], row["completed_at"])
     screened_out_count = int(row["screened_out_count"] or 0)
@@ -73,6 +83,7 @@ def _row(row: sqlite3.Row) -> dict[str, Any]:
         "variation_count": variation_count, "survivor_count": int(row["survivor_count"] or 0),
         "screened_out_count": screened_out_count,
         "started_at": str(row["started_at"] or ""), "completed_at": str(row["completed_at"] or ""),
+        "completed_display": _display_timestamp(row["completed_at"]),
         "created_at": str(row["created_at"] or ""), "error_summary": str(row["error_summary"] or ""),
         "duration_minutes": duration, "resource_state": "Unavailable", "worker": "Unavailable",
     }
