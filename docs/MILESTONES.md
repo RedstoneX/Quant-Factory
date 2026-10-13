@@ -8,14 +8,14 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Review the completed exact Five-bar run exhaustion execution proof; do not start a second Candidate or a new campaign. |
-| Phase | **R13 live-workflow recovery remains active. R15 was aborted because its executable-adapter prerequisite was never satisfied; it did not validate the factory workflow.** |
-| Active work | One retained Candidate now has an exact immutable StudyPlan and canonical screening run. All six declared configurations screened out. Broad research execution remains disabled. |
+| Immediate objective | Complete the connected R13 Factory → Candidates → Results workflow using the exact Five-bar run exhaustion Candidate and its canonical screened-out run; do not start a second Candidate or a new campaign. |
+| Phase | **R13 live-workflow verification and repair remains active. The exact executable-path prerequisite passed. R15 remains aborted and did not validate the factory workflow.** |
+| Active work | Project the retained Candidate, immutable StudyPlan, canonical run, six screened-out configurations, metrics, and rejection reasons truthfully across Factory, Candidates, and Results. Correct only projection, navigation, and presentation defects required for that connected path. Broad research execution remains disabled. |
 | Technology | Reuse the accepted Dash/Mantine shell, existing projections, Plotly/VectorBT evidence, and Dash AG Grid. Keep `dashboard.ui` presentation-only, lazy-load heavy evidence, and preserve bounded server-side data paths. |
 | Visual authority | Dashboard: `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. Remaining workflow surfaces: `docs/assets/workspaces/current-workflow-contract/workspaces.html`, SHA-256 `313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31`; it contains no Dashboard composition. |
-| Visual proof state | The approved contracts remain the visual baseline. The Five-bar run exhaustion Candidate progressed beyond intake into an immutable StudyPlan and canonical screening run; this technical execution proof does not establish UI comprehension or workflow completion. |
-| Next action | Owner checkpoint on the exact execution proof. Stop before a second Candidate, another campaign, protected evidence, paper trading, or broker work. |
-| Owner checkpoints | Do not ask Terry to review the failed R15 state as a completed workflow. The next walkthrough follows one genuinely executable Candidate path or a concise blocker report. |
+| Visual proof state | The approved contracts remain the visual baseline. The exact execution proof is accepted as the technical prerequisite for R13; UI comprehension and connected workflow behavior remain unaccepted until Terry completes the live walkthrough. |
+| Next action | Verify and, where necessary, correct the private Factory → Candidates → Results path against canonical Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` and run `run_16cd4442080d40d5afd746f7507b0f07`; deploy that bounded correction and stop with the private URL for Terry's unaided walkthrough. |
+| Owner checkpoints | Terry's unaided walkthrough is the only R13 acceptance gate. Tests, fixtures, screenshots, audits, and agent assertions cannot close it. Stop before a second Candidate, another campaign, protected evidence, paper trading, or broker work. |
 | Deferred | Broad or open-ended edge discovery; VectorBT Pro upgrade; new or paid/protected data; paper-lane activation; broker work; orders; live trading; and capital exposure. |
 
 ## Active work
@@ -23,8 +23,8 @@ and next action. Git history preserves completed milestone narratives.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | Exact Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` reached immutable StudyPlan `5bf653737c8e13c20e89791992c8ac626226f06ee47fe7344bc912595544673a` and canonical run `run_16cd4442080d40d5afd746f7507b0f07`; all six configurations screened out. Owner checkpoint remains. |
-| R14 | 2 | blocked | R13 | The exact executable-path prerequisite passed, but broad unattended Candidate research remains unauthorized pending the R13 owner checkpoint and a new campaign authority. |
+| R13 | 1 | in_progress | none | Exact execution is proven and accepted as the technical prerequisite. Complete and deploy the truthful Factory → Candidates → Results path for Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` and canonical run `run_16cd4442080d40d5afd746f7507b0f07`, then stop for Terry's unaided walkthrough. |
+| R14 | 2 | blocked | R13 | Broad unattended Candidate research remains unauthorized pending Terry's R13 walkthrough acceptance and a new campaign authority. |
 <!-- active-work:end -->
 
 ## R15 aborted campaign record

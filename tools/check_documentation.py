@@ -72,11 +72,13 @@ CURRENT_AUTHORITY_MARKERS = {
         "mandatory positive-path precondition",
     ),
     Path("docs/MILESTONES.md"): (
-        "R13 live-workflow recovery remains active",
+        "R13 live-workflow verification and repair remains active",
+        "Complete the connected R13 Factory → Candidates → Results workflow",
         "R15 aborted campaign record",
         "Executable-campaign precondition",
     ),
     Path("docs/DECISIONS.md"): (
+        "Exact execution proof accepted; R13 live workflow is the current gate",
         "R15 activation invalidated; executable preflight is mandatory",
     ),
     Path(".agents/skills/quant-factory-frontend/SKILL.md"): (
@@ -99,6 +101,8 @@ SUPERSEDED_ACTIVE_DIRECTIVES = (
     "This is a valid campaign outcome",
     "R13 acceptance reopened; bounded canonical product-validation campaign authorized",
     "bounded_product_validation_authorized_pending_r13_recovery",
+    "Review the completed exact Five-bar run exhaustion execution proof",
+    "Owner checkpoint on the exact execution proof",
 )
 
 ALLOWED_DASHBOARD_ROOT_FILES = {
