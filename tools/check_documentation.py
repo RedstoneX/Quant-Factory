@@ -72,12 +72,13 @@ CURRENT_AUTHORITY_MARKERS = {
         "mandatory positive-path precondition",
     ),
     Path("docs/MILESTONES.md"): (
-        "R13 live-workflow verification and repair remains active",
-        "Complete the connected R13 Factory → Candidates → Results workflow",
+        "R13 live-workflow verification and six-surface frontend conformance remain active",
+        "Results evidence correction are deployed",
         "R15 aborted campaign record",
         "Executable-campaign precondition",
     ),
     Path("docs/DECISIONS.md"): (
+        "Results must provide configuration-level chart and trade inspection",
         "Exact execution proof accepted; R13 live workflow is the current gate",
         "R15 activation invalidated; executable preflight is mandatory",
     ),

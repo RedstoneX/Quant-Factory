@@ -20,6 +20,7 @@ from strategies.models import (
 )
 
 ORB_RANGE_MINUTES = (5, 15, 30, 45, 60)
+ORB_GRID_RANGE_MINUTES = (5, 10, 15, 20, 30, 45, 60)
 ORB_OFFSET_TICKS = (0, 1, 2)
 MES_TICK_SIZE = 0.25
 MES_POINT_VALUE = 5.0
@@ -125,6 +126,55 @@ def _spec(direction: DirectionVariant) -> StrategySpecification:
 MES_ORB_LONG_SPEC = _spec("long")
 MES_ORB_SHORT_SPEC = _spec("short")
 
+ORB_GRID_RANGE_DEFINITION = ParameterDefinition(
+    name="range_minutes",
+    value_type=int,
+    default=15,
+    description="Cash-session opening-range length in minutes.",
+    optimizable=True,
+    allowed_values=ORB_GRID_RANGE_MINUTES,
+    minimum=5,
+    maximum=60,
+    classification="bounded_discrete",
+    reference_value=15,
+    source="Owner-approved MES ORB screening grid",
+    rationale="Compare the owner-requested short windows with the retained conventional windows.",
+    expected_grid_contribution=len(ORB_GRID_RANGE_MINUTES),
+    approval_state="approved",
+)
+
+ORB_DIRECTION_DEFINITION = ParameterDefinition(
+    name="direction_variant",
+    value_type=str,
+    default="long",
+    description="Evaluate the same fixed ORB rules separately by direction.",
+    optimizable=True,
+    allowed_values=("long", "short"),
+    classification="bounded_discrete",
+    reference_value="long",
+    source="Owner-approved MES ORB screening grid",
+    rationale="Keep long and short behavior visible without combining their trades.",
+    expected_grid_contribution=2,
+    approval_state="approved",
+)
+
+MES_ORB_GRID_SPEC = StrategySpecification(
+    identity=StrategyIdentity(
+        strategy_id="mes_opening_range_breakout_grid",
+        name="MES Opening Range Breakout Grid",
+        family="opening_range_breakout",
+        version="1.0.0",
+        description="Bounded MES ORB screen across opening windows, confirmation offsets, and directions.",
+        direction="both",
+    ),
+    data=MES_ORB_LONG_SPEC.data,
+    parameters=(ORB_GRID_RANGE_DEFINITION, PARAMETER_DEFINITIONS[1], ORB_DIRECTION_DEFINITION),
+    assumptions=MES_ORB_LONG_SPEC.assumptions,
+    hypothesis="MES may continue after a completed five-minute close breaks a predeclared cash-session opening range.",
+    source="Owner-approved MES ORB screening grid",
+    approval_state="approved",
+)
+
 
 def build_parameter_grid() -> tuple[dict[str, int], ...]:
     """Return the exact approved 5 × 3 grid for one direction variant."""
@@ -178,9 +228,10 @@ def generate_orb_signal_bundle(
     *,
     direction: DirectionVariant,
     schedule: pd.DataFrame | None = None,
+    parameter_spec: StrategySpecification | None = None,
 ) -> ORBSignalBundle:
     """Build range levels and one same-session breakout trade per valid session."""
-    spec = MES_ORB_LONG_SPEC if direction == "long" else MES_ORB_SHORT_SPEC
+    spec = parameter_spec or (MES_ORB_LONG_SPEC if direction == "long" else MES_ORB_SHORT_SPEC)
     normalized = _validate_parameters(spec, parameters)
     _validate_data(data)
     index = data.index.tz_convert("UTC")
@@ -324,3 +375,24 @@ class MESOpeningRangeBreakoutStrategy:
 
 MES_ORB_LONG_STRATEGY = MESOpeningRangeBreakoutStrategy("long")
 MES_ORB_SHORT_STRATEGY = MESOpeningRangeBreakoutStrategy("short")
+
+
+class MESOpeningRangeBreakoutGridStrategy:
+    spec = MES_ORB_GRID_SPEC
+
+    def validate_parameters(self, parameters: Mapping[str, Any]) -> dict[str, Any]:
+        return _validate_parameters(self.spec, parameters)
+
+    def generate_signals(
+        self, data: pd.DataFrame | pd.Series, parameters: Mapping[str, Any]
+    ) -> SignalResult:
+        if not isinstance(data, pd.DataFrame):
+            raise TypeError("MES ORB requires OHLC market data")
+        normalized = self.validate_parameters(parameters)
+        direction = normalized["direction_variant"]
+        return generate_orb_signal_bundle(
+            data, normalized, direction=direction, parameter_spec=self.spec,
+        ).signals
+
+
+MES_ORB_GRID_STRATEGY = MESOpeningRangeBreakoutGridStrategy()

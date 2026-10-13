@@ -23,7 +23,7 @@ def _candidate_database(path: Path) -> None:
         CREATE TABLE idea_drafts (draft_id TEXT, title TEXT, description TEXT, candidate_json TEXT, configuration_id TEXT, updated_at TEXT);
         CREATE TABLE experiment_configurations (configuration_id TEXT, canonical_config_json TEXT);
         CREATE TABLE experiment_runs (run_id TEXT, configuration_id TEXT, stage TEXT, status TEXT, started_at TEXT, completed_at TEXT, error_summary TEXT, created_at TEXT);
-        CREATE TABLE parameter_results (run_id TEXT, row_id TEXT, metrics_json TEXT, ranking_position INTEGER, screening_status TEXT);
+        CREATE TABLE parameter_results (run_id TEXT, row_id TEXT, normalized_parameters_json TEXT, metrics_json TEXT, ranking_position INTEGER, screening_status TEXT, rejection_reasons TEXT);
         CREATE TABLE run_operator_events (run_id TEXT, source TEXT, message TEXT);
         """
     )
@@ -43,9 +43,9 @@ def _candidate_database(path: Path) -> None:
         ("active-wf", "active-cfg", "walk_forward", "running", now, None, None, now),
         ("closed-oos", "closed-cfg", "oos", "succeeded", now, now, None, now),
     ])
-    connection.executemany("INSERT INTO parameter_results VALUES (?,?,?,?,?)", [
-        ("gold-oos", "gold-row", json.dumps({"sharpe_ratio": 1.8, "max_drawdown": -0.06, "total_return": 0.27}), 1, "passed"),
-        ("closed-oos", "closed-row", json.dumps({"sharpe_ratio": 0.3, "max_drawdown": -0.12, "total_return": -0.04}), 1, "screened_out"),
+    connection.executemany("INSERT INTO parameter_results VALUES (?,?,?,?,?,?,?)", [
+        ("gold-oos", "gold-row", "{}", json.dumps({"sharpe_ratio": 1.8, "max_drawdown": -0.06, "total_return": 0.27}), 1, "passed", ""),
+        ("closed-oos", "closed-row", "{}", json.dumps({"sharpe_ratio": 0.3, "max_drawdown": -0.12, "total_return": -0.04}), 1, "screened_out", "Sharpe below gate"),
     ])
     connection.execute("INSERT INTO run_operator_events VALUES (?,?,?)", ("gold-oos", SURVIVOR_EVENT_SOURCE, SURVIVOR_EVENT_MESSAGE))
     connection.commit(); connection.close()
@@ -74,4 +74,10 @@ def test_candidates_projection_is_bounded_sorted_filterable_and_exact(tmp_path: 
     assert detail["run_id"] == "gold-oos"
     assert detail["progression"] == [{"run_id": "gold-oos", "stage": "oos", "status": "succeeded", "created_at": "2026-10-09T00:00:00+00:00", "completed_at": "2026-10-09T00:00:00+00:00", "error_summary": None}]
     assert load_candidate_detail("missing", database=database) is None
+    closed_detail = load_candidate_detail("closed", database=database)
+    assert closed_detail is not None
+    assert closed_detail["screening_count"] == 1
+    assert closed_detail["screened_out_count"] == 1
+    assert closed_detail["screening_sharpe"] == 0.3
+    assert closed_detail["screening_reasons"] == "Sharpe below gate"
     assert hashlib.sha256(database.read_bytes()).hexdigest() == before

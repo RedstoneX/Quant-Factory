@@ -25,7 +25,7 @@ COMPARE_COLUMNS=[
 
 
 def _icon(name): return html.Span(GLYPHS[name],className="icon",**{"aria-hidden":"true"})
-def _rail(name,label,item_id,*,active=False,disabled=False): return dmc.ActionIcon(_icon(name),id=item_id,className=f"rail-item{' active' if active else ''}",variant="subtle",disabled=disabled,**{"aria-label":label})
+def _rail(name,label,item_id,*,active=False,disabled=False): return dmc.Tooltip(dmc.ActionIcon(_icon(name),id=item_id,className=f"rail-item{' active' if active else ''}",variant="subtle",disabled=disabled,**{"aria-label":label}),label=label,position="right",withArrow=True,openDelay=300)
 
 
 def _figure(records: list[dict[str,Any]],view: str) -> go.Figure:
@@ -33,8 +33,10 @@ def _figure(records: list[dict[str,Any]],view: str) -> go.Figure:
     for index,record in enumerate(records):
         x_values,values=comparison_series(record,view)
         if values: figure.add_trace(go.Scatter(x=x_values,y=values,mode="lines",name=record.get("title"),line={"color":COLORS[index % len(COLORS)],"width":2}))
-    if not figure.data: figure.add_annotation(text="No common persisted evidence series is available.",x=.5,y=.5,xref="paper",yref="paper",showarrow=False,font={"color":"#8a97a8","size":11})
-    figure.update_layout(height=650,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",margin={"l":46,"r":18,"t":18,"b":36},font={"family":"Inter, sans-serif","size":9,"color":"#8a97a8"},legend={"orientation":"h","y":1.1},hovermode="x unified")
+    if not figure.data:
+        figure.add_shape(type="rect",x0=.17,x1=.83,y0=.28,y1=.72,xref="paper",yref="paper",line={"color":"rgba(167,139,250,.22)"},fillcolor="rgba(167,139,250,.035)",layer="below")
+        figure.add_annotation(text="<b>Select survivors to compare</b><br><span style='font-size:10px'>Choose two to four qualified Candidates from the ranked universe.</span>",x=.5,y=.5,xref="paper",yref="paper",showarrow=False,align="center",font={"color":"#aebdce","size":12})
+    figure.update_layout(height=360,paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(7,10,15,.32)",margin={"l":46,"r":18,"t":18,"b":36},font={"family":"Inter, sans-serif","size":9,"color":"#8a97a8"},legend={"orientation":"h","y":1.1},hovermode="x unified")
     figure.update_xaxes(gridcolor="#202936",linecolor="#344050",visible=bool(figure.data));figure.update_yaxes(gridcolor="#202936",linecolor="#344050",title="Drawdown" if view=="drawdown" else "Normalized equity",visible=bool(figure.data))
     return figure
 

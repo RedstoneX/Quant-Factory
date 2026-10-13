@@ -39,6 +39,17 @@ def _candidate_source() -> str:
                CAST(json_extract(c.oos_metrics_json, '$.sharpe_ratio') AS REAL) AS sharpe,
                CAST(json_extract(c.oos_metrics_json, '$.max_drawdown') AS REAL) AS max_drawdown,
                CAST(json_extract(c.oos_metrics_json, '$.total_return') AS REAL) AS net_return,
+               CAST(json_extract(c.metrics_json, '$.sharpe_ratio') AS REAL) AS screening_sharpe,
+               CAST(json_extract(c.metrics_json, '$.max_drawdown') AS REAL) AS screening_max_drawdown,
+               CAST(json_extract(c.metrics_json, '$.total_return') AS REAL) AS screening_return,
+               CAST(json_extract(c.metrics_json, '$.annualized_return') AS REAL) AS screening_annualized_return,
+               CAST(json_extract(c.metrics_json, '$.number_of_trades') AS INTEGER) AS screening_trades,
+               CAST(json_extract(c.metrics_json, '$.win_rate') AS REAL) AS screening_win_rate,
+               (SELECT p.rejection_reasons FROM parameter_results p
+                WHERE p.run_id=c.run_id ORDER BY p.ranking_position,p.row_id LIMIT 1) AS screening_reasons,
+               (SELECT COUNT(*) FROM parameter_results p WHERE p.run_id=c.run_id) AS screening_count,
+               (SELECT COUNT(*) FROM parameter_results p
+                WHERE p.run_id=c.run_id AND p.screening_status='screened_out') AS screened_out_count,
                NULL AS retained,
                CASE
                  WHEN c.survivor=1 THEN 'survivor'
@@ -108,6 +119,15 @@ def _candidate_grid_row(row: sqlite3.Row, *, rank: int | None = None) -> dict[st
         "campaign_reason_detail": str(row["campaign_reason_detail"] or ""),
         "sharpe": _finite_number(row["sharpe"]), "max_drawdown": percent(row["max_drawdown"], absolute=True),
         "retained": _finite_number(row["retained"]), "net_return": percent(row["net_return"]),
+        "screening_sharpe": _finite_number(row["screening_sharpe"]),
+        "screening_max_drawdown": percent(row["screening_max_drawdown"], absolute=True),
+        "screening_return": percent(row["screening_return"]),
+        "screening_annualized_return": percent(row["screening_annualized_return"]),
+        "screening_trades": int(row["screening_trades"]) if row["screening_trades"] is not None else None,
+        "screening_win_rate": percent(row["screening_win_rate"]),
+        "screening_reasons": str(row["screening_reasons"] or ""),
+        "screening_count": int(row["screening_count"] or 0),
+        "screened_out_count": int(row["screened_out_count"] or 0),
         "robustness": str(row["robustness"]), "paper": str(row["paper"]),
         "updated_at": str(row["observed_at"]), "rank": rank,
     }

@@ -3,6 +3,7 @@
 from strategies.base import Strategy
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_STRATEGY
 from strategies.mes_opening_range_breakout import (
+    MES_ORB_GRID_STRATEGY,
     MES_ORB_LONG_STRATEGY,
     MES_ORB_SHORT_STRATEGY,
 )
@@ -51,6 +52,7 @@ REGISTRY = StrategyRegistry()
 REGISTRY.register(RSI_MEAN_REVERSION_STRATEGY)
 REGISTRY.register(MES_ORB_LONG_STRATEGY)
 REGISTRY.register(MES_ORB_SHORT_STRATEGY)
+REGISTRY.register(MES_ORB_GRID_STRATEGY)
 REGISTRY.register(SPY_DONCHIAN_LONG_STRATEGY)
 REGISTRY.register(SPY_DONCHIAN_SHORT_STRATEGY)
 REGISTRY.register(SPYM_RSI_MEAN_REVERSION_FIXTURE_STRATEGY)

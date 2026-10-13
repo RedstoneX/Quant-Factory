@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import hashlib
+import json
 from pathlib import Path
 import sqlite3
 from typing import Any
 
+import pandas as pd
+
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_model import group_trade_rows, prepare_interval
-from dashboard.run_detail_adapter import RunDetailDashboardAdapter
+from dashboard.run_detail_adapter import RunDetailDashboardAdapter, _candidate_trade_rows
+from dashboard.time_display import eastern_label, eastern_plot_timestamp, eastern_session
 
 
 PRICE_LIMIT = 2_000
@@ -23,6 +28,265 @@ def _artifact_root(database: Path) -> Path:
 
 def _fields(items: Any) -> list[dict[str, str]]:
     return [{"label": str(item.label), "value": str(item.value)} for item in items]
+
+
+def _percent(value: Any, *, absolute: bool = False) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    number = abs(number) if absolute else number
+    return number * 100 if abs(number) <= 1 else number
+
+
+def _screening_rows(connection: sqlite3.Connection, run_id: str) -> list[dict[str, Any]]:
+    rows = connection.execute(
+        """
+        SELECT row_id, normalized_parameters_json, metrics_json, ranking_position,
+               screening_status, rejection_reasons
+        FROM parameter_results
+        WHERE run_id=?
+        ORDER BY ranking_position, row_id
+        """,
+        [run_id],
+    ).fetchall()
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            parameters = json.loads(str(row["normalized_parameters_json"] or "{}"))
+            metrics = json.loads(str(row["metrics_json"] or "{}"))
+        except (json.JSONDecodeError, TypeError):
+            parameters, metrics = {}, {}
+        result.append({
+            "row_id": str(row["row_id"]),
+            "rank": int(row["ranking_position"]),
+            "parameters": parameters,
+            "run_length": parameters.get("run_length"),
+            "minimum_ticks_per_bar": parameters.get("minimum_ticks_per_bar"),
+            "range_minutes": parameters.get("range_minutes"),
+            "breakout_offset_ticks": parameters.get("breakout_offset_ticks"),
+            "direction_variant": parameters.get("direction_variant"),
+            "total_return": _percent(metrics.get("total_return")),
+            "annualized_return": _percent(metrics.get("annualized_return")),
+            "sharpe_ratio": metrics.get("sharpe_ratio"),
+            "max_drawdown": _percent(metrics.get("max_drawdown"), absolute=True),
+            "number_of_trades": metrics.get("number_of_trades"),
+            "win_rate": _percent(metrics.get("win_rate")),
+            "screening_status": str(row["screening_status"]),
+            "rejection_reasons": str(row["rejection_reasons"] or ""),
+        })
+    return result
+
+
+def _artifact_reference(*, database: Path, run_id: str, logical_name: str) -> tuple[Path, sqlite3.Row] | None:
+    root = _artifact_root(database).resolve()
+    connection, _error = _validated_connection(database)
+    if connection is None:
+        return None
+    try:
+        artifact = connection.execute(
+            """
+            SELECT location, checksum, size_bytes, availability, format
+            FROM artifact_references
+            WHERE run_id=? AND logical_name=?
+            """,
+            [run_id, logical_name],
+        ).fetchone()
+        if artifact is None or str(artifact["availability"]) != "available":
+            return None
+        path = (root / str(artifact["location"])).resolve()
+        if path != root and root not in path.parents:
+            return None
+        return path, artifact
+    except (sqlite3.Error, OSError, ValueError, TypeError):
+        return None
+    finally:
+        connection.close()
+
+
+def _artifact_document(*, database: Path, run_id: str, logical_name: str) -> dict[str, Any] | None:
+    reference = _artifact_reference(database=database, run_id=run_id, logical_name=logical_name)
+    if reference is None:
+        return None
+    path, artifact = reference
+    try:
+        content = path.read_bytes()
+        if len(content) != int(artifact["size_bytes"]):
+            return None
+        if hashlib.sha256(content).hexdigest() != str(artifact["checksum"]):
+            return None
+        document = json.loads(content)
+        return document if isinstance(document, dict) else None
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+
+
+def _shared_price_rows(
+    *, database: Path, run_id: str, session: str | None,
+) -> list[dict[str, Any]] | None:
+    reference = _artifact_reference(
+        database=database, run_id=run_id, logical_name="screening_price_series"
+    )
+    if reference is None:
+        return None
+    path, artifact = reference
+    if str(artifact["format"]) != "sqlite3":
+        return None
+    try:
+        content = path.read_bytes()
+        if len(content) != int(artifact["size_bytes"]):
+            return None
+        if hashlib.sha256(content).hexdigest() != str(artifact["checksum"]):
+            return None
+        query = "SELECT timestamp, open, high, low, close FROM price_bars"
+        parameters: list[str] = []
+        if session:
+            start = pd.Timestamp(session, tz="America/New_York")
+            end = start + pd.Timedelta(days=1)
+            query += " WHERE timestamp>=? AND timestamp<?"
+            parameters = [start.tz_convert("UTC").isoformat(), end.tz_convert("UTC").isoformat()]
+        query += " ORDER BY timestamp"
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            rows = connection.execute(query, parameters).fetchall()
+        finally:
+            connection.close()
+        return [
+            {
+                "timestamp": str(row[0]),
+                "open": float(row[1]), "high": float(row[2]),
+                "low": float(row[3]), "close": float(row[4]),
+            }
+            for row in rows
+        ]
+    except (OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+        return None
+
+
+def list_screening_configuration_sessions(
+    run_id: str | None, parameter_row_id: str | None, *, database: str | Path | None = None,
+) -> list[str]:
+    if not run_id or not parameter_row_id:
+        return []
+    database_path = Path(database) if database is not None else configured_database_path()
+    document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"screening_configuration/{parameter_row_id}/trades_and_orders",
+    )
+    if not document:
+        return []
+    grouped = group_trade_rows(_candidate_trade_rows(document))
+    return sorted({eastern_session(group.entry.timestamp) for group in grouped.groups if group.entry})
+
+
+def load_screening_configuration_evidence(
+    run_id: str | None,
+    parameter_row_id: str | None,
+    *,
+    interval: str = "15m",
+    session: str | None = None,
+    database: str | Path | None = None,
+) -> dict[str, Any]:
+    """Load bounded, exact artifacts for one persisted screening configuration."""
+    if not run_id or not parameter_row_id:
+        return {"available": False, "message": "Select a persisted configuration."}
+    database_path = Path(database) if database is not None else configured_database_path()
+    namespace = f"screening_configuration/{parameter_row_id}"
+    trades_document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"{namespace}/trades_and_orders",
+    )
+    equity_document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"{namespace}/equity_curve",
+    )
+    sessions = list_screening_configuration_sessions(
+        run_id, parameter_row_id, database=database_path,
+    )
+    selected_session = session if session in sessions else (sessions[-1] if sessions else None)
+    shared_price = _shared_price_rows(
+        database=database_path, run_id=run_id, session=selected_session,
+    )
+    price_document = (
+        {"source_interval": equity_document.get("source_interval", "5m"), "price_series": shared_price}
+        if shared_price is not None and equity_document
+        else equity_document
+        if equity_document and equity_document.get("price_series")
+        else None
+    )
+    metrics_document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"{namespace}/metrics",
+    )
+    if not all((price_document, trades_document, equity_document, metrics_document)):
+        return {
+            "available": False,
+            "message": "This historical configuration retained aggregate metrics only; chart and trade evidence were not persisted.",
+            "run_id": run_id,
+            "parameter_row_id": parameter_row_id,
+        }
+    source_interval = str(price_document.get("source_interval") or "5m")
+    prepared = prepare_interval(
+        price_document.get("price_series") or [], interval,
+        source_interval=source_interval,
+    )
+    grouped = group_trade_rows(_candidate_trade_rows(trades_document))
+    groups = [group for group in grouped.groups if not selected_session or (
+        group.entry and eastern_session(group.entry.timestamp) == selected_session
+    )]
+    trades = [
+        {
+            "trade_id": group.trade_id,
+            "direction": (group.direction or "Unrecorded").title(),
+            "entry_timestamp": eastern_plot_timestamp(group.entry.timestamp) if group.entry else None,
+            "entry_display": eastern_label(group.entry.timestamp) if group.entry else "—",
+            "entry_price": group.entry.price if group.entry else None,
+            "exit_timestamp": eastern_plot_timestamp(group.exit.timestamp) if group.exit else None,
+            "exit_display": eastern_label(group.exit.timestamp) if group.exit else "—",
+            "exit_price": group.exit.price if group.exit else None,
+            "duration": (
+                f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
+                if group.entry and group.exit else "—"
+            ),
+            "pnl": group.pnl,
+            "outcome": (group.outcome or group.status).replace("_", " ").title(),
+            "status": group.status,
+        }
+        # Keep the bounded trade cohort aligned with the selected session so
+        # entry and exit markers cannot silently disappear from its chart.
+        for group in groups[-TRADE_LIMIT:]
+    ]
+    equity = [row for row in equity_document.get("equity_curve") or [] if isinstance(row, dict)]
+    prepared_rows = [
+        {"timestamp": eastern_plot_timestamp(bar.timestamp), "open": bar.open, "high": bar.high,
+         "low": bar.low, "close": bar.close, "source_count": bar.source_count}
+        for bar in prepared.bars
+    ] if prepared.available else []
+    prepared_rows = prepared_rows[-PRICE_LIMIT:]
+    return {
+        "available": bool(prepared.available),
+        "message": (
+            "Exact persisted configuration evidence loaded."
+            if prepared.available else prepared.reason or "No persisted price bars are available."
+        ),
+        "run_id": run_id,
+        "parameter_row_id": parameter_row_id,
+        "interval": interval,
+        "source_interval": source_interval,
+        "price": prepared_rows,
+        "price_available": prepared.available,
+        "price_reason": prepared.reason,
+        "trades": trades,
+        "trade_count": len(grouped.groups),
+        "trade_limit": TRADE_LIMIT,
+        "equity": [
+            {**row, "timestamp": eastern_plot_timestamp(row["timestamp"])}
+            for row in equity[-EQUITY_LIMIT:] if row.get("timestamp")
+        ],
+        "metrics": metrics_document.get("metrics") or {},
+        "sessions": sessions,
+        "selected_session": selected_session,
+    }
 
 
 def list_results_runs(*, database: str | Path | None = None) -> list[dict[str, Any]]:
@@ -93,6 +357,15 @@ def load_results_record(
     run = _run_choice(run_id, runs)
     if run is None:
         return {"available": False, "message": "No persisted Results run is available.", "runs": []}
+    screening_rows: list[dict[str, Any]] = []
+    connection, _error = _validated_connection(database_path)
+    if connection is not None:
+        try:
+            screening_rows = _screening_rows(connection, run["run_id"])
+        except (sqlite3.Error, ValueError, TypeError):
+            screening_rows = []
+        finally:
+            connection.close()
     try:
         detail = RunDetailDashboardAdapter(
             database_path, artifact_root=_artifact_root(database_path)
@@ -105,7 +378,7 @@ def load_results_record(
         )
         price = [
             {
-                "timestamp": bar.timestamp.isoformat(), "open": bar.open, "high": bar.high,
+                "timestamp": eastern_plot_timestamp(bar.timestamp), "open": bar.open, "high": bar.high,
                 "low": bar.low, "close": bar.close, "source_count": bar.source_count,
             }
             for bar in prepared.bars[-PRICE_LIMIT:]
@@ -115,9 +388,11 @@ def load_results_record(
             {
                 "trade_id": group.trade_id,
                 "direction": (group.direction or "Unrecorded").title(),
-                "entry_timestamp": group.entry.timestamp.isoformat() if group.entry else None,
+                "entry_timestamp": eastern_plot_timestamp(group.entry.timestamp) if group.entry else None,
+                "entry_display": eastern_label(group.entry.timestamp) if group.entry else "—",
                 "entry_price": group.entry.price if group.entry else None,
-                "exit_timestamp": group.exit.timestamp.isoformat() if group.exit else None,
+                "exit_timestamp": eastern_plot_timestamp(group.exit.timestamp) if group.exit else None,
+                "exit_display": eastern_label(group.exit.timestamp) if group.exit else "—",
                 "exit_price": group.exit.price if group.exit else None,
                 "duration": (
                     f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
@@ -143,8 +418,14 @@ def load_results_record(
             "price_reason": prepared.reason,
             "source_interval": evidence.source_interval,
             "interval": interval,
-            "equity": [dict(row) for row in evidence.equity_curve[-EQUITY_LIMIT:]],
-            "drawdown": [dict(row) for row in evidence.drawdown_curve[-EQUITY_LIMIT:]],
+            "equity": [
+                {**dict(row), "timestamp": eastern_plot_timestamp(row["timestamp"])}
+                for row in evidence.equity_curve[-EQUITY_LIMIT:] if row.get("timestamp")
+            ],
+            "drawdown": [
+                {**dict(row), "timestamp": eastern_plot_timestamp(row["timestamp"])}
+                for row in evidence.drawdown_curve[-EQUITY_LIMIT:] if row.get("timestamp")
+            ],
             "validation": _fields(evidence.validation_outcome or evidence.validation),
             "provenance": _fields(evidence.provenance),
             "lineage": _fields(detail.lineage_fields),
@@ -155,6 +436,9 @@ def load_results_record(
             "result_message": detail.result_summary.message,
             "evidence_classification": evidence.evidence_classification,
             "promotion_eligible": evidence.promotion_eligible,
+            "screening_rows": screening_rows,
+            "screening_count": len(screening_rows),
+            "screened_out_count": sum(row["screening_status"] == "screened_out" for row in screening_rows),
         }
     except (KeyError, RuntimeError, ValueError, OSError) as exc:
         return {
@@ -162,7 +446,13 @@ def load_results_record(
             "message": f"Persisted Results evidence is unavailable: {exc}",
             "run": run,
             "runs": runs,
+            "screening_rows": screening_rows,
+            "screening_count": len(screening_rows),
+            "screened_out_count": sum(row["screening_status"] == "screened_out" for row in screening_rows),
         }
 
 
-__all__ = ["list_results_runs", "load_results_record"]
+__all__ = [
+    "list_results_runs", "list_screening_configuration_sessions",
+    "load_results_record", "load_screening_configuration_evidence",
+]

@@ -8,14 +8,14 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Complete the connected R13 Factory → Candidates → Results workflow using the exact Five-bar run exhaustion Candidate and its canonical screened-out run; do not start a second Candidate or a new campaign. |
-| Phase | **R13 live-workflow verification and repair remains active. The exact executable-path prerequisite passed. R15 remains aborted and did not validate the factory workflow.** |
-| Active work | Project the retained Candidate, immutable StudyPlan, canonical run, six screened-out configurations, metrics, and rejection reasons truthfully across Factory, Candidates, and Results. Correct only projection, navigation, and presentation defects required for that connected path. Broad research execution remains disabled. |
+| Immediate objective | Resume Terry's unaided walkthrough against Decision 358's completed, genuinely populated MES ORB workflow. |
+| Phase | **R13 live-workflow verification and six-surface frontend conformance remain active. The exact executable-path prerequisite passed. R15 remains aborted and did not validate the factory workflow.** |
+| Active work | Decision 358's exact MES ORB grid completed all 42 predeclared configurations and retained inspectable evidence. All 42 screened out. Broad research execution remains disabled; no further Candidate is authorized. |
 | Technology | Reuse the accepted Dash/Mantine shell, existing projections, Plotly/VectorBT evidence, and Dash AG Grid. Keep `dashboard.ui` presentation-only, lazy-load heavy evidence, and preserve bounded server-side data paths. |
 | Visual authority | Dashboard: `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. Remaining workflow surfaces: `docs/assets/workspaces/current-workflow-contract/workspaces.html`, SHA-256 `313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31`; it contains no Dashboard composition. |
-| Visual proof state | The approved contracts remain the visual baseline. The exact execution proof is accepted as the technical prerequisite for R13; UI comprehension and connected workflow behavior remain unaccepted until Terry completes the live walkthrough. |
-| Next action | Verify and, where necessary, correct the private Factory → Candidates → Results path against canonical Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` and run `run_16cd4442080d40d5afd746f7507b0f07`; deploy that bounded correction and stop with the private URL for Terry's unaided walkthrough. |
-| Owner checkpoints | Terry's unaided walkthrough is the only R13 acceptance gate. Tests, fixtures, screenshots, audits, and agent assertions cannot close it. Stop before a second Candidate, another campaign, protected evidence, paper trading, or broker work. |
+| Visual proof state | The approved contracts remain the visual baseline. The corrected live Results route must prove configuration selection, multi-session navigation, Eastern-time candlesticks, exact entry/exit markers, trade ledger, equity/drawdown, readable headers, responsive layout, and no browser errors. UI comprehension remains unaccepted until Terry completes the live walkthrough. |
+| Next action | Present the populated Dashboard, Rejected Candidates view, Factory run, and Results configuration evidence for Terry's unaided walkthrough; correct only walkthrough defects. |
+| Owner checkpoints | Decision 358 authorizes one additional genuine Candidate and no broader campaign. Terry's consolidated unaided walkthrough remains the R13 acceptance gate. Tests, fixtures, screenshots, audits, and agent assertions cannot close it. Stop before another Candidate, protected evidence, paper activation, broker work, or capital authority. |
 | Deferred | Broad or open-ended edge discovery; VectorBT Pro upgrade; new or paid/protected data; paper-lane activation; broker work; orders; live trading; and capital exposure. |
 
 ## Active work
@@ -23,7 +23,7 @@ and next action. Git history preserves completed milestone narratives.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | Exact execution is proven and accepted as the technical prerequisite. Complete and deploy the truthful Factory → Candidates → Results path for Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` and canonical run `run_16cd4442080d40d5afd746f7507b0f07`, then stop for Terry's unaided walkthrough. |
+| R13 | 1 | in_progress | none | Decision 358's canonical MES ORB run completed all 42 configurations and retained cross-page evidence. All 42 screened out. Terry's unaided walkthrough remains. |
 | R14 | 2 | blocked | R13 | Broad unattended Candidate research remains unauthorized pending Terry's R13 walkthrough acceptance and a new campaign authority. |
 <!-- active-work:end -->
 
@@ -72,6 +72,11 @@ canonical state, its implementation must:
   canonical run `run_16cd4442080d40d5afd746f7507b0f07` screened out all six declared
   configurations and stopped at screening. There is still no survivor. The two
   older MES runs retain their prior evidence status.
+- Decision 358 added exact Candidate `qfc_457e442c86ef0d1548f32acfc1b88164`,
+  immutable StudyPlan `e1b5a1aba3520765d729dd64aea498c46ff170fa254319122f26e8fdd5041fe0`,
+  and canonical run `run_6f30b459488045f98c49a6d617854194`. VectorBT Pro evaluated all 42
+  declared MES ORB configurations; all screened out, with complete retained
+  screening price, trade, equity, metrics, and summary evidence.
 - Pre-R15 canonical and gateway backups remain available. Do not delete or
   rewrite the 12 packets or their append-only events; correct their meaning in
   projections and Tier 1 instead.

@@ -33,6 +33,7 @@ SELECT r.run_id, r.configuration_id, r.stage, r.status, r.started_at, r.complete
        COALESCE(json_extract(d.candidate_json, '$.candidate.title'), d.title,
                 c.experiment_id, c.strategy_id, r.run_id) AS title,
        (SELECT COUNT(*) FROM parameter_results p WHERE p.run_id=r.run_id) AS variation_count,
+       (SELECT COUNT(*) FROM parameter_results p WHERE p.run_id=r.run_id AND p.screening_status='screened_out') AS screened_out_count,
        CASE WHEN EXISTS (
            SELECT 1 FROM run_operator_events e WHERE e.run_id=r.run_id AND e.source=? AND e.message=?
        ) THEN 1 ELSE 0 END AS survivor_count,
@@ -59,14 +60,30 @@ def _duration_minutes(start: Any, end: Any) -> float | None:
         return None
 
 
+def _display_timestamp(value: Any) -> str:
+    if not value:
+        return "—"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return f"{parsed.strftime('%b')} {parsed.day}, {parsed.strftime('%H:%M')}"
+    except ValueError:
+        return str(value)
+
+
 def _row(row: sqlite3.Row) -> dict[str, Any]:
     duration = _duration_minutes(row["started_at"], row["completed_at"])
+    screened_out_count = int(row["screened_out_count"] or 0)
+    variation_count = int(row["variation_count"] or 0)
     return {
         "run_id": str(row["run_id"]), "configuration_id": str(row["configuration_id"]),
+        "candidate_id": str(row["candidate_id"]) if row["candidate_id"] else None,
         "title": str(row["title"]) if row["candidate_id"] else str(row["title"]).replace("_", " ").title(), "symbol": str(row["symbol"]), "stage": str(row["stage"]),
         "status": str(row["status"]), "cohort": str(row["cohort"]),
-        "variation_count": int(row["variation_count"] or 0), "survivor_count": int(row["survivor_count"] or 0),
+        "display_outcome": "screened_out" if variation_count and screened_out_count == variation_count else str(row["status"]),
+        "variation_count": variation_count, "survivor_count": int(row["survivor_count"] or 0),
+        "screened_out_count": screened_out_count,
         "started_at": str(row["started_at"] or ""), "completed_at": str(row["completed_at"] or ""),
+        "completed_display": _display_timestamp(row["completed_at"]),
         "created_at": str(row["created_at"] or ""), "error_summary": str(row["error_summary"] or ""),
         "duration_minutes": duration, "resource_state": "Unavailable", "worker": "Unavailable",
     }

@@ -58,9 +58,12 @@ def icon(name: str) -> html.Span:
 
 
 def rail_item(name: str, label: str, item_id: str, *, active: bool = False, disabled: bool = False) -> dmc.ActionIcon:
-    return dmc.ActionIcon(
-        icon(name), id=item_id, className=f"rail-item{' active' if active else ''}",
-        variant="subtle", disabled=disabled, **{"aria-label": label},
+    return dmc.Tooltip(
+        dmc.ActionIcon(
+            icon(name), id=item_id, className=f"rail-item{' active' if active else ''}",
+            variant="subtle", disabled=disabled, **{"aria-label": label},
+        ),
+        label=label, position="right", withArrow=True, openDelay=300,
     )
 
 
@@ -155,14 +158,20 @@ def _finding_content(item: dict[str, Any] | None, snapshot: dict[str, Any]) -> l
             dmc.Group([dmc.Button("Open persisted Results", id="open-results", className="primary", disabled=not item.get("run_id")), dmc.Button("Candidate unavailable", id="open-candidate", className="ghost", variant="default", disabled=True)], gap=7, className="finding-actions"),
         ]
     version = str(item.get("candidate_version") or "")[:12] or "version unavailable"
+    screened_out = str(item.get("outcome") or "").lower() == "screened_out"
+    status = "Screened out" if screened_out else status
     return [
-        dmc.Group([dmc.Badge(status, leftSection=icon("check") if item.get("state") == "survivor" else None, className="badge"), dmc.Text(f"Run {str(item.get('run_id') or 'none')[:10]}", className="rank")], justify="space-between", className="status-row"),
+        dmc.Group([dmc.Badge(status, leftSection=icon("check") if item.get("state") == "survivor" else None, className=f"badge{' rejected' if screened_out else ''}"), dmc.Text(f"Run {str(item.get('run_id') or 'none')[:10]}", className="rank")], justify="space-between", className="status-row"),
         dmc.Title(item.get("title") or "Untitled Candidate", order=2),
         dmc.Text(f"{item.get('candidate_id')} · v{version} · {item.get('symbol')}", className="finding-id"),
-        dmc.Text(f"{stage} · {status}. Paper lane remains inactive.", className="signal"),
-        html.Div([metric("OOS Sharpe", _format_number(item.get("sharpe"))), metric("Maximum DD", _format_number(item.get("max_drawdown"), percent=True)), metric("OOS retained", _format_number(item.get("retained"), percent=True))], className="metrics"),
+        dmc.Text(
+            "Screening completed · all declared configurations screened out. No survivor or paper eligibility."
+            if screened_out else f"{stage} · {status}. Paper lane remains inactive.",
+            className=f"signal{' rejected' if screened_out else ''}",
+        ),
+        html.Div([metric("Screening Sharpe" if screened_out else "OOS Sharpe", _format_number(item.get("sharpe"))), metric("Maximum DD", _format_number(item.get("max_drawdown"), percent=True)), metric("OOS retained", _format_number(item.get("retained"), percent=True))], className="metrics"),
         html.Div(dmc.Text("Full persisted evidence is lazy-loaded in Results", className="mini-empty"), className="mini-equity"),
-        dmc.Group([dmc.Button("Open full Results", id="open-results", className="primary", disabled=not item.get("run_id")), dmc.Button("View in Candidates", id="open-candidate", className="ghost", variant="default", disabled=True)], gap=7, className="finding-actions"),
+        dmc.Group([dmc.Button("Open full Results", id="open-results", className="primary", disabled=not item.get("run_id")), dmc.Button("View in Candidates", id="open-candidate", className="ghost", variant="default", disabled=not item.get("candidate_id"))], gap=7, className="finding-actions"),
     ]
 
 
@@ -432,7 +441,7 @@ def create_app() -> Dash:
 
     @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
     def route(pathname: str | None, search: str | None):
-        if pathname == "/candidates": return candidates_layout()
+        if pathname == "/candidates": return candidates_layout(search)
         if pathname == "/results": return results_layout(search)
         if pathname == "/factory": return factory_layout()
         if pathname == "/submit": return submit_layout()
@@ -442,7 +451,7 @@ def create_app() -> Dash:
 
     @application.callback(
         Output("router-location", "pathname"), Output("router-location", "search"),
-        Input("nav-candidates", "n_clicks", allow_optional=True), Input("nav-results", "n_clicks", allow_optional=True), Input("open-results", "n_clicks", allow_optional=True),
+        Input("nav-candidates", "n_clicks", allow_optional=True), Input("nav-results", "n_clicks", allow_optional=True), Input("open-results", "n_clicks", allow_optional=True), Input("open-candidate", "n_clicks", allow_optional=True),
         Input("candidates-nav-dashboard", "n_clicks", allow_optional=True), Input("candidates-nav-results", "n_clicks", allow_optional=True), Input("candidate-open-results", "n_clicks", allow_optional=True),
         Input("candidate-submit", "n_clicks", allow_optional=True),
         Input("results-nav-dashboard", "n_clicks", allow_optional=True), Input("results-nav-candidates", "n_clicks", allow_optional=True), Input("results-back-candidates", "n_clicks", allow_optional=True),
@@ -455,13 +464,23 @@ def create_app() -> Dash:
         Input("compare-nav-dashboard", "n_clicks", allow_optional=True), Input("compare-nav-submit", "n_clicks", allow_optional=True), Input("compare-nav-factory", "n_clicks", allow_optional=True), Input("compare-nav-candidates", "n_clicks", allow_optional=True), Input("compare-nav-results", "n_clicks", allow_optional=True),
         Input("nav-paper", "n_clicks", allow_optional=True), Input("candidates-nav-paper", "n_clicks", allow_optional=True), Input("results-nav-paper", "n_clicks", allow_optional=True), Input("factory-nav-paper", "n_clicks", allow_optional=True), Input("submit-nav-paper", "n_clicks", allow_optional=True), Input("compare-nav-paper", "n_clicks", allow_optional=True),
         Input("paper-nav-dashboard", "n_clicks", allow_optional=True), Input("paper-nav-submit", "n_clicks", allow_optional=True), Input("paper-nav-factory", "n_clicks", allow_optional=True), Input("paper-nav-candidates", "n_clicks", allow_optional=True), Input("paper-nav-results", "n_clicks", allow_optional=True),
-        State("selected-candidate", "data", allow_optional=True), State("candidate-detail-record", "data", allow_optional=True), State("factory-selected", "data", allow_optional=True), State("candidate-compare-selection", "data", allow_optional=True), prevent_initial_call=True,
+        State("results-record", "data", allow_optional=True), State("selected-candidate", "data", allow_optional=True), State("candidate-detail-record", "data", allow_optional=True), State("factory-selected", "data", allow_optional=True), State("candidate-compare-selection", "data", allow_optional=True), prevent_initial_call=True,
     )
     def navigate(*values: Any):
         trigger = ctx.triggered_id
         if not ctx.triggered or not ctx.triggered[0].get("value"):
             return no_update, no_update
-        if trigger in {"nav-candidates", "results-nav-candidates", "results-back-candidates", "factory-nav-candidates", "factory-open-candidates", "submit-nav-candidates", "compare-back", "compare-nav-candidates", "paper-nav-candidates"}: return "/candidates", ""
+        if trigger == "factory-open-candidates":
+            selected = values[-2] or {}
+            candidate_id = selected.get("candidate_id")
+            return "/candidates", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
+        if trigger == "results-back-candidates":
+            candidate_id = (((values[-5] or {}).get("run") or {}).get("candidate_id"))
+            return "/candidates", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
+        if trigger == "open-candidate":
+            candidate_id = (values[-4] or {}).get("candidate_id")
+            return "/candidates", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
+        if trigger in {"nav-candidates", "results-nav-candidates", "factory-nav-candidates", "submit-nav-candidates", "compare-back", "compare-nav-candidates", "paper-nav-candidates"}: return "/candidates", ""
         if trigger == "compare-clear": return "/candidates", "?clear_compare=1"
         if trigger in {"open-results", "candidate-open-results", "factory-open-results"}:
             selected = values[-4] if trigger == "open-results" else values[-3] if trigger == "candidate-open-results" else values[-2]
