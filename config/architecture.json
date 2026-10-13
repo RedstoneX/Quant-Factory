@@ -12,7 +12,8 @@
   },
   "components": {
     "licensed_engine": {"patterns": ["backtesting.vectorbt_runtime"], "allowed_dependencies": []},
-    "strategies": {"patterns": ["strategies.*"], "allowed_dependencies": ["licensed_engine"]},
+    "rule_language": {"patterns": ["rule_language.*"], "allowed_dependencies": []},
+    "strategies": {"patterns": ["strategies.*"], "allowed_dependencies": ["licensed_engine", "rule_language"]},
     "market_data": {"patterns": ["market_data.*"], "allowed_dependencies": ["licensed_engine", "strategies"]},
     "persistence": {"patterns": ["persistence.*"], "allowed_dependencies": ["strategies"]},
     "backtesting": {"patterns": ["backtesting.*"], "allowed_dependencies": ["licensed_engine", "market_data", "persistence", "strategies"]},
@@ -22,7 +23,7 @@
       "patterns": ["backtesting.run_*"],
       "allowed_dependencies": ["backtesting", "licensed_engine", "market_data", "orchestration", "persistence", "prefect_adapter", "strategies"]
     },
-    "research_intake": {"patterns": ["research_intake.*"], "allowed_dependencies": ["persistence"]},
+    "research_intake": {"patterns": ["research_intake.*"], "allowed_dependencies": ["persistence", "rule_language"]},
     "agent_gateway": {
       "patterns": ["agent_gateway.*"],
       "allowed_dependencies": ["backtesting", "orchestration", "persistence", "research_intake"]
