@@ -432,7 +432,7 @@ def create_app() -> Dash:
 
     @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
     def route(pathname: str | None, search: str | None):
-        if pathname == "/candidates": return candidates_layout()
+        if pathname == "/candidates": return candidates_layout(search)
         if pathname == "/results": return results_layout(search)
         if pathname == "/factory": return factory_layout()
         if pathname == "/submit": return submit_layout()
@@ -455,13 +455,20 @@ def create_app() -> Dash:
         Input("compare-nav-dashboard", "n_clicks", allow_optional=True), Input("compare-nav-submit", "n_clicks", allow_optional=True), Input("compare-nav-factory", "n_clicks", allow_optional=True), Input("compare-nav-candidates", "n_clicks", allow_optional=True), Input("compare-nav-results", "n_clicks", allow_optional=True),
         Input("nav-paper", "n_clicks", allow_optional=True), Input("candidates-nav-paper", "n_clicks", allow_optional=True), Input("results-nav-paper", "n_clicks", allow_optional=True), Input("factory-nav-paper", "n_clicks", allow_optional=True), Input("submit-nav-paper", "n_clicks", allow_optional=True), Input("compare-nav-paper", "n_clicks", allow_optional=True),
         Input("paper-nav-dashboard", "n_clicks", allow_optional=True), Input("paper-nav-submit", "n_clicks", allow_optional=True), Input("paper-nav-factory", "n_clicks", allow_optional=True), Input("paper-nav-candidates", "n_clicks", allow_optional=True), Input("paper-nav-results", "n_clicks", allow_optional=True),
-        State("selected-candidate", "data", allow_optional=True), State("candidate-detail-record", "data", allow_optional=True), State("factory-selected", "data", allow_optional=True), State("candidate-compare-selection", "data", allow_optional=True), prevent_initial_call=True,
+        State("results-record", "data", allow_optional=True), State("selected-candidate", "data", allow_optional=True), State("candidate-detail-record", "data", allow_optional=True), State("factory-selected", "data", allow_optional=True), State("candidate-compare-selection", "data", allow_optional=True), prevent_initial_call=True,
     )
     def navigate(*values: Any):
         trigger = ctx.triggered_id
         if not ctx.triggered or not ctx.triggered[0].get("value"):
             return no_update, no_update
-        if trigger in {"nav-candidates", "results-nav-candidates", "results-back-candidates", "factory-nav-candidates", "factory-open-candidates", "submit-nav-candidates", "compare-back", "compare-nav-candidates", "paper-nav-candidates"}: return "/candidates", ""
+        if trigger == "factory-open-candidates":
+            selected = values[-2] or {}
+            candidate_id = selected.get("candidate_id")
+            return "/candidates", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
+        if trigger == "results-back-candidates":
+            candidate_id = (((values[-5] or {}).get("run") or {}).get("candidate_id"))
+            return "/candidates", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
+        if trigger in {"nav-candidates", "results-nav-candidates", "factory-nav-candidates", "submit-nav-candidates", "compare-back", "compare-nav-candidates", "paper-nav-candidates"}: return "/candidates", ""
         if trigger == "compare-clear": return "/candidates", "?clear_compare=1"
         if trigger in {"open-results", "candidate-open-results", "factory-open-results"}:
             selected = values[-4] if trigger == "open-results" else values[-3] if trigger == "candidate-open-results" else values[-2]

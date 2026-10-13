@@ -24,6 +24,17 @@ TRADE_COLUMNS = [
     {"field": "pnl", "headerName": "Net P&L", "type": "numericColumn", "width": 90},
     {"field": "outcome", "headerName": "Outcome", "width": 86},
 ]
+SCREENING_COLUMNS = [
+    {"field": "rank", "headerName": "Rank", "width": 58, "pinned": "left"},
+    {"field": "run_length", "headerName": "Run bars", "width": 78},
+    {"field": "minimum_ticks_per_bar", "headerName": "Min ticks", "width": 78},
+    {"field": "total_return", "headerName": "Net return", "type": "numericColumn", "width": 88, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
+    {"field": "sharpe_ratio", "headerName": "Sharpe", "type": "numericColumn", "width": 76, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
+    {"field": "max_drawdown", "headerName": "Max DD", "type": "numericColumn", "width": 78, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
+    {"field": "number_of_trades", "headerName": "Trades", "type": "numericColumn", "width": 70},
+    {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 78, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
+    {"field": "screening_status", "headerName": "Outcome", "minWidth": 105, "flex": .7, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Screened out' : params.value"}},
+]
 
 
 def _icon(name: str) -> html.Span:
@@ -107,7 +118,7 @@ def results_layout(search: str | None = None) -> dmc.MantineProvider:
     header = dmc.Group([
         html.Div([dmc.Title("Results", id="results-title", order=1), dmc.Text("Exact persisted run evidence", id="results-meta", className="eyebrow")]),
         html.Div(className="top-spacer"), dmc.Badge("Loading", id="results-state", className="candidate-state"),
-        dmc.Button("View sensitivity", id="results-sensitivity", className="ghost", variant="default"),
+        dmc.Button("View screening decision", id="results-sensitivity", className="ghost", variant="default"),
         dmc.Button("Compare selected unavailable", className="ghost", variant="default", disabled=True),
     ], gap=9, className="topbar results-topbar")
     toolbar = dmc.Group([
@@ -116,24 +127,24 @@ def results_layout(search: str | None = None) -> dmc.MantineProvider:
         dmc.Select(id="results-view", data=[{"value": "session", "label": "View · full session"}, {"value": "trade", "label": "View · selected trade"}, {"value": "morning", "label": "View · morning"}], value="session", allowDeselect=False, className="results-control"),
         dmc.Button("Reset range", id="results-reset-range", leftSection=_icon("reset"), className="ghost", variant="default"),
         dmc.Button("Reset layout", id="results-reset-layout", className="ghost", variant="default"),
-        html.Div(className="top-spacer"), dmc.Text("Persisted OHLC and completed trades", className="candidate-context"),
+        html.Div(className="top-spacer"), dmc.Text("Persisted OHLC and completed trades", id="results-toolbar-context", className="candidate-context"),
     ], gap=8, className="candidate-filters results-toolbar")
     context = dmc.Group([
-        dmc.Button("Ranked survivors", id="results-back-candidates", leftSection=_icon("back"), className="ghost", variant="default"),
+        dmc.Button("Back to Candidate", id="results-back-candidates", leftSection=_icon("back"), className="ghost", variant="default"),
         dmc.Badge("Sealed run", id="results-run-chip", className="filter-chip"),
         dmc.Select(id="results-session", data=[{"value": "all", "label": "All persisted sessions"}], value="all", allowDeselect=False, className="results-session"),
         dmc.Badge("Bars unavailable", id="results-bars-chip", className="filter-chip"), html.Div(className="top-spacer"),
         dmc.Badge("Paper lane inactive", className="candidate-state"), dmc.Button("View evidence", id="results-package", className="ghost", variant="default"),
     ], gap=8, className="candidate-filters results-context")
     price_panel = dmc.Paper([
-        dmc.Group([html.Div([dmc.Title("Price and completed trades", order=3), dmc.Text("Persisted run evidence · select a trade to focus its interval", id="results-chart-caption", className="panel-subtitle")]), html.Div(className="top-spacer")], className="panel-head"),
+        dmc.Group([html.Div([dmc.Title("Price and completed trades", id="results-chart-title", order=3), dmc.Text("Persisted run evidence · select a trade to focus its interval", id="results-chart-caption", className="panel-subtitle")]), html.Div(className="top-spacer")], className="panel-head"),
         dcc.Graph(id="results-price-chart", figure=_empty_figure("Loading persisted OHLC bars", height=326), config={"displayModeBar": False, "scrollZoom": True, "responsive": True}),
         html.Div(id="results-assumptions", className="results-assumptions"),
     ], className="panel results-price", radius="md", withBorder=True)
     metrics = html.Aside(id="results-metrics", className="results-metrics")
     ledger = dmc.Paper([
-        dmc.Group([html.Div([dmc.Title("Completed trade ledger", order=3), dmc.Text("Select a trade to focus its exact persisted interval", className="panel-subtitle")]), html.Div(className="top-spacer"), dmc.TextInput(id="results-trade-search", placeholder="Search trades", className="results-trade-search", debounce=True)], className="panel-head"),
-        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={"sortable": True, "resizable": True, "filter": True}, dashGridOptions={"rowSelection": {"mode": "singleRow", "enableClickSelection": True}, "pagination": True, "paginationPageSize": 5, "animateRows": False}, getRowId="params.data.trade_id", className="ag-theme-quartz-dark results-trade-grid"),
+        dmc.Group([html.Div([dmc.Title("Completed trade ledger", id="results-ledger-title", order=3), dmc.Text("Select a trade to focus its exact persisted interval", id="results-ledger-subtitle", className="panel-subtitle")]), html.Div(className="top-spacer"), dmc.TextInput(id="results-trade-search", placeholder="Search trades", className="results-trade-search", debounce=True)], className="panel-head"),
+        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={"sortable": True, "resizable": True, "filter": True}, dashGridOptions={"rowSelection": {"mode": "singleRow", "enableClickSelection": True}, "pagination": True, "paginationPageSize": 6, "paginationPageSizeSelector": False, "animateRows": False}, getRowId="params.data.trade_id || params.data.row_id", className="ag-theme-quartz-dark results-trade-grid"),
         html.Footer([html.Span("0 persisted trades", id="results-trade-count"), html.Div(className="top-spacer"), html.Span("Bounded ledger")], className="candidate-grid-footer"),
     ], className="panel results-ledger", radius="md", withBorder=True)
     linked = dmc.Paper([
@@ -151,7 +162,7 @@ def _metric_value(metrics: list[dict[str, str]], *labels: str) -> str:
 
 
 def _display_trades(record: dict[str, Any], search: str | None) -> list[dict[str, Any]]:
-    rows = record.get("trades") or []
+    rows = record.get("screening_rows") or record.get("trades") or []
     token = (search or "").strip().lower()
     if token:
         rows = [row for row in rows if token in " ".join(str(value).lower() for value in row.values())]
@@ -164,43 +175,75 @@ def register_results_callbacks(application: Any) -> None:
         return load_results_record(run_id, interval=interval or "15m")
 
     @application.callback(
-        Output("results-title", "children"), Output("results-meta", "children"), Output("results-state", "children"),
+        Output("results-title", "children"), Output("results-meta", "children"), Output("results-state", "children"), Output("results-state", "className"),
         Output("results-run-chip", "children"), Output("results-bars-chip", "children"), Output("results-chart-caption", "children"),
         Output("results-metrics", "children"), Output("results-assumptions", "children"), Output("results-session", "data"), Output("results-session", "value"),
+        Output("results-chart-title", "children"), Output("results-ledger-title", "children"), Output("results-ledger-subtitle", "children"), Output("results-trade-search", "placeholder"), Output("results-toolbar-context", "children"),
+        Output("results-bars", "disabled"), Output("results-view", "disabled"), Output("results-reset-range", "disabled"), Output("results-session", "disabled"),
         Input("results-record", "data"),
     )
     def render_record(record: dict[str, Any] | None):
         record = record or {}; run = record.get("run") or {}; metrics = record.get("metrics") or []
         title = run.get("title") or "Results unavailable"; run_id = run.get("run_id") or "No run identity"
         result_status = str(record.get("result_status") or "").strip().lower()
-        state = "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
+        screening_rows = record.get("screening_rows") or []
+        screened_out = bool(screening_rows) and int(record.get("screened_out_count") or 0) == len(screening_rows)
+        state = "Screened out" if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
         metric_cards = [
-            ("Net return", _metric_value(metrics, "Total Return")), ("OOS Sharpe", _metric_value(metrics, "Sharpe Ratio")),
+            ("Best net return" if screened_out else "Net return", _metric_value(metrics, "Total Return")), ("Screening Sharpe" if screened_out else "OOS Sharpe", _metric_value(metrics, "Sharpe Ratio")),
             ("Maximum drawdown", _metric_value(metrics, "Max Drawdown")), ("Completed trades", _metric_value(metrics, "Number Of Trades")),
             ("Win rate", _metric_value(metrics, "Win Rate")), ("Profit factor", _metric_value(metrics, "Profit Factor")),
-            ("Evidence", record.get("result_status") or "Unavailable"),
+            ("Screening outcome" if screened_out else "Evidence", f"{len(screening_rows)} rejected" if screened_out else record.get("result_status") or "Unavailable"),
         ]
         cards = [html.Div([html.Span(label), html.Strong(value)], className="results-metric") for label, value in metric_cards]
         assumptions = [html.Div([html.Span("Run"), html.Strong(run_id)], className="results-assumption"), html.Div([html.Span("Market"), html.Strong(run.get("symbol") or "Unrecorded")], className="results-assumption"), html.Div([html.Span("Stage"), html.Strong(str(run.get("stage") or "Unrecorded").replace("_", " ").title())], className="results-assumption"), html.Div([html.Span("Authority"), html.Strong("Research evidence only")], className="results-assumption")]
         sessions = sorted({str(row.get("entry_timestamp") or "")[:10] for row in record.get("trades") or [] if row.get("entry_timestamp")})
         session_data = [{"value": "all", "label": "All persisted sessions"}] + [{"value": day, "label": f"Session · {day}"} for day in sessions]
-        caption = record.get("price_reason") or "Persisted OHLC · scroll to zoom · select a trade to focus"
-        return title, f"{run_id} · exact persisted evidence", state, f"Sealed run · {run_id[:12]}", f"{record.get('interval', '—')} bars", caption, cards, assumptions, session_data, "all"
+        caption = "All declared configurations failed initial screening; no finalist chart or trade ledger was persisted." if screened_out else record.get("price_reason") or "Persisted OHLC · scroll to zoom · select a trade to focus"
+        return (
+            title, f"{run_id} · exact persisted evidence", state, "candidate-state rejected" if screened_out else "candidate-state", f"Sealed run · {run_id[:12]}",
+            "No finalist bars" if screened_out else f"{record.get('interval', '—')} bars", caption, cards, assumptions, session_data, "all",
+            "Initial screening outcome" if screened_out else "Price and completed trades",
+            "Six declared configurations" if screened_out else "Completed trade ledger",
+            "Select a configuration to inspect its exact rejection reasons" if screened_out else "Select a trade to focus its exact persisted interval",
+            "Search configurations" if screened_out else "Search trades",
+            "Initial screening records · no finalist evidence was produced" if screened_out else "Persisted OHLC and completed trades",
+            screened_out, screened_out, screened_out, screened_out,
+        )
 
-    @application.callback(Output("results-trade-grid", "rowData"), Output("results-trade-count", "children"), Input("results-record", "data"), Input("results-trade-search", "value"), Input("results-session", "value"))
-    def render_trades(record: dict[str, Any] | None, search: str | None, session: str) -> tuple[list[dict[str, Any]], str]:
+    @application.callback(Output("results-trade-grid", "rowData"), Output("results-trade-grid", "columnDefs"), Output("results-trade-count", "children"), Output("results-trade-grid", "selectedRows"), Input("results-record", "data"), Input("results-trade-search", "value"), Input("results-session", "value"))
+    def render_trades(record: dict[str, Any] | None, search: str | None, session: str):
         record = record or {}; rows = _display_trades(record, search)
-        if session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
+        screening = bool(record.get("screening_rows"))
+        if not screening and session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
+        if screening:
+            total = int(record.get("screening_count") or 0)
+            return rows, SCREENING_COLUMNS, f"{len(rows):,} shown · {total:,} declared configurations · all screened out", rows[:1]
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
-        return rows, f"{len(rows):,} shown · {total:,} persisted" + (f" · first {bounded:,} loaded" if total > bounded else "")
+        return rows, TRADE_COLUMNS, f"{len(rows):,} shown · {total:,} persisted" + (f" · first {bounded:,} loaded" if total > bounded else ""), []
 
     @application.callback(Output("results-price-chart", "figure"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"))
     def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any) -> go.Figure:
+        if (record or {}).get("screening_rows") and not (record or {}).get("price"):
+            return _empty_figure("No finalist chart exists: every declared configuration failed initial screening.", height=326)
         return _price_figure(record, (selected_rows or [None])[-1], view or "session", nonce)
 
-    @application.callback(Output("results-evidence-body", "children"), Input("results-record", "data"), Input("results-evidence-tab", "value"))
-    def render_evidence(record: dict[str, Any] | None, tab: str):
+    @application.callback(Output("results-evidence-body", "children"), Input("results-record", "data"), Input("results-evidence-tab", "value"), Input("results-trade-grid", "selectedRows"))
+    def render_evidence(record: dict[str, Any] | None, tab: str, selected_rows: list[dict[str, Any]] | None):
         record = record or {}
+        screening_rows = record.get("screening_rows") or []
+        if screening_rows:
+            if tab == "lineage":
+                fields = record.get("lineage") or []
+                return html.Div([html.Div([html.Span(item["label"]), html.Strong(item["value"])], className="candidate-evidence-item") for item in fields[:8]], className="results-evidence-list")
+            if tab != "equity":
+                return html.Div(f"{tab.replace('_', ' ').title()} was not reached because all configurations failed initial screening.", className="results-stage-stop")
+            selected = (selected_rows or screening_rows[:1])[-1]
+            return html.Div([
+                html.Div([html.Span("Selected parameters"), html.Strong(f"{selected.get('run_length')} bars · {selected.get('minimum_ticks_per_bar')} minimum ticks")], className="candidate-evidence-item"),
+                html.Div([html.Span("Outcome"), html.Strong("Screened out")], className="candidate-evidence-item"),
+                html.Div(selected.get("rejection_reasons") or "No rejection reason persisted.", className="results-rejection-reasons"),
+            ], className="results-evidence-list")
         if tab == "equity": return dcc.Graph(figure=_evidence_figure(record, tab), config={"displayModeBar": False, "responsive": True})
         fields = record.get("lineage") if tab == "lineage" else []
         if fields:
@@ -213,7 +256,7 @@ def register_results_callbacks(application: Any) -> None:
 
     @application.callback(Output("results-view", "value"), Output("results-evidence-tab", "value"), Input("results-reset-layout", "n_clicks"), Input("results-sensitivity", "n_clicks"), Input("results-package", "n_clicks"), prevent_initial_call=True)
     def change_layout(*_clicks: Any):
-        if ctx.triggered_id == "results-sensitivity": return no_update, "robustness"
+        if ctx.triggered_id == "results-sensitivity": return no_update, "equity"
         if ctx.triggered_id == "results-package": return no_update, "lineage"
         return "session", "equity"
 

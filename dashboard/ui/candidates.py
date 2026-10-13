@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import parse_qs
 
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
@@ -52,9 +53,13 @@ CANDIDATE_COLUMNS = [
 ]
 
 
-def candidates_layout() -> dmc.MantineProvider:
+def candidates_layout(search: str | None = None) -> dmc.MantineProvider:
     summary = load_candidates_summary()
     counts = summary.get("counts", {})
+    requested_candidate = parse_qs((search or "").lstrip("?")).get("candidate_id", [None])[0]
+    initial_detail = load_candidate_detail(requested_candidate) if requested_candidate else None
+    initial_lifecycle = str((initial_detail or {}).get("lifecycle") or "survivor")
+    initial_search = requested_candidate or ""
     family_options = [{"value": "all", "label": "All families"}] + [{"value": family, "label": family} for family in summary.get("families", [])]
     nav = dmc.Stack([
         dmc.Paper("Q", className="logo", radius="md"),
@@ -84,12 +89,12 @@ def candidates_layout() -> dmc.MantineProvider:
     ], gap=9, className="topbar candidates-topbar")
 
     lifecycle = dmc.SegmentedControl(
-        id="candidate-lifecycle", value="survivor",
+        id="candidate-lifecycle", value=initial_lifecycle,
         data=[{"value": key, "label": f"{label} · {int(counts.get(key, 0)):,}"} for key, label in [("survivor", "Survivors"), ("advancing", "Advancing"), ("needs_review", "Needs review"), ("rejected", "Rejected"), ("all", "All")]],
         className="candidate-tabs", fullWidth=False, persistence=True, persistence_type="local",
     )
     filters = dmc.Group([
-        dmc.TextInput(id="candidate-search", placeholder="Search Candidate, market, family…", leftSection=_icon("search"), className="candidate-search", debounce=True, persistence=True, persistence_type="local", **{"aria-label": "Search Candidates"}),
+        dmc.TextInput(id="candidate-search", value=initial_search, placeholder="Search Candidate, market, family…", leftSection=_icon("search"), className="candidate-search", debounce=True, persistence=True, persistence_type="local", **{"aria-label": "Search Candidates"}),
         dmc.Select(id="candidate-market", data=[{"value": "all", "label": "All markets"}, {"value": "futures", "label": "Futures"}, {"value": "equities", "label": "Equities"}, {"value": "crypto", "label": "Crypto"}, {"value": "unclassified", "label": "Unclassified"}], value="all", allowDeselect=False, className="candidate-select", persistence=True, persistence_type="local", **{"aria-label": "Candidate market"}),
         dmc.Select(id="candidate-family", data=family_options, value="all", allowDeselect=False, className="candidate-select family", persistence=True, persistence_type="local", **{"aria-label": "Candidate family"}),
         dmc.Select(id="candidate-evidence", data=[{"value": "any", "label": "Any evidence state"}, {"value": "all_gates", "label": "All gates passed"}, {"value": "failed_oos", "label": "Failed OOS"}, {"value": "semantic_exception", "label": "Semantic exception"}], value="any", allowDeselect=False, className="candidate-select evidence", persistence=True, persistence_type="local", **{"aria-label": "Candidate evidence state"}),
@@ -127,8 +132,8 @@ def candidates_layout() -> dmc.MantineProvider:
     ], className="candidate-workspace", radius="md", withBorder=True)
 
     stores = [
-        dcc.Store(id="candidate-summary", data=summary), dcc.Store(id="candidate-query", data={"lifecycle":"survivor","market":"all","family":"all","evidence":"any","search":""}),
-        dcc.Store(id="candidate-selection", storage_type="local"),
+        dcc.Store(id="candidate-summary", data=summary), dcc.Store(id="candidate-query", data={"lifecycle":initial_lifecycle,"market":"all","family":"all","evidence":"any","search":initial_search}),
+        dcc.Store(id="candidate-selection", data={"candidate_id": requested_candidate, "run_id": (initial_detail or {}).get("run_id")} if requested_candidate else None, storage_type="local"),
         dcc.Store(id="candidate-compare-selection", storage_type="local"),
         dcc.Store(id="candidate-detail-record"),
         dcc.Store(id="candidate-cache-reset"),
@@ -155,6 +160,11 @@ def _outcome(record: dict[str, Any]) -> tuple[str, str]:
     if lifecycle == "needs_review":
         return "Semantic exception recorded", "Resolve the exact recorded ambiguity"
     if lifecycle == "rejected":
+        if record.get("run_id") and record.get("screening_status") == "screened_out":
+            return (
+                f"Screened out · {int(record.get('screened_out_count') or 0):,} of {int(record.get('screening_count') or 0):,} configurations failed",
+                "Closed automatically at initial screening; no later evidence gates ran",
+            )
         campaign_state = record.get("campaign_state")
         if campaign_state == "implementation_blocked":
             return "Unexecuted · adapter mapping missing", "No StudyPlan or run was created"
@@ -164,17 +174,29 @@ def _outcome(record: dict[str, Any]) -> tuple[str, str]:
     return "Candidate received", "Next eligibility is not recorded"
 
 
+def _screening_summary(record: dict[str, Any]) -> str:
+    return (
+        f"All {int(record.get('screening_count') or 0):,} declared configurations failed initial screening. "
+        f"The best-ranked configuration returned {_fmt(record.get('screening_return'), percent=True)} "
+        f"with Sharpe {_fmt(record.get('screening_sharpe'))} and "
+        f"{_fmt(record.get('screening_max_drawdown'), percent=True)} maximum drawdown. "
+        "Open Results for every configuration and its exact rejection reasons."
+    )
+
+
 def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
     if not record:
         return [dmc.Text("No persisted Candidate is selected.", className="candidate-empty")]
     outcome, next_state = _outcome(record)
     progression = record.get("progression") or []
     if tab == "evidence":
+        screening = record.get("stage") == "screening"
         return [
             dmc.Title("Recorded evidence", order=3),
-            html.Div([html.Span("OOS Sharpe"), html.Strong(_fmt(record.get("sharpe"))), html.Span("Exact" if record.get("sharpe") is not None else "Unavailable")], className="candidate-evidence-item"),
-            html.Div([html.Span("Maximum drawdown"), html.Strong(_fmt(record.get("max_drawdown"), percent=True)), html.Span("Persisted")], className="candidate-evidence-item"),
-            html.Div([html.Span("Net return"), html.Strong(_fmt(record.get("net_return"), percent=True)), html.Span("Net of configured costs")], className="candidate-evidence-item"),
+            html.Div([html.Span("Screening Sharpe" if screening else "OOS Sharpe"), html.Strong(_fmt(record.get("screening_sharpe") if screening else record.get("sharpe"))), html.Span("Best configuration" if screening else "Exact" if record.get("sharpe") is not None else "Unavailable")], className="candidate-evidence-item"),
+            html.Div([html.Span("Maximum drawdown"), html.Strong(_fmt(record.get("screening_max_drawdown") if screening else record.get("max_drawdown"), percent=True)), html.Span("Best configuration" if screening else "Persisted")], className="candidate-evidence-item"),
+            html.Div([html.Span("Net return"), html.Strong(_fmt(record.get("screening_return") if screening else record.get("net_return"), percent=True)), html.Span("Net of configured costs")], className="candidate-evidence-item"),
+            html.Div([html.Span("Configurations"), html.Strong(f"{int(record.get('screened_out_count') or 0):,} / {int(record.get('screening_count') or 0):,} screened out" if screening else "—"), html.Span("Initial screen" if screening else "Unavailable")], className="candidate-evidence-item"),
             html.Div([html.Span("OOS retention"), html.Strong(_fmt(record.get("retained"), percent=True)), html.Span("Unavailable" if record.get("retained") is None else "Persisted")], className="candidate-evidence-item"),
             html.Div([html.Span("Robustness"), html.Strong(str(record.get("robustness"))), html.Span("Recorded stage")], className="candidate-evidence-item"),
         ]
@@ -194,7 +216,7 @@ def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
     return [
         html.Div([html.Span("Outcome"), html.Strong(outcome), html.Span("Exact")], className="candidate-evidence-item"),
         html.Div([html.Span("Next state"), html.Strong(next_state), html.Span()], className="candidate-evidence-item"),
-        html.Div(record.get("campaign_reason_detail") or record.get("error_summary") or record.get("description") or "No additional persisted explanation is available.", className=f"candidate-explanation {record.get('lifecycle') or ''}"),
+        html.Div(_screening_summary(record) if record.get("run_id") and record.get("screening_status") == "screened_out" else record.get("campaign_reason_detail") or record.get("error_summary") or record.get("description") or "No additional persisted explanation is available.", className=f"candidate-explanation {record.get('lifecycle') or ''}"),
         dmc.Group([dmc.Button("Open Results", id="candidate-open-results", className="primary", disabled=not record.get("run_id")), dmc.Button("View persisted sensitivity", id="candidate-open-evidence", className="ghost", variant="default")], gap=8, className="candidate-detail-actions"),
         dmc.Title("Evidence progression", order=3, className="candidate-progression-title"),
         *[html.Div([html.Span(_human_label(item.get("stage"))), html.Strong(_human_label(item.get("status"))), html.Span("✓" if item.get("status") == "succeeded" else "")], className="candidate-evidence-item") for item in progression],
@@ -222,9 +244,15 @@ def register_candidate_callbacks(application: Any) -> None:
 
     @application.callback(
         Output("candidate-lifecycle", "value"), Output("candidate-market", "value"), Output("candidate-family", "value"), Output("candidate-evidence", "value"), Output("candidate-search", "value"),
-        Input("view-survivors", "n_clicks"), Input("view-all", "n_clicks"), Input("view-rejected", "n_clicks"), prevent_initial_call=True,
+        Input("view-survivors", "n_clicks"), Input("view-all", "n_clicks"), Input("view-rejected", "n_clicks"), Input("router-location", "search"), prevent_initial_call=True,
     )
     def apply_saved_view(*_clicks: Any):
+        if ctx.triggered_id == "router-location":
+            candidate_id = parse_qs(str(_clicks[-1] or "").lstrip("?")).get("candidate_id", [None])[0]
+            detail = load_candidate_detail(candidate_id) if candidate_id else None
+            if detail:
+                return detail.get("lifecycle") or "all", "all", "all", "any", candidate_id
+            return no_update, no_update, no_update, no_update, no_update
         if ctx.triggered_id == "view-survivors":
             return "survivor", "all", "all", "all_gates", ""
         if ctx.triggered_id == "view-all":
@@ -244,8 +272,13 @@ def register_candidate_callbacks(application: Any) -> None:
         page = load_candidates_page(start=int(request.get("startRow") or 0), end=int(request.get("endRow") or 50), sort_model=request.get("sortModel"), filter_model=request.get("filterModel"), **query)
         return page, f"{len(page['rowData']):,} loaded", f"{int(page['rowCount']):,} total · infinite row loading"
 
-    @application.callback(Output("candidate-selection", "data"), Input("candidate-grid", "selectedRows"), Input("candidate-grid", "getRowsResponse"), State("candidate-selection", "data"), prevent_initial_call=True)
-    def persist_primary_selection(selected_rows: list[dict[str, Any]] | None, response: dict[str, Any] | None, current: dict[str, Any] | None):
+    @application.callback(Output("candidate-selection", "data"), Input("candidate-grid", "selectedRows"), Input("candidate-grid", "getRowsResponse"), Input("router-location", "search"), State("candidate-selection", "data"), prevent_initial_call=True)
+    def persist_primary_selection(selected_rows: list[dict[str, Any]] | None, response: dict[str, Any] | None, search: str | None, current: dict[str, Any] | None):
+        if "router-location.search" in ctx.triggered_prop_ids:
+            candidate_id = parse_qs((search or "").lstrip("?")).get("candidate_id", [None])[0]
+            detail = load_candidate_detail(candidate_id) if candidate_id else None
+            if detail:
+                return {"candidate_id": candidate_id, "run_id": detail.get("run_id")}
         if "candidate-grid.selectedRows" in ctx.triggered_prop_ids and selected_rows:
             row = selected_rows[-1]; return {"candidate_id": row.get("candidate_id"), "run_id": row.get("run_id")}
         if current:
@@ -271,14 +304,15 @@ def register_candidate_callbacks(application: Any) -> None:
     def load_detail(selection: dict[str, Any] | None):
         return load_candidate_detail((selection or {}).get("candidate_id"))
 
-    @application.callback(Output("candidate-detail-state", "children"), Output("candidate-detail-name", "children"), Output("candidate-detail-meta", "children"), Output("candidate-detail-body", "children"), Input("candidate-detail-record", "data"), Input("candidate-detail-tab", "value"))
+    @application.callback(Output("candidate-detail-state", "children"), Output("candidate-detail-state", "className"), Output("candidate-detail-name", "children"), Output("candidate-detail-meta", "children"), Output("candidate-detail-body", "children"), Input("candidate-detail-record", "data"), Input("candidate-detail-tab", "value"))
     def render_detail(record: dict[str, Any] | None, tab: str):
         if not record:
-            return "No selection", "No Candidate selected", "Choose an exact Candidate record from the ranked universe.", _detail_body(None, tab)
+            return "No selection", "candidate-state", "No Candidate selected", "Choose an exact Candidate record from the ranked universe.", _detail_body(None, tab)
         state = _human_label(record.get("lifecycle") or "received")
         rank = f"Rank {record.get('rank')}" if record.get("rank") else "Exact record"
         meta = f"{record.get('candidate_id')} · {record.get('symbol')} · {record.get('family')} · {rank}"
-        return state, record.get("title") or "Untitled Candidate", meta, _detail_body(record, tab)
+        state_class = f"candidate-state {record.get('lifecycle') or ''}"
+        return state, state_class, record.get("title") or "Untitled Candidate", meta, _detail_body(record, tab)
 
     @application.callback(Output("candidate-detail-tab", "value"), Input("candidate-open-evidence", "n_clicks", allow_optional=True), prevent_initial_call=True)
     def open_evidence(_clicks: int | None):
