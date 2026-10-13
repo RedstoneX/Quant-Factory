@@ -8,14 +8,14 @@ and next action. Git history preserves completed milestone narratives.
 | Item | Current truth |
 |---|---|
 | Primary goal | Find, reject, and rigorously validate repeatable intraday trading edges. |
-| Immediate objective | Obtain Terry's unaided walkthrough decision on the deployed six-surface workflow and corrected Results investigation. Do not start a second Candidate or expand the parameter plan. |
+| Immediate objective | Execute Decision 358's one bounded MES ORB Candidate, deploy its genuine persisted evidence across the existing workflow, then resume Terry's unaided walkthrough. |
 | Phase | **R13 live-workflow verification and six-surface frontend conformance remain active. The exact executable-path prerequisite passed. R15 remains aborted and did not validate the factory workflow.** |
-| Active work | The Results correction retains one checksum-registered shared price history per screening run and lazy-loads any retained trade session, with Eastern-time bars, entry/exit markers, ledgers, metrics, and equity/drawdown evidence. Broad research execution remains disabled. |
+| Active work | One exact MES ORB grid is authorized: 42 predeclared configurations across opening windows, tick offsets, and long/short directions on verified local data. It must use the current Candidate pipeline and retain inspectable evidence. Broad research execution remains disabled. |
 | Technology | Reuse the accepted Dash/Mantine shell, existing projections, Plotly/VectorBT evidence, and Dash AG Grid. Keep `dashboard.ui` presentation-only, lazy-load heavy evidence, and preserve bounded server-side data paths. |
 | Visual authority | Dashboard: `docs/assets/dashboard/current-visual-contract/dashboard.html`, SHA-256 `266336fb5d62caa844cae6c67d4ed36df63a14bc4de7ad72919375d9318e74c1`. Remaining workflow surfaces: `docs/assets/workspaces/current-workflow-contract/workspaces.html`, SHA-256 `313b098fa43ca0e25e6c92dad55b2d508faca94765c3cd8fe9c7005837f71b31`; it contains no Dashboard composition. |
 | Visual proof state | The approved contracts remain the visual baseline. The corrected live Results route must prove configuration selection, multi-session navigation, Eastern-time candlesticks, exact entry/exit markers, trade ledger, equity/drawdown, readable headers, responsive layout, and no browser errors. UI comprehension remains unaccepted until Terry completes the live walkthrough. |
-| Next action | Stop for Terry's unaided walkthrough at the private URL. Do not continue implementation, research, or another Candidate before that decision. |
-| Owner checkpoints | Terry's consolidated unaided walkthrough is the only R13 acceptance gate. The authorized batch continues across all six surfaces without intermediate owner pauses. Tests, fixtures, screenshots, audits, and agent assertions cannot close it. Stop before a second Candidate, another campaign, protected evidence, paper activation, broker work, or capital authority. |
+| Next action | Admit and execute only Decision 358's MES ORB Candidate, publish its populated workflow state, and stop for Terry's unaided walkthrough. |
+| Owner checkpoints | Decision 358 authorizes one additional genuine Candidate and no broader campaign. Terry's consolidated unaided walkthrough remains the R13 acceptance gate. Tests, fixtures, screenshots, audits, and agent assertions cannot close it. Stop before another Candidate, protected evidence, paper activation, broker work, or capital authority. |
 | Deferred | Broad or open-ended edge discovery; VectorBT Pro upgrade; new or paid/protected data; paper-lane activation; broker work; orders; live trading; and capital exposure. |
 
 ## Active work
@@ -23,7 +23,7 @@ and next action. Git history preserves completed milestone narratives.
 <!-- active-work:start -->
 | ID | Priority | Status | Depends | Evidence |
 |---|---:|---|---|---|
-| R13 | 1 | in_progress | none | The six-surface visual-conformance batch is deployed. Candidate `qfc_d21077c94c96d40b205628d2ef90fee3` has an append-only shared price-history artifact for run `run_c680bf4d4ecb42da99ce89a4b7d489a5`; Results can lazy-load all 588 retained trade sessions with Eastern-time bars and exact markers. Live browser proof and Terry's unaided walkthrough remain. |
+| R13 | 1 | in_progress | none | The six-surface workflow and multi-session Results path are deployed. Decision 358 authorizes one exact 42-configuration MES ORB population run; its persisted cross-page evidence and Terry's unaided walkthrough remain. |
 | R14 | 2 | blocked | R13 | Broad unattended Candidate research remains unauthorized pending Terry's R13 walkthrough acceptance and a new campaign authority. |
 <!-- active-work:end -->
 

@@ -821,7 +821,7 @@ class CandidatePipelineRuntime:
                     allow_download=not self.cache_only,
                 )
                 combination_count = len(self.definition.experiment.parameter_combinations)
-                evidence_capture_limit = 16
+                evidence_capture_limit = 64
                 captured_portfolios: dict[str, Any] = {}
                 screening_result = execute_experiment(
                     self.definition.experiment,
