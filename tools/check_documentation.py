@@ -73,7 +73,7 @@ CURRENT_AUTHORITY_MARKERS = {
     ),
     Path("docs/MILESTONES.md"): (
         "R13 live-workflow verification and six-surface frontend conformance remain active",
-        "selected Five-bar run exhaustion screening configuration exposes exact persisted bars",
+        "Results evidence correction are deployed",
         "R15 aborted campaign record",
         "Executable-campaign precondition",
     ),
