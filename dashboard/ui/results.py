@@ -166,6 +166,30 @@ def _configuration_equity_figure(evidence: dict[str, Any]) -> go.Figure:
     return _style(figure, height=168)
 
 
+def _configuration_metric_cards(evidence: dict[str, Any]) -> list[Any]:
+    metrics = evidence.get("metrics") or {}
+
+    def percentage(key: str, *, absolute: bool = False) -> str:
+        value = metrics.get(key)
+        if value is None:
+            return "—"
+        number = float(value)
+        if abs(number) <= 1:
+            number *= 100
+        number = abs(number) if absolute else number
+        return f"{number:+.2f}%" if key == "total_return" else f"{number:.2f}%"
+
+    values = [
+        ("Selected net return", percentage("total_return")),
+        ("Selected Sharpe", "—" if metrics.get("sharpe_ratio") is None else f"{float(metrics['sharpe_ratio']):.2f}"),
+        ("Maximum drawdown", percentage("max_drawdown", absolute=True)),
+        ("Completed trades", f"{int(metrics.get('number_of_trades') or 0):,}"),
+        ("Win rate", percentage("win_rate")),
+        ("Evidence", "Exact retained screening"),
+    ]
+    return [html.Div([html.Span(label), html.Strong(value)], className="results-metric") for label, value in values]
+
+
 def _run_from_search(search: str | None, runs: list[dict[str, Any]]) -> str | None:
     requested = parse_qs((search or "").lstrip("?")).get("run_id", [None])[0]
     if requested and any(row["run_id"] == requested for row in runs):
@@ -245,33 +269,24 @@ def register_results_callbacks(application: Any) -> None:
 
     @application.callback(
         Output("results-run-name", "children"), Output("results-meta", "children"), Output("results-state", "children"), Output("results-state", "className"),
-        Output("results-run-chip", "children"), Output("results-bars-chip", "children"), Output("results-chart-caption", "children"),
-        Output("results-metrics", "children"), Output("results-assumptions", "children"), Output("results-session", "data"), Output("results-session", "value"),
+        Output("results-run-chip", "children"), Output("results-assumptions", "children"), Output("results-session", "data"), Output("results-session", "value"),
         Output("results-chart-title", "children"), Output("results-ledger-title", "children"), Output("results-ledger-subtitle", "children"), Output("results-trade-search", "placeholder"), Output("results-toolbar-context", "children"),
         Output("results-bars", "disabled"), Output("results-view", "disabled"), Output("results-reset-range", "disabled"), Output("results-session", "disabled"),
         Input("results-record", "data"),
     )
     def render_record(record: dict[str, Any] | None):
-        record = record or {}; run = record.get("run") or {}; metrics = record.get("metrics") or []
+        record = record or {}; run = record.get("run") or {}
         title = run.get("title") or "Results unavailable"; run_id = run.get("run_id") or "No run identity"
         result_status = str(record.get("result_status") or "").strip().lower()
         screening_rows = record.get("screening_rows") or []
         screened_out = bool(screening_rows) and int(record.get("screened_out_count") or 0) == len(screening_rows)
         state = "Screened out" if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
-        metric_cards = [
-            ("Best net return" if screened_out else "Net return", _metric_value(metrics, "Total Return")), ("Screening Sharpe" if screened_out else "OOS Sharpe", _metric_value(metrics, "Sharpe Ratio")),
-            ("Maximum drawdown", _metric_value(metrics, "Max Drawdown")), ("Screening trades" if screened_out else "Completed trades", _metric_value(metrics, "Number Of Trades")),
-            ("Win rate", _metric_value(metrics, "Win Rate")), ("Profit factor", _metric_value(metrics, "Profit Factor")),
-            ("Screening outcome" if screened_out else "Evidence", f"{len(screening_rows)} rejected" if screened_out else record.get("result_status") or "Unavailable"),
-        ]
-        cards = [html.Div([html.Span(label), html.Strong(value)], className="results-metric") for label, value in metric_cards]
         assumptions = [html.Div([html.Span("Run"), html.Strong(run_id)], className="results-assumption"), html.Div([html.Span("Market"), html.Strong(run.get("symbol") or "Unrecorded")], className="results-assumption"), html.Div([html.Span("Stage"), html.Strong(str(run.get("stage") or "Unrecorded").replace("_", " ").title())], className="results-assumption"), html.Div([html.Span("Authority"), html.Strong("Research evidence only")], className="results-assumption")]
         sessions = sorted({str(row.get("entry_timestamp") or "")[:10] for row in record.get("trades") or [] if row.get("entry_timestamp")})
         session_data = [{"value": "all", "label": "All persisted sessions"}] + [{"value": day, "label": f"Session · {day}"} for day in sessions]
-        caption = "Select a configuration to load its exact retained bars and completed trades" if screened_out else record.get("price_reason") or "Persisted OHLC · scroll to zoom · select a trade to focus"
         return (
             title, f"{run_id} · exact persisted evidence", state, "candidate-state rejected" if screened_out else "candidate-state", f"Sealed run · {run_id[:12]}",
-            "Configuration evidence" if screened_out else f"{record.get('interval', '—')} bars", caption, cards, assumptions, session_data, "all",
+            assumptions, session_data, "all",
             "Selected configuration price and trades" if screened_out else "Price and completed trades",
             "Six declared configurations" if screened_out else "Completed trade ledger",
             "Select a configuration to inspect its exact rejection reasons" if screened_out else "Select a trade to focus its exact persisted interval",
@@ -279,6 +294,51 @@ def register_results_callbacks(application: Any) -> None:
             "Select a configuration to inspect its persisted screening evidence" if screened_out else "Persisted OHLC and completed trades",
             False, screened_out, False, screened_out,
         )
+
+    @application.callback(
+        Output("results-bars-chip", "children"), Output("results-chart-caption", "children"), Output("results-metrics", "children"),
+        Input("results-record", "data"), Input("results-configuration-evidence", "data"),
+    )
+    def render_selected_configuration(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None):
+        record = record or {}; configuration_evidence = configuration_evidence or {}
+        screening_rows = record.get("screening_rows") or []
+        if screening_rows:
+            if not configuration_evidence.get("available"):
+                metrics = record.get("metrics") or []
+                cards = [
+                    html.Div([html.Span(label), html.Strong(value)], className="results-metric")
+                    for label, value in (
+                        ("Best net return", _metric_value(metrics, "Total Return")),
+                        ("Screening Sharpe", _metric_value(metrics, "Sharpe Ratio")),
+                        ("Maximum drawdown", _metric_value(metrics, "Max Drawdown")),
+                        ("Screening trades", _metric_value(metrics, "Number Of Trades")),
+                        ("Win rate", _metric_value(metrics, "Win Rate")),
+                        ("Evidence", configuration_evidence.get("message") or "Select a configuration"),
+                    )
+                ]
+                return "Configuration evidence", configuration_evidence.get("message") or "Select a configuration to load its exact retained evidence", cards
+            row_id = configuration_evidence.get("parameter_row_id")
+            selected = next((row for row in screening_rows if row.get("row_id") == row_id), {})
+            identity = f"{selected.get('run_length', '—')} run bars · {selected.get('minimum_ticks_per_bar', '—')} minimum ticks"
+            return (
+                f"{configuration_evidence.get('interval', '—')} bars",
+                f"Selected configuration · {identity} · exact retained bars and completed trades",
+                _configuration_metric_cards(configuration_evidence),
+            )
+        metrics = record.get("metrics") or []
+        cards = [
+            html.Div([html.Span(label), html.Strong(value)], className="results-metric")
+            for label, value in (
+                ("Net return", _metric_value(metrics, "Total Return")),
+                ("OOS Sharpe", _metric_value(metrics, "Sharpe Ratio")),
+                ("Maximum drawdown", _metric_value(metrics, "Max Drawdown")),
+                ("Completed trades", _metric_value(metrics, "Number Of Trades")),
+                ("Win rate", _metric_value(metrics, "Win Rate")),
+                ("Profit factor", _metric_value(metrics, "Profit Factor")),
+                ("Evidence", record.get("result_status") or "Unavailable"),
+            )
+        ]
+        return f"{record.get('interval', '—')} bars", record.get("price_reason") or "Persisted OHLC · scroll to zoom · select a trade to focus", cards
 
     @application.callback(Output("results-trade-grid", "rowData"), Output("results-trade-grid", "columnDefs"), Output("results-trade-count", "children"), Output("results-trade-grid", "selectedRows"), Input("results-record", "data"), Input("results-trade-search", "value"), Input("results-session", "value"))
     def render_trades(record: dict[str, Any] | None, search: str | None, session: str):
