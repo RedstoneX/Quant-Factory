@@ -89,7 +89,9 @@ services:
   # service that mounts market-data read-write; every other service keeps :ro.
   market-data-topup:
     image: quant-factory-research:${QF_REVISION:?set QF_REVISION}
-    command: [python, -m, market_data.alpaca_sip_cli, --all, --daily-at, "02:00"]
+    # The image entrypoint requires the research database; the downloader has none.
+    entrypoint: [python, -m, market_data.alpaca_sip_cli]
+    command: [--all, --daily-at, "02:00"]
     environment:
       QUANT_FACTORY_DATA_LOCATIONS: /app/config/data_locations.local.toml
       QF_ALPACA_API_KEY: ${QF_ALPACA_API_KEY:-}
