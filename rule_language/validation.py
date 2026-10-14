@@ -22,6 +22,8 @@ MAX_RULE_DEPTH = 32
 MAX_RULE_NODES = 500
 BARS_PER_SESSION = 78
 MAX_WINDOW_BARS = 20_000
+# Single source for the variable-grid limit; strategies.parameter_governance re-exports it as the warning threshold.
+MAX_VARIABLE_GRID = 100
 SUPPORTED_BAR = "5m"
 SUPPORTED_SESSION = {"timezone": "America/New_York", "open": "09:30", "close": "16:00"}
 
@@ -118,7 +120,22 @@ def validate_rule_spec(spec: Any, *, variables: Mapping[str, Any] | None) -> dic
             f"variables.{unused[0]}",
             f'is declared but rule_spec never uses it; reference it with {{"param": "{unused[0]}"}} or remove it',
         )
+    _check_grid_size(variables)
     return normalized
+
+
+def _check_grid_size(variables: Mapping[str, Any]) -> None:
+    """Reject a variable grid (product of value counts) above the governance warning threshold."""
+
+    combinations = 1
+    for definition in variables.values():
+        combinations *= len(definition["values"])
+    if combinations > MAX_VARIABLE_GRID:
+        raise RuleSpecError(
+            "variables",
+            f"grid has {combinations} combinations (product of each variable's value count); "
+            f"the limit is {MAX_VARIABLE_GRID}. Remove values or variables",
+        )
 
 
 def _check_size(spec: Mapping[str, Any]) -> None:
