@@ -28,7 +28,7 @@ strategies, and backtests them. It does not trade.
 - Testable today: MES 5-minute bars with trading costs; history ends 2026-02-13.
 - Other markets have manifests in `data/manifests/` but no cost data, so they
   cannot be tested honestly yet. No options data exists.
-- US stock/ETF library: Alpaca SIP 1-minute bars, 48 symbols in labelled
+- US stock/ETF library: Alpaca SIP 1-minute bars, 45 symbols in labelled
   groups in `market_data/alpaca_sip_universe.py` (picked for tight spread,
   high volume and whole-share price), from 2016 (or listing date),
   split-adjusted, with pre/post-market bars labelled by a `session` column.

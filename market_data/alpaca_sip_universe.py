@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-UNIVERSE_NAME = "us_day_trading_liquid_v3"
+UNIVERSE_NAME = "us_day_trading_liquid_v4"
 UNIVERSE_AS_OF = "2026-10-14"
 HISTORY_START = "2016-01-01"
 
@@ -11,11 +11,13 @@ HISTORY_START = "2016-01-01"
 # recent sessions: price $5-$250, at least 10M shares/day, and a median
 # bid/ask spread no wider than 1% of the stock's average daily high-low range.
 # SPY, QQQ and IWM are kept as market reference even though they cost more.
+# Exact mirrors dropped (one-year daily and one-month 15-minute returns move
+# together at |r| >= 0.99): SQQQ (inverse TQQQ), SOXS (inverse SOXL), KORU (3x EWY).
+# MUU and SNXX stay: they are the whole-share way to trade Micron and SanDisk.
 UNIVERSE_GROUPS: dict[str, tuple[str, ...]] = {
     "market_reference": ("SPY", "QQQ", "IWM"),
     "funds": (
-        "TQQQ", "SQQQ", "SOXL", "SOXS", "EWY", "DRAM", "IBIT", "GDX", "XLE", "KRE", "SLV",
-        "SNXX", "MUU", "KORU",
+        "TQQQ", "SOXL", "EWY", "DRAM", "IBIT", "GDX", "XLE", "KRE", "SLV", "SNXX", "MUU",
     ),
     "stocks": (
         "NVDA", "SPCX", "INTC", "PLTR", "SKHY", "ORCL", "MSTR", "NFLX", "WMT", "CRWV", "HOOD",

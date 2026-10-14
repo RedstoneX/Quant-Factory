@@ -20,11 +20,11 @@ from market_data.alpaca_sip_universe import UNIVERSE, UNIVERSE_GROUPS, asset_typ
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_universe_has_48_unique_symbols_in_labelled_groups():
-    assert len(UNIVERSE) == 48
-    assert len(set(UNIVERSE)) == 48
+def test_universe_has_45_unique_symbols_in_labelled_groups():
+    assert len(UNIVERSE) == 45
+    assert len(set(UNIVERSE)) == 45
     assert {group: len(symbols) for group, symbols in UNIVERSE_GROUPS.items()} == {
-        "market_reference": 3, "funds": 14, "stocks": 31,
+        "market_reference": 3, "funds": 11, "stocks": 31,
     }
     assert asset_type("IBIT") == "ETF"
     assert asset_type("XLE") == "ETF"
