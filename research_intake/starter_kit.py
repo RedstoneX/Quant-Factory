@@ -7,8 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from rule_language import RULE_LANGUAGE
-from strategies.parameter_governance import PROVISIONAL_GRID_WARNING_THRESHOLD
+from rule_language import MAX_VARIABLE_GRID, RULE_LANGUAGE
 
 _SCHEMA_FILE = Path(__file__).with_name("mes_sma_10_30_candidate.json")
 
@@ -39,7 +38,7 @@ Options. String variables. Any bar size other than 5m.
 Markets other than MES: no cost data yet, so they cannot be tested honestly.
 
 GRID LIMIT
-Multiply the number of values of every variable. The result must not exceed {PROVISIONAL_GRID_WARNING_THRESHOLD}.
+Multiply the number of values of every variable. The result must not exceed {MAX_VARIABLE_GRID}.
 Example: 10 values x 10 values = 100 is allowed; 10 x 11 = 110 is rejected.
 
 Testing is backtest only. Paper trading needs separate owner approval.

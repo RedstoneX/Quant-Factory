@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from math import prod
 
+from rule_language import MAX_VARIABLE_GRID
 from strategies.models import ParameterDefinition, StrategySpecification
 
 PARAMETER_CLASSIFICATIONS = frozenset(
@@ -15,7 +16,7 @@ PARAMETER_CLASSIFICATIONS = frozenset(
     }
 )
 APPROVAL_STATES = frozenset({"draft", "approved", "rejected"})
-PROVISIONAL_GRID_WARNING_THRESHOLD = 100
+PROVISIONAL_GRID_WARNING_THRESHOLD = MAX_VARIABLE_GRID
 
 
 @dataclass(frozen=True)
