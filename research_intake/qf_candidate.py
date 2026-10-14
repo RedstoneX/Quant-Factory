@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 
 import yaml
 
+from rule_language import RuleSpecError, validate_rule_spec
 from persistence import (
     IdeaDraftRecord,
     PersistenceService,
@@ -180,8 +181,7 @@ def validate_candidate_packet(document: Mapping[str, Any]) -> CandidateValidatio
             "current Quant Factory mandate requires overnight_positions: false",
         )
 
-    rules = _mapping(doc.get("rules"))
-    if not rules:
+    if not _mapping(doc.get("rules")):
         error("rules", "rules", "testable strategy rules are required")
 
     sources = doc.get("sources", [])
@@ -239,6 +239,7 @@ def validate_candidate_packet(document: Mapping[str, Any]) -> CandidateValidatio
             "variables",
             f"bounded grid expands to {combination_count:,} combinations; review before execution",
         )
+    issues.extend(_rule_spec_issues(doc))
 
     variants = doc.get("variants", []) or []
     if not isinstance(variants, list):
@@ -304,6 +305,30 @@ def validate_candidate_packet(document: Mapping[str, Any]) -> CandidateValidatio
         issues=tuple(issues),
         parameter_combinations=combination_count if variables else 0,
     )
+
+
+def candidate_rule_spec(packet: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Return the packet's validated, normalized ``rule_spec``, or None when it has none.
+
+    Raises RuleSpecError (a ValueError) when a present rule spec is invalid.
+    """
+    doc = _plain(packet)
+    raw = doc.get("rule_spec")
+    if raw is None:
+        return None
+    spec = validate_rule_spec(raw, variables=_mapping(doc.get("variables")))
+    timeframe = _text(_mapping(doc.get("market")).get("timeframe"))
+    if spec["bar"] != timeframe:
+        raise RuleSpecError("rule_spec.bar", f"{spec['bar']!r} must equal market.timeframe ({timeframe or 'missing'!r})")
+    return spec
+
+
+def _rule_spec_issues(doc: Mapping[str, Any]) -> list[CandidateIssue]:
+    try:
+        candidate_rule_spec(doc)
+    except RuleSpecError as exc:
+        return [CandidateIssue("error", "rule_spec", exc.path, str(exc))]
+    return []
 
 
 def import_candidate_as_idea(
