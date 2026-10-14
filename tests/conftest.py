@@ -42,6 +42,9 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_rule_language_catalog.py::test_library_node_parameters_accept_variables",
         "tests/test_rule_language_catalog.py::test_library_node_rejects_bad_names_params_and_outputs",
         "tests/test_rule_language_catalog.py::test_starter_kit_lists_the_library_catalogue",
+        "tests/test_splitter_library_parity.py::test_chronological_split_matches_library",
+        "tests/test_splitter_library_parity.py::test_walk_forward_drop_matches_library",
+        "tests/test_splitter_library_parity.py::test_walk_forward_include_extends_library_with_truncated_tail",
     }
 )
 

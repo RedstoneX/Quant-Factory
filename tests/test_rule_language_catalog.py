@@ -107,7 +107,14 @@ def test_library_node_rejects_bad_names_params_and_outputs(node: dict[str, Any],
 
 @pytest.mark.licensed_vectorbt
 def test_starter_kit_lists_the_library_catalogue() -> None:
-    guide = starter_kit()["guide"]
-    assert '{"indicator":"talib:CCI","params":{"timeperiod":20},"output":"real"}' in guide
-    assert "talib:CCI(timeperiod)->real" in guide
-    assert "talib:CDLDOJI()->integer" in guide
+    kit = starter_kit()
+    assert '{"indicator":"talib:CCI","params":{"timeperiod":20},"output":"real"}' in kit["guide"]
+    entries = {entry["name"]: entry for entry in kit["indicators"]}
+    assert len(entries) == len(library_indicators())
+    assert entries["talib:CCI"] == {
+        "name": "talib:CCI",
+        "inputs": ["high", "low", "close"],
+        "params": {"timeperiod": "count"},
+        "outputs": ["real"],
+    }
+    assert entries["talib:CDLDOJI"]["inputs"] == ["open", "high", "low", "close"]
