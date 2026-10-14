@@ -126,3 +126,10 @@ def test_container_data_configuration_satisfies_catalog_contract():
     assert locations.verify_sha256_before_use is True
     assert locations.manifests == Path("/app/data/manifests")
     assert locations.quarantine == locations.root / "quarantine"
+
+
+def test_market_data_topup_skips_the_research_database_entrypoint():
+    compose = (ROOT / "compose.yaml").read_text()
+    service = compose.split("market-data-topup:", 1)[1].split("\nnetworks:", 1)[0]
+    assert "entrypoint: [python, -m, market_data.alpaca_sip_cli]" in service
+    assert "QUANT_FACTORY_DB_PATH" not in service
