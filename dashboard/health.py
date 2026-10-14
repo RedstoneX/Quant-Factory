@@ -160,6 +160,9 @@ def inspect_catalog(
             detail,
         )
 
+    downloaded, downloaded_errors = _load_downloaded_manifests(locations, manifest_dir, manifests)
+    manifests = (*manifests, *downloaded)
+    manifest_errors = (*manifest_errors, *downloaded_errors)
     health: list[DatasetHealth] = []
     for manifest in manifests:
         try:
@@ -432,6 +435,23 @@ def _load_manifests(manifest_dir: Path) -> tuple[tuple[DatasetManifest, ...], tu
         except (OSError, ValueError) as exc:
             errors.append(f"Dataset manifest {path.name} could not be read: {exc}")
     return tuple(manifests), tuple(errors)
+
+
+def _load_downloaded_manifests(
+    locations: DataLocations,
+    manifest_dir: Path,
+    known: tuple[DatasetManifest, ...],
+) -> tuple[tuple[DatasetManifest, ...], tuple[str, ...]]:
+    """Manifests written by downloaders into the data mount, beside the committed ones."""
+    folder = locations.downloaded_manifest_dir
+    if not folder.is_dir() or folder.resolve() == manifest_dir.resolve():
+        return (), ()
+    found, errors = _load_manifests(folder)
+    known_ids = {item.dataset_id for item in known}
+    duplicates = sorted(item.dataset_id for item in found if item.dataset_id in known_ids)
+    if duplicates:
+        errors = (*errors, f"Dataset manifests in both folders (not shown twice): {duplicates}")
+    return tuple(item for item in found if item.dataset_id not in known_ids), errors
 
 
 def _join_errors(errors: Iterable[str]) -> str | None:

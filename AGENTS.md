@@ -28,7 +28,21 @@ strategies, and backtests them. It does not trade.
 - Testable today: MES 5-minute bars with trading costs; history ends 2026-02-13.
 - Other markets have manifests in `data/manifests/` but no cost data, so they
   cannot be tested honestly yet. No options data exists.
-- Downloaded market data lives outside the repo. Never modify or delete it.
+- US stock/ETF library: Alpaca SIP 1-minute bars, 48 symbols in labelled
+  groups in `market_data/alpaca_sip_universe.py` (picked for tight spread,
+  high volume and whole-share price), from 2016 (or listing date),
+  split-adjusted, with pre/post-market bars labelled by a `session` column.
+  Backtests load it by dataset id (`verified_local_catalog:<dataset_id>`,
+  `adjusted=True`) and get the regular session. The list was picked in Oct 2026
+  by recent liquidity, so results carry survivorship bias. No cost data yet.
+- It is topped up nightly at 02:00 UTC by the `market-data-topup` compose
+  service (`python -m market_data.alpaca_sip_cli --all --daily-at 02:00`); a
+  manual run drops `--daily-at`. Its manifests live in the data mount
+  (`downloaded_manifests`, default `<data root>/manifests`), and the catalog
+  reads both that folder and the repo manifests. Resolve its files by dataset
+  id, never by path: each top-up commits a new data slot via its manifest.
+- Downloaded market data lives outside the repo. Never modify or delete it;
+  only that top-up service writes there.
 
 ## How code goes live
 

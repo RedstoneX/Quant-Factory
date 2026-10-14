@@ -84,6 +84,38 @@ services:
       timeout: 10s
       retries: 3
 
+  # Nightly Alpaca SIP one-minute top-up. The CLI stays running and fires daily at
+  # 02:00 UTC (after US post-market closes in both EST and EDT). This is the ONLY
+  # service that mounts market-data read-write; every other service keeps :ro.
+  market-data-topup:
+    image: quant-factory-research:${QF_REVISION:?set QF_REVISION}
+    command: [python, -m, market_data.alpaca_sip_cli, --all, --daily-at, "02:00"]
+    environment:
+      QUANT_FACTORY_DATA_LOCATIONS: /app/config/data_locations.local.toml
+      QF_ALPACA_API_KEY: ${QF_ALPACA_API_KEY:-}
+      QF_ALPACA_SECRET_KEY: ${QF_ALPACA_SECRET_KEY:-}
+      PYTHONUNBUFFERED: "1"
+      HOME: /tmp
+    volumes:
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/market-data:/var/lib/quant-factory/market-data:rw
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/config/data_locations.local.toml:/app/config/data_locations.local.toml:ro
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777
+    cpus: "1.0"
+    mem_limit: 2g
+    pids_limit: 64
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks: [market-data-egress]
+
 networks:
   research-internal:
     internal: true
+  # Outbound internet for the Alpaca download only; research services stay internal.
+  market-data-egress: {}
