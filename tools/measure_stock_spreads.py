@@ -24,7 +24,6 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-import vectorbtpro as vbt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -125,6 +124,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     key, secret = os.environ.get("QF_ALPACA_API_KEY"), os.environ.get("QF_ALPACA_SECRET_KEY")
     if not key or not secret:
         parser.error("QF_ALPACA_API_KEY and QF_ALPACA_SECRET_KEY must be set in the environment")
+    import vectorbtpro as vbt  # licensed; imported here so the helpers load without it
+
     now = datetime.now(tz=ZoneInfo("UTC"))
     sessions = recent_sessions(now)
     spreads = measure(args.symbols, sessions, pull=vbt.AlpacaData.pull,

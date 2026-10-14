@@ -7,9 +7,10 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
+import sys
+
 import pandas as pd
 import pytest
-import vectorbtpro as vbt
 
 _SPEC = importlib.util.spec_from_file_location(
     "measure_stock_spreads", Path(__file__).resolve().parents[1] / "tools" / "measure_stock_spreads.py"
@@ -69,7 +70,8 @@ def test_main_wires_env_credentials_into_vbt_pull(monkeypatch: pytest.MonkeyPatc
         seen.update(kwargs)
         return SimpleNamespace(data={s: _quotes([(99.99, 100.01)]) for s in symbols})
 
-    monkeypatch.setattr(vbt.AlpacaData, "pull", staticmethod(pull))
+    fake_vbt = SimpleNamespace(AlpacaData=SimpleNamespace(pull=pull))
+    monkeypatch.setitem(sys.modules, "vectorbtpro", fake_vbt)
     monkeypatch.setattr(spreads_tool, "recent_sessions", lambda now: SESSIONS)
     monkeypatch.setenv("QF_ALPACA_API_KEY", "k")
     monkeypatch.setenv("QF_ALPACA_SECRET_KEY", "s")
