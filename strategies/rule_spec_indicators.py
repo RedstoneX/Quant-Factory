@@ -1,27 +1,21 @@
-"""Technical indicators for ``qf_rules_v1``, in pure pandas/numpy.
+"""Technical indicators for ``qf_rules_v1``, computed by VectorBT PRO and TA-Lib (no hand-written formulas).
 
-Definitions (value at bar t uses only bars up to and including t):
-- RSI, ATR (Wilder smoothing), ADX / +DI / -DI: J. Welles Wilder, "New Concepts in Technical Trading Systems" (1978).
-- MACD: Gerald Appel; line = EMA(fast) - EMA(slow), signal = EMA(line), histogram = line - signal.
-- Bollinger Bands: John Bollinger; middle = SMA, bands = middle +/- k * POPULATION standard deviation (ddof 0),
-  percent_b = (x - lower) / (upper - lower), bandwidth = (upper - lower) / middle.
-- Stochastic oscillator: George Lane; raw %K = 100 * (close - lowest low) / (highest high - lowest low) over k_length,
-  k = SMA(raw %K, k_smooth) (k_smooth 1 is the fast stochastic), d = SMA(k, d_length).
-- CCI: Donald Lambert (1980); (typical price - SMA) / (0.015 * mean absolute deviation from that SMA).
-- Williams %R: Larry Williams; -100 * (highest high - close) / (highest high - lowest low).
-- ROC: 100 * (x - x[t-length]) / x[t-length].
-- OBV: Joseph Granville (1963); running sum of volume signed by the close-to-close direction.
-  The first bar of a scope adds its whole volume (TA-Lib convention).
-- Keltner channel: middle = EMA(close, length), bands = middle +/- mult * Wilder ATR(atr_length)
-  (Linda Raschke's variant of Chester Keltner's 1960 channel).
-- Donchian channel: Richard Donchian; highest high / lowest low of the last ``length`` bars INCLUDING the current
-  bar, middle = their mean.  For a breakout test compare against the channel one bar back (``prev``).
+Each operator maps to a library call (value at bar t uses only bars up to and including t):
+- rsi, atr, adx: ``vbt.RSI`` / ``vbt.ATR`` / ``vbt.ADX`` (Wilder smoothing; ``vbt.ATR`` with ``wtype="simple"`` for
+  the plain-mean ATR).
+- macd, bollinger, stochastic, obv: ``vbt.MACD``, ``vbt.BBANDS`` (population standard deviation), ``vbt.STOCH``,
+  ``vbt.OBV``.
+- cci, williams_r, roc: TA-Lib ``CCI``, ``WILLR``, ``ROC`` through ``vbt.talib_func``.
+- keltner: middle = ``vbt.MA`` (exponential) of close, bands = middle +/- mult * Wilder ``vbt.ATR``.
+- donchian: rolling highest high / lowest low of the last ``length`` bars INCLUDING the current bar (generic
+  accessor ``rolling_max`` / ``rolling_min``), middle = their mean.  For a breakout test compare against the channel
+  one bar back (``prev``).
 
 Scope: every indicator restarts at each session unless the node says ``across_sessions``, then it runs through the
-bars of earlier traded sessions (overnight gaps included).  An undefined value (not enough bars, or a zero
-denominator) is NaN, which makes comparisons false.  Wilder smoothing is seeded with the plain mean of the first
-``length`` valid values (Wilder's own rule), then ``avg = avg + (value - avg) / length``.  EMA matches the
-existing ``ema`` operator: alpha 2/(length+1), seeded at the first bar, valid after ``length`` bars.
+bars of earlier traded sessions (overnight gaps included).  The library works column by column, so one column per
+session gives the restart.  An undefined value (not enough bars, or a zero denominator) is NaN, which makes
+comparisons false; infinities are turned into NaN.  Seeding, warm-up and zero-range results (TA-Lib gives 0, not NaN, for
+CCI and Williams %R on a flat window) are the library's.
 """
 
 from __future__ import annotations
@@ -31,11 +25,11 @@ from typing import Any, Callable, Mapping
 
 import numpy as np
 import pandas as pd
-from numpy.lib.stride_tricks import sliding_window_view
+import vectorbtpro as vbt
 
 from rule_language.indicators import INDICATORS
 
-_CHUNK_CELLS = 2_000_000
+_RUN = {"hide_params": True}
 
 
 @dataclass(frozen=True)
@@ -47,137 +41,77 @@ class _Inputs:
     volume: pd.DataFrame
 
 
-def _div(numerator: pd.DataFrame, denominator: pd.DataFrame) -> pd.DataFrame:
-    return numerator.div(denominator.where(denominator != 0))
-
-
-def _sma(frame: pd.DataFrame, length: int) -> pd.DataFrame:
-    return frame.rolling(length, min_periods=length).mean()
-
-
-def _ema(frame: pd.DataFrame, length: int) -> pd.DataFrame:
-    return frame.ewm(span=length, adjust=False, min_periods=length).mean()
-
-
-def _wilder(frame: pd.DataFrame, length: int) -> pd.DataFrame:
-    """Wilder smoothing seeded with the mean of the first ``length`` valid rows (NaN before that)."""
-    valid = frame.notna().any(axis=1).to_numpy()
-    seed_row = int(np.argmax(valid)) + length - 1 if valid.any() else len(frame)
-    if seed_row >= len(frame):
-        return pd.DataFrame(np.nan, index=frame.index, columns=frame.columns)
-    seeded = frame.copy()
-    seeded.iloc[:seed_row] = np.nan
-    seeded.iloc[seed_row] = frame.iloc[seed_row - length + 1 : seed_row + 1].mean(skipna=False)
-    return seeded.ewm(alpha=1.0 / length, adjust=False).mean()
-
-
-def _true_range(data: _Inputs, *, first_row_defined: bool) -> pd.DataFrame:
-    previous_close = data.close.shift(1)
-    gaps = np.fmax((data.high - previous_close).abs(), (data.low - previous_close).abs())
-    true_range = pd.DataFrame(np.fmax(data.high - data.low, gaps), index=data.high.index, columns=data.high.columns)
-    if not first_row_defined:
-        true_range.iloc[0] = np.nan
-    return true_range
-
-
-def _rolling_mean_abs_deviation(frame: pd.DataFrame, length: int) -> pd.DataFrame:
-    values = frame.to_numpy(dtype=float)
-    result = np.full(values.shape, np.nan)
-    if values.shape[0] >= length:
-        windows = sliding_window_view(values, length, axis=0)
-        step = max(1, _CHUNK_CELLS // max(1, values.shape[1] * length))
-        for start in range(0, windows.shape[0], step):
-            chunk = windows[start : start + step]
-            deviation = np.abs(chunk - chunk.mean(axis=2, keepdims=True)).mean(axis=2)
-            result[length - 1 + start : length - 1 + start + len(chunk)] = deviation
-    return pd.DataFrame(result, index=frame.index, columns=frame.columns)
+def _atr(data: _Inputs, length: int, wtype: str) -> pd.DataFrame:
+    return vbt.ATR.run(data.high, data.low, data.close, window=length, wtype=wtype, **_RUN).atr
 
 
 def wilder_atr(data: _Inputs, length: int) -> pd.DataFrame:
-    return _wilder(_true_range(data, first_row_defined=True), length)
+    return _atr(data, length, "wilder")
 
 
 def _rsi(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    change = data.x.diff()
-    gain, loss = _wilder(change.clip(lower=0.0), p["length"]), _wilder((-change).clip(lower=0.0), p["length"])
-    return {"value": 100.0 * _div(gain, gain + loss)}
+    return {"value": vbt.RSI.run(data.x, window=p["length"], wtype="wilder", **_RUN).rsi}
 
 
 def _roc(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    previous = data.x.shift(p["length"])
-    return {"value": 100.0 * _div(data.x - previous, previous)}
+    return {"value": vbt.talib_func("ROC")(data.x, timeperiod=p["length"])}
 
 
 def _macd(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    line = _ema(data.x, p["fast"]) - _ema(data.x, p["slow"])
-    signal = _ema(line, p["signal"])
-    return {"line": line, "signal": signal, "histogram": line - signal}
+    run = vbt.MACD.run(data.x, fast_window=p["fast"], slow_window=p["slow"], signal_window=p["signal"], **_RUN)
+    return {"line": run.macd, "signal": run.signal, "histogram": run.hist}
 
 
 def _bollinger(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    middle = _sma(data.x, p["length"])
-    deviation = p["std_mult"] * data.x.rolling(p["length"], min_periods=p["length"]).std(ddof=0)
-    upper, lower = middle + deviation, middle - deviation
+    run = vbt.BBANDS.run(data.x, window=p["length"], alpha=p["std_mult"], **_RUN)
     return {
-        "upper": upper,
-        "middle": middle,
-        "lower": lower,
-        "percent_b": _div(data.x - lower, upper - lower),
-        "bandwidth": _div(upper - lower, middle),
+        "upper": run.upper,
+        "middle": run.middle,
+        "lower": run.lower,
+        "percent_b": run.percent_b,
+        "bandwidth": run.bandwidth,
     }
 
 
-def _channel(data: _Inputs, length: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-    return (
-        data.high.rolling(length, min_periods=length).max(),
-        data.low.rolling(length, min_periods=length).min(),
-    )
-
-
 def _stochastic(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    highest, lowest = _channel(data, p["k_length"])
-    raw = 100.0 * _div(data.close - lowest, highest - lowest)
-    k = _sma(raw, p["k_smooth"])
-    return {"k": k, "d": _sma(k, p["d_length"])}
+    run = vbt.STOCH.run(
+        data.high,
+        data.low,
+        data.close,
+        fast_k_window=p["k_length"],
+        slow_k_window=p["k_smooth"],
+        slow_d_window=p["d_length"],
+        **_RUN,
+    )
+    return {"k": run.slow_k, "d": run.slow_d}
 
 
 def _adx(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    length = p["length"]
-    up, down = data.high.diff(), -data.low.diff()
-    plus_dm = up.where((up > down) & (up > 0), 0.0).where(up.notna())
-    minus_dm = down.where((down > up) & (down > 0), 0.0).where(down.notna())
-    smoothed_range = _wilder(_true_range(data, first_row_defined=False), length)
-    plus_di = 100.0 * _div(_wilder(plus_dm, length), smoothed_range)
-    minus_di = 100.0 * _div(_wilder(minus_dm, length), smoothed_range)
-    dx = 100.0 * _div((plus_di - minus_di).abs(), plus_di + minus_di)
-    return {"adx": _wilder(dx, length), "plus_di": plus_di, "minus_di": minus_di}
+    run = vbt.ADX.run(data.high, data.low, data.close, window=p["length"], **_RUN)
+    return {"adx": run.adx, "plus_di": run.plus_di, "minus_di": run.minus_di}
 
 
 def _cci(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    typical = (data.high + data.low + data.close) / 3.0
-    deviation = _rolling_mean_abs_deviation(typical, p["length"])
-    return {"value": _div(typical - _sma(typical, p["length"]), 0.015 * deviation)}
+    return {"value": vbt.talib_func("CCI")(data.high, data.low, data.close, timeperiod=p["length"])}
 
 
 def _williams_r(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    highest, lowest = _channel(data, p["length"])
-    return {"value": -100.0 * _div(highest - data.close, highest - lowest)}
+    return {"value": vbt.talib_func("WILLR")(data.high, data.low, data.close, timeperiod=p["length"])}
 
 
 def _obv(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    direction = np.sign(data.close.diff())
-    direction.iloc[0] = 1.0
-    return {"value": (direction * data.volume).cumsum()}
+    return {"value": vbt.OBV.run(data.close, data.volume, **_RUN).obv}
 
 
 def _keltner(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    middle = _ema(data.close, p["length"])
+    middle = vbt.MA.run(data.close, window=p["length"], wtype="exp", **_RUN).ma
     band = p["mult"] * wilder_atr(data, p["atr_length"])
     return {"upper": middle + band, "middle": middle, "lower": middle - band}
 
 
 def _donchian(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    upper, lower = _channel(data, p["length"])
+    length = p["length"]
+    upper, lower = data.high.vbt.rolling_max(length, minp=length), data.low.vbt.rolling_min(length, minp=length)
     return {"upper": upper, "lower": lower, "middle": (upper + lower) / 2.0}
 
 
@@ -208,6 +142,7 @@ class _Scope:
 
     def array(self, frame: pd.DataFrame) -> np.ndarray:
         values = frame.to_numpy(dtype=float)
+        values = np.where(np.isinf(values), np.nan, values)
         return values.reshape(self.shape, order="F") if self.across else values
 
 
@@ -243,9 +178,7 @@ def atr_series(evaluator: Any, node: Mapping[str, Any]) -> np.ndarray:
         return evaluator.atr(length)
     scope = _Scope(evaluator.shape, across)
     data = _inputs(evaluator, scope, None)
-    if smoothing == "wilder":
-        return scope.array(wilder_atr(data, length))
-    return scope.array(_sma(_true_range(data, first_row_defined=True), length))
+    return scope.array(_atr(data, length, "wilder" if smoothing == "wilder" else "simple"))
 
 
 __all__ = ["atr_series", "indicator_series", "wilder_atr"]

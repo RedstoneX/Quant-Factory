@@ -1,4 +1,4 @@
-"""Technical indicators in qf_rules_v1: hand computations, causality, validation, unchanged older specs."""
+"""Technical indicators in qf_rules_v1 (VectorBT PRO / TA-Lib): hand computations, causality, validation, unchanged older specs."""
 
 from __future__ import annotations
 
@@ -70,13 +70,13 @@ def _ema(values: list, n: int) -> list:
 
 
 def _wilder(values: list, n: int) -> list:
+    """VectorBT's Wilder smoothing: seeded with the first valid value, reported once n valid values were seen."""
     out = [None] * len(values)
     first = next((i for i, v in enumerate(values) if v is not None), len(values))
-    if first + n > len(values):
-        return out
-    out[first + n - 1] = sum(values[first : first + n]) / n
-    for i in range(first + n, len(values)):
-        out[i] = (out[i - 1] * (n - 1) + values[i]) / n
+    current = None
+    for i in range(first, len(values)):
+        current = values[i] if current is None else (current * (n - 1) + values[i]) / n
+        out[i] = current if i >= first + n - 1 else None
     return out
 
 
@@ -143,7 +143,7 @@ def _ref_stochastic(k_length: int, k_smooth: int, d_length: int) -> dict:
 
 def _ref_adx(n: int) -> dict:
     size = len(CLOSE)
-    plus, minus = [None] * size, [None] * size
+    plus, minus = [0.0] * size, [0.0] * size  # vbt counts the first bar as zero movement
     for i in range(1, size):
         up, down = HIGH[i] - HIGH[i - 1], LOW[i - 1] - LOW[i]
         plus[i] = up if up > down and up > 0 else 0.0
@@ -178,7 +178,7 @@ def _ref_obv() -> list:
 
 
 def _ref_keltner(n: int, atr_length: int, mult: float) -> dict:
-    middle, atr = _ema(CLOSE, n), _wilder(_true_range(True), atr_length)
+    middle, atr = _ema(CLOSE, n), _wilder(_true_range(False), atr_length)
     return {
         "upper": [None if m is None or a is None else m + mult * a for m, a in zip(middle, atr)],
         "middle": middle,
@@ -212,7 +212,7 @@ CASES = [
     ({"obv": {}}, _ref_obv()),
     *[({"keltner": {}, "length": 3, "atr_length": 2, "mult": 1.5, "output": k}, v) for k, v in _ref_keltner(3, 2, 1.5).items()],
     *[({"donchian": {}, "length": 4, "output": k}, v) for k, v in _ref_donchian(4).items()],
-    ({"atr": {"length": 3, "smoothing": "wilder"}}, _wilder(_true_range(True), 3)),
+    ({"atr": {"length": 3, "smoothing": "wilder"}}, _wilder(_true_range(False), 3)),
 ]
 
 

@@ -20,6 +20,7 @@ requests==2.34.2
 PyYAML==6.0.3
 sqlalchemy==2.0.51
 yfinance==1.5.1
+TA-Lib==0.8.2
 # Match the locally validated numerical engine when building on the target.
 numba==0.66.0
 llvmlite==0.48.0
