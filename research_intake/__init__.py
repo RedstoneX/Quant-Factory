@@ -42,3 +42,7 @@ __all__ += [
     "build_research_context",
     "export_research_context",
 ]
+
+from research_intake.starter_kit import starter_kit
+
+__all__ += ["starter_kit"]

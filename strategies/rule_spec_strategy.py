@@ -1,9 +1,14 @@
 """One generic strategy compiled from a validated ``qf_rules_v1`` rule spec.
 
 A definition is immutable JSON data (never code): its ID is a hash of the
-normalized rule spec, the variables and the compiler version.  Definitions are
-installed once as ``<root>/<strategy_id>.json`` and loaded lazily by
-``strategies.get_strategy``.  Nothing here marks an idea as owner-approved.
+normalized rule spec, the variables and the compiler version, and the stored
+definition holds exactly that content (no candidate ID, no title), so two ideas
+with identical rules share one strategy.  Definitions are installed once as
+``<root>/<strategy_id>.json`` and loaded lazily by ``strategies.get_strategy``.
+
+Approval here is for BACKTESTING only (owner standing policy, see
+``BACKTEST_APPROVAL_PROVENANCE``).  Paper trading is decided elsewhere and
+never reads ``approval_state``.
 """
 
 from __future__ import annotations
@@ -38,7 +43,12 @@ RULE_STRATEGY_PREFIX = "rules_"
 RULE_STRATEGY_ROOT_ENV = "QF_RULE_STRATEGY_ROOT"
 ARTIFACT_ROOT_ENV = "QUANT_FACTORY_ARTIFACT_ROOT"
 
-_DEFINITION_KEYS = frozenset({"strategy_id", "version", "candidate_id", "title", "rule_spec", "variables"})
+BACKTEST_APPROVAL_PROVENANCE = (
+    "Owner standing policy 2026-10-13: auto-test every valid idea; backtesting only; "
+    "paper trading requires separate owner approval."
+)
+_DEFINITION_KEYS = frozenset({"strategy_id", "version", "rule_spec", "variables"})
+_LEGACY_KEYS = ("candidate_id", "title")
 _STRATEGY_ID = re.compile(r"rules_[0-9a-f]{16}")
 _REQUIRED_FIELDS = ("Open", "High", "Low", "Close", "Volume")
 _FIVE_MINUTES = pd.Timedelta(minutes=5)
@@ -48,11 +58,17 @@ _LOCK = threading.Lock()
 
 
 def rule_strategy_definition(
-    *, candidate_id: str, title: str, rule_spec: Mapping[str, Any], variables: Mapping[str, Any]
+    *,
+    rule_spec: Mapping[str, Any],
+    variables: Mapping[str, Any],
+    candidate_id: str | None = None,
+    title: str | None = None,
 ) -> dict[str, Any]:
-    """Validate a rule spec (raising RuleSpecError) and return its immutable definition."""
-    candidate = _required_text(candidate_id, "candidate_id")
-    name = _required_text(title, "title")
+    """Validate a rule spec (raising RuleSpecError) and return its immutable definition.
+
+    ``candidate_id`` and ``title`` are accepted for caller compatibility but are
+    deliberately not stored: the definition is exactly what the ID hashes.
+    """
     normalized_variables = _normalized_variables(variables)
     spec = validate_rule_spec(rule_spec, variables=normalized_variables)
     payload = canonical_rule_spec_json(
@@ -61,17 +77,9 @@ def rule_strategy_definition(
     return {
         "strategy_id": RULE_STRATEGY_PREFIX + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16],
         "version": RULE_COMPILER_VERSION,
-        "candidate_id": candidate,
-        "title": name,
         "rule_spec": spec,
         "variables": normalized_variables,
     }
-
-
-def _required_text(value: Any, field: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field} must be a non-empty string")
-    return value.strip()
 
 
 def _normalized_variables(variables: Mapping[str, Any] | None) -> dict[str, dict[str, list[Any]]]:
@@ -89,7 +97,15 @@ def _normalized_variables(variables: Mapping[str, Any] | None) -> dict[str, dict
     return normalized
 
 
+def _without_legacy_keys(definition: Any) -> Any:
+    """Drop the candidate_id/title keys older installed files carried; the ID never covered them."""
+    if isinstance(definition, Mapping):
+        return {key: value for key, value in definition.items() if key not in _LEGACY_KEYS}
+    return definition
+
+
 def _checked_definition(definition: Any) -> dict[str, Any]:
+    definition = _without_legacy_keys(definition)
     if not isinstance(definition, Mapping) or set(definition) != _DEFINITION_KEYS:
         raise ValueError(f"A rule strategy definition must have exactly the keys {sorted(_DEFINITION_KEYS)}")
     if definition["version"] != RULE_COMPILER_VERSION:
@@ -98,8 +114,6 @@ def _checked_definition(definition: Any) -> dict[str, Any]:
             f"{definition['version']!r}; this compiler is {RULE_COMPILER_VERSION}"
         )
     rebuilt = rule_strategy_definition(
-        candidate_id=definition["candidate_id"],
-        title=definition["title"],
         rule_spec=definition["rule_spec"],
         variables=definition["variables"],
     )
@@ -111,7 +125,7 @@ def _checked_definition(definition: Any) -> dict[str, Any]:
     return rebuilt
 
 
-def _parameter_definition(name: str, values: list[Any], candidate_id: str) -> ParameterDefinition:
+def _parameter_definition(name: str, values: list[Any]) -> ParameterDefinition:
     integers = all(isinstance(value, int) and not isinstance(value, bool) for value in values)
     candidates = tuple(values) if integers else tuple(float(value) for value in values)
     grid = len(candidates) > 1
@@ -124,9 +138,10 @@ def _parameter_definition(name: str, values: list[Any], candidate_id: str) -> Pa
         allowed_values=candidates,
         classification="bounded_discrete" if grid else "fixed",
         reference_value=candidates[0],
-        source=f"qf_candidate_v1 variables of Candidate {candidate_id}",
+        source=BACKTEST_APPROVAL_PROVENANCE,
         rationale="Bounded values declared by the Candidate packet; the compiler never tunes them.",
         expected_grid_contribution=len(candidates) if grid else None,
+        approval_state="approved",
     )
 
 
@@ -139,14 +154,14 @@ def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
     exit_rules = spec["exit"]
     sides = {signal["side"] if isinstance(signal["side"], str) else "both" for signal in spec["signals"]}
     after_bars = exit_rules.get("after_bars")
-    candidate_id = definition["candidate_id"]
+    strategy_id = definition["strategy_id"]
     return StrategySpecification(
         identity=StrategyIdentity(
-            strategy_id=definition["strategy_id"],
-            name=definition["title"],
+            strategy_id=strategy_id,
+            name=f"Rule strategy {strategy_id}",
             family="rule_spec",  # type: ignore[arg-type]
             version=definition["version"],
-            description=f"{RULE_LANGUAGE} rules compiled from Candidate {candidate_id}.",
+            description=f"{RULE_LANGUAGE} rules compiled by rule compiler {RULE_COMPILER_VERSION}.",
             direction=next(iter(sides)) if len(sides) == 1 else "both",  # type: ignore[arg-type]
         ),
         data=DataRequirements(
@@ -157,7 +172,7 @@ def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
             adjusted_prices=False,
         ),
         parameters=tuple(
-            _parameter_definition(name, variable["values"], candidate_id)
+            _parameter_definition(name, variable["values"])
             for name, variable in definition["variables"].items()
         ),
         assumptions=TradingAssumptions(
@@ -172,8 +187,9 @@ def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
             pyramiding=False,
             same_bar_limitation="No same-bar entry and exit and no same-bar reversal; signals fill at the next open.",
         ),
-        hypothesis=f"Rules of Candidate {candidate_id}: {definition['title']}",
-        source=f"{RULE_LANGUAGE} rule_spec of Candidate {candidate_id} (rule compiler {RULE_COMPILER_VERSION})",
+        hypothesis=f"Declarative {RULE_LANGUAGE} rules of strategy {strategy_id}, backtested as submitted; no edge is claimed.",
+        source=BACKTEST_APPROVAL_PROVENANCE,
+        approval_state="approved",
     )
 
 
@@ -336,7 +352,6 @@ def compile_rule_signals(
         "rule_language": RULE_LANGUAGE,
         "rule_compiler_version": RULE_COMPILER_VERSION,
         "strategy_id": definition["strategy_id"],
-        "candidate_id": definition["candidate_id"],
         "sessions_traded": len(sessions),
         "sessions_in_schedule": 0 if schedule is None else len(schedule),
         "entries_skipped_without_valid_stop_distance": skipped,
@@ -398,7 +413,7 @@ def install_rule_strategy(
     text = _definition_text(strategy.definition)
     if path.exists():
         try:
-            existing = canonical_rule_spec_json(json.loads(path.read_text(encoding="utf-8")))
+            existing = canonical_rule_spec_json(_without_legacy_keys(json.loads(path.read_text(encoding="utf-8"))))
         except (OSError, ValueError) as exc:
             raise ValueError(f"Installed rule strategy {path} is unreadable; it is never overwritten") from exc
         if existing != canonical_rule_spec_json(strategy.definition):

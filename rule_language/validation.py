@@ -118,7 +118,23 @@ def validate_rule_spec(spec: Any, *, variables: Mapping[str, Any] | None) -> dic
             f"variables.{unused[0]}",
             f'is declared but rule_spec never uses it; reference it with {{"param": "{unused[0]}"}} or remove it',
         )
+    _check_grid_size(variables)
     return normalized
+
+
+def _check_grid_size(variables: Mapping[str, Any]) -> None:
+    """Reject a variable grid (product of value counts) above the governance warning threshold."""
+    from strategies.parameter_governance import PROVISIONAL_GRID_WARNING_THRESHOLD  # lazy: avoids an import cycle
+
+    combinations = 1
+    for definition in variables.values():
+        combinations *= len(definition["values"])
+    if combinations > PROVISIONAL_GRID_WARNING_THRESHOLD:
+        raise RuleSpecError(
+            "variables",
+            f"grid has {combinations} combinations (product of each variable's value count); "
+            f"the limit is {PROVISIONAL_GRID_WARNING_THRESHOLD}. Remove values or variables",
+        )
 
 
 def _check_size(spec: Mapping[str, Any]) -> None:

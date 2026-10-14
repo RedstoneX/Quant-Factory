@@ -165,18 +165,17 @@ def test_golden_mes_sma_10_30_matches_hand_written_candidate() -> None:
     assert compiled.stop_loss is None and compiled.take_profit is None
 
 
-def test_definition_and_parameter_plan_never_claim_approval() -> None:
+def test_definition_is_exactly_the_hashed_content_and_approved_for_backtests_only() -> None:
     spec = _spec([{"when": {"gt": ["close", {"sma": "close", "length": {"param": "fast"}}]}, "side": "long"}])
     definition = rule_strategy_definition(candidate_id="c1", title="T", rule_spec=spec, variables={"fast": {"values": [5, 10]}})
-    assert set(definition) == {"strategy_id", "version", "candidate_id", "title", "rule_spec", "variables"}
+    assert set(definition) == {"strategy_id", "version", "rule_spec", "variables"}
     assert definition["strategy_id"].startswith("rules_") and len(definition["strategy_id"]) == 22
     assert definition["version"] == RULE_COMPILER_VERSION
     strategy = RuleSpecStrategy(definition)
-    assert strategy.spec.approval_state == "draft"
+    assert strategy.spec.approval_state == "approved"
     assert [p.allowed_values for p in strategy.spec.parameters] == [(5, 10)]
     assert summarize_parameter_plan(strategy.spec).total_combinations == 2
-    with pytest.raises(ValueError, match="not approved"):
-        summarize_parameter_plan(strategy.spec, require_approved=True)
+    assert summarize_parameter_plan(strategy.spec, require_approved=True).total_combinations == 2
     assert strategy.validate_parameters({"fast": 10}) == {"fast": 10}
     for bad in ({}, {"fast": 7}, {"fast": 5, "slow": 1}):
         with pytest.raises((TypeError, ValueError)):
@@ -193,10 +192,10 @@ def test_install_writes_once_refuses_changes_and_get_strategy_loads_lazily(tmp_p
     path = tmp_path / f"{strategy_id}.json"
     assert json.loads(path.read_text(encoding="utf-8")) == definition
     assert install_rule_strategy(definition, root=tmp_path) is installed
-    changed = dict(definition, title="Renamed")
-    with pytest.raises(ValueError, match="immutable"):
+    changed = dict(definition, rule_spec=dict(definition["rule_spec"], max_trades_per_session=3))
+    with pytest.raises(ValueError):
         install_rule_strategy(changed, root=tmp_path)
-    assert json.loads(path.read_text(encoding="utf-8"))["title"] == "Install"
+    assert json.loads(path.read_text(encoding="utf-8")) == definition
     assert get_strategy(strategy_id) is installed
 
     lazy_spec = _spec([{"when": {"time_is": "10:15"}, "side": "long"}], tick_size=0.125, max_trades_per_session=3)
