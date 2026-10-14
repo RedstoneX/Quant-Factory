@@ -133,15 +133,15 @@ def _install_portable_runner_boundaries(
     )
     monkeypatch.setattr(
         runner_module,
-        "extract_metrics",
-        lambda portfolio: {
+        "extract_sweep_metrics",
+        lambda portfolio, count, **kwargs: count * [{
             "total_return": 0.10,
             "annualized_return": 0.10,
             "sharpe_ratio": 1.0,
             "max_drawdown": -0.10,
             "number_of_trades": 20,
             "win_rate": 0.50,
-        },
+        }],
     )
 
 

@@ -133,15 +133,15 @@ def _install_portable_runner_boundaries(
     )
     monkeypatch.setattr(
         runner_module,
-        "extract_metrics",
-        lambda portfolio, **kwargs: {
+        "extract_sweep_metrics",
+        lambda portfolio, count, **kwargs: count * [{
             "total_return": 0.10,
             "annualized_return": 0.10,
             "sharpe_ratio": 1.0,
             "max_drawdown": -0.10,
             "number_of_trades": 20,
             "win_rate": 0.50,
-        },
+        }],
     )
 
 
@@ -540,15 +540,15 @@ def test_ranking_is_deterministic_on_ties(
     )
     monkeypatch.setattr(
         runner_module,
-        "extract_metrics",
-        lambda portfolio, **kwargs: {
+        "extract_sweep_metrics",
+        lambda portfolio, count, **kwargs: count * [{
             "total_return": 1.0,
             "annualized_return": 1.0,
             "sharpe_ratio": 1.0,
             "max_drawdown": -0.1,
             "number_of_trades": 1,
             "win_rate": 1.0,
-        },
+        }],
     )
     data = _data()
     first = execute_experiment(config, data, _audit(data), write_output=False)

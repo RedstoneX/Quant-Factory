@@ -154,9 +154,35 @@ class _Portfolio:
     @classmethod
     def from_signals(cls, *, close, entries, exits, price, **kwargs):
         cls.calls.append(dict(kwargs, entries=entries, exits=exits, price=price))
-        return _Column(
-            close, entries, exits, price, kwargs.get("sl_stop"), kwargs.get("tp_stop")
+        if not isinstance(entries, pd.DataFrame):
+            return _Column(
+                close, entries, exits, price, kwargs.get("sl_stop"), kwargs.get("tp_stop")
+            )
+        column = lambda frame, position: None if frame is None else frame.iloc[:, position]  # noqa: E731
+        return _Sweep(
+            [
+                _Column(
+                    close,
+                    entries.iloc[:, position],
+                    exits.iloc[:, position],
+                    price.iloc[:, position],
+                    column(kwargs.get("sl_stop"), position),
+                    column(kwargs.get("tp_stop"), position),
+                )
+                for position in range(entries.shape[1])
+            ]
         )
+
+
+class _Sweep:
+    """One column per setting: each property holds one value per column, like VectorBT."""
+
+    def __init__(self, columns: list[_Column]) -> None:
+        self.value = pd.concat([column.value for column in columns], axis=1)
+        for name in ("total_return", "annualized_return", "sharpe_ratio", "max_drawdown"):
+            setattr(self, name, pd.Series([getattr(column, name) for column in columns]))
+        self.trades = _Trades(pd.Series([column.trades.count() for column in columns]))
+        self.trades.win_rate = pd.Series([column.trades.win_rate for column in columns])
 
 
 @pytest.fixture
