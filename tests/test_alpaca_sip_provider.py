@@ -1,9 +1,11 @@
-"""Alpaca SIP provider tests against a scripted HTTP layer (no network, no credentials)."""
+"""Alpaca SIP provider tests with ``vbt.AlpacaData.fetch_symbol`` faked (no network, no credentials)."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 from typing import Any
 
 import pandas as pd
@@ -15,9 +17,7 @@ from market_data.providers.alpaca_sip import (
     AlpacaSipError,
     AlpacaSipProvider,
     AlpacaSipValidationError,
-    RequestThrottle,
     SipDataset,
-    bars_to_frame,
     credentials_from_environment,
     mark_sessions,
 )
@@ -25,36 +25,33 @@ from market_data.providers.alpaca_sip import (
 CREDENTIALS = AlpacaCredentials(key_id="test-key-id", secret_key="test-secret-value")
 
 
-class Reply:
-    def __init__(self, status_code: int, payload: Any = None, headers: dict[str, str] | None = None):
-        self.status_code = status_code
-        self.payload = payload
-        self.headers = headers or {}
-        self.text = ""
+class ApiError(Exception):
+    """Shaped like alpaca-py's APIError: a message plus an HTTP status."""
 
-    def json(self) -> Any:
-        return self.payload
+    def __init__(self, message: str, status_code: int):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class BarServer:
-    """Serves stored bars filtered by start/end, paginated with small pages."""
+    """Stands in for ``vbt.AlpacaData``: serves stored bars in [start, end) as VectorBT does."""
 
-    def __init__(self, bars: list[dict[str, Any]], page_size: int = 2):
-        self.bars = bars
-        self.page_size = page_size
+    def __init__(self, bars: list[dict[str, Any]], page_size: int | None = None):
+        self.bars = bars  # page_size is ignored: alpaca-py pages; kept for tests that import this
         self.calls: list[dict[str, Any]] = []
-        self.queued: list[Reply] = []
+        self.queued: list[Exception] = []
 
-    def get(self, url: str, *, headers: dict[str, str], params: dict[str, Any], timeout: float) -> Reply:
-        self.calls.append({"url": url, "headers": dict(headers), "params": dict(params)})
+    def fetch_symbol(self, symbol: str, **kwargs: Any) -> tuple[pd.DataFrame, dict[str, Any]]:
+        self.calls.append({"symbol": symbol, **kwargs})
         if self.queued:
-            return self.queued.pop(0)
-        start, end = pd.Timestamp(params["start"]), pd.Timestamp(params["end"])
-        hits = [bar for bar in self.bars if start <= pd.Timestamp(bar["t"]) <= end]
-        offset = int(params.get("page_token") or 0)
-        page = hits[offset : offset + self.page_size]
-        more = offset + self.page_size < len(hits)
-        return Reply(200, {"bars": page, "next_page_token": str(offset + self.page_size) if more else None})
+            raise self.queued.pop(0)
+        start, end = pd.Timestamp(kwargs["start"]), pd.Timestamp(kwargs["end"])
+        hits = [bar for bar in self.bars if start <= pd.Timestamp(bar["t"]) < end]
+        if not hits:
+            return pd.DataFrame(), {}
+        index = pd.DatetimeIndex([pd.Timestamp(bar["t"]) for bar in hits], name="Open time")
+        columns = {"Open": "o", "High": "h", "Low": "l", "Close": "c", "Volume": "v", "Trade count": "n", "VWAP": "vw"}
+        return pd.DataFrame({name: [bar[key] for bar in hits] for name, key in columns.items()}, index=index), {}
 
 
 def bar(ts: str, price: float = 100.0, **overrides: Any) -> dict[str, Any]:
@@ -78,15 +75,12 @@ def locations(tmp_path: Path) -> DataLocations:
     )
 
 
-def provider(tmp_path: Path, server: BarServer, now: str = "2026-10-14T12:00:00Z", sleeps: list | None = None):
-    record = sleeps if sleeps is not None else []
+def provider(tmp_path: Path, server: BarServer, now: str = "2026-10-14T12:00:00Z"):
     return AlpacaSipProvider(
         credentials=CREDENTIALS,
         locations=locations(tmp_path),
-        client=server,
-        throttle=RequestThrottle(1000, sleep=record.append),
-        sleep=record.append,
         now=lambda: pd.Timestamp(now),
+        alpaca_data=server,
     )
 
 
@@ -99,25 +93,26 @@ def stored_path(tmp_path: Path, symbol: str = "SPY") -> Path:
     return tmp_path / "root" / manifest["canonical_relative_path"]
 
 
-def test_pagination_split_adjustment_and_sip_feed_are_requested(tmp_path):
-    server = BarServer(DAY_ONE + DAY_TWO, page_size=2)
+def test_split_adjustment_sip_feed_and_inclusive_end_are_requested(tmp_path):
+    server = BarServer(DAY_ONE + DAY_TWO)
     frame = provider(tmp_path, server).fetch(
-        "SPY", pd.Timestamp("2026-10-12T00:00Z"), pd.Timestamp("2026-10-14T00:00Z")
+        "SPY", pd.Timestamp("2026-10-12T00:00Z"), pd.Timestamp("2026-10-13T20:30Z")
     )
-    assert len(frame) == 5
-    assert len(server.calls) == 3
-    assert "page_token" not in server.calls[0]["params"]
-    assert [call["params"].get("page_token") for call in server.calls[1:]] == ["2", "4"]
-    params = server.calls[0]["params"]
-    assert params["adjustment"] == "split"
-    assert params["feed"] == "sip"
-    assert params["timeframe"] == "1Min"
-    assert params["limit"] == 10_000
-    assert server.calls[0]["url"].endswith("/v2/stocks/SPY/bars")
-    assert server.calls[0]["headers"]["APCA-API-KEY-ID"] == "test-key-id"
+    assert len(frame) == 5  # the bar stamped exactly at ``end`` is kept
+    assert list(frame.columns) == [
+        "timestamp", "open", "high", "low", "close", "volume", "trade_count", "vwap", "session"
+    ]
+    assert str(frame["timestamp"].dtype) == "datetime64[ns, UTC]"
+    assert str(frame["trade_count"].dtype) == "Int64"
+    assert len(server.calls) == 1
+    call = server.calls[0]
+    assert (call["symbol"], call["client_type"], call["timeframe"]) == ("SPY", "stocks", "1m")
+    assert (call["feed"], call["adjustment"], call["sort"]) == ("sip", "split", "asc")
+    assert call["end"] == pd.Timestamp("2026-10-13T20:31Z")
+    assert call["client_config"] == {"api_key": "test-key-id", "secret_key": "test-secret-value"}
 
 
-def test_sessions_marked_including_early_close_and_closed_days():
+def test_sessions_marked_including_early_close_and_closed_days(tmp_path):
     raw = [
         bar("2026-10-12T12:00:00Z"),  # 08:00 ET pre-market
         bar("2026-10-12T13:30:00Z"),  # open
@@ -126,42 +121,23 @@ def test_sessions_marked_including_early_close_and_closed_days():
         bar("2025-11-28T18:30:00Z"),  # 13:30 ET after the 13:00 early close
         bar("2026-10-10T15:00:00Z"),  # Saturday
     ]
-    sessions = mark_sessions(bars_to_frame(raw))["session"].tolist()
-    assert sessions == ["pre", "regular", "regular", "post", "post", "closed"]
-
-
-def test_throttle_sleeps_when_window_is_full():
-    clock = [0.0]
-    sleeps: list[float] = []
-
-    def sleep(seconds: float) -> None:
-        sleeps.append(seconds)
-        clock[0] += seconds
-
-    throttle = RequestThrottle(3, clock=lambda: clock[0], sleep=sleep)
-    for _ in range(3):
-        throttle.wait()
-        clock[0] += 1.0
-    assert sleeps == []
-    throttle.wait()
-    assert sleeps == [57.0]
-
-
-def test_retries_429_and_5xx_then_succeeds(tmp_path):
-    server = BarServer([])
-    server.queued = [Reply(429, {"message": "too many"}, {"Retry-After": "2"}), Reply(503, {}), Reply(200, {"bars": [bar("2026-10-12T13:30:00Z")]})]
-    sleeps: list[float] = []
-    frame = provider(tmp_path, server, sleeps=sleeps).fetch(
-        "SPY", pd.Timestamp("2026-10-12T00:00Z"), pd.Timestamp("2026-10-13T00:00Z")
+    frame = provider(tmp_path, BarServer(raw)).fetch(
+        "SPY", pd.Timestamp("2025-01-01T00:00Z"), pd.Timestamp("2026-10-13T00:00Z")
     )
-    assert len(frame) == 1
-    assert len(server.calls) == 3
-    assert sleeps == [2.0, 2.0]
+    assert frame["session"].tolist() == ["pre", "regular", "regular", "post", "post", "closed"]
 
 
-def test_non_retryable_error_fails_without_leaking_credentials(tmp_path):
+def test_default_source_is_vbt_alpaca_data_loaded_lazily(tmp_path, monkeypatch):
+    server = BarServer(DAY_ONE)
+    monkeypatch.setitem(sys.modules, "vectorbtpro", SimpleNamespace(AlpacaData=server))
+    sip = AlpacaSipProvider(credentials=CREDENTIALS, locations=locations(tmp_path))
+    frame = sip.fetch("SPY", pd.Timestamp("2026-10-12T00:00Z"), pd.Timestamp("2026-10-13T00:00Z"))
+    assert (len(frame), len(server.calls)) == (3, 1)
+
+
+def test_library_error_fails_without_leaking_credentials(tmp_path):
     server = BarServer([])
-    server.queued = [Reply(403, {"message": "forbidden"})]
+    server.queued = [ApiError('{"message":"forbidden"}', 403)]
     with pytest.raises(AlpacaSipError) as raised:
         provider(tmp_path, server).fetch("SPY", pd.Timestamp("2026-10-12T00:00Z"), pd.Timestamp("2026-10-13T00:00Z"))
     assert "HTTP 403" in str(raised.value)
@@ -169,20 +145,12 @@ def test_non_retryable_error_fails_without_leaking_credentials(tmp_path):
     assert len(server.calls) == 1
 
 
-def test_retries_exhausted_raise(tmp_path):
-    server = BarServer([])
-    server.queued = [Reply(500, {})] * 6
-    with pytest.raises(AlpacaSipError, match="HTTP 500"):
-        provider(tmp_path, server).fetch("SPY", pd.Timestamp("2026-10-12T00:00Z"), pd.Timestamp("2026-10-13T00:00Z"))
-    assert len(server.calls) == 6
-
-
 def test_full_then_incremental_then_idempotent(tmp_path):
-    server = BarServer(list(DAY_ONE), page_size=10)
+    server = BarServer(list(DAY_ONE))
     first = provider(tmp_path, server, now="2026-10-12T23:00:00Z").top_up("SPY")
     assert (first.status, first.row_count) == ("full", 3)
-    assert server.calls[0]["params"]["start"] == "2016-01-01T05:00:00Z"
-    assert server.calls[0]["params"]["end"] == "2026-10-12T22:39:00Z"
+    assert server.calls[0]["start"] == pd.Timestamp("2016-01-01T05:00:00Z")
+    assert server.calls[0]["end"] == pd.Timestamp("2026-10-12T22:40:00Z")  # 22:39 inclusive
     slot_a = stored_path(tmp_path)
     assert slot_a.name == "SPY_1m_alpaca_sip.a.parquet"
     assert manifest_file(tmp_path).parent == tmp_path / "root" / "manifests"
@@ -192,7 +160,7 @@ def test_full_then_incremental_then_idempotent(tmp_path):
     server.calls.clear()
     second = provider(tmp_path, server).top_up("SPY")
     assert (second.status, second.new_rows, second.row_count) == ("incremental", 2, 5)
-    assert server.calls[0]["params"]["start"] == "2026-10-12T19:59:00Z"
+    assert server.calls[0]["start"] == pd.Timestamp("2026-10-12T19:59:00Z")
     assert stored_path(tmp_path).name == "SPY_1m_alpaca_sip.b.parquet"
     assert calculate_sha256(slot_a) == slot_a_digest  # committed slot never rewritten
     stored = pd.read_parquet(stored_path(tmp_path))
@@ -211,7 +179,7 @@ def test_full_then_incremental_then_idempotent(tmp_path):
 
 
 def test_split_since_last_run_refetches_whole_history(tmp_path):
-    server = BarServer(list(DAY_ONE), page_size=10)
+    server = BarServer(list(DAY_ONE))
     provider(tmp_path, server, now="2026-10-12T23:00:00Z").top_up("SPY")
     halved = [bar(item["t"], item["o"] / 2) for item in DAY_ONE + DAY_TWO]
     server.bars = halved
@@ -222,7 +190,7 @@ def test_split_since_last_run_refetches_whole_history(tmp_path):
 
 
 def test_validation_failure_quarantines_and_keeps_old_file(tmp_path):
-    server = BarServer(list(DAY_ONE), page_size=10)
+    server = BarServer(list(DAY_ONE))
     provider(tmp_path, server, now="2026-10-12T23:00:00Z").top_up("SPY")
     digest = calculate_sha256(stored_path(tmp_path))
     manifest_path = manifest_file(tmp_path)
@@ -254,7 +222,7 @@ def test_symbol_outside_universe_is_refused(tmp_path):
 
 
 def test_committed_file_not_matching_manifest_fails_closed(tmp_path):
-    server = BarServer(list(DAY_ONE), page_size=10)
+    server = BarServer(list(DAY_ONE))
     provider(tmp_path, server, now="2026-10-12T23:00:00Z").top_up("SPY")
     manifest_before = manifest_file(tmp_path).read_text()
     stored_path(tmp_path).write_bytes(b"tampered")
@@ -266,7 +234,7 @@ def test_committed_file_not_matching_manifest_fails_closed(tmp_path):
 
 def test_symbol_listed_after_2016_records_true_first_bar(tmp_path):
     late = [bar("2021-06-01T13:30:00Z", 20), bar("2021-06-01T13:31:00Z", 21)]
-    result = provider(tmp_path, BarServer(late, page_size=10)).top_up("RKLB")
+    result = provider(tmp_path, BarServer(late)).top_up("RKLB")
     assert (result.status, result.row_count) == ("full", 2)
     manifest = json.loads(manifest_file(tmp_path, "RKLB").read_text())
     assert manifest["first_available_bar"] == "2021-06-01T13:30:00+00:00"

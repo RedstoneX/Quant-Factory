@@ -1,9 +1,11 @@
-"""Deterministic tests for Alpaca historical-bar acquisition."""
+"""Deterministic tests for Alpaca historical-bar acquisition (``vbt.AlpacaData`` faked)."""
 
 from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 from typing import Any
 
 import pandas as pd
@@ -11,7 +13,6 @@ import pytest
 
 from market_data.catalog import DataLocations
 from market_data.providers.alpaca import (
-    ALPACA_DATA_HOST,
     AlpacaAcquisitionResult,
     AlpacaBarsRequest,
     AlpacaCredentials,
@@ -37,30 +38,43 @@ class FakeResponse:
         return self.payload
 
 
+class ApiError(Exception):
+    """Shaped like alpaca-py's APIError: a message plus an HTTP status."""
+
+    def __init__(self, message: str, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+VBT_COLUMNS = {"Open": "o", "High": "h", "Low": "l", "Close": "c", "Volume": "v", "Trade count": "n", "VWAP": "vw"}
+FAKE_VBT = SimpleNamespace(AlpacaData=None)
+
+
+@pytest.fixture(autouse=True)
+def fake_vectorbtpro(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "vectorbtpro", FAKE_VBT)
+
+
 class FakeClient:
+    """Stands in for ``vbt.AlpacaData``: one scripted response per ``fetch_symbol`` call."""
+
     def __init__(self, responses: list[FakeResponse]) -> None:
         self.responses = list(responses)
         self.calls: list[dict[str, Any]] = []
 
-    def get(
-        self,
-        url: str,
-        *,
-        headers: dict[str, str],
-        params: dict[str, Any],
-        timeout: float,
-    ) -> FakeResponse:
-        self.calls.append(
-            {
-                "url": url,
-                "headers": headers,
-                "params": dict(params),
-                "timeout": timeout,
-            }
-        )
+    def fetch_symbol(self, symbol: str, **kwargs: Any) -> tuple[pd.DataFrame, dict[str, Any]]:
+        self.calls.append({"symbol": symbol, **kwargs})
         if not self.responses:
-            raise AssertionError("unexpected Alpaca HTTP request")
-        return self.responses.pop(0)
+            raise AssertionError("unexpected Alpaca request")
+        response = self.responses.pop(0)
+        if response.status_code != 200:
+            raise ApiError(str(response.payload), response.status_code)
+        bars = response.payload.get("bars") or []
+        if not bars:
+            return pd.DataFrame(), {}
+        index = pd.DatetimeIndex([pd.Timestamp(bar["t"]) for bar in bars], name="Open time")
+        frame = pd.DataFrame({name: [bar[key] for bar in bars] for name, key in VBT_COLUMNS.items()}, index=index)
+        return frame, {}
 
 
 @pytest.fixture
@@ -84,12 +98,10 @@ def _provider(
     client: FakeClient,
     locations: DataLocations,
 ) -> AlpacaHistoricalBarsProvider:
+    FAKE_VBT.AlpacaData = client
     return AlpacaHistoricalBarsProvider(
         credentials=AlpacaCredentials("key", "secret"),
         locations=locations,
-        client=client,
-        max_retries=1,
-        backoff_seconds=0,
     )
 
 
@@ -158,26 +170,22 @@ def _acquire_at(
     )
 
 
-def test_explicit_feed_pagination_and_canonical_manifest(
+def test_explicit_feed_and_canonical_manifest(
     alpaca_locations: DataLocations,
     alpaca_request: AlpacaBarsRequest,
     tmp_path: Path,
 ) -> None:
     schedule = _one_session_schedule(alpaca_request)
     bars = _bars_for_schedule(schedule)
-    client = FakeClient(
-        [
-            FakeResponse(200, {"bars": bars[:200], "next_page_token": "next"}),
-            FakeResponse(200, {"bars": bars[200:]}),
-        ]
-    )
+    client = FakeClient([FakeResponse(200, {"bars": bars})])
     result = _acquire(_provider(client, alpaca_locations), alpaca_request, tmp_path)
 
-    assert len(client.calls) == 2
-    assert client.calls[0]["url"] == f"{ALPACA_DATA_HOST}/v2/stocks/SPY/bars"
-    assert client.calls[0]["params"]["feed"] == "iex"
-    assert client.calls[0]["params"]["timeframe"] == "1Min"
-    assert client.calls[1]["params"]["page_token"] == "next"
+    assert len(client.calls) == 1
+    call = client.calls[0]
+    assert (call["symbol"], call["client_type"], call["timeframe"]) == ("SPY", "stocks", "1m")
+    assert (call["feed"], call["adjustment"]) == ("iex", "raw")
+    assert call["client_config"] == {"api_key": "key", "secret_key": "secret"}
+    assert call["end"] == schedule["market_close"].iloc[-1] + pd.Timedelta(minutes=1)
     assert result.parquet_path == (
         alpaca_locations.root / "equities/SPY/1m/SPY_1m_alpaca_iex.parquet"
     )
@@ -194,19 +202,6 @@ def test_explicit_feed_pagination_and_canonical_manifest(
     assert result.manifest["missing_sessions"] == []
     assert result.manifest["missing_regular_session_bar_count"] == 0
     assert len(result.manifest["sha256"]) == 64
-
-
-def test_retry_then_success(alpaca_locations: DataLocations, alpaca_request: AlpacaBarsRequest, tmp_path: Path) -> None:
-    schedule = _one_session_schedule(alpaca_request)
-    client = FakeClient(
-        [
-            FakeResponse(429, {"code": "42910000", "message": "rate limit"}),
-            FakeResponse(200, {"bars": _bars_for_schedule(schedule)}),
-        ]
-    )
-    result = _acquire(_provider(client, alpaca_locations), alpaca_request, tmp_path)
-    assert len(client.calls) == 2
-    assert result.manifest["row_count"] == 390
 
 
 def test_non_retryable_error_is_clear(
@@ -306,8 +301,8 @@ def test_next_session_incremental_extension_preserves_older_history(
 
     assert len(initial_client.calls) == 5
     assert len(next_client.calls) == 1
-    assert next_client.calls[0]["params"]["start"] == new_session["market_open"].iloc[0].isoformat().replace("+00:00", "Z")
-    assert next_client.calls[0]["params"]["end"] == new_session["market_close"].iloc[0].isoformat().replace("+00:00", "Z")
+    assert next_client.calls[0]["start"] == new_session["market_open"].iloc[0]
+    assert next_client.calls[0]["end"] == new_session["market_close"].iloc[0] + pd.Timedelta(minutes=1)
     assert extended.manifest["already_present_sessions"] == [
         "2026-07-02",
         "2026-07-06",

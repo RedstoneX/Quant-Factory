@@ -14,7 +14,6 @@ Manifests go to the persistent downloaded-manifest folder inside the data mount.
 
 from __future__ import annotations
 
-from collections import deque
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -22,13 +21,11 @@ import json
 import os
 from pathlib import Path
 import shutil
-import time
 from typing import Any
 
 import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
-import requests
 
 from market_data.alpaca_sip_universe import (
     HISTORY_START,
@@ -47,15 +44,11 @@ from market_data.catalog import (
     calculate_sha256,
     verify_dataset_file,
 )
-from market_data.providers.alpaca import ALPACA_DATA_HOST, AlpacaCredentials, HttpClient
+from market_data.providers.alpaca import ALPACA_DATA_HOST, AlpacaCredentials, fetch_alpaca_bars
 
 FEED = "sip"
 ADJUSTMENT = "split"
 ALPACA_TIMEFRAME = "1Min"
-PAGE_LIMIT = 10_000
-MAX_REQUESTS_PER_MINUTE = 190  # Alpaca allows 200 per minute; keep a margin.
-RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
-MAX_BACKOFF_SECONDS = 60.0
 DATA_DELAY = pd.Timedelta(minutes=20)
 MARKET_TIMEZONE = "America/New_York"
 EXCHANGE_CALENDAR = "NYSE"
@@ -86,37 +79,6 @@ def credentials_from_environment(environ: Mapping[str, str] | None = None) -> Al
         key_id=values["QF_ALPACA_API_KEY"].strip(),
         secret_key=values["QF_ALPACA_SECRET_KEY"].strip(),
     )
-
-
-class RequestThrottle:
-    """Sliding one-minute window that keeps requests under the provider limit."""
-
-    def __init__(
-        self,
-        max_per_minute: int = MAX_REQUESTS_PER_MINUTE,
-        *,
-        clock: Callable[[], float] = time.monotonic,
-        sleep: Callable[[float], None] = time.sleep,
-    ) -> None:
-        if max_per_minute < 1:
-            raise ValueError("max_per_minute must be at least 1")
-        self.max_per_minute = max_per_minute
-        self.clock = clock
-        self.sleep = sleep
-        self._sent: deque[float] = deque()
-
-    def _expire(self, now: float) -> None:
-        while self._sent and now - self._sent[0] >= 60.0:
-            self._sent.popleft()
-
-    def wait(self) -> None:
-        now = self.clock()
-        self._expire(now)
-        if len(self._sent) >= self.max_per_minute:
-            self.sleep(60.0 - (now - self._sent[0]))
-            now = self.clock()
-            self._expire(now)
-        self._sent.append(now)
 
 
 @dataclass(frozen=True)
@@ -154,32 +116,13 @@ def empty_frame() -> pd.DataFrame:
     return frame
 
 
-def _optional_column(raw: pd.DataFrame, key: str, dtype: str) -> pd.Series:
-    if key not in raw.columns:
-        return pd.Series(pd.NA, index=raw.index, dtype=dtype)
-    return pd.to_numeric(raw[key], errors="coerce").astype(dtype)
-
-
-def bars_to_frame(bars: list[dict[str, Any]]) -> pd.DataFrame:
-    """Convert Alpaca bar dicts to the stored column layout (without sessions)."""
-    if not bars:
+def bars_to_frame(raw: pd.DataFrame) -> pd.DataFrame:
+    """Give fetched bars the stored dtypes (without sessions)."""
+    if raw.empty:
         return empty_frame().drop(columns=["session"])
-    raw = pd.DataFrame(bars)
-    missing = {"t", "o", "h", "l", "c", "v"}.difference(raw.columns)
-    if missing:
-        raise AlpacaSipError(f"Alpaca bars are missing field(s): {sorted(missing)}")
-    return pd.DataFrame(
-        {
-            "timestamp": pd.to_datetime(raw["t"], utc=True),
-            "open": raw["o"].astype("float64"),
-            "high": raw["h"].astype("float64"),
-            "low": raw["l"].astype("float64"),
-            "close": raw["c"].astype("float64"),
-            "volume": raw["v"].astype("float64"),
-            "trade_count": _optional_column(raw, "n", "Int64"),
-            "vwap": _optional_column(raw, "vw", "float64"),
-        }
-    )
+    frame = raw.copy()
+    frame["trade_count"] = pd.to_numeric(frame["trade_count"], errors="coerce").astype("Int64")
+    return frame
 
 
 def mark_sessions(frame: pd.DataFrame) -> pd.DataFrame:
@@ -260,17 +203,6 @@ def _overlap_matches(stored_last: pd.Series, fetched: pd.DataFrame) -> bool:
     )
 
 
-def _describe_failure(response: Any, status_code: int) -> str:
-    details = f"HTTP {status_code}"
-    try:
-        payload = response.json()
-    except ValueError:
-        payload = None
-    if isinstance(payload, dict) and payload.get("message"):
-        details += f" message={payload['message']}"
-    return f"Alpaca SIP bars request failed: {details}"
-
-
 class AlpacaSipProvider:
     """Fetch, validate and store Alpaca SIP one-minute bars for one symbol at a time."""
 
@@ -279,94 +211,31 @@ class AlpacaSipProvider:
         *,
         credentials: AlpacaCredentials,
         locations: DataLocations,
-        client: HttpClient | None = None,
-        throttle: RequestThrottle | None = None,
-        base_url: str = ALPACA_DATA_HOST,
-        timeout: float = 60.0,
-        max_retries: int = 5,
-        backoff_seconds: float = 1.0,
-        sleep: Callable[[float], None] = time.sleep,
         now: Callable[[], pd.Timestamp] = lambda: pd.Timestamp.now(tz=UTC),
+        alpaca_data: Any = None,
     ) -> None:
-        if max_retries < 0:
-            raise ValueError("max_retries cannot be negative")
         self.credentials = credentials
         self.locations = locations
-        self.client = client or requests.Session()
-        self.throttle = throttle or RequestThrottle()
-        self.base_url = base_url.rstrip("/")
-        self.timeout = timeout
-        self.max_retries = max_retries
-        self.backoff_seconds = backoff_seconds
-        self.sleep = sleep
         self.now = now
+        self.alpaca_data = alpaca_data  # None means ``vbt.AlpacaData``; tests pass a fake
 
     def available_end(self) -> pd.Timestamp:
         """Timestamp of the last complete bar the free plan serves (now minus 20 minutes)."""
         return (self.now() - DATA_DELAY).floor("min") - pd.Timedelta(minutes=1)
 
     def fetch(self, symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
-        """Download every bar in [start, end], following page tokens, with sessions marked."""
-        url = f"{self.base_url}/v2/stocks/{symbol}/bars"
-        params: dict[str, Any] = {
-            "timeframe": ALPACA_TIMEFRAME,
-            "start": start.tz_convert(UTC).isoformat().replace("+00:00", "Z"),
-            "end": end.tz_convert(UTC).isoformat().replace("+00:00", "Z"),
-            "feed": FEED,
-            "adjustment": ADJUSTMENT,
-            "limit": PAGE_LIMIT,
-            "sort": "asc",
-        }
-        pages: list[pd.DataFrame] = []
-        while True:
-            payload = self._get_page(url, params)
-            bars = payload.get("bars") or []
-            if not isinstance(bars, list):
-                raise AlpacaSipError("Alpaca bars response has an unexpected shape")
-            pages.append(bars_to_frame(bars))
-            token = payload.get("next_page_token")
-            if not token:
-                break
-            params = {**params, "page_token": token}
-        frame = pd.concat(pages, ignore_index=True) if len(pages) > 1 else pages[0]
-        return mark_sessions(frame.reset_index(drop=True))
-
-    def _get_page(self, url: str, params: dict[str, Any]) -> dict[str, Any]:
-        headers = {
-            "APCA-API-KEY-ID": self.credentials.key_id,
-            "APCA-API-SECRET-KEY": self.credentials.secret_key,
-        }
-        for attempt in range(self.max_retries + 1):
-            self.throttle.wait()
-            try:
-                response = self.client.get(url, headers=headers, params=params, timeout=self.timeout)
-            except (requests.ConnectionError, requests.Timeout) as exc:
-                if attempt >= self.max_retries:
-                    raise AlpacaSipError(
-                        f"Alpaca SIP bars request failed after retries: {type(exc).__name__}"
-                    ) from exc
-                self.sleep(self._backoff(attempt, None))
-                continue
-            status_code = int(response.status_code)
-            if status_code == 200:
-                payload = response.json()
-                if not isinstance(payload, dict):
-                    raise AlpacaSipError("Alpaca bars response is not a JSON object")
-                return payload
-            if status_code not in RETRY_STATUSES or attempt >= self.max_retries:
-                raise AlpacaSipError(_describe_failure(response, status_code))
-            self.sleep(self._backoff(attempt, response))
-        raise AlpacaSipError("Alpaca request retry loop ended unexpectedly")
-
-    def _backoff(self, attempt: int, response: Any) -> float:
-        headers = getattr(response, "headers", None) or {}
-        retry_after = headers.get("Retry-After")
-        if retry_after is not None:
-            try:
-                return min(max(float(retry_after), 0.0), MAX_BACKOFF_SECONDS)
-            except ValueError:
-                pass
-        return min(self.backoff_seconds * (2**attempt), MAX_BACKOFF_SECONDS)
+        """Download every bar in [start, end] via ``vbt.AlpacaData``, with sessions marked."""
+        raw = fetch_alpaca_bars(
+            self.credentials,
+            symbol=symbol,
+            start=start,
+            end=end,
+            feed=FEED,
+            adjustment=ADJUSTMENT,
+            error=AlpacaSipError,
+            alpaca_data=self.alpaca_data,
+        )
+        return mark_sessions(bars_to_frame(raw))
 
     def top_up(self, symbol: str, *, since: str = HISTORY_START) -> TopUpResult:
         """Bring one symbol's stored file up to the newest available complete bar."""
