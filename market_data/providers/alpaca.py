@@ -7,13 +7,12 @@ from datetime import UTC
 from hashlib import sha256
 import json
 from pathlib import Path
-import time
-from typing import Any, Protocol
+from typing import Any
 
 import pandas as pd
 import pandas_market_calendars as mcal
-import requests
 
+from backtesting.vectorbt_runtime import require_vectorbtpro
 from market_data.catalog import DataLocations, calculate_sha256
 
 ALPACA_DATA_HOST = "https://data.alpaca.markets"
@@ -21,24 +20,20 @@ ALPACA_BARS_ENDPOINT_TEMPLATE = "/v2/stocks/{symbol}/bars"
 ALPACA_TIMEFRAME_1M = "1Min"
 CANONICAL_COLUMNS = ("timestamp", "open", "high", "low", "close", "volume")
 OPTIONAL_ALPACA_COLUMNS = ("trade_count", "vwap")
+# ``vbt.AlpacaData.fetch_symbol`` column names -> stored column names.
+VBT_ALPACA_COLUMNS = {
+    "Open": "open",
+    "High": "high",
+    "Low": "low",
+    "Close": "close",
+    "Volume": "volume",
+    "Trade count": "trade_count",
+    "VWAP": "vwap",
+}
 
 
 class AlpacaDataError(RuntimeError):
     """Raised when Alpaca data cannot be acquired or validated safely."""
-
-
-class HttpClient(Protocol):
-    """Minimal requests-compatible HTTP client used for deterministic tests."""
-
-    def get(
-        self,
-        url: str,
-        *,
-        headers: dict[str, str],
-        params: dict[str, Any],
-        timeout: float,
-    ) -> Any:
-        """Return a response object with status_code, json(), and text."""
 
 
 @dataclass(frozen=True)
@@ -222,26 +217,54 @@ def _normalize_timestamp(value: Any) -> pd.Timestamp:
     return timestamp.tz_convert("UTC")
 
 
-def _bars_to_frame(bars: list[dict[str, Any]]) -> pd.DataFrame:
-    rows: list[dict[str, Any]] = []
-    for bar in bars:
-        rows.append(
-            {
-                "timestamp": _normalize_timestamp(bar["t"]),
-                "open": float(bar["o"]),
-                "high": float(bar["h"]),
-                "low": float(bar["l"]),
-                "close": float(bar["c"]),
-                "volume": float(bar["v"]),
-                "trade_count": int(bar["n"]) if bar.get("n") is not None else pd.NA,
-                "vwap": float(bar["vw"]) if bar.get("vw") is not None else pd.NA,
-            }
+def fetch_alpaca_bars(
+    credentials: "AlpacaCredentials",
+    *,
+    symbol: str,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+    feed: str,
+    adjustment: str,
+    error: type[Exception] = AlpacaDataError,
+    alpaca_data: Any = None,
+) -> pd.DataFrame:
+    """Every one-minute bar in [start, end] from ``vbt.AlpacaData.fetch_symbol``.
+
+    alpaca-py (under VectorBT PRO) follows page tokens and retries rate limits.
+    VectorBT drops bars at or after ``end``, so one minute is added to keep ``end``
+    inclusive. Returns timestamp, open, high, low, close, volume, trade_count, vwap.
+    ``alpaca_data`` stands in for ``vbt.AlpacaData`` in tests.
+    """
+    if alpaca_data is None:
+        alpaca_data = require_vectorbtpro().AlpacaData
+    try:
+        raw, _ = alpaca_data.fetch_symbol(
+            symbol,
+            client_type="stocks",
+            client_config=dict(api_key=credentials.key_id, secret_key=credentials.secret_key),
+            start=start,
+            end=end + pd.Timedelta(minutes=1),
+            timeframe="1m",
+            feed=feed,
+            adjustment=adjustment,
+            sort="asc",
         )
-    if not rows:
+    except Exception as exc:  # alpaca-py APIError / requests errors carry no credentials
+        status = getattr(exc, "status_code", None)
+        raise error(
+            f"Alpaca bars request failed: HTTP {status} {type(exc).__name__}: {exc}"
+        ) from exc
+    if raw is None or raw.empty:
         return pd.DataFrame(columns=[*CANONICAL_COLUMNS, *OPTIONAL_ALPACA_COLUMNS])
-    frame = pd.DataFrame(rows)
-    frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
-    return frame.sort_values("timestamp", kind="mergesort").reset_index(drop=True)
+    frame = raw.rename(columns=VBT_ALPACA_COLUMNS).reindex(columns=list(VBT_ALPACA_COLUMNS.values()))
+    frame.insert(0, "timestamp", pd.DatetimeIndex(raw.index).tz_convert("UTC").astype("datetime64[ns, UTC]"))
+    return frame.reset_index(drop=True)
+
+
+def _bars_to_frame(raw: pd.DataFrame) -> pd.DataFrame:
+    if raw.empty:
+        return raw
+    return raw.sort_values("timestamp", kind="mergesort").reset_index(drop=True)
 
 
 def _deduplicate(frame: pd.DataFrame) -> tuple[pd.DataFrame, int]:
@@ -391,21 +414,9 @@ class AlpacaHistoricalBarsProvider:
         *,
         credentials: AlpacaCredentials,
         locations: DataLocations,
-        client: HttpClient | None = None,
-        base_url: str = ALPACA_DATA_HOST,
-        timeout: float = 30.0,
-        max_retries: int = 3,
-        backoff_seconds: float = 0.5,
     ) -> None:
-        if max_retries < 0:
-            raise ValueError("max_retries cannot be negative")
         self.credentials = credentials
         self.locations = locations
-        self.client = client or requests.Session()
-        self.base_url = base_url.rstrip("/")
-        self.timeout = timeout
-        self.max_retries = max_retries
-        self.backoff_seconds = backoff_seconds
 
     def acquire_recent_sessions(
         self,
@@ -622,23 +633,16 @@ class AlpacaHistoricalBarsProvider:
         start: pd.Timestamp,
         end: pd.Timestamp,
     ) -> pd.DataFrame:
-        bars: list[dict[str, Any]] = []
-        page_token: str | None = None
-        while True:
-            payload = self._request_page(
-                request=request,
+        return _bars_to_frame(
+            fetch_alpaca_bars(
+                self.credentials,
+                symbol=request.symbol,
                 start=start,
                 end=end,
-                page_token=page_token,
+                feed=request.feed,
+                adjustment=request.adjustment,
             )
-            page_bars = payload.get("bars", [])
-            if not isinstance(page_bars, list):
-                raise AlpacaDataError("Alpaca bars response has an unexpected shape")
-            bars.extend(page_bars)
-            page_token = payload.get("next_page_token")
-            if not page_token:
-                break
-        return _bars_to_frame(bars)
+        )
 
     def _schedule_for_stored_frame(
         self,
@@ -654,65 +658,6 @@ class AlpacaHistoricalBarsProvider:
             start_date=timestamps.min().tz_convert(request.market_timezone).date(),
             end_date=timestamps.max().tz_convert(request.market_timezone).date(),
         )
-
-    def _request_page(
-        self,
-        *,
-        request: AlpacaBarsRequest,
-        start: pd.Timestamp,
-        end: pd.Timestamp,
-        page_token: str | None,
-    ) -> dict[str, Any]:
-        url = self.base_url + request.endpoint_path
-        params: dict[str, Any] = {
-            "timeframe": request.alpaca_timeframe,
-            "start": start.isoformat().replace("+00:00", "Z"),
-            "end": end.isoformat().replace("+00:00", "Z"),
-            "feed": request.feed,
-            "adjustment": request.adjustment,
-            "limit": 10_000,
-            "sort": "asc",
-        }
-        if page_token:
-            params["page_token"] = page_token
-        headers = {
-            "APCA-API-KEY-ID": self.credentials.key_id,
-            "APCA-API-SECRET-KEY": self.credentials.secret_key,
-        }
-        for attempt in range(self.max_retries + 1):
-            response = self.client.get(
-                url,
-                headers=headers,
-                params=params,
-                timeout=self.timeout,
-            )
-            status_code = int(response.status_code)
-            if status_code == 200:
-                return response.json()
-            if status_code not in {408, 429, 500, 502, 503, 504}:
-                raise AlpacaDataError(self._format_error(response, status_code))
-            if attempt >= self.max_retries:
-                raise AlpacaDataError(self._format_error(response, status_code))
-            time.sleep(self.backoff_seconds * (2**attempt))
-        raise AlpacaDataError("Alpaca request retry loop ended unexpectedly")
-
-    @staticmethod
-    def _format_error(response: Any, status_code: int) -> str:
-        code = None
-        message = None
-        try:
-            payload = response.json()
-            if isinstance(payload, dict):
-                code = payload.get("code")
-                message = payload.get("message")
-        except Exception:
-            message = getattr(response, "text", "")
-        details = f"HTTP {status_code}"
-        if code:
-            details += f" code={code}"
-        if message:
-            details += f" message={message}"
-        return f"Alpaca historical bars request failed: {details}"
 
     def _build_manifest(
         self,
