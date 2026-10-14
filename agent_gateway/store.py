@@ -331,6 +331,14 @@ class GatewayStore:
         ).fetchall()
         return {str(row["candidate_id"]): dict(row) for row in rows}
 
+    def campaign_attempts(self, candidate_id: str, packet_sha256: str) -> int:
+        """How many test runs were started for this exact packet."""
+        row = self.connection.execute(
+            "SELECT COUNT(*) FROM campaign_events WHERE candidate_id=? AND packet_sha256=? AND state='running'",
+            (candidate_id, packet_sha256),
+        ).fetchone()
+        return int(row[0])
+
     def latest_campaign_event(self, candidate_id: str) -> dict[str, Any] | None:
         row = self.connection.execute(
             f"SELECT {', '.join(_CAMPAIGN_FIELDS)} FROM campaign_events "

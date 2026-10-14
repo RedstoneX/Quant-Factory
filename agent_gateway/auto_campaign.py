@@ -31,6 +31,9 @@ from research_intake import validate_candidate_packet
 RuleSpecReader = Callable[[Mapping[str, Any]], "dict[str, Any] | None"]
 Executor = Callable[[AutoTestRequest], AutoTestOutcome]
 OPEN_STATES = frozenset({"queued", "running"})
+# A test cut short by a restart (usually a deploy) is rerun under a fresh launch key;
+# an idea that is interrupted this many times is reported instead of rerun forever.
+MAX_ATTEMPTS = 3
 
 
 class AutoTestCampaign:
@@ -174,11 +177,17 @@ class AutoTestCampaign:
                 f"No verified local dataset with recorded trading costs exists for {symbol or 'an unnamed market'} "
                 f"at {timeframe or 'an unstated timeframe'}.",
             )
+        attempt = store.campaign_attempts(draft.draft_id, digest)
+        if attempt >= MAX_ATTEMPTS:
+            return record(
+                "failed", "run_error",
+                f"The test was interrupted {attempt} times before finishing and was not started again.",
+            )
         record("running", "started")
         outcome = self.executor(
             AutoTestRequest(
                 candidate_id=draft.draft_id, definition=definition, profile=profile,
-                database=str(self.database), artifact_root=str(self.artifact_root),
+                database=str(self.database), artifact_root=str(self.artifact_root), attempt=attempt,
             )
         )
         record(outcome.state, outcome.reason_code, outcome.reason_detail, outcome.run_id)
