@@ -175,9 +175,9 @@ def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
         data=DataRequirements(
             required_fields=_REQUIRED_FIELDS,
             supported_intervals=(bar,),
-            asset_classes=("futures",) if bar == "5m" else ("futures", "equity", "etf"),
+            asset_classes=("futures", "equity", "etf"),
             minimum_history_bars=bars_per_session(bar),
-            adjusted_prices=False,
+            adjusted_prices=None,
         ),
         parameters=tuple(
             _parameter_definition(name, variable["values"])

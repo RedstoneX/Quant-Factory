@@ -230,7 +230,8 @@ def validate_experiment_variant(
             f"{timeframe.interval}"
         )
     if variant.adjusted_prices != instrument.adjusted_prices_required or (
-        variant.adjusted_prices != strategy.data.adjusted_prices
+        strategy.data.adjusted_prices is not None
+        and variant.adjusted_prices != strategy.data.adjusted_prices
     ):
         raise ValueError(f"{instrument.symbol}: adjusted-price requirements conflict")
     if instrument.continuous_market and session.anchor is None:

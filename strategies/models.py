@@ -41,7 +41,9 @@ class DataRequirements:
     supported_intervals: tuple[str, ...]
     asset_classes: tuple[str, ...]
     minimum_history_bars: int
-    adjusted_prices: bool
+    # None: the rules work on either; the market's own convention decides
+    # (split-adjusted stocks, unadjusted futures).
+    adjusted_prices: bool | None
 
 
 @dataclass(frozen=True)
