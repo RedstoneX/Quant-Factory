@@ -171,6 +171,10 @@ def _outcome(record: dict[str, Any]) -> tuple[str, str]:
         if known:
             return label, why
         return f"Testing · {_human_label(record.get('stage'))} · {_human_label(record.get('run_status'))}", "Continues automatically inside existing authority"
+    if lifecycle == "duplicate":
+        return label if known else "Duplicate", why or "Same rules as an idea already tested"
+    if lifecycle == "crashed":
+        return label if known else "Test crashed", why or "The test did not finish; this is not a result"
     if lifecycle == "blocked":
         return CANT_TEST, why or "The tester could not set this idea up"
     if lifecycle == "needs_review":

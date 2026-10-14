@@ -45,13 +45,15 @@ LIFECYCLE_LABELS: dict[str, str] = {
     "survivor": PASSED,
     "advancing": TESTING,
     "blocked": CANT_TEST,
+    "duplicate": DUPLICATE,
+    "crashed": CRASHED,
     "needs_review": "Needs review",
     "rejected": FAILED_TESTING,
     "received": "Received",
     "all": "All",
 }
 
-LIFECYCLE_ORDER = ("survivor", "advancing", "blocked", "needs_review", "rejected", "all")
+LIFECYCLE_ORDER = ("survivor", "advancing", "blocked", "duplicate", "crashed", "needs_review", "rejected", "all")
 
 
 def state_label(state: Any) -> str | None:

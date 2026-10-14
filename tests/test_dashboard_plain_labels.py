@@ -6,6 +6,7 @@ from dashboard.plain_labels import (
     LIFECYCLE_LABELS,
     LIFECYCLE_ORDER,
     REASON_WORDS,
+    STATE_LABELS,
     lifecycle_label,
     plain_status,
 )
@@ -56,8 +57,28 @@ def test_rejected_bucket_is_relabelled_and_blocked_group_exists():
 def test_candidate_page_outcome_uses_the_plain_label(state, reason, label):
     lifecycle = {
         "queued": "advancing", "running": "advancing", "implementation_blocked": "blocked",
-        "duplicate_closed": "rejected", "screened_out": "rejected", "survivor": "survivor", "failed": "rejected",
+        "duplicate_closed": "duplicate", "screened_out": "rejected", "survivor": "survivor", "failed": "crashed",
     }[state]
     headline, detail = _outcome({"lifecycle": lifecycle, "campaign_state": state, "campaign_reason_code": reason})
     assert headline == label
     assert detail == plain_status(state, reason)[1]
+
+
+def test_crashed_and_duplicate_have_their_own_groups_and_failed_testing_is_only_screened_out():
+    assert lifecycle_label("duplicate") == "Duplicate"
+    assert lifecycle_label("crashed") == "Test crashed"
+    assert "duplicate" in LIFECYCLE_ORDER and "crashed" in LIFECYCLE_ORDER
+    groups = {state: label for state, label in STATE_LABELS.items()}
+    assert [s for s, label in groups.items() if label == "Failed testing"] == ["screened_out"]
+
+
+def test_projection_sql_sends_each_state_to_its_own_group():
+    from dashboard.candidates_projection import COUNT_KEYS, _candidate_source
+
+    sql = _candidate_source()
+    assert "campaign_state='duplicate_closed' THEN 'duplicate'" in sql
+    assert "campaign_state='failed' THEN 'crashed'" in sql
+    assert "campaign_state='implementation_blocked' THEN 'blocked'" in sql
+    rejected_line = next(line for line in sql.splitlines() if "THEN 'rejected'" in line and "campaign_state IN" in line)
+    assert "duplicate_closed" not in rejected_line and "'failed'" not in rejected_line
+    assert {"duplicate", "crashed", "blocked"} <= set(COUNT_KEYS)

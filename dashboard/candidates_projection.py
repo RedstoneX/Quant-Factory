@@ -18,7 +18,7 @@ from dashboard.overview_projection import (
 )
 
 
-COUNT_KEYS = ("survivor", "advancing", "blocked", "needs_review", "rejected", "all")
+COUNT_KEYS = ("survivor", "advancing", "blocked", "duplicate", "crashed", "needs_review", "rejected", "all")
 
 CANDIDATE_SORT_FIELDS = {
     "title": "title", "symbol": "symbol", "family": "family",
@@ -58,8 +58,10 @@ def _candidate_source() -> str:
                  WHEN c.campaign_state='exception_hold' THEN 'needs_review'
                  WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), '')) IN ('needs_review','exception_hold') THEN 'needs_review'
                  WHEN c.campaign_state='implementation_blocked' THEN 'blocked'
+                 WHEN c.campaign_state='duplicate_closed' THEN 'duplicate'
+                 WHEN c.campaign_state='failed' THEN 'crashed'
                  WHEN c.run_status IN ('created','running') OR c.campaign_state IN ('admitted','queued','running') THEN 'advancing'
-                 WHEN c.campaign_state IN ('duplicate_closed','invalid','prior_work_conflict','implementation_blocked','budget_blocked','deterministic_failure','screened_out','insufficient','failed') THEN 'rejected'
+                 WHEN c.campaign_state IN ('invalid','prior_work_conflict','budget_blocked','deterministic_failure','screened_out','insufficient') THEN 'rejected'
                  WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), ''))='rejected'
                    OR c.run_status IN ('failed','cancelled')
                    OR c.screening_status IN ('screened_out','invalid','insufficient') THEN 'rejected'
