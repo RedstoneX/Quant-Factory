@@ -21,8 +21,8 @@ RUN python -m pip install --no-cache-dir --requirement /tmp/requirements-runtime
 # secrets have a 500 KiB limit; this read-only bind keeps the larger wheel out
 # of image layers. No GitHub credential is sent to the builder.
 RUN --mount=type=bind,from=vectorbt_private,target=/run/vectorbt-private,ro \
-    python -m pip install --no-cache-dir /run/vectorbt-private/vectorbtpro-2026.4.7-py3-none-any.whl && \
-    python -c "from importlib.metadata import version; assert version('vectorbtpro') == '2026.4.7'"
+    python -m pip install --no-cache-dir /run/vectorbt-private/vectorbtpro-2026.10.5-py3-none-any.whl && \
+    python -c "from importlib.metadata import version; assert version('vectorbtpro') == '2026.10.5'"
 
 ARG QF_REVISION
 ENV QF_REVISION=${QF_REVISION}

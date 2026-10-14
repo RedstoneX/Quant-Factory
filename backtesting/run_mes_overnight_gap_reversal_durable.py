@@ -69,7 +69,7 @@ from strategies.mes_overnight_gap_reversal import (
 
 ARTIFACT_SCHEMA_VERSION = 1
 SOURCE = "r11_mes_overnight_gap_reversal"
-EXPECTED_VECTORBTPRO_VERSION = "2026.4.7"
+EXPECTED_VECTORBTPRO_VERSION = "2026.10.5"
 FAILED_ATTEMPT_IDEMPOTENCY_KEY = "r11_mes_gap_20190506_20231229_v1"
 FIXED_IDEMPOTENCY_KEY = "r11_mes_gap_20190506_20231229_v2"
 EVIDENCE_SCOPE = "development_reference_only"
