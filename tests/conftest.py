@@ -35,6 +35,9 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_milestone21c_spym_fixture.py::test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades",
         "tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage",
         "tests/test_rsi_mean_reversion.py::test_common_interface_signal_result_matches_preserved_rsi_rules",
+        "tests/test_splitter_library_parity.py::test_chronological_split_matches_library",
+        "tests/test_splitter_library_parity.py::test_walk_forward_drop_matches_library",
+        "tests/test_splitter_library_parity.py::test_walk_forward_include_extends_library_with_truncated_tail",
     }
 )
 
