@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pandas as pd
+
 
 EASTERN = ZoneInfo("America/New_York")
 
@@ -27,3 +29,8 @@ def eastern_session(value: str | datetime) -> str:
 
 def eastern_label(value: str | datetime, fmt: str = "%b %d, %Y · %I:%M %p %Z") -> str:
     return eastern_datetime(value).strftime(fmt)
+
+
+def eastern_naive_index(index: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Eastern wall-clock chart index: pandas tz_convert, then drop the offset so browsers cannot reconvert it."""
+    return index.tz_convert(EASTERN).tz_localize(None)

@@ -38,6 +38,7 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_splitter_library_parity.py::test_chronological_split_matches_library",
         "tests/test_splitter_library_parity.py::test_walk_forward_drop_matches_library",
         "tests/test_splitter_library_parity.py::test_walk_forward_include_extends_library_with_truncated_tail",
+        "tests/test_candidate_setting_rebuild.py::test_rebuilt_setting_equals_the_saved_run_exactly",
     }
 )
 
