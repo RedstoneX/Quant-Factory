@@ -5,6 +5,8 @@ import math
 import numpy as np
 import pytest
 
+pytestmark = pytest.mark.licensed_vectorbt
+
 from backtesting.screening.deflated_sharpe import deflated_sharpe
 
 

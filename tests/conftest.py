@@ -14,6 +14,9 @@ from market_data.models import MarketDataConfig
 
 LICENSED_VECTORBT_NODE_IDS = frozenset(
     {
+        "tests/test_deflated_sharpe.py::test_matches_library_on_fixture",
+        "tests/test_deflated_sharpe.py::test_flat_settings_are_undefined",
+        "tests/test_deflated_sharpe.py::test_deflated_sharpe_is_record_only",
         "tests/test_execution_assumptions.py::test_execution_comparison_reports_metric_and_ranking_change",
         "tests/test_execution_assumptions.py::test_futures_costs_scale_with_contract_quantity",
         "tests/test_execution_assumptions.py::test_long_futures_fee_and_slippage_direction",

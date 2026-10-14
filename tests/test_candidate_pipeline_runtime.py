@@ -482,6 +482,8 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(experiment_runner, "require_vectorbtpro", lambda: FAKE_VECTORBT)
+    # The record-only luck score needs the licensed engine, which the fake replaces.
+    monkeypatch.setattr(experiment_runner, "_record_luck", lambda *args: None)
     monkeypatch.setattr(rsi_strategy, "require_vectorbtpro", lambda: FAKE_VECTORBT)
     runtime = _runtime(tmp_path)
     key = "backend_completion_decisive_fixture"
@@ -528,6 +530,8 @@ def test_persisted_robustness_failure_stops_before_monte_carlo(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(experiment_runner, "require_vectorbtpro", lambda: FAKE_VECTORBT)
+    # The record-only luck score needs the licensed engine, which the fake replaces.
+    monkeypatch.setattr(experiment_runner, "_record_luck", lambda *args: None)
     monkeypatch.setattr(rsi_strategy, "require_vectorbtpro", lambda: FAKE_VECTORBT)
     runtime = _runtime(tmp_path, robustness_minimum_return=2.0)
 
@@ -625,6 +629,8 @@ def test_post_ack_stage_failure_is_terminal_and_never_reinvoked(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(experiment_runner, "require_vectorbtpro", lambda: FAKE_VECTORBT)
+    # The record-only luck score needs the licensed engine, which the fake replaces.
+    monkeypatch.setattr(experiment_runner, "_record_luck", lambda *args: None)
     monkeypatch.setattr(rsi_strategy, "require_vectorbtpro", lambda: FAKE_VECTORBT)
     runtime = _runtime(tmp_path)
     calls = 0
