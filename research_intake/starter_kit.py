@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from rule_language import MAX_VARIABLE_GRID, RULE_LANGUAGE
+from rule_language.indicators import library_indicators
 
 _SCHEMA_FILE = Path(__file__).with_name("mes_sma_10_30_candidate.json")
 
@@ -43,7 +44,6 @@ Markets other than MES: no cost data yet, so they cannot be tested honestly.
 
 GRID LIMIT
 Multiply the number of values of every variable. The result must not exceed {MAX_VARIABLE_GRID}.
-Example: 10 values x 10 values = 100 is allowed; 10 x 11 = 110 is rejected.
 
 Testing is backtest only. Paper trading needs separate owner approval.
 """
@@ -58,7 +58,6 @@ INDICATOR_EXAMPLE_CONDITION = {
 _INDICATOR_GUIDE = """\
 INDICATORS (optional series; the value at a bar uses only that bar and earlier ones)
 S = a price field or any series, e.g. "close" or {"sma": "close", "length": 5}.
-Every length, multiple and window is a number or {"param": name}. Lengths are bar counts.
 "across_sessions": true runs through earlier sessions (length up to 20000); default false restarts each session.
 {"rsi": S, "length": N} Wilder RSI, 0-100. {"roc": S, "length": N} percent change versus N bars ago.
 {"macd": S, "fast": a, "slow": b, "signal": c, "output": "line" | "signal" | "histogram"}
@@ -73,6 +72,22 @@ for a breakout compare with {"prev": {"donchian": ...}, "bars": 1}.
 {"atr": {"length": N, "smoothing": "wilder"}} "smoothing" is optional ("sma", the default, is a simple mean).
 Example of the "when" of a signal using two indicators:
 """ + json.dumps(INDICATOR_EXAMPLE_CONDITION, separators=(",", ":")) + "\n"
+
+LIBRARY_EXAMPLE_SERIES = {"indicator": "talib:CCI", "params": {"timeperiod": 20}, "output": "real"}
+
+_LIBRARY_GUIDE = json.dumps(LIBRARY_EXAMPLE_SERIES, separators=(",", ":")) + """\
+ runs any entry of the kit's "indicators" list;
+give all its params; "inputs": {"close": S} swaps a price input for any series. "across_sessions" as above.
+"""
+
+
+def _library_entries() -> list[dict[str, Any]]:
+    """Reference data: the usable library indicators, read from the installed library (empty without it)."""
+    return [
+        {"name": s.name, "inputs": list(s.inputs), "params": dict(s.params), "outputs": list(s.outputs)}
+        for s in library_indicators()
+    ]
+
 
 STOPS_EXAMPLE_EXIT = {
     "stop_loss": {"ticks": 8},
@@ -149,7 +164,7 @@ def _example() -> dict[str, Any]:
 
 
 def starter_kit() -> dict[str, Any]:
-    """Return {"schema", "example", "guide"} for writing a valid candidate packet.
+    """Return {"schema", "example", "guide", "indicators"} for writing a valid candidate packet.
 
     "schema" is what the dashboard's Download schema button serves today: the
     repository-owned qf_candidate_v1 reference packet.
@@ -157,7 +172,8 @@ def starter_kit() -> dict[str, Any]:
     return {
         "schema": json.loads(_SCHEMA_FILE.read_text(encoding="utf-8")),
         "example": copy.deepcopy(_example()),
-        "guide": _GUIDE + _INDICATOR_GUIDE + _STOPS_GUIDE,
+        "guide": _GUIDE + _INDICATOR_GUIDE + _LIBRARY_GUIDE + _STOPS_GUIDE,
+        "indicators": _library_entries(),
     }
 
 
