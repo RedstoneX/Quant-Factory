@@ -133,3 +133,10 @@ def test_market_data_topup_skips_the_research_database_entrypoint():
     service = compose.split("market-data-topup:", 1)[1].split("\nnetworks:", 1)[0]
     assert "entrypoint: [python, -m, market_data.alpaca_sip_cli]" in service
     assert "QUANT_FACTORY_DB_PATH" not in service
+
+
+def test_backtest_service_keeps_compiled_code_on_the_persistent_runtime_volume():
+    compose = (ROOT / "compose.yaml").read_text()
+    gateway = compose.split("agent-gateway:", 1)[1].split("\n  market-data-topup:", 1)[0]
+    assert "NUMBA_CACHE_DIR: /var/lib/quant-factory/numba-cache" in gateway
+    assert "/runtime:/var/lib/quant-factory" in gateway
