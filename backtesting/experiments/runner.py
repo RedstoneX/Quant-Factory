@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -106,21 +106,14 @@ def align_signals_for_execution(
     raise ValueError(f"Unsupported execution mode: {execution.mode}")
 
 
-def _construct_portfolio(
-    data: pd.DataFrame,
-    aligned: SignalResult,
-    config: ExperimentConfig,
-) -> Any:
-    """Call VectorBT only after the caller has passed every blocking gate."""
-    vbt = require_vectorbtpro()
-    execution = config.execution
-    close = data["Close"] * execution.price_multiplier
-    signal_args: dict[str, Any]
+_LEADING_ARGS = ("entries", "exits", "short_entries", "short_exits", "price")
+_SETTING_FRAMES = ("entries", "exits", "short_entries", "short_exits", "price", "sl_stop", "tp_stop", "tsl_stop")
+
+
+def _setting_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionConfig) -> dict[str, Any]:
+    """The from_signals inputs that belong to one parameter setting."""
     if execution.direction == "shortonly":
-        signal_args = {
-            "entries": aligned.short_entries,
-            "exits": aligned.short_exits,
-        }
+        signal_args = {"entries": aligned.short_entries, "exits": aligned.short_exits}
     elif execution.direction == "longonly":
         signal_args = {"entries": aligned.entries, "exits": aligned.exits}
     else:
@@ -130,12 +123,74 @@ def _construct_portfolio(
             "short_entries": aligned.short_entries,
             "short_exits": aligned.short_exits,
         }
-    execution_price = build_execution_price(data, aligned, execution)
-    stop_args = _stop_args(data, aligned, execution)
+    return (
+        signal_args
+        | {"price": build_execution_price(data, aligned, execution)}
+        | _stop_args(data, aligned, execution)
+    )
+
+
+def _setting_label(close: pd.Series, args: dict[str, Any]) -> Any:
+    # A one-setting run is named after the name all its Series inputs share, else column 0,
+    # which VectorBT PRO reads back as "no name" (ArrayWrapper.name). Labelling each column the
+    # same way keeps a selected column's trades, orders and value identical to a one-setting run.
+    names = {close.name} | {value.name for value in args.values() if isinstance(value, pd.Series)}
+    name = names.pop() if len(names) == 1 else None
+    return 0 if name is None else name
+
+
+def _stack_settings(data: pd.DataFrame, close: pd.Series, settings: list[dict[str, Any]]) -> dict[str, Any]:
+    """One column per setting for every per-setting input; shared inputs stay as they are.
+
+    VectorBT PRO broadcasts from_signals inputs, so one call simulates every column
+    independently (no cash sharing). A stop absent from a setting is NaN, VectorBT's
+    "no stop" default; an absent signal is all-False, its default.
+    """
+    labels = pd.Index([_setting_label(close, args) for args in settings])
+    stacked: dict[str, Any] = {}
+    for key in dict.fromkeys(key for args in settings for key in args):
+        values = [args.get(key) for args in settings]
+        if key not in _SETTING_FRAMES:
+            stacked[key] = next(value for value in values if value is not None)
+        elif all(value is None for value in values):
+            stacked[key] = None
+        else:
+            fill = np.nan if key.endswith("_stop") else False
+            frame = pd.concat(
+                [pd.Series(fill, index=data.index) if value is None else value for value in values],
+                axis=1,
+            )
+            frame.columns = labels
+            stacked[key] = frame
+    return stacked
+
+
+def _construct_portfolio(
+    data: pd.DataFrame,
+    aligned: SignalResult | Sequence[SignalResult],
+    config: ExperimentConfig,
+) -> Any:
+    """Call VectorBT only after the caller has passed every blocking gate.
+
+    One SignalResult gives that setting's portfolio. A sequence gives one portfolio with
+    one column per setting, simulated by a single Portfolio.from_signals call; select a
+    setting back out with _setting_portfolio.
+    """
+    vbt = require_vectorbtpro()
+    execution = config.execution
+    close = data["Close"] * execution.price_multiplier
+    if isinstance(aligned, SignalResult):
+        setting_args = _setting_args(data, aligned, execution)
+    else:
+        setting_args = _stack_settings(
+            data, close, [_setting_args(data, setting, execution) for setting in aligned]
+        )
+    # Stop kwargs keep their place after the cost kwargs, as before the one-pass change.
+    leading = {key: value for key, value in setting_args.items() if key in _LEADING_ARGS}
+    stops = {key: value for key, value in setting_args.items() if key not in _LEADING_ARGS}
     return vbt.Portfolio.from_signals(
         close=close,
-        **signal_args,
-        price=execution_price,
+        **leading,
         size=float("inf") if execution.position_sizing == "all_cash_whole_shares" else execution.order_size,
         direction=None if execution.direction == "both" else execution.direction,
         accumulate=execution.accumulate,
@@ -144,9 +199,18 @@ def _construct_portfolio(
         fees=execution.fees,
         slippage=execution.slippage,
         fixed_fees=execution.fixed_fee_per_order,
-        **stop_args,
+        **stops,
         **_whole_share_args(execution),
     )
+
+
+def _setting_portfolio(portfolio: Any, position: int) -> Any:
+    """One setting's column of a one-pass portfolio (VectorBT PRO pf.iloc[:, i]).
+
+    An engine object without column indexing holds a single setting and is returned as is.
+    """
+    indexer = getattr(portfolio, "iloc", None)
+    return portfolio if indexer is None else indexer[:, position]
 
 
 def _whole_share_args(execution: ExecutionConfig) -> dict[str, Any]:
@@ -342,6 +406,31 @@ def _with_luck(
     ]
 
 
+def _validated_settings(
+    config: ExperimentConfig,
+    strategy: Any,
+    data: pd.DataFrame,
+    rejections: list[RejectedParameters],
+    validation_by_gate: dict[str, ValidationResult],
+) -> list[tuple[dict[str, Any], SignalResult, tuple[ValidationResult, ...]]]:
+    """Validate every supplied setting and align its signals; record rejected ones."""
+    settings: list[tuple[dict[str, Any], SignalResult, tuple[ValidationResult, ...]]] = []
+    for supplied in config.parameter_combinations:
+        candidate = dict(supplied)
+        try:
+            normalized = strategy.validate_parameters(candidate)
+        except (TypeError, ValueError) as exc:
+            rejections.append(RejectedParameters(parameters=candidate, error=str(exc)))
+            continue
+        signals = strategy.generate_signals(data, normalized)
+        aligned, validation_results = validate_for_simulation(
+            data, signals, config, required_fields=strategy.spec.data.required_fields
+        )
+        validation_by_gate.update({result.gate_id: result for result in validation_results})
+        settings.append((normalized, aligned, validation_results))
+    return settings
+
+
 def execute_experiment(
     config: ExperimentConfig,
     data: pd.DataFrame,
@@ -373,26 +462,13 @@ def execute_experiment(
     execution_assumptions = _execution_assumptions(config, strategy)
     parameter_names = tuple(strategy.spec.parameter_map)
 
-    for supplied in config.parameter_combinations:
-        candidate = dict(supplied)
-        try:
-            normalized = strategy.validate_parameters(candidate)
-        except (TypeError, ValueError) as exc:
-            rejections.append(
-                RejectedParameters(parameters=candidate, error=str(exc))
-            )
-            continue
-        signals = strategy.generate_signals(data, normalized)
-        aligned, validation_results = validate_for_simulation(
-            data,
-            signals,
-            config,
-            required_fields=strategy.spec.data.required_fields,
-        )
-        validation_by_gate.update(
-            {result.gate_id: result for result in validation_results}
-        )
-        portfolio = _construct_portfolio(data, aligned, config)
+    settings = _validated_settings(config, strategy, data, rejections, validation_by_gate)
+
+    # Every validated setting is one column of a single VectorBT simulation.
+    aligned_settings = tuple(aligned for _, aligned, _ in settings)
+    sweep = _construct_portfolio(data, aligned_settings, config) if settings else None
+    for position, (normalized, _, validation_results) in enumerate(settings):
+        portfolio = _setting_portfolio(sweep, position)
         metrics = (
             extract_metrics(portfolio, data=data, config=config)
             if config.metric_policy is not None
