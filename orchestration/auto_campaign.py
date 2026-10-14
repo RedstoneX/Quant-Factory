@@ -149,6 +149,7 @@ class AutoTestRequest:
     profile: DatasetProfile
     database: str
     artifact_root: str
+    attempt: int = 0  # earlier runs of this exact packet that a restart cut short
 
 
 @dataclass(frozen=True)
@@ -178,9 +179,10 @@ def dataset_profile(symbol: str, timeframe: str) -> DatasetProfile | None:
         return None
 
 
-def campaign_idempotency_key(candidate_id: str, strategy_id: str) -> str:
-    # The launch-key contract allows only letters, digits, '_' and '-'.
-    return f"{candidate_id}-{strategy_id}"
+def campaign_idempotency_key(candidate_id: str, strategy_id: str, attempt: int = 0) -> str:
+    # The launch-key contract allows only letters, digits, '_' and '-'. A rerun after
+    # an interrupted attempt needs its own key: a key is never invoked twice.
+    return f"{candidate_id}-{strategy_id}" + (f"-r{attempt}" if attempt else "")
 
 
 def safe_detail(text: object, *, limit: int = 300) -> str:
@@ -353,7 +355,7 @@ def run_auto_test(
         _draft, configuration = service.upsert_idea_configuration(draft_id=request.candidate_id, document=document)
     finally:
         service.close()
-    key = campaign_idempotency_key(request.candidate_id, installed.strategy_id)
+    key = campaign_idempotency_key(request.candidate_id, installed.strategy_id, request.attempt)
     try:
         run_id, chain = launch(configuration.configuration_id, key)
     except CandidatePipelineReplayIncompleteError:

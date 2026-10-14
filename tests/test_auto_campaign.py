@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from agent_gateway.auto_campaign import AutoTestCampaign
+from agent_gateway.auto_campaign import MAX_ATTEMPTS, AutoTestCampaign
 from agent_gateway.store import GatewayStore
 from market_data import DatasetUnavailableError
 from orchestration.auto_campaign import (
@@ -239,7 +239,27 @@ def test_restart_requeues_open_candidates_with_the_same_key(tmp_path):
         ("running", "started"), ("queued", "requeued_after_restart"), ("running", "started"),
         ("survivor", "awaiting_owner_review"),
     ]
-    assert harness.launches[0][1] == campaign_idempotency_key("idea_restart1", harness.adapter.installed[0])
+    assert harness.launches[0][1] == campaign_idempotency_key("idea_restart1", harness.adapter.installed[0], 1)
+    assert harness.launches[0][1].endswith("-r1")
+
+
+def test_idea_interrupted_max_times_is_reported_not_rerun(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_restart2")
+    store = GatewayStore(harness.gateway_database)
+    try:
+        packet = PersistenceService(harness.database).idea_drafts.get("idea_restart2").candidate_json
+        digest = hashlib.sha256(packet.encode()).hexdigest()
+        for _ in range(MAX_ATTEMPTS):
+            store.append_campaign_event(candidate_id="idea_restart2", policy_id=POLICY_ID, state="running",
+                                        reason_code="started", packet_sha256=digest)
+    finally:
+        store.close()
+    campaign = harness.campaign()
+    campaign.requeue_after_restart()
+    campaign.run_once()
+    assert harness.states("idea_restart2")[-1] == ("failed", "run_error")
+    assert harness.launches == []
 
 
 def test_blocked_idea_is_re_evaluated_only_when_its_packet_changes(tmp_path):
@@ -268,7 +288,7 @@ def test_hand_built_setups_are_skipped_without_writing(tmp_path):
     request = SimpleNamespace(
         candidate_id="idea_manual01", definition=harness.adapter.definition(
             candidate_id="idea_manual01", title="t", rule_spec=RULES, variables={}),
-        profile=dataset_profile("MES", "5m"), database=str(harness.database), artifact_root=str(tmp_path),
+        profile=dataset_profile("MES", "5m"), database=str(harness.database), artifact_root=str(tmp_path), attempt=0,
     )
     assert harness.executor(request).state == "survivor"
     harness.launches.clear()
