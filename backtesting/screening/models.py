@@ -83,3 +83,7 @@ class ScreeningResult:
     normalized_parameters: dict[str, Any]
     execution_assumptions: dict[str, Any]
     rejection_reasons: tuple[str, ...]
+    # Record-only luck evidence (Deflated Sharpe Ratio probability for this
+    # row against the experiment's expected maximum Sharpe under the null).
+    # It never takes part in the pass/fail decision.
+    deflated_sharpe_probability: float | None = None

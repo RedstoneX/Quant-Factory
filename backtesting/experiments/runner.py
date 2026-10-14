@@ -1,9 +1,10 @@
 """Generic execution, metrics, ranking, and persistence for experiments."""
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+import numpy as np
 import pandas as pd
 
 from market_data import DataAudit, format_audit, load_market_data
@@ -26,6 +27,10 @@ from backtesting.validation.gates import (
 )
 from backtesting.validation.models import ValidationResult, raise_for_blocking_failures
 from backtesting.screening import ScreeningResult, screen_metrics
+from backtesting.screening.deflated_sharpe import (
+    DeflatedSharpeResult,
+    deflated_sharpe,
+)
 from backtesting.vectorbt_runtime import require_vectorbtpro
 
 METRIC_COLUMNS = (
@@ -279,6 +284,33 @@ def _result_columns(config: ExperimentConfig, parameter_names: tuple[str, ...]) 
     )
 
 
+def _value_column(portfolio: Any) -> np.ndarray | None:
+    """One setting's portfolio value as an array; None if the engine has none."""
+    value = getattr(portfolio, "value", None)
+    value = value() if callable(value) else value
+    if isinstance(value, pd.DataFrame) and value.shape[1] == 1:
+        value = value.iloc[:, 0]
+    return value.to_numpy(dtype=float) if isinstance(value, pd.Series) else None
+
+
+def _record_luck(
+    value_columns: list[np.ndarray | None], initial_cash: float
+) -> DeflatedSharpeResult | None:
+    """Record-only Deflated Sharpe over all simulated settings (never screens)."""
+    if not value_columns or any(column is None for column in value_columns):
+        return None
+    return deflated_sharpe(np.column_stack(value_columns), initial_cash)
+
+
+def _with_luck(
+    screening_results: list[ScreeningResult], luck: DeflatedSharpeResult
+) -> list[ScreeningResult]:
+    return [
+        replace(result, deflated_sharpe_probability=probability)
+        for result, probability in zip(screening_results, luck.trial_probabilities)
+    ]
+
+
 def execute_experiment(
     config: ExperimentConfig,
     data: pd.DataFrame,
@@ -305,6 +337,7 @@ def execute_experiment(
     rejections: list[RejectedParameters] = []
     validation_by_gate = {result.gate_id: result for result in market_results}
     screening_results: list[ScreeningResult] = []
+    value_columns: list[np.ndarray | None] = []
     execution_assumptions = _execution_assumptions(config, strategy)
     parameter_names = tuple(strategy.spec.parameter_map)
 
@@ -343,6 +376,7 @@ def execute_experiment(
             config=config.screening,
         )
         screening_results.append(screening)
+        value_columns.append(_value_column(portfolio))
         if portfolio_observer is not None:
             portfolio_observer(screening.parameter_row_id, portfolio)
         rows.append(
@@ -368,6 +402,9 @@ def execute_experiment(
         )
         normalized_parameters.append(dict(normalized))
 
+    luck = _record_luck(value_columns, config.execution.initial_cash)
+    if luck is not None:
+        screening_results = _with_luck(screening_results, luck)
     columns = _result_columns(config, parameter_names)
     ranked = pd.DataFrame(rows, columns=columns)
     if not ranked.empty:
@@ -419,6 +456,7 @@ def execute_experiment(
         screening_config=config.screening,
         screening_results=tuple(screening_results),
         parameter_plan_summary=parameter_plan_summary,
+        deflated_sharpe=luck,
     )
 
 

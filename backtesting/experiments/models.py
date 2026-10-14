@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Mapping
 
 from market_data import DataAudit, MarketDataConfig
+from backtesting.screening.deflated_sharpe import DeflatedSharpeResult
 from backtesting.screening.models import ScreeningConfig
 
 if TYPE_CHECKING:
@@ -326,3 +327,5 @@ class ExperimentResult:
     screening_config: ScreeningConfig
     screening_results: tuple[ScreeningResult, ...]
     parameter_plan_summary: ParameterPlanSummary
+    # Experiment-level luck check; None when no trial exposed a value series.
+    deflated_sharpe: DeflatedSharpeResult | None = None
