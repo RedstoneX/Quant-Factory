@@ -20,21 +20,20 @@ from market_data.alpaca_sip_universe import UNIVERSE, UNIVERSE_GROUPS, asset_typ
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_universe_has_59_unique_symbols_in_labelled_groups():
-    assert len(UNIVERSE) == 59
-    assert len(set(UNIVERSE)) == 59
+def test_universe_has_48_unique_symbols_in_labelled_groups():
+    assert len(UNIVERSE) == 48
+    assert len(set(UNIVERSE)) == 48
     assert {group: len(symbols) for group, symbols in UNIVERSE_GROUPS.items()} == {
-        "index_funds": 8, "sector_funds": 10, "large_caps": 18,
-        "active_growth": 9, "affordable_high_volume": 14,
+        "market_reference": 3, "funds": 14, "stocks": 31,
     }
     assert asset_type("IBIT") == "ETF"
-    assert asset_type("XLK") == "ETF"
-    assert asset_type("SOFI") == "stock"
+    assert asset_type("XLE") == "ETF"
+    assert asset_type("KO") == "stock"
 
 
 def test_all_and_symbols_selection():
     assert resolve_symbols(parse_args(["--all"])) == list(UNIVERSE)
-    assert resolve_symbols(parse_args(["--symbols", "spy", "AAPL"])) == ["SPY", "AAPL"]
+    assert resolve_symbols(parse_args(["--symbols", "spy", "NVDA"])) == ["SPY", "NVDA"]
     with pytest.raises(ValueError, match="Not in the universe"):
         resolve_symbols(parse_args(["--symbols", "ZZZZ"]))
     with pytest.raises(SystemExit):

@@ -2,30 +2,32 @@
 
 from __future__ import annotations
 
-UNIVERSE_NAME = "us_day_trading_liquid_v2"
+UNIVERSE_NAME = "us_day_trading_liquid_v3"
 UNIVERSE_AS_OF = "2026-10-14"
 HISTORY_START = "2016-01-01"
 
-# Chosen by the owner for day-trading liquidity and affordable share prices,
-# measured from three months of Alpaca daily bars.
+# Owner's criteria: low spreads, high volume, whole shares affordable. Measured
+# 2026-10-14 from three months of Alpaca daily bars plus SIP quotes on three
+# recent sessions: price $5-$250, at least 10M shares/day, and a median
+# bid/ask spread no wider than 1% of the stock's average daily high-low range.
+# SPY, QQQ and IWM are kept as market reference even though they cost more.
 UNIVERSE_GROUPS: dict[str, tuple[str, ...]] = {
-    "index_funds": ("SPY", "QQQ", "IWM", "TQQQ", "SQQQ", "SOXL", "IBIT", "GDX"),
-    "sector_funds": ("XLF", "XLE", "XLK", "XLV", "XLU", "XLP", "XLI", "XLB", "XLY", "XLC"),
-    "large_caps": (
-        "NVDA", "AAPL", "TSLA", "MSFT", "META", "AMD", "AMZN", "GOOGL", "AVGO",
-        "ORCL", "NFLX", "WMT", "JPM", "XOM", "CRM", "V", "UNH", "BAC",
+    "market_reference": ("SPY", "QQQ", "IWM"),
+    "funds": (
+        "TQQQ", "SQQQ", "SOXL", "SOXS", "EWY", "DRAM", "IBIT", "GDX", "XLE", "KRE", "SLV",
+        "SNXX", "MUU", "KORU",
     ),
-    "active_growth": ("MU", "PLTR", "INTC", "MRVL", "HOOD", "COIN", "MSTR", "SMCI", "CSCO"),
-    "affordable_high_volume": (
-        "T", "F", "SOFI", "PFE", "AAL", "NU", "WBD", "CMCSA", "PCG", "MARA", "NOK", "VALE",
-        "RKT", "IREN",
+    "stocks": (
+        "NVDA", "SPCX", "INTC", "PLTR", "SKHY", "ORCL", "MSTR", "NFLX", "WMT", "CRWV", "HOOD",
+        "CSCO", "KLAC", "IREN", "SMCI", "KO", "RKLB", "C", "UBER", "WFC", "HPE", "FCX", "IONQ",
+        "BMNR", "ASTS", "BMY", "SLB", "CIFR", "APLD", "DVN", "RIOT",
     ),
 }
-FUND_GROUPS = frozenset({"index_funds", "sector_funds"})
+FUND_GROUPS = frozenset({"market_reference", "funds"})
 UNIVERSE = tuple(symbol for symbols in UNIVERSE_GROUPS.values() for symbol in symbols)
 
 SURVIVORSHIP_NOTE = (
-    f"Selected in Oct 2026 ({UNIVERSE_AS_OF}) by recent liquidity and share price. "
+    f"Selected in Oct 2026 ({UNIVERSE_AS_OF}) by recent spread, volume and share price. "
     "Names that were liquid in the past but faded, merged or were delisted are absent, "
     "so backtests on it carry survivorship bias and overstate what was knowable at the time."
 )
