@@ -38,6 +38,7 @@ from market_data.alpaca_sip_universe import (
     asset_type,
     universe_group,
 )
+from market_data.bar_outliers import METHOD as SUSPECT_METHOD, flag_suspect_bars
 from market_data.catalog import (
     DataLocations,
     DatasetManifest,
@@ -470,6 +471,8 @@ def build_manifest(
     first = frame["timestamp"].iloc[0].isoformat()
     last = frame["timestamp"].iloc[-1].isoformat()
     session_counts = {key: int(value) for key, value in frame["session"].value_counts().items()}
+    suspect, suspect_counts = flag_suspect_bars(frame)
+    suspect_examples = [stamp.isoformat() for stamp in frame.loc[suspect, "timestamp"].iloc[:20]]
     return {
         "dataset_id": dataset.dataset_id,
         "status": "validated",
@@ -531,6 +534,11 @@ def build_manifest(
             "includes pre- and post-market bars; filter session == 'regular' for regular hours",
             "no trading-cost data attached",
         ],
+        # Flagged, not fatal: spikes are listed here and dropped by the catalog loader, never edited.
+        "suspect_bar_count": suspect_counts["any"],
+        "suspect_bar_counts_by_column": {k: v for k, v in suspect_counts.items() if k != "any"},
+        "suspect_bar_examples": suspect_examples,
+        "suspect_bar_method": SUSPECT_METHOD,
         "validation_notes": [],
     }
 

@@ -16,6 +16,8 @@ from market_data.catalog import (
     manifest_dir_for,
     read_verified_bytes,
     resolve_dataset_path,
+    SUSPECT_BAR_METHOD,
+    suspect_bar_timestamps,
     verify_dataset_file,
 )
 from market_data.calendars import (
@@ -188,7 +190,7 @@ def _manifest_is_adjusted(manifest: DatasetManifest) -> bool:
 
 
 def _load_verified_catalog_data(
-    config: MarketDataConfig, *, now: pd.Timestamp | None
+    config: MarketDataConfig, *, now: pd.Timestamp | None, drop_suspect_bars: bool = True
 ) -> MarketDataResult:
     """Read a validated catalog slice, resolved by dataset id, without acquisition.
 
@@ -246,6 +248,14 @@ def _load_verified_catalog_data(
     frame.index = frame.index.tz_convert("UTC")
     if not frame.index.is_monotonic_increasing or not frame.index.is_unique:
         raise DatasetUnavailableError("The verified catalog timestamps are not unique and ordered")
+    suspect_note = ""
+    suspect = suspect_bar_timestamps(manifest, payload) if drop_suspect_bars else None
+    if suspect is not None:  # flagged on the whole file; original prices are never edited
+        dropped = frame.index.isin(suspect[0])
+        frame = frame.loc[~dropped]
+        if frame.empty:
+            raise DatasetUnavailableError("Every bar in the verified catalog slice was flagged suspect")
+        suspect_note = f"; {int(dropped.sum())} suspect bar(s) dropped ({SUSPECT_BAR_METHOD})"
     missing = frame.loc[:, list(OHLCV_COLUMNS)].isna().sum()
     if missing.any():
         raise DatasetUnavailableError("The verified catalog slice contains missing OHLCV values")
@@ -263,7 +273,8 @@ def _load_verified_catalog_data(
             f"validated catalog manifest; {manifest.metadata['adjustment']}-adjusted prices"
             if config.adjusted
             else "validated catalog manifest; original unadjusted prices"
-        ),
+        )
+        + suspect_note,
         download_time=str(manifest.metadata["imported_at_utc"]),
         download_timezone="UTC",
         actual_first_row_date=frame.index[0].date().isoformat(),

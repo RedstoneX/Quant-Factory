@@ -4,10 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from io import BytesIO
 import json
 from pathlib import Path
 import tomllib
 from typing import Any
+
+import pandas as pd
+
+from market_data.bar_outliers import METHOD as SUSPECT_BAR_METHOD, flag_suspect_bars
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "data_locations.local.toml"
@@ -233,3 +238,21 @@ def verify_dataset_file(
                 f"expected {manifest.sha256}, got {actual_hash}"
             )
     return path
+
+
+def suspect_bar_timestamps(
+    manifest: DatasetManifest, payload: bytes
+) -> tuple[pd.DatetimeIndex, dict[str, int]] | None:
+    """Timestamps of suspect bars in an Alpaca SIP file, flagged from the verified bytes.
+
+    Computed on the whole file (all sessions, per New York date) so a later session filter
+    cannot change a flag. Returns None for datasets this check does not apply to.
+    """
+    if manifest.provider != "alpaca" or manifest.metadata.get("feed") != "sip":
+        return None
+    time_column = str(manifest.metadata.get("timestamp_column", "timestamp"))
+    bars = pd.read_parquet(BytesIO(payload), engine="pyarrow", columns=[time_column, "high", "low", "close"])
+    bars = bars.rename(columns={time_column: "timestamp"})
+    flags, counts = flag_suspect_bars(bars)
+    stamps = pd.DatetimeIndex(pd.to_datetime(bars["timestamp"], utc=True))
+    return stamps[flags.to_numpy()], counts

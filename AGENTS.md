@@ -41,6 +41,9 @@ strategies, and backtests them. It does not trade.
   (`downloaded_manifests`, default `<data root>/manifests`), and the catalog
   reads both that folder and the repo manifests. Resolve its files by dataset
   id, never by path: each top-up commits a new data slot via its manifest.
+- Suspect bars (bad prints, one-bar spikes) are flagged by the published highfrequency
+  `rmOutliersTrades` advanced rule (`market_data/bar_outliers.py`): the loader drops them
+  and says how many in the audit; stored files are never edited; manifests list a count.
 - Downloaded market data lives outside the repo. Never modify or delete it;
   only that top-up service writes there.
 
