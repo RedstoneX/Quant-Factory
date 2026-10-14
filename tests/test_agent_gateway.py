@@ -13,6 +13,7 @@ import pytest
 from agent_gateway.cli import build_parser, request_document, send
 from agent_gateway.contracts import GATEWAY_PROTOCOL, GatewayIdentity, GatewayRequest
 from agent_gateway.service import AgentResearchGateway
+from agent_gateway.store import GatewayStore
 from agent_gateway.socket_server import GatewayUnixServer, IdentityRegistration, PeerPolicy
 from agent_gateway.ssh_command import allowed_arguments
 from persistence import PersistenceService, RunStage, StrategyLifecycle, save_candidate_idea
@@ -66,15 +67,30 @@ def _gateway(tmp_path: Path, *, launcher=None) -> AgentResearchGateway:
     )
 
 
-def test_fresh_gateway_state_has_no_active_campaign_storage(tmp_path):
+def test_fresh_gateway_has_empty_campaign_log_and_reports_automatic_testing(tmp_path):
     gateway = _gateway(tmp_path)
-    gateway.handle(_request("bootstrap"), GatewayIdentity("reader", "local", "test", "local", 0))
+    reader = GatewayIdentity("reader", "local", "test", "local", 0)
+    boot = gateway.handle(_request("bootstrap"), reader).result
+    assert boot["automatic_testing"] == {"enabled": False, "policy_id": "auto_test_v1"}
+    assert "campaign.status" in boot["permitted_operations"]
     connection = sqlite3.connect(tmp_path / "gateway.sqlite3")
     try:
-        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert connection.execute("SELECT count(*) FROM campaign_events").fetchone()[0] == 0
     finally:
         connection.close()
-    assert "campaign_events" not in tables
+    empty = gateway.handle(_request("campaign.status", arguments={"candidate_id": "idea_status01"}), reader)
+    assert empty.ok and empty.result["latest_event"] is None
+    store = GatewayStore(tmp_path / "gateway.sqlite3")
+    try:
+        for state, code in (("queued", "waiting"), ("running", "started")):
+            store.append_campaign_event(candidate_id="idea_status01", policy_id="auto_test_v1", state=state, reason_code=code)
+    finally:
+        store.close()
+    latest = gateway.handle(_request("campaign.status", arguments={"candidate_id": "idea_status01"}), reader).result
+    assert (latest["latest_event"]["state"], latest["latest_event"]["reason_code"]) == ("running", "started")
+    enabled = AgentResearchGateway(database=tmp_path / "qf.sqlite3", gateway_database=tmp_path / "gateway.sqlite3",
+                                   artifact_root=tmp_path, automatic_testing_enabled=True)
+    assert enabled.handle(_request("bootstrap"), reader).result["automatic_testing"]["enabled"] is True
 
 
 @pytest.fixture
@@ -322,6 +338,9 @@ def test_run_request_fails_closed_without_an_active_campaign(tmp_path, identitie
     replay = gateway.handle(request, identities["codex"])
     assert launched.ok is False
     assert launched.error["code"] == "campaign_inactive"
+    assert launched.error["message"] == (
+        "Runs start automatically for every valid idea that has a rule_spec; submit or update the idea instead."
+    )
     assert replay.document() == launched.document()
     assert calls == []
 

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sqlite3
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+_CAMPAIGN_FIELDS = ("event_id", "candidate_id", "policy_id", "state", "reason_code", "reason_detail", "packet_sha256", "run_id", "created_at")
 
 
 class GatewayStore:
@@ -91,12 +93,33 @@ class GatewayStore:
             BEFORE DELETE ON research_notes BEGIN
                 SELECT RAISE(ABORT, 'research notes are append-only');
             END;
+            CREATE TABLE IF NOT EXISTS campaign_events (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                candidate_id TEXT NOT NULL,
+                policy_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                reason_code TEXT,
+                reason_detail TEXT,
+                packet_sha256 TEXT,
+                run_id TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_campaign_events_candidate
+            ON campaign_events(candidate_id, event_id);
+            CREATE TRIGGER IF NOT EXISTS campaign_events_no_update
+            BEFORE UPDATE ON campaign_events BEGIN
+                SELECT RAISE(ABORT, 'campaign events are append-only');
+            END;
+            CREATE TRIGGER IF NOT EXISTS campaign_events_no_delete
+            BEFORE DELETE ON campaign_events BEGIN
+                SELECT RAISE(ABORT, 'campaign events are append-only');
+            END;
             """
         )
         row = self.connection.execute("SELECT version FROM gateway_schema").fetchone()
         if row is None:
             self.connection.execute("INSERT INTO gateway_schema(version) VALUES (?)", (SCHEMA_VERSION,))
-        elif row["version"] == 1:
+        elif row["version"] in (1, 2):
             self.connection.execute("UPDATE gateway_schema SET version=?", (SCHEMA_VERSION,))
         elif row["version"] != SCHEMA_VERSION:
             raise RuntimeError("unsupported agent gateway state schema")
@@ -246,3 +269,45 @@ class GatewayStore:
             raise RuntimeError("stored gateway response is invalid")
         result["response"] = document
         return result
+
+    def append_campaign_event(
+        self,
+        *,
+        candidate_id: str,
+        policy_id: str,
+        state: str,
+        reason_code: str | None,
+        reason_detail: str | None = None,
+        packet_sha256: str | None = None,
+        run_id: str | None = None,
+    ) -> int:
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self.immediate() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO campaign_events(candidate_id, policy_id, state, reason_code,
+                    reason_detail, packet_sha256, run_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (candidate_id, policy_id, state, reason_code, reason_detail, packet_sha256, run_id, created_at),
+            )
+            return int(cursor.lastrowid)
+
+    def latest_campaign_events(self) -> dict[str, dict[str, Any]]:
+        rows = self.connection.execute(
+            f"""
+            SELECT {", ".join("event." + name for name in _CAMPAIGN_FIELDS)}
+            FROM campaign_events event JOIN (
+                SELECT candidate_id, MAX(event_id) event_id FROM campaign_events GROUP BY candidate_id
+            ) latest ON latest.event_id = event.event_id
+            """
+        ).fetchall()
+        return {str(row["candidate_id"]): dict(row) for row in rows}
+
+    def latest_campaign_event(self, candidate_id: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            f"SELECT {', '.join(_CAMPAIGN_FIELDS)} FROM campaign_events "
+            "WHERE candidate_id=? ORDER BY event_id DESC LIMIT 1",
+            (candidate_id,),
+        ).fetchone()
+        return dict(row) if row is not None else None

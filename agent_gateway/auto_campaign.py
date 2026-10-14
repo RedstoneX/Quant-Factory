@@ -1,0 +1,200 @@
+"""Background campaign that automatically tests every valid idea with rules.
+
+Events are appended to the gateway's ``campaign_events`` log; the research
+database is written only by the existing persistence and pipeline APIs inside
+the per-run child process. Nothing here sets an approval or promotes anything.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+import sqlite3
+import sys
+import threading
+from typing import Any, Callable, Mapping
+
+from agent_gateway.store import GatewayStore
+from orchestration.auto_campaign import (
+    POLICY_ID,
+    AutoTestOutcome,
+    AutoTestRequest,
+    RuleStrategyAdapter,
+    dataset_profile,
+    earlier_owner_of_strategy,
+    safe_detail,
+)
+from persistence import PersistenceService
+from research_intake import validate_candidate_packet
+
+RuleSpecReader = Callable[[Mapping[str, Any]], "dict[str, Any] | None"]
+Executor = Callable[[AutoTestRequest], AutoTestOutcome]
+OPEN_STATES = frozenset({"queued", "running"})
+
+
+class AutoTestCampaign:
+    def __init__(
+        self,
+        *,
+        database: str | Path,
+        gateway_database: str | Path,
+        artifact_root: str | Path,
+        adapter: RuleStrategyAdapter,
+        executor: Executor,
+        rule_spec_reader: RuleSpecReader,
+        poll_seconds: float = 60.0,
+    ) -> None:
+        self.database = Path(database)
+        self.gateway_database = Path(gateway_database)
+        self.artifact_root = Path(artifact_root)
+        self.adapter = adapter
+        self.executor = executor
+        self.rule_spec_reader = rule_spec_reader
+        self.poll_seconds = poll_seconds
+        self._run_lock = threading.Lock()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    # -- lifecycle -------------------------------------------------------
+    def start(self) -> threading.Thread:
+        self.requeue_after_restart()
+        self._thread = threading.Thread(target=self._loop, name="qf-auto-test-campaign", daemon=True)
+        self._thread.start()
+        return self._thread
+
+    def stop(self, timeout: float | None = None) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout)
+
+    def _loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.run_once()
+            except (OSError, sqlite3.Error, KeyError, ValueError, RuntimeError) as exc:
+                # The gateway keeps serving; the next pass retries.
+                print(f"automatic testing pass failed: {safe_detail(exc)}", file=sys.stderr, flush=True)
+            self._stop.wait(self.poll_seconds)
+
+    def requeue_after_restart(self) -> list[str]:
+        store = GatewayStore(self.gateway_database)
+        try:
+            interrupted = [row for row in store.latest_campaign_events().values() if row["state"] in OPEN_STATES]
+            for row in sorted(interrupted, key=lambda item: item["event_id"]):
+                store.append_campaign_event(
+                    candidate_id=row["candidate_id"], policy_id=POLICY_ID, state="queued",
+                    reason_code="requeued_after_restart", packet_sha256=row["packet_sha256"],
+                )
+            return [row["candidate_id"] for row in interrupted]
+        finally:
+            store.close()
+
+    # -- one pass --------------------------------------------------------
+    def run_once(self) -> int:
+        """Queue new or changed ideas, then test queued ideas one at a time."""
+        if not self._run_lock.acquire(blocking=False):
+            return 0
+        try:
+            store = GatewayStore(self.gateway_database)
+            try:
+                queued = self._queue(store)
+                for draft, packet, invalid, digest in queued:
+                    if self._stop.is_set():
+                        break
+                    self._process(store, draft, packet, invalid, digest)
+                return len(queued)
+            finally:
+                store.close()
+        finally:
+            self._run_lock.release()
+
+    def _queue(self, store: GatewayStore) -> list[tuple[Any, dict[str, Any], str | None, str]]:
+        latest = store.latest_campaign_events()
+        service = PersistenceService(self.database)
+        try:
+            drafts = sorted(service.idea_drafts.list(), key=lambda draft: (draft.created_at, draft.draft_id))
+        finally:
+            service.close()
+        queued = []
+        for draft in drafts:
+            event = latest.get(draft.draft_id)
+            if not draft.candidate_json or (draft.configuration_id and event is None):
+                continue  # no packet, or a hand-built setup: never touched
+            digest = hashlib.sha256(draft.candidate_json.encode("utf-8")).hexdigest()
+            if event is not None and event["state"] not in OPEN_STATES and event["packet_sha256"] == digest:
+                continue  # decided already; re-evaluated only when the packet changes
+            eligible = _eligible_packet(draft.candidate_json)
+            if eligible is None:
+                continue
+            if event is None or event["state"] not in OPEN_STATES:
+                store.append_campaign_event(
+                    candidate_id=draft.draft_id, policy_id=POLICY_ID, state="queued",
+                    reason_code="waiting", packet_sha256=digest,
+                )
+            queued.append((draft, *eligible, digest))
+        return queued
+
+    def _process(
+        self, store: GatewayStore, draft: Any, packet: dict[str, Any], invalid: str | None, digest: str
+    ) -> None:
+        def record(state: str, code: str, detail: str | None = None, run_id: str | None = None) -> None:
+            store.append_campaign_event(
+                candidate_id=draft.draft_id, policy_id=POLICY_ID, state=state, reason_code=code,
+                reason_detail=detail, packet_sha256=digest, run_id=run_id,
+            )
+
+        try:
+            if invalid is not None:
+                raise ValueError(invalid)
+            rule_spec = self.rule_spec_reader(packet)
+            if rule_spec is None:
+                return record(
+                    "implementation_blocked", "rules_missing",
+                    "The idea has no rule_spec, so no strategy can be generated from it.",
+                )
+            definition = self.adapter.definition(
+                candidate_id=draft.draft_id, title=draft.title, rule_spec=rule_spec,
+                variables=packet.get("variables") or {},
+            )
+        except ValueError as exc:
+            return record("implementation_blocked", "rules_invalid", f"The rule_spec is invalid: {safe_detail(exc)}")
+        strategy_id = str(definition["strategy_id"])
+        earlier = earlier_owner_of_strategy(database=self.database, strategy_id=strategy_id, candidate_id=draft.draft_id)
+        if earlier is not None:
+            return record("duplicate_closed", "same_rules", earlier)
+        market = packet.get("market") if isinstance(packet.get("market"), Mapping) else {}
+        instruments = market.get("instruments") if isinstance(market.get("instruments"), Mapping) else {}
+        preferred = instruments.get("preferred") or [""]
+        symbol, timeframe = str(preferred[0] or ""), str(market.get("timeframe") or "")
+        profile = dataset_profile(symbol, timeframe)
+        if profile is None:
+            return record(
+                "implementation_blocked", "data_unavailable",
+                f"No verified local dataset with recorded trading costs exists for {symbol or 'an unnamed market'} "
+                f"at {timeframe or 'an unstated timeframe'}.",
+            )
+        record("running", "started")
+        outcome = self.executor(
+            AutoTestRequest(
+                candidate_id=draft.draft_id, definition=definition, profile=profile,
+                database=str(self.database), artifact_root=str(self.artifact_root),
+            )
+        )
+        record(outcome.state, outcome.reason_code, outcome.reason_detail, outcome.run_id)
+
+
+def _eligible_packet(candidate_json: str) -> tuple[dict[str, Any], str | None] | None:
+    """Return a packet passing intake validation, or failing it only on its rule_spec."""
+    try:
+        document = json.loads(candidate_json)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(document, dict):
+        return None
+    validation = validate_candidate_packet(document)
+    if validation.valid:
+        return dict(validation.document), None
+    if all(issue.code == "rule_spec" for issue in validation.errors):
+        return dict(validation.document), "; ".join(issue.message for issue in validation.errors)
+    return None
