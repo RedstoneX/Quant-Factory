@@ -59,6 +59,13 @@ strategies, and backtests them. It does not trade.
 
 ## Hard rules for agents
 
+- **No greenfield code. No hand-written code.** Use the proven, tested library that
+  already does the job (VectorBT PRO first, then pandas or another published package).
+  Never write your own version of something a library provides, and never build new
+  architecture. The only exception is express permission from the owner (the account
+  holder) for that specific piece. Before writing non-trivial code, name the library
+  function that does it; if none exists, stop and report instead of writing it.
+  (Owner ruling, 2026-10-14.)
 - Never use `sudo` or `docker`.
 - Never read, print, copy or commit credentials, tokens, keys or secrets.
 - Never permanently delete data; move it to the trash instead.
