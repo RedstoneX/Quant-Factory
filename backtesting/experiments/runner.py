@@ -151,7 +151,7 @@ def _construct_portfolio(
         close=close,
         **signal_args,
         price=execution_price,
-        size=execution.order_size,
+        size=float("inf") if execution.position_sizing == "all_cash_whole_shares" else execution.order_size,
         direction=None if execution.direction == "both" else execution.direction,
         accumulate=execution.accumulate,
         leverage=execution.leverage,
@@ -160,7 +160,17 @@ def _construct_portfolio(
         slippage=execution.slippage,
         fixed_fees=execution.fixed_fee_per_order,
         **stop_args,
+        **_whole_share_args(execution),
     )
+
+
+def _whole_share_args(execution: ExecutionConfig) -> dict[str, Any]:
+    # size=np.inf buys with all cash; size_granularity=1.0 floors each order to whole
+    # shares ("granularity of 1.0 makes the quantity to behave like an integer. Placing
+    # an order of 12.5 shares (in any direction) will order exactly 12.0 shares" --
+    # vectorbt.portfolio.enums.Order.size_granularity, https://vectorbt.dev/api/portfolio/enums/;
+    # VectorBT PRO keeps the same from_signals argument).
+    return {"size_granularity": 1.0} if execution.position_sizing == "all_cash_whole_shares" else {}
 
 
 def build_execution_price(

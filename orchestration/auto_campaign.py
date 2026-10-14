@@ -29,6 +29,8 @@ from backtesting.robustness import (
 from backtesting.screening import ScreeningConfig
 from backtesting.validation import WalkForwardWindowRules
 from market_data import DatasetUnavailableError, MarketDataConfig, load_market_data
+from market_data.alpaca_sip_universe import UNIVERSE
+from orchestration.auto_campaign_stocks import STOCK_INTERVAL, StockCostsUnavailable, stock_profile_fields
 from orchestration.candidate_pipeline_runtime import (
     CandidatePipelineDefinition,
     CandidatePipelineReplayIncompleteError,
@@ -59,6 +61,15 @@ class DatasetProfile:
     stress_fee_per_contract_per_side: float
     stress_slippage_ticks: float
     annualization_factor: float
+    # Defaults are the MES values, so the MES profile and its saved setups are unchanged.
+    provider: str = "Databento"
+    adjusted: bool = False
+    initial_cash: float = 100_000.0
+    position_sizing: str = "fixed_units"
+    order_size: float = 1.0
+    fees: float = 0.0
+    slippage: float = 0.0
+    stress_slippage: float = 0.0
 
 
 # Copied verbatim from dashboard/mes_candidate_setup.py (DATASET_ID, DATASET_END,
@@ -153,7 +164,17 @@ DataCheck = Callable[[CandidatePipelineDefinition, DatasetProfile], None]
 
 
 def dataset_profile(symbol: str, timeframe: str) -> DatasetProfile | None:
-    return _PROFILES.get((symbol.strip().upper(), timeframe.strip()))
+    """MES 5m from the fixed table; a universe stock at 1m from its manifest and measured spread."""
+    key = (symbol.strip().upper(), timeframe.strip())
+    if key in _PROFILES:
+        return _PROFILES[key]
+    if key[1] != STOCK_INTERVAL or key[0] not in UNIVERSE:
+        return None
+    try:
+        return DatasetProfile(**stock_profile_fields(key[0]))
+    except (StockCostsUnavailable, DatasetUnavailableError, FileNotFoundError):
+        # No measured spread or no manifest: the caller reports no dataset with costs.
+        return None
 
 
 def campaign_idempotency_key(candidate_id: str, strategy_id: str) -> str:
@@ -186,19 +207,21 @@ def auto_test_definition(
         parameter_combinations=parameter_combinations(variables),
         market_data=MarketDataConfig(
             symbol=profile.symbol,
-            provider="Databento",
+            provider=profile.provider,
             provider_implementation=f"verified_local_catalog:{profile.dataset_id}",
             interval=profile.interval,
             requested_start=profile.requested_start,
             end_date_policy=profile.end_date_policy,
-            adjusted=False,
+            adjusted=profile.adjusted,
             exchange_calendar="NYSE",
             market_timezone="America/New_York",
             cache_path=profile.cache_path,
         ),
         execution=ExecutionConfig.next_bar_open(
-            initial_cash=100_000.0, fees=0.0, slippage=0.0, direction="both", leverage=1.0,
-            accumulate=False, position_sizing="fixed_units", order_size=1.0,
+            initial_cash=profile.initial_cash, fees=profile.fees, slippage=profile.slippage,
+            direction="both", leverage=1.0, accumulate=False,
+            position_sizing=profile.position_sizing,  # type: ignore[arg-type]
+            order_size=profile.order_size,
             price_multiplier=profile.price_multiplier,
             fixed_fee_per_contract_per_side=profile.fixed_fee_per_contract_per_side,
             slippage_ticks=profile.slippage_ticks,
@@ -303,6 +326,13 @@ def run_auto_test(
     request: AutoTestRequest, *, adapter: RuleStrategyAdapter, launch: Launch, data_check: DataCheck = _check_verified_data
 ) -> AutoTestOutcome:
     """Install, save, link and launch one idea; never approves or promotes."""
+    if request.profile.position_sizing != "fixed_units" and not request.definition.get("variables"):
+        # The fixed-rule cost stress (backtesting/robustness/fixed_rule.py) models only
+        # one futures contract; a parameter-free stock rule has no robustness test yet.
+        return AutoTestOutcome(
+            "implementation_blocked", "cost_stress_unsupported",
+            "A rule with no variables needs the cost stress test, which does not yet support stocks.",
+        )
     try:
         installed = adapter.install(request.definition)
     except ValueError as exc:
