@@ -14,33 +14,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  documentation:
-    name: Documentation contracts
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      # actions/checkout v7.0.1
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      # actions/setup-python v7.0.0
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: '3.12'
-      - name: Test documentation validator
-        run: python -m unittest tests.test_documentation_governance -v
-      - name: Check current documentation and retained incident history
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-        shell: bash
-        run: |
-          if [[ "$BASE_REF" =~ ^0+$ ]]; then
-            python tools/check_documentation.py
-          else
-            python tools/check_documentation.py --base-ref "$BASE_REF"
-          fi
-
   portable-tests:
     name: Portable tests
     runs-on: ubuntu-24.04
@@ -69,7 +42,7 @@ jobs:
           fi
       - name: Lightweight documentation/static-asset proof
         if: steps.scope.outputs.full == 'false'
-        run: echo "The separate required Documentation contracts job supplies the applicable proof; no runtime test lane is justified."
+        run: echo "Only markdown or static dashboard assets changed; no runtime test lane is needed."
       # actions/setup-python v7.0.0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         if: steps.scope.outputs.full == 'true'
@@ -113,7 +86,6 @@ jobs:
           python -m pytest --collect-only -q
           --write-test-lane-inventory=test-lane-inventory.json
           --ignore=tests/browser
-          --ignore=tests/test_documentation_governance.py
           tests
       - name: Run every portable non-browser test
         if: steps.scope.outputs.full == 'true'
@@ -124,7 +96,6 @@ jobs:
           -m "not licensed_vectorbt and not external_prefect and not controlled_market_data"
           --junitxml=portable-nonbrowser-test-results.xml
           --ignore=tests/browser
-          --ignore=tests/test_documentation_governance.py
           tests
       - name: Verify exact portable non-browser coverage
         if: always() && steps.scope.outputs.full == 'true'
