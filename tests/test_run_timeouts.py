@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import threading
+import types
 from pathlib import Path
 
 import pytest
 
-from orchestration import FixtureRunService
+from orchestration import FixtureRunService, run_service as run_service_module
 from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from persistence import PersistenceService, RunStatus
 from prefect_spike.fixture_flow import (
@@ -42,7 +43,9 @@ def test_invalid_timeout_fails_before_run_creation_or_fixture_launch(tmp_path: P
     assert service.get_run("qf-invalid-timeout") is None
 
 
-def test_timeout_after_ack_is_typed_and_does_not_falsely_fail_run(tmp_path: Path) -> None:
+def test_timeout_after_ack_is_typed_and_does_not_falsely_fail_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     database, configuration_id = _configuration(tmp_path)
     started = threading.Event()
     release = threading.Event()
@@ -89,6 +92,24 @@ def test_timeout_after_ack_is_typed_and_does_not_falsely_fail_run(tmp_path: Path
         finally:
             persistence.close()
             finished.set()
+
+    class _AckGatedThread(threading.Thread):
+        """Hold the service's bounded join until the worker has acknowledged.
+
+        The service starts its timeout clock at join(); on a slow runner a tiny
+        timeout could otherwise expire before the worker ever acknowledged,
+        which is a different (pre-ack) case from the one under test.
+        """
+
+        def join(self, timeout: float | None = None) -> None:
+            assert started.wait(timeout=5), "worker never acknowledged the run"
+            super().join(timeout)
+
+    monkeypatch.setattr(
+        run_service_module,
+        "threading",
+        types.SimpleNamespace(Thread=_AckGatedThread, Lock=threading.Lock),
+    )
 
     service = FixtureRunService(database=database, fixture_launcher=blocking_launcher)
     try:
