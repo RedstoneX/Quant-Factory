@@ -27,6 +27,8 @@
 !prefect_spike/**
 !strategies/
 !strategies/**
+!rule_language/
+!rule_language/**
 !tools/
 !tools/run_five_bar_candidate.py
 !config/
