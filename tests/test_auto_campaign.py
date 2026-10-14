@@ -24,31 +24,34 @@ from orchestration.auto_campaign import (
 from orchestration.auto_campaign_process import run_in_child
 from orchestration import CandidatePipelineDefinition
 from persistence import PersistenceService
+from strategies.rule_spec_strategy import install_rule_strategy, rule_strategy_definition
 
 ROOT = Path(__file__).resolve().parents[1]
-RULES = {"bar": "5m", "entry": "close > open"}
+RULES = {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {"timezone": "America/New_York", "open": "09:30", "close": "16:00"},
+    "flat_at": "15:55",
+    "signals": [{"when": {"crosses_above": [{"sma": "close", "length": 10}, {"sma": "close", "length": 30}]}, "side": "long"}],
+    "max_trades_per_session": 1,
+}
 
 
 class FakeAdapter:
-    def __init__(self) -> None:
+    """The real rule compiler, installing into a temporary folder and recording installs."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
         self.installed: list[str] = []
 
     def definition(self, *, candidate_id, title, rule_spec, variables):
-        if rule_spec.get("invalid"):
-            raise ValueError("rule_spec.entry is not a known expression")
-        payload = json.dumps({"rule_spec": rule_spec, "variables": variables}, sort_keys=True)
-        return {
-            "strategy_id": "rules_" + hashlib.sha256(payload.encode()).hexdigest()[:16],
-            "version": "1.0.0",
-            "candidate_id": candidate_id,
-            "title": title,
-            "rule_spec": dict(rule_spec),
-            "variables": dict(variables),
-        }
+        return rule_strategy_definition(candidate_id=candidate_id, title=title, rule_spec=rule_spec, variables=variables)
 
     def install(self, definition):
-        self.installed.append(definition["strategy_id"])
-        return InstalledRuleStrategy(definition["strategy_id"], definition["version"], definition["title"], "generated")
+        identity = install_rule_strategy(dict(definition), root=self.root).spec.identity
+        self.installed.append(identity.strategy_id)
+        return InstalledRuleStrategy(identity.strategy_id, identity.version, identity.name, identity.description)
 
 
 def _chain(status="ready_for_protected_test", stopped_at=None, reasons=("Protected test remains locked.",)):
@@ -60,7 +63,7 @@ class Harness:
         self.tmp_path = tmp_path
         self.database = tmp_path / "qf.sqlite3"
         self.gateway_database = tmp_path / "gateway.sqlite3"
-        self.adapter = FakeAdapter()
+        self.adapter = FakeAdapter(tmp_path / "rule_strategies")
         self.chain = chain or _chain()
         self.launches: list[tuple[str, str]] = []
 
@@ -108,11 +111,11 @@ class Harness:
 def test_rules_missing_and_invalid_are_blocked_with_plain_reasons(tmp_path):
     harness = Harness(tmp_path)
     harness.draft("idea_missing01", rule_spec=None)
-    harness.draft("idea_invalid01", rule_spec={"bar": "5m", "invalid": True})
+    harness.draft("idea_invalid01", rule_spec={**RULES, "invalid": True})
     harness.campaign().run_once()
     assert harness.states("idea_missing01") == [("queued", "waiting"), ("implementation_blocked", "rules_missing")]
     assert harness.states("idea_invalid01") == [("queued", "waiting"), ("implementation_blocked", "rules_invalid")]
-    assert "not a known expression" in harness.events("idea_invalid01")[-1]["reason_detail"]
+    assert "unknown key 'invalid'" in harness.events("idea_invalid01")[-1]["reason_detail"]
     assert all(row["policy_id"] == POLICY_ID and row["created_at"].endswith("+00:00") for row in harness.events())
     assert harness.launches == []
 
@@ -182,7 +185,10 @@ def test_screened_out_uses_pipeline_stage_names():
 
 def test_variables_drop_fixed_rule_stress_and_expand_grid(tmp_path):
     harness = Harness(tmp_path, chain=_chain("screened_out", "screening", ("No result qualified.",)))
-    harness.draft("idea_grid0001", variables={"fast": {"values": [5, 10]}, "slow": {"values": [30]}})
+    grid_rules = {**RULES, "signals": [{"when": {"crosses_above": [
+        {"sma": "close", "length": {"param": "fast"}}, {"sma": "close", "length": {"param": "slow"}}]}, "side": "long"}]}
+    harness.draft("idea_grid0001", rule_spec=grid_rules,
+                  variables={"fast": {"values": [5, 10]}, "slow": {"values": [30]}})
     harness.campaign().run_once()
     assert harness.states("idea_grid0001")[-1] == ("screened_out", "screening")
     service = PersistenceService(harness.database)
@@ -273,7 +279,7 @@ def test_hand_built_setups_are_skipped_without_writing(tmp_path):
 def test_only_one_run_at_a_time(tmp_path):
     harness = Harness(tmp_path)
     for index in range(3):
-        harness.draft(f"idea_serial{index:02d}", rule_spec={"bar": "5m", "n": index})
+        harness.draft(f"idea_serial{index:02d}", rule_spec={**RULES, "max_trades_per_session": index + 1})
     active, peak, lock = [0], [0], threading.Lock()
 
     def slow(request):

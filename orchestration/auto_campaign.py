@@ -20,7 +20,12 @@ import pandas as pd
 from backtesting.experiments.models import ExecutionConfig, ExperimentConfig
 from backtesting.monte_carlo import MonteCarloConfig
 from backtesting.out_of_sample import ChronologicalSplitConfig
-from backtesting.robustness import FixedRuleCostStressPlan, RegimeConfig
+from backtesting.robustness import (
+    FixedRuleCostStressPlan,
+    NeighborhoodConfig,
+    ParameterNeighborhoodDefinition,
+    RegimeConfig,
+)
 from backtesting.screening import ScreeningConfig
 from backtesting.validation import WalkForwardWindowRules
 from market_data import DatasetUnavailableError, MarketDataConfig, load_market_data
@@ -204,8 +209,19 @@ def auto_test_definition(
         output_path=Path("unused-auto-test-output.csv"),
         screening=ScreeningConfig.provisional_defaults(),
     )
-    stress = None
-    if not variables:  # fixed-rule cost stress accepts only parameter-free strategies
+    # The pipeline takes exactly one robustness test: parameter-free rules get the
+    # fixed-rule cost stress; rules with variables get a neighbourhood over the
+    # declared values, as tools/run_mes_orb_grid_candidate.py does.
+    stress = neighborhood = None
+    if variables:
+        neighborhood = NeighborhoodConfig(
+            definitions=tuple(
+                ParameterNeighborhoodDefinition(name, "explicit_values", explicit_values=tuple(spec["values"]))
+                for name, spec in sorted(variables.items())
+            ),
+            minimum_valid_neighbors=3,
+        )
+    else:
         stress = FixedRuleCostStressPlan(
             fixed_fee_per_contract_per_side=profile.stress_fee_per_contract_per_side,
             slippage_ticks=profile.stress_slippage_ticks,
@@ -221,7 +237,7 @@ def auto_test_definition(
             incomplete_final_window="drop",
         ),
         walk_forward_shortlist_size=1,
-        robustness_neighborhood=None,
+        robustness_neighborhood=neighborhood,
         robustness_regimes=RegimeConfig(
             trend_window=50, volatility_window=20,
             annualization_factor=profile.annualization_factor, minimum_observations=20,
