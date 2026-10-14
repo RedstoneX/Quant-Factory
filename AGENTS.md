@@ -28,10 +28,12 @@ strategies, and backtests them. It does not trade.
 - Testable today: MES 5-minute bars with trading costs; history ends 2026-02-13.
 - Other markets have manifests in `data/manifests/` but no cost data, so they
   cannot be tested honestly yet. No options data exists.
-- US stock/ETF library: Alpaca SIP 1-minute bars, 45 symbols listed in
-  `market_data/alpaca_sip_universe.py`, from 2016, split-adjusted, with
-  pre/post-market bars labelled by a `session` column. The list is today's
-  large caps, so results carry survivorship bias. No cost data yet.
+- US stock/ETF library: Alpaca SIP 1-minute bars, 59 symbols in labelled
+  groups in `market_data/alpaca_sip_universe.py`, from 2016 (or listing date),
+  split-adjusted, with pre/post-market bars labelled by a `session` column.
+  Backtests load it by dataset id (`verified_local_catalog:<dataset_id>`,
+  `adjusted=True`) and get the regular session. The list was picked in Oct 2026
+  by recent liquidity, so results carry survivorship bias. No cost data yet.
 - It is topped up nightly at 02:00 UTC by the `market-data-topup` compose
   service (`python -m market_data.alpaca_sip_cli --all --daily-at 02:00`); a
   manual run drops `--daily-at`. Its manifests live in the data mount

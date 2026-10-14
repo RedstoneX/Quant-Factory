@@ -36,6 +36,7 @@ from market_data.alpaca_sip_universe import (
     UNIVERSE_AS_OF,
     UNIVERSE_NAME,
     asset_type,
+    universe_group,
 )
 from market_data.catalog import (
     DataLocations,
@@ -494,11 +495,15 @@ def build_manifest(
         "latest_timestamp": last,
         "full_stored_coverage": {"first_timestamp": first, "last_timestamp": last, "row_count": int(len(frame))},
         "requested_coverage": {"start": start.isoformat(), "end": end.isoformat()},
+        # Later listings (e.g. SOFI, COIN, IBIT) simply start later; that is not a gap.
+        "first_available_bar": first,
+        "history_starts_after_requested_start": bool(frame["timestamp"].iloc[0] > start),
         "timezone": "UTC",
         "market_timezone": MARKET_TIMEZONE,
         "exchange_calendar": EXCHANGE_CALENDAR,
         "session_policy": "extended_hours_included",
         "session_column": "session",
+        "timestamp_column": "timestamp",
         "session_values": list(SESSION_VALUES),
         "regular_session_policy": "session == 'regular': timestamps >= market_open and < market_close",
         "session_counts": session_counts,
@@ -512,6 +517,7 @@ def build_manifest(
         "universe": {
             "name": UNIVERSE_NAME,
             "as_of": UNIVERSE_AS_OF,
+            "group": universe_group(dataset.symbol),
             "survivorship_bias": SURVIVORSHIP_NOTE,
         },
         "acquisition_timestamp": acquired,

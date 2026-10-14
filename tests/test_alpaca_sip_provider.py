@@ -262,3 +262,16 @@ def test_committed_file_not_matching_manifest_fails_closed(tmp_path):
     with pytest.raises(AlpacaSipError, match="does not match its manifest"):
         provider(tmp_path, server).top_up("SPY")
     assert manifest_file(tmp_path).read_text() == manifest_before
+
+
+def test_symbol_listed_after_2016_records_true_first_bar(tmp_path):
+    late = [bar("2021-06-01T13:30:00Z", 20), bar("2021-06-01T13:31:00Z", 21)]
+    result = provider(tmp_path, BarServer(late, page_size=10)).top_up("SOFI")
+    assert (result.status, result.row_count) == ("full", 2)
+    manifest = json.loads(manifest_file(tmp_path, "SOFI").read_text())
+    assert manifest["first_available_bar"] == "2021-06-01T13:30:00+00:00"
+    assert manifest["earliest_timestamp"] == "2021-06-01T13:30:00+00:00"
+    assert manifest["requested_coverage"]["start"].startswith("2016-01-01")
+    assert manifest["history_starts_after_requested_start"] is True
+    assert manifest["universe"]["group"] == "affordable_high_volume"
+    assert "Oct 2026" in manifest["universe"]["survivorship_bias"]

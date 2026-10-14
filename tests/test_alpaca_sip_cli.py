@@ -15,16 +15,21 @@ from market_data.alpaca_sip_cli import (
     run_top_up,
     seconds_until,
 )
-from market_data.alpaca_sip_universe import UNIVERSE, asset_type
+from market_data.alpaca_sip_universe import UNIVERSE, UNIVERSE_GROUPS, asset_type
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_universe_has_45_unique_symbols_in_one_place():
-    assert len(UNIVERSE) == 45
-    assert len(set(UNIVERSE)) == 45
-    assert asset_type("XLRE") == "ETF"
-    assert asset_type("BRK.B") == "stock"
+def test_universe_has_59_unique_symbols_in_labelled_groups():
+    assert len(UNIVERSE) == 59
+    assert len(set(UNIVERSE)) == 59
+    assert {group: len(symbols) for group, symbols in UNIVERSE_GROUPS.items()} == {
+        "index_funds": 8, "sector_funds": 10, "large_caps": 18,
+        "active_growth": 9, "affordable_high_volume": 14,
+    }
+    assert asset_type("IBIT") == "ETF"
+    assert asset_type("XLK") == "ETF"
+    assert asset_type("SOFI") == "stock"
 
 
 def test_all_and_symbols_selection():

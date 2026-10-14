@@ -189,6 +189,20 @@ def calculate_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def read_verified_bytes(manifest: DatasetManifest, path: Path) -> bytes:
+    """Read a dataset once and prove those exact bytes are the ones the manifest names.
+
+    Parsing from the returned bytes (not by reopening the path) makes the read atomic
+    with respect to any later writer.
+    """
+    payload = path.read_bytes()
+    if len(payload) != manifest.size_bytes or sha256(payload).hexdigest() != manifest.sha256:
+        raise DatasetUnavailableError(
+            f"Dataset {manifest.dataset_id} bytes read do not match its manifest size and SHA-256"
+        )
+    return payload
+
+
 def verify_dataset_file(
     manifest: DatasetManifest,
     locations: DataLocations,

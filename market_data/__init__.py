@@ -1,5 +1,6 @@
 """Reusable, audited market-data loading."""
 
+from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +14,7 @@ from market_data.catalog import (
     load_data_locations,
     load_dataset_manifest,
     manifest_dir_for,
+    read_verified_bytes,
     resolve_dataset_path,
     verify_dataset_file,
 )
@@ -107,9 +109,8 @@ def load_market_data(
     """Load clean market data from a compatible cache or supported provider."""
     if not isinstance(allow_download, bool):
         raise ValueError("allow_download must be a boolean")
-    if config.provider == "Databento" and config.provider_implementation.startswith(
-        "verified_local_catalog:"
-    ):
+    # The loader's manifest identity check compares provider, symbol and timeframe.
+    if config.provider_implementation.startswith("verified_local_catalog:"):
         return _load_verified_catalog_data(config, now=now)
     if config.provider != "Yahoo Finance":
         raise ValueError(f"Unsupported market-data provider: {config.provider}")
@@ -179,10 +180,21 @@ def load_market_data(
     return MarketDataResult(data=cleaned, audit=audit)
 
 
+_RAW_ADJUSTMENTS = frozenset({"", "raw", "none"})
+
+
+def _manifest_is_adjusted(manifest: DatasetManifest) -> bool:
+    return str(manifest.metadata.get("adjustment", "raw")).lower() not in _RAW_ADJUSTMENTS
+
+
 def _load_verified_catalog_data(
     config: MarketDataConfig, *, now: pd.Timestamp | None
 ) -> MarketDataResult:
-    """Read a fixed, validated local Databento slice without acquisition."""
+    """Read a validated catalog slice, resolved by dataset id, without acquisition.
+
+    The manifest names the file, its size and SHA-256; the bytes are hashed and parsed
+    from one read, so a reader always gets exactly the file its manifest names.
+    """
     dataset_id = config.provider_implementation.removeprefix("verified_local_catalog:")
     locations = load_data_locations()
     manifest = load_dataset_manifest(dataset_id, manifest_dir_for(dataset_id, locations))
@@ -191,13 +203,11 @@ def _load_verified_catalog_data(
         or manifest.symbol != config.symbol
         or manifest.timeframe != config.interval
         or manifest.format.lower() != "parquet"
-        or config.cache_path != manifest.canonical_relative_path
-        or config.adjusted
+        or config.adjusted != _manifest_is_adjusted(manifest)
     ):
         raise DatasetUnavailableError("Saved setup does not match the validated catalog identity")
     path = verify_dataset_file(manifest, locations)
-    if not locations.verify_sha256_before_use and calculate_sha256(path) != manifest.sha256:
-        raise DatasetUnavailableError("Verified catalog SHA-256 mismatch")
+    payload = read_verified_bytes(manifest, path)
     start = pd.Timestamp(config.requested_start)
     start = start.tz_localize("UTC") if start.tzinfo is None else start.tz_convert("UTC")
     if now is None:
@@ -212,15 +222,22 @@ def _load_verified_catalog_data(
     last_available = pd.Timestamp(manifest.metadata["latest_timestamp"])
     if start < first_available or end > last_available:
         raise DatasetUnavailableError("The requested fixed period exceeds verified catalog coverage")
+    time_column = str(manifest.metadata.get("timestamp_column", "ts_event"))
+    filters = [
+        (time_column, ">=", start.to_pydatetime()),
+        (time_column, "<=", end.to_pydatetime()),
+    ]
+    session_column = manifest.metadata.get("session_column")
+    if session_column:  # extended-hours libraries: backtests read the regular session
+        filters.append((str(session_column), "==", "regular"))
     frame = pd.read_parquet(
-        path,
+        BytesIO(payload),
         engine="pyarrow",
-        columns=["open", "high", "low", "close", "volume", "ts_event"],
-        filters=[
-            ("ts_event", ">=", start.to_pydatetime()),
-            ("ts_event", "<=", end.to_pydatetime()),
-        ],
+        columns=["open", "high", "low", "close", "volume", time_column],
+        filters=filters,
     )
+    if time_column in frame.columns:
+        frame = frame.set_index(time_column)
     frame = frame.rename(columns=str.title)
     if frame.empty or set(frame.columns) != set(OHLCV_COLUMNS):
         raise DatasetUnavailableError("The verified catalog slice is empty or has invalid OHLCV fields")
@@ -241,8 +258,12 @@ def _load_verified_catalog_data(
         requested_start=config.requested_start,
         requested_dynamic_end_policy=config.end_date_policy,
         latest_completed_exchange_session=end.date().isoformat(),
-        prices_adjusted=False,
-        adjustment_verification="validated catalog manifest; original unadjusted prices",
+        prices_adjusted=config.adjusted,
+        adjustment_verification=(
+            f"validated catalog manifest; {manifest.metadata['adjustment']}-adjusted prices"
+            if config.adjusted
+            else "validated catalog manifest; original unadjusted prices"
+        ),
         download_time=str(manifest.metadata["imported_at_utc"]),
         download_timezone="UTC",
         actual_first_row_date=frame.index[0].date().isoformat(),
