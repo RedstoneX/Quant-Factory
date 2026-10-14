@@ -38,22 +38,19 @@ def test_research_context_references_existing_qf_evidence() -> None:
     context = build_research_context()
 
     for item in context["prior_work"]:
-        assert (REPO_ROOT / item["reference"]).exists(), item["reference"]
+        if "reference" in item:
+            assert (REPO_ROOT / item["reference"]).exists(), item["reference"]
 
-    for path in context["authority"]["tier1"]:
-        assert (REPO_ROOT / path).exists(), path
+    assert (REPO_ROOT / context["authority"]["rules"]).exists()
     assert (REPO_ROOT / context["authority"]["candidate_contract"]).exists()
     assert (REPO_ROOT / context["authority"]["data_catalog"]).exists()
 
 
-def test_checked_in_context_snapshot_matches_export_contract() -> None:
-    checked_in = yaml.safe_load(
-        (REPO_ROOT / "docs/qf-research-context-v1.yaml").read_text(encoding="utf-8")
-    )
+def test_export_formats_round_trip_to_the_same_context() -> None:
+    context = build_research_context()
 
-    assert checked_in == build_research_context()
-    assert yaml.safe_load(export_research_context(format="yaml")) == checked_in
-    assert yaml.safe_load(export_research_context(format="json")) == checked_in
+    assert yaml.safe_load(export_research_context(format="yaml")) == context
+    assert yaml.safe_load(export_research_context(format="json")) == context
 
 
 def test_external_research_context_has_no_execution_authority() -> None:

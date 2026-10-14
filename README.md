@@ -1,98 +1,41 @@
 # Quant Factory
 
-Quant Factory is Terry's private, single-operator quantitative research system.
-Its primary purpose is to **find, reject, and rigorously validate defensible
-trading edges**. VectorBT Pro is the licensed research engine; the dashboard is
-an operator surface, not the purpose of the project.
+Quant Factory turns trading ideas into backtests. An idea is a
+`qf_candidate_v1` packet; if it carries a `qf_rules_v1` rule spec, Quant Factory
+compiles it into a strategy and backtests it automatically. It does not trade.
 
-## Current direction
+## Flow
 
-The active sequence, summarized from `docs/MILESTONES.md`, is:
+1. An idea is submitted through the research gateway (`qf-agent`) or the dashboard.
+2. The packet is validated. `research_intake.starter_kit()` gives an example and a guide.
+3. Ideas without rules are recorded as can't test yet.
+4. Ideas with rules are backtested under the owner's standing policy of
+   2026-10-13. Paper trading always needs separate owner approval.
 
-**Connected live-workflow verification -> bounded Candidate filtration -> survivor review -> execution-vehicle comparison -> paper operation -> live operation later.**
+## Data
 
-Reusable backend components are recorded, but end-to-end product completion is
-not. The generic candidate runtime reuses the existing screening, OOS,
-walk-forward, robustness, Monte Carlo, protected-test, persistence, lineage,
-durable-launch, and filter-handoff infrastructure. It stops at the protected-
-test gate and does not expand protected-data authority.
+MES 5-minute bars with trading costs, history ending 2026-02-13. Other markets
+lack cost data and cannot be tested yet. No options data exists.
 
-Quant Factory is a high-throughput automated filtration system: ordinary in-policy Candidates
-progress without per-item owner approval, while exceptions, survivors, and
-paper/live authority route to the owner. Current work is defined only in
-`docs/MILESTONES.md`; product behavior is defined in
-`docs/factory-operating-contract.md`.
+## Running tests
 
-The fixed Decision 310 MES overnight-gap reversal screen completed and was
-rejected after negative total and annualized returns and Sharpe below 0.5. The
-R15 product-validation attempt was aborted because no exact executable adapter
-mapping existed. One exact Candidate-to-adapter/StudyPlan path has since been
-proven and screened out. No new campaign may open until R13's connected live
-workflow is accepted and a new campaign is explicitly authorized. Broader
-strategy selection, optimization, screening, or profitability research remains
-deferred.
-Authorized research is restricted to **intraday/day-trading directional edges** unless the owner
-changes the mandate: minutes-to-hours holding, flat by the strategy's defined
-session boundary, and no overnight or multi-day carry. The SPY turn-of-month
-idea remains out of scope under that mandate.
+```bash
+python -m pip install -r requirements-runtime.txt -r requirements-ci.txt -r requirements-dashboard.txt
+python -m pytest tests/test_qf_research_context_v1.py
+```
 
-No paid or protected-data acquisition, new credential authority, external
-deployment, options execution adapter, futures broker stack, paper activation,
-or live-capital work is authorized.
+CI runs the full portable suite on every pull request.
 
-## Project authority
+## Deployment
 
-Do not derive current work from README or older design/acceptance documents.
+Only merged `main` goes live. The server deploys it automatically and rolls
+back on failure. Nobody deploys by hand.
 
-1. [AGENTS.md](AGENTS.md) — Codex operating contract.
-2. [docs/MILESTONES.md](docs/MILESTONES.md) — current goal, phase, queue,
-   blockers, next action, and milestone status.
-3. [docs/DECISIONS.md](docs/DECISIONS.md) — accepted owner decisions and
-   supersessions.
+## For AI agents
 
-Supporting ADRs, specifications, runbooks, data catalogs, and milestone records
-provide architecture, procedure, facts, or historical evidence only.
+Read `AGENTS.md`. Research agents receive
+`docs/AGENT_RESEARCH_OPERATING_CONTEXT.md` from the gateway at session start.
 
-## Core principles
+## Security
 
-- Evidence truth before attractive backtests.
-- Reuse mature components and existing project code before custom building.
-- One genuinely new research question at a time; do not repeat completed work.
-- Parallelize independent Codex work when it improves elapsed time/cost.
-- Keep research venue-neutral and separate from broker order submission.
-- Protected data never participates in selection.
-- Keep credentials in the `Quant Factory` Bitwarden Secrets Manager project
-  and retrieve only the exact required secret through the `Codex` machine account.
-- Paper and live are separate security domains and require explicit gates.
-
-## Existing foundation
-
-The repository already contains:
-
-- typed market-data, calendar, validation, cache, and provenance layers;
-- strategy contracts and registry;
-- VectorBT Pro experiment execution;
-- screening, OOS, walk-forward, robustness, and Monte Carlo engines;
-- durable run claims, persistence, artifacts, lineage, and review records;
-- a generic durable candidate runtime connected to the persisted filter-chain coordinator;
-- reusable read models for persisted Results evidence and exact run selection;
-- an immutable handoff contract to a separately operated paper-trading system.
-
-Implementation is not evidence of profitability. Current work and exact
-limitations are recorded only in
-[docs/MILESTONES.md](docs/MILESTONES.md).
-
-## Repository structure
-
-- `strategies/` — strategy definitions and signal logic.
-- `backtesting/` — experiment and validation engines.
-- `orchestration/` — durable launch and filter coordination.
-- `market_data/` — providers, validation, catalog integration.
-- `persistence/` — research/evidence storage.
-- `dashboard/` — operator interface.
-- `execution/` — broker-neutral contracts and later paper/live boundaries.
-- `docs/` — Tier 1 authorities plus supporting evidence and specifications.
-- `tests/` — deterministic and browser checks.
-
-Raw market data, generated results, credentials, and machine-specific state do
-not belong in Git.
+See `SECURITY.md`.
