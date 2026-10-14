@@ -56,7 +56,7 @@ def _runtime_lineage() -> dict:
             "version": "3.12.3",
             "cache_tag": "cpython-312",
         },
-        "vectorbtpro": {"available": True, "version": "2026.4.7"},
+        "vectorbtpro": {"available": True, "version": "2026.10.5"},
         "packages": {"fingerprint": "c" * 64, "count": 1},
         "platform": {"system": "Linux", "machine": "x86_64"},
     }
@@ -352,7 +352,7 @@ def test_preflight_saves_exact_configuration_without_persisting_secret(
         api_key="owned-test-secret",
         mapping_resolver=lambda key: seen.append(key) or _mapping_response(),
         runtime_lineage_provider=_runtime_lineage,
-        vectorbt_loader=lambda: SimpleNamespace(__version__="2026.4.7"),
+        vectorbt_loader=lambda: SimpleNamespace(__version__="2026.10.5"),
         vectorbt_probe=lambda engine: seen.append("licensed-probe"),
         canonical_checkout_verifier=lambda: {
             "remote_url": durable.CANONICAL_REMOTE,
@@ -383,7 +383,7 @@ def test_preflight_saves_exact_configuration_without_persisting_secret(
         api_key="owned-test-secret",
         mapping_resolver=lambda key: _mapping_response(),
         runtime_lineage_provider=_runtime_lineage,
-        vectorbt_loader=lambda: SimpleNamespace(__version__="2026.4.7"),
+        vectorbt_loader=lambda: SimpleNamespace(__version__="2026.10.5"),
         vectorbt_probe=lambda engine: None,
         canonical_checkout_verifier=lambda: {
             "remote_url": durable.CANONICAL_REMOTE,
