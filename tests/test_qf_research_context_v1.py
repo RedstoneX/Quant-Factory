@@ -21,6 +21,10 @@ def test_research_context_carries_current_mandate_and_prior_work() -> None:
     assert context["mandate"]["research_style"] == "same_session_intraday"
     assert context["mandate"]["overnight_positions"] is False
     assert context["mandate"]["first_stage_instruments"] == ["MES", "MNQ"]
+    assert context["rule_format"]["schema"]
+    with_stocks = build_research_context(("SPY", "QQQ"))
+    assert with_stocks["mandate"]["first_stage_instruments"] == ["MES", "MNQ", "SPY", "QQQ"]
+    assert with_stocks["relevant_data_snapshot"][-1]["instruments"] == ["SPY", "QQQ"]
     assert context["candidate_output_contract"]["schema"] == "qf_candidate_v1"
 
     prior = {
