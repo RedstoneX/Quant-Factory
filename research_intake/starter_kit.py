@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from rule_language import MAX_VARIABLE_GRID, RULE_LANGUAGE
+from rule_language.indicators import library_indicators
 
 _SCHEMA_FILE = Path(__file__).with_name("mes_sma_10_30_candidate.json")
 
@@ -73,6 +74,27 @@ for a breakout compare with {"prev": {"donchian": ...}, "bars": 1}.
 {"atr": {"length": N, "smoothing": "wilder"}} "smoothing" is optional ("sma", the default, is a simple mean).
 Example of the "when" of a signal using two indicators:
 """ + json.dumps(INDICATOR_EXAMPLE_CONDITION, separators=(",", ":")) + "\n"
+
+LIBRARY_EXAMPLE_SERIES = {"indicator": "talib:CCI", "params": {"timeperiod": 20}, "output": "real"}
+
+_LIBRARY_GUIDE = """\
+LIBRARY INDICATORS (any VectorBT PRO or TA-Lib indicator listed below, by its library name)
+""" + json.dumps(LIBRARY_EXAMPLE_SERIES, separators=(",", ":")) + """
+"params": every parameter listed for it, each a number or {"param": name}; whole-number ones (periods,
+TA-Lib matype codes) are bar counts or codes. "output": one of its outputs (needed when it has several).
+Inputs open/high/low/close/volume read those bars; "inputs": {"close": S} feeds any series instead.
+"across_sessions" works as above. TA-Lib candle patterns (talib:CDL...) are > 0 bullish, < 0 bearish, 0 none.
+Listed as name(params)->outputs:
+"""
+
+
+def _library_listing() -> str:
+    """The usable library indicators, read from the installed library (empty when it is not installed)."""
+    specs = library_indicators()
+    if not specs:
+        return "(none on this machine: VectorBT PRO is not installed)\n"
+    return " ".join(f"{s.name}({','.join(k for k, _ in s.params)})->{'|'.join(s.outputs)}" for s in specs) + "\n"
+
 
 STOPS_EXAMPLE_EXIT = {
     "stop_loss": {"ticks": 8},
@@ -157,7 +179,7 @@ def starter_kit() -> dict[str, Any]:
     return {
         "schema": json.loads(_SCHEMA_FILE.read_text(encoding="utf-8")),
         "example": copy.deepcopy(_example()),
-        "guide": _GUIDE + _INDICATOR_GUIDE + _STOPS_GUIDE,
+        "guide": _GUIDE + _INDICATOR_GUIDE + _LIBRARY_GUIDE + _library_listing() + _STOPS_GUIDE,
     }
 
 

@@ -17,7 +17,14 @@ import math
 import re
 from typing import Any, Mapping
 
-from rule_language.indicators import ATR_SMOOTHINGS, INDICATOR_OPERATORS, INDICATORS, MAX_MULTIPLIER
+from rule_language.indicators import (
+    ATR_SMOOTHINGS,
+    INDICATOR_OPERATORS,
+    INDICATORS,
+    MAX_MULTIPLIER,
+    library_available,
+    library_indicator,
+)
 
 RULE_LANGUAGE = "qf_rules_v1"
 MAX_RULE_DEPTH = 32
@@ -48,6 +55,7 @@ SERIES_OPERATORS = (
     "value_at",
     *RANGE_OPERATORS,
     *INDICATOR_OPERATORS,
+    "indicator",
 )
 COMPARISON_OPERATORS = ("gt", "gte", "lt", "lte", "eq")
 CROSS_OPERATORS = ("crosses_above", "crosses_below")
@@ -390,6 +398,8 @@ class _Validator:
             return {"value_at": self.series(value, where), "time": time}
         if operator in INDICATORS:
             return self.indicator(operator, node, path)
+        if operator == "indicator":
+            return self.library_indicator(node, path)
         _object(node, path, required=(operator,))
         if operator == "param":
             return {"param": self.param(value, where, kind="number")}
@@ -455,6 +465,43 @@ class _Validator:
                 raise RuleSpecError(f"{path}.output", f"must be one of: {', '.join(spec.outputs)}")
             result["output"] = node["output"]
         return result
+
+    def library_indicator(self, node: Any, path: str) -> dict[str, Any]:
+        """Validate ``{"indicator": "<library name>", "params": {...}, ...}`` against the library's own metadata."""
+        _object(node, path, required=("indicator", "params"), optional=("inputs", "output", "across_sessions"))
+        name = node["indicator"]
+        spec = library_indicator(name) if isinstance(name, str) else None
+        if spec is None:
+            missing = "" if library_available() else "; VectorBT PRO is not installed here, so none are available"
+            raise RuleSpecError(
+                f"{path}.indicator",
+                f'{name!r} is not a usable library indicator (names look like "talib:RSI" or "vbt:MACD"){missing}',
+            )
+        across = node.get("across_sessions", False)
+        if not isinstance(across, bool):
+            raise RuleSpecError(f"{path}.across_sessions", "must be true or false")
+        maximum = MAX_WINDOW_BARS if across else self.bars_per_session
+        params = _object(node["params"], f"{path}.params", required=tuple(key for key, _ in spec.params))
+        result_params = {
+            key: self.count(params[key], f"{path}.params.{key}", minimum=0, maximum=maximum)
+            if kind == "count"
+            else self.number(params[key], f"{path}.params.{key}")
+            for key, kind in spec.params
+        }
+        inputs = _object(node.get("inputs", {}), f"{path}.inputs", optional=spec.inputs)
+        result_inputs = {key: self.series(inputs[key], f"{path}.inputs.{key}") for key in spec.inputs if key in inputs}
+        output = node.get("output", spec.outputs[0] if len(spec.outputs) == 1 else None)
+        if output not in spec.outputs:
+            raise RuleSpecError(f"{path}.output", f"{name} needs one of: {', '.join(spec.outputs)}")
+        return {"indicator": name, "params": result_params, "inputs": result_inputs, "output": output, "across_sessions": across}
+
+    def number(self, node: Any, path: str) -> Any:
+        if isinstance(node, Mapping):
+            _object(node, path, required=("param",))
+            return {"param": self.param(node["param"], f"{path}.param", kind="number")}
+        if not _is_number(node):
+            raise RuleSpecError(path, 'must be a finite number or {"param": "<variable>"}')
+        return node
 
     def count(self, node: Any, path: str, *, minimum: int = 1, maximum: int) -> Any:
         if isinstance(node, Mapping):

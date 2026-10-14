@@ -35,6 +35,13 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_milestone21c_spym_fixture.py::test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades",
         "tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage",
         "tests/test_rsi_mean_reversion.py::test_common_interface_signal_result_matches_preserved_rsi_rules",
+        "tests/test_rule_language_catalog.py::test_catalogue_comes_from_the_library_metadata",
+        "tests/test_rule_language_catalog.py::test_every_named_operator_is_an_alias_of_a_usable_library_indicator",
+        "tests/test_rule_language_catalog.py::test_library_node_equals_the_named_operator",
+        "tests/test_rule_language_catalog.py::test_library_node_restarts_each_session_and_is_causal",
+        "tests/test_rule_language_catalog.py::test_library_node_parameters_accept_variables",
+        "tests/test_rule_language_catalog.py::test_library_node_rejects_bad_names_params_and_outputs",
+        "tests/test_rule_language_catalog.py::test_starter_kit_lists_the_library_catalogue",
     }
 )
 

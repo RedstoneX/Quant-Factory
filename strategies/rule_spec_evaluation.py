@@ -34,10 +34,13 @@ from rule_language import (
     first_bar_end_minutes,
 )
 from rule_language.indicators import INDICATORS
-from strategies.rule_spec_indicators import atr_series, indicator_series
+from strategies.rule_spec_indicators import atr_series, indicator_series, library_series
 
+# Keys of a series node that are not its operator; a library node keeps its parameters under "params".
 _MODIFIERS = frozenset(
     {
+        "params",
+        "inputs",
         "length",
         "across_sessions",
         "bars",
@@ -185,6 +188,8 @@ class RuleEvaluator:
             return atr_series(self, value)
         if operator in INDICATORS:
             return indicator_series(self, operator, node)
+        if operator == "indicator":
+            return library_series(self, node)
         if operator == "vwap":
             typical = (bars.high + bars.low + bars.close) / 3.0
             return np.cumsum(typical * bars.volume, axis=0) / np.cumsum(bars.volume, axis=0)
