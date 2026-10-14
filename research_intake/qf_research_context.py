@@ -1,6 +1,6 @@
 """Portable Quant Factory context for external strategy research.
 
-The context is a supporting snapshot, not Tier-1 authority. It gives external
+The context is a supporting snapshot, not authority. It gives external
 researchers enough QF history and constraints to avoid obvious duplicate or
 out-of-mandate proposals before QF performs its own authoritative checks.
 """
@@ -17,18 +17,18 @@ QF_RESEARCH_CONTEXT_SCHEMA = "qf_research_context_v1"
 
 _CONTEXT: dict[str, Any] = {
     "schema": QF_RESEARCH_CONTEXT_SCHEMA,
-    "snapshot_date": "2026-10-08",
+    "snapshot_date": "2026-10-14",
     "purpose": (
         "Portable context for external LLM/human strategy research before "
         "QF Candidate v1 intake."
     ),
     "authority": {
-        "tier1": ["AGENTS.md", "docs/MILESTONES.md", "docs/DECISIONS.md"],
-        "candidate_contract": "docs/qf-candidate-v1.md",
-        "data_catalog": "docs/DATA_CATALOG.md",
+        "rules": "AGENTS.md",
+        "candidate_contract": "research_intake/starter_kit.py",
+        "data_catalog": "data/manifests",
         "notice": (
-            "This file is a convenience snapshot. Quant Factory re-checks current "
-            "Tier-1 authority, prior work, data, and Candidate validity before research."
+            "This file is a convenience snapshot. Quant Factory re-checks the rules, "
+            "prior work, data, and Candidate validity before research."
         ),
     },
     "mandate": {
@@ -46,7 +46,7 @@ _CONTEXT: dict[str, Any] = {
     },
     "research_rules": [
         "Treat a symbol, wrapper, source repository, or parameter change as insufficient by itself to create a new hypothesis.",
-        "Compare against prior Quant Factory work, but reject only exact or economically equivalent hypotheses; never infer that an entire strategy family is exhausted unless Tier-1 explicitly says so.",
+        "Compare against prior Quant Factory work, but reject only exact or economically equivalent hypotheses; never infer that an entire strategy family is exhausted unless AGENTS.md explicitly says so.",
         "Separate structural strategy variants from bounded variables VectorBT may sweep.",
         "Do not invent missing source rules silently; preserve them as open_questions.",
         "Do not run backtests, optimize parameters, claim profitability, or implement QF strategy code unless separately authorized.",
@@ -70,7 +70,7 @@ _CONTEXT: dict[str, Any] = {
                 "different ORB hypotheses and structural variants."
             ),
             "family_exhausted": False,
-            "reference": "docs/strategies/mes-opening-range-breakout.md",
+            "reference": "strategies/mes_opening_range_breakout.py",
         },
         {
             "family": "overnight_gap_reversal",
@@ -86,7 +86,7 @@ _CONTEXT: dict[str, Any] = {
                 "hypotheses remain eligible for research."
             ),
             "family_exhausted": False,
-            "reference": "docs/strategies/mes-overnight-gap-reversal.md",
+            "reference": "strategies/mes_overnight_gap_reversal.py",
         },
         {
             "family": "opening_range_breakout",
@@ -96,7 +96,6 @@ _CONTEXT: dict[str, Any] = {
             "tested_scope": "One five-minute ORB transfer effort; not evidence against the ORB family.",
             "disposition": "Use as overlap history only.",
             "family_exhausted": False,
-            "reference": "docs/strategies/msft-five-minute-orb-transfer.md",
         },
         {
             "family": "intraday_momentum",
@@ -109,7 +108,7 @@ _CONTEXT: dict[str, Any] = {
             ),
             "disposition": "Do not equate this one transfer rule with the intraday-momentum family.",
             "family_exhausted": False,
-            "reference": "docs/strategies/spym-intraday-momentum.md",
+            "reference": "strategies/spym_intraday_momentum.py",
         },
         {
             "family": "channel_breakout",
@@ -122,7 +121,7 @@ _CONTEXT: dict[str, Any] = {
                 "channel-breakout hypotheses remain open."
             ),
             "family_exhausted": False,
-            "reference": "docs/strategies/spy-donchian-trend-breakout.md",
+            "reference": "strategies/spy_donchian_trend_breakout.py",
         },
         {
             "family": "mean_reversion",
@@ -142,7 +141,6 @@ _CONTEXT: dict[str, Any] = {
             "disposition": "retain_for_possible_future swing research",
             "reason": "multi-day holding conflicts with current intraday mandate",
             "family_exhausted": False,
-            "reference": "docs/strategies/spy-turn-of-month.md",
         },
     ],
     "relevant_data_snapshot": [

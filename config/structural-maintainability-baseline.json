@@ -23,7 +23,6 @@
     "[\"tests/test_run_lineage.py\",\"test_v3_database_migrates_and_version_one_and_two_manifest_rows_remain_readable\",\"FunctionDef\",1]": 158
   },
   "oversized_source_files": {
-    "backtesting/run_mes_orb_durable.py": 722,
     "backtesting/run_mes_overnight_gap_reversal.py": 662,
     "backtesting/run_mes_overnight_gap_reversal_durable.py": 809,
     "backtesting/validation/evidence_service.py": 834,
@@ -52,8 +51,6 @@
   "runtime_broad_nonreraising_handlers": [
     "[\"agent_gateway/service.py\",\"AgentResearchGateway.handle\",\"Exception\",1]",
     "[\"agent_gateway/socket_server.py\",\"_GatewayHandler.handle\",\"Exception\",1]",
-    "[\"backtesting/run_mes_orb_durable.py\",\"run_durable_screening\",\"Exception\",1]",
-    "[\"backtesting/run_mes_orb_durable.py\",\"run_durable_screening\",\"Exception\",2]",
     "[\"backtesting/run_spym_intraday_momentum_durable.py\",\"run_durable_screening\",\"Exception\",1]",
     "[\"backtesting/run_spym_intraday_momentum_durable.py\",\"run_durable_screening\",\"Exception\",2]",
     "[\"dashboard/health.py\",\"inspect_catalog\",\"Exception\",1]",
