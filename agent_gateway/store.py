@@ -28,6 +28,7 @@ class GatewayStore:
         self.connection.close()
 
     def _initialize(self) -> None:
+        self._archive_foreign_campaign_events()
         self.connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS gateway_schema (
@@ -124,6 +125,32 @@ class GatewayStore:
         elif row["version"] != SCHEMA_VERSION:
             raise RuntimeError("unsupported agent gateway state schema")
         self.connection.commit()
+
+    def _archive_foreign_campaign_events(self) -> None:
+        """Keep an older campaign_events layout as a read-only archive.
+
+        An earlier campaign (R15, Oct 2026) created campaign_events with other
+        columns; CREATE TABLE IF NOT EXISTS would keep that layout and every
+        write of the current campaign would fail. Its rows are history, so the
+        table is renamed, never rewritten or deleted.
+        """
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(campaign_events)")}
+        if not columns or "packet_sha256" in columns:
+            return
+        with self.connection:
+            self.connection.execute("ALTER TABLE campaign_events RENAME TO campaign_events_archive_r15")
+            attached = self.connection.execute(
+                "SELECT type, name FROM sqlite_master WHERE tbl_name='campaign_events_archive_r15' "
+                "AND type IN ('trigger','index') AND sql IS NOT NULL"
+            ).fetchall()
+            for kind, name in attached:
+                self.connection.execute(f'DROP {kind.upper()} "{name}"')
+            for event in ("UPDATE", "DELETE"):
+                self.connection.execute(
+                    f"CREATE TRIGGER campaign_events_archive_r15_no_{event.lower()} "
+                    f"BEFORE {event} ON campaign_events_archive_r15 BEGIN "
+                    "SELECT RAISE(ABORT, 'archived campaign events are read-only'); END"
+                )
 
     @contextmanager
     def immediate(self) -> Iterator[sqlite3.Connection]:
