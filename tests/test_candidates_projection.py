@@ -56,7 +56,7 @@ def test_candidates_projection_is_bounded_sorted_filterable_and_exact(tmp_path: 
     before = hashlib.sha256(database.read_bytes()).hexdigest()
 
     summary = load_candidates_summary(database=database)
-    assert summary["counts"] == {"survivor": 1, "advancing": 1, "needs_review": 1, "rejected": 1, "all": 4}
+    assert summary["counts"] == {"survivor": 1, "advancing": 1, "needs_review": 1, "rejected": 1, "blocked": 0, "duplicate": 0, "crashed": 0, "all": 4}
     assert summary["families"] == ["Breakout", "Momentum", "Reversion"]
 
     survivors = load_candidates_page(database=database, lifecycle="survivor", start=0, end=50)

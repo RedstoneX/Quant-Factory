@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Input, Output, State, dcc, html, no_update
 
+from dashboard.candidates_projection import load_candidate_detail
+from dashboard.plain_labels import plain_status
 from dashboard.ui.gateway_client import gateway_status, submit_candidate
+from research_intake.starter_kit import starter_kit
 from dashboard.submit_projection import candidate_example, validate_candidate_text, validate_upload
 
 
@@ -20,6 +24,42 @@ SUBMIT_COLUMNS = [
     {"field": "validation", "headerName": "Validation", "width": 110},
     {"field": "variations", "headerName": "Variations", "type": "numericColumn", "width": 105},
 ]
+
+
+def starter_kit_json() -> str:
+    """The starter kit (schema, example, guide) as one JSON document."""
+    return json.dumps(starter_kit(), indent=2, ensure_ascii=False)
+
+
+def idea_link(candidate_id: Any) -> str:
+    return f"/candidates?candidate_id={candidate_id}"
+
+
+def _latest_state(candidate_id: Any) -> tuple[str, str]:
+    """Latest tester status for an idea; the gateway reply does not carry it."""
+    detail = load_candidate_detail(str(candidate_id)) if candidate_id else None
+    state = (detail or {}).get("campaign_state")
+    if not state or state == "not_admitted":
+        return "Received", "Saved. Waiting for the tester to pick it up"
+    return plain_status(state, (detail or {}).get("campaign_reason_code"))
+
+
+def submitted_notice(result: dict[str, Any], *, status: tuple[str, str] | None = None) -> html.Div:
+    """Status and link shown after an idea is accepted."""
+    label, why = status or _latest_state(result.get("candidate_id"))
+    heading = f"Already submitted · {label}" if result.get("duplicate") else f"Submitted · {label}"
+    return html.Div([html.Strong(heading), html.P(why), dcc.Link("Open this idea", href=idea_link(result.get("candidate_id")), refresh=False)], className="submit-issue")
+
+
+def not_submittable_reason(row: dict[str, Any]) -> str:
+    """Plain words for a file that reads as valid but cannot be submitted."""
+    if row.get("review_ready") and row.get("canonical_json"):
+        return ""
+    problems = [i for i in (row.get("issues") or []) if i.get("severity") in {"error", "warning"}]
+    detail = f" First problem: {problems[0].get('message')}" if problems else ""
+    if row.get("valid"):
+        return "The file is well formed, but it is not ready to submit yet: it has warnings or is missing something the tester needs." + detail
+    return "The file has errors, so it cannot be submitted." + detail
 
 
 def _icon(name: str) -> html.Span: return html.Span(GLYPHS[name], className="icon", **{"aria-hidden": "true"})
@@ -59,7 +99,7 @@ def _api_panel(status: dict[str, Any]) -> html.Div:
 def submit_layout() -> dmc.MantineProvider:
     status=gateway_status(); gateway_ready=bool(status.get("ok"))
     nav=dmc.Stack([dmc.Paper("Q",className="logo",radius="md"),_rail("dashboard","Dashboard","submit-nav-dashboard"),_rail("file","Submit strategies","submit-nav-submit",active=True),_rail("flow","Factory runs","submit-nav-factory"),_rail("list","Candidates","submit-nav-candidates"),_rail("chart","Results","submit-nav-results"),html.Div(className="rail-spacer"),_rail("external","Paper Trading","submit-nav-paper"),dmc.Avatar("TO",className="avatar",radius="xl")],gap=7,align="center",className="rail")
-    header=dmc.Group([html.Div([dmc.Title("Submit strategies",order=1),dmc.Text("Manual, batch, and machine intake",className="eyebrow")]),html.Div(className="top-spacer"),dmc.Button("Download schema",id="submit-download",className="ghost",variant="default"),dmc.Button("Submit valid Candidates",id="submit-canonical",disabled=True,className="primary")],gap=9,className="topbar")
+    header=dmc.Group([html.Div([dmc.Title("Submit strategies",order=1),dmc.Text("Manual, batch, and machine intake",className="eyebrow")]),html.Div(className="top-spacer"),dmc.Button("Download starter kit",id="submit-download",className="ghost",variant="default"),dmc.Button("Submit valid Candidates",id="submit-canonical",disabled=True,className="primary")],gap=9,className="topbar")
     modes=dmc.Group([dmc.SegmentedControl(id="submit-mode",value="batch",data=[{"value":"manual","label":"Manual"},{"value":"batch","label":"Batch upload"},{"value":"api","label":"LLM / API"}],className="candidate-tabs"),html.Div(className="top-spacer"),dmc.Text("Validation precedes authenticated, audited, idempotent canonical intake",className="candidate-context")],className="candidate-filters submit-toolbar")
     body=html.Div([modes,_batch_panel(gateway_ready=gateway_ready),_manual_panel(gateway_ready=gateway_ready),_api_panel(status)],className="body submit-body")
     return dmc.MantineProvider(html.Div([dcc.Store(id="submit-batch-data"),dcc.Store(id="submit-gateway-ready",data=gateway_ready),dcc.Download(id="submit-download-file"),html.Div([nav,html.Main([header,body],className="main")],className="app submit-app")]),forceColorScheme="dark",theme={"fontFamily":"Inter, ui-sans-serif, sans-serif","primaryColor":"blue"})
@@ -75,9 +115,9 @@ def register_submit_callbacks(application: Any) -> None:
     @application.callback(Output("submit-grid","rowData"),Output("submit-count","children"),Output("submit-valid","children"),Output("submit-attention","children"),Output("submit-ready","children"),Output("submit-variations","children"),Output("submit-budget","value"),Output("submit-issues","children"),Input("submit-batch-data","data"))
     def batch(data):
         data=data or {}; rows=data.get("rows") or []
-        grid=[{**row,"validation":"Valid" if row.get("valid") else "Needs attention"} for row in rows]
+        grid=[{**row,"validation":("Valid" if row.get("review_ready") else "Valid, cannot submit yet") if row.get("valid") else "Needs attention"} for row in rows]
         issues=[issue for row in rows for issue in row.get("issues",[]) if issue.get("severity") in {"error","warning"}]
-        detail=[html.Div([html.Strong(f"{issue['path']} · {issue['severity'].title()}"),html.P(issue["message"])],className="submit-issue") for issue in issues[:8]] or html.Div("No validation issues." if rows else "Load a package to validate its definitions without changing canonical state.",className="submit-empty")
+        detail=[html.Div([html.Strong(not_submittable_reason(row) or row.get("title",""))],className="submit-issue") for row in rows if row.get("valid") and not row.get("review_ready")][:4]+[html.Div([html.Strong(f"{issue['path']} · {issue['severity'].title()}"),html.P(issue["message"])],className="submit-issue") for issue in issues[:8]] or html.Div("No validation issues." if rows else "Load a package to validate its definitions without changing canonical state.",className="submit-empty")
         variations=int(data.get("variations") or 0)
         return grid,str(data.get("definitions",0)),str(data.get("valid",0)),str(data.get("needs_attention",0)),str(data.get("ready",0)),f"{variations:,} / 250,000",min(100,variations/2500),detail
 
@@ -96,7 +136,7 @@ def register_submit_callbacks(application: Any) -> None:
         identities=[str((item.get("result") or {}).get("candidate_id")) for item in accepted]
         failures=[str((item.get("error") or {}).get("message") or "Submission failed") for item in responses if not item.get("ok")]
         children=[]
-        if identities: children.append(html.Div([html.Strong(f"{len(identities):,} canonical Candidate(s) persisted"),html.P(" · ".join(identities))],className="submit-issue"))
+        children.extend(submitted_notice(item.get("result") or {}) for item in accepted)
         children.extend(html.Div(message,className="submit-issue") for message in failures)
         return children or "No review-ready Candidate was submitted."
 
@@ -117,12 +157,12 @@ def register_submit_callbacks(application: Any) -> None:
         if not clicks: return no_update
         row=validate_candidate_text(text or "",filename=f"candidate.{format_name or 'yaml'}")
         if not row.get("review_ready") or not row.get("canonical_json"):
-            return "Candidate is not review-ready; correct validation issues before submission."
+            return not_submittable_reason(row) or "This idea cannot be submitted yet."
         response=submit_candidate(str(row["canonical_json"]))
         if not response.get("ok"):
             return str((response.get("error") or {}).get("message") or "Canonical submission failed.")
         result=response.get("result") or {}
-        return f"Persisted {result.get('candidate_id')} · research execution remains disabled"
+        return submitted_notice(result)
 
     @application.callback(Output("submit-api-result","children"),Input("submit-api-validate","n_clicks"),prevent_initial_call=True)
     def api_example(clicks):
@@ -131,7 +171,7 @@ def register_submit_callbacks(application: Any) -> None:
         return f"Repository example validated: {'valid and review ready' if row.get('review_ready') else 'attention required'} · {int(row.get('variations') or 0):,} variations. Nothing persisted."
 
     @application.callback(Output("submit-download-file","data"),Input("submit-download","n_clicks"),prevent_initial_call=True)
-    def download(clicks): return dcc.send_string(candidate_example(),"qf-candidate-v1-example.json") if clicks else no_update
+    def download(clicks): return dcc.send_string(starter_kit_json(),"qf-candidate-v1-starter-kit.json") if clicks else no_update
 
 
-__all__=["submit_layout","register_submit_callbacks"]
+__all__=["submit_layout","register_submit_callbacks","starter_kit_json","submitted_notice","not_submittable_reason"]

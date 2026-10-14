@@ -159,7 +159,7 @@ def _finding_content(item: dict[str, Any] | None, snapshot: dict[str, Any]) -> l
         ]
     version = str(item.get("candidate_version") or "")[:12] or "version unavailable"
     screened_out = str(item.get("outcome") or "").lower() == "screened_out"
-    status = "Screened out" if screened_out else status
+    status = "Failed testing" if screened_out else status
     return [
         dmc.Group([dmc.Badge(status, leftSection=icon("check") if item.get("state") == "survivor" else None, className=f"badge{' rejected' if screened_out else ''}"), dmc.Text(f"Run {str(item.get('run_id') or 'none')[:10]}", className="rank")], justify="space-between", className="status-row"),
         dmc.Title(item.get("title") or "Untitled Candidate", order=2),
@@ -264,7 +264,7 @@ def dashboard_layout() -> dmc.MantineProvider:
         html.Section([
             kpi("Running now", "running-value", "running-detail", "activity", "", "summary-running"),
             kpi("Survivors", "survivor-value", "survivor-detail", "gem", "good", "summary-survivors"),
-            kpi("Advancing", "advancing-value", "advancing-detail", "up", "violet", "summary-advancing"),
+            kpi("Testing", "advancing-value", "advancing-detail", "up", "violet", "summary-advancing"),
             kpi("Needs you", "needs-value", "needs-detail", "alert", "warn", "summary-needs"),
         ], className="pulse"),
         html.Section([universe, finding], className="workspace"), html.Section([factory, survivors], className="lower"),
@@ -374,7 +374,7 @@ def register_callbacks(application: Dash) -> None:
             lookup = {
                 "running": ("running", "Running now", counts.get("running", 0), "Exact Candidate runs currently recorded as running."),
                 "survivors": ("survivors", "Verified survivors", counts.get("survivors", 0), "Exact Candidates linked to the authoritative survivor event marker."),
-                "advancing": ("advancing", "Advancing", counts.get("advancing", 0), "Exact Candidate runs currently queued or running."),
+                "advancing": ("advancing", "Testing", counts.get("advancing", 0), "Exact Candidate runs currently queued or running."),
                 "needs": ("needs", "Needs you", None, "No accepted owner-attention projection exists, so this aggregate fails closed."),
             }
             kind, title, value, copy = lookup[key]

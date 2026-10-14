@@ -18,6 +18,8 @@ from dashboard.overview_projection import (
 )
 
 
+COUNT_KEYS = ("survivor", "advancing", "blocked", "duplicate", "crashed", "needs_review", "rejected", "all")
+
 CANDIDATE_SORT_FIELDS = {
     "title": "title", "symbol": "symbol", "family": "family",
     "lifecycle": "lifecycle", "sharpe": "sharpe", "max_drawdown": "max_drawdown",
@@ -52,11 +54,14 @@ def _candidate_source() -> str:
                 WHERE p.run_id=c.run_id AND p.screening_status='screened_out') AS screened_out_count,
                NULL AS retained,
                CASE
-                 WHEN c.survivor=1 THEN 'survivor'
+                 WHEN c.survivor=1 OR c.campaign_state='survivor' THEN 'survivor'
                  WHEN c.campaign_state='exception_hold' THEN 'needs_review'
                  WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), '')) IN ('needs_review','exception_hold') THEN 'needs_review'
+                 WHEN c.campaign_state='implementation_blocked' THEN 'blocked'
+                 WHEN c.campaign_state='duplicate_closed' THEN 'duplicate'
+                 WHEN c.campaign_state='failed' THEN 'crashed'
                  WHEN c.run_status IN ('created','running') OR c.campaign_state IN ('admitted','queued','running') THEN 'advancing'
-                 WHEN c.campaign_state IN ('duplicate_closed','invalid','prior_work_conflict','implementation_blocked','budget_blocked','deterministic_failure','screened_out','insufficient','failed') THEN 'rejected'
+                 WHEN c.campaign_state IN ('invalid','prior_work_conflict','budget_blocked','deterministic_failure','screened_out','insufficient') THEN 'rejected'
                  WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), ''))='rejected'
                    OR c.run_status IN ('failed','cancelled')
                    OR c.screening_status IN ('screened_out','invalid','insufficient') THEN 'rejected'
@@ -138,17 +143,17 @@ def load_candidates_summary(*, database: str | Path | None = None) -> dict[str, 
     database_path = Path(database) if database is not None else configured_database_path()
     connection, error = _validated_connection(database_path)
     if connection is None:
-        return {"available": False, "message": error, "counts": {key: 0 for key in ("survivor","advancing","needs_review","rejected","all")}, "families": []}
+        return {"available": False, "message": error, "counts": {key: 0 for key in COUNT_KEYS}, "families": []}
     try:
         source = BASE_CTE + ", candidate_records AS (" + _candidate_source() + ")"
         rows = connection.execute(source + " SELECT lifecycle, COUNT(*) AS count FROM candidate_records GROUP BY lifecycle", _base_params()).fetchall()
-        counts = {key: 0 for key in ("survivor", "advancing", "needs_review", "rejected", "all")}
+        counts = {key: 0 for key in COUNT_KEYS}
         for row in rows:
             key = str(row["lifecycle"]); counts[key] = int(row["count"]); counts["all"] += int(row["count"])
         families = [str(row[0]) for row in connection.execute(source + " SELECT DISTINCT family FROM candidate_records ORDER BY LOWER(family) LIMIT 100", _base_params())]
         return {"available": True, "message": "Read-only Candidate state loaded.", "counts": counts, "families": families}
     except (sqlite3.Error, ValueError, TypeError) as exc:
-        return {"available": False, "message": f"Candidate state could not be projected safely: {exc}", "counts": {key: 0 for key in ("survivor","advancing","needs_review","rejected","all")}, "families": []}
+        return {"available": False, "message": f"Candidate state could not be projected safely: {exc}", "counts": {key: 0 for key in COUNT_KEYS}, "families": []}
     finally:
         connection.close()
 

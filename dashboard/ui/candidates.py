@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -9,6 +11,9 @@ import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, dcc, html, no_update
 
+from dashboard.plain_labels import (
+    CANT_TEST, FAILED_TESTING, LIFECYCLE_LABELS, LIFECYCLE_ORDER, lifecycle_label, plain_status,
+)
 from dashboard.candidates_projection import (
     load_candidate_detail,
     load_candidates_page,
@@ -43,7 +48,7 @@ def _rail(name: str, label: str, item_id: str, *, active: bool = False, disabled
 CANDIDATE_COLUMNS = [
     {"field": "title", "headerName": "Candidate", "width": 190, "pinned": "left", "filter": "agTextColumnFilter"},
     {"field": "symbol", "headerName": "Market", "width": 72, "pinned": "left", "filter": "agTextColumnFilter"},
-    {"field": "lifecycle", "headerName": "Lifecycle", "minWidth": 92, "flex": .85, "filter": "agTextColumnFilter", "valueFormatter": {"function": "params.value === 'needs_review' ? 'Needs review' : params.value ? params.value.charAt(0).toUpperCase() + params.value.slice(1) : '—'"}},
+    {"field": "lifecycle", "headerName": "Lifecycle", "minWidth": 92, "flex": .85, "filter": "agTextColumnFilter", "valueFormatter": {"function": "(" + json.dumps(LIFECYCLE_LABELS) + ")[params.value] || (params.value ? params.value.charAt(0).toUpperCase() + params.value.slice(1) : '—')"}},
     {"field": "sharpe", "headerName": "OOS Sharpe", "type": "numericColumn", "minWidth": 112, "flex": 1, "filter": "agNumberColumnFilter", "sort": "desc", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
     {"field": "max_drawdown", "headerName": "Max DD", "type": "numericColumn", "minWidth": 76, "flex": .7, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
     {"field": "retained", "headerName": "OOS retain", "type": "numericColumn", "minWidth": 82, "flex": .75, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
@@ -80,7 +85,7 @@ def candidates_layout(search: str | None = None) -> dmc.MantineProvider:
             dmc.MenuLabel("Workspace views"),
             dmc.MenuItem("Survivor leaders", id="view-survivors"),
             dmc.MenuItem("Complete universe", id="view-all"),
-            dmc.MenuItem("Rejected history", id="view-rejected"),
+            dmc.MenuItem("Failed testing history", id="view-rejected"),
         ]),
     ], position="bottom-end")
     header = dmc.Group([
@@ -92,7 +97,7 @@ def candidates_layout(search: str | None = None) -> dmc.MantineProvider:
 
     lifecycle = dmc.SegmentedControl(
         id="candidate-lifecycle", value=initial_lifecycle,
-        data=[{"value": key, "label": f"{label} · {int(counts.get(key, 0)):,}"} for key, label in [("survivor", "Survivors"), ("advancing", "Advancing"), ("needs_review", "Needs review"), ("rejected", "Rejected"), ("all", "All")]],
+        data=[{"value": key, "label": f"{label} · {int(counts.get(key, 0)):,}"} for key, label in [(key, LIFECYCLE_LABELS[key]) for key in LIFECYCLE_ORDER]],
         className="candidate-tabs", fullWidth=False, persistence=True, persistence_type="local",
     )
     filters = dmc.Group([
@@ -155,24 +160,34 @@ def _fmt(value: Any, *, percent: bool = False) -> str:
 
 def _outcome(record: dict[str, Any]) -> tuple[str, str]:
     lifecycle = record.get("lifecycle")
+    campaign_state = record.get("campaign_state")
+    label, why = plain_status(campaign_state, record.get("campaign_reason_code"))
+    known = label != "Not in testing"
     if lifecycle == "survivor":
-        return "Qualified survivor marker persisted", "Paper lane inactive; no broker or capital authority"
+        if known:
+            return label, why or "Needs your review before anything else happens"
+        return "Passed — needs your review", "Paper lane inactive; no broker or capital authority"
     if lifecycle == "advancing":
-        return f"{_human_label(record.get('stage'))} · {_human_label(record.get('run_status'))}", "Continues automatically inside existing authority"
+        if known:
+            return label, why
+        return f"Testing · {_human_label(record.get('stage'))} · {_human_label(record.get('run_status'))}", "Continues automatically inside existing authority"
+    if lifecycle == "duplicate":
+        return label if known else "Duplicate", why or "Same rules as an idea already tested"
+    if lifecycle == "crashed":
+        return label if known else "Test crashed", why or "The test did not finish; this is not a result"
+    if lifecycle == "blocked":
+        return CANT_TEST, why or "The tester could not set this idea up"
     if lifecycle == "needs_review":
-        return "Semantic exception recorded", "Resolve the exact recorded ambiguity"
+        return "Needs review", "Resolve the exact recorded ambiguity"
     if lifecycle == "rejected":
+        if known:
+            return label, why
         if record.get("run_id") and record.get("screening_status") == "screened_out":
             return (
-                f"Screened out · {int(record.get('screened_out_count') or 0):,} of {int(record.get('screening_count') or 0):,} configurations failed",
+                f"{FAILED_TESTING} · {int(record.get('screened_out_count') or 0):,} of {int(record.get('screening_count') or 0):,} configurations failed",
                 "Closed automatically at initial screening; no later evidence gates ran",
             )
-        campaign_state = record.get("campaign_state")
-        if campaign_state == "implementation_blocked":
-            return "Unexecuted · adapter mapping missing", "No StudyPlan or run was created"
-        if campaign_state and campaign_state != "not_admitted":
-            return f"Closed · {_human_label(campaign_state)}", record.get("campaign_reason_detail") or "Admission decision and lineage retained"
-        return f"Closed · {record.get('screening_status') or record.get('run_status')}", "Evidence and lineage retained"
+        return FAILED_TESTING, "Evidence and lineage retained"
     return "Candidate received", "Next eligibility is not recorded"
 
 
@@ -240,7 +255,7 @@ def register_candidate_callbacks(application: Any) -> None:
     @application.callback(Output("candidate-lifecycle", "data"), Output("candidate-family", "data"), Input("candidate-summary", "data"))
     def render_summary(summary: dict[str, Any] | None):
         summary = summary or {}; counts = summary.get("counts", {})
-        tabs = [{"value": key, "label": f"{label} · {int(counts.get(key, 0)):,}"} for key, label in [("survivor", "Survivors"), ("advancing", "Advancing"), ("needs_review", "Needs review"), ("rejected", "Rejected"), ("all", "All")]]
+        tabs = [{"value": key, "label": f"{label} · {int(counts.get(key, 0)):,}"} for key, label in [(key, LIFECYCLE_LABELS[key]) for key in LIFECYCLE_ORDER]]
         families = [{"value": "all", "label": "All families"}] + [{"value": family, "label": family} for family in summary.get("families", [])]
         return tabs, families
 
@@ -310,7 +325,7 @@ def register_candidate_callbacks(application: Any) -> None:
     def render_detail(record: dict[str, Any] | None, tab: str):
         if not record:
             return "No selection", "candidate-state", "No Candidate selected", "Choose an exact Candidate record from the ranked universe.", _detail_body(None, tab)
-        state = _human_label(record.get("lifecycle") or "received")
+        state = lifecycle_label(record.get("lifecycle") or "received")
         rank = f"Rank {record.get('rank')}" if record.get("rank") else "Exact record"
         meta = f"{record.get('candidate_id')} · {record.get('symbol')} · {record.get('family')} · {rank}"
         state_class = f"candidate-state {record.get('lifecycle') or ''}"
