@@ -49,17 +49,8 @@ from persistence import (
 )
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
 
-class _FakeTrades:
-    def __init__(self, count: int) -> None:
-        self._count = count
-        self.records_readable = pd.DataFrame({"Trade Id": range(count)})
-
-    def count(self) -> int:
-        return self._count
-
-    @property
-    def win_rate(self) -> float:
-        return 0.60
+def _FakeTrades(count: int) -> SimpleNamespace:
+    return SimpleNamespace(count=lambda: count, win_rate=0.60, records_readable=pd.DataFrame({"Trade Id": range(count)}))
 
 class _FakePortfolioResult:
     def __init__(self, index: pd.Index, trade_count: int) -> None:
@@ -74,12 +65,21 @@ class _FakePortfolioResult:
 
 class _FakePortfolio:
     @staticmethod
-    def from_signals(*, close, entries, exits, short_entries=None, **_kwargs):
-        trade_count = int(entries.sum())
-        if short_entries is not None:
-            trade_count += int(short_entries.sum())
-        _ = exits
-        return _FakePortfolioResult(close.index, trade_count)
+    def from_signals(*, close, entries, short_entries=None, **_kwargs):
+        counts = pd.DataFrame(entries).sum() + (0 if short_entries is None else pd.DataFrame(short_entries).sum())
+        columns = [_FakePortfolioResult(close.index, int(count)) for count in counts]
+        return _FakeSweep(columns) if isinstance(entries, pd.DataFrame) else columns[0]
+
+class _FakeSweep:
+    """One column per setting: each property holds one value per column, like VectorBT."""
+
+    def __init__(self, columns: list[_FakePortfolioResult]) -> None:
+        self.columns, self.iloc, self.value = columns, self, pd.concat([column.value for column in columns], axis=1)
+        self.__dict__.update({name: pd.Series([getattr(c, name) for c in columns]) for name in ("total_return", "annualized_return", "sharpe_ratio", "max_drawdown")})
+        self.trades = SimpleNamespace(count=lambda: pd.Series([c.trades.count() for c in columns]), win_rate=pd.Series([c.trades.win_rate for c in columns]))
+
+    def __getitem__(self, key):
+        return self.columns[key[1]]
 
 
 class _FakeRSIResult:

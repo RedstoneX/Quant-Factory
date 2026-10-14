@@ -18,7 +18,7 @@ from backtesting.experiments.models import (
     ExperimentResult,
     RejectedParameters,
 )
-from backtesting.experiments.metrics import extract_metrics
+from backtesting.experiments.metrics import extract_metrics, extract_sweep_metrics
 from backtesting.validation.gates import (
     normalize_signals,
     validate_execution,
@@ -179,12 +179,12 @@ def _construct_portfolio(
     vbt = require_vectorbtpro()
     execution = config.execution
     close = data["Close"] * execution.price_multiplier
-    if isinstance(aligned, SignalResult):
-        setting_args = _setting_args(data, aligned, execution)
-    else:
+    if isinstance(aligned, (list, tuple)):
         setting_args = _stack_settings(
             data, close, [_setting_args(data, setting, execution) for setting in aligned]
         )
+    else:
+        setting_args = _setting_args(data, aligned, execution)
     # Stop kwargs keep their place after the cost kwargs, as before the one-pass change.
     leading = {key: value for key, value in setting_args.items() if key in _LEADING_ARGS}
     stops = {key: value for key, value in setting_args.items() if key not in _LEADING_ARGS}
@@ -379,13 +379,13 @@ def _result_columns(config: ExperimentConfig, parameter_names: tuple[str, ...]) 
     )
 
 
-def _value_column(portfolio: Any) -> np.ndarray | None:
-    """One setting's portfolio value as an array; None if the engine has none."""
+def _value_columns(portfolio: Any, count: int) -> list[np.ndarray | None]:
+    """Each setting's value from one read of the sweep's value; None if the engine has none."""
     value = getattr(portfolio, "value", None)
     value = value() if callable(value) else value
-    if isinstance(value, pd.DataFrame) and value.shape[1] == 1:
-        value = value.iloc[:, 0]
-    return value.to_numpy(dtype=float) if isinstance(value, pd.Series) else None
+    if not isinstance(value, pd.DataFrame) or value.shape[1] != count:
+        return [None] * count
+    return [value.iloc[:, position].to_numpy(dtype=float) for position in range(count)]
 
 
 def _record_luck(
@@ -458,7 +458,6 @@ def execute_experiment(
     rejections: list[RejectedParameters] = []
     validation_by_gate = {result.gate_id: result for result in market_results}
     screening_results: list[ScreeningResult] = []
-    value_columns: list[np.ndarray | None] = []
     execution_assumptions = _execution_assumptions(config, strategy)
     parameter_names = tuple(strategy.spec.parameter_map)
 
@@ -467,13 +466,12 @@ def execute_experiment(
     # Every validated setting is one column of a single VectorBT simulation.
     aligned_settings = tuple(aligned for _, aligned, _ in settings)
     sweep = _construct_portfolio(data, aligned_settings, config) if settings else None
+    sweep_metrics = (
+        extract_sweep_metrics(sweep, len(settings), data=data, config=config) if settings else []
+    )
+    value_columns = _value_columns(sweep, len(settings))
     for position, (normalized, _, validation_results) in enumerate(settings):
-        portfolio = _setting_portfolio(sweep, position)
-        metrics = (
-            extract_metrics(portfolio, data=data, config=config)
-            if config.metric_policy is not None
-            else extract_metrics(portfolio)
-        )
+        metrics = sweep_metrics[position]
         screening = screen_metrics(
             experiment_id=config.experiment_id,
             strategy_id=strategy.spec.identity.strategy_id,
@@ -484,9 +482,8 @@ def execute_experiment(
             config=config.screening,
         )
         screening_results.append(screening)
-        value_columns.append(_value_column(portfolio))
         if portfolio_observer is not None:
-            portfolio_observer(screening.parameter_row_id, portfolio)
+            portfolio_observer(screening.parameter_row_id, _setting_portfolio(sweep, position))
         rows.append(
             _parameter_row(normalized, config)
             | metrics
