@@ -310,8 +310,10 @@ def validate_execution(
         assumption_failures.append("execution mode and price field mismatch")
     if execution.signal_timing != "completed_bar_close":
         assumption_failures.append("unsupported signal timing")
-    if execution.position_sizing not in {"all_available_cash", "fixed_units"}:
+    if execution.position_sizing not in {"all_available_cash", "all_cash_whole_shares", "fixed_units"}:
         assumption_failures.append("unsupported position sizing")
+    if execution.position_sizing == "all_cash_whole_shares" and execution.order_size != 1.0:
+        assumption_failures.append("whole-share sizing requires order size 1.0 (all available cash)")
     if execution.position_sizing == "fixed_units" and (
         not np.isfinite(execution.order_size) or execution.order_size <= 0
     ):

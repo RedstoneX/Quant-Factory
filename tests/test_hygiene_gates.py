@@ -204,6 +204,14 @@ def test_contradictory_execution_assumptions_are_blocking() -> None:
     }
 
 
+def test_whole_share_sizing_passes_the_consistency_gate() -> None:
+    execution = replace(EXPERIMENT_CONFIG.execution, position_sizing="all_cash_whole_shares", order_size=1.0)
+    config = replace(EXPERIMENT_CONFIG, execution=execution)
+    _, results = validate_for_simulation(_data(), _signals(_data()), config)
+    consistency = {item.gate_id: item for item in results}["assumptions.consistency"]
+    assert not consistency.is_blocking_failure
+
+
 def test_valid_inputs_pass_and_results_record_gate_status(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
