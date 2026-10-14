@@ -26,6 +26,7 @@ from backtesting.robustness import (
     ParameterNeighborhoodDefinition,
     RegimeConfig,
 )
+from backtesting.robustness.models import FractionalCostStressPlan
 from backtesting.screening import ScreeningConfig
 from backtesting.validation import WalkForwardWindowRules
 from market_data import DatasetUnavailableError, MarketDataConfig, load_market_data
@@ -244,11 +245,14 @@ def auto_test_definition(
             ),
             minimum_valid_neighbors=3,
         )
-    else:
+    elif profile.position_sizing == "fixed_units":
         stress = FixedRuleCostStressPlan(
             fixed_fee_per_contract_per_side=profile.stress_fee_per_contract_per_side,
             slippage_ticks=profile.stress_slippage_ticks,
         )
+    else:
+        # Whole-share stock: 2x slippage, the same regulatory fees.
+        stress = FractionalCostStressPlan(fees=profile.fees, slippage=profile.stress_slippage)
     validation = CandidateValidationPlan(
         out_of_sample_split=ChronologicalSplitConfig(
             train_fraction=0.60, selection_fraction=0.20, test_fraction=0.20, minimum_rows_per_partition=10_000,
@@ -326,13 +330,6 @@ def run_auto_test(
     request: AutoTestRequest, *, adapter: RuleStrategyAdapter, launch: Launch, data_check: DataCheck = _check_verified_data
 ) -> AutoTestOutcome:
     """Install, save, link and launch one idea; never approves or promotes."""
-    if request.profile.position_sizing != "fixed_units" and not request.definition.get("variables"):
-        # The fixed-rule cost stress (backtesting/robustness/fixed_rule.py) models only
-        # one futures contract; a parameter-free stock rule has no robustness test yet.
-        return AutoTestOutcome(
-            "implementation_blocked", "cost_stress_unsupported",
-            "A rule with no variables needs the cost stress test, which does not yet support stocks.",
-        )
     try:
         installed = adapter.install(request.definition)
     except ValueError as exc:

@@ -37,12 +37,11 @@ strategies, and backtests them. It does not trade.
   Backtests load it by dataset id (`verified_local_catalog:<dataset_id>`,
   `adjusted=True`) and get the regular session. The list was picked in Oct 2026
   by recent liquidity, so results carry survivorship bias. Auto-test costs
-  (`orchestration/auto_campaign_stocks.py`): $0 commission, SEC + FINRA sell fees
-  charged conservatively on both sides, slippage = half the measured median spread
-  from `data/costs/alpaca_sip_spreads.json` (written by
-  `tools/measure_stock_spreads.py`); a symbol missing there cannot be auto-tested.
-  $10k start, whole shares. Rules with no variables are blocked on stocks (the
-  cost stress test is futures-only).
+  (`orchestration/auto_campaign_stocks.py`): $0 commission, SEC + FINRA sell-only
+  fees halved per side (TAF at the symbol's measured median price), slippage = half
+  the measured median spread, all from `data/costs/alpaca_sip_spreads.json` (written
+  by `tools/measure_stock_spreads.py`); a symbol missing there cannot be auto-tested.
+  $10k start, whole shares; rules with no variables get a 2x-slippage cost stress.
 - It is topped up nightly at 02:00 UTC by the `market-data-topup` compose
   service (`python -m market_data.alpaca_sip_cli --all --daily-at 02:00`); a
   manual run drops `--daily-at`. Its manifests live in the data mount

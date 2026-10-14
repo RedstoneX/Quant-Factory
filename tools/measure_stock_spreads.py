@@ -7,7 +7,8 @@ Usage (credentials come from the environment and are never printed):
 Method: for each of the last 20 complete regular NYSE sessions, every SIP quote in the
 one minute starting 10:00, 12:00 and 15:30 New York time (a sample after an early
 close is skipped). Per valid quote (bid > 0, ask > bid): (ask - bid) / mid in basis
-points. The symbol's figure is the median over all its valid quotes.
+points. The symbol's figure is the median over all its valid quotes; the median
+midpoint (ask+bid)/2 over the same quotes is recorded as median_mid_price.
 """
 
 from __future__ import annotations
@@ -115,13 +116,19 @@ def measure(symbols: Sequence[str], sessions: Sequence[tuple[datetime, datetime]
     result: dict[str, dict[str, Any]] = {}
     for symbol in symbols:
         values: list[float] = []
+        mids: list[float] = []
         for start, end in windows:
             quotes = window_quotes(symbol, start, end, get=get, headers=headers, limiter=limiter)
-            values.extend(v for v in (spread_bps(q) for q in quotes) if v is not None)
+            for quote in quotes:
+                value = spread_bps(quote)
+                if value is not None:
+                    values.append(value)
+                    mids.append((float(quote["ap"]) + float(quote["bp"])) / 2.0)
         if not values:
             raise RuntimeError(f"{symbol}: no valid two-sided SIP quotes in any sampled minute")
         result[symbol] = {
-            "median_spread_bps": statistics.median(values), "samples": len(values), "sessions": len(sessions),
+            "median_spread_bps": statistics.median(values), "median_mid_price": statistics.median(mids),
+            "samples": len(values), "sessions": len(sessions),
         }
     return result
 
@@ -135,7 +142,8 @@ def document(spreads: Mapping[str, Any], sessions: Sequence[tuple[datetime, date
         "method": (
             f"Median of (ask-bid)/mid in bps over every valid SIP quote (bid>0, ask>bid) in the one minute "
             f"starting 10:00, 12:00 and 15:30 New York time on each of {len(sessions)} complete regular "
-            f"sessions {first} to {last}; slippage per side = half this median."
+            f"sessions {first} to {last}; slippage per side = half this median. median_mid_price = "
+            f"median (ask+bid)/2 over the same quotes, used to turn the per-share FINRA TAF into a fraction."
         ),
         "source": "Alpaca market data /v2/stocks/{symbol}/quotes, feed=sip",
         "symbols": dict(spreads),

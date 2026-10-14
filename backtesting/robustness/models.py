@@ -221,6 +221,23 @@ class FixedRuleCostStressPlan:
 
 
 @dataclass(frozen=True)
+class FractionalCostStressPlan:
+    """One predeclared higher-cost check for a parameter-free whole-share stock rule.
+
+    Both costs are fractions of traded value per side, as ExecutionConfig.fees/slippage.
+    """
+
+    fees: float
+    slippage: float
+
+    def __post_init__(self) -> None:
+        _finite_number("fees", self.fees)
+        _finite_number("slippage", self.slippage)
+        if self.fees < 0 or self.slippage <= 0:
+            raise ValueError("fractional stress needs non-negative fees and positive slippage")
+
+
+@dataclass(frozen=True)
 class FixedRuleCostStressResult:
     baseline_costs: dict[str, float]
     stressed_costs: dict[str, float]

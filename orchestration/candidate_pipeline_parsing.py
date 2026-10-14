@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from backtesting.robustness import FixedRuleCostStressPlan, NeighborhoodConfig, ParameterNeighborhoodDefinition, RegimeConfig
+from backtesting.robustness.models import FractionalCostStressPlan
 
 VALIDATION_RUNTIME_KEY = "candidate_validation_runtime"
 
@@ -71,7 +72,7 @@ def _optional_text(value: Any, *, path: str) -> str | None:
     return None if value is None else _strict_text(value, path=path)
 
 
-def parse_robustness_contract(robustness_document: dict[str, Any], installed_strategy: Any, parameters: tuple[dict[str, Any], ...]) -> tuple[NeighborhoodConfig | None, FixedRuleCostStressPlan | None, RegimeConfig]:
+def parse_robustness_contract(robustness_document: dict[str, Any], installed_strategy: Any, parameters: tuple[dict[str, Any], ...]) -> tuple[NeighborhoodConfig | None, FixedRuleCostStressPlan | FractionalCostStressPlan | None, RegimeConfig]:
     neighborhood_document = (
         None
         if robustness_document["neighborhood"] is None
@@ -159,10 +160,13 @@ def parse_robustness_contract(robustness_document: dict[str, Any], installed_str
         ),
     )
     stress_document = robustness_document.get("fixed_rule_cost_stress")
-    stress = None if stress_document is None else FixedRuleCostStressPlan(**_strict_object(
+    stress_type: type[FixedRuleCostStressPlan] | type[FractionalCostStressPlan] = FixedRuleCostStressPlan
+    if isinstance(stress_document, dict) and set(stress_document) == set(FractionalCostStressPlan.__dataclass_fields__):
+        stress_type = FractionalCostStressPlan
+    stress = None if stress_document is None else stress_type(**_strict_object(
         stress_document,
         path="robustness.fixed_rule_cost_stress",
-        keys=set(FixedRuleCostStressPlan.__dataclass_fields__),
+        keys=set(stress_type.__dataclass_fields__),
     ))
     if stress is not None and (installed_strategy.spec.parameters or parameters != ({},)):
         raise ValueError("fixed-rule cost stress requires one parameter-free Candidate")
