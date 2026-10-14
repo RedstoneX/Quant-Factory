@@ -90,8 +90,13 @@ def provider(tmp_path: Path, server: BarServer, now: str = "2026-10-14T12:00:00Z
     )
 
 
+def manifest_file(tmp_path: Path, symbol: str = "SPY") -> Path:
+    return SipDataset(symbol).manifest_path(locations(tmp_path))
+
+
 def stored_path(tmp_path: Path, symbol: str = "SPY") -> Path:
-    return tmp_path / "root" / SipDataset(symbol).relative_path
+    manifest = json.loads(manifest_file(tmp_path, symbol).read_text())
+    return tmp_path / "root" / manifest["canonical_relative_path"]
 
 
 def test_pagination_split_adjustment_and_sip_feed_are_requested(tmp_path):
@@ -178,15 +183,21 @@ def test_full_then_incremental_then_idempotent(tmp_path):
     assert (first.status, first.row_count) == ("full", 3)
     assert server.calls[0]["params"]["start"] == "2016-01-01T05:00:00Z"
     assert server.calls[0]["params"]["end"] == "2026-10-12T22:39:00Z"
+    slot_a = stored_path(tmp_path)
+    assert slot_a.name == "SPY_1m_alpaca_sip.a.parquet"
+    assert manifest_file(tmp_path).parent == tmp_path / "root" / "manifests"
+    slot_a_digest = calculate_sha256(slot_a)
 
     server.bars = DAY_ONE + DAY_TWO
     server.calls.clear()
     second = provider(tmp_path, server).top_up("SPY")
     assert (second.status, second.new_rows, second.row_count) == ("incremental", 2, 5)
     assert server.calls[0]["params"]["start"] == "2026-10-12T19:59:00Z"
+    assert stored_path(tmp_path).name == "SPY_1m_alpaca_sip.b.parquet"
+    assert calculate_sha256(slot_a) == slot_a_digest  # committed slot never rewritten
     stored = pd.read_parquet(stored_path(tmp_path))
     assert stored["session"].tolist() == ["pre", "regular", "regular", "regular", "post"]
-    manifest = json.loads((tmp_path / "manifests" / "equities_SPY_1m_alpaca_sip.json").read_text())
+    manifest = json.loads((manifest_file(tmp_path)).read_text())
     assert manifest["sha256"] == calculate_sha256(stored_path(tmp_path))
     assert manifest["row_count"] == 5
     assert manifest["last_top_up"]["mode"] == "incremental"
@@ -214,7 +225,7 @@ def test_validation_failure_quarantines_and_keeps_old_file(tmp_path):
     server = BarServer(list(DAY_ONE), page_size=10)
     provider(tmp_path, server, now="2026-10-12T23:00:00Z").top_up("SPY")
     digest = calculate_sha256(stored_path(tmp_path))
-    manifest_path = tmp_path / "manifests" / "equities_SPY_1m_alpaca_sip.json"
+    manifest_path = manifest_file(tmp_path)
     manifest_before = manifest_path.read_text()
     server.bars = DAY_ONE + [bar("2026-10-13T13:30:00Z", 103, h=90.0)]
     with pytest.raises(AlpacaSipValidationError, match="high/low"):
@@ -224,7 +235,7 @@ def test_validation_failure_quarantines_and_keeps_old_file(tmp_path):
     quarantined = sorted((tmp_path / "quarantine" / "alpaca_sip").iterdir())
     assert [path.suffix for path in quarantined] == [".json", ".parquet"]
     assert "high/low" in json.loads(quarantined[0].read_text())["problems"][0]
-    assert not list(stored_path(tmp_path).parent.glob("*.tmp.parquet"))
+    assert not list(stored_path(tmp_path).parent.glob("*.tmp"))
 
 
 def test_missing_credentials_fail_plainly():
@@ -240,3 +251,14 @@ def test_missing_credentials_fail_plainly():
 def test_symbol_outside_universe_is_refused(tmp_path):
     with pytest.raises(ValueError, match="not in the Alpaca SIP universe"):
         provider(tmp_path, BarServer([])).top_up("ZZZZ")
+
+
+def test_committed_file_not_matching_manifest_fails_closed(tmp_path):
+    server = BarServer(list(DAY_ONE), page_size=10)
+    provider(tmp_path, server, now="2026-10-12T23:00:00Z").top_up("SPY")
+    manifest_before = manifest_file(tmp_path).read_text()
+    stored_path(tmp_path).write_bytes(b"tampered")
+    server.bars = DAY_ONE + DAY_TWO
+    with pytest.raises(AlpacaSipError, match="does not match its manifest"):
+        provider(tmp_path, server).top_up("SPY")
+    assert manifest_file(tmp_path).read_text() == manifest_before

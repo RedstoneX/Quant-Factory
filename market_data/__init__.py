@@ -12,6 +12,7 @@ from market_data.catalog import (
     DatasetUnavailableError,
     load_data_locations,
     load_dataset_manifest,
+    manifest_dir_for,
     resolve_dataset_path,
     verify_dataset_file,
 )
@@ -184,7 +185,7 @@ def _load_verified_catalog_data(
     """Read a fixed, validated local Databento slice without acquisition."""
     dataset_id = config.provider_implementation.removeprefix("verified_local_catalog:")
     locations = load_data_locations()
-    manifest = load_dataset_manifest(dataset_id, locations.manifests)
+    manifest = load_dataset_manifest(dataset_id, manifest_dir_for(dataset_id, locations))
     if (
         manifest.provider != config.provider
         or manifest.symbol != config.symbol

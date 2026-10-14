@@ -5,6 +5,8 @@
 root = "/srv/quant-factory/data"
 manifests = "/srv/quant-factory/data/manifests"
 quarantine = "/srv/quant-factory/data/quarantine"
+# Optional: where downloaders write their run-time manifests (default <root>/manifests).
+# downloaded_manifests = "/srv/quant-factory/data/manifests"
 
 [legacy]
 # Set only when performing a controlled import from an existing archive or directory.

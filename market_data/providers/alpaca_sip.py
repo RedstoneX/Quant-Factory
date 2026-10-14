@@ -2,9 +2,14 @@
 
 Bars are split-adjusted, include pre- and post-market minutes, and carry a
 ``session`` column (pre / regular / post / closed) so the regular session can be
-selected. Every write goes to a temporary file that is read back and validated
-before an atomic rename; a failed candidate moves to quarantine and the stored
-file is left untouched.
+selected.
+
+Each symbol has two data slots (``.a`` / ``.b``). A top-up writes the inactive
+slot, reads it back and validates it, then atomically replaces the manifest that
+points at it (with its sha256). That manifest rename is the single commit point,
+so readers always see a data file and manifest that match, and the active slot is
+never written. A failed candidate moves to quarantine and nothing is committed.
+Manifests go to the persistent downloaded-manifest folder inside the data mount.
 """
 
 from __future__ import annotations
@@ -32,7 +37,13 @@ from market_data.alpaca_sip_universe import (
     UNIVERSE_NAME,
     asset_type,
 )
-from market_data.catalog import DataLocations, calculate_sha256
+from market_data.catalog import (
+    DataLocations,
+    DatasetManifest,
+    DatasetUnavailableError,
+    calculate_sha256,
+    verify_dataset_file,
+)
 from market_data.providers.alpaca import ALPACA_DATA_HOST, AlpacaCredentials, HttpClient
 
 FEED = "sip"
@@ -115,9 +126,12 @@ class SipDataset:
     def dataset_id(self) -> str:
         return f"equities_{self.symbol}_1m_alpaca_sip"
 
-    @property
-    def relative_path(self) -> Path:
-        return Path("equities") / self.symbol / "1m" / f"{self.symbol}_1m_alpaca_sip.parquet"
+    def slot_relative_path(self, slot: str) -> Path:
+        name = f"{self.symbol}_1m_alpaca_sip.{slot}.parquet"
+        return Path("equities") / self.symbol / "1m" / name
+
+    def manifest_path(self, locations: DataLocations) -> Path:
+        return locations.downloaded_manifest_dir / f"{self.dataset_id}.json"
 
 
 @dataclass(frozen=True)
@@ -355,12 +369,12 @@ class AlpacaSipProvider:
         """Bring one symbol's stored file up to the newest available complete bar."""
         dataset = SipDataset(symbol)
         asset_type(symbol)
-        target = self.locations.root / dataset.relative_path
         end = self.available_end()
-        existing = pd.read_parquet(target) if target.is_file() else None
-        if existing is None or existing.empty:
+        target, existing = self._committed(dataset)
+        slot = "b" if target is not None and target.name.endswith(".a.parquet") else "a"
+        if target is None or existing is None or existing.empty:
             start = pd.Timestamp(since, tz=MARKET_TIMEZONE)
-            return self._store(dataset, self.fetch(symbol, start, end), None, "full", start, end)
+            return self._store(dataset, self.fetch(symbol, start, end), None, "full", start, end, slot)
         last_stored = existing.iloc[-1]
         if last_stored["timestamp"] >= end:
             return TopUpResult(symbol, "current", len(existing), 0, target)
@@ -371,14 +385,29 @@ class AlpacaSipProvider:
             start = existing["timestamp"].iloc[0]
             refetched = self.fetch(symbol, start, end)
             return self._store(
-                dataset, refetched, None, "refetched_after_adjustment_change", start, end
+                dataset, refetched, None, "refetched_after_adjustment_change", start, end, slot
             )
         new_bars = fetched.loc[fetched["timestamp"] > last_stored["timestamp"]]
         if new_bars.empty:
             return TopUpResult(symbol, "current", len(existing), 0, target)
         combined = pd.concat([existing, new_bars], ignore_index=True)
         start = existing["timestamp"].iloc[0]
-        return self._store(dataset, combined, existing, "incremental", start, end)
+        return self._store(dataset, combined, existing, "incremental", start, end, slot)
+
+    def _committed(self, dataset: SipDataset) -> tuple[Path | None, pd.DataFrame | None]:
+        """Return the committed data file and its bars, verified against the manifest."""
+        manifest_path = dataset.manifest_path(self.locations)
+        if not manifest_path.is_file():
+            return None, None
+        try:
+            manifest = DatasetManifest.from_dict(json.loads(manifest_path.read_text(encoding="utf-8")))
+            path = verify_dataset_file(manifest, self.locations)
+        except (DatasetUnavailableError, ValueError) as exc:
+            raise AlpacaSipError(
+                f"{dataset.symbol}: committed data does not match its manifest ({exc}); "
+                "nothing written - inspect before re-running"
+            ) from exc
+        return path, pd.read_parquet(path)
 
     def _store(
         self,
@@ -388,10 +417,11 @@ class AlpacaSipProvider:
         mode: str,
         start: pd.Timestamp,
         end: pd.Timestamp,
+        slot: str,
     ) -> TopUpResult:
-        target = self.locations.root / dataset.relative_path
+        target = self.locations.root / dataset.slot_relative_path(slot)
         target.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = target.with_name(target.name + ".tmp.parquet")
+        tmp_path = target.with_name(target.name + ".tmp")
         frame.loc[:, list(COLUMNS)].to_parquet(tmp_path, index=False)
         on_disk = pd.read_parquet(tmp_path)
         problems = validate_bars(on_disk, end=end, previous=previous)
@@ -402,9 +432,9 @@ class AlpacaSipProvider:
                 f"quarantined at {quarantined}; stored file left unchanged"
             )
         new_rows = len(on_disk) - (0 if previous is None else len(previous))
-        manifest = build_manifest(dataset, on_disk, tmp_path, mode, start, end, new_rows)
-        os.replace(tmp_path, target)
-        write_manifest(manifest, self.locations.manifests / f"{dataset.dataset_id}.json")
+        os.replace(tmp_path, target)  # inactive slot: no committed manifest points here
+        manifest = build_manifest(dataset, on_disk, target, slot, mode, start, end, new_rows)
+        write_manifest(manifest, dataset.manifest_path(self.locations))  # the commit
         return TopUpResult(dataset.symbol, mode, len(on_disk), new_rows, target)
 
     def _quarantine(self, dataset: SipDataset, tmp_path: Path, problems: list[str]) -> Path:
@@ -417,7 +447,7 @@ class AlpacaSipProvider:
             "dataset_id": dataset.dataset_id,
             "quarantined_at_utc": datetime.now(UTC).isoformat(),
             "problems": problems,
-            "stored_file_kept": dataset.relative_path.as_posix(),
+            "committed_data_and_manifest_unchanged": True,
         }
         destination.with_suffix(".json").write_text(json.dumps(note, indent=2) + "\n", encoding="utf-8")
         return destination
@@ -427,6 +457,7 @@ def build_manifest(
     dataset: SipDataset,
     frame: pd.DataFrame,
     parquet_path: Path,
+    slot: str,
     mode: str,
     start: pd.Timestamp,
     end: pd.Timestamp,
@@ -434,7 +465,7 @@ def build_manifest(
 ) -> dict[str, Any]:
     """Describe one validated stored file in the repository's manifest format."""
     acquired = datetime.now(UTC).isoformat()
-    relative = dataset.relative_path.as_posix()
+    relative = dataset.slot_relative_path(slot).as_posix()
     first = frame["timestamp"].iloc[0].isoformat()
     last = frame["timestamp"].iloc[-1].isoformat()
     session_counts = {key: int(value) for key, value in frame["session"].value_counts().items()}
@@ -452,6 +483,9 @@ def build_manifest(
         "format": "parquet",
         "canonical_relative_path": relative,
         "local_canonical_path": relative,
+        "storage_slot": slot,
+        "storage_policy": "two slots (.a/.b); the manifest rename commits the new slot; "
+        "resolve data by dataset_id, never by pinning the slot path",
         "original_source_path": f"{ALPACA_DATA_HOST}/v2/stocks/{dataset.symbol}/bars",
         "sha256": calculate_sha256(parquet_path),
         "size_bytes": parquet_path.stat().st_size,
