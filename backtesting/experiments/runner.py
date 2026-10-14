@@ -18,6 +18,13 @@ from backtesting.experiments.models import (
     RejectedParameters,
 )
 from backtesting.experiments.metrics import extract_metrics
+from backtesting.experiments.simulation import (
+    BATCH_ENGINE_OPTIONS,
+    DEFAULT_SIMULATION,
+    SIMULATION_MODES,
+    simulate_batch,
+    simulate_one_by_one,
+)
 from backtesting.validation.gates import (
     normalize_signals,
     validate_execution,
@@ -26,6 +33,7 @@ from backtesting.validation.gates import (
 )
 from backtesting.validation.models import ValidationResult, raise_for_blocking_failures
 from backtesting.screening import ScreeningResult, screen_metrics
+from backtesting.screening.deflated_sharpe import deflated_sharpe
 from backtesting.vectorbt_runtime import require_vectorbtpro
 
 METRIC_COLUMNS = (
@@ -104,8 +112,15 @@ def _construct_portfolio(
     data: pd.DataFrame,
     aligned: SignalResult,
     config: ExperimentConfig,
+    *,
+    prices: list[pd.Series] | None = None,
+    labels: list[str] | None = None,
 ) -> Any:
-    """Call VectorBT only after the caller has passed every blocking gate."""
+    """Call VectorBT only after the caller has passed every blocking gate.
+
+    With ``labels``, ``aligned`` holds one column per setting and ``prices``
+    holds each setting's own execution-price series; one wide simulation runs.
+    """
     vbt = require_vectorbtpro()
     execution = config.execution
     close = data["Close"] * execution.price_multiplier
@@ -124,7 +139,19 @@ def _construct_portfolio(
             "short_entries": aligned.short_entries,
             "short_exits": aligned.short_exits,
         }
-    execution_price = build_execution_price(data, aligned, execution)
+    engine_args: dict[str, Any] = {}
+    execution_price: Any
+    if labels is None or prices is None:
+        execution_price = build_execution_price(data, aligned, execution)
+    else:
+        # Absolute slippage moves each setting's own order prices; otherwise
+        # every setting shares one price series that broadcasts to all columns.
+        execution_price = (
+            pd.concat(prices, axis=1, keys=labels)
+            if execution.absolute_slippage_points
+            else prices[0]
+        )
+        engine_args = dict(BATCH_ENGINE_OPTIONS)
     stop_args: dict[str, Any] = {}
     if aligned.stop_loss is not None or aligned.take_profit is not None:
         if aligned.stop_loss is None or aligned.take_profit is None:
@@ -155,6 +182,7 @@ def _construct_portfolio(
         slippage=execution.slippage,
         fixed_fees=execution.fixed_fee_per_order,
         **stop_args,
+        **engine_args,
     )
 
 
@@ -279,6 +307,18 @@ def _result_columns(config: ExperimentConfig, parameter_names: tuple[str, ...]) 
     )
 
 
+def _status_columns(gate_count: int, screening: ScreeningResult) -> dict[str, Any]:
+    return {
+        "validation_status": "passed",
+        "validation_gate_count": gate_count,
+        "parameter_row_id": screening.parameter_row_id,
+        "screening_status": "passed" if screening.passed else "screened_out",
+        "screening_passed_rule_count": screening.passed_rule_count,
+        "screening_failed_rule_count": screening.failed_rule_count,
+        "screening_rejection_reasons": " | ".join(screening.rejection_reasons),
+    }
+
+
 def execute_experiment(
     config: ExperimentConfig,
     data: pd.DataFrame,
@@ -287,6 +327,7 @@ def execute_experiment(
     run_timestamp: str | None = None,
     write_output: bool = True,
     portfolio_observer: Callable[[str, Any], None] | None = None,
+    simulation: str = DEFAULT_SIMULATION,
 ) -> ExperimentResult:
     """Validate, simulate, rank, and optionally persist one experiment."""
     strategy = get_strategy(config.strategy_id)
@@ -308,6 +349,7 @@ def execute_experiment(
     execution_assumptions = _execution_assumptions(config, strategy)
     parameter_names = tuple(strategy.spec.parameter_map)
 
+    prepared: list[tuple[dict[str, Any], SignalResult, int]] = []
     for supplied in config.parameter_combinations:
         candidate = dict(supplied)
         try:
@@ -327,7 +369,22 @@ def execute_experiment(
         validation_by_gate.update(
             {result.gate_id: result for result in validation_results}
         )
-        portfolio = _construct_portfolio(data, aligned, config)
+        prepared.append((normalized, aligned, len(validation_results)))
+
+    if simulation not in SIMULATION_MODES:
+        raise ValueError(f"Unsupported simulation mode: {simulation}")
+    simulate = simulate_batch if simulation == "batch" else simulate_one_by_one
+    aligned_settings = [item[1] for item in prepared]
+    portfolios, values = simulate(
+        data, aligned_settings, config, _construct_portfolio, build_execution_price
+    )
+    # Record-only luck check: never changes any row's screening outcome.
+    cash = config.execution.initial_cash
+    luck = deflated_sharpe(values, cash) if values is not None else None
+
+    for index, ((normalized, _, gate_count), portfolio) in enumerate(
+        zip(prepared, portfolios)
+    ):
         metrics = (
             extract_metrics(portfolio, data=data, config=config)
             if config.metric_policy is not None
@@ -341,6 +398,9 @@ def execute_experiment(
             execution_assumptions=execution_assumptions,
             metrics=metrics,
             config=config.screening,
+            deflated_sharpe_probability=(
+                luck.trial_probabilities[index] if luck is not None else None
+            ),
         )
         screening_results.append(screening)
         if portfolio_observer is not None:
@@ -350,21 +410,7 @@ def execute_experiment(
             | metrics
             | _provenance(audit)
             | _execution_values(config.execution)
-            | {
-                "validation_status": "passed",
-                "validation_gate_count": len(validation_results),
-            }
-            | {
-                "parameter_row_id": screening.parameter_row_id,
-                "screening_status": (
-                    "passed" if screening.passed else "screened_out"
-                ),
-                "screening_passed_rule_count": screening.passed_rule_count,
-                "screening_failed_rule_count": screening.failed_rule_count,
-                "screening_rejection_reasons": " | ".join(
-                    screening.rejection_reasons
-                ),
-            }
+            | _status_columns(gate_count, screening)
         )
         normalized_parameters.append(dict(normalized))
 
@@ -419,6 +465,7 @@ def execute_experiment(
         screening_config=config.screening,
         screening_results=tuple(screening_results),
         parameter_plan_summary=parameter_plan_summary,
+        deflated_sharpe=luck,
     )
 
 

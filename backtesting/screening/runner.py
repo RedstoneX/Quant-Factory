@@ -34,6 +34,7 @@ def screen_metrics(
     execution_assumptions: Mapping[str, Any],
     metrics: Mapping[str, Any],
     config: ScreeningConfig,
+    deflated_sharpe_probability: float | None = None,
 ) -> ScreeningResult:
     """Apply all rules without mutating metrics or parameter inputs."""
     rule_results = evaluate_rules(dict(metrics), config)
@@ -51,4 +52,5 @@ def screen_metrics(
         normalized_parameters=dict(parameters),
         execution_assumptions=dict(execution_assumptions),
         rejection_reasons=tuple(result.message for result in failed),
+        deflated_sharpe_probability=deflated_sharpe_probability,
     )
