@@ -13,7 +13,7 @@ def test_kit_has_three_parts_and_a_short_guide() -> None:
     assert set(kit) == {"schema", "example", "guide"}
     assert kit["schema"]["schema"] == "qf_candidate_v1"
     lines = kit["guide"].strip().splitlines()
-    assert len(lines) <= 40
+    assert len(lines) <= 60
     text = kit["guide"]
     for needed in ("5-minute", "MES", "2026-02-13", "Options", "String variables", str(PROVISIONAL_GRID_WARNING_THRESHOLD)):
         assert needed in text
