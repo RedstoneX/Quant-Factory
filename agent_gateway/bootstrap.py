@@ -64,7 +64,7 @@ def build_bootstrap(
             {
                 "gate": "candidate_research",
                 "state": context["mandate"]["current_research_state"],
-                "requirement": "The owner must accept one bounded Candidate and its evidence contract before research begins.",
+                "requirement": "Valid ideas are backtested automatically; no owner approval is needed before testing. Paper trading needs the owner's approval.",
             },
             {
                 "gate": "development_run",
