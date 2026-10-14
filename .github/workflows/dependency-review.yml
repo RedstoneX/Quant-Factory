@@ -41,3 +41,7 @@ jobs:
             0BSD, Apache-2.0, BSD-2-Clause, BSD-3-Clause, CC0-1.0, ISC, MIT,
             MPL-2.0, PSF-2.0, Python-2.0, Zlib,
             Apache-2.0 WITH LLVM-exception
+          # TA-Lib's bundled C library is BSD-2-Clause-Views: BSD-2-Clause plus a
+          # line that the authors' views are their own. Permissive; exempted for
+          # this one package rather than allowed for every dependency.
+          allow-dependencies-licenses: pkg:pypi/ta-lib

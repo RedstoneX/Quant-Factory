@@ -216,6 +216,7 @@ CASES = [
 ]
 
 
+@pytest.mark.licensed_vectorbt
 @pytest.mark.parametrize("node, expected", CASES, ids=[f"{next(iter(n))}-{n.get('output', '')}" for n, _ in CASES])
 def test_indicator_matches_hand_computation(node: dict, expected: list) -> None:
     result = _evaluate(node, _bars())[:, 0]
@@ -228,6 +229,7 @@ def test_every_catalogue_indicator_is_covered_by_a_hand_case() -> None:
     assert set(INDICATORS) <= covered
 
 
+@pytest.mark.licensed_vectorbt
 def test_variable_parameters_equal_literals() -> None:
     node = {"macd": "close", "fast": {"param": "f"}, "slow": 4, "signal": 3, "output": "line"}
     variables = {"f": {"values": [2, 3]}}
@@ -242,6 +244,7 @@ def test_variable_parameters_equal_literals() -> None:
     )
 
 
+@pytest.mark.licensed_vectorbt
 def test_indicators_compose_with_existing_operators() -> None:
     bars = _bars(rows=40)
     line = _evaluate({"macd": "close", "fast": 3, "slow": 8, "signal": 3, "output": "line"}, bars)
@@ -252,6 +255,7 @@ def test_indicators_compose_with_existing_operators() -> None:
     assert np.isfinite(on_rsi).any()
 
 
+@pytest.mark.licensed_vectorbt
 @pytest.mark.parametrize("across", [False, True])
 def test_indicators_are_causal(across: bool) -> None:
     nodes = [node for node, _ in CASES]
@@ -276,6 +280,7 @@ def test_indicators_are_causal(across: bool) -> None:
             np.testing.assert_array_equal(full[:30], _evaluate(node, short_bars))
 
 
+@pytest.mark.licensed_vectorbt
 def test_across_sessions_runs_through_the_session_boundary() -> None:
     bars = _bars(rows=10, sessions=2)
     scoped = _evaluate({"rsi": "close", "length": 4}, bars)
@@ -355,6 +360,7 @@ def test_starter_kit_guide_documents_every_indicator() -> None:
             assert output in guide, (name, output)
 
 
+@pytest.mark.licensed_vectorbt
 def test_guide_example_condition_is_valid_and_evaluates() -> None:
     spec = _spec(0)
     spec["signals"][0]["when"] = INDICATOR_EXAMPLE_CONDITION

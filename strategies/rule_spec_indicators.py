@@ -25,8 +25,7 @@ from typing import Any, Callable, Mapping
 
 import numpy as np
 import pandas as pd
-import vectorbtpro as vbt
-
+from backtesting.vectorbt_runtime import require_vectorbtpro
 from rule_language.indicators import INDICATORS
 
 _RUN = {"hide_params": True}
@@ -42,6 +41,7 @@ class _Inputs:
 
 
 def _atr(data: _Inputs, length: int, wtype: str) -> pd.DataFrame:
+    vbt = require_vectorbtpro()
     return vbt.ATR.run(data.high, data.low, data.close, window=length, wtype=wtype, **_RUN).atr
 
 
@@ -50,19 +50,23 @@ def wilder_atr(data: _Inputs, length: int) -> pd.DataFrame:
 
 
 def _rsi(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     return {"value": vbt.RSI.run(data.x, window=p["length"], wtype="wilder", **_RUN).rsi}
 
 
 def _roc(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     return {"value": vbt.talib_func("ROC")(data.x, timeperiod=p["length"])}
 
 
 def _macd(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     run = vbt.MACD.run(data.x, fast_window=p["fast"], slow_window=p["slow"], signal_window=p["signal"], **_RUN)
     return {"line": run.macd, "signal": run.signal, "histogram": run.hist}
 
 
 def _bollinger(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     run = vbt.BBANDS.run(data.x, window=p["length"], alpha=p["std_mult"], **_RUN)
     return {
         "upper": run.upper,
@@ -74,6 +78,7 @@ def _bollinger(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
 
 
 def _stochastic(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     run = vbt.STOCH.run(
         data.high,
         data.low,
@@ -87,29 +92,35 @@ def _stochastic(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
 
 
 def _adx(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     run = vbt.ADX.run(data.high, data.low, data.close, window=p["length"], **_RUN)
     return {"adx": run.adx, "plus_di": run.plus_di, "minus_di": run.minus_di}
 
 
 def _cci(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     return {"value": vbt.talib_func("CCI")(data.high, data.low, data.close, timeperiod=p["length"])}
 
 
 def _williams_r(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     return {"value": vbt.talib_func("WILLR")(data.high, data.low, data.close, timeperiod=p["length"])}
 
 
 def _obv(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     return {"value": vbt.OBV.run(data.close, data.volume, **_RUN).obv}
 
 
 def _keltner(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     middle = vbt.MA.run(data.close, window=p["length"], wtype="exp", **_RUN).ma
     band = p["mult"] * wilder_atr(data, p["atr_length"])
     return {"upper": middle + band, "middle": middle, "lower": middle - band}
 
 
 def _donchian(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
+    vbt = require_vectorbtpro()
     length = p["length"]
     upper, lower = data.high.vbt.rolling_max(length, minp=length), data.low.vbt.rolling_min(length, minp=length)
     return {"upper": upper, "lower": lower, "middle": (upper + lower) / 2.0}
