@@ -79,3 +79,19 @@ strategies, and backtests them. It does not trade.
 - `backtesting/`, `orchestration/` screening and the test pipeline.
 - `agent_gateway/` the research gateway; `dashboard/` the owner's web UI.
 - `docs/AGENT_RESEARCH_OPERATING_CONTEXT.md` the text served to research agents.
+
+<!-- VBT-RULES-START v2026.10.5 -->
+## VectorBT PRO
+
+This project uses VectorBT PRO (`import vectorbtpro as vbt`). `vbt agents install --agents-md`
+rewrites this block, so keep your own notes outside of it.
+
+* Before writing VBT code, read the `vbt-basics` skill, then every skill that matches the task. The
+  skills are in `.agents/skills/` and `.claude/skills/`. If they are missing, run
+  `vbt mcp list-skills` and `vbt mcp get-skill <name>`.
+* Verify every VBT name against the installed version before using it, with the `get_attrs` and
+  `get_source` tools of the VBT MCP server, or with `vbt mcp get-attrs <name>` and
+  `vbt mcp get-source <name>`.
+* Search the documentation with the `find_concepts`, `search`, and `get_page` tools, or with
+  `vbt mcp search "<query>"`.
+<!-- VBT-RULES-END -->
