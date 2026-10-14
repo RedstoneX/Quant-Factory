@@ -323,6 +323,28 @@ def test_session_metrics_exclude_wholly_absent_exchange_session(tmp_path: Path) 
     assert sharpe == pytest.approx(returns.mean() / returns.std(ddof=1) * 252**0.5)
 
 
+def test_session_metrics_count_a_final_bar_ending_at_the_close_as_complete(tmp_path: Path) -> None:
+    # One-minute regular-session bars are labelled by their open: 15:59 New York ends at the close.
+    index = pd.DatetimeIndex(["2024-01-02T20:59:00Z", "2024-01-03T20:59:00Z", "2024-01-04T20:59:00Z"])
+    portfolio = SimpleNamespace(value=pd.Series(100_000.0, index=index))
+    config = replace(
+        _config(tmp_path),
+        market_data=replace(_market_config(tmp_path), interval="1m"),
+        metric_policy=MetricPolicy(
+            sampling="exchange_session_close",
+            periods_per_year=252.0,
+            risk_free_rate=0.0,
+            basis="complete exchange-session-close portfolio equity and session returns",
+            source="test contract",
+        ),
+    )
+
+    result = metrics_module.session_close_metrics(
+        portfolio, pd.DataFrame({"Close": 100.0}, index=index), config
+    )
+    assert len(result) == 3  # computed, not refused as a partial session
+
+
 def test_session_metrics_fail_closed_on_partial_final_session(tmp_path: Path) -> None:
     index = pd.DatetimeIndex(
         [

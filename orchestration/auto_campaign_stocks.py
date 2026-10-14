@@ -12,6 +12,8 @@ import math
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from market_data.alpaca_sip_universe import UNIVERSE
 from market_data.catalog import load_data_locations, manifest_dir_for
 
@@ -98,6 +100,26 @@ def median_mid_price(symbol: str, spreads_path: Path = SPREADS_PATH) -> float:
     return _measured(symbol, "median_mid_price", spreads_path)
 
 
+def _completed_end(latest_bar: str) -> str:
+    """The latest bar, or the last completed NYSE close if that bar is mid-session.
+
+    Nightly and intraday top-ups can stop inside a session; a backtest must end on a
+    completed one. A one-minute bar labelled at its open is observed through +1 minute.
+    """
+    import pandas_market_calendars as mcal
+
+    latest = pd.Timestamp(latest_bar)
+    observed_through = latest + pd.Timedelta(STOCK_INTERVAL.replace("m", "min"))
+    schedule = mcal.get_calendar("NYSE").schedule(
+        start_date=(latest - pd.Timedelta(days=14)).date(), end_date=latest.date()
+    )
+    closes = schedule.loc[schedule["market_close"] <= observed_through, "market_close"]
+    if closes.empty:
+        raise ValueError(f"no completed NYSE session ends by {latest_bar}")
+    end = min(closes.iloc[-1], latest)
+    return latest_bar if end == latest else end.isoformat().replace("+00:00", "Z")
+
+
 def stock_profile_fields(
     symbol: str, *, manifest_dir: Path | None = None, spreads_path: Path = SPREADS_PATH
 ) -> dict[str, Any]:
@@ -113,7 +135,7 @@ def stock_profile_fields(
     dataset_id = dataset_id_for(symbol)
     folder = manifest_dir if manifest_dir is not None else manifest_dir_for(dataset_id, load_data_locations())
     manifest = json.loads((folder / f"{dataset_id}.json").read_text(encoding="utf-8"))
-    latest = str(manifest["latest_timestamp"])
+    latest = _completed_end(str(manifest["latest_timestamp"]))
     return {
         "dataset_id": dataset_id,
         "symbol": symbol,
