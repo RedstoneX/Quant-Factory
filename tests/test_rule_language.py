@@ -68,9 +68,9 @@ def test_valid_spec_is_normalized_and_canonical() -> None:
             "rule_spec.signals[0].when.gt[1].param: 'level' is not a declared packet variable (declared: none)",
         ),
         (
-            _spec(exit={"stop_loss": {"ticks": 8}}),
+            _spec(exit={"trailing_stop": {"percent": 0}}),
             None,
-            "rule_spec.exit: stop_loss and take_profit must be given together",
+            "rule_spec.exit.trailing_stop.percent: must be a number greater than zero",
         ),
         (
             _spec(signals=[{"when": {"gt": [{"sma": "close", "length": {"param": "n"}}, 1]}, "side": "long"}]),

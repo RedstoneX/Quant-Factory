@@ -101,6 +101,7 @@ def align_signals_for_execution(
             metadata=dict(signals.metadata),
             stop_loss=(signals.stop_loss.shift(1) if signals.stop_loss is not None else None),
             take_profit=(signals.take_profit.shift(1) if signals.take_profit is not None else None),
+            trailing_stop=(signals.trailing_stop.shift(1) if signals.trailing_stop is not None else None),
         )
     raise ValueError(f"Unsupported execution mode: {execution.mode}")
 
@@ -130,23 +131,7 @@ def _construct_portfolio(
             "short_exits": aligned.short_exits,
         }
     execution_price = build_execution_price(data, aligned, execution)
-    stop_args: dict[str, Any] = {}
-    if aligned.stop_loss is not None or aligned.take_profit is not None:
-        if aligned.stop_loss is None or aligned.take_profit is None:
-            raise ValueError("Stop-loss and take-profit levels must be configured together")
-        if execution.mode != "next_bar_open":
-            raise ValueError("Bar-based stop orders require next-bar-open execution")
-        stop_args = {
-            "open": data["Open"] * execution.price_multiplier,
-            "high": data["High"] * execution.price_multiplier,
-            "low": data["Low"] * execution.price_multiplier,
-            "sl_stop": aligned.stop_loss,
-            "tp_stop": aligned.take_profit,
-            "delta_format": "Percent",
-            "stop_entry_price": "Open",
-            "stop_exit_price": "Stop",
-            "use_stops": True,
-        }
+    stop_args = _stop_args(data, aligned, execution)
     return vbt.Portfolio.from_signals(
         close=close,
         **signal_args,
@@ -171,6 +156,42 @@ def _whole_share_args(execution: ExecutionConfig) -> dict[str, Any]:
     # vectorbt.portfolio.enums.Order.size_granularity, https://vectorbt.dev/api/portfolio/enums/;
     # VectorBT PRO keeps the same from_signals argument).
     return {"size_granularity": 1.0} if execution.position_sizing == "all_cash_whole_shares" else {}
+
+
+def _stop_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionConfig) -> dict[str, Any]:
+    """VectorBT stop kwargs for whichever of stop-loss, take-profit and trailing stop are set.
+
+    Each stop is optional and independent; only the ones present are passed (sl_stop, tp_stop, tsl_stop).
+    Levels are fractions of the entry fill (Percent), fixed at entry; the trailing stop trails the
+    best price since entry. stop_exit_price "Stop" fills at the stop level, except that when a bar
+    OPENS beyond the stop (a gap) VectorBT PRO fills at that open, not at the stop
+    (https://vectorbt.pro/features/backtesting/stop-loss-and-take-profit/: "If the price opens beyond
+    the stop, a real order fills at the open, not at the stop ... "stop", fills at the open after a gap").
+    No stop/signal priority is set here, so a stop and a same-bar exit signal resolve by VectorBT's defaults.
+    """
+    present = {
+        name: level
+        for name, level in (
+            ("sl_stop", aligned.stop_loss),
+            ("tp_stop", aligned.take_profit),
+            ("tsl_stop", aligned.trailing_stop),
+        )
+        if level is not None
+    }
+    if not present:
+        return {}
+    if execution.mode != "next_bar_open":
+        raise ValueError("Bar-based stop orders require next-bar-open execution")
+    return {
+        "open": data["Open"] * execution.price_multiplier,
+        "high": data["High"] * execution.price_multiplier,
+        "low": data["Low"] * execution.price_multiplier,
+        **present,
+        "delta_format": "Percent",
+        "stop_entry_price": "Open",
+        "stop_exit_price": "Stop",
+        "use_stops": True,
+    }
 
 
 def build_execution_price(

@@ -138,3 +138,4 @@ class SignalResult:
     metadata: dict[str, Any] = field(default_factory=dict)
     stop_loss: pd.Series | None = None
     take_profit: pd.Series | None = None
+    trailing_stop: pd.Series | None = None

@@ -74,6 +74,23 @@ for a breakout compare with {"prev": {"donchian": ...}, "bars": 1}.
 Example of the "when" of a signal using two indicators:
 """ + json.dumps(INDICATOR_EXAMPLE_CONDITION, separators=(",", ":")) + "\n"
 
+STOPS_EXAMPLE_EXIT = {
+    "stop_loss": {"ticks": 8},
+    "take_profit": {"percent": 0.5},
+    "trailing_stop": {"atr": {"length": 14, "multiple": 2}},
+}
+
+_STOPS_GUIDE = """\
+STOPS (optional, in rule_spec "exit"; use any one, two or all three)
+stop_loss: exit when price moves this far against the entry fill.
+take_profit: exit when price moves this far in favour of the entry fill.
+trailing_stop: exit when price falls back this far from the best price since entry.
+Distances: {"percent": x}, {"points": x}, {"ticks": n} or {"atr": {"length": N, "multiple": k}}.
+Each distance is fixed when the trade is entered (an ATR distance uses the ATR at the signal bar).
+If a bar opens beyond a stop, the exit fills at that open, not at the stop.
+Example "exit":
+""" + json.dumps(STOPS_EXAMPLE_EXIT, separators=(",", ":")) + "\n"
+
 
 def _example() -> dict[str, Any]:
     packet = json.loads(_SCHEMA_FILE.read_text(encoding="utf-8"))
@@ -140,7 +157,7 @@ def starter_kit() -> dict[str, Any]:
     return {
         "schema": json.loads(_SCHEMA_FILE.read_text(encoding="utf-8")),
         "example": copy.deepcopy(_example()),
-        "guide": _GUIDE + _INDICATOR_GUIDE,
+        "guide": _GUIDE + _INDICATOR_GUIDE + _STOPS_GUIDE,
     }
 
 

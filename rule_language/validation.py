@@ -87,7 +87,9 @@ _TOP_LEVEL_KEYS = (
     "signals",
     "max_trades_per_session",
 )
-_EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_profit")
+_EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_profit", "trailing_stop")
+# Engine-side stops, each optional and independent; their distances are fixed at entry.
+STOP_KEYS = ("stop_loss", "take_profit", "trailing_stop")
 _CLOCK = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])")
 
 
@@ -302,13 +304,9 @@ class _Validator:
         if not isinstance(opposite, bool):
             raise RuleSpecError(f"{path}.on_opposite_signal", "must be true or false")
         result["on_opposite_signal"] = opposite
-        if ("stop_loss" in node) != ("take_profit" in node):
-            raise RuleSpecError(
-                path, "stop_loss and take_profit must be given together; the backtest runner requires both or neither"
-            )
-        if "stop_loss" in node:
-            result["stop_loss"] = self.distance(node["stop_loss"], f"{path}.stop_loss")
-            result["take_profit"] = self.distance(node["take_profit"], f"{path}.take_profit")
+        for key in STOP_KEYS:
+            if key in node:
+                result[key] = self.distance(node[key], f"{path}.{key}")
         return result
 
     def distance(self, node: Any, path: str) -> dict[str, Any]:

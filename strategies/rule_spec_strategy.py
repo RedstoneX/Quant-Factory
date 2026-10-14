@@ -34,6 +34,7 @@ from rule_language import (
     canonical_rule_spec_json,
     validate_rule_spec,
 )
+from rule_language.validation import STOP_KEYS
 from strategies.mes_opening_range_breakout import SESSION_TIMEZONE, _schedule
 from strategies.models import (
     DataRequirements,
@@ -156,6 +157,15 @@ def _describe(distance: Any) -> str | None:
     return None if distance is None else canonical_rule_spec_json(distance)
 
 
+def _describe_stop(exit_rules: Mapping[str, Any]) -> str | None:
+    """Fixed stop-loss distance, plus the trailing stop distance when one is set."""
+    fixed = _describe(exit_rules.get("stop_loss"))
+    if "trailing_stop" not in exit_rules:
+        return fixed
+    trailing = f"trailing {canonical_rule_spec_json(exit_rules['trailing_stop'])}"
+    return trailing if fixed is None else f"{fixed}; {trailing}"
+
+
 def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
     spec = definition["rule_spec"]
     exit_rules = spec["exit"]
@@ -189,7 +199,7 @@ def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
             position_sizing=f"One contract; at most {spec['max_trades_per_session']} entries per session",
             fee_rate=0.0,
             slippage_rate=0.0,
-            stop_loss=_describe(exit_rules.get("stop_loss")),
+            stop_loss=_describe_stop(exit_rules),
             profit_target=_describe(exit_rules.get("take_profit")),
             maximum_holding_period=after_bars if isinstance(after_bars, int) else None,
             pyramiding=False,
@@ -308,11 +318,14 @@ def _walk_sessions(spec: Mapping[str, Any], evaluator: RuleEvaluator) -> tuple[l
     after = evaluator.count(exit_rules["after_bars"]) if "after_bars" in exit_rules else None
     opposite = exit_rules["on_opposite_signal"]
     valid_stops = None
-    if "stop_loss" in exit_rules:
-        stop = evaluator.distance_fraction(exit_rules["stop_loss"])
-        target = evaluator.distance_fraction(exit_rules["take_profit"])
+    present = [key for key in STOP_KEYS if key in exit_rules]
+    if present:
+        valid = np.ones(evaluator.shape, dtype=bool)
         with np.errstate(invalid="ignore"):
-            valid_stops = (np.isfinite(stop) & np.isfinite(target) & (stop > 0) & (target > 0)).T.tolist()
+            for key in present:
+                fraction = evaluator.distance_fraction(exit_rules[key])
+                valid &= np.isfinite(fraction) & (fraction > 0)
+        valid_stops = valid.T.tolist()
     events: list[tuple[str, int, int]] = []
     skipped = 0
     for session, bar_sides in enumerate(sides):
@@ -353,23 +366,22 @@ def compile_rule_signals(
         schedule = _schedule(frame.index)
     sessions = _traded_sessions(frame, schedule, spec["bar"]) if schedule is not None else []
     flags = {name: pd.Series(False, index=frame.index, dtype=bool) for name in ("entry", "exit", "short_entry", "short_exit")}
-    with_stops = "stop_loss" in spec["exit"]
-    stop_loss = pd.Series(np.nan, index=frame.index, dtype=float) if with_stops else None
-    take_profit = pd.Series(np.nan, index=frame.index, dtype=float) if with_stops else None
+    present = [key for key in STOP_KEYS if key in spec["exit"]]
+    # Each stop's distance is fixed at entry: the fraction measured on the signal bar is written on the entry row.
+    levels = {key: pd.Series(np.nan, index=frame.index, dtype=float) for key in present}
     skipped = 0
     if sessions:
         bars = SessionBars.from_sessions([day for _, day in sessions], tick_size=spec["tick_size"], parameters=parameters, bar=spec["bar"]
         )
         evaluator = RuleEvaluator(bars)
         events, skipped = _walk_sessions(spec, evaluator)
-        stops = evaluator.distance_fraction(spec["exit"]["stop_loss"]) if with_stops else None
-        targets = evaluator.distance_fraction(spec["exit"]["take_profit"]) if with_stops else None
+        fractions = {key: evaluator.distance_fraction(spec["exit"][key]) for key in present}
         for event, session, row in events:
             timestamp = sessions[session][0][row]
             flags[event].at[timestamp] = True
-            if stop_loss is not None and take_profit is not None and event in ("entry", "short_entry"):
-                stop_loss.at[timestamp] = float(stops[row, session])
-                take_profit.at[timestamp] = float(targets[row, session])
+            if event in ("entry", "short_entry"):
+                for key, level in levels.items():
+                    level.at[timestamp] = float(fractions[key][row, session])
     metadata: dict[str, Any] = {
         "rule_language": RULE_LANGUAGE,
         "rule_compiler_version": RULE_COMPILER_VERSION,
@@ -382,7 +394,11 @@ def compile_rule_signals(
             "tracked by the compiler, which keeps treating the position as open until its own rule exit."
         ),
     }
-    if with_stops:
+    if "trailing_stop" in levels:
+        metadata["trailing_stop_distance"] = (
+            "the trailing stop's fraction is fixed at entry; the engine trails it behind the best price since entry."
+        )
+    if levels:
         metadata["stop_distance_approximation"] = (
             "points, ticks and ATR distances are divided by the signal-bar close to give the engine's fractional "
             "stop and target; the engine applies that fraction to the next-bar open fill."
@@ -394,8 +410,9 @@ def compile_rule_signals(
         short_exits=flags["short_exit"],
         parameters=dict(parameters),
         metadata=metadata,
-        stop_loss=stop_loss,
-        take_profit=take_profit,
+        stop_loss=levels.get("stop_loss"),
+        take_profit=levels.get("take_profit"),
+        trailing_stop=levels.get("trailing_stop"),
     )
 
 

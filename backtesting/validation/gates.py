@@ -169,6 +169,7 @@ def normalize_signals(signals: SignalResult) -> SignalResult:
         metadata=dict(signals.metadata),
         stop_loss=signals.stop_loss,
         take_profit=signals.take_profit,
+        trailing_stop=signals.trailing_stop,
     )
 
 
