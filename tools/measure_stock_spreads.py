@@ -39,6 +39,7 @@ PAGE_LIMIT = 10_000
 # Alpaca market-data request limit stated in the dispatch brief (2026-10-14); see
 # https://docs.alpaca.markets/docs/about-market-data-api
 REQUESTS_PER_MINUTE = 200
+MAX_THROTTLE_RETRIES = 5
 
 Get = Callable[..., Any]
 
@@ -100,8 +101,13 @@ def window_quotes(symbol: str, start: datetime, end: datetime, *, get: Get, head
         }
         if token:
             params["page_token"] = token
-        limiter.wait()
-        response = get(QUOTES_URL.format(symbol=symbol), params=params, headers=headers, timeout=30)
+        for _attempt in range(MAX_THROTTLE_RETRIES + 1):
+            limiter.wait()
+            response = get(QUOTES_URL.format(symbol=symbol), params=params, headers=headers, timeout=30)
+            if response.status_code != 429:
+                break
+            # Alpaca throttled us: wait out the rate window before retrying.
+            limiter.sleep(float(response.headers.get("Retry-After") or 60.0))
         response.raise_for_status()
         body = response.json()
         quotes.extend(body.get("quotes") or [])

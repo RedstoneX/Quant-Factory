@@ -195,7 +195,7 @@ def test_spread_maths_with_canned_responses() -> None:
     def get(url, *, params, headers, timeout):
         seen.append(params)
         body = pages[params.get("page_token")]
-        return SimpleNamespace(raise_for_status=lambda: None, json=lambda: body)
+        return SimpleNamespace(status_code=200, headers={}, raise_for_status=lambda: None, json=lambda: body)
 
     open_utc = datetime(2026, 10, 13, 13, 30, tzinfo=timezone.utc)
     sessions = [(open_utc, datetime(2026, 10, 13, 20, 0, tzinfo=timezone.utc))]
@@ -218,3 +218,16 @@ def test_early_close_skips_late_sample_and_rate_limit_sleeps() -> None:
     for _ in range(3):
         limiter.wait()
     assert slept == [60.0]
+
+
+def test_throttled_request_waits_and_retries() -> None:
+    replies = [SimpleNamespace(status_code=429, headers={"Retry-After": "7"}, raise_for_status=lambda: None,
+                               json=lambda: {}),
+               SimpleNamespace(status_code=200, headers={}, raise_for_status=lambda: None,
+                               json=lambda: {"quotes": [{"bp": 99.99, "ap": 100.01}], "next_page_token": None})]
+    slept: list[float] = []
+    limiter = spreads_tool.RateLimiter(clock_fn=lambda: 0.0, sleep=slept.append)
+    start = datetime(2026, 10, 13, 14, 0, tzinfo=timezone.utc)
+    quotes = spreads_tool.window_quotes("SPY", start, start, get=lambda *a, **k: replies.pop(0), headers={},
+                                        limiter=limiter)
+    assert quotes == [{"bp": 99.99, "ap": 100.01}] and 7.0 in slept
