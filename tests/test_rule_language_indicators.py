@@ -1,4 +1,4 @@
-"""Technical indicators in qf_rules_v1: hand computations, causality, validation, unchanged older specs."""
+"""Technical indicators in qf_rules_v1 (VectorBT PRO / TA-Lib): hand computations, causality, validation, unchanged older specs."""
 
 from __future__ import annotations
 
@@ -70,13 +70,13 @@ def _ema(values: list, n: int) -> list:
 
 
 def _wilder(values: list, n: int) -> list:
+    """VectorBT's Wilder smoothing: seeded with the first valid value, reported once n valid values were seen."""
     out = [None] * len(values)
     first = next((i for i, v in enumerate(values) if v is not None), len(values))
-    if first + n > len(values):
-        return out
-    out[first + n - 1] = sum(values[first : first + n]) / n
-    for i in range(first + n, len(values)):
-        out[i] = (out[i - 1] * (n - 1) + values[i]) / n
+    current = None
+    for i in range(first, len(values)):
+        current = values[i] if current is None else (current * (n - 1) + values[i]) / n
+        out[i] = current if i >= first + n - 1 else None
     return out
 
 
@@ -143,7 +143,7 @@ def _ref_stochastic(k_length: int, k_smooth: int, d_length: int) -> dict:
 
 def _ref_adx(n: int) -> dict:
     size = len(CLOSE)
-    plus, minus = [None] * size, [None] * size
+    plus, minus = [0.0] * size, [0.0] * size  # vbt counts the first bar as zero movement
     for i in range(1, size):
         up, down = HIGH[i] - HIGH[i - 1], LOW[i - 1] - LOW[i]
         plus[i] = up if up > down and up > 0 else 0.0
@@ -178,7 +178,7 @@ def _ref_obv() -> list:
 
 
 def _ref_keltner(n: int, atr_length: int, mult: float) -> dict:
-    middle, atr = _ema(CLOSE, n), _wilder(_true_range(True), atr_length)
+    middle, atr = _ema(CLOSE, n), _wilder(_true_range(False), atr_length)
     return {
         "upper": [None if m is None or a is None else m + mult * a for m, a in zip(middle, atr)],
         "middle": middle,
@@ -212,10 +212,11 @@ CASES = [
     ({"obv": {}}, _ref_obv()),
     *[({"keltner": {}, "length": 3, "atr_length": 2, "mult": 1.5, "output": k}, v) for k, v in _ref_keltner(3, 2, 1.5).items()],
     *[({"donchian": {}, "length": 4, "output": k}, v) for k, v in _ref_donchian(4).items()],
-    ({"atr": {"length": 3, "smoothing": "wilder"}}, _wilder(_true_range(True), 3)),
+    ({"atr": {"length": 3, "smoothing": "wilder"}}, _wilder(_true_range(False), 3)),
 ]
 
 
+@pytest.mark.licensed_vectorbt
 @pytest.mark.parametrize("node, expected", CASES, ids=[f"{next(iter(n))}-{n.get('output', '')}" for n, _ in CASES])
 def test_indicator_matches_hand_computation(node: dict, expected: list) -> None:
     result = _evaluate(node, _bars())[:, 0]
@@ -228,6 +229,7 @@ def test_every_catalogue_indicator_is_covered_by_a_hand_case() -> None:
     assert set(INDICATORS) <= covered
 
 
+@pytest.mark.licensed_vectorbt
 def test_variable_parameters_equal_literals() -> None:
     node = {"macd": "close", "fast": {"param": "f"}, "slow": 4, "signal": 3, "output": "line"}
     variables = {"f": {"values": [2, 3]}}
@@ -242,6 +244,7 @@ def test_variable_parameters_equal_literals() -> None:
     )
 
 
+@pytest.mark.licensed_vectorbt
 def test_indicators_compose_with_existing_operators() -> None:
     bars = _bars(rows=40)
     line = _evaluate({"macd": "close", "fast": 3, "slow": 8, "signal": 3, "output": "line"}, bars)
@@ -252,6 +255,7 @@ def test_indicators_compose_with_existing_operators() -> None:
     assert np.isfinite(on_rsi).any()
 
 
+@pytest.mark.licensed_vectorbt
 @pytest.mark.parametrize("across", [False, True])
 def test_indicators_are_causal(across: bool) -> None:
     nodes = [node for node, _ in CASES]
@@ -276,6 +280,7 @@ def test_indicators_are_causal(across: bool) -> None:
             np.testing.assert_array_equal(full[:30], _evaluate(node, short_bars))
 
 
+@pytest.mark.licensed_vectorbt
 def test_across_sessions_runs_through_the_session_boundary() -> None:
     bars = _bars(rows=10, sessions=2)
     scoped = _evaluate({"rsi": "close", "length": 4}, bars)
@@ -355,6 +360,7 @@ def test_starter_kit_guide_documents_every_indicator() -> None:
             assert output in guide, (name, output)
 
 
+@pytest.mark.licensed_vectorbt
 def test_guide_example_condition_is_valid_and_evaluates() -> None:
     spec = _spec(0)
     spec["signals"][0]["when"] = INDICATOR_EXAMPLE_CONDITION
