@@ -28,7 +28,7 @@
     "backtesting/validation/evidence_service.py": 834,
     "dashboard/run_adapter.py": 823,
     "dashboard/run_detail_adapter.py": 1304,
-    "market_data/providers/alpaca.py": 954,
+    "market_data/providers/alpaca.py": 899,
     "orchestration/candidate_pipeline_runtime.py": 1109,
     "orchestration/research_launch_claims.py": 1353,
     "orchestration/run_service.py": 926,
@@ -56,7 +56,6 @@
     "[\"dashboard/health.py\",\"inspect_catalog\",\"Exception\",1]",
     "[\"market_data/__init__.py\",\"load_market_data\",\"Exception\",1]",
     "[\"market_data/cache.py\",\"cache_compatibility\",\"Exception\",1]",
-    "[\"market_data/providers/alpaca.py\",\"AlpacaHistoricalBarsProvider._format_error\",\"Exception\",1]",
     "[\"orchestration/run_service.py\",\"FixtureRunService._launch_with_timeout.invoke\",\"BaseException\",1]",
     "[\"prefect_spike/fixture_flow.py\",\"<module>\",\"Exception\",1]"
   ],
