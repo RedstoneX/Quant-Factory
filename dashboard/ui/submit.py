@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import dash_ag_grid as dag
@@ -36,10 +37,7 @@ def idea_link(candidate_id: Any) -> str:
 
 def _latest_state(candidate_id: Any) -> tuple[str, str]:
     """Latest tester status for an idea; the gateway reply does not carry it."""
-    try:
-        detail = load_candidate_detail(str(candidate_id)) if candidate_id else None
-    except Exception:  # status is a courtesy; never fail a submit over it
-        detail = None
+    detail = load_candidate_detail(str(candidate_id)) if candidate_id else None
     state = (detail or {}).get("campaign_state")
     if not state or state == "not_admitted":
         return "Received", "Saved. Waiting for the tester to pick it up"
