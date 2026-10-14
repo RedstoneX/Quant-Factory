@@ -22,9 +22,11 @@ from dashboard.overview_projection import load_dashboard_snapshot, load_drilldow
 from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
 from dashboard.ui.compare import compare_layout, register_compare_callbacks
 from dashboard.ui.factory import factory_layout, register_factory_callbacks
+from dashboard.ui.layout import app_shell, page_content
 from dashboard.ui.paper import paper_layout
 from dashboard.ui.results import register_results_callbacks, results_layout
 from dashboard.ui.submit import register_submit_callbacks, submit_layout
+from dashboard.ui.theme import FONT_URL
 
 
 GLYPHS = {
@@ -402,7 +404,7 @@ def register_callbacks(application: Dash) -> None:
 
 
 def create_app() -> Dash:
-    application = Dash(__name__, title="Quant Factory", suppress_callback_exceptions=True)
+    application = Dash(__name__, title="Quant Factory", suppress_callback_exceptions=True, external_stylesheets=[FONT_URL])
     revision = _application_revision()
     server = application.server
 
@@ -437,17 +439,17 @@ def create_app() -> Dash:
             response.set_cookie("qf_revision", revision, secure=True, httponly=False, samesite="Strict")
         return response
 
-    application.layout = html.Div([dcc.Location(id="router-location", refresh=False), html.Div(id="route-page")])
+    application.layout = app_shell(dcc.Location(id="router-location", refresh=False), html.Div(id="route-page"))
 
     @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
     def route(pathname: str | None, search: str | None):
-        if pathname == "/candidates": return candidates_layout(search)
-        if pathname == "/results": return results_layout(search)
-        if pathname == "/factory": return factory_layout()
-        if pathname == "/submit": return submit_layout()
-        if pathname == "/compare": return compare_layout(search)
-        if pathname == "/paper-trading": return paper_layout()
-        return dashboard_layout()
+        if pathname == "/candidates": return page_content(candidates_layout(search))
+        if pathname == "/results": return page_content(results_layout(search))
+        if pathname == "/factory": return page_content(factory_layout())
+        if pathname == "/submit": return page_content(submit_layout())
+        if pathname == "/compare": return page_content(compare_layout(search))
+        if pathname == "/paper-trading": return page_content(paper_layout())
+        return page_content(dashboard_layout())
 
     @application.callback(
         Output("router-location", "pathname"), Output("router-location", "search"),
