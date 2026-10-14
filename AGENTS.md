@@ -44,6 +44,8 @@ strategies, and backtests them. It does not trade.
 - Suspect bars (bad prints, one-bar spikes) are flagged by the published highfrequency
   `rmOutliersTrades` advanced rule (`market_data/bar_outliers.py`): the loader drops them
   and says how many in the audit; stored files are never edited; manifests list a count.
+- Tickers get reused (Alpaca keys bars by symbol): the top-up keeps only bars after the last
+  gap of more than 10 NYSE sessions and records the cut in the manifest (`history_cut`).
 - Downloaded market data lives outside the repo. Never modify or delete it;
   only that top-up service writes there.
 

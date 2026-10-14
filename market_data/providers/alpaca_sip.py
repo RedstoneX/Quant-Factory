@@ -39,6 +39,7 @@ from market_data.alpaca_sip_universe import (
     universe_group,
 )
 from market_data.bar_outliers import METHOD as SUSPECT_METHOD, flag_suspect_bars
+from market_data.listing_gap import cut_at_last_listing_gap
 from market_data.catalog import (
     DataLocations,
     DatasetManifest,
@@ -421,6 +422,14 @@ class AlpacaSipProvider:
         end: pd.Timestamp,
         slot: str,
     ) -> TopUpResult:
+        frame, new_cut = cut_at_last_listing_gap(frame)
+        earlier_cut = _stored_history_cut(dataset.manifest_path(self.locations))
+        if new_cut is not None:
+            previous = None  # the kept bars are not a continuation of the stored prefix
+            if earlier_cut is not None:
+                new_cut = {**new_cut, "discarded_from": earlier_cut["discarded_from"],
+                           "discarded_rows": earlier_cut["discarded_rows"] + new_cut["discarded_rows"]}
+        history_cut = new_cut or earlier_cut
         target = self.locations.root / dataset.slot_relative_path(slot)
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = target.with_name(target.name + ".tmp")
@@ -435,7 +444,7 @@ class AlpacaSipProvider:
             )
         new_rows = len(on_disk) - (0 if previous is None else len(previous))
         os.replace(tmp_path, target)  # inactive slot: no committed manifest points here
-        manifest = build_manifest(dataset, on_disk, target, slot, mode, start, end, new_rows)
+        manifest = build_manifest(dataset, on_disk, target, slot, mode, start, end, new_rows, history_cut)
         write_manifest(manifest, dataset.manifest_path(self.locations))  # the commit
         return TopUpResult(dataset.symbol, mode, len(on_disk), new_rows, target)
 
@@ -464,6 +473,7 @@ def build_manifest(
     start: pd.Timestamp,
     end: pd.Timestamp,
     new_rows: int,
+    history_cut: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Describe one validated stored file in the repository's manifest format."""
     acquired = datetime.now(UTC).isoformat()
@@ -473,7 +483,7 @@ def build_manifest(
     session_counts = {key: int(value) for key, value in frame["session"].value_counts().items()}
     suspect, suspect_counts = flag_suspect_bars(frame)
     suspect_examples = [stamp.isoformat() for stamp in frame.loc[suspect, "timestamp"].iloc[:20]]
-    return {
+    manifest: dict[str, Any] = {
         "dataset_id": dataset.dataset_id,
         "status": "validated",
         "provider": "alpaca",
@@ -541,6 +551,16 @@ def build_manifest(
         "suspect_bar_method": SUSPECT_METHOD,
         "validation_notes": [],
     }
+    if history_cut is not None:  # ticker reuse: bars before the cut are a different security
+        manifest["history_cut"] = history_cut
+    return manifest
+
+
+def _stored_history_cut(manifest_path: Path) -> dict[str, Any] | None:
+    if not manifest_path.is_file():
+        return None
+    cut = json.loads(manifest_path.read_text(encoding="utf-8")).get("history_cut")
+    return cut if isinstance(cut, dict) else None
 
 
 def write_manifest(manifest: dict[str, Any], manifest_path: Path) -> None:

@@ -25,8 +25,12 @@ What the source does, and what this module copies from it:
   positions of a date is ``x[(i - window):n]`` (it reaches back and contains the value itself),
   not the following values. The last 49 positions of a date therefore get a more lenient
   "following" median; the other two medians still apply.
-- Zero MAD (every value on a date identical) makes every bar of that date flagged, as in the source.
-  A date with a single bar has no criterion and is not flagged.
+- DELIBERATE DEPARTURE from the source: the threshold is maxi * max(MAD, 0.01), not maxi * MAD.
+  The source flags every bar when a date's MAD is zero or tiny (thin days where most prints sit on
+  one price). US stocks priced at $1 or more quote in whole cents (SEC Regulation NMS Rule 612,
+  17 CFR 242.612), so a one-cent MAD floor means no price can be flagged for moving less than
+  ten ticks (10 cents).
+- A date with a single bar has no criterion and is not flagged.
 
 Applied separately to high, low and close; a bar is suspect if any is flagged. Pure, vectorised
 within each date, no state, original prices are never edited.
@@ -41,11 +45,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 WINDOW = 50
 MAXI = 10
 MAD_CONSTANT = 1.4826  # R's mad() default scale
+MIN_MAD = 0.01  # one cent: the minimum quote increment at $1 or more (Reg NMS Rule 612)
 SUSPECT_COLUMNS = ("high", "low", "close")
 MARKET_TIMEZONE = "America/New_York"
 METHOD = (
     "highfrequency::rmOutliersTrades type=advanced window=50 maxi=10 (Barndorff-Nielsen et al. 2009), "
-    "per New York date, on high/low/close"
+    "MAD floored at one cent, per New York date, on high/low/close"
 )
 
 
@@ -104,7 +109,7 @@ def _flag_column(values: np.ndarray, bounds: np.ndarray, window: int, maxi: floa
     flags = np.zeros(len(values), dtype=bool)
     for start, stop in zip(bounds[:-1], bounds[1:]):
         day = values[start:stop]
-        mad = MAD_CONSTANT * np.median(np.abs(day - np.median(day)))
+        mad = max(MAD_CONSTANT * np.median(np.abs(day - np.median(day))), MIN_MAD)
         with np.errstate(invalid="ignore"):
             flags[start:stop] = _criterion(day, window) >= maxi * mad
     return flags
