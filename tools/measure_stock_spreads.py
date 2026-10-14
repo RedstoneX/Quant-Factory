@@ -14,16 +14,17 @@ midpoint (ask+bid)/2 over the same quotes is recorded as median_mid_price.
 from __future__ import annotations
 
 import argparse
-from collections import deque
 from datetime import datetime, time as clock, timedelta
 import json
 import os
 from pathlib import Path
 import statistics
 import sys
-import time
 from typing import Any, Callable, Iterable, Mapping, Sequence
 from zoneinfo import ZoneInfo
+
+import pandas as pd
+import vectorbtpro as vbt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -31,43 +32,21 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from market_data.alpaca_sip_universe import UNIVERSE  # noqa: E402
 
-QUOTES_URL = "https://data.alpaca.markets/v2/stocks/{symbol}/quotes"
 NEW_YORK = ZoneInfo("America/New_York")
 SAMPLE_TIMES = (clock(10, 0), clock(12, 0), clock(15, 30))
 SESSION_COUNT = 20
-PAGE_LIMIT = 10_000
-# Alpaca market-data request limit stated in the dispatch brief (2026-10-14); see
-# https://docs.alpaca.markets/docs/about-market-data-api
-REQUESTS_PER_MINUTE = 200
-MAX_THROTTLE_RETRIES = 5
+FEED = "sip"
 
-Get = Callable[..., Any]
+Pull = Callable[..., Any]
 
 
-class RateLimiter:
-    """At most ``limit`` calls in any rolling 60 seconds."""
-
-    def __init__(self, limit: int = REQUESTS_PER_MINUTE, *, clock_fn: Callable[[], float] = time.monotonic,
-                 sleep: Callable[[float], None] = time.sleep) -> None:
-        self.limit, self.clock_fn, self.sleep = limit, clock_fn, sleep
-        self.calls: deque[float] = deque()
-
-    def wait(self) -> None:
-        now = self.clock_fn()
-        while self.calls and now - self.calls[0] >= 60.0:
-            self.calls.popleft()
-        if len(self.calls) >= self.limit:
-            self.sleep(60.0 - (now - self.calls[0]))
-            self.calls.popleft()
-        self.calls.append(self.clock_fn())
-
-
-def spread_bps(quote: Mapping[str, Any]) -> float | None:
-    """(ask - bid) / mid in basis points; None for a quote that is not two-sided and valid."""
-    bid, ask = float(quote.get("bp") or 0.0), float(quote.get("ap") or 0.0)
-    if bid <= 0 or ask <= bid:
-        return None
-    return (ask - bid) / ((ask + bid) / 2.0) * 10_000.0
+def spread_bps(bid: pd.Series, ask: pd.Series) -> tuple[list[float], list[float]]:
+    """Per valid quote (bid > 0, ask > bid): (ask - bid) / mid in basis points, and the mid; others dropped."""
+    bid, ask = bid.to_numpy(float), ask.to_numpy(float)
+    valid = (bid > 0) & (ask > bid)
+    bid, ask = bid[valid], ask[valid]
+    mid = (ask + bid) / 2.0
+    return ((ask - bid) / mid * 10_000.0).tolist(), mid.tolist()
 
 
 def recent_sessions(today: datetime, count: int = SESSION_COUNT) -> list[tuple[datetime, datetime]]:
@@ -91,50 +70,28 @@ def sample_windows(sessions: Iterable[tuple[datetime, datetime]]) -> list[tuple[
     return windows
 
 
-def window_quotes(symbol: str, start: datetime, end: datetime, *, get: Get, headers: Mapping[str, str],
-                  limiter: RateLimiter) -> list[dict[str, Any]]:
-    quotes: list[dict[str, Any]] = []
-    token: str | None = None
-    while True:
-        params: dict[str, Any] = {
-            "feed": "sip", "limit": PAGE_LIMIT, "start": _rfc3339(start), "end": _rfc3339(end),
-        }
-        if token:
-            params["page_token"] = token
-        for _attempt in range(MAX_THROTTLE_RETRIES + 1):
-            limiter.wait()
-            response = get(QUOTES_URL.format(symbol=symbol), params=params, headers=headers, timeout=30)
-            if response.status_code != 429:
-                break
-            # Alpaca throttled us: wait out the rate window before retrying.
-            limiter.sleep(float(response.headers.get("Retry-After") or 60.0))
-        response.raise_for_status()
-        body = response.json()
-        quotes.extend(body.get("quotes") or [])
-        token = body.get("next_page_token")
-        if not token:
-            return quotes
-
-
-def measure(symbols: Sequence[str], sessions: Sequence[tuple[datetime, datetime]], *, get: Get,
-            headers: Mapping[str, str], limiter: RateLimiter) -> dict[str, dict[str, Any]]:
-    windows = sample_windows(sessions)
+def measure(symbols: Sequence[str], sessions: Sequence[tuple[datetime, datetime]], *, pull: Pull,
+            client_config: Mapping[str, str]) -> dict[str, dict[str, Any]]:
+    """One ``vbt.AlpacaData.pull`` per sampled minute (all symbols); paging and 429 retry are alpaca-py's."""
+    values: dict[str, list[float]] = {symbol: [] for symbol in symbols}
+    mids: dict[str, list[float]] = {symbol: [] for symbol in symbols}
+    for start, end in sample_windows(sessions):
+        data = pull(list(symbols), data_type="quotes", start=start, end=end, feed=FEED,
+                    client_config=dict(client_config))
+        for symbol in symbols:
+            quotes = data.data.get(symbol)
+            if quotes is None or quotes.empty:
+                continue
+            spreads, window_mids = spread_bps(quotes["Bid price"], quotes["Ask price"])
+            values[symbol].extend(spreads)
+            mids[symbol].extend(window_mids)
     result: dict[str, dict[str, Any]] = {}
     for symbol in symbols:
-        values: list[float] = []
-        mids: list[float] = []
-        for start, end in windows:
-            quotes = window_quotes(symbol, start, end, get=get, headers=headers, limiter=limiter)
-            for quote in quotes:
-                value = spread_bps(quote)
-                if value is not None:
-                    values.append(value)
-                    mids.append((float(quote["ap"]) + float(quote["bp"])) / 2.0)
-        if not values:
+        if not values[symbol]:
             raise RuntimeError(f"{symbol}: no valid two-sided SIP quotes in any sampled minute")
         result[symbol] = {
-            "median_spread_bps": statistics.median(values), "median_mid_price": statistics.median(mids),
-            "samples": len(values), "sessions": len(sessions),
+            "median_spread_bps": statistics.median(values[symbol]), "median_mid_price": statistics.median(mids[symbol]),
+            "samples": len(values[symbol]), "sessions": len(sessions),
         }
     return result
 
@@ -168,12 +125,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     key, secret = os.environ.get("QF_ALPACA_API_KEY"), os.environ.get("QF_ALPACA_SECRET_KEY")
     if not key or not secret:
         parser.error("QF_ALPACA_API_KEY and QF_ALPACA_SECRET_KEY must be set in the environment")
-    import requests
-
-    headers = {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret}
     now = datetime.now(tz=ZoneInfo("UTC"))
     sessions = recent_sessions(now)
-    spreads = measure(args.symbols, sessions, get=requests.get, headers=headers, limiter=RateLimiter())
+    spreads = measure(args.symbols, sessions, pull=vbt.AlpacaData.pull,
+                      client_config=dict(api_key=key, secret_key=secret))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(document(spreads, sessions, now), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"Wrote {len(spreads)} symbols to {args.out}")
