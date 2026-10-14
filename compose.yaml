@@ -51,6 +51,8 @@ services:
       QF_REVISION: ${QF_REVISION:?set QF_REVISION}
       HOME: /tmp
       PREFECT_HOME: /tmp/qf-prefect
+      # Keep VectorBT's compiled code between runs; without it every test recompiles (~60 s).
+      NUMBA_CACHE_DIR: /var/lib/quant-factory/numba-cache
     depends_on:
       prefect:
         condition: service_healthy

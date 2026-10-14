@@ -49,7 +49,7 @@ def cut_at_last_listing_gap(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict[str
         "reason": f"no bars for more than {MAX_SUSPENSION_SESSIONS} NYSE sessions "
         f"({len(between)} between {frame['timestamp'].iloc[cut_row - 1].date()} and "
         f"{frame['timestamp'].iloc[cut_row].date()}); a trading suspension lasts at most 10 trading "
-        "days (Exchange Act 12(k)), so the earlier bars belong to a different security that used the "
-        "same ticker",
+        "days (Exchange Act 12(k)), so the earlier bars are either a different security that used the "
+        "same ticker or the same company before it left and later rejoined the exchanges",
     }
     return frame.iloc[cut_row:].reset_index(drop=True), cut
