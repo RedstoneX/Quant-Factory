@@ -71,7 +71,8 @@ def test_daily_loop_runs_job_each_day_and_survives_failures():
 def test_compose_mounts_market_data_writable_only_for_topup_service():
     services = yaml.safe_load((ROOT / "compose.yaml").read_text())["services"]
     topup = services["market-data-topup"]
-    assert topup["command"][:4] == ["python", "-m", "market_data.alpaca_sip_cli", "--all"]
+    assert topup["entrypoint"] == ["python", "-m", "market_data.alpaca_sip_cli"]
+    assert topup["command"][:1] == ["--all"]
     assert topup["environment"]["QF_ALPACA_API_KEY"] == "${QF_ALPACA_API_KEY:-}"
     assert topup["environment"]["QF_ALPACA_SECRET_KEY"] == "${QF_ALPACA_SECRET_KEY:-}"
     for name, service in services.items():
