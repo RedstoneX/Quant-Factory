@@ -17,6 +17,8 @@ import math
 import re
 from typing import Any, Mapping
 
+from rule_language.indicators import ATR_SMOOTHINGS, INDICATOR_OPERATORS, INDICATORS, MAX_MULTIPLIER
+
 RULE_LANGUAGE = "qf_rules_v1"
 MAX_RULE_DEPTH = 32
 MAX_RULE_NODES = 500
@@ -45,6 +47,7 @@ SERIES_OPERATORS = (
     *SESSION_OPERATORS,
     "value_at",
     *RANGE_OPERATORS,
+    *INDICATOR_OPERATORS,
 )
 COMPARISON_OPERATORS = ("gt", "gte", "lt", "lte", "eq")
 CROSS_OPERATORS = ("crosses_above", "crosses_below")
@@ -387,6 +390,8 @@ class _Validator:
             _object(node, path, required=("value_at", "time"))
             time = _clock(node["time"], f"{path}.time", earliest=self.first_end, latest=SESSION_CLOSE_MINUTES, step=self.step)
             return {"value_at": self.series(value, where), "time": time}
+        if operator in INDICATORS:
+            return self.indicator(operator, node, path)
         _object(node, path, required=(operator,))
         if operator == "param":
             return {"param": self.param(value, where, kind="number")}
@@ -396,8 +401,7 @@ class _Validator:
         if operator in UNARY_OPERATORS:
             return {operator: self.series(value, where)}
         if operator == "atr":
-            atr = _object(value, where, required=("length",))
-            return {"atr": {"length": self.count(atr["length"], f"{where}.length", maximum=self.bars_per_session)}}
+            return {"atr": self.atr_series(value, where)}
         if operator in SESSION_OPERATORS:
             if not isinstance(value, Mapping) or value:
                 raise RuleSpecError(where, "must be an empty object {}")
@@ -408,6 +412,51 @@ class _Validator:
         if clock_minutes(start) >= clock_minutes(end):
             raise RuleSpecError(where, f"from {start} must be before to {end}")
         return {operator: {"from": start, "to": end}}
+
+    def atr_series(self, value: Any, path: str) -> dict[str, Any]:
+        """Series ``atr``: ``smoothing`` and ``across_sessions`` appear only when given (older specs unchanged)."""
+        atr = _object(value, path, required=("length",), optional=("smoothing", "across_sessions"))
+        result: dict[str, Any] = {}
+        across = atr.get("across_sessions", False)
+        if not isinstance(across, bool):
+            raise RuleSpecError(f"{path}.across_sessions", "must be true or false")
+        maximum = MAX_WINDOW_BARS if across else self.bars_per_session
+        result["length"] = self.count(atr["length"], f"{path}.length", maximum=maximum)
+        if "smoothing" in atr:
+            if atr["smoothing"] not in ATR_SMOOTHINGS:
+                raise RuleSpecError(f"{path}.smoothing", f"must be one of: {', '.join(ATR_SMOOTHINGS)}")
+            result["smoothing"] = atr["smoothing"]
+        if "across_sessions" in atr:
+            result["across_sessions"] = across
+        return result
+
+    def indicator(self, operator: str, node: Any, path: str) -> dict[str, Any]:
+        """Validate a technical indicator node against its catalogue entry."""
+        spec = INDICATORS[operator]
+        required = (operator, *(key for key, _, _ in spec.params), *(("output",) if spec.outputs else ()))
+        _object(node, path, required=required, optional=("across_sessions",))
+        across = node.get("across_sessions", False)
+        if not isinstance(across, bool):
+            raise RuleSpecError(f"{path}.across_sessions", "must be true or false")
+        where = f"{path}.{operator}"
+        if spec.takes_series:
+            result: dict[str, Any] = {operator: self.series(node[operator], where)}
+        elif isinstance(node[operator], Mapping) and not node[operator]:
+            result = {operator: {}}
+        else:
+            raise RuleSpecError(where, "must be an empty object {} (it reads high, low, close and volume)")
+        maximum = MAX_WINDOW_BARS if across else self.bars_per_session
+        for key, kind, minimum in spec.params:
+            if kind == "count":
+                result[key] = self.count(node[key], f"{path}.{key}", minimum=minimum, maximum=maximum)
+            else:
+                result[key] = self.amount(node[key], f"{path}.{key}", maximum=MAX_MULTIPLIER)
+        result["across_sessions"] = across
+        if spec.outputs:
+            if node["output"] not in spec.outputs:
+                raise RuleSpecError(f"{path}.output", f"must be one of: {', '.join(spec.outputs)}")
+            result["output"] = node["output"]
+        return result
 
     def count(self, node: Any, path: str, *, minimum: int = 1, maximum: int) -> Any:
         if isinstance(node, Mapping):

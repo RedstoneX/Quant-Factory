@@ -48,6 +48,32 @@ Example: 10 values x 10 values = 100 is allowed; 10 x 11 = 110 is rejected.
 Testing is backtest only. Paper trading needs separate owner approval.
 """
 
+INDICATOR_EXAMPLE_CONDITION = {
+    "all": [
+        {"lt": [{"rsi": "close", "length": 14}, 30]},
+        {"lt": ["close", {"bollinger": "close", "length": 20, "std_mult": 2, "output": "lower"}]},
+    ]
+}
+
+_INDICATOR_GUIDE = """\
+INDICATORS (optional series; the value at a bar uses only that bar and earlier ones)
+S = a price field or any series, e.g. "close" or {"sma": "close", "length": 5}.
+Every length, multiple and window is a number or {"param": name}. Lengths are bar counts.
+"across_sessions": true runs through earlier sessions (length up to 20000); default false restarts each session.
+{"rsi": S, "length": N} Wilder RSI, 0-100. {"roc": S, "length": N} percent change versus N bars ago.
+{"macd": S, "fast": a, "slow": b, "signal": c, "output": "line" | "signal" | "histogram"}
+{"bollinger": S, "length": N, "std_mult": k, "output": "upper" | "middle" | "lower" | "percent_b" | "bandwidth"}
+These read high, low, close and volume, so they take {} instead of S:
+{"stochastic": {}, "k_length": a, "k_smooth": b, "d_length": c, "output": "k" | "d"} 0-100; k_smooth 1 = fast.
+{"adx": {}, "length": N, "output": "adx" | "plus_di" | "minus_di"} Wilder, 0-100.
+{"cci": {}, "length": N} {"williams_r": {}, "length": N} -100 to 0. {"obv": {}} volume signed by direction.
+{"keltner": {}, "length": N, "atr_length": M, "mult": k, "output": "upper" | "middle" | "lower"} EMA +/- k Wilder ATR.
+{"donchian": {}, "length": N, "output": "upper" | "lower" | "middle"} includes the current bar;
+for a breakout compare with {"prev": {"donchian": ...}, "bars": 1}.
+{"atr": {"length": N, "smoothing": "wilder"}} "smoothing" is optional ("sma", the default, is a simple mean).
+Example of the "when" of a signal using two indicators:
+""" + json.dumps(INDICATOR_EXAMPLE_CONDITION, separators=(",", ":")) + "\n"
+
 
 def _example() -> dict[str, Any]:
     packet = json.loads(_SCHEMA_FILE.read_text(encoding="utf-8"))
@@ -114,7 +140,7 @@ def starter_kit() -> dict[str, Any]:
     return {
         "schema": json.loads(_SCHEMA_FILE.read_text(encoding="utf-8")),
         "example": copy.deepcopy(_example()),
-        "guide": _GUIDE,
+        "guide": _GUIDE + _INDICATOR_GUIDE,
     }
 
 

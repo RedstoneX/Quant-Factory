@@ -13,7 +13,8 @@ Semantics that the language leaves to the compiler:
   (``ema`` uses alpha 2/(length+1), seeded at the window scope's first bar;
   ``std`` is the sample deviation); ``across_sessions`` windows run through
   the bars of earlier traded sessions;
-- ``atr`` is the simple mean of true range; a session's first bar uses high-low;
+- ``atr`` is the simple mean of true range (or Wilder smoothing with ``smoothing``); a session's first bar uses
+  high-low; the technical indicators (rsi, macd, ...) are defined in ``strategies.rule_spec_indicators``;
 - ``same_sign_run`` is 0 when the sign is 0 or NaN.
 """
 
@@ -32,8 +33,27 @@ from rule_language import (
     clock_minutes,
     first_bar_end_minutes,
 )
+from rule_language.indicators import INDICATORS
+from strategies.rule_spec_indicators import atr_series, indicator_series
 
-_MODIFIERS = frozenset({"length", "across_sessions", "bars", "time"})
+_MODIFIERS = frozenset(
+    {
+        "length",
+        "across_sessions",
+        "bars",
+        "time",
+        "fast",
+        "slow",
+        "signal",
+        "std_mult",
+        "output",
+        "k_length",
+        "k_smooth",
+        "d_length",
+        "atr_length",
+        "mult",
+    }
+)
 
 
 def bar_position(hhmm: str, bar: str = "5m") -> int:
@@ -162,7 +182,9 @@ class RuleEvaluator:
             length = self.count(node["length"])
             return rolling(self.series(value), operator, length, across_sessions=node["across_sessions"])
         if operator == "atr":
-            return self.atr(self.count(value["length"]))
+            return atr_series(self, value)
+        if operator in INDICATORS:
+            return indicator_series(self, operator, node)
         if operator == "vwap":
             typical = (bars.high + bars.low + bars.close) / 3.0
             return np.cumsum(typical * bars.volume, axis=0) / np.cumsum(bars.volume, axis=0)
