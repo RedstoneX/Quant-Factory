@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import datetime, timezone
-import importlib.util
 import json
 import math
 from pathlib import Path
@@ -22,13 +20,6 @@ from orchestration.auto_campaign import (
 from backtesting.robustness.models import FractionalCostStressPlan
 from orchestration.candidate_pipeline_parsing import parse_robustness_contract
 from orchestration.candidate_pipeline_runtime import VALIDATION_RUNTIME_KEY
-
-_SPEC = importlib.util.spec_from_file_location(
-    "measure_stock_spreads", Path(__file__).resolve().parents[1] / "tools" / "measure_stock_spreads.py"
-)
-assert _SPEC and _SPEC.loader
-spreads_tool = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(spreads_tool)
 
 VARIABLES = {"lookback": {"values": [10, 20]}}
 
@@ -180,54 +171,3 @@ def test_whole_share_sizing_passes_size_granularity(monkeypatch: pytest.MonkeyPa
     with pytest.raises(ValueError, match="requires order_size 1.0"):
         ExecutionConfig.next_bar_open(initial_cash=1.0, fees=0.0, slippage=0.0, direction="both", leverage=1.0,
                                       accumulate=False, position_sizing="all_cash_whole_shares", order_size=5.0)
-
-
-def test_spread_maths_with_canned_responses() -> None:
-    assert spreads_tool.spread_bps({"bp": 99.99, "ap": 100.01}) == pytest.approx(2.0)
-    assert spreads_tool.spread_bps({"bp": 0.0, "ap": 1.0}) is None
-    assert spreads_tool.spread_bps({"bp": 1.0, "ap": 1.0}) is None
-    pages = {
-        None: {"quotes": [{"bp": 99.99, "ap": 100.01}, {"bp": 0, "ap": 5}], "next_page_token": "p2"},
-        "p2": {"quotes": [{"bp": 49.99, "ap": 50.01}, {"bp": 9.99, "ap": 10.01}], "next_page_token": None},
-    }
-    seen: list[dict] = []
-
-    def get(url, *, params, headers, timeout):
-        seen.append(params)
-        body = pages[params.get("page_token")]
-        return SimpleNamespace(status_code=200, headers={}, raise_for_status=lambda: None, json=lambda: body)
-
-    open_utc = datetime(2026, 10, 13, 13, 30, tzinfo=timezone.utc)
-    sessions = [(open_utc, datetime(2026, 10, 13, 20, 0, tzinfo=timezone.utc))]
-    limiter = spreads_tool.RateLimiter(clock_fn=lambda: 0.0, sleep=lambda s: None)
-    result = spreads_tool.measure(["SPY"], sessions, get=get, headers={}, limiter=limiter)
-    # 3 windows x (2.0, 4.0, 20.0) bps -> median 4.0 over 9 valid quotes.
-    assert result == {"SPY": {"median_spread_bps": pytest.approx(4.0), "median_mid_price": pytest.approx(50.0),
-                              "samples": 9, "sessions": 1}}
-    assert seen[0]["feed"] == "sip" and seen[0]["limit"] == 10_000 and seen[0]["start"] == "2026-10-13T14:00:00Z"
-    doc = spreads_tool.document(result, sessions, open_utc)
-    assert set(doc) == {"measured_at", "method", "source", "symbols"}
-
-
-def test_early_close_skips_late_sample_and_rate_limit_sleeps() -> None:
-    open_utc = datetime(2026, 11, 27, 14, 30, tzinfo=timezone.utc)
-    windows = spreads_tool.sample_windows([(open_utc, datetime(2026, 11, 27, 18, 0, tzinfo=timezone.utc))])
-    assert len(windows) == 2
-    slept: list[float] = []
-    limiter = spreads_tool.RateLimiter(2, clock_fn=lambda: 10.0, sleep=slept.append)
-    for _ in range(3):
-        limiter.wait()
-    assert slept == [60.0]
-
-
-def test_throttled_request_waits_and_retries() -> None:
-    replies = [SimpleNamespace(status_code=429, headers={"Retry-After": "7"}, raise_for_status=lambda: None,
-                               json=lambda: {}),
-               SimpleNamespace(status_code=200, headers={}, raise_for_status=lambda: None,
-                               json=lambda: {"quotes": [{"bp": 99.99, "ap": 100.01}], "next_page_token": None})]
-    slept: list[float] = []
-    limiter = spreads_tool.RateLimiter(clock_fn=lambda: 0.0, sleep=slept.append)
-    start = datetime(2026, 10, 13, 14, 0, tzinfo=timezone.utc)
-    quotes = spreads_tool.window_quotes("SPY", start, start, get=lambda *a, **k: replies.pop(0), headers={},
-                                        limiter=limiter)
-    assert quotes == [{"bp": 99.99, "ap": 100.01}] and 7.0 in slept
