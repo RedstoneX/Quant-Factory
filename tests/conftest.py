@@ -192,3 +192,9 @@ def market_frame_factory(market_config):
         )
 
     return make
+
+
+@pytest.fixture
+def no_licensed_luck_score(monkeypatch):
+    """The record-only luck score needs the licensed engine, which portable fakes replace."""
+    monkeypatch.setattr("backtesting.experiments.runner._record_luck", lambda *args: None)
