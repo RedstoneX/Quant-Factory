@@ -20,11 +20,13 @@ from typing import Any, Mapping
 RULE_LANGUAGE = "qf_rules_v1"
 MAX_RULE_DEPTH = 32
 MAX_RULE_NODES = 500
+# Per-bar-size geometry; BARS_PER_SESSION and FIRST_BAR_END_MINUTES below are the 5m values, kept for callers.
+BAR_MINUTES = {"1m": 1, "5m": 5}
 BARS_PER_SESSION = 78
 MAX_WINDOW_BARS = 20_000
 # Single source for the variable-grid limit; strategies.parameter_governance re-exports it as the warning threshold.
 MAX_VARIABLE_GRID = 100
-SUPPORTED_BAR = "5m"
+SUPPORTED_BARS = tuple(BAR_MINUTES)
 SUPPORTED_SESSION = {"timezone": "America/New_York", "open": "09:30", "close": "16:00"}
 
 PRICE_FIELDS = ("open", "high", "low", "close", "volume")
@@ -62,6 +64,16 @@ SESSION_OPEN_MINUTES = 9 * 60 + 30
 SESSION_CLOSE_MINUTES = 16 * 60
 FIRST_BAR_END_MINUTES = SESSION_OPEN_MINUTES + 5
 LAST_EXIT_BAR_END_MINUTES = SESSION_CLOSE_MINUTES - 5
+
+
+def bars_per_session(bar: str) -> int:
+    """Regular-session bars for a supported bar size: 390 for 1m, 78 for 5m."""
+    return (SESSION_CLOSE_MINUTES - SESSION_OPEN_MINUTES) // BAR_MINUTES[bar]
+
+
+def first_bar_end_minutes(bar: str) -> int:
+    """Minute of day at which the first regular-session bar ends."""
+    return SESSION_OPEN_MINUTES + BAR_MINUTES[bar]
 
 _TOP_LEVEL_KEYS = (
     "language",
@@ -158,18 +170,18 @@ def _hhmm(minutes: int) -> str:
     return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
 
-def _clock(value: Any, path: str, *, earliest: int, latest: int) -> str:
+def _clock(value: Any, path: str, *, earliest: int, latest: int, step: int = 5) -> str:
     try:
         minutes = clock_minutes(value)
     except ValueError:
         raise RuleSpecError(path, f'{value!r} is not a valid HH:MM time (24-hour, zero-padded, e.g. "09:45")') from None
-    if minutes % 5:
-        raise RuleSpecError(path, f"{value} is not on the 5-minute bar grid")
+    if minutes % step:
+        raise RuleSpecError(path, f"{value} is not on the {step}-minute bar grid")
     if not earliest <= minutes <= latest:
         raise RuleSpecError(
             path,
             f"{value} must be between {_hhmm(earliest)} and {_hhmm(latest)} "
-            "(times are 5-minute bar END times in the session)",
+            f"(times are {step}-minute bar END times in the session)",
         )
     return value
 
@@ -222,14 +234,24 @@ class _Validator:
     def __init__(self, variables: Mapping[str, Any]) -> None:
         self.variables = variables
         self.used: set[str] = set()
+        self.set_bar("5m")
+
+    def set_bar(self, bar: str) -> None:
+        self.step = BAR_MINUTES[bar]
+        self.bars_per_session = bars_per_session(bar)
+        self.first_end = first_bar_end_minutes(bar)
+        self.last_exit = SESSION_CLOSE_MINUTES - self.step
 
     def spec(self, spec: Mapping[str, Any]) -> dict[str, Any]:
         path = "rule_spec"
         _object(spec, path, required=_TOP_LEVEL_KEYS, optional=("exit",))
         if spec["language"] != RULE_LANGUAGE:
             raise RuleSpecError(f"{path}.language", f"must be {RULE_LANGUAGE!r}")
-        if spec["bar"] != SUPPORTED_BAR:
-            raise RuleSpecError(f"{path}.bar", f'only "{SUPPORTED_BAR}" bars are supported in {RULE_LANGUAGE}')
+        bar = spec["bar"]
+        if not isinstance(bar, str) or bar not in BAR_MINUTES:
+            allowed = " or ".join(f'"{name}"' for name in SUPPORTED_BARS)
+            raise RuleSpecError(f"{path}.bar", f"must be {allowed} in {RULE_LANGUAGE}; got {bar!r}")
+        self.set_bar(bar)
         if not _is_amount(spec["tick_size"], None):
             raise RuleSpecError(f"{path}.tick_size", "must be a number greater than zero")
         session = _object(spec["session"], f"{path}.session", required=tuple(SUPPORTED_SESSION))
@@ -240,7 +262,7 @@ class _Validator:
                     f"{RULE_LANGUAGE} supports only the America/New_York 09:30-16:00 regular session; got {session[key]!r}",
                 )
         flat_at = _clock(
-            spec["flat_at"], f"{path}.flat_at", earliest=FIRST_BAR_END_MINUTES + 5, latest=LAST_EXIT_BAR_END_MINUTES
+            spec["flat_at"], f"{path}.flat_at", earliest=self.first_end + self.step, latest=self.last_exit, step=self.step
         )
         signals = spec["signals"]
         if not isinstance(signals, (list, tuple)) or not signals:
@@ -253,11 +275,11 @@ class _Validator:
                 {"when": self.condition(signal["when"], f"{where}.when"), "side": self.side(signal["side"], f"{where}.side")}
             )
         max_trades = spec["max_trades_per_session"]
-        if not _is_count(max_trades, 1, BARS_PER_SESSION):
-            raise RuleSpecError(f"{path}.max_trades_per_session", f"must be a whole number from 1 to {BARS_PER_SESSION}")
+        if not _is_count(max_trades, 1, self.bars_per_session):
+            raise RuleSpecError(f"{path}.max_trades_per_session", f"must be a whole number from 1 to {self.bars_per_session}")
         return {
             "language": RULE_LANGUAGE,
-            "bar": SUPPORTED_BAR,
+            "bar": bar,
             "tick_size": spec["tick_size"],
             "session": dict(SUPPORTED_SESSION),
             "flat_at": flat_at,
@@ -270,9 +292,9 @@ class _Validator:
         _object(node, path, optional=_EXIT_KEYS)
         result: dict[str, Any] = {}
         if "after_bars" in node:
-            result["after_bars"] = self.count(node["after_bars"], f"{path}.after_bars", maximum=BARS_PER_SESSION - 1)
+            result["after_bars"] = self.count(node["after_bars"], f"{path}.after_bars", maximum=self.bars_per_session - 1)
         if "at_time" in node:
-            result["at_time"] = _clock(node["at_time"], f"{path}.at_time", earliest=FIRST_BAR_END_MINUTES + 5, latest=flat_at)
+            result["at_time"] = _clock(node["at_time"], f"{path}.at_time", earliest=self.first_end + self.step, latest=flat_at, step=self.step)
         opposite = node.get("on_opposite_signal", False)
         if not isinstance(opposite, bool):
             raise RuleSpecError(f"{path}.on_opposite_signal", "must be true or false")
@@ -294,7 +316,7 @@ class _Validator:
             atr = _object(node[kind], where, required=("length", "multiple"))
             return {
                 "atr": {
-                    "length": self.count(atr["length"], f"{where}.length", maximum=BARS_PER_SESSION),
+                    "length": self.count(atr["length"], f"{where}.length", maximum=self.bars_per_session),
                     "multiple": self.amount(atr["multiple"], f"{where}.multiple"),
                 }
             }
@@ -324,10 +346,10 @@ class _Validator:
         if operator == "not":
             return {"not": self.condition(value, where)}
         if operator == "time_is":
-            return {"time_is": _clock(value, where, earliest=FIRST_BAR_END_MINUTES, latest=SESSION_CLOSE_MINUTES)}
+            return {"time_is": _clock(value, where, earliest=self.first_end, latest=SESSION_CLOSE_MINUTES, step=self.step)}
         start, end = _pair(value, where)
-        start = _clock(start, f"{where}[0]", earliest=FIRST_BAR_END_MINUTES, latest=SESSION_CLOSE_MINUTES)
-        end = _clock(end, f"{where}[1]", earliest=FIRST_BAR_END_MINUTES, latest=SESSION_CLOSE_MINUTES)
+        start = _clock(start, f"{where}[0]", earliest=self.first_end, latest=SESSION_CLOSE_MINUTES, step=self.step)
+        end = _clock(end, f"{where}[1]", earliest=self.first_end, latest=SESSION_CLOSE_MINUTES, step=self.step)
         if clock_minutes(start) > clock_minutes(end):
             raise RuleSpecError(where, f"start {start} is after end {end}")
         return {"time_between": [start, end]}
@@ -348,7 +370,7 @@ class _Validator:
         where = f"{path}.{operator}"
         if operator == "prev":
             _object(node, path, required=("prev", "bars"))
-            return {"prev": self.series(value, where), "bars": self.count(node["bars"], f"{path}.bars", maximum=BARS_PER_SESSION - 1)}
+            return {"prev": self.series(value, where), "bars": self.count(node["bars"], f"{path}.bars", maximum=self.bars_per_session - 1)}
         if operator in ROLLING_OPERATORS:
             _object(node, path, required=(operator, "length"), optional=("across_sessions",))
             across = node.get("across_sessions", False)
@@ -358,12 +380,12 @@ class _Validator:
                 node["length"],
                 f"{path}.length",
                 minimum=2 if operator == "std" else 1,
-                maximum=MAX_WINDOW_BARS if across else BARS_PER_SESSION,
+                maximum=MAX_WINDOW_BARS if across else self.bars_per_session,
             )
             return {operator: self.series(value, where), "length": length, "across_sessions": across}
         if operator == "value_at":
             _object(node, path, required=("value_at", "time"))
-            time = _clock(node["time"], f"{path}.time", earliest=FIRST_BAR_END_MINUTES, latest=SESSION_CLOSE_MINUTES)
+            time = _clock(node["time"], f"{path}.time", earliest=self.first_end, latest=SESSION_CLOSE_MINUTES, step=self.step)
             return {"value_at": self.series(value, where), "time": time}
         _object(node, path, required=(operator,))
         if operator == "param":
@@ -375,14 +397,14 @@ class _Validator:
             return {operator: self.series(value, where)}
         if operator == "atr":
             atr = _object(value, where, required=("length",))
-            return {"atr": {"length": self.count(atr["length"], f"{where}.length", maximum=BARS_PER_SESSION)}}
+            return {"atr": {"length": self.count(atr["length"], f"{where}.length", maximum=self.bars_per_session)}}
         if operator in SESSION_OPERATORS:
             if not isinstance(value, Mapping) or value:
                 raise RuleSpecError(where, "must be an empty object {}")
             return {operator: {}}
         window = _object(value, where, required=("from", "to"))
-        start = _clock(window["from"], f"{where}.from", earliest=SESSION_OPEN_MINUTES, latest=LAST_EXIT_BAR_END_MINUTES)
-        end = _clock(window["to"], f"{where}.to", earliest=FIRST_BAR_END_MINUTES, latest=SESSION_CLOSE_MINUTES)
+        start = _clock(window["from"], f"{where}.from", earliest=SESSION_OPEN_MINUTES, latest=self.last_exit, step=self.step)
+        end = _clock(window["to"], f"{where}.to", earliest=self.first_end, latest=SESSION_CLOSE_MINUTES, step=self.step)
         if clock_minutes(start) >= clock_minutes(end):
             raise RuleSpecError(where, f"from {start} must be before to {end}")
         return {operator: {"from": start, "to": end}}

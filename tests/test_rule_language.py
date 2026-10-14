@@ -79,7 +79,7 @@ def test_valid_spec_is_normalized_and_canonical() -> None:
         ),
         (_spec(), {"unused": {"values": [1, 2]}}, "variables.unused: is declared but rule_spec never uses it"),
         (_spec(session={**SESSION, "close": "13:00"}), None, "supports only the America/New_York 09:30-16:00"),
-        (_spec(bar="1m"), None, 'rule_spec.bar: only "5m" bars are supported'),
+        (_spec(bar="2m"), None, 'rule_spec.bar: must be "1m" or "5m" in qf_rules_v1'),
         (
             _spec(signals=[{"when": {"gt": ["close", {"sma": "close", "length": 100}]}, "side": "long"}]),
             None,

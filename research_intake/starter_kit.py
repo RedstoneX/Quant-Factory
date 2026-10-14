@@ -20,7 +20,7 @@ schema: always "qf_candidate_v1".
 candidate: title, one_line summary, family, status.
 sources: where the idea came from (a link, a person, or your own observation).
 hypothesis: behavior = what you think happens; failure_theory = how it could fail.
-market: instruments (MES), timeframe (5m), session, holding_style, overnight_positions.
+market: instruments (MES), timeframe ("5m" or "1m"), session, holding_style, overnight_positions.
 data_needs: dataset_id, requested_start, data_as_of, fields, minimum_resolution.
 rules: the idea in words (setup, entries, exits, max_trades_per_session).
 rule_spec: the same idea as machine-readable {RULE_LANGUAGE} rules. This is what gets tested.
@@ -28,13 +28,17 @@ variables: named choices with a values list. rule_spec uses one as {{"param": "n
 fixed: values that never change. exclusions: what this idea must not do.
 
 SUPPORTED
-5-minute bars, regular session only (09:30-16:00 New York, flat before the close).
+Bar sizes: "5m" (MES futures data; 5-minute bars, 78 per session) and "1m" (US stock/ETF library; 390 per session).
+Set rule_spec "bar" and market.timeframe to the same value; the data must match (nothing is resampled).
+Regular session only (09:30-16:00 New York, flat before the close). Times are bar END times:
+the first 5m bar ends 09:35, the first 1m bar ends 09:31. Lengths, after_bars and max_trades are bar counts:
+30 bars is 150 minutes on 5m but 30 minutes on 1m, so pick them for the bar size.
 MES: trading costs are known, so results include fees and slippage.
 History ends 2026-02-13.
 Numeric variables only, every one used by rule_spec.
 
 NOT SUPPORTED
-Options. String variables. Any bar size other than 5m.
+Options. String variables. Any bar size other than 1m or 5m.
 Markets other than MES: no cost data yet, so they cannot be tested honestly.
 
 GRID LIMIT

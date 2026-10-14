@@ -26,7 +26,14 @@ from typing import Any, Mapping
 import numpy as np
 import pandas as pd
 
-from rule_language import RULE_LANGUAGE, RuleSpecError, canonical_rule_spec_json, validate_rule_spec
+from rule_language import (
+    BAR_MINUTES,
+    RULE_LANGUAGE,
+    RuleSpecError,
+    bars_per_session,
+    canonical_rule_spec_json,
+    validate_rule_spec,
+)
 from strategies.mes_opening_range_breakout import SESSION_TIMEZONE, _schedule
 from strategies.models import (
     DataRequirements,
@@ -51,8 +58,8 @@ _DEFINITION_KEYS = frozenset({"strategy_id", "version", "rule_spec", "variables"
 _LEGACY_KEYS = ("candidate_id", "title")
 _STRATEGY_ID = re.compile(r"rules_[0-9a-f]{16}")
 _REQUIRED_FIELDS = ("Open", "High", "Low", "Close", "Volume")
-_FIVE_MINUTES = pd.Timedelta(minutes=5)
 _REGULAR_SESSION = pd.Timedelta(hours=6, minutes=30)
+_BAR_WORDS = {"1m": "one-minute", "5m": "five-minute"}
 _LOADED: dict[str, "RuleSpecStrategy"] = {}
 _LOCK = threading.Lock()
 
@@ -152,6 +159,7 @@ def _describe(distance: Any) -> str | None:
 def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
     spec = definition["rule_spec"]
     exit_rules = spec["exit"]
+    bar = spec["bar"]
     sides = {signal["side"] if isinstance(signal["side"], str) else "both" for signal in spec["signals"]}
     after_bars = exit_rules.get("after_bars")
     strategy_id = definition["strategy_id"]
@@ -166,9 +174,9 @@ def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
         ),
         data=DataRequirements(
             required_fields=_REQUIRED_FIELDS,
-            supported_intervals=("5m",),
-            asset_classes=("futures",),
-            minimum_history_bars=78,
+            supported_intervals=(bar,),
+            asset_classes=("futures",) if bar == "5m" else ("futures", "equity", "etf"),
+            minimum_history_bars=bars_per_session(bar),
             adjusted_prices=False,
         ),
         parameters=tuple(
@@ -176,8 +184,8 @@ def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
             for name, variable in definition["variables"].items()
         ),
         assumptions=TradingAssumptions(
-            signal_timing="Completed five-minute regular-session bars; the first firing signal in list order wins",
-            execution_timing="Next contiguous five-minute bar open",
+            signal_timing=f"Completed {_BAR_WORDS[bar]} regular-session bars; the first firing signal in list order wins",
+            execution_timing=f"Next contiguous {_BAR_WORDS[bar]} bar open",
             position_sizing=f"One contract; at most {spec['max_trades_per_session']} entries per session",
             fee_rate=0.0,
             slippage_rate=0.0,
@@ -245,7 +253,19 @@ def _checked_frame(data: pd.DataFrame) -> pd.DataFrame:
     return frame
 
 
-def _traded_sessions(frame: pd.DataFrame, schedule: pd.DataFrame) -> list[tuple[pd.DatetimeIndex, pd.DataFrame]]:
+def _check_data_frequency(frame: pd.DataFrame, bar: str) -> None:
+    """Refuse data whose bar length differs from the spec's bar; there is no resampling."""
+    if len(frame.index) < 2:
+        return
+    step = int(np.diff(frame.index.asi8).min()) // 60_000_000_000
+    if step != BAR_MINUTES[bar]:
+        raise ValueError(
+            f"Rule spec bar is {bar!r} but the data has {step}-minute bars; "
+            f"{RULE_LANGUAGE} never resamples, so supply {bar} data or change the spec's bar"
+        )
+
+
+def _traded_sessions(frame: pd.DataFrame, schedule: pd.DataFrame, bar: str = "5m") -> list[tuple[pd.DatetimeIndex, pd.DataFrame]]:
     """Full 09:30-16:00 sessions with every bar present, finite and positive."""
     sessions = []
     for _, row in schedule.iterrows():
@@ -255,7 +275,7 @@ def _traded_sessions(frame: pd.DataFrame, schedule: pd.DataFrame) -> list[tuple[
             continue
         if session_open.tz_convert(SESSION_TIMEZONE).strftime("%H:%M") != "09:30":
             continue
-        expected = pd.date_range(session_open, session_close, freq=_FIVE_MINUTES, inclusive="left")
+        expected = pd.date_range(session_open, session_close, freq=pd.Timedelta(minutes=BAR_MINUTES[bar]), inclusive="left")
         if not expected.isin(frame.index).all():
             continue
         day = frame.loc[expected, list(_REQUIRED_FIELDS)]
@@ -283,8 +303,8 @@ def _walk_sessions(spec: Mapping[str, Any], evaluator: RuleEvaluator) -> tuple[l
     """Run the flat/long/short state machine; return (event, session, row) events and skipped entries."""
     exit_rules = spec["exit"]
     sides = _bar_sides(spec, evaluator).T.tolist()
-    flat = bar_position(spec["flat_at"])
-    at_time = bar_position(exit_rules["at_time"]) if "at_time" in exit_rules else None
+    flat = bar_position(spec["flat_at"], spec["bar"])
+    at_time = bar_position(exit_rules["at_time"], spec["bar"]) if "at_time" in exit_rules else None
     after = evaluator.count(exit_rules["after_bars"]) if "after_bars" in exit_rules else None
     opposite = exit_rules["on_opposite_signal"]
     valid_stops = None
@@ -328,16 +348,18 @@ def compile_rule_signals(
     """Turn a checked definition and validated parameters into completed-bar signals."""
     spec = definition["rule_spec"]
     frame = _checked_frame(data)
+    _check_data_frequency(frame, spec["bar"])
     if schedule is None and len(frame.index):
         schedule = _schedule(frame.index)
-    sessions = _traded_sessions(frame, schedule) if schedule is not None else []
+    sessions = _traded_sessions(frame, schedule, spec["bar"]) if schedule is not None else []
     flags = {name: pd.Series(False, index=frame.index, dtype=bool) for name in ("entry", "exit", "short_entry", "short_exit")}
     with_stops = "stop_loss" in spec["exit"]
     stop_loss = pd.Series(np.nan, index=frame.index, dtype=float) if with_stops else None
     take_profit = pd.Series(np.nan, index=frame.index, dtype=float) if with_stops else None
     skipped = 0
     if sessions:
-        bars = SessionBars.from_sessions([day for _, day in sessions], tick_size=spec["tick_size"], parameters=parameters)
+        bars = SessionBars.from_sessions([day for _, day in sessions], tick_size=spec["tick_size"], parameters=parameters, bar=spec["bar"]
+        )
         evaluator = RuleEvaluator(bars)
         events, skipped = _walk_sessions(spec, evaluator)
         stops = evaluator.distance_fraction(spec["exit"]["stop_loss"]) if with_stops else None
