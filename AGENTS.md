@@ -26,6 +26,8 @@ strategies, and backtests them. It does not trade.
 ## Data
 
 - Testable today: MES 5-minute bars with trading costs; history ends 2026-02-13.
+- Rule specs (`qf_rules_v1`) accept `"bar": "1m"` (390 bars/session) or `"5m"` (78); the
+  spec's bar must match the data's bar size, nothing is resampled.
 - Other markets have manifests in `data/manifests/` but no cost data, so they
   cannot be tested honestly yet. No options data exists.
 - US stock/ETF library: Alpaca SIP 1-minute bars, 45 symbols in labelled

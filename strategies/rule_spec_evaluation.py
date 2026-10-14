@@ -1,7 +1,7 @@
 """Vectorised evaluation of validated ``qf_rules_v1`` series and conditions.
 
-Every array is shaped ``(bars, sessions)``: row ``p`` is the five-minute bar
-ending at 09:35 + 5p minutes New York time, and column ``j`` is the j-th
+Every array is shaped ``(bars, sessions)``: row ``p`` is the bar (1 or 5 minutes,
+the spec's ``bar``) ending at 09:30 + (p+1) bar-lengths New York time, and column ``j`` is the j-th
 traded regular session.  Only complete regular sessions reach this module, so
 a row always means the same clock time.
 
@@ -25,14 +25,20 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from rule_language import BARS_PER_SESSION, FIRST_BAR_END_MINUTES, canonical_rule_spec_json, clock_minutes
+from rule_language import (
+    BAR_MINUTES,
+    BARS_PER_SESSION,
+    canonical_rule_spec_json,
+    clock_minutes,
+    first_bar_end_minutes,
+)
 
 _MODIFIERS = frozenset({"length", "across_sessions", "bars", "time"})
 
 
-def bar_position(hhmm: str) -> int:
-    """Row of the bar ending at ``hhmm`` (09:30 maps to -1: no bar ends there)."""
-    return (clock_minutes(hhmm) - FIRST_BAR_END_MINUTES) // 5
+def bar_position(hhmm: str, bar: str = "5m") -> int:
+    """Row of the ``bar``-sized bar ending at ``hhmm`` (09:30 maps to -1: no bar ends there)."""
+    return (clock_minutes(hhmm) - first_bar_end_minutes(bar)) // BAR_MINUTES[bar]
 
 
 @dataclass(frozen=True)
@@ -44,10 +50,11 @@ class SessionBars:
     volume: np.ndarray
     tick_size: float
     parameters: Mapping[str, Any]
+    bar: str = "5m"
 
     @classmethod
     def from_sessions(
-        cls, days: Sequence[pd.DataFrame], *, tick_size: float, parameters: Mapping[str, Any]
+        cls, days: Sequence[pd.DataFrame], *, tick_size: float, parameters: Mapping[str, Any], bar: str = "5m"
     ) -> "SessionBars":
         def stack(column: str) -> np.ndarray:
             return np.column_stack([day[column].to_numpy(dtype=float) for day in days])
@@ -60,6 +67,7 @@ class SessionBars:
             volume=stack("Volume"),
             tick_size=float(tick_size),
             parameters=dict(parameters),
+            bar=bar,
         )
 
 
@@ -108,6 +116,7 @@ class RuleEvaluator:
     def __init__(self, bars: SessionBars) -> None:
         self.bars = bars
         self.shape = bars.close.shape
+        self.bar = bars.bar
         self._cache: dict[str, np.ndarray] = {}
 
     def count(self, node: Any) -> int:
@@ -162,9 +171,9 @@ class RuleEvaluator:
         if operator == "bar_index":
             return np.broadcast_to(np.arange(1.0, self.shape[0] + 1.0)[:, None], self.shape).copy()
         if operator == "value_at":
-            return self._from_row(self.series(value)[bar_position(node["time"])], bar_position(node["time"]))
+            return self._from_row(self.series(value)[bar_position(node["time"], self.bar)], bar_position(node["time"], self.bar))
         if operator in ("range_high", "range_low"):
-            first, last = bar_position(value["from"]) + 1, bar_position(value["to"])
+            first, last = bar_position(value["from"], self.bar) + 1, bar_position(value["to"], self.bar)
             if operator == "range_high":
                 extreme = bars.high[first : last + 1].max(axis=0)
             else:
@@ -217,9 +226,9 @@ class RuleEvaluator:
             return ~self.condition(value)
         mask = np.zeros(self.shape, dtype=bool)
         if operator == "time_is":
-            mask[bar_position(value)] = True
+            mask[bar_position(value, self.bar)] = True
         else:
-            mask[bar_position(value[0]) : bar_position(value[1]) + 1] = True
+            mask[bar_position(value[0], self.bar) : bar_position(value[1], self.bar) + 1] = True
         return mask
 
     def side(self, node: Any) -> np.ndarray:

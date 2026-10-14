@@ -329,7 +329,8 @@ def execute_experiment(
         data, strategy.spec.data.required_fields, config.execution
     )
     raise_for_blocking_failures(market_results)
-    if config.market_data.adjusted != strategy.spec.data.adjusted_prices:
+    required_adjustment = strategy.spec.data.adjusted_prices
+    if required_adjustment is not None and config.market_data.adjusted != required_adjustment:
         raise ValueError("Market-data adjustment does not match strategy requirements")
 
     rows: list[dict[str, Any]] = []
