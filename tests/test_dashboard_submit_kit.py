@@ -8,7 +8,7 @@ from research_intake.starter_kit import starter_kit
 
 def test_starter_kit_download_is_one_json_file_with_schema_example_and_guide():
     document = json.loads(submit.starter_kit_json())
-    assert set(document) == {"schema", "example", "guide"}
+    assert set(document) == {"schema", "example", "guide", "indicators"}
     assert document == json.loads(json.dumps(starter_kit()))
     assert document["guide"]
 
@@ -36,7 +36,7 @@ def test_download_callback_serves_the_kit(monkeypatch):
     fn = getattr(fn, "__wrapped__", fn)
     fn(1)
     assert sent["name"].endswith(".json")
-    assert json.loads(sent["content"]).keys() == {"schema", "example", "guide"}
+    assert json.loads(sent["content"]).keys() == {"schema", "example", "guide", "indicators"}
 
 
 def test_after_submit_shows_status_and_link():
