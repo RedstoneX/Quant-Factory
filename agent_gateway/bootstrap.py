@@ -8,6 +8,7 @@ from typing import Mapping
 
 from agent_gateway.authority import AUTHORITY_NAMES, NEVER_PERMITTED
 from agent_gateway.contracts import GatewayIdentity
+from orchestration.auto_campaign_stocks import UNIVERSE as STOCK_UNIVERSE
 from research_intake import build_research_context
 
 
@@ -23,7 +24,7 @@ def build_bootstrap(
 ) -> dict[str, object]:
     """Describe identity, context, authority, and boundaries without side effects."""
 
-    context = build_research_context()
+    context = build_research_context(STOCK_UNIVERSE)
     operating_context = _OPERATING_CONTEXT_PATH.read_text()
     permitted = sorted(
         operation

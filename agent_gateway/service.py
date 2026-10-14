@@ -23,6 +23,7 @@ from agent_gateway.contracts import (
 )
 from agent_gateway.store import GatewayStore
 from orchestration.auto_campaign import POLICY_ID as CAMPAIGN_POLICY_ID
+from orchestration.auto_campaign_stocks import UNIVERSE as STOCK_UNIVERSE
 from persistence import PersistenceService, RunStage
 from research_intake import (
     build_research_context,
@@ -167,7 +168,7 @@ class AgentResearchGateway:
         return handlers[request.operation](request, identity, store)
 
     def _context_get(self, *_: Any) -> dict[str, Any]:
-        return build_research_context()
+        return build_research_context(STOCK_UNIVERSE)
 
     def _prior_search(
         self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore
@@ -178,7 +179,7 @@ class AgentResearchGateway:
         if not terms:
             raise GatewayError("invalid_query", "prior-work query must contain searchable terms")
         rows: list[dict[str, Any]] = []
-        for item in build_research_context()["prior_work"]:
+        for item in build_research_context(STOCK_UNIVERSE)["prior_work"]:
             score = _overlap_score(terms, json.dumps(item, sort_keys=True))
             if score:
                 rows.append({"kind": "prior_work", "score": score, "record": item})

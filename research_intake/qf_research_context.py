@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
-from typing import Any
+from typing import Any, Sequence
 
 import yaml
+
+from research_intake.starter_kit import starter_kit
 
 QF_RESEARCH_CONTEXT_SCHEMA = "qf_research_context_v1"
 
@@ -35,14 +37,16 @@ _CONTEXT: dict[str, Any] = {
         "research_style": "same_session_intraday",
         "holding_period": "minutes_to_hours",
         "overnight_positions": False,
-        "primary_behavior": ["S&P 500", "Nasdaq-100"],
+        "primary_behavior": ["S&P 500", "Nasdaq-100", "liquid US stocks and funds"],
+        # Owner rulings 2026-10-14: MES plus the stock and fund universe, which the
+        # caller supplies (build_research_context) so this module stays data-free.
         "first_stage_instruments": ["MES", "MNQ"],
-        "later_transfer_targets": ["SPY", "QQQ", "index products"],
+        "later_transfer_targets": ["index options"],
         "options_role": (
             "Options/0DTE are possible later execution vehicles, not the source "
             "of the trading edge."
         ),
-        "current_research_state": "campaign_aborted_execution_precondition_unsatisfied",
+        "current_research_state": "valid_ideas_are_backtested_automatically",
     },
     "research_rules": [
         "Treat a symbol, wrapper, source repository, or parameter change as insufficient by itself to create a new hypothesis.",
@@ -255,10 +259,33 @@ _CONTEXT: dict[str, Any] = {
 }
 
 
-def build_research_context() -> dict[str, Any]:
-    """Return an isolated portable research-context snapshot."""
+_STOCK_DATASET: dict[str, Any] = {
+    "dataset": "equities_<SYMBOL>_1m_alpaca_sip",
+    "timeframe": "1m",
+    "provider": "Alpaca SIP (consolidated)",
+    "status": "validated",
+    "coverage": "2016 (or the symbol's listing) through the last completed session; topped up nightly",
+    "restriction": (
+        "split-adjusted; pre- and post-market minutes carry a session label; "
+        "suspect one-minute bars are dropped when loaded"
+    ),
+}
 
-    return deepcopy(_CONTEXT)
+
+def build_research_context(stock_universe: Sequence[str] = ()) -> dict[str, Any]:
+    """Return an isolated portable research-context snapshot.
+
+    ``stock_universe`` lists the stock and fund symbols with 1-minute SIP history; the
+    gateway passes the auto-tester's universe.
+    """
+
+    context = deepcopy(_CONTEXT)
+    if stock_universe:
+        context["mandate"]["first_stage_instruments"].extend(stock_universe)
+        context["relevant_data_snapshot"].append({**_STOCK_DATASET, "instruments": list(stock_universe)})
+    # The rule format guide and worked example, so an external agent can write a testable idea.
+    context["rule_format"] = starter_kit()
+    return context
 
 
 def export_research_context(*, format: str = "yaml") -> str:
