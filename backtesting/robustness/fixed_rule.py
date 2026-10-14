@@ -9,9 +9,10 @@ import math
 import pandas as pd
 
 from backtesting.experiments import align_signals_for_execution, build_portfolio, execute_experiment
-from backtesting.experiments.models import ExperimentConfig
+from backtesting.experiments.models import ExecutionConfig, ExperimentConfig
 from backtesting.robustness.models import (
     FixedRuleCostStressPlan,
+    FractionalCostStressPlan,
     FixedRuleCostStressResult,
     RegimeConfig,
     RobustnessResult,
@@ -26,7 +27,7 @@ from strategies import get_strategy
 
 def run_fixed_rule_cost_stress(
     experiment: ExperimentConfig,
-    plan: FixedRuleCostStressPlan,
+    plan: FixedRuleCostStressPlan | FractionalCostStressPlan,
     data: pd.DataFrame,
     audit: DataAudit,
 ) -> FixedRuleCostStressResult:
@@ -35,27 +36,38 @@ def run_fixed_rule_cost_stress(
     if strategy.spec.parameters or experiment.parameter_combinations != ({},):
         raise ValueError("fixed-rule cost stress requires one parameter-free strategy")
     baseline = experiment.execution
-    if (
-        baseline.position_sizing != "fixed_units"
-        or baseline.order_size != 1.0
-        or baseline.fees != 0
-        or baseline.slippage != 0
-        or baseline.slippage_points != 0
-        or baseline.tick_size is None
-        or baseline.slippage_ticks <= 0
-        or baseline.fixed_fee_per_contract_per_side <= 0
-    ):
-        raise ValueError("fixed-rule stress requires one contract and explicit baseline futures costs")
-    if (
-        plan.fixed_fee_per_contract_per_side <= baseline.fixed_fee_per_contract_per_side
-        or plan.slippage_ticks <= baseline.slippage_ticks
-    ):
-        raise ValueError("predeclared stress must exceed both baseline costs")
-    stressed_execution = replace(
-        baseline,
-        fixed_fee_per_contract_per_side=plan.fixed_fee_per_contract_per_side,
-        slippage_ticks=plan.slippage_ticks,
-    )
+    if isinstance(plan, FractionalCostStressPlan):
+        stressed_execution, baseline_costs, stressed_costs = _whole_share_stress(baseline, plan)
+    else:
+        if (
+            baseline.position_sizing != "fixed_units"
+            or baseline.order_size != 1.0
+            or baseline.fees != 0
+            or baseline.slippage != 0
+            or baseline.slippage_points != 0
+            or baseline.tick_size is None
+            or baseline.slippage_ticks <= 0
+            or baseline.fixed_fee_per_contract_per_side <= 0
+        ):
+            raise ValueError("fixed-rule stress requires one contract and explicit baseline futures costs")
+        if (
+            plan.fixed_fee_per_contract_per_side <= baseline.fixed_fee_per_contract_per_side
+            or plan.slippage_ticks <= baseline.slippage_ticks
+        ):
+            raise ValueError("predeclared stress must exceed both baseline costs")
+        stressed_execution = replace(
+            baseline,
+            fixed_fee_per_contract_per_side=plan.fixed_fee_per_contract_per_side,
+            slippage_ticks=plan.slippage_ticks,
+        )
+        baseline_costs = {
+            "fixed_fee_per_contract_per_side": baseline.fixed_fee_per_contract_per_side,
+            "slippage_ticks": baseline.slippage_ticks,
+        }
+        stressed_costs = {
+            "fixed_fee_per_contract_per_side": plan.fixed_fee_per_contract_per_side,
+            "slippage_ticks": plan.slippage_ticks,
+        }
     stressed_experiment = replace(
         experiment,
         experiment_id=f"{experiment.experiment_id}:fixed-rule-cost-stress",
@@ -93,18 +105,34 @@ def run_fixed_rule_cost_stress(
         status = "insufficient_evidence"
         reasons += ("stressed screen produced no threshold evidence",)
     return FixedRuleCostStressResult(
-        baseline_costs={
-            "fixed_fee_per_contract_per_side": baseline.fixed_fee_per_contract_per_side,
-            "slippage_ticks": baseline.slippage_ticks,
-        },
-        stressed_costs={
-            "fixed_fee_per_contract_per_side": plan.fixed_fee_per_contract_per_side,
-            "slippage_ticks": plan.slippage_ticks,
-        },
+        baseline_costs=baseline_costs,
+        stressed_costs=stressed_costs,
         stressed_metrics=metrics,
         threshold_results=thresholds,
         status=status,
         reasons=reasons,
+    )
+
+
+def _whole_share_stress(
+    baseline: ExecutionConfig, plan: FractionalCostStressPlan
+) -> tuple[ExecutionConfig, dict[str, float], dict[str, float]]:
+    """Stress a whole-share stock rule: higher slippage fraction, fees no lower."""
+    if (
+        baseline.position_sizing != "all_cash_whole_shares"
+        or baseline.fixed_fee_per_contract_per_side != 0
+        or baseline.slippage_points != 0
+        or baseline.slippage_ticks != 0
+        or baseline.slippage <= 0
+    ):
+        raise ValueError("fractional stress requires whole-share sizing and an explicit baseline slippage fraction")
+    if plan.slippage <= baseline.slippage or plan.fees < baseline.fees:
+        raise ValueError("predeclared stress must raise slippage and keep fees at least the baseline")
+    stressed = replace(baseline, fees=plan.fees, slippage=plan.slippage)
+    return (
+        stressed,
+        {"fees": baseline.fees, "slippage": baseline.slippage},
+        {"fees": plan.fees, "slippage": plan.slippage},
     )
 
 

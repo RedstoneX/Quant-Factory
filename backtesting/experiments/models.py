@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 PortfolioDirection = Literal["longonly", "shortonly", "both"]
 ExecutionMode = Literal["same_bar_close", "next_bar_open"]
 SignalTiming = Literal["completed_bar_close"]
-PositionSizing = Literal["all_available_cash", "fixed_units"]
+PositionSizing = Literal["all_available_cash", "all_cash_whole_shares", "fixed_units"]
 ExecutionPriceField = Literal["Open", "Close"]
 MetricSampling = Literal["exchange_session_close"]
 
@@ -89,7 +89,7 @@ class ExecutionConfig:
             raise ValueError(
                 f"Execution mode {self.mode} requires price field {expected_price}"
             )
-        if self.position_sizing not in {"all_available_cash", "fixed_units"}:
+        if self.position_sizing not in {"all_available_cash", "all_cash_whole_shares", "fixed_units"}:
             raise ValueError(
                 f"Unsupported position sizing: {self.position_sizing}"
             )
@@ -97,6 +97,10 @@ class ExecutionConfig:
             self.order_size
         ):
             raise ValueError("all_available_cash requires infinite order_size")
+        # Saved setups reject non-finite floats, so whole-share sizing records the
+        # fraction of available cash (only 1.0, all of it); the engine gets size=inf.
+        if self.position_sizing == "all_cash_whole_shares" and self.order_size != 1.0:
+            raise ValueError("all_cash_whole_shares requires order_size 1.0 (all available cash)")
         if self.position_sizing == "fixed_units" and (
             not math.isfinite(self.order_size) or self.order_size <= 0
         ):

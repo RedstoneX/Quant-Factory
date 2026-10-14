@@ -107,7 +107,7 @@ def _execution(mode: str = "next_bar_open") -> SimpleNamespace:
     return SimpleNamespace(
         mode=mode, price_multiplier=5.0, direction="both", execution_price_field="Open", absolute_slippage_points=0.0,
         order_size=1.0, accumulate=False, leverage=1.0, initial_cash=10_000.0, fees=0.0, slippage=0.0,
-        fixed_fee_per_order=0.0,
+        fixed_fee_per_order=0.0, position_sizing="fixed_units",
     )
 
 

@@ -8,7 +8,7 @@ import pytest
 
 import backtesting.robustness.fixed_rule as fixed_rule
 from backtesting.experiments.models import ExecutionConfig, ExperimentConfig
-from backtesting.robustness.models import FixedRuleCostStressPlan
+from backtesting.robustness.models import FixedRuleCostStressPlan, FractionalCostStressPlan
 from backtesting.screening import ScreeningConfig
 from market_data import MarketDataConfig
 from strategies.mes_vwap_orb_candidate import STRATEGY_ID
@@ -65,4 +65,52 @@ def test_fixed_rule_cost_stress_rejects_non_stress(tmp_path) -> None:
     with pytest.raises(ValueError, match="exceed both baseline costs"):
         fixed_rule.run_fixed_rule_cost_stress(
             _experiment(tmp_path), FixedRuleCostStressPlan(0.62, 2), pd.DataFrame(), object()
+        )
+
+
+def _fake_execute(observed):
+    def fake_execute(experiment, data, audit, *, write_output):
+        observed["execution"] = experiment.execution
+        rule = SimpleNamespace(rule_id="minimum_total_return", status="passed", observed_value=0.01, threshold=0.0, message="m")
+        row = pd.DataFrame([{"number_of_trades": 30, "total_return": 0.01, "annualized_return": 0.01, "sharpe_ratio": 0.6, "max_drawdown": -0.1}])
+        return SimpleNamespace(screening_results=(SimpleNamespace(passed=True, rule_results=(rule,)),), ranked_results=row)
+    return fake_execute
+
+
+def test_mes_fixed_rule_stress_costs_are_unchanged(tmp_path, monkeypatch) -> None:
+    observed = {}
+    monkeypatch.setattr(fixed_rule, "execute_experiment", _fake_execute(observed))
+    baseline = _experiment(tmp_path)
+    result = fixed_rule.run_fixed_rule_cost_stress(baseline, FixedRuleCostStressPlan(1.24, 2.0), pd.DataFrame(), object())
+    from dataclasses import replace
+    assert observed["execution"] == replace(baseline.execution, fixed_fee_per_contract_per_side=1.24, slippage_ticks=2.0)
+    assert result.baseline_costs == {"fixed_fee_per_contract_per_side": 0.62, "slippage_ticks": 1}
+    assert result.stressed_costs == {"fixed_fee_per_contract_per_side": 1.24, "slippage_ticks": 2.0}
+
+
+def _stock_experiment(tmp_path: Path) -> ExperimentConfig:
+    from dataclasses import replace
+    execution = ExecutionConfig.next_bar_open(
+        initial_cash=10_000, fees=0.00002, slippage=0.0001, direction="both", leverage=1,
+        accumulate=False, position_sizing="all_cash_whole_shares", order_size=1.0, tick_size=0.01,
+    )
+    return replace(_experiment(tmp_path), execution=execution)
+
+
+def test_whole_share_stress_doubles_slippage_and_keeps_fees(tmp_path, monkeypatch) -> None:
+    observed = {}
+    monkeypatch.setattr(fixed_rule, "execute_experiment", _fake_execute(observed))
+    result = fixed_rule.run_fixed_rule_cost_stress(
+        _stock_experiment(tmp_path), FractionalCostStressPlan(fees=0.00002, slippage=0.0002), pd.DataFrame(), object()
+    )
+    assert (observed["execution"].fees, observed["execution"].slippage) == (0.00002, 0.0002)
+    assert result.stressed_costs == {"fees": 0.00002, "slippage": 0.0002}
+    assert result.status == "passed"
+    with pytest.raises(ValueError, match="must raise slippage"):
+        fixed_rule.run_fixed_rule_cost_stress(
+            _stock_experiment(tmp_path), FractionalCostStressPlan(fees=0.00002, slippage=0.0001), pd.DataFrame(), object()
+        )
+    with pytest.raises(ValueError, match="requires whole-share sizing"):
+        fixed_rule.run_fixed_rule_cost_stress(
+            _experiment(tmp_path), FractionalCostStressPlan(fees=0.0, slippage=0.0002), pd.DataFrame(), object()
         )
