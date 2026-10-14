@@ -122,19 +122,21 @@ def session_close_metrics(
         start_date=value.index[0].date(),
         end_date=value.index[-1].date(),
     )
-    completed = schedule.loc[schedule["market_close"] <= value.index[-1]]
+    try:
+        interval = pd.Timedelta(config.market_data.interval)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("session metrics require a fixed source interval") from exc
+    # Bars are labelled by their open, so the last bar is observed through its end.
+    observed_through = value.index[-1] + interval
+    completed = schedule.loc[schedule["market_close"] <= observed_through]
     partial = schedule.loc[
         (schedule["market_open"] <= value.index[-1])
-        & (schedule["market_close"] > value.index[-1])
+        & (schedule["market_close"] > observed_through)
     ]
     if not partial.empty:
         raise RuntimeError("session metrics cannot include a partially observed final session")
     if len(completed) < 2:
         raise RuntimeError("session metrics require at least two completed sessions")
-    try:
-        interval = pd.Timedelta(config.market_data.interval)
-    except (TypeError, ValueError) as exc:
-        raise RuntimeError("session metrics require a fixed source interval") from exc
     session_values: list[float] = []
     session_labels: list[object] = []
     assets = _portfolio_asset_series(portfolio)

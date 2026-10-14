@@ -171,3 +171,12 @@ def test_whole_share_sizing_passes_size_granularity(monkeypatch: pytest.MonkeyPa
     with pytest.raises(ValueError, match="requires order_size 1.0"):
         ExecutionConfig.next_bar_open(initial_cash=1.0, fees=0.0, slippage=0.0, direction="both", leverage=1.0,
                                       accumulate=False, position_sizing="all_cash_whole_shares", order_size=5.0)
+
+
+def test_mid_session_manifest_end_falls_back_to_the_last_completed_close(tmp_path: Path) -> None:
+    manifests, spreads = _write_fixture(tmp_path, {"SPY": 0.4})
+    path = manifests / "equities_SPY_1m_alpaca_sip.json"
+    manifest = json.loads(path.read_text())
+    path.write_text(json.dumps({**manifest, "latest_timestamp": "2026-10-14T17:20:00Z"}))
+    fields = stocks.stock_profile_fields("SPY", manifest_dir=manifests, spreads_path=spreads)
+    assert fields["dataset_end"] == "2026-10-13T20:00:00Z"
