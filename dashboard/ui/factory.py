@@ -15,7 +15,7 @@ GLYPHS = {"dashboard": "▦", "file": "+", "flow": "⌁", "list": "☷", "chart"
 RUN_COLUMNS = [
     {"field": "title", "headerName": "Run", "minWidth": 165, "flex": 1.45, "pinned": "left", "filter": "agTextColumnFilter"},
     {"field": "symbol", "headerName": "Market", "width": 68, "filter": "agTextColumnFilter"},
-    {"field": "status", "headerName": "Outcome", "width": 94, "filter": "agTextColumnFilter", "valueFormatter": {"function": "params.data && params.data.display_outcome === 'screened_out' ? 'Screened out' : params.value ? params.value.charAt(0).toUpperCase()+params.value.slice(1) : '—'"}},
+    {"field": "status", "headerName": "Outcome", "width": 94, "filter": "agTextColumnFilter", "valueFormatter": {"function": "params.data && params.data.display_outcome === 'screened_out' ? 'Failed testing' : params.value ? params.value.charAt(0).toUpperCase()+params.value.slice(1) : '—'"}},
     {"field": "variation_count", "headerName": "Results", "type": "numericColumn", "width": 70},
     {"field": "survivor_count", "headerName": "Survivors", "type": "numericColumn", "width": 76},
     {"field": "completed_display", "colId": "completed_at", "headerName": "Completed", "minWidth": 120, "flex": 0.9},
@@ -90,8 +90,8 @@ def register_factory_callbacks(application: Any) -> None:
             else status
         )
         body=[html.Div([html.Span("Persisted outcome"),html.Strong(outcome),html.Small("No Candidate advanced from this run." if screened_out and screened_out == variations else "Exact retained result")],className=f"factory-outcome-card{' screened-out' if screened_out and screened_out == variations else ''}"),html.Div([html.Span("Owner action"),html.Strong("None · retained outcome"),html.Span()],className="candidate-evidence-item"),dmc.Group([dmc.Button("Open resulting Candidates",id="factory-open-candidates",className="primary"),dmc.Button("Open run Results",id="factory-open-results",className="ghost",variant="default")],gap=8,className="candidate-detail-actions"),dmc.Title("Diagnostics and lineage",order=3,className="candidate-progression-title"),html.Div([html.Span("Run identity"),html.Strong(row.get("run_id")),html.Span("Persisted")],className="candidate-evidence-item"),html.Div([html.Span("Worker"),html.Strong(row.get("worker") or "Unavailable"),html.Span()],className="candidate-evidence-item"),html.Div([html.Span("Resource state"),html.Strong(row.get("resource_state") or "Unavailable"),html.Span()],className="candidate-evidence-item")]
-        display_status = "Screened out" if screened_out and screened_out == variations else status
-        state_class = "candidate-state rejected" if display_status == "Screened out" else "candidate-state"
+        display_status = "Failed testing" if screened_out and screened_out == variations else status
+        state_class = "candidate-state rejected" if display_status == "Failed testing" else "candidate-state"
         return display_status,state_class,row.get("title"),f"{row.get('run_id')} · {stage}",stages,body
 
 

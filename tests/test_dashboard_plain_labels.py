@@ -1,0 +1,63 @@
+from __future__ import annotations
+
+import pytest
+
+from dashboard.plain_labels import (
+    LIFECYCLE_LABELS,
+    LIFECYCLE_ORDER,
+    REASON_WORDS,
+    lifecycle_label,
+    plain_status,
+)
+from dashboard.ui.candidates import _outcome
+
+CONTRACT = {
+    "queued": ("Testing", ["waiting", "requeued_after_restart"]),
+    "running": ("Testing", ["started"]),
+    "implementation_blocked": ("Can't test yet", ["rules_missing", "rules_invalid", "data_unavailable"]),
+    "duplicate_closed": ("Duplicate", ["same_rules"]),
+    "screened_out": ("Failed testing", ["stage"]),
+    "survivor": ("Passed — needs your review", ["awaiting_owner_review"]),
+    "failed": ("Test crashed", ["run_error", "run_timeout"]),
+}
+CASES = [(state, reason, label) for state, (label, reasons) in CONTRACT.items() for reason in reasons]
+
+
+@pytest.mark.parametrize(("state", "reason", "label"), CASES)
+def test_every_state_and_reason_has_a_plain_label_and_words(state, reason, label):
+    got_label, words = plain_status(state, reason)
+    assert got_label == label
+    assert words and "_" not in words
+    assert (state, reason) in REASON_WORDS
+
+
+def test_blocked_reasons_are_the_requested_words():
+    assert plain_status("implementation_blocked", "rules_missing")[1] == "No trading rules"
+    assert plain_status("implementation_blocked", "rules_invalid")[1] == "Rules have an error"
+    assert plain_status("implementation_blocked", "data_unavailable")[1] == "No data for this market"
+
+
+def test_unknown_state_is_not_dressed_up_as_a_known_one():
+    assert plain_status("something_new", "x") == ("Not in testing", "")
+    assert plain_status(None) == ("Not in testing", "")
+
+
+def test_rejected_bucket_is_relabelled_and_blocked_group_exists():
+    assert lifecycle_label("rejected") == "Failed testing"
+    assert lifecycle_label("blocked") == "Can't test yet"
+    assert lifecycle_label("advancing") == "Testing"
+    assert lifecycle_label("survivor") == "Passed — needs your review"
+    assert "blocked" in LIFECYCLE_ORDER
+    assert all(key in LIFECYCLE_LABELS for key in LIFECYCLE_ORDER)
+    assert "Rejected" not in LIFECYCLE_LABELS.values()
+
+
+@pytest.mark.parametrize(("state", "reason", "label"), CASES)
+def test_candidate_page_outcome_uses_the_plain_label(state, reason, label):
+    lifecycle = {
+        "queued": "advancing", "running": "advancing", "implementation_blocked": "blocked",
+        "duplicate_closed": "rejected", "screened_out": "rejected", "survivor": "survivor", "failed": "rejected",
+    }[state]
+    headline, detail = _outcome({"lifecycle": lifecycle, "campaign_state": state, "campaign_reason_code": reason})
+    assert headline == label
+    assert detail == plain_status(state, reason)[1]

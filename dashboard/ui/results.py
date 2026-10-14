@@ -37,7 +37,7 @@ SCREENING_COLUMNS = [
     {"field": "max_drawdown", "headerName": "Maximum DD", "type": "numericColumn", "width": 102, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
     {"field": "number_of_trades", "headerName": "Trades", "type": "numericColumn", "width": 80, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
     {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 88, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
-    {"field": "screening_status", "headerName": "Outcome", "minWidth": 112, "flex": 1, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Screened out' : params.value"}},
+    {"field": "screening_status", "headerName": "Outcome", "minWidth": 112, "flex": 1, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Failed testing' : params.value"}},
 ]
 ORB_SCREENING_COLUMNS = [
     {"field": "rank", "headerName": "Rank", "width": 64, "pinned": "left", "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
@@ -320,7 +320,7 @@ def _register_record_callbacks(application: Any) -> None:
         result_status = str(record.get("result_status") or "").strip().lower()
         screening_rows = record.get("screening_rows") or []
         screened_out = bool(screening_rows) and int(record.get("screened_out_count") or 0) == len(screening_rows)
-        state = "Screened out" if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
+        state = "Failed testing" if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
         assumptions = [html.Div([html.Span("Run"), html.Strong(run_id)], className="results-assumption"), html.Div([html.Span("Market"), html.Strong(run.get("symbol") or "Unrecorded")], className="results-assumption"), html.Div([html.Span("Stage"), html.Strong(str(run.get("stage") or "Unrecorded").replace("_", " ").title())], className="results-assumption"), html.Div([html.Span("Authority"), html.Strong("Research evidence only")], className="results-assumption")]
         return (
             title, f"{run_id} · exact persisted evidence", state, "candidate-state rejected" if screened_out else "candidate-state", f"Sealed run · {run_id[:12]}",
