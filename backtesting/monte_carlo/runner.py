@@ -1,7 +1,7 @@
 """Monte Carlo validation, simulation, summaries, and thresholds."""
 from datetime import datetime, timezone
 import numpy as np
-from backtesting.monte_carlo.metrics import cumulative_return, maximum_drawdown, path_sharpe
+from backtesting.monte_carlo.metrics import cumulative_return, maximum_drawdown, path_metrics, path_sharpe
 from backtesting.monte_carlo.models import ExecutionStressResult, MonteCarloResult, ThresholdResult
 from backtesting.monte_carlo.resampling import resample_paths
 
@@ -24,10 +24,8 @@ def run_monte_carlo(source, config):
     if len(values) < config.minimum_observations: return _base("insufficient_evidence", source, config, (f"requires at least {config.minimum_observations} observations; received {len(values)}",))
     if config.method == "moving_block_bootstrap" and config.block_length > len(values): return _base("invalid_input", source, config, ("block_length exceeds observation count",))
     paths = resample_paths(values.copy(), config)
-    terminals = np.array([cumulative_return(p) for p in paths])
-    drawdowns = np.array([maximum_drawdown(p) for p in paths])
+    terminals, drawdowns, sharpes = path_metrics(paths, config.annualization_factor)
     volatilities = paths.std(axis=1, ddof=1)
-    sharpes = np.array([path_sharpe(p, config.annualization_factor) for p in paths])
     distributions = {"terminal_return": _summary(terminals, config.percentiles), "maximum_drawdown": _summary(drawdowns, config.percentiles), "path_volatility": _summary(volatilities, config.percentiles)}
     if config.annualization_factor is not None:
         annualized = np.power(1.0 + terminals, config.annualization_factor / len(values)) - 1.0

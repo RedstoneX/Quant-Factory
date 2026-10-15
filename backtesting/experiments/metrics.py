@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 import math
-from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -108,16 +107,68 @@ def _portfolio_asset_series(portfolio: Any) -> pd.Series | None:
     return assets.astype(float)
 
 
-def session_close_metrics(
-    portfolio: Any,
+def _missing_session_close_value(
+    value: pd.Series,
+    assets: pd.Series | None,
+    session_label: object,
+    market_open: pd.Timestamp,
+    market_close: pd.Timestamp,
+    closing_bar: pd.Timestamp,
+) -> float:
+    """Equity for a session whose closing bar is absent, or raise."""
+    missing = RuntimeError(
+        f"source data is missing the closing bar for exchange session {session_label}"
+    )
+    observed = value.loc[(value.index >= market_open) & (value.index < market_close)]
+    if observed.empty:
+        before = value.index[value.index < market_open]
+        after = value.index[value.index >= market_close]
+        if (
+            assets is not None
+            and len(before)
+            and len(after)
+            and float(assets.loc[before[-1]]) == 0.0
+            and float(assets.loc[after[0]]) == 0.0
+        ):
+            # A wholly absent exchange session bracketed by verified
+            # flat exposure has the same exact cash equity as the last
+            # observation before it. Retain the zero-return session in
+            # the annualization sample instead of shrinking the sample.
+            return float(value.loc[before[-1]])
+        raise missing
+    if assets is None:
+        raise missing
+    last_observed = observed.index[-1]
+    if last_observed >= closing_bar or float(assets.loc[last_observed]) != 0.0:
+        raise missing
+    # With zero asset exposure, portfolio equity is cash and cannot vary
+    # with the missing market-price observation before the session close.
+    return float(observed.iloc[-1])
+
+
+def session_close_metrics_frame(
+    value: pd.DataFrame,
+    assets: pd.DataFrame | None,
     data: pd.DataFrame,
     config: ExperimentConfig,
-) -> tuple[float, float, float]:
-    """Calculate return and Sharpe from exact completed session closes."""
+) -> list[tuple[float, float, float]]:
+    """Return, annualized return and Sharpe per column from exact session closes.
+
+    The exchange calendar is queried once and the session-close bar index is
+    built once; every column is then read with one DataFrame.loc selection.
+    """
     policy = config.metric_policy
     if policy is None or policy.sampling != "exchange_session_close":
         raise RuntimeError("exchange-session metric policy is required")
-    value = _portfolio_value_series(portfolio)
+    if value.empty or value.shape[1] == 0:
+        raise RuntimeError("portfolio value must be a nonempty Series")
+    if not isinstance(value.index, pd.DatetimeIndex) or value.index.tz is None:
+        raise RuntimeError("session metrics require timezone-aware portfolio timestamps")
+    if not value.index.is_monotonic_increasing or not value.index.is_unique:
+        raise RuntimeError("portfolio timestamps must be unique and chronological")
+    value = value.astype(float)
+    if not np.isfinite(value.to_numpy()).all() or (value.to_numpy() <= 0).any():
+        raise RuntimeError("portfolio values must be positive and finite")
     if not data.index.equals(value.index):
         raise RuntimeError("portfolio values must align exactly with source data")
     schedule = get_exchange_calendar(config.market_data).schedule(
@@ -139,75 +190,70 @@ def session_close_metrics(
         raise RuntimeError("session metrics cannot include a partially observed final session")
     if len(completed) < 2:
         raise RuntimeError("session metrics require at least two completed sessions")
-    session_values: list[float] = []
-    session_labels: list[object] = []
-    assets = _portfolio_asset_series(portfolio)
-    for session_label, row in completed.iterrows():
-        market_open = pd.Timestamp(row["market_open"]).tz_convert(value.index.tz)
-        market_close = pd.Timestamp(row["market_close"]).tz_convert(value.index.tz)
-        closing_bar = market_close - interval
-        try:
-            closing_value = value.loc[closing_bar]
-        except KeyError as exc:
-            observed = value.loc[(value.index >= market_open) & (value.index < market_close)]
-            if observed.empty:
-                before = value.index[value.index < market_open]
-                after = value.index[value.index >= market_close]
-                if (
-                    assets is not None
-                    and assets.index.equals(value.index)
-                    and len(before)
-                    and len(after)
-                    and float(assets.loc[before[-1]]) == 0.0
-                    and float(assets.loc[after[0]]) == 0.0
-                ):
-                    # A wholly absent exchange session bracketed by verified
-                    # flat exposure has the same exact cash equity as the last
-                    # observation before it. Retain the zero-return session in
-                    # the annualization sample instead of shrinking the sample.
-                    closing_value = value.loc[before[-1]]
-                else:
-                    raise RuntimeError(
-                        f"source data is missing the closing bar for exchange session {session_label}"
-                    ) from exc
-            elif assets is None or not assets.index.equals(value.index):
-                raise RuntimeError(
-                    f"source data is missing the closing bar for exchange session {session_label}"
-                ) from exc
-            else:
-                last_observed = observed.index[-1]
-                if last_observed >= closing_bar or float(assets.loc[last_observed]) != 0.0:
-                    raise RuntimeError(
-                        f"source data is missing the closing bar for exchange session {session_label}"
-                    ) from exc
-                # With zero asset exposure, portfolio equity is cash and cannot vary
-                # with the missing market-price observation before the session close.
-                closing_value = observed.iloc[-1]
-        session_labels.append(session_label)
-        session_values.append(float(closing_value))
-    equity = pd.Series(session_values, index=session_labels, dtype=float)
-    previous = pd.Series(
-        [config.execution.initial_cash, *equity.iloc[:-1].tolist()],
-        index=equity.index,
-        dtype=float,
+    opens = pd.DatetimeIndex(completed["market_open"]).tz_convert(value.index.tz)
+    closes = pd.DatetimeIndex(completed["market_close"]).tz_convert(value.index.tz)
+    closing_idx = closes - interval
+    present = closing_idx.isin(value.index)
+    equity = pd.DataFrame(
+        np.nan, index=completed.index, columns=value.columns, dtype=float
     )
+    equity.iloc[present] = value.loc[closing_idx[present]].to_numpy()
+    if not present.all():
+        aligned = assets is not None and assets.index.equals(value.index)
+        for row in np.flatnonzero(~present):
+            for col in range(value.shape[1]):
+                equity.iloc[row, col] = _missing_session_close_value(
+                    value.iloc[:, col],
+                    assets.iloc[:, col].astype(float) if aligned else None,
+                    completed.index[row],
+                    opens[row],
+                    closes[row],
+                    closing_idx[row],
+                )
+    initial_cash = config.execution.initial_cash
+    previous = equity.shift(1)
+    previous.iloc[0] = initial_cash
     returns = equity / previous - 1.0
     periods = float(policy.periods_per_year)
-    final_ratio = float(equity.iloc[-1]) / config.execution.initial_cash
-    annualized_return = final_ratio ** (periods / len(equity)) - 1.0
     period_risk_free = (1.0 + float(policy.risk_free_rate)) ** (1.0 / periods) - 1.0
     excess = returns - period_risk_free
-    volatility = float(excess.std(ddof=1))
-    if not math.isfinite(volatility):
-        raise RuntimeError("session-return sample standard deviation must be finite")
-    sharpe = (
-        float("nan")
-        if volatility == 0.0
-        else float(excess.mean()) / volatility * math.sqrt(periods)
-    )
-    if not math.isfinite(annualized_return):
-        raise RuntimeError("session annualized return must be finite")
-    return final_ratio - 1.0, annualized_return, sharpe
+    results: list[tuple[float, float, float]] = []
+    for position in range(equity.shape[1]):
+        column = equity.iloc[:, position]
+        final_ratio = float(column.iloc[-1]) / initial_cash
+        annualized_return = final_ratio ** (periods / len(column)) - 1.0
+        excess_col = excess.iloc[:, position]
+        volatility = float(excess_col.std(ddof=1))
+        if not math.isfinite(volatility):
+            raise RuntimeError("session-return sample standard deviation must be finite")
+        sharpe = (
+            float("nan")
+            if volatility == 0.0
+            else float(excess_col.mean()) / volatility * math.sqrt(periods)
+        )
+        if not math.isfinite(annualized_return):
+            raise RuntimeError("session annualized return must be finite")
+        results.append((final_ratio - 1.0, annualized_return, sharpe))
+    return results
+
+
+def session_close_metrics(
+    portfolio: Any,
+    data: pd.DataFrame,
+    config: ExperimentConfig,
+) -> tuple[float, float, float]:
+    """Calculate return and Sharpe from exact completed session closes."""
+    policy = config.metric_policy
+    if policy is None or policy.sampling != "exchange_session_close":
+        raise RuntimeError("exchange-session metric policy is required")
+    value = _portfolio_value_series(portfolio)
+    assets = _portfolio_asset_series(portfolio)
+    return session_close_metrics_frame(
+        value.to_frame(),
+        None if assets is None else assets.to_frame(),
+        data,
+        config,
+    )[0]
 
 
 def extract_metrics(
@@ -262,8 +308,8 @@ def extract_sweep_metrics(
 
     Each library property (total_return, annualized_return, sharpe_ratio, max_drawdown,
     trades.count(), trades.win_rate) is read once and returns one value per column.
-    A declared session policy reads value and assets once and applies
-    session_close_metrics to each column.
+    A declared session policy reads value and assets once and computes
+    session_close_metrics_frame once for all columns.
     """
     if config is not None and config.metric_policy is not None:
         if data is None:
@@ -272,17 +318,7 @@ def extract_sweep_metrics(
         if value is None or value.shape[1] != count:
             raise RuntimeError("sweep portfolio value must have one column per setting")
         assets = _sweep_frame(portfolio, "assets")
-        session = [
-            session_close_metrics(
-                SimpleNamespace(
-                    value=value.iloc[:, position],
-                    assets=None if assets is None else assets.iloc[:, position],
-                ),
-                data,
-                config,
-            )
-            for position in range(count)
-        ]
+        session = session_close_metrics_frame(value, assets, data, config)
         total_return, annualized_return, sharpe_ratio = (list(column) for column in zip(*session))
     else:
         total_return = _per_setting(portfolio.total_return, count)
