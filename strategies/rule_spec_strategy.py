@@ -21,7 +21,7 @@ import re
 import tempfile
 import threading
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterator, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -35,7 +35,7 @@ from rule_language import (
     validate_rule_spec,
 )
 from rule_language.validation import STOP_KEYS
-from strategies.mes_opening_range_breakout import SESSION_TIMEZONE, _schedule
+from strategies.mes_opening_range_breakout import _schedule
 from strategies.models import (
     DataRequirements,
     ParameterDefinition,
@@ -44,7 +44,7 @@ from strategies.models import (
     StrategySpecification,
     TradingAssumptions,
 )
-from strategies.rule_spec_evaluation import RuleEvaluator, SessionBars, bar_position
+from strategies.rule_spec_batch import PreparedSessions, iter_batch_signals, prepare_sessions
 
 RULE_COMPILER_VERSION = "1.0.0"
 RULE_STRATEGY_PREFIX = "rules_"
@@ -59,7 +59,6 @@ _DEFINITION_KEYS = frozenset({"strategy_id", "version", "rule_spec", "variables"
 _LEGACY_KEYS = ("candidate_id", "title")
 _STRATEGY_ID = re.compile(r"rules_[0-9a-f]{16}")
 _REQUIRED_FIELDS = ("Open", "High", "Low", "Close", "Volume")
-_REGULAR_SESSION = pd.Timedelta(hours=6, minutes=30)
 _BAR_WORDS = {"1m": "one-minute", "5m": "five-minute"}
 _LOADED: dict[str, "RuleSpecStrategy"] = {}
 _LOCK = threading.Lock()
@@ -245,9 +244,17 @@ class RuleSpecStrategy:
         return normalized
 
     def generate_signals(self, data: pd.DataFrame | pd.Series, parameters: Mapping[str, Any]) -> SignalResult:
+        return self.generate_signals_batch(data, [parameters])[0]
+
+    def iter_signals_batch(self, data: pd.DataFrame | pd.Series, settings: Sequence[Mapping[str, Any]]) -> Iterator[SignalResult]:
+        """Signals of every setting in order, from one pass over the data (see ``strategies.rule_spec_batch``)."""
         if not isinstance(data, pd.DataFrame):
             raise TypeError("Rule strategies require OHLCV market data")
-        return compile_rule_signals(self._definition, data, self.validate_parameters(parameters))
+        normalized = [self.validate_parameters(parameters) for parameters in settings]
+        return iter_rule_signals(self._definition, data, normalized)
+
+    def generate_signals_batch(self, data: pd.DataFrame | pd.Series, settings: Sequence[Mapping[str, Any]]) -> list[SignalResult]:
+        return list(self.iter_signals_batch(data, settings))
 
 
 def _checked_frame(data: pd.DataFrame) -> pd.DataFrame:
@@ -275,82 +282,60 @@ def _check_data_frequency(frame: pd.DataFrame, bar: str) -> None:
         )
 
 
-def _traded_sessions(frame: pd.DataFrame, schedule: pd.DataFrame, bar: str = "5m") -> list[tuple[pd.DatetimeIndex, pd.DataFrame]]:
-    """Full 09:30-16:00 sessions with every bar present, finite and positive."""
-    sessions = []
-    for _, row in schedule.iterrows():
-        session_open = pd.Timestamp(row["market_open"]).tz_convert("UTC")
-        session_close = pd.Timestamp(row["market_close"]).tz_convert("UTC")
-        if session_close - session_open != _REGULAR_SESSION:
-            continue
-        if session_open.tz_convert(SESSION_TIMEZONE).strftime("%H:%M") != "09:30":
-            continue
-        expected = pd.date_range(session_open, session_close, freq=pd.Timedelta(minutes=BAR_MINUTES[bar]), inclusive="left")
-        # get_indexer reuses the index's cached lookup; isin rebuilt it for every session.
-        positions = frame.index.get_indexer(expected)
-        if (positions < 0).any():
-            continue
-        day = frame.iloc[positions][list(_REQUIRED_FIELDS)]
-        values = day.to_numpy(dtype=float)
-        if not np.isfinite(values).all() or (values <= 0).any():
-            continue
-        sessions.append((expected, day))
-    return sessions
-
-
-def _bar_sides(spec: Mapping[str, Any], evaluator: RuleEvaluator) -> np.ndarray:
-    """+1/-1 where the first firing signal (condition true, side non-zero) points; else 0."""
-    sides = np.zeros(evaluator.shape)
-    undecided = np.ones(evaluator.shape, dtype=bool)
-    for signal in spec["signals"]:
-        side = evaluator.side(signal["side"])
-        fired = evaluator.condition(signal["when"]) & (side != 0)
-        take = undecided & fired
-        sides[take] = side[take]
-        undecided &= ~fired
-    return sides
-
-
-def _walk_sessions(spec: Mapping[str, Any], evaluator: RuleEvaluator) -> tuple[list[tuple[str, int, int]], int]:
-    """Run the flat/long/short state machine; return (event, session, row) events and skipped entries."""
-    exit_rules = spec["exit"]
-    sides = _bar_sides(spec, evaluator).T.tolist()
-    flat = bar_position(spec["flat_at"], spec["bar"])
-    at_time = bar_position(exit_rules["at_time"], spec["bar"]) if "at_time" in exit_rules else None
-    after = evaluator.count(exit_rules["after_bars"]) if "after_bars" in exit_rules else None
-    opposite = exit_rules["on_opposite_signal"]
-    valid_stops = None
-    present = [key for key in STOP_KEYS if key in exit_rules]
+def _metadata(definition: Mapping[str, Any], prepared: PreparedSessions, skipped: int, present: list[str]) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "rule_language": RULE_LANGUAGE,
+        "rule_compiler_version": RULE_COMPILER_VERSION,
+        "strategy_id": definition["strategy_id"],
+        "sessions_traded": int(prepared.positions.shape[1]) if prepared.bars is not None else 0,
+        "sessions_in_schedule": prepared.sessions_in_schedule,
+        "entries_skipped_without_valid_stop_distance": skipped,
+        "max_trades_counting": (
+            "max_trades_per_session counts entry signals. Engine-side stop-loss and take-profit exits are not "
+            "tracked by the compiler, which keeps treating the position as open until its own rule exit."
+        ),
+    }
+    if "trailing_stop" in present:
+        metadata["trailing_stop_distance"] = (
+            "the trailing stop's fraction is fixed at entry; the engine trails it behind the best price since entry."
+        )
     if present:
-        valid = np.ones(evaluator.shape, dtype=bool)
-        with np.errstate(invalid="ignore"):
-            for key in present:
-                fraction = evaluator.distance_fraction(exit_rules[key])
-                valid &= np.isfinite(fraction) & (fraction > 0)
-        valid_stops = valid.T.tolist()
-    events: list[tuple[str, int, int]] = []
-    skipped = 0
-    for session, bar_sides in enumerate(sides):
-        state, entry_row, taken = 0.0, -1, 0
-        for row, side in enumerate(bar_sides):
-            if state:
-                if (
-                    row == flat
-                    or row == at_time
-                    or (after is not None and row - entry_row >= after)
-                    or (opposite and side == -state)
-                ):
-                    events.append(("exit" if state > 0 else "short_exit", session, row))
-                    state = 0.0
-                continue
-            if taken >= spec["max_trades_per_session"] or row >= flat or side == 0:
-                continue
-            if valid_stops is not None and not valid_stops[session][row]:
-                skipped += 1
-                continue
-            events.append(("entry" if side > 0 else "short_entry", session, row))
-            state, entry_row, taken = side, row, taken + 1
-    return events, skipped
+        metadata["stop_distance_approximation"] = (
+            "points, ticks and ATR distances are divided by the signal-bar close to give the engine's fractional "
+            "stop and target; the engine applies that fraction to the next-bar open fill."
+        )
+    return metadata
+
+
+def iter_rule_signals(
+    definition: Mapping[str, Any],
+    data: pd.DataFrame,
+    settings: Sequence[Mapping[str, Any]],
+    *,
+    schedule: pd.DataFrame | None = None,
+) -> Iterator[SignalResult]:
+    """Completed-bar signals of every validated setting, in order; the data is split into sessions once."""
+    spec = definition["rule_spec"]
+    frame = _checked_frame(data)
+    _check_data_frequency(frame, spec["bar"])
+    if schedule is None and len(frame.index):
+        schedule = _schedule(frame.index)
+    prepared = prepare_sessions(frame, schedule, _REQUIRED_FIELDS, tick_size=spec["tick_size"], bar=spec["bar"])
+    present = [key for key in STOP_KEYS if key in spec["exit"]]
+    batches = iter_batch_signals(spec, prepared, settings)
+    for parameters, (flags, levels, skipped) in zip(settings, batches):
+        # Each stop's distance is fixed at entry: the fraction measured on the signal bar is written on the entry row.
+        yield SignalResult(
+            entries=flags["entry"],
+            exits=flags["exit"],
+            short_entries=flags["short_entry"],
+            short_exits=flags["short_exit"],
+            parameters=dict(parameters),
+            metadata=_metadata(definition, prepared, skipped, present),
+            stop_loss=levels.get("stop_loss"),
+            take_profit=levels.get("take_profit"),
+            trailing_stop=levels.get("trailing_stop"),
+        )
 
 
 def compile_rule_signals(
@@ -361,61 +346,7 @@ def compile_rule_signals(
     schedule: pd.DataFrame | None = None,
 ) -> SignalResult:
     """Turn a checked definition and validated parameters into completed-bar signals."""
-    spec = definition["rule_spec"]
-    frame = _checked_frame(data)
-    _check_data_frequency(frame, spec["bar"])
-    if schedule is None and len(frame.index):
-        schedule = _schedule(frame.index)
-    sessions = _traded_sessions(frame, schedule, spec["bar"]) if schedule is not None else []
-    flags = {name: pd.Series(False, index=frame.index, dtype=bool) for name in ("entry", "exit", "short_entry", "short_exit")}
-    present = [key for key in STOP_KEYS if key in spec["exit"]]
-    # Each stop's distance is fixed at entry: the fraction measured on the signal bar is written on the entry row.
-    levels = {key: pd.Series(np.nan, index=frame.index, dtype=float) for key in present}
-    skipped = 0
-    if sessions:
-        bars = SessionBars.from_sessions([day for _, day in sessions], tick_size=spec["tick_size"], parameters=parameters, bar=spec["bar"]
-        )
-        evaluator = RuleEvaluator(bars)
-        events, skipped = _walk_sessions(spec, evaluator)
-        fractions = {key: evaluator.distance_fraction(spec["exit"][key]) for key in present}
-        for event, session, row in events:
-            timestamp = sessions[session][0][row]
-            flags[event].at[timestamp] = True
-            if event in ("entry", "short_entry"):
-                for key, level in levels.items():
-                    level.at[timestamp] = float(fractions[key][row, session])
-    metadata: dict[str, Any] = {
-        "rule_language": RULE_LANGUAGE,
-        "rule_compiler_version": RULE_COMPILER_VERSION,
-        "strategy_id": definition["strategy_id"],
-        "sessions_traded": len(sessions),
-        "sessions_in_schedule": 0 if schedule is None else len(schedule),
-        "entries_skipped_without_valid_stop_distance": skipped,
-        "max_trades_counting": (
-            "max_trades_per_session counts entry signals. Engine-side stop-loss and take-profit exits are not "
-            "tracked by the compiler, which keeps treating the position as open until its own rule exit."
-        ),
-    }
-    if "trailing_stop" in levels:
-        metadata["trailing_stop_distance"] = (
-            "the trailing stop's fraction is fixed at entry; the engine trails it behind the best price since entry."
-        )
-    if levels:
-        metadata["stop_distance_approximation"] = (
-            "points, ticks and ATR distances are divided by the signal-bar close to give the engine's fractional "
-            "stop and target; the engine applies that fraction to the next-bar open fill."
-        )
-    return SignalResult(
-        entries=flags["entry"],
-        exits=flags["exit"],
-        short_entries=flags["short_entry"],
-        short_exits=flags["short_exit"],
-        parameters=dict(parameters),
-        metadata=metadata,
-        stop_loss=levels.get("stop_loss"),
-        take_profit=levels.get("take_profit"),
-        trailing_stop=levels.get("trailing_stop"),
-    )
+    return next(iter_rule_signals(definition, data, [parameters], schedule=schedule))
 
 
 def rule_strategy_root(root: str | os.PathLike[str] | None = None) -> Path | None:
