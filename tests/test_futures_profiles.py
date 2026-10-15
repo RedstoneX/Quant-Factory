@@ -2,7 +2,6 @@
 
 import pytest
 
-from market_data.catalog import DEFAULT_CONFIG_PATH
 from orchestration.auto_campaign import _check_verified_data, auto_test_definition, dataset_profile
 
 # CME Group contract specs: MNQ tick 0.25 pt = $0.50 ($2/pt); M2K tick 0.10 pt = $0.50 ($5/pt).
@@ -22,7 +21,7 @@ def test_profile_uses_cme_specs_and_mes_costs(symbol):
         assert getattr(profile, field) == getattr(mes, field)
 
 
-@pytest.mark.skipif(not DEFAULT_CONFIG_PATH.exists(), reason="machine data configuration absent")
+@pytest.mark.controlled_market_data
 @pytest.mark.parametrize("symbol", sorted(_SPECS))
 def test_manifest_passes_the_same_verified_data_check_as_mes(symbol):
     profile = dataset_profile(symbol, "5m")

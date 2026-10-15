@@ -77,6 +77,7 @@ EXTERNAL_PREFECT_NODE_IDS = frozenset(
 CONTROLLED_MARKET_DATA_NODE_IDS = frozenset(
     {
         "tests/test_mes_opening_range_breakout.py::test_cataloged_mes_file_matches_committed_manifest",
+        "tests/test_futures_profiles.py::test_manifest_passes_the_same_verified_data_check_as_mes",
     }
 )
 
