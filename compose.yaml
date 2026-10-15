@@ -73,7 +73,7 @@ services:
     tmpfs:
       - /tmp:uid=${QF_GATEWAY_UID:?set QF_GATEWAY_UID},gid=${QF_GATEWAY_GID:?set QF_GATEWAY_GID},mode=1777
     cpus: "2.0"
-    mem_limit: 3g
+    mem_limit: 5g
     pids_limit: 256
     restart: unless-stopped
     logging:
