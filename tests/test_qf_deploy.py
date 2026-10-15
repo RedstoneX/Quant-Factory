@@ -103,9 +103,25 @@ def test_deploy_proceeds_when_idle(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls == ["switch"]
 
 
-def test_active_flow_runs_counts_the_prefect_cli_json(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_active_flow_runs_ignores_orphans_from_before_the_worker_started(monkeypatch: pytest.MonkeyPatch) -> None:
+    runs = '[{"id": "1", "start_time": "2026-10-15T00:45:00+00:00", "created": "2026-10-15T00:44:00+00:00"}]'
     seen: list[tuple[str, ...]] = []
-    monkeypatch.setattr(qf_deploy, "compose", lambda *args, capture=False: seen.append(args) or '[{"id": "1"}, {"id": "2"}]')
 
-    assert qf_deploy.active_flow_runs() == 2
-    assert "RUNNING" in seen[0] and "PENDING" in seen[0]
+    def fake_compose(*args: str, capture: bool = False) -> str:
+        seen.append(args)
+        return "abc" if args[0] == "ps" else runs
+
+    monkeypatch.setattr(qf_deploy, "compose", fake_compose)
+    monkeypatch.setattr(qf_deploy, "run", lambda *args, capture=False: "2026-10-15T00:49:01.123456789Z")
+
+    assert qf_deploy.active_flow_runs() == 0
+    assert any("RUNNING" in args and "PENDING" in args for args in seen)
+
+
+def test_count_live_keeps_runs_started_after_the_worker() -> None:
+    worker = qf_deploy.parse_time("2026-10-15T00:49:01.123456789Z")
+    runs = [{"start_time": "2026-10-15T00:45:00+00:00", "created": "x"},
+            {"start_time": "2026-10-15T00:50:00.5+00:00", "created": "x"},
+            {"start_time": None, "created": "2026-10-15T00:51:00+00:00"}]
+
+    assert qf_deploy.count_live(runs, worker) == 2

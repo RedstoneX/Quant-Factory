@@ -201,11 +201,23 @@ def compose(*args: str, capture: bool = False) -> str:
                *args, capture=capture)
 
 
+def parse_time(text: str) -> datetime:
+    """Parse an RFC 3339 timestamp (Docker gives nanoseconds, which fromisoformat rejects)."""
+    return datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", text.strip().replace("Z", "+00:00")))
+
+
+def count_live(runs: list[dict], worker_started: datetime) -> int:
+    """Runs that began before the worker container did were orphaned by its restart; they cannot still be alive."""
+    return sum(1 for r in runs if parse_time(r.get("start_time") or r["created"]) >= worker_started)
+
+
 def active_flow_runs() -> int:
-    """Count Prefect flow runs in RUNNING or PENDING state (Prefect's own CLI, run inside the prefect service)."""
+    """Count Prefect RUNNING/PENDING flow runs that started since the flow-running container (agent-gateway) did."""
     out = compose("exec", "-T", "-e", "PREFECT_API_URL=http://127.0.0.1:4200/api", "prefect", "prefect", "flow-run", "ls",
                   "--state-type", "RUNNING", "--state-type", "PENDING", "--limit", "200", "--output", "json", capture=True)
-    return len(json.loads(out or "[]"))
+    container = compose("ps", "-q", "agent-gateway", capture=True)
+    started = run("docker", "inspect", "--format", "{{.State.StartedAt}}", container, capture=True)
+    return count_live(json.loads(out or "[]"), parse_time(started))
 
 
 def switch_containers(revision: str) -> None:
