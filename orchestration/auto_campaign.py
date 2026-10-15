@@ -95,6 +95,40 @@ _PROFILES = {
         stress_slippage_ticks=2.0,
         annualization_factor=252.0 * 78.0,
     ),
+    # CME contract specs (cmegroup.com Micro E-mini Nasdaq-100 / Micro E-mini Russell 2000 futures, 'Contract Specs'):
+    # MNQ tick 0.25 pt = $0.50 -> $2/pt; M2K tick 0.10 pt = $0.50 -> $5/pt. Fees and slippage ticks as MES.
+    ("MNQ", "5m"): DatasetProfile(
+        dataset_id="futures_MNQ_5m_databento",
+        symbol="MNQ",
+        interval="5m",
+        dataset_end="2026-02-13T21:55:00Z",
+        requested_start="2019-05-06",
+        end_date_policy="fixed verified catalog end 2026-02-13",
+        cache_path=Path("futures/MNQ/5m/MNQ_5m_databento.parquet"),
+        fixed_fee_per_contract_per_side=0.62,
+        slippage_ticks=1.0,
+        tick_size=0.25,
+        price_multiplier=2.0,
+        stress_fee_per_contract_per_side=1.24,
+        stress_slippage_ticks=2.0,
+        annualization_factor=252.0 * 78.0,
+    ),
+    ("M2K", "5m"): DatasetProfile(
+        dataset_id="futures_M2K_5m_databento",
+        symbol="M2K",
+        interval="5m",
+        dataset_end="2026-02-13T21:55:00Z",
+        requested_start="2019-05-06",
+        end_date_policy="fixed verified catalog end 2026-02-13",
+        cache_path=Path("futures/M2K/5m/M2K_5m_databento.parquet"),
+        fixed_fee_per_contract_per_side=0.62,
+        slippage_ticks=1.0,
+        tick_size=0.10,
+        price_multiplier=5.0,
+        stress_fee_per_contract_per_side=1.24,
+        stress_slippage_ticks=2.0,
+        annualization_factor=252.0 * 78.0,
+    ),
 }
 
 

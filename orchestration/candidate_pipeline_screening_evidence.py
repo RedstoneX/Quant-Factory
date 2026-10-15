@@ -19,7 +19,8 @@ from orchestration.candidate_screening_artifacts import (
     persist_screening_price_series,
     snapshot_screening_portfolio,
 )
-from persistence import PersistenceService
+from backtesting.out_of_sample import OutOfSampleConfig, execute_out_of_sample
+from persistence import ArtifactType, PersistenceService
 
 
 def capture_screening_portfolios(captured: dict[str, Any]) -> Callable[[str, Any], Any]:
@@ -63,3 +64,18 @@ def persist_captured_screening_evidence(
             include_price_series=False,
             price_window_only=False,
         )
+
+
+def execute_oos_saving_trades(config: OutOfSampleConfig, data: pd.DataFrame, audit: Any,
+                              persistence: PersistenceService, artifact_root: Path, run_id: str) -> Any:
+    """Run the out-of-sample stage and save the locked test portfolio's trades with the run."""
+    captured: dict[str, Any] = {}
+    result = execute_out_of_sample(config, data, audit, write_output=True,
+                                   test_portfolio_observer=capture_screening_portfolios(captured))
+    for row_id, portfolio in captured.items():
+        persist_screening_artifacts(
+            persistence=persistence, artifact_root=artifact_root, run_id=run_id, result=result.test_result,
+            portfolio=portfolio, data=data, config=config.experiment, parameter_row_id=row_id,
+            include_price_series=False, only=(ArtifactType.TRADES_OR_ORDERS,),
+        )
+    return result

@@ -51,6 +51,7 @@ def _run_partition(
     *,
     history: pd.DataFrame | None = None,
     signal_cache: dict[str, object] | None = None,
+    portfolio_observer: Callable[[str, object], object] | None = None,
 ) -> ExperimentResult:
     """Evaluate one partition.
 
@@ -68,6 +69,7 @@ def _run_partition(
         ),
     )
     partition_audit = _partition_audit(audit, partition)
+    extra = {} if portfolio_observer is None else {"portfolio_observer": portfolio_observer}
     if history is not None and "evaluation_range" in inspect.signature(evaluator).parameters:
         return evaluator(
             config,
@@ -76,12 +78,14 @@ def _run_partition(
             write_output=False,
             evaluation_range=(partition.data.index[0], partition.data.index[-1]),
             signal_cache=signal_cache,
+            **extra,
         )
     return evaluator(
         config,
         partition.data.copy(),
         partition_audit,
         write_output=False,
+        **extra,
     )
 
 
@@ -160,6 +164,7 @@ def evaluate_locked_test(
     *,
     history: pd.DataFrame | None = None,
     signal_cache: dict[str, object] | None = None,
+    portfolio_observer: Callable[[str, object], object] | None = None,
 ) -> ExperimentResult:
     """Evaluate exactly the already-locked parameters on held-out data."""
     return _run_partition(
@@ -170,6 +175,7 @@ def evaluate_locked_test(
         evaluator,
         history=history,
         signal_cache=signal_cache,
+        portfolio_observer=portfolio_observer,
     )
 
 
@@ -356,6 +362,7 @@ def execute_out_of_sample(
     *,
     evaluator: ExperimentEvaluator = execute_experiment,
     write_output: bool = True,
+    test_portfolio_observer: Callable[[str, object], object] | None = None,
 ) -> OutOfSampleResult:
     """Select without test data, lock parameters, then evaluate held-out test."""
     split = split_chronologically(data, config.split)
@@ -408,7 +415,8 @@ def execute_out_of_sample(
             )
         raise
     test = evaluate_locked_test(
-        config.experiment, split.test, audit, parameter_lock, evaluator, **history
+        config.experiment, split.test, audit, parameter_lock, evaluator, **history,
+        portfolio_observer=test_portfolio_observer,
     )
 
     if write_output:

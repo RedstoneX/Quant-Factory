@@ -15,6 +15,7 @@ from market_data.models import MarketDataConfig
 LICENSED_VECTORBT_NODE_IDS = frozenset(
     {
         "tests/test_deflated_sharpe.py::test_matches_library_on_fixture",
+        "tests/test_oos_trades_saved.py::test_oos_test_partition_portfolio_is_observed_once",
         "tests/test_walk_forward_splitter_vbt.py::test_full_history_signals_differ_from_slice_only_in_the_warm_up",
         "tests/test_walk_forward_splitter_vbt.py::test_window_result_does_not_depend_on_later_bars",
         "tests/test_walk_forward_splitter_vbt.py::test_whole_range_matches_a_plain_run",
@@ -76,6 +77,7 @@ EXTERNAL_PREFECT_NODE_IDS = frozenset(
 CONTROLLED_MARKET_DATA_NODE_IDS = frozenset(
     {
         "tests/test_mes_opening_range_breakout.py::test_cataloged_mes_file_matches_committed_manifest",
+        "tests/test_futures_profiles.py::test_manifest_passes_the_same_verified_data_check_as_mes",
     }
 )
 
