@@ -52,3 +52,5 @@
 .ag-header-cell-text{word-break:normal;overflow-wrap:normal}
 .universe.collapsed{align-self:start;height:auto;min-height:0}.universe.collapsed .chart-graph,.universe.collapsed .chart-legend,.universe.collapsed [role=region]{display:none}
 @media (max-width:575px){.qf-grid .ag-header-cell:last-child .ag-header-cell-resize,.submit-grid .ag-header-cell:last-child .ag-header-cell-resize,#candidate-grid .ag-header-cell:last-child .ag-header-cell-resize{display:none}#candidate-grid .ag-header-cell-label{padding-right:4px}}
+.workspace:has(.universe.collapsed){grid-template-columns:minmax(0,1fr);align-items:start}
+.badge.rejected,.candidate-state.rejected{background:rgba(125,133,144,.12);border-color:rgba(125,133,144,.28);color:var(--muted)}.signal.rejected{border-left-color:var(--muted);background:rgba(125,133,144,.1)}
