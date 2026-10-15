@@ -7,43 +7,52 @@ from typing import Any
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, dcc, html, no_update
+from dash_iconify import DashIconify
 
 from dashboard.factory_projection import load_factory_page, load_factory_summary
+from dashboard.ui.layout import copy_id, page_header, stat_card
+from dashboard.ui.theme import COLUMN_DEFAULTS, grid_options, hide_when_narrow
 
 
-GLYPHS = {"dashboard": "▦", "file": "+", "flow": "⌁", "list": "☷", "chart": "⌁", "external": "↗", "search": "⌕"}
 RUN_COLUMNS = [
-    {"field": "title", "headerName": "Run", "minWidth": 165, "flex": 1.45, "pinned": "left", "filter": "agTextColumnFilter"},
-    {"field": "symbol", "headerName": "Market", "width": 68, "filter": "agTextColumnFilter"},
-    {"field": "status", "headerName": "Outcome", "width": 94, "filter": "agTextColumnFilter", "valueFormatter": {"function": "params.data && params.data.display_outcome === 'screened_out' ? 'Failed testing' : params.value ? params.value.charAt(0).toUpperCase()+params.value.slice(1) : '—'"}},
-    {"field": "variation_count", "headerName": "Results", "type": "numericColumn", "width": 70},
-    {"field": "survivor_count", "headerName": "Survivors", "type": "numericColumn", "width": 76},
-    {"field": "completed_display", "colId": "completed_at", "headerName": "Completed", "minWidth": 120, "flex": 0.9},
+    {"field": "title", "headerName": "Run", "minWidth": 200, "flex": 2, "filter": "agTextColumnFilter", "tooltipField": "run_id"},
+    {"field": "symbol", "headerName": "Market", "minWidth": 80, "flex": .6, "filter": "agTextColumnFilter"},
+    {"field": "status", "headerName": "Outcome", "minWidth": 110, "flex": .9, "filter": "agTextColumnFilter", "valueFormatter": {"function": "params.data && params.data.display_outcome === 'screened_out' ? 'Failed testing' : params.value ? params.value.charAt(0).toUpperCase()+params.value.slice(1) : '—'"}},
+    {"field": "variation_count", "headerName": "Results", "type": "numericColumn", "flex": .6},
+    {"field": "survivor_count", "headerName": "Passed", "type": "numericColumn", "flex": .6},
+    {"field": "completed_display", "colId": "completed_at", "headerName": "Finished", "minWidth": 120, "flex": 1},
 ]
 
 
-def _icon(name: str) -> html.Span: return html.Span(GLYPHS[name], className="icon", **{"aria-hidden": "true"})
-def _rail(name: str, label: str, item_id: str, *, active: bool=False, disabled: bool=False): return dmc.Tooltip(dmc.ActionIcon(_icon(name), id=item_id, className=f"rail-item{' active' if active else ''}", variant="subtle", disabled=disabled, **{"aria-label": label}), label=label, position="right", withArrow=True, openDelay=300)
-
-
-def factory_layout() -> dmc.MantineProvider:
+def factory_layout() -> html.Div:
     summary = load_factory_summary(); counts = summary.get("counts", {})
     initial_page = load_factory_page(cohort="completed", start=0, end=1)
     initial_selection = (initial_page.get("rowData") or [None])[0]
-    nav = dmc.Stack([dmc.Paper("Q", className="logo", radius="md"), _rail("dashboard","Dashboard","factory-nav-dashboard"), _rail("file","Submit strategies","factory-nav-submit"), _rail("flow","Factory runs","factory-nav-factory",active=True), _rail("list","Candidates","factory-nav-candidates"), _rail("chart","Results","factory-nav-results"), html.Div(className="rail-spacer"), _rail("external","Paper Trading","factory-nav-paper"), dmc.Avatar("TO",className="avatar",radius="xl")],gap=7,align="center",className="rail")
-    header = dmc.Group([html.Div([dmc.Title("Factory runs",order=1),dmc.Text("Open work and persisted outcomes",className="eyebrow")]),html.Div(className="top-spacer"),dmc.Badge(f"{counts.get('running',0):,} running",className="candidate-state"),dmc.Badge(f"{counts.get('queued',0):,} queued",className="filter-chip"),dmc.Badge(f"{counts.get('failed',0):,} failed",color="red",variant="light")],gap=9,className="topbar")
-    tabs=dmc.SegmentedControl(id="factory-cohort",value="completed",data=[{"value":"open","label":f"Open · {counts.get('open',0):,}"},{"value":"completed","label":f"Completed · {counts.get('completed',0):,}"},{"value":"failed","label":f"Failed · {counts.get('failed',0):,}"}],className="candidate-tabs",persistence=True,persistence_type="local")
-    markets=[{"value":"all","label":"All markets"}]+[{"value":x,"label":x} for x in summary.get("markets",[])]
-    stages=[{"value":"all","label":"All stages"}]+[{"value":x,"label":str(x).replace("_"," ").title()} for x in summary.get("stages",[])]
-    toolbar=dmc.Group([tabs,dmc.TextInput(id="factory-search",placeholder="Search run or campaign…",leftSection=_icon("search"),debounce=True,className="candidate-search"),dmc.Select(id="factory-market",data=markets,value="all",allowDeselect=False,className="candidate-select"),html.Div(className="top-spacer"),dmc.Text("Outcomes retained indefinitely",className="candidate-context")],gap=8,className="candidate-filters factory-toolbar")
-    cards=html.Div([html.Div([html.Span("24h throughput"),html.Strong(f"{summary.get('throughput_24h',0):,}"),html.Small("persisted parameter results")],className="factory-summary"),html.Div([html.Span("Median runtime"),html.Strong(f"{summary['median_minutes']:.0f}m" if summary.get("median_minutes") is not None else "—"),html.Small("completed runs")],className="factory-summary"),html.Div([html.Span("Worker utilization"),html.Strong("—"),html.Small("not persisted")],className="factory-summary"),html.Div([html.Span("Running"),html.Strong(f"{counts.get('running',0):,}"),html.Small("exact run state")],className="factory-summary"),html.Div([html.Span("Queued"),html.Strong(f"{counts.get('queued',0):,}"),html.Small("exact run state")],className="factory-summary")],className="factory-summary-grid")
-    filters=dmc.Group([dmc.Select(id="factory-stage",data=stages,value="all",allowDeselect=False,className="candidate-select evidence"),dmc.Select(id="factory-resource",data=[{"value":"all","label":"All resource states"},{"value":"unavailable","label":"Resource state unavailable"}],value="all",allowDeselect=False,className="candidate-select evidence"),html.Div(className="top-spacer"),dmc.Text("Elapsed time and resource use shown only when persisted",className="candidate-context")],gap=8,className="candidate-filters")
-    grid=dag.AgGrid(id="factory-grid",columnDefs=RUN_COLUMNS,rowModelType="infinite",defaultColDef={"sortable":True,"resizable":True,"filter":True,"suppressHeaderMenuButton":True,"suppressHeaderFilterButton":True},dashGridOptions={"rowSelection":{"mode":"singleRow","enableClickSelection":True},"cacheBlockSize":50,"maxBlocksInCache":4,"animateRows":False,"suppressHorizontalScroll":True},getRowId="params.data.run_id",className="ag-theme-quartz-dark factory-grid")
-    detail=dmc.Paper([html.Div([dmc.Text("Selected run",className="factory-detail-label"),dmc.Badge("No selection",id="factory-detail-state",className="candidate-state"),dmc.Title("No run selected",id="factory-detail-title",order=2),dmc.Text("Choose an exact persisted run.",id="factory-detail-meta",className="candidate-detail-meta")],className="candidate-detail-head"),html.Div(id="factory-detail-stages",className="factory-stage-list"),html.Div(id="factory-detail-body",className="candidate-detail-body")],className="candidate-detail factory-run-detail",radius=0,withBorder=False)
-    workspace=dmc.Paper([html.Div([grid,html.Footer([html.Span("0 loaded",id="factory-page-count"),html.Span("•"),html.Span("0 total",id="factory-total-count"),html.Div(className="top-spacer"),html.Span("Exact logs and outcomes retained")],className="candidate-grid-footer")],className="candidate-grid-region"),detail],className="factory-workspace",radius="md",withBorder=True)
-    stores=[dcc.Store(id="factory-query",data={"cohort":"completed","search":"","market":"all","stage":"all","resource":"all"}),dcc.Store(id="factory-selected",data=initial_selection),dcc.Store(id="factory-cache-reset")]
-    body=html.Div([toolbar,cards,filters,workspace],className="body factory-body")
-    return dmc.MantineProvider(html.Div([*stores,html.Div([nav,html.Main([header,body],className="main")],className="app factory-app")]),forceColorScheme="dark",theme={"fontFamily":"Inter, ui-sans-serif, sans-serif","primaryColor":"blue"})
+    header = page_header("Factory runs", "Every test run: what is running, waiting, finished or failed", dmc.Badge(f"{counts.get('running',0):,} running", color="blue"), dmc.Badge(f"{counts.get('queued',0):,} waiting", color="gray"), dmc.Badge(f"{counts.get('failed',0):,} failed", color="red"))
+    tabs = dmc.SegmentedControl(id="factory-cohort", value="completed", size="xs", data=[{"value": "open", "label": f"Open · {counts.get('open',0):,}"}, {"value": "completed", "label": f"Finished · {counts.get('completed',0):,}"}, {"value": "failed", "label": f"Failed · {counts.get('failed',0):,}"}], persistence=True, persistence_type="local")
+    markets = [{"value": "all", "label": "All markets"}] + [{"value": x, "label": x} for x in summary.get("markets", [])]
+    stages = [{"value": "all", "label": "All stages"}] + [{"value": x, "label": str(x).replace("_", " ").title()} for x in summary.get("stages", [])]
+    toolbar = dmc.Group([
+        tabs, dmc.TextInput(id="factory-search", placeholder="Search runs…", leftSection=DashIconify(icon="tabler:search", width=14), debounce=True, size="xs", w=200),
+        dmc.Select(id="factory-market", data=markets, value="all", allowDeselect=False, size="xs", w=130),
+        dmc.Select(id="factory-stage", data=stages, value="all", allowDeselect=False, size="xs", w=150),
+        dmc.Select(id="factory-resource", data=[{"value": "all", "label": "Any machine state"}, {"value": "unavailable", "label": "Machine state not recorded"}], value="all", allowDeselect=False, size="xs", w=200),
+    ], gap="xs", mb="sm")
+    median = summary.get("median_minutes")
+    cards = dmc.SimpleGrid([
+        stat_card("Tested in the last 24 hours", f"{summary.get('throughput_24h',0):,}", "results"),
+        stat_card("Typical run time", f"{median:.0f} min" if median is not None else "—", "finished runs"),
+        stat_card("Running", f"{counts.get('running',0):,}", "right now", color="blue.4"),
+        stat_card("Waiting", f"{counts.get('queued',0):,}", "in line"),
+    ], cols={"base": 2, "md": 4}, spacing="sm", mb="sm")
+    grid = dag.AgGrid(id="factory-grid", columnDefs=RUN_COLUMNS, rowModelType="infinite", defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True}, dashGridOptions=grid_options("No runs match these filters.", rowSelection={"mode": "singleRow", "enableClickSelection": True, "checkboxes": False}, cacheBlockSize=50, maxBlocksInCache=4, animateRows=False, suppressHorizontalScroll=True), getRowId="params.data.run_id", className="factory-grid", columnSize="responsiveSizeToFit", eventListeners=hide_when_narrow("symbol", "variation_count", "survivor_count", "completed_at"))
+    detail = dmc.Paper([
+        dmc.Stack([dmc.Badge("No selection", id="factory-detail-state", color="gray"), dmc.Title("Pick a run", id="factory-detail-title", order=5, lineClamp=2), dmc.Text("Choose a row to see what it found.", id="factory-detail-meta", size="xs", c="dimmed")], gap=6, p="md"),
+        html.Div(id="factory-detail-stages", className="factory-stage-list"), html.Div(id="factory-detail-body", className="candidate-detail-body"),
+    ], className="candidate-detail factory-run-detail")
+    workspace = html.Div([html.Div([grid, html.Footer([html.Span(id="factory-page-count"), html.Span(id="factory-total-count")], className="candidate-grid-footer")], className="candidate-grid-region"), detail], className="factory-workspace")
+    stores = [dcc.Store(id="factory-query", data={"cohort": "completed", "search": "", "market": "all", "stage": "all", "resource": "all"}), dcc.Store(id="factory-selected", data=initial_selection), dcc.Store(id="factory-cache-reset")]
+    return html.Div([*stores, header, html.Div([toolbar, cards, workspace], className="body factory-body")], className="factory-app")
 
 
 def register_factory_callbacks(application: Any) -> None:
@@ -67,7 +76,7 @@ def register_factory_callbacks(application: Any) -> None:
         # one authoritative response.
         if not request or not query: return no_update,no_update,no_update
         result=load_factory_page(start=int(request.get("startRow") or 0),end=int(request.get("endRow") or 50),sort_model=request.get("sortModel"),filter_model=request.get("filterModel"),**query)
-        return result,f"{len(result['rowData']):,} loaded",f"{result['rowCount']:,} total · infinite row loading"
+        total=int(result["rowCount"]); return result,"" if total else "No runs match these filters.",f"{total:,} runs" if total else ""
 
     @application.callback(Output("factory-selected","data"),Input("factory-grid","selectedRows"),Input("factory-grid","getRowsResponse"),State("factory-selected","data"),prevent_initial_call=True)
     def select(rows,response,current):
@@ -75,24 +84,25 @@ def register_factory_callbacks(application: Any) -> None:
         if current: return current
         loaded=(response or {}).get("rowData") or []; return loaded[0] if loaded else None
 
-    @application.callback(Output("factory-detail-state","children"),Output("factory-detail-state","className"),Output("factory-detail-title","children"),Output("factory-detail-meta","children"),Output("factory-detail-stages","children"),Output("factory-detail-body","children"),Input("factory-selected","data"))
+    @application.callback(Output("factory-detail-state","children"),Output("factory-detail-state","color"),Output("factory-detail-title","children"),Output("factory-detail-meta","children"),Output("factory-detail-stages","children"),Output("factory-detail-body","children"),Input("factory-selected","data"))
     def detail(row):
-        if not row: return "No selection","candidate-state","No run selected","Choose an exact persisted run.",[],[dmc.Text("No persisted run selected.",className="candidate-empty")]
-        status=str(row.get("status") or "unavailable").replace("_"," ").title(); stage=str(row.get("stage") or "unavailable").replace("_"," ").title()
-        stages=[html.Div([html.Span(className=f"candidate-dot{' failed' if row.get('status')=='failed' else ''}"),html.Div([html.Strong(stage),html.P(f"{row.get('variation_count',0):,} persisted result rows")]),html.Time(status)],className="candidate-stage-row")]
+        if not row: return "No selection", "gray", "Pick a run", "Choose a row to see what it found.", [], []
+        status = str(row.get("status") or "unavailable").replace("_", " ").title(); stage = str(row.get("stage") or "unavailable").replace("_", " ").title()
+        stages = [html.Div([html.Span(className=f"candidate-dot{' failed' if row.get('status')=='failed' else ''}"), html.Div([html.Strong(stage), html.P(f"{row.get('variation_count',0):,} results")]), html.Time(status)], className="candidate-stage-row")]
         screened_out = int(row.get("screened_out_count") or 0)
         variations = int(row.get("variation_count") or 0)
+        all_out = bool(screened_out and screened_out == variations)
         outcome = row.get("error_summary") or (
-            f"{screened_out:,} of {variations:,} configurations screened out · no survivor"
-            if screened_out and screened_out == variations
-            else f"{row.get('survivor_count',0):,} verified survivor markers"
+            f"All {variations:,} settings failed the first check"
+            if all_out
+            else f"{row.get('survivor_count',0):,} ideas passed"
             if row.get("status") == "succeeded"
             else status
         )
-        body=[html.Div([html.Span("Persisted outcome"),html.Strong(outcome),html.Small("No Candidate advanced from this run." if screened_out and screened_out == variations else "Exact retained result")],className=f"factory-outcome-card{' screened-out' if screened_out and screened_out == variations else ''}"),html.Div([html.Span("Owner action"),html.Strong("None · retained outcome"),html.Span()],className="candidate-evidence-item"),dmc.Group([dmc.Button("Open resulting Candidates",id="factory-open-candidates",className="primary"),dmc.Button("Open run Results",id="factory-open-results",className="ghost",variant="default")],gap=8,className="candidate-detail-actions"),dmc.Title("Diagnostics and lineage",order=3,className="candidate-progression-title"),html.Div([html.Span("Run identity"),html.Strong(row.get("run_id")),html.Span("Persisted")],className="candidate-evidence-item"),html.Div([html.Span("Worker"),html.Strong(row.get("worker") or "Unavailable"),html.Span()],className="candidate-evidence-item"),html.Div([html.Span("Resource state"),html.Strong(row.get("resource_state") or "Unavailable"),html.Span()],className="candidate-evidence-item")]
-        display_status = "Failed testing" if screened_out and screened_out == variations else status
-        state_class = "candidate-state rejected" if display_status == "Failed testing" else "candidate-state"
-        return display_status,state_class,row.get("title"),f"{row.get('run_id')} · {stage}",stages,body
+        item = lambda label, value: html.Div([html.Span(label), value, html.Span()], className="candidate-evidence-item")
+        body = [html.Div([html.Span("Outcome"), html.Strong(outcome), html.Small("No idea moved on from this run." if all_out else "")], className=f"factory-outcome-card{' screened-out' if all_out else ''}"), dmc.Group([dmc.Button("Open its ideas", id="factory-open-candidates"), dmc.Button("Open run results", id="factory-open-results", variant="default")], gap=8, className="candidate-detail-actions"), dmc.Title("Details", order=5, className="candidate-progression-title"), item("Run ID", copy_id(row.get("run_id"))), item("Machine", html.Strong(row.get("worker") or "Not recorded")), item("Machine state", html.Strong(row.get("resource_state") or "Not recorded"))]
+        color = "red" if all_out or row.get("status") == "failed" else "teal" if row.get("status") == "succeeded" else "blue"
+        return "Failed testing" if all_out else status, color, row.get("title"), stage, stages, body
 
 
 __all__=["factory_layout","register_factory_callbacks"]

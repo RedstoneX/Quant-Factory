@@ -8,21 +8,23 @@ from typing import Any
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Input, Output, State, dcc, html, no_update
+from dash_iconify import DashIconify
 
 from dashboard.candidates_projection import load_candidate_detail
 from dashboard.plain_labels import plain_status
+from dashboard.ui.layout import page_header
+from dashboard.ui.theme import COLUMN_DEFAULTS, grid_options, hide_when_narrow
 from dashboard.ui.gateway_client import gateway_status, submit_candidate
 from research_intake.starter_kit import starter_kit
 from dashboard.submit_projection import candidate_example, validate_candidate_text, validate_upload
 
 
-GLYPHS = {"dashboard": "▦", "file": "+", "flow": "⌁", "list": "☷", "chart": "⌁", "external": "↗", "upload": "⇧"}
 SUBMIT_COLUMNS = [
-    {"field": "title", "headerName": "Definition", "minWidth": 220, "flex": 1.5},
-    {"field": "filename", "headerName": "Source", "minWidth": 160, "flex": 1},
-    {"field": "market", "headerName": "Market", "width": 100},
-    {"field": "validation", "headerName": "Validation", "width": 110},
-    {"field": "variations", "headerName": "Variations", "type": "numericColumn", "width": 105},
+    {"field": "title", "headerName": "Idea", "minWidth": 140, "flex": 1.5},
+    {"field": "filename", "headerName": "File", "minWidth": 120, "flex": 1},
+    {"field": "market", "headerName": "Market", "flex": .6},
+    {"field": "validation", "headerName": "Check", "minWidth": 110, "flex": .8},
+    {"field": "variations", "headerName": "Variations", "type": "numericColumn", "flex": .6},
 ]
 
 
@@ -62,48 +64,55 @@ def not_submittable_reason(row: dict[str, Any]) -> str:
     return "The file has errors, so it cannot be submitted." + detail
 
 
-def _icon(name: str) -> html.Span: return html.Span(GLYPHS[name], className="icon", **{"aria-hidden": "true"})
-def _rail(name: str, label: str, item_id: str, *, active: bool=False, disabled: bool=False): return dmc.Tooltip(dmc.ActionIcon(_icon(name), id=item_id, className=f"rail-item{' active' if active else ''}", variant="subtle", disabled=disabled, **{"aria-label": label}), label=label, position="right", withArrow=True, openDelay=300)
-
-
 def _line(label: str, value: Any, suffix: Any = "") -> html.Div:
     return html.Div([html.Span(label), html.Strong(value), html.Span(suffix)], className="candidate-evidence-item")
+
+
+def _head(title: str, subtitle: str, *extra: Any) -> html.Div:
+    return html.Div([html.Div([html.H3(title), html.P(subtitle)]), *extra], className="panel-head")
 
 
 def _batch_panel(*, gateway_ready: bool) -> html.Div:
     upload = dcc.Upload(
         id="submit-upload",
-        children=html.Div([_icon("upload"), html.H3("Choose a Candidate package"), html.P("JSON, JSONL, YAML, or ZIP · validated in memory · 5 MB limit"), dmc.Button("Choose package", className="ghost", variant="default")]),
+        children=dmc.Stack([DashIconify(icon="tabler:upload", width=22), dmc.Text("Drop a file here, or click to choose one", size="sm"), dmc.Text("JSON, JSONL, YAML or ZIP · up to 5 MB · checked here, not saved", size="xs", c="dimmed")], align="center", gap=4, py="lg"),
         accept=".json,.jsonl,.yaml,.yml,.zip", multiple=False, className="submit-upload-zone",
     )
-    summary = html.Div([html.Div([html.Span(label), html.Strong("0", id=item_id, className=tone)]) for label,item_id,tone in [("Definitions","submit-count",""),("Valid","submit-valid","positive"),("Needs attention","submit-attention","warning"),("Review ready","submit-ready","positive")]], className="submit-summary-grid")
-    grid = dag.AgGrid(id="submit-grid", columnDefs=SUBMIT_COLUMNS, rowData=[], defaultColDef={"sortable": True, "resizable": True, "filter": True}, dashGridOptions={"rowSelection":{"mode":"singleRow","enableClickSelection":True}}, className="ag-theme-quartz-dark submit-grid")
-    left = dmc.Paper([html.Div([html.Div([html.H3("Batch package"),html.P("QF Candidate v1 packets using the published portable contract")])],className="panel-head"),upload,summary,html.Div([html.Div([html.Span("Projected variations"),html.Strong("0 / 250,000",id="submit-variations")],className="line"),dmc.Progress(id="submit-budget",value=0,color="blue",size="sm"),html.P("Validation and intake do not authorize research execution",className="muted tiny")],className="submit-budget"),grid],className="panel submit-package",radius="md")
-    right = dmc.Paper([html.Div([html.Div([html.H3("Validation and intake"),html.P("Canonical intake is separate from research execution")])],className="panel-head"),html.Div([_line("Intake contract","QF Candidate v1","Accepted"),_line("Authenticated gateway","Available" if gateway_ready else "Unavailable","Audited" if gateway_ready else "Retry later"),_line("Research campaign","None active","Execution disabled"),html.Div([html.Strong("Current safety boundary"),html.P("Candidates may be validated and persisted. No Candidate can launch until an executable campaign passes its adapter preflight.")],className="submit-mandate"),html.H3("Validation detail"),html.Div("Load a package to validate its definitions before canonical intake.",id="submit-issues",className="submit-empty"),html.Div(id="submit-canonical-result",className="candidate-explanation")],className="side-body")],className="panel submit-policy",radius="md")
+    summary = html.Div([html.Div([html.Span(label), html.Strong("0", id=item_id, className=tone)]) for label,item_id,tone in [("Ideas","submit-count",""),("Valid","submit-valid","positive"),("Need fixing","submit-attention","warning"),("Ready to submit","submit-ready","positive")]], className="submit-summary-grid")
+    budget = dmc.Stack([dmc.Group([dmc.Text("Variations to test", size="xs", c="dimmed"), dmc.Text("0 / 250,000", id="submit-variations", size="xs")], justify="space-between"), dmc.Progress(id="submit-budget", value=0, size="sm")], gap=4, p="md")
+    grid = dag.AgGrid(id="submit-grid", columnDefs=SUBMIT_COLUMNS, rowData=[], defaultColDef=COLUMN_DEFAULTS, eventListeners=hide_when_narrow("filename", "market", "variations"), dashGridOptions=grid_options("Choose a file to list its ideas here.", rowSelection={"mode":"singleRow","enableClickSelection":True,"checkboxes":False}), className="submit-grid", columnSize="responsiveSizeToFit")
+    left = dmc.Paper([_head("Upload a file", "Ideas written in the QF Candidate v1 format"), upload, summary, budget, grid], className="panel submit-package")
+    right = dmc.Paper([_head("Checks", "What happens when you press Submit"), html.Div([
+        _line("File format", "QF Candidate v1", "Supported"),
+        _line("Submission service", "Available" if gateway_ready else "Unavailable", "" if gateway_ready else "Try again later"),
+        _line("Testing", "Not running"),
+        dmc.Alert("Submitting saves your ideas. Testing starts only when a test campaign is switched on.", variant="light", color="gray", my="sm"),
+        dmc.Title("Problems found", order=5),
+        html.Div("Choose a file to check it.", id="submit-issues", className="submit-empty"),
+        html.Div(id="submit-canonical-result"),
+    ], className="side-body")], className="panel submit-policy")
     return html.Div([left,right],id="submit-batch",className="submit-workspace")
 
 
 def _manual_panel(*, gateway_ready: bool) -> html.Div:
-    editor = dmc.Paper([html.Div([html.Div([html.H3("Manual Candidate definition"),html.P("Paste one provider-neutral QF Candidate v1 packet")]),dmc.SegmentedControl(id="submit-manual-format",value="yaml",data=[{"value":"yaml","label":"YAML"},{"value":"json","label":"JSON"}],size="xs")],className="panel-head"),dmc.Textarea(id="submit-manual-text",value="",placeholder="Paste a QF Candidate v1 YAML or JSON packet…",autosize=False,className="submit-editor"),dmc.Group([dmc.Button("Load example",id="submit-load-example",className="ghost",variant="default"),dmc.Button("Validate definition",id="submit-manual-validate",className="ghost",variant="default"),dmc.Button("Submit immutable Candidate",id="submit-manual-canonical",disabled=not gateway_ready,className="primary")],gap=8,className="submit-editor-actions"),html.Div(id="submit-manual-submit-result",className="submit-api-result")],className="panel",radius="md")
-    parsed = dmc.Paper([html.Div([html.Div([html.H3("Parsed research contract"),html.P("Review before anything enters the factory")]),dmc.Badge("Draft",id="submit-manual-state",color="yellow",variant="light")],className="panel-head"),html.Div(id="submit-manual-result",children=[html.Div("No definition validated.",className="submit-empty")],className="side-body")],className="panel",radius="md")
+    editor = dmc.Paper([_head("Paste one idea", "YAML or JSON in the QF Candidate v1 format", dmc.SegmentedControl(id="submit-manual-format",value="yaml",data=[{"value":"yaml","label":"YAML"},{"value":"json","label":"JSON"}],size="xs")),dmc.Textarea(id="submit-manual-text",value="",placeholder="Paste one idea as YAML or JSON…",autosize=False,className="submit-editor"),dmc.Group([dmc.Button("Load example",id="submit-load-example",variant="default"),dmc.Button("Check",id="submit-manual-validate",variant="default"),dmc.Button("Submit",id="submit-manual-canonical",disabled=not gateway_ready)],gap=8,className="submit-editor-actions"),html.Div(id="submit-manual-submit-result",className="submit-api-result")],className="panel")
+    parsed = dmc.Paper([_head("What the idea says", "Check this before you submit", dmc.Badge("Draft",id="submit-manual-state",color="yellow")),html.Div(id="submit-manual-result",children=[html.Div("Nothing checked yet.",className="submit-empty")],className="side-body")],className="panel")
     return html.Div([editor,parsed],id="submit-manual",className="submit-workspace",style={"display":"none"})
 
 
 def _api_panel(status: dict[str, Any]) -> html.Div:
     gateway_ready = bool(status.get("ok"))
-    info = dmc.Paper([html.Div([html.Div([html.H3("LLM and API intake"),html.P("Machine submissions use the same Candidate contract and validation gates")]),dmc.Badge("Gateway ready" if gateway_ready else "Gateway unavailable",color="green" if gateway_ready else "red",variant="light")],className="panel-head"),html.Div([_line("Boundary","Private Agent Research Gateway","Authenticated" if gateway_ready else "Unavailable"),_line("Schema","qf_candidate_v1",dcc.Clipboard(id="submit-copy-schema",content="qf_candidate_v1")),_line("Authentication","Transport-bound machine identity","Required"),_line("Idempotency","One content-bound request identity","Enforced"),_line("Research execution","No active campaign","Disabled")],className="side-body")],className="panel",radius="md")
-    recent = dmc.Paper([html.Div([html.Div([html.H3("Machine intake status"),html.P("Exact source, validation, and resulting Candidate IDs")])],className="panel-head"),html.Div([html.Div("Use the authenticated gateway client for provider-neutral machine submissions.",className="submit-empty"),dmc.Button("Validate repository example",id="submit-api-validate",className="primary"),html.Div(id="submit-api-result",className="submit-api-result")],className="side-body")],className="panel",radius="md")
+    info = dmc.Paper([_head("Send from a program", "Programs and AI assistants use the same format and checks", dmc.Badge("Service ready" if gateway_ready else "Service unavailable",color="green" if gateway_ready else "red")),html.Div([_line("Service","Private research gateway","Signed in" if gateway_ready else "Unavailable"),_line("Format","qf_candidate_v1",dcc.Clipboard(id="submit-copy-schema",content="qf_candidate_v1")),_line("Sign-in","Each program has its own identity","Required"),_line("Duplicates","Sending the same idea twice is ignored"),_line("Testing","Not running")],className="side-body")],className="panel")
+    recent = dmc.Paper([_head("Try it", "Check the example idea that ships with the code"),html.Div([html.Div("Programs send ideas through the gateway client.",className="submit-empty"),dmc.Button("Check the example",id="submit-api-validate"),html.Div(id="submit-api-result",className="submit-api-result")],className="side-body")],className="panel")
     return html.Div([info,recent],id="submit-api",className="submit-workspace",style={"display":"none"})
 
 
-def submit_layout() -> dmc.MantineProvider:
+def submit_layout() -> html.Div:
     status=gateway_status(); gateway_ready=bool(status.get("ok"))
-    nav=dmc.Stack([dmc.Paper("Q",className="logo",radius="md"),_rail("dashboard","Dashboard","submit-nav-dashboard"),_rail("file","Submit strategies","submit-nav-submit",active=True),_rail("flow","Factory runs","submit-nav-factory"),_rail("list","Candidates","submit-nav-candidates"),_rail("chart","Results","submit-nav-results"),html.Div(className="rail-spacer"),_rail("external","Paper Trading","submit-nav-paper"),dmc.Avatar("TO",className="avatar",radius="xl")],gap=7,align="center",className="rail")
-    header=dmc.Group([html.Div([dmc.Title("Submit strategies",order=1),dmc.Text("Manual, batch, and machine intake",className="eyebrow")]),html.Div(className="top-spacer"),dmc.Button("Download starter kit",id="submit-download",className="ghost",variant="default"),dmc.Button("Submit valid Candidates",id="submit-canonical",disabled=True,className="primary")],gap=9,className="topbar")
-    modes=dmc.Group([dmc.SegmentedControl(id="submit-mode",value="batch",data=[{"value":"manual","label":"Manual"},{"value":"batch","label":"Batch upload"},{"value":"api","label":"LLM / API"}],className="candidate-tabs"),html.Div(className="top-spacer"),dmc.Text("Validation precedes authenticated, audited, idempotent canonical intake",className="candidate-context")],className="candidate-filters submit-toolbar")
+    header=page_header("Submit ideas","Upload a file, paste one idea, or send them from a program",dmc.Button("Download starter kit",id="submit-download",variant="default"),dmc.Button("Submit",id="submit-canonical",disabled=True))
+    modes=dmc.SegmentedControl(id="submit-mode",value="batch",size="xs",mb="sm",data=[{"value":"manual","label":"Paste one"},{"value":"batch","label":"Upload a file"},{"value":"api","label":"From a program"}])
     body=html.Div([modes,_batch_panel(gateway_ready=gateway_ready),_manual_panel(gateway_ready=gateway_ready),_api_panel(status)],className="body submit-body")
-    return dmc.MantineProvider(html.Div([dcc.Store(id="submit-batch-data"),dcc.Store(id="submit-gateway-ready",data=gateway_ready),dcc.Download(id="submit-download-file"),html.Div([nav,html.Main([header,body],className="main")],className="app submit-app")]),forceColorScheme="dark",theme={"fontFamily":"Inter, ui-sans-serif, sans-serif","primaryColor":"blue"})
-
+    return html.Div([dcc.Store(id="submit-batch-data"),dcc.Store(id="submit-gateway-ready",data=gateway_ready),dcc.Download(id="submit-download-file"),header,body],className="submit-app")
 
 def register_submit_callbacks(application: Any) -> None:
     @application.callback(Output("submit-batch","style"),Output("submit-manual","style"),Output("submit-api","style"),Input("submit-mode","value"))
@@ -117,15 +126,15 @@ def register_submit_callbacks(application: Any) -> None:
         data=data or {}; rows=data.get("rows") or []
         grid=[{**row,"validation":("Valid" if row.get("review_ready") else "Valid, cannot submit yet") if row.get("valid") else "Needs attention"} for row in rows]
         issues=[issue for row in rows for issue in row.get("issues",[]) if issue.get("severity") in {"error","warning"}]
-        detail=[html.Div([html.Strong(not_submittable_reason(row) or row.get("title",""))],className="submit-issue") for row in rows if row.get("valid") and not row.get("review_ready")][:4]+[html.Div([html.Strong(f"{issue['path']} · {issue['severity'].title()}"),html.P(issue["message"])],className="submit-issue") for issue in issues[:8]] or html.Div("No validation issues." if rows else "Load a package to validate its definitions without changing canonical state.",className="submit-empty")
+        detail=[html.Div([html.Strong(not_submittable_reason(row) or row.get("title",""))],className="submit-issue") for row in rows if row.get("valid") and not row.get("review_ready")][:4]+[html.Div([html.Strong(f"{issue['path']} · {issue['severity'].title()}"),html.P(issue["message"])],className="submit-issue") for issue in issues[:8]] or html.Div("No validation issues." if rows else "Choose a file to check it. Nothing is saved until you press Submit.",className="submit-empty")
         variations=int(data.get("variations") or 0)
         return grid,str(data.get("definitions",0)),str(data.get("valid",0)),str(data.get("needs_attention",0)),str(data.get("ready",0)),f"{variations:,} / 250,000",min(100,variations/2500),detail
 
     @application.callback(Output("submit-canonical","disabled"),Output("submit-canonical","children"),Input("submit-batch-data","data"),Input("submit-gateway-ready","data"))
     def canonical_button(data,gateway_ready):
         ready=int((data or {}).get("ready") or 0)
-        if not gateway_ready: return True,"Gateway unavailable"
-        return ready == 0, f"Submit {ready:,} valid Candidate" + ("s" if ready != 1 else "")
+        if not gateway_ready or ready == 0: return True,"Submit"
+        return False, f"Submit {ready:,} idea" + ("s" if ready != 1 else "")
 
     @application.callback(Output("submit-canonical-result","children"),Input("submit-canonical","n_clicks"),State("submit-batch-data","data"),prevent_initial_call=True)
     def submit_batch(clicks,data):
@@ -138,7 +147,7 @@ def register_submit_callbacks(application: Any) -> None:
         children=[]
         children.extend(submitted_notice(item.get("result") or {}) for item in accepted)
         children.extend(html.Div(message,className="submit-issue") for message in failures)
-        return children or "No review-ready Candidate was submitted."
+        return children or "No idea was ready to submit."
 
     @application.callback(Output("submit-manual-text","value"),Input("submit-load-example","n_clicks"),prevent_initial_call=True)
     def example(clicks): return candidate_example() if clicks else no_update
@@ -148,7 +157,7 @@ def register_submit_callbacks(application: Any) -> None:
         if not clicks: return no_update,no_update,no_update
         row=validate_candidate_text(text or "",filename=f"candidate.{format_name or 'yaml'}")
         issues=row.get("issues") or []
-        children=[_line("Candidate",row.get("title"),"Parsed"),_line("Markets",row.get("market"),""),_line("Variations",f"{int(row.get('variations') or 0):,}","Bounded"),_line("Review readiness","Ready" if row.get("review_ready") else "Needs attention","")]
+        children=[_line("Idea",row.get("title"),""),_line("Markets",row.get("market"),""),_line("Variations",f"{int(row.get('variations') or 0):,}",""),_line("Ready to submit","Yes" if row.get("review_ready") else "Needs fixing","")]
         children += [html.Div([html.Strong(f"{item['path']} · {item['severity'].title()}"),html.P(item["message"])],className="submit-issue") for item in issues[:6]]
         return ("Valid" if row.get("valid") else "Invalid"),("green" if row.get("valid") else "red"),children
 
@@ -168,7 +177,7 @@ def register_submit_callbacks(application: Any) -> None:
     def api_example(clicks):
         if not clicks: return no_update
         row=validate_candidate_text(candidate_example(),filename="repository-example.json")
-        return f"Repository example validated: {'valid and review ready' if row.get('review_ready') else 'attention required'} · {int(row.get('variations') or 0):,} variations. Nothing persisted."
+        return f"Example checked: {'valid and ready to submit' if row.get('review_ready') else 'needs fixing'} · {int(row.get('variations') or 0):,} variations. Nothing was saved."
 
     @application.callback(Output("submit-download-file","data"),Input("submit-download","n_clicks"),prevent_initial_call=True)
     def download(clicks): return dcc.send_string(starter_kit_json(),"qf-candidate-v1-starter-kit.json") if clicks else no_update

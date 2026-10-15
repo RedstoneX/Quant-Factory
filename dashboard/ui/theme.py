@@ -7,6 +7,9 @@ page should restate colours, sizes or radii.
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 import plotly.graph_objects as go
 import plotly.io as pio
 
@@ -64,3 +67,38 @@ QF_TEMPLATE.layout.update(
 )
 pio.templates["qf"] = QF_TEMPLATE
 pio.templates.default = "qf"
+
+# AG Grid Theming API: every grid passes this as dashGridOptions["theme"]; dash-ag-grid evaluates the function string.
+AG_GRID_THEME = {"function": "themeQuartz.withParams(" + json.dumps({
+    "browserColorScheme": "dark", "backgroundColor": PANEL, "foregroundColor": TEXT, "chromeBackgroundColor": PANEL,
+    "headerBackgroundColor": PANEL, "headerTextColor": MUTED, "headerFontWeight": 500, "borderColor": BORDER,
+    "accentColor": ACCENT, "oddRowBackgroundColor": PANEL, "fontFamily": FONT_FAMILY, "fontSize": 12,
+    "headerFontSize": 12, "rowHeight": 32, "headerHeight": 32, "wrapperBorder": False, "spacing": 6,
+    "cellHorizontalPaddingScale": 0.75,
+}) + ")"}
+
+
+# Columns share the panel width: long headers wrap instead of widening a column.
+COLUMN_DEFAULTS = {"resizable": True, "sortable": True, "wrapHeaderText": True, "autoHeaderHeight": True, "minWidth": 70}
+NARROW_GRID_PX = 576  # Mantine "sm" breakpoint (36em)
+
+
+def grid_options(empty: str, **options: Any) -> dict[str, Any]:
+    """dashGridOptions: shared theme and a plain sentence when there are no rows.
+
+    Pair with columnSize="responsiveSizeToFit" and flex columns so the grid fits its panel.
+    The sentence goes through AG Grid's locale text: dash-ag-grid blocks HTML overlay templates.
+    """
+    return {"theme": AG_GRID_THEME, "localeText": {"noRowsToShow": empty}, **options}
+
+
+def hide_when_narrow(*col_ids: str) -> dict[str, list[str]]:
+    """AgGrid eventListeners: hide low-priority columns while the grid is narrower than the phone breakpoint.
+
+    dash-ag-grid attaches listeners after the first size event, so the first rows loaded also apply the rule.
+    """
+    cols = json.dumps(list(col_ids))
+    return {
+        "gridSizeChanged": [f"params.api.setColumnsVisible({cols}, params.clientWidth >= {NARROW_GRID_PX})"],
+        "modelUpdated": [f"params.api.setColumnsVisible({cols}, params.api.getHorizontalPixelRange().right - params.api.getHorizontalPixelRange().left >= {NARROW_GRID_PX})"],
+    }
