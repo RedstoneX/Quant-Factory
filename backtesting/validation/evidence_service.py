@@ -294,10 +294,7 @@ class ValidationEvidenceArtifactService:
             if source_lock.artifact_kind == "out_of_sample":
                 source_locks.append(source_lock)
         if len(source_locks) != 1:
-            raise ValueError(
-                "out-of-sample run must contain exactly one valid source-lock artifact"
-                + (": " + " | ".join(rejected) if rejected else "")
-            )
+            raise ValueError("out-of-sample run has no single valid source-lock artifact: " + " | ".join(rejected))
         source_lock = source_locks[0]
         if not self._configuration_allows_locked_parameters(
             document.get("parameters"), source_lock.locked_parameters
