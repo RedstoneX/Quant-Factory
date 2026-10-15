@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import tomllib
 from typing import Any
@@ -15,7 +16,9 @@ import pandas as pd
 from market_data.bar_outliers import METHOD as SUSPECT_BAR_METHOD, flag_suspect_bars
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "data_locations.local.toml"
+# QUANT_FACTORY_DATA_LOCATIONS (the variable the Alpaca CLI already honours) lets a host process, such as the
+# dashboard service, use host paths instead of the container paths in the release's local file.
+DEFAULT_CONFIG_PATH = Path(os.environ.get("QUANT_FACTORY_DATA_LOCATIONS") or PROJECT_ROOT / "config" / "data_locations.local.toml")
 DEFAULT_MANIFEST_DIR = PROJECT_ROOT / "data" / "manifests"
 ALLOWED_STATUSES = frozenset(
     {"validated", "provisional", "quarantined", "superseded"}
