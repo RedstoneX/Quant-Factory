@@ -18,7 +18,8 @@ from backtesting.experiments.models import (
     ExperimentResult,
     RejectedParameters,
 )
-from backtesting.experiments.metrics import extract_metrics, extract_sweep_metrics
+from backtesting.experiments.chunking import setting_portfolio as _setting_portfolio, simulate_in_chunks
+from backtesting.experiments.metrics import extract_metrics
 from backtesting.experiments.windows import cut_to_window, generate_signals_once
 from backtesting.validation.gates import (
     normalize_signals,
@@ -205,15 +206,6 @@ def _construct_portfolio(
     )
 
 
-def _setting_portfolio(portfolio: Any, position: int) -> Any:
-    """One setting's column of a one-pass portfolio (VectorBT PRO pf.iloc[:, i]).
-
-    An engine object without column indexing holds a single setting and is returned as is.
-    """
-    indexer = getattr(portfolio, "iloc", None)
-    return portfolio if indexer is None else indexer[:, position]
-
-
 def _whole_share_args(execution: ExecutionConfig) -> dict[str, Any]:
     # size=np.inf buys with all cash; size_granularity=1.0 floors each order to whole
     # shares ("granularity of 1.0 makes the quantity to behave like an integer. Placing
@@ -380,15 +372,6 @@ def _result_columns(config: ExperimentConfig, parameter_names: tuple[str, ...]) 
     )
 
 
-def _value_columns(portfolio: Any, count: int) -> list[np.ndarray | None]:
-    """Each setting's value from one read of the sweep's value; None if the engine has none."""
-    value = getattr(portfolio, "value", None)
-    value = value() if callable(value) else value
-    if not isinstance(value, pd.DataFrame) or value.shape[1] != count:
-        return [None] * count
-    return [value.iloc[:, position].to_numpy(dtype=float) for position in range(count)]
-
-
 def _record_luck(
     value_columns: list[np.ndarray | None], initial_cash: float
 ) -> DeflatedSharpeResult | None:
@@ -469,11 +452,9 @@ def execute_experiment(
 
     # Every validated setting is one column of a single VectorBT simulation.
     aligned_settings = tuple(aligned for _, aligned, _ in settings)
-    sweep = _construct_portfolio(data, aligned_settings, config) if settings else None
-    sweep_metrics = (
-        extract_sweep_metrics(sweep, len(settings), data=data, config=config) if settings else []
+    sweep_metrics, value_columns, observed = simulate_in_chunks(
+        data, aligned_settings, config, _construct_portfolio, keep_portfolios=portfolio_observer is not None
     )
-    value_columns = _value_columns(sweep, len(settings))
     for position, (normalized, _, validation_results) in enumerate(settings):
         metrics = sweep_metrics[position]
         screening = screen_metrics(
@@ -487,7 +468,7 @@ def execute_experiment(
         )
         screening_results.append(screening)
         if portfolio_observer is not None:
-            portfolio_observer(screening.parameter_row_id, _setting_portfolio(sweep, position))
+            portfolio_observer(screening.parameter_row_id, observed[position])
         rows.append(
             _parameter_row(normalized, config)
             | metrics

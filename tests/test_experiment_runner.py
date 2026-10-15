@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
+import backtesting.experiments.chunking as chunking_module
 import backtesting.experiments.runner as runner_module
 import backtesting.experiments.metrics as metrics_module
 import backtesting.run_rsi_demo as demo
@@ -132,7 +133,7 @@ def _install_portable_runner_boundaries(
         lambda data, aligned, config: object(),
     )
     monkeypatch.setattr(
-        runner_module,
+        chunking_module,
         "extract_sweep_metrics",
         lambda portfolio, count, **kwargs: count * [{
             "total_return": 0.10,
@@ -539,7 +540,7 @@ def test_ranking_is_deterministic_on_ties(
         ),
     )
     monkeypatch.setattr(
-        runner_module,
+        chunking_module,
         "extract_sweep_metrics",
         lambda portfolio, count, **kwargs: count * [{
             "total_return": 1.0,

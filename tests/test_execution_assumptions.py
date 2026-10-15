@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+import backtesting.experiments.chunking as chunking_module
 import backtesting.experiments.runner as runner_module
 from backtesting.execution_comparison import build_execution_comparison
 from backtesting.experiments import (
@@ -132,7 +133,7 @@ def _install_portable_runner_boundaries(
         lambda data, aligned, config: object(),
     )
     monkeypatch.setattr(
-        runner_module,
+        chunking_module,
         "extract_sweep_metrics",
         lambda portfolio, count, **kwargs: count * [{
             "total_return": 0.10,

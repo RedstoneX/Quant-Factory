@@ -5,6 +5,7 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
+import backtesting.experiments.chunking as chunking_module
 import backtesting.experiments.runner as experiment_runner
 from backtesting.experiments import SignalResult, execute_experiment
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
@@ -197,7 +198,7 @@ def test_experiment_preserves_passing_and_screened_rows(
         ]
     )
     monkeypatch.setattr(
-        experiment_runner, "extract_sweep_metrics",
+        chunking_module, "extract_sweep_metrics",
         lambda portfolio, count, **kwargs: [next(produced) for _ in range(count)],
     )
     config = replace(
@@ -225,7 +226,7 @@ def test_invalid_parameters_remain_distinct_from_screening_failures(
 ) -> None:
     _install_portable_runner_boundaries(monkeypatch)
     monkeypatch.setattr(
-        experiment_runner, "extract_sweep_metrics", lambda portfolio, count, **kwargs: count * [_metrics()]
+        chunking_module, "extract_sweep_metrics", lambda portfolio, count, **kwargs: count * [_metrics()]
     )
     config = replace(
         EXPERIMENT_CONFIG,
@@ -261,7 +262,7 @@ def test_screening_occurs_after_simulation_and_metrics(
         return real_screen(**kwargs)
 
     monkeypatch.setattr(experiment_runner, "_construct_portfolio", fake_construct)
-    monkeypatch.setattr(experiment_runner, "extract_sweep_metrics", fake_metrics)
+    monkeypatch.setattr(chunking_module, "extract_sweep_metrics", fake_metrics)
     monkeypatch.setattr(experiment_runner, "screen_metrics", tracking_screen)
     config = replace(
         EXPERIMENT_CONFIG,
@@ -279,7 +280,7 @@ def test_complete_output_contains_screening_columns(
 ) -> None:
     _install_portable_runner_boundaries(monkeypatch)
     monkeypatch.setattr(
-        experiment_runner, "extract_sweep_metrics", lambda portfolio, count, **kwargs: count * [_metrics()]
+        chunking_module, "extract_sweep_metrics", lambda portfolio, count, **kwargs: count * [_metrics()]
     )
     config = replace(
         EXPERIMENT_CONFIG,

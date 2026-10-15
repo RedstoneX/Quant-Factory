@@ -39,6 +39,8 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_experiment_runner.py::test_portfolio_metrics_and_result_provenance",
         "tests/test_parameter_sweep_one_pass.py::test_experiment_outputs_equal_one_simulation_per_setting",
         "tests/test_parameter_sweep_one_pass.py::test_one_pass_columns_equal_single_setting_portfolios",
+        "tests/test_runner_memory.py::test_chunked_sweep_is_identical_to_one_call",
+        "tests/test_runner_memory.py::test_locked_column_equals_resimulating_the_locked_setting",
         "tests/test_milestone21c_spym_fixture.py::test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades",
         "tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage",
         "tests/test_rsi_mean_reversion.py::test_common_interface_signal_result_matches_preserved_rsi_rules",
