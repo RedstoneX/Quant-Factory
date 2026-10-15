@@ -286,9 +286,11 @@ def _traded_sessions(frame: pd.DataFrame, schedule: pd.DataFrame, bar: str = "5m
         if session_open.tz_convert(SESSION_TIMEZONE).strftime("%H:%M") != "09:30":
             continue
         expected = pd.date_range(session_open, session_close, freq=pd.Timedelta(minutes=BAR_MINUTES[bar]), inclusive="left")
-        if not expected.isin(frame.index).all():
+        # get_indexer reuses the index's cached lookup; isin rebuilt it for every session.
+        positions = frame.index.get_indexer(expected)
+        if (positions < 0).any():
             continue
-        day = frame.loc[expected, list(_REQUIRED_FIELDS)]
+        day = frame.iloc[positions][list(_REQUIRED_FIELDS)]
         values = day.to_numpy(dtype=float)
         if not np.isfinite(values).all() or (values <= 0).any():
             continue
