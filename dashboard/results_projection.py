@@ -13,7 +13,7 @@ import pandas as pd
 
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_model import group_trade_rows, prepare_interval
-from dashboard.formatting import format_metric
+from dashboard.formatting import format_metric, profit_factor
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter, _candidate_trade_rows
 from dashboard.time_display import eastern_label, eastern_plot_timestamp, eastern_session
 
@@ -263,7 +263,7 @@ def load_screening_configuration_evidence(
                 f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
                 if group.entry and group.exit else "—"
             ),
-            "pnl": group.pnl,
+            "pnl": None if group.pnl is None else round(float(group.pnl), 2),
             "outcome": (group.outcome or group.status).replace("_", " ").title(),
             "status": group.status,
         }
@@ -371,6 +371,45 @@ def _oos_metric_fields(database: Path, run: dict[str, Any]) -> list[dict[str, st
     ]
 
 
+def oos_chart_target(*, database: Path, run_id: str | None) -> dict[str, Any] | None:
+    """The first-check setting an unseen-data run traded, and its test dates, so the chart can be rebuilt."""
+    if not run_id:
+        return None
+    report = _artifact_document(database=database, run_id=run_id, logical_name=OOS_REPORT_LOGICAL_NAME)
+    shortlist = (report or {}).get("shortlist_parameters")
+    test = ((report or {}).get("split") or {}).get("test") or {}
+    connection, _error = _validated_connection(database)
+    if connection is None or not shortlist or not test.get("start") or not test.get("end"):
+        return None
+    try:
+        source = connection.execute(
+            "SELECT json_extract(environment_json, '$.filter_handoff.source_run_id') FROM experiment_runs WHERE run_id=?",
+            [run_id],
+        ).fetchone()
+        if not source or not source[0]:
+            return None
+        for row in connection.execute(
+            "SELECT row_id, normalized_parameters_json FROM parameter_results WHERE run_id=?", [source[0]]
+        ):
+            if json.loads(row["normalized_parameters_json"]) == shortlist[0]:
+                return {"source_run_id": source[0], "row_id": row["row_id"], "start": test["start"], "end": test["end"]}
+    except (sqlite3.Error, ValueError, TypeError):
+        return None
+    finally:
+        connection.close()
+    return None
+
+
+def _with_profit_factor(metrics: list[dict[str, str]], pnls: list[Any]) -> list[dict[str, str]]:
+    """Add Profit Factor from the trades shown when the run did not record one."""
+    if any(item["label"] == "Profit Factor" and item["value"] != "—" for item in metrics):
+        return metrics
+    factor = profit_factor(pnls)
+    if factor is None:
+        return metrics
+    return [item for item in metrics if item["label"] != "Profit Factor"] + [{"label": "Profit Factor", "value": f"{factor:.2f}"}]
+
+
 def load_results_record(
     run_id: str | None = None,
     *,
@@ -424,7 +463,7 @@ def load_results_record(
                     f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
                     if group.entry and group.exit else "—"
                 ),
-                "pnl": group.pnl,
+                "pnl": None if group.pnl is None else round(float(group.pnl), 2),
                 "outcome": (group.outcome or group.status).replace("_", " ").title(),
                 "status": group.status,
             }
@@ -435,7 +474,11 @@ def load_results_record(
             "message": "Saved results for this run loaded.",
             "run": run,
             "runs": runs,
-            "metrics": _fields(evidence.metrics) or _oos_metric_fields(database_path, run),
+            "metrics": _with_profit_factor(
+                _fields(evidence.metrics) or _oos_metric_fields(database_path, run),
+                [group.pnl for group in grouped.groups],
+            ),
+            "oos_chart": oos_chart_target(database=database_path, run_id=run["run_id"]) if run.get("stage") == "oos" else None,
             "trades": trades,
             "trade_count": len(grouped.groups),
             "trade_limit": TRADE_LIMIT,
@@ -469,7 +512,7 @@ def load_results_record(
     except (KeyError, RuntimeError, ValueError, OSError) as exc:
         return {
             "available": False,
-            "message": f"Saved results are unavailable: {exc}",
+            "message": "Saved results for this run could not be loaded.",
             "run": run,
             "runs": runs,
             "screening_rows": screening_rows,

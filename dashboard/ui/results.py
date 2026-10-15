@@ -30,19 +30,57 @@ from dashboard.results_projection import (
 )
 
 
+MONEY_JS = "params.value == null ? '—' : (params.value < 0 ? '-$' : '$') + Math.abs(params.value).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})"
+SCORE_NOTES = (
+    "Share of the rolling test periods that made money. Higher is steadier.",
+    "Average return per unit of risk across those periods. Above 0 is good.",
+    "Whether it still worked with worse costs and shuffled trades.",
+    "Chance the result is skill, not luck from trying many settings. Higher is better.",
+    "Chance it only looks good because it was picked from many settings. Lower is better.",
+)
+SCORES_NOTE = "Scores are information, not pass marks — paper trading is the final test."
+CHART_UNAVAILABLE = "The price chart for this run is not available right now."
+
+
+def settings_tried_line(total: int, screened_out: int) -> str:
+    """Count line for the settings table, true to the rows of the run being shown."""
+    if total and screened_out == total:
+        return f"{total:,} settings tried · all screened out"
+    passed = total - screened_out
+    return f"{total:,} settings tried · {passed:,} passed" + (f", {screened_out:,} screened out" if screened_out else "")
+
+
+def _weak_scores(scores: dict[str, Any]) -> bool:
+    return (
+        scores.get("rolling_status") == "failed" or scores.get("stress_status") == "failed"
+        or (scores.get("luck") is not None and scores["luck"] < 0.5)
+        or (scores.get("overfitting") is not None and scores["overfitting"] > 0.5)
+    )
+
+
+def explained_score_cards(scores: dict[str, Any] | None, *, passed: bool) -> list[Any]:
+    """Score tiles with a plain line under each; a weak score on a passed idea gets the reminder once."""
+    cards = score_cards(scores)
+    for card, note in zip(cards, SCORE_NOTES):
+        card.children.children.append(dmc.Text(note, size="xs", c="dimmed"))
+    if passed and _weak_scores(scores or {}):
+        cards.append(dmc.Text(SCORES_NOTE, size="xs", c="yellow.5", style={"gridColumn": "1 / -1"}))
+    return cards
+
+
 TRADE_COLUMNS = [
     {"field": "trade_id", "headerName": "Trade", "minWidth": 70, "flex": .6},
     {"field": "direction", "headerName": "Side", "minWidth": 70, "flex": .6},
     {"field": "entry_display", "headerName": "Entry (Eastern)", "minWidth": 130, "flex": 1.4},
     {"field": "exit_display", "headerName": "Exit (Eastern)", "minWidth": 130, "flex": 1.4},
     {"field": "duration", "headerName": "Duration", "minWidth": 80, "flex": .8},
-    {"field": "pnl", "headerName": "Profit or loss", "type": "numericColumn", "minWidth": 90, "cellStyle": {"styleConditions": [{"condition": "params.value > 0", "style": {"color": UP}}, {"condition": "params.value < 0", "style": {"color": DOWN}}]}},
+    {"field": "pnl", "headerName": "Profit or loss", "type": "numericColumn", "minWidth": 90, "valueFormatter": {"function": MONEY_JS}, "cellStyle": {"styleConditions": [{"condition": "params.value > 0", "style": {"color": UP}}, {"condition": "params.value < 0", "style": {"color": DOWN}}]}},
     {"field": "outcome", "headerName": "Outcome", "minWidth": 86, "flex": .8},
 ]
 METRIC_COLUMNS = [
     {"field": "total_return", "headerName": "Net return", "type": "numericColumn", "width": 90, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
     {"field": "sharpe_ratio", "headerName": "Sharpe", "type": "numericColumn", "width": 78, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
-    {"field": "max_drawdown", "headerName": "Biggest drop", "type": "numericColumn", "width": 82, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
+    {"field": "max_drawdown", "headerName": "Max drawdown", "type": "numericColumn", "width": 82, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
     {"field": "number_of_trades", "headerName": "Trades", "type": "numericColumn", "width": 72, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
     {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 76, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
     {"field": "screening_status", "headerName": "Outcome", "width": 134, "valueFormatter": {"function": "params.value === 'screened_out' ? '" + FAILED_TESTING + "' : params.value"}},
@@ -148,7 +186,7 @@ def _configuration_metric_cards(evidence: dict[str, Any]) -> list[Any]:
     values = [
         ("Net return", percentage("total_return"), _signed_color(percentage("total_return"))),
         ("Sharpe", "—" if metrics.get("sharpe_ratio") is None else f"{float(metrics['sharpe_ratio']):.2f}", None),
-        ("Biggest drop", percentage("max_drawdown", absolute=True), "red.4"),
+        ("Max drawdown", percentage("max_drawdown", absolute=True), "red.4"),
         ("Trades", f"{int(metrics.get('number_of_trades') or 0):,}", None),
         ("Win rate", percentage("win_rate"), None),
     ]
@@ -264,7 +302,9 @@ def _register_record_callbacks(application: Any) -> None:
 
     @application.callback(Output("results-scores", "children"), Input("results-record", "data"))
     def render_scores(record: dict[str, Any] | None):
-        return score_cards(load_run_scores(((record or {}).get("run") or {}).get("run_id")))
+        run = (record or {}).get("run") or {}
+        passed = str(run.get("status")) == "succeeded" and not (record or {}).get("screening_rows")
+        return explained_score_cards(load_run_scores(run.get("run_id")), passed=passed)
 
     @application.callback(
         Output("results-run-name", "children"), Output("results-meta", "children"), Output("results-state", "children"), Output("results-state", "color"),
@@ -324,13 +364,13 @@ def _register_configuration_callbacks(application: Any) -> None:
             return _configuration_chart_caption(configuration_evidence, _configuration_identity(selected)), _configuration_metric_cards(configuration_evidence)
         metrics = record.get("metrics") or []
         labels = (
-            ("Best net return", "Total Return", True), ("Sharpe on first check", "Sharpe Ratio", False), ("Biggest drop", "Max Drawdown", False),
+            ("Best net return", "Total Return", True), ("Sharpe on first check", "Sharpe Ratio", False), ("Max drawdown", "Max Drawdown", False),
             ("Trades", "Number Of Trades", False), ("Win rate", "Win Rate", False), ("Profit factor", "Profit Factor", False),
         ) if screening_rows else (
-            ("Net return", "Total Return", True), ("Sharpe on unseen data", "Sharpe Ratio", False), ("Biggest drop", "Max Drawdown", False),
+            ("Net return", "Total Return", True), ("Sharpe on unseen data", "Sharpe Ratio", False), ("Max drawdown", "Max Drawdown", False),
             ("Trades", "Number Of Trades", False), ("Win rate", "Win Rate", False), ("Profit factor", "Profit Factor", False),
         )
-        cards = [_stat(label, _metric_value(metrics, key), _signed_color(_metric_value(metrics, key)) if signed else "red.4" if "drop" in label else None) for label, key, signed in labels]
+        cards = [_stat(label, _metric_value(metrics, key), _signed_color(_metric_value(metrics, key)) if signed else "red.4" if "drawdown" in label else None) for label, key, signed in labels]
         caption = (configuration_evidence.get("message") if screening_rows else None) or str(record.get("price_reason") or "").replace("persisted ", "saved ") or "Scroll to zoom; pick a trade to focus on it"
         return caption, cards
 
@@ -341,7 +381,7 @@ def _register_configuration_callbacks(application: Any) -> None:
         if not screening and session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
         if screening:
             total = int(record.get("screening_count") or 0)
-            return display_settings_rows(rows), _screening_columns(rows), f"{total:,} settings tried · all screened out"
+            return display_settings_rows(rows), _screening_columns(rows), settings_tried_line(total, int(record.get("screened_out_count") or 0))
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
         return rows, TRADE_COLUMNS, f"{total:,} trades" + (f" · showing the first {bounded:,}" if total > bounded else "")
 
@@ -394,8 +434,10 @@ def _tradingview_style(figure: go.Figure) -> None:
             shape.update(line={"color": "#30363d", "width": 1, "dash": "dot"})
 
 
-def window_figure(portfolio: Any, session: str | None, interval: str | None) -> go.Figure:
+def window_figure(portfolio: Any, session: str | None, interval: str | None, bounds: tuple[str, str] | None = None) -> go.Figure:
     """Plot only the selected Eastern session (or the last sessions) of the exact rebuilt portfolio."""
+    if bounds:  # an unseen-data run is drawn only over its own test period
+        portfolio = portfolio.loc[pd.Timestamp(bounds[0], tz="US/Eastern"):pd.Timestamp(bounds[1], tz="US/Eastern") + pd.Timedelta(days=1)]
     index = portfolio.wrapper.index
     if session and session != "all":
         start = pd.Timestamp(session, tz="US/Eastern")
@@ -430,15 +472,17 @@ def _register_figure_callbacks(application: Any) -> None:
     @application.callback(Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"), Input("results-session", "value"), Input("results-bars", "value"))
     def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None) -> Any:
         screening_rows = (record or {}).get("screening_rows")
-        if not screening_rows:
+        oos = (record or {}).get("oos_chart")
+        if not screening_rows and not oos:
             return dcc.Graph(figure=_price_figure(record, (selected_rows or [None])[-1], view or "session", nonce), config=_GRAPH_CONFIG)
+        source_run, row_id = (oos["source_run_id"], oos["row_id"]) if oos else (record["run"]["run_id"], (selected_rows or screening_rows[:1])[-1]["row_id"])
         try:
-            rebuild = rebuild_setting(str(configured_database_path()), record["run"]["run_id"], (selected_rows or screening_rows[:1])[-1]["row_id"])
-        except (SettingRebuildRefused, ValueError, OSError) as error:
-            return dmc.Alert(str(error), color="gray", variant="light", title="Chart not shown")
+            rebuild = rebuild_setting(str(configured_database_path()), source_run, row_id)
+        except (SettingRebuildRefused, ValueError, OSError, KeyError, ImportError):
+            return dmc.Alert(CHART_UNAVAILABLE, color="gray", variant="light", title="Chart not shown")
         if not rebuild.exact:
-            return dmc.Alert(rebuild.reason, color="gray", variant="light", title="Chart not shown")
-        figure = window_figure(rebuild.portfolio, session, interval)
+            return dmc.Alert(CHART_UNAVAILABLE, color="gray", variant="light", title="Chart not shown")
+        figure = window_figure(rebuild.portfolio, session, interval, (oos["start"], oos["end"]) if oos else None)
         figure.update_layout(height=560, width=None, autosize=True, uirevision=f"{selected_rows}-{nonce}")
         figure.update_yaxes(side="right")
         return dcc.Graph(figure=figure, config=_GRAPH_CONFIG, style={"height": "560px"})

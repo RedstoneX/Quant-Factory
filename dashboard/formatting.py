@@ -28,3 +28,18 @@ def format_assumption(name: str, value: Any) -> str:
     if name == "leverage":
         return f"{float(value):g}×"
     return str(value)
+
+
+def format_money(value: Any) -> str:
+    """Dollars with two decimals and a sign on losses, e.g. $64.44 or -$18.98."""
+    if value is None:
+        return "—"
+    amount = round(float(value), 2) + 0.0
+    return f"-${abs(amount):,.2f}" if amount < 0 else f"${amount:,.2f}"
+
+
+def profit_factor(profits: Any) -> float | None:
+    """Gross profit divided by gross loss; None when there is no loss to divide by."""
+    numbers = [float(item) for item in profits if item is not None]
+    loss = -sum(item for item in numbers if item < 0)
+    return sum(item for item in numbers if item > 0) / loss if loss > 0 else None

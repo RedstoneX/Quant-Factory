@@ -15,7 +15,7 @@ METRICS = {
     "sharpe_ratio": "Sharpe",
     "total_return": "Net return %",
     "annualized_return": "Annualised return %",
-    "max_drawdown": "Biggest drop %",
+    "max_drawdown": "Max drawdown %",
     "win_rate": "Win rate %",
     "number_of_trades": "Trades",
 }
