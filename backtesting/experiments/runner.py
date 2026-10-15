@@ -20,6 +20,7 @@ from backtesting.experiments.models import (
 )
 from backtesting.experiments.chunking import setting_portfolio as _setting_portfolio, simulate_in_chunks
 from backtesting.experiments.metrics import extract_metrics
+from backtesting.experiments.windows import cut_to_window, generate_signals_once
 from backtesting.validation.gates import (
     normalize_signals,
     validate_execution,
@@ -394,7 +395,7 @@ def _validated_settings(
     strategy: Any,
     data: pd.DataFrame,
     rejections: list[RejectedParameters],
-    validation_by_gate: dict[str, ValidationResult],
+    validation_by_gate: dict[str, ValidationResult], signal_cache: dict | None = None,
 ) -> list[tuple[dict[str, Any], SignalResult, tuple[ValidationResult, ...]]]:
     """Validate and align every setting (in one pass if the strategy class has ``iter_signals_batch``)."""
     accepted: list[dict[str, Any]] = []
@@ -404,9 +405,7 @@ def _validated_settings(
             accepted.append(strategy.validate_parameters(candidate))
         except (TypeError, ValueError) as exc:
             rejections.append(RejectedParameters(parameters=candidate, error=str(exc)))
-    batch = getattr(type(strategy), "iter_signals_batch", None)
-    one_by_one = (strategy.generate_signals(data, normalized) for normalized in accepted)
-    generated = one_by_one if batch is None else batch(strategy, data, accepted)
+    generated = generate_signals_once(strategy, data, accepted, signal_cache)
     settings = []
     for normalized, signals in zip(accepted, generated):
         aligned, validation_results = validate_for_simulation(
@@ -425,6 +424,7 @@ def execute_experiment(
     run_timestamp: str | None = None,
     write_output: bool = True,
     portfolio_observer: Callable[[str, Any], None] | None = None,
+    evaluation_range: tuple | None = None, signal_cache: dict | None = None,  # see experiments.windows
 ) -> ExperimentResult:
     """Validate, simulate, rank, and optionally persist one experiment."""
     strategy = get_strategy(config.strategy_id)
@@ -447,7 +447,8 @@ def execute_experiment(
     execution_assumptions = _execution_assumptions(config, strategy)
     parameter_names = tuple(strategy.spec.parameter_map)
 
-    settings = _validated_settings(config, strategy, data, rejections, validation_by_gate)
+    settings = _validated_settings(config, strategy, data, rejections, validation_by_gate, signal_cache)
+    data, settings = cut_to_window(data, settings, evaluation_range)
 
     # Every validated setting is one column of a single VectorBT simulation.
     aligned_settings = tuple(aligned for _, aligned, _ in settings)

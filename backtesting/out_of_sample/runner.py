@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, replace
 import hashlib
+import inspect
 import json
 import math
 from typing import Callable
@@ -47,7 +48,17 @@ def _run_partition(
     audit: DataAudit,
     parameters: tuple[dict[str, object], ...],
     evaluator: ExperimentEvaluator,
+    *,
+    history: pd.DataFrame | None = None,
+    signal_cache: dict[str, object] | None = None,
 ) -> ExperimentResult:
+    """Evaluate one partition.
+
+    Given the full ``history`` and an evaluator that accepts ``evaluation_range`` (the default
+    ``execute_experiment``), signals are computed on the full history, once per parameter set
+    via ``signal_cache``, and only the partition's bars are simulated and scored, so
+    indicators keep their warm-up. Other evaluators receive the partition slice, as before.
+    """
     config = replace(
         base,
         experiment_id=f"{base.experiment_id}:{partition.name}",
@@ -56,10 +67,20 @@ def _run_partition(
             f"{base.output_path.stem}_{partition.name}{base.output_path.suffix}"
         ),
     )
+    partition_audit = _partition_audit(audit, partition)
+    if history is not None and "evaluation_range" in inspect.signature(evaluator).parameters:
+        return evaluator(
+            config,
+            history,
+            partition_audit,
+            write_output=False,
+            evaluation_range=(partition.data.index[0], partition.data.index[-1]),
+            signal_cache=signal_cache,
+        )
     return evaluator(
         config,
         partition.data.copy(),
-        _partition_audit(audit, partition),
+        partition_audit,
         write_output=False,
     )
 
@@ -136,6 +157,9 @@ def evaluate_locked_test(
     audit: DataAudit,
     parameter_lock: ParameterLock,
     evaluator: ExperimentEvaluator = execute_experiment,
+    *,
+    history: pd.DataFrame | None = None,
+    signal_cache: dict[str, object] | None = None,
 ) -> ExperimentResult:
     """Evaluate exactly the already-locked parameters on held-out data."""
     return _run_partition(
@@ -144,6 +168,8 @@ def evaluate_locked_test(
         audit,
         (dict(parameter_lock.normalized_parameters),),
         evaluator,
+        history=history,
+        signal_cache=signal_cache,
     )
 
 
@@ -333,9 +359,10 @@ def execute_out_of_sample(
 ) -> OutOfSampleResult:
     """Select without test data, lock parameters, then evaluate held-out test."""
     split = split_chronologically(data, config.split)
+    history = {"history": data, "signal_cache": {}}
     candidates = tuple(dict(item) for item in config.experiment.parameter_combinations)
     training = _run_partition(
-        config.experiment, split.train, audit, candidates, evaluator
+        config.experiment, split.train, audit, candidates, evaluator, **history
     )
     try:
         training_survivors = _passing_parameters(training, stage="training")
@@ -358,7 +385,7 @@ def execute_out_of_sample(
         for parameters, _ in training_survivors[: config.shortlist_size]
     )
     selection = _run_partition(
-        config.experiment, split.selection, audit, shortlist, evaluator
+        config.experiment, split.selection, audit, shortlist, evaluator, **history
     )
     try:
         parameter_lock = lock_selected_parameters(
@@ -381,7 +408,7 @@ def execute_out_of_sample(
             )
         raise
     test = evaluate_locked_test(
-        config.experiment, split.test, audit, parameter_lock, evaluator
+        config.experiment, split.test, audit, parameter_lock, evaluator, **history
     )
 
     if write_output:
