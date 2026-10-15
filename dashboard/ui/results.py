@@ -407,12 +407,22 @@ def window_figure(portfolio: Any, session: str | None, interval: str | None) -> 
         start = (end - pd.Timedelta(days=_DEFAULT_SESSIONS)).normalize()
     window = portfolio.loc[start:end]  # vbt Portfolio label indexing
     window = window.resample(_RESAMPLE.get(interval or "15m", "15min"))  # vbt Portfolio.resample
+    window = window.replace(wrapper=window.wrapper.replace(index=window.wrapper.index.tz_convert("US/Eastern")))  # one Eastern clock for bars, markers and zones
     figure = window.plot(subplots=["trades", "value", "underwater"], subplot_settings={"trades": {"title": ""}}, template="qf", make_subplots_kwargs={"row_heights": [0.6, 0.2, 0.2], "vertical_spacing": 0.03})
     for trace in figure.data:  # plotly draws wall-clock values, so express every x in Eastern
         if getattr(trace, "x", None) is not None and len(trace.x) and isinstance(trace.x[0], (pd.Timestamp, np.datetime64, str)):
             trace.x = pd.to_datetime(list(trace.x), utc=True).tz_convert("US/Eastern").tz_localize(None)
+    for shape in figure.layout.shapes:  # trade zones: same wall-clock as the traces
+        if isinstance(shape.x0, pd.Timestamp):
+            shape.x0, shape.x1 = shape.x0.tz_convert("US/Eastern").tz_localize(None), shape.x1.tz_convert("US/Eastern").tz_localize(None)
+    for trace in figure.data:  # drop the solid value fill, soften the drawdown fill
+        if trace.name == "Drawdown":
+            trace.fillcolor = "rgba(220,57,18,0.12)"
+        elif trace.type == "scatter" and trace.fill is not None:
+            trace.fill = "none"
+    figure.layout.annotations = ()  # subplot titles sat on top of the data; the legend names the lines
     breaks = [{"bounds": ["sat", "mon"]}] + ([{"bounds": [16, 9.5], "pattern": "hour"}] if interval != "1D" else [])
-    figure.update_xaxes(rangebreaks=breaks, title_text="Eastern time")  # Plotly rangebreaks: hide weekends and the overnight gap
+    figure.update_xaxes(rangebreaks=breaks, title_text=None)  # Plotly rangebreaks: hide weekends and the overnight gap
     return figure
 
 
