@@ -1,0 +1,238 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "SPY MACD signal-line trend",
+    "one_line": "Go with MACD line crossing its signal line on the side of zero; reverse on the opposite cross; 0.5% stop. Source: Gerald Appel (1979), MACD.",
+    "family": "trend_following",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Gerald Appel (1979), MACD",
+      "creator": "Gerald Appel",
+      "claim": "Go with MACD line crossing its signal line on the side of zero; reverse on the opposite cross; 0.5% stop.",
+      "url": "https://en.wikipedia.org/wiki/MACD"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "MACD crosses on the trend side of zero may capture intraday trend legs.",
+    "failure_theory": [
+      "Whipsaw in ranging sessions.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "SPY"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_SPY_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "SPY regular session 09:30-16:00 ET on 1m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "MACD line crosses above signal while above zero, 10:00-15:30."
+    ],
+    "exits": {
+      "rule": "Reverse on opposite signal; 0.5% stop.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 6,
+    "short_entry": [
+      "MACD line crosses below signal while below zero."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 6,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "fast": {
+      "values": [
+        6,
+        12
+      ],
+      "rationale": "Fast EMA bars."
+    },
+    "slow": {
+      "values": [
+        26,
+        39
+      ],
+      "rationale": "Slow EMA bars."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_above": [
+                {
+                  "macd": "close",
+                  "fast": {
+                    "param": "fast"
+                  },
+                  "slow": {
+                    "param": "slow"
+                  },
+                  "signal": 9,
+                  "output": "line"
+                },
+                {
+                  "macd": "close",
+                  "fast": {
+                    "param": "fast"
+                  },
+                  "slow": {
+                    "param": "slow"
+                  },
+                  "signal": 9,
+                  "output": "signal"
+                }
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "macd": "close",
+                  "fast": {
+                    "param": "fast"
+                  },
+                  "slow": {
+                    "param": "slow"
+                  },
+                  "signal": 9,
+                  "output": "line"
+                },
+                0
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_below": [
+                {
+                  "macd": "close",
+                  "fast": {
+                    "param": "fast"
+                  },
+                  "slow": {
+                    "param": "slow"
+                  },
+                  "signal": 9,
+                  "output": "line"
+                },
+                {
+                  "macd": "close",
+                  "fast": {
+                    "param": "fast"
+                  },
+                  "slow": {
+                    "param": "slow"
+                  },
+                  "signal": 9,
+                  "output": "signal"
+                }
+              ]
+            },
+            {
+              "lt": [
+                {
+                  "macd": "close",
+                  "fast": {
+                    "param": "fast"
+                  },
+                  "slow": {
+                    "param": "slow"
+                  },
+                  "signal": 9,
+                  "output": "line"
+                },
+                0
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "on_opposite_signal": true,
+      "stop_loss": {
+        "percent": 0.5
+      }
+    },
+    "max_trades_per_session": 6
+  }
+}

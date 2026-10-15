@@ -231,6 +231,11 @@ def validate_walk_forward_evidence_document(
             if "session_alignment" in document["evidence"]
             else {}
         )
+        | (
+            {"idea_overfitting": document["evidence"]["idea_overfitting"]}
+            if "idea_overfitting" in document["evidence"]
+            else {}
+        )
     )
     if artifact_doc.get("evidence_identity") != expected_identity:
         raise ValueError("walk-forward evidence identity mismatch")

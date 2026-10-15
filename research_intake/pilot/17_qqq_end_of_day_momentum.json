@@ -1,0 +1,207 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "QQQ rest-of-day return predicts last half hour",
+    "one_line": "At 15:30, take the sign of the prior-close-to-15:30 return; hold to 15:55. Source: Baltussen, Da, Lammers and Martens (2021), Hedging demand and market intraday momentum, Journal of Financial Economics.",
+    "family": "intraday_momentum",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "book",
+      "role": "primary",
+      "title": "Baltussen, Da, Lammers and Martens (2021), Hedging demand and market intraday momentum, Journal of Financial Economics",
+      "creator": "Guido Baltussen; Zhi Da; Sten Lammers; Martin Martens",
+      "claim": "At 15:30, take the sign of the prior-close-to-15:30 return; hold to 15:55."
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Gamma-hedging flows push the last half hour in the direction of the day's move.",
+    "failure_theory": [
+      "Effect concentrated in high-gamma days.",
+      "Exit at 15:55 drops the final five minutes.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "QQQ"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_QQQ_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "QQQ regular session 09:30-16:00 ET on 1m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "At 15:30, return above threshold: long."
+    ],
+    "exits": {
+      "rule": "Flat at 15:55.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 1,
+    "short_entry": [
+      "Below minus threshold: short (sign_of)."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "min_abs_ret": {
+      "values": [
+        0,
+        0.0025,
+        0.005
+      ],
+      "rationale": "Minimum absolute day return."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "time_is": "15:30"
+            },
+            {
+              "gt": [
+                {
+                  "abs": {
+                    "div": [
+                      {
+                        "sub": [
+                          "close",
+                          {
+                            "value_at": {
+                              "sub": [
+                                {
+                                  "sum": "close",
+                                  "length": 2,
+                                  "across_sessions": true
+                                },
+                                "close"
+                              ]
+                            },
+                            "time": "09:31"
+                          }
+                        ]
+                      },
+                      {
+                        "value_at": {
+                          "sub": [
+                            {
+                              "sum": "close",
+                              "length": 2,
+                              "across_sessions": true
+                            },
+                            "close"
+                          ]
+                        },
+                        "time": "09:31"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "param": "min_abs_ret"
+                }
+              ]
+            }
+          ]
+        },
+        "side": {
+          "sign_of": {
+            "div": [
+              {
+                "sub": [
+                  "close",
+                  {
+                    "value_at": {
+                      "sub": [
+                        {
+                          "sum": "close",
+                          "length": 2,
+                          "across_sessions": true
+                        },
+                        "close"
+                      ]
+                    },
+                    "time": "09:31"
+                  }
+                ]
+              },
+              {
+                "value_at": {
+                  "sub": [
+                    {
+                      "sum": "close",
+                      "length": 2,
+                      "across_sessions": true
+                    },
+                    "close"
+                  ]
+                },
+                "time": "09:31"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "exit": {},
+    "max_trades_per_session": 1
+  }
+}

@@ -59,6 +59,18 @@ def _fold_document(fold: object) -> dict[str, Any]:
     }
 
 
+def _idea_overfitting_document(overfitting: object | None) -> dict[str, Any]:
+    """Record-only luck checks; never read by status, reasons or validation."""
+    dsr = getattr(overfitting, "deflated_sharpe", None)
+    pbo = getattr(overfitting, "overfitting_pbo", None)
+    return {
+        "deflated_sharpe_probability": dsr.probability if dsr is not None else None,
+        "trial_count": getattr(overfitting, "trials", None),
+        "pbo": pbo.probability if pbo is not None else None,
+        "pbo_split_count": pbo.splits if pbo is not None else None,
+    }
+
+
 def build_walk_forward_evidence_document(
     *,
     run_id: str,
@@ -92,6 +104,9 @@ def build_walk_forward_evidence_document(
     if calendar is not None:  # intraday: window cuts sit on this calendar's session starts
         interval = result.folds[0].window.session_interval
         evidence_payload["session_alignment"] = {"exchange_calendar": calendar, "interval": interval}
+    evidence_payload["idea_overfitting"] = _idea_overfitting_document(
+        getattr(result, "overfitting", None)
+    )
     evidence_identity = _identity(evidence_payload)
     document = {
         "artifact_schema_version": WALK_FORWARD_EVIDENCE_SCHEMA_VERSION,
