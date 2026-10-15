@@ -18,6 +18,7 @@ from orchestration.auto_campaign import (
     InstalledRuleStrategy,
     campaign_idempotency_key,
     dataset_profile,
+    packet_requested_start,
     outcome_from_chain,
     run_auto_test,
 )
@@ -557,3 +558,14 @@ def test_operator_requeue_after_fix_restarts_the_interruption_budget(tmp_path):
     campaign.run_once()
     assert len(harness.launches) == 1
     assert harness.launches[0][1].endswith(f"-r{MAX_ATTEMPTS}")
+
+
+def test_packet_start_date_narrows_the_tested_history():
+    assert packet_requested_start({"market": {"requested_start": "2021-01-04"}}) == "2021-01-04"
+    assert packet_requested_start({"market": {"requested_start": "soon"}}) is None
+    assert packet_requested_start({}) is None
+    assert dataset_profile("MES", "5m", "2021-01-04").requested_start == "2021-01-04"
+    # Outside the dataset, or not later than its start, the dataset's own start stands.
+    assert dataset_profile("MES", "5m", "2010-01-01").requested_start == "2019-05-06"
+    assert dataset_profile("MES", "5m", "2030-01-01").requested_start == "2019-05-06"
+    assert dataset_profile("MES", "5m").requested_start == "2019-05-06"
