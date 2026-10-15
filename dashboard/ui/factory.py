@@ -99,15 +99,15 @@ def register_factory_callbacks(application: Any) -> None:
     def detail(row):
         if not row: return "No selection", "gray", "Pick a run", "Choose a row to see what it found.", [], []
         status = str(row.get("status") or "unavailable").replace("_", " ").title(); stage = _stage_word(row.get("stage"))
-        stages = [html.Div([html.Span(className=f"candidate-dot{' failed' if row.get('status')=='failed' else ''}"), html.Div([html.Strong(stage), html.P(f"{row.get('variation_count',0):,} results")]), html.Time(status)], className="candidate-stage-row")]
+        stages = [html.Div([html.Span(className=f"candidate-dot{' failed' if row.get('status')=='failed' else ''}"), html.Div([html.Strong(stage), html.P(row.get("results_note") or f"{row.get('variation_count',0):,} results")]), html.Time(status)], className="candidate-stage-row")]
         screened_out = int(row.get("screened_out_count") or 0)
         variations = int(row.get("variation_count") or 0)
         all_out = bool(screened_out and screened_out == variations)
         outcome = row.get("error_summary") or (
             f"All {variations:,} settings failed the first check"
             if all_out
-            else f"{row.get('survivor_count',0):,} ideas passed"
-            if row.get("status") == "succeeded"
+            else f"{row.get('survivor_count',0):,} ideas passed" if row.get("variation_count") and row.get("status") == "succeeded"
+            else row.get("results_note") if row.get("status") == "succeeded"
             else status
         )
         item = lambda label, value: html.Div([html.Span(label), value, html.Span()], className="candidate-evidence-item")

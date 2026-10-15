@@ -14,7 +14,7 @@ ASSETS = Path(__file__).resolve().parents[1] / "dashboard" / "ui" / "assets"
 
 def test_plotly_default_template_is_qf() -> None:
     assert pio.templates.default == "qf"
-    assert pio.templates["qf"].layout.font.size == 11
+    assert pio.templates["qf"].layout.font.size == 13
 
 
 def test_grid_theme_is_shared_quartz_params() -> None:

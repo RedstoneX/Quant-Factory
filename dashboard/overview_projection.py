@@ -24,6 +24,22 @@ SURVIVOR_LIMIT = 50
 CANDIDATE_PAGE_LIMIT = 100
 
 
+def live_run_clause(status: str, candidate_id: str) -> str:
+    """SQL for "this run is really running": the one rule every page counts running tests by.
+
+    A run left marked running by a server restart is live only while its idea's latest
+    campaign event still says running. Waiting runs are always live.
+    """
+    return (f"({status}='created' OR ({status}='running' AND ({candidate_id} IS NULL OR EXISTS ("
+            f"SELECT 1 FROM qf_campaign_admissions live_q WHERE live_q.candidate_id={candidate_id} AND live_q.state='running'))))")
+
+
+STAGE_REACH = "WHEN 'oos' THEN 3 WHEN 'walk_forward' THEN 4 WHEN 'robustness' THEN 5 WHEN 'monte_carlo' THEN 5 ELSE 0"
+# Funnel levels: 1 received, 2 after costs, 3 unseen data, 4 over time, 5 stress test, 6 passed.
+FUNNEL_LEVEL = {"submitted": 1, "costs": 2, "oos": 3, "walk_forward": 4, "robustness": 5, "survivors": 6}
+ADVANCING_CONDITION = live_run_clause("c.run_status", "c.candidate_id")
+
+
 def configured_database_path() -> Path:
     configured = os.environ.get(DATABASE_ENVIRONMENT_VARIABLE)
     return Path(configured) if configured else DEFAULT_DATABASE_PATH
@@ -59,7 +75,7 @@ def _empty_snapshot(*, database: Path, message: str, window: str, market: str) -
     }
 
 
-BASE_CTE = """
+BASE_CTE = f"""
 WITH candidate_base AS (
     SELECT d.draft_id AS candidate_id, d.title, d.description, d.candidate_json,
            d.configuration_id, d.updated_at,
@@ -67,7 +83,7 @@ WITH candidate_base AS (
            campaign.state AS campaign_state,
            campaign.reason_code AS campaign_reason_code,
            campaign.reason_detail AS campaign_reason_detail,
-           COALESCE(c.canonical_config_json, '{}') AS canonical_config_json,
+           COALESCE(c.canonical_config_json, '{{}}') AS canonical_config_json,
            COALESCE(json_extract(c.canonical_config_json, '$.market_data.symbol'),
                     json_extract(d.candidate_json, '$.market.instruments.preferred[0]'),
                     'Unrecorded') AS symbol,
@@ -121,6 +137,12 @@ WITH candidate_base AS (
            obr.metrics_json AS oos_metrics_json,
            oor.run_id AS oos_run_id,
            CASE WHEN sr.run_id IS NULL THEN 0 ELSE 1 END AS survivor,
+           CASE WHEN sr.run_id IS NOT NULL THEN 6 ELSE MAX(
+             COALESCE((SELECT MAX(CASE fr.stage {STAGE_REACH} END) FROM experiment_runs fr
+                       WHERE fr.configuration_id=cb.configuration_id AND fr.status='succeeded'), 0),
+             CASE WHEN EXISTS (SELECT 1 FROM experiment_runs pr JOIN parameter_results pp ON pp.run_id=pr.run_id
+                               WHERE pr.configuration_id=cb.configuration_id AND pp.screening_status='passed')
+                  THEN 2 ELSE 1 END) END AS reach,
            COALESCE(lr.created_at, cb.updated_at) AS observed_at
     FROM candidate_base cb
     LEFT JOIN latest_runs lr ON lr.configuration_id = cb.configuration_id AND lr.recency = 1
@@ -183,7 +205,8 @@ def _row_view(row: sqlite3.Row, *, oos_metric: bool) -> dict[str, Any]:
         "title": str(candidate.get("title") or row["title"] or "Untitled Candidate"),
         "family": str(candidate.get("family") or "Not recorded"),
         "symbol": str(row["symbol"] or "Unrecorded"),
-        "run_id": str(row["run_id"]) if row["run_id"] else None,
+        # Open goes to the unseen-data results: a succeeded unseen-data run if there is one, else the latest run.
+        "run_id": str(row["oos_run_id"] if "oos_run_id" in row.keys() and row["oos_run_id"] else row["run_id"]) if row["run_id"] else None,
         "stage": str(row["stage"] or "not_run"),
         "run_status": str(row["run_status"] or "not_run"),
         "outcome": str(row["screening_status"] or row["run_status"] or "not_run"),
@@ -309,36 +332,26 @@ def load_dashboard_snapshot(*, window: str = "90d", market: str = "all", databas
         active_sql = RUN_BASE_CTE + f"""
             SELECT r.run_status, r.stage, COUNT(*) AS run_count
             FROM run_records r
-            WHERE r.run_status IN ('created','running') AND {current_run_filter}
+            WHERE {live_run_clause('r.run_status','r.candidate_id')} AND {current_run_filter}
             GROUP BY r.run_status, r.stage
         """
         active_rows = list(connection.execute(active_sql, _base_params() + current_run_params))
         running = sum(int(row["run_count"]) for row in active_rows if row["run_status"] == "running")
         queued = sum(int(row["run_count"]) for row in active_rows if row["run_status"] == "created")
         advancing = _scalar(connection, BASE_CTE + f"""
-            SELECT COUNT(DISTINCT cb.candidate_id)
-            FROM candidate_base cb JOIN experiment_runs r ON r.configuration_id=cb.configuration_id
-            JOIN candidates c ON c.candidate_id=cb.candidate_id
-            WHERE r.status IN ('created','running') AND {current_filter}
+            SELECT COUNT(*) FROM candidates c
+            WHERE {ADVANCING_CONDITION} AND {current_filter}
         """, _base_params() + current_params)
-        failed = _scalar(connection, RUN_BASE_CTE + f"SELECT COUNT(*) FROM run_records r WHERE r.run_status='failed' AND {run_filter}", _base_params() + run_params)
+        failed = _scalar(connection, RUN_BASE_CTE + f"SELECT COUNT(*) FROM run_records r WHERE (r.run_status='failed' OR (r.run_status='running' AND NOT {live_run_clause('r.run_status','r.candidate_id')})) AND {run_filter}", _base_params() + run_params)
         terminal = _scalar(connection, RUN_BASE_CTE + f"SELECT COUNT(*) FROM run_records r WHERE r.run_status IN ('succeeded','failed','cancelled') AND {run_filter}", _base_params() + run_params)
 
-        def stage_count(stages: tuple[str, ...], *, passed: bool = False) -> int:
-            placeholders = ",".join("?" for _ in stages)
-            condition = "c.screening_status='passed'" if passed else f"c.run_status='succeeded' AND c.stage IN ({placeholders})"
-            stage_params: list[Any] = [] if passed else list(stages)
+        # A true funnel: each stage counts the ideas that reached it, so it never grows going down.
+        def stage_count(level: int) -> int:
             return _scalar(connection, BASE_CTE + f"""
-                SELECT COUNT(*) FROM candidates c
-                WHERE {condition} AND {historical_filter}
-            """, _base_params() + stage_params + historical_params)
+                SELECT COUNT(*) FROM candidates c WHERE c.reach>=? AND {historical_filter}
+            """, _base_params() + [level] + historical_params)
 
-        stages = {
-            "submitted": population, "costs": stage_count((), passed=True),
-            "oos": stage_count(("oos", "walk_forward", "robustness", "monte_carlo")),
-            "walk_forward": stage_count(("walk_forward", "robustness", "monte_carlo")),
-            "robustness": stage_count(("robustness", "monte_carlo")), "survivors": survivors_count,
-        }
+        stages = {key: stage_count(level) for key, level in FUNNEL_LEVEL.items()}
         bottleneck = max(active_rows, key=lambda row: int(row["run_count"]))["stage"] if active_rows else "No active runs"
 
         chart_sql = BASE_CTE + f"""
@@ -401,7 +414,7 @@ def load_drilldown_page(
     try:
         if kind in run_kinds:
             status_stage = {
-                "running": "r.run_status='running'", "queued": "r.run_status='created'",
+                "running": f"r.run_status='running' AND {live_run_clause('r.run_status','r.candidate_id')}", "queued": "r.run_status='created'",
             }[kind]
             source = f"""
                 SELECT DISTINCT r.candidate_id, r.title, r.symbol, r.run_id,
@@ -412,11 +425,8 @@ def load_drilldown_page(
             include_window = False
         else:
             condition = {
-                "advancing": "c.run_status IN ('created','running')",
-                "costs": "c.screening_status='passed'",
-                "oos": "c.run_status='succeeded' AND c.stage IN ('oos','walk_forward','robustness','monte_carlo')",
-                "walk_forward": "c.run_status='succeeded' AND c.stage IN ('walk_forward','robustness','monte_carlo')",
-                "robustness": "c.run_status='succeeded' AND c.stage IN ('robustness','monte_carlo')",
+                "advancing": ADVANCING_CONDITION,
+                **{key: f"c.reach>={level}" for key, level in FUNNEL_LEVEL.items() if key not in {"submitted", "survivors"}},
                 "survivors": "c.survivor=1",
                 "ranked": "c.survivor=1",
                 "submitted": "1=1",
