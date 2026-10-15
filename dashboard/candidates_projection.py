@@ -9,6 +9,7 @@ from typing import Any
 
 from dashboard.overview_projection import (
     BASE_CTE,
+    ADVANCING_CONDITION,
     CANDIDATE_PAGE_LIMIT,
     _base_params,
     _finite_number,
@@ -21,8 +22,6 @@ from dashboard.results_projection import oos_report_metrics
 
 COUNT_KEYS = ("survivor", "advancing", "blocked", "duplicate", "crashed", "needs_review", "rejected", "all")
 
-# Throwaway entries (connectivity probes, smoke runs) hidden by default; never deleted.
-TEST_TITLE_PATTERNS = ("connection test%", "smoke test%", "test idea%", "test candidate%", "dummy%")
 
 CANDIDATE_SORT_FIELDS = {
     "title": "title", "symbol": "symbol", "family": "family",
@@ -64,7 +63,7 @@ def _candidate_source() -> str:
                  WHEN c.campaign_state='implementation_blocked' THEN 'blocked'
                  WHEN c.campaign_state='duplicate_closed' THEN 'duplicate'
                  WHEN c.campaign_state='failed' THEN 'crashed'
-                 WHEN c.run_status IN ('created','running') OR c.campaign_state IN ('admitted','queued','running') THEN 'advancing'
+                 WHEN """ + ADVANCING_CONDITION + """ THEN 'advancing'
                  WHEN c.campaign_state IN ('invalid','prior_work_conflict','budget_blocked','deterministic_failure','screened_out','insufficient') THEN 'rejected'
                  WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), ''))='rejected'
                    OR c.run_status IN ('failed','cancelled')
@@ -75,7 +74,7 @@ def _candidate_source() -> str:
                  WHEN c.stage IN ('robustness','monte_carlo') AND c.run_status IN ('created','running') THEN 'Testing'
                  ELSE 'Not run' END AS robustness,
                CASE WHEN c.survivor=1 THEN 'Not started' ELSE '' END AS paper,
-               CASE WHEN """ + " OR ".join(f"LOWER(c.title) LIKE '{pattern}'" for pattern in TEST_TITLE_PATTERNS) + """ THEN 1 ELSE 0 END AS is_test
+               c.is_test AS is_test
         FROM candidates c
     """
 

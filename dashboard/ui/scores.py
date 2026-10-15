@@ -60,6 +60,14 @@ def _pct(value: Any) -> str:
     return "—" if value is None else f"{value * 100:.0f}%"
 
 
+def _stress_note(scores: dict[str, Any]) -> str:
+    """A failed stress test is a score, not a pass mark; say so and say which check it was."""
+    if scores.get("stress_status") != "failed":
+        return ""
+    failed = " and ".join(scores.get("stress_failed") or [])
+    return f"A score, not a pass mark. It slipped on {failed}." if failed else "A score, not a pass mark."
+
+
 def score_cards(scores: dict[str, Any] | None) -> list[dmc.Paper]:
     """Five stat cards; '—' when a score was not recorded."""
     s = scores or {}
@@ -69,7 +77,7 @@ def score_cards(scores: dict[str, Any] | None) -> list[dmc.Paper]:
     return [
         stat_card("Rolling test: periods profitable", folds, _pct(s.get("folds_share")) if s.get("folds_profitable") is not None else "", color=rolling_color),
         stat_card("Rolling test: average Sharpe", "—" if s.get("fold_sharpe") is None else f"{s['fold_sharpe']:.2f}", color=rolling_color),
-        stat_card("Stress test", STRESS_WORDS.get(str(s.get("stress_status")), "—"), color=stress_color),
+        stat_card("Stress test", STRESS_WORDS.get(str(s.get("stress_status")), "—"), _stress_note(s), color=stress_color),
         stat_card("Luck score", _pct(s.get("luck")), "higher is better" if s.get("luck") is not None else ""),
         stat_card("Overfitting score", _pct(s.get("overfitting")), "lower is better" if s.get("overfitting") is not None else ""),
     ]
