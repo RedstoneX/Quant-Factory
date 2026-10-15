@@ -10,6 +10,7 @@ from dash import Input, Output, State, ctx, dcc, html, no_update
 from dash_iconify import DashIconify
 
 from dashboard.factory_projection import load_factory_page, load_factory_summary
+from dashboard.plain_labels import FAILED_TESTING
 from dashboard.ui.layout import copy_id, page_header, stat_card
 from dashboard.ui.theme import COLUMN_DEFAULTS, grid_options, hide_when_narrow
 
@@ -17,7 +18,7 @@ from dashboard.ui.theme import COLUMN_DEFAULTS, grid_options, hide_when_narrow
 RUN_COLUMNS = [
     {"field": "title", "headerName": "Run", "minWidth": 200, "flex": 2, "filter": "agTextColumnFilter", "tooltipField": "run_id"},
     {"field": "symbol", "headerName": "Market", "minWidth": 80, "flex": .6, "filter": "agTextColumnFilter"},
-    {"field": "status", "headerName": "Outcome", "minWidth": 110, "flex": .9, "filter": "agTextColumnFilter", "cellStyle": {"styleConditions": [{"condition": "params.data && params.data.display_outcome === 'screened_out'", "style": {"color": "#7d8590"}}, {"condition": "params.value === 'failed'", "style": {"color": "#ef5350"}}]}, "valueFormatter": {"function": "params.data && params.data.display_outcome === 'screened_out' ? 'Screened out' : params.value ? params.value.charAt(0).toUpperCase()+params.value.slice(1) : '—'"}},
+    {"field": "status", "headerName": "Outcome", "minWidth": 110, "flex": .9, "filter": "agTextColumnFilter", "cellStyle": {"styleConditions": [{"condition": "params.data && params.data.display_outcome === 'screened_out'", "style": {"color": "#7d8590"}}, {"condition": "params.value === 'failed'", "style": {"color": "#ef5350"}}]}, "valueFormatter": {"function": "params.data && params.data.display_outcome === 'screened_out' ? '" + FAILED_TESTING + "' : params.value ? params.value.charAt(0).toUpperCase()+params.value.slice(1) : '—'"}},
     {"field": "variation_count", "headerName": "Results", "type": "numericColumn", "flex": .6},
     {"field": "survivor_count", "headerName": "Passed", "type": "numericColumn", "flex": .6},
     {"field": "completed_display", "colId": "completed_at", "headerName": "Finished", "minWidth": 120, "flex": 1},
@@ -112,7 +113,7 @@ def register_factory_callbacks(application: Any) -> None:
         item = lambda label, value: html.Div([html.Span(label), value, html.Span()], className="candidate-evidence-item")
         body = [html.Div([html.Span("Outcome"), html.Strong(outcome), html.Small("No idea moved on from this run." if all_out else "")], className=f"factory-outcome-card{' screened-out' if all_out else ''}"), dmc.Group([dmc.Button("Open its ideas", id="factory-open-candidates"), dmc.Button("Open run results", id="factory-open-results", variant="default")], gap=8, className="candidate-detail-actions"), dmc.Title("Details", order=5, className="candidate-progression-title"), item("Run ID", copy_id(row.get("run_id"))), item("Machine", html.Strong(row.get("worker") or "Not recorded")), item("Machine state", html.Strong(row.get("resource_state") or "Not recorded"))]
         color = "gray" if all_out else "red" if row.get("status") == "failed" else "teal" if row.get("status") == "succeeded" else "blue"
-        return "Screened out" if all_out else status, color, row.get("title"), stage, stages, body
+        return FAILED_TESTING if all_out else status, color, row.get("title"), stage, stages, body
 
 
 __all__=["factory_layout","register_factory_callbacks"]

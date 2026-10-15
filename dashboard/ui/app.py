@@ -28,6 +28,7 @@ from dashboard.ui.layout import app_shell, copy_id, page_content, page_header, s
 from dashboard.ui.paper import paper_layout
 from dashboard.ui.results import register_results_callbacks, results_layout
 from dashboard.ui.submit import register_submit_callbacks, submit_layout
+from dashboard.plain_labels import FAILED_TESTING
 from dashboard.time_display import eastern_time_label
 from dashboard.ui.theme import ACCENT, COLUMN_DEFAULTS, FONT_URL, UP, grid_options, hide_when_narrow
 
@@ -125,7 +126,7 @@ def _finding_content(item: dict[str, Any] | None, snapshot: dict[str, Any]) -> l
             dmc.Group([dmc.Button("Open Results", id="open-results", className="primary", disabled=not item.get("run_id")), dmc.Button("Open in Ideas", id="open-candidate", className="ghost", variant="default", disabled=True)], gap=7, className="finding-actions"),
         ]
     screened_out = str(item.get("outcome") or "").lower() == "screened_out"
-    status = "Screened out" if screened_out else status
+    status = FAILED_TESTING if screened_out else status
     return [
         dmc.Group([dmc.Badge(status, leftSection=DashIconify(icon="tabler:check", width=12) if item.get("state") == "survivor" else None, className=f"badge{' rejected' if screened_out else ''}"), copy_id(item.get("run_id"))], justify="space-between", className="status-row"),
         dmc.Title(item.get("title") or "Untitled idea", order=2),
@@ -201,7 +202,7 @@ def dashboard_layout() -> html.Div:
             role="region", **{"aria-label": "Ideas by risk and return; the ranked list offers keyboard selection"},
         ),
         dmc.Group([html.Span([html.I(className="legend-dot green"), "passed"]), html.Span([html.I(className="legend-dot blue"), "testing"]), html.Span([html.I(className="legend-dot closed"), "stopped"]), html.Span("", id="universe-note", className="legend-note")], gap=14, className="chart-legend"),
-    ], className="panel universe")
+    ], id="universe-panel", className="panel universe")
 
     finding = dmc.Paper(_finding_content(None, {"available": False, "message": "Loading…"}), id="finding-panel", className="panel finding")
     factory = dmc.Paper(_factory_content({"stages": {}, "operation": {}, "population_count": 0}), id="factory-panel", className="panel flow")
@@ -275,7 +276,7 @@ def register_callbacks(application: Dash) -> None:
         Output("advancing-value", "children"), Output("advancing-detail", "children"), Output("needs-value", "children"), Output("needs-detail", "children"),
         Output("candidate-chart", "figure"), Output("survivor-grid", "rowData"), Output("finding-panel", "children"), Output("factory-panel", "children"),
         Output("health-copy", "children"), Output("health-indicator", "className"), Output("universe-subtitle", "children"), Output("universe-note", "children"), Output("survivor-note", "children"),
-        Output("summary-needs", "style"), Output("survivors-panel", "style"),
+        Output("summary-needs", "style"), Output("survivors-panel", "style"), Output("universe-panel", "className"),
         Input("snapshot-store", "data"), Input("selected-candidate", "data"),
     )
     def render_snapshot(snapshot: dict[str, Any] | None, selection: dict[str, Any] | None):
@@ -297,6 +298,7 @@ def register_callbacks(application: Dash) -> None:
             f"Up to {snapshot.get('chart_limit', 200):,} points · click one to see that idea",
             f"{survivor_count:,} of {int(counts.get('survivors', 0)):,}, best out-of-sample Sharpe first",
             {"display": "none"} if counts.get("needs") is None else {}, {} if survivor_count else {"display": "none"},
+            "panel universe" if chart_count else "panel universe collapsed",
         )
 
     @application.callback(Output("survivor-grid", "columnDefs"), Input("toggle-columns", "n_clicks"), prevent_initial_call=True)

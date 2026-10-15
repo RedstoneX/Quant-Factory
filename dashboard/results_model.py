@@ -236,7 +236,7 @@ def prepare_interval(
             interval=interval,
             bars=(),
             available=False,
-            reason="No persisted OHLC bars are available for this run.",
+            reason="No price chart was saved for this run.",
         )
     if interval == source_interval:
         return IntervalBars(interval=interval, bars=source, available=True)
