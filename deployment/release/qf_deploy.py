@@ -18,6 +18,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -39,6 +40,7 @@ DASHBOARD_URL = "http://127.0.0.1:8050"
 IMAGE = "quant-factory-research"
 GATEWAY_CLIENT = Path("/opt/quant-factory-gateway/client/agent_gateway")
 KEEP_RELEASES = 5
+GATEWAY_DB = Path(os.environ.get("QF_GATEWAY_DB", "/opt/quant-factory-gateway/state/agent_gateway.sqlite3"))
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 REQUIREMENTS = ("requirements-runtime.txt", "requirements-dashboard.txt")
 # Tracked privileged files and where they are installed; only --install-infra copies them.
@@ -288,6 +290,28 @@ def prune(keep: set[str]) -> None:
             shutil.rmtree(venv, ignore_errors=True)
 
 
+def running_auto_tests(database: Path | None = None) -> int | None:
+    """Ideas whose latest campaign event is "running" (read-only); None if the store cannot be read.
+
+    Only "running" blocks: the gateway counts attempts as "running" events, so restarting
+    a merely "queued" idea burns none. Same query as GatewayStore.latest_campaign_events.
+    """
+    database = database or GATEWAY_DB
+    try:
+        connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=5)
+        try:
+            return int(connection.execute(
+                "SELECT COUNT(*) FROM campaign_events event JOIN ("
+                "SELECT candidate_id, MAX(event_id) event_id FROM campaign_events GROUP BY candidate_id"
+                ") latest ON latest.event_id = event.event_id WHERE event.state = 'running'"
+            ).fetchone()[0])
+        finally:
+            connection.close()
+    except sqlite3.Error as exc:
+        log(f"WARNING: cannot read the auto-test store, deploying without the drain check: {exc}")
+        return None
+
+
 def deploy(requested: str | None, *, admin: bool, force: bool, unpin: bool) -> int:
     state = read_state()
     if state.get("pinned") and requested is None and not unpin:
@@ -305,6 +329,12 @@ def deploy(requested: str | None, *, admin: bool, force: bool, unpin: bool) -> i
         if unpin:
             write_state(pinned=None)
         return 0
+    if os.environ.get("QF_DEPLOY_FORCE") != "1":
+        running = running_auto_tests()
+        if running:
+            # Recreating the gateway interrupts a running test and burns one of its 3 attempts.
+            log(f"deploy deferred: {running} auto-tests running")
+            return 0
     try:
         return _switch(target, release, drift, state, pinned=requested is not None)
     except Exception as exc:
