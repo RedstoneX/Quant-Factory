@@ -41,6 +41,18 @@ def eastern_time_label(value: str | datetime) -> str:
     return f"{local.hour % 12 or 12}:{local:%M:%S %p} ET"
 
 
+def eastern_range_label(value: object) -> str | None:
+    """Eastern "start – end" label for an ISO "start..end" range with times; None when not such a range."""
+    if isinstance(value, str) and "T" in value:
+        for separator in ("..", "/"):
+            if separator in value:
+                try:
+                    return " – ".join(eastern_label(part.strip()) for part in value.split(separator, 1))
+                except ValueError:
+                    return None
+    return None
+
+
 def eastern_naive_index(index: pd.DatetimeIndex) -> pd.DatetimeIndex:
     """Eastern wall-clock chart index: pandas tz_convert, then drop the offset so browsers cannot reconvert it."""
     return index.tz_convert(EASTERN).tz_localize(None)
