@@ -44,4 +44,8 @@ jobs:
           # TA-Lib's bundled C library is BSD-2-Clause-Views: BSD-2-Clause plus a
           # line that the authors' views are their own. Permissive; exempted for
           # this one package rather than allowed for every dependency.
-          allow-dependencies-licenses: pkg:pypi/ta-lib
+          # Matplotlib's own licence is the PSF-based Matplotlib licence, which the
+          # scanner reports as LicenseRef-scancode-matplotlib-1.3.0. Permissive;
+          # needed because VectorBT PRO's charts import it. Exempted for this
+          # one package only.
+          allow-dependencies-licenses: pkg:pypi/ta-lib, pkg:pypi/matplotlib
