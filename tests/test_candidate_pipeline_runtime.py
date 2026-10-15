@@ -514,8 +514,7 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
         assert all(run.status == RunStatus.SUCCEEDED for run in runs)
         assert sum(event.message == SURVIVOR_EVENT_MESSAGE for event in persistence.events.list_for_run(first.launch.claim.run.run_id)) == 1
         assert all(persistence.read_persisted_run_manifest(run.run_id) for run in runs)
-        oos_names = {a.logical_name for a in persistence.list_run_artifacts(first.chain.completed[0].run_id)}
-        assert {n.split(":")[0] for n in oos_names} == {"source_lock_evidence", "trades_and_orders"}
+        assert {a.logical_name.split(":")[0] for a in persistence.list_run_artifacts(first.chain.completed[0].run_id)} == {"source_lock_evidence", "trades_and_orders"}
         assert all(
             persistence.list_run_artifacts(handoff.run_id)
             for handoff in first.chain.completed[1:]
