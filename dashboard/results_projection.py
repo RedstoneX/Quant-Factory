@@ -13,6 +13,7 @@ import pandas as pd
 
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_model import group_trade_rows, prepare_interval
+from dashboard.formatting import format_metric
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter, _candidate_trade_rows
 from dashboard.time_display import eastern_label, eastern_plot_timestamp, eastern_session
 
@@ -119,6 +120,20 @@ def _artifact_document(*, database: Path, run_id: str, logical_name: str) -> dic
         return document if isinstance(document, dict) else None
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return None
+
+
+OOS_REPORT_LOGICAL_NAME = "source_lock_evidence:out_of_sample"
+
+
+def oos_report_metrics(*, database: Path, run_id: str | None) -> dict[str, Any] | None:
+    """Unseen-data metrics the pipeline saves in the OOS report (it writes no parameter rows)."""
+    if not run_id:
+        return None
+    report = _artifact_document(database=database, run_id=run_id, logical_name=OOS_REPORT_LOGICAL_NAME)
+    metrics = (report or {}).get("metrics")
+    if not report or report.get("artifact_kind") != "out_of_sample" or not isinstance(metrics, dict) or not metrics:
+        return None
+    return {**metrics, "_test_status": report.get("test_status")}
 
 
 def _shared_price_rows(
@@ -345,6 +360,17 @@ def _run_choice(run_id: str | None, runs: list[dict[str, Any]]) -> dict[str, Any
     return next((row for row in runs if row["status"] == "succeeded"), runs[0] if runs else None)
 
 
+def _oos_metric_fields(database: Path, run: dict[str, Any]) -> list[dict[str, str]]:
+    if run.get("stage") != "oos":
+        return []
+    metrics = oos_report_metrics(database=database, run_id=run["run_id"]) or {}
+    names = ("total_return", "annualized_return", "sharpe_ratio", "max_drawdown", "number_of_trades", "win_rate")
+    return [
+        {"label": name.replace("_", " ").title(), "value": format_metric(name, metrics[name])}
+        for name in names if metrics.get(name) is not None
+    ]
+
+
 def load_results_record(
     run_id: str | None = None,
     *,
@@ -409,7 +435,7 @@ def load_results_record(
             "message": "Saved results for this run loaded.",
             "run": run,
             "runs": runs,
-            "metrics": _fields(evidence.metrics),
+            "metrics": _fields(evidence.metrics) or _oos_metric_fields(database_path, run),
             "trades": trades,
             "trade_count": len(grouped.groups),
             "trade_limit": TRADE_LIMIT,

@@ -12,7 +12,7 @@ import sqlite3
 from typing import Any
 
 from dashboard.overview_projection import BASE_CTE, _base_params, _validated_connection, configured_database_path
-from dashboard.results_projection import _artifact_document
+from dashboard.results_projection import _artifact_document, oos_report_metrics
 
 SHORTLIST_LIMIT = 200
 STRESS_STAGES = ("robustness", "monte_carlo")
@@ -58,8 +58,8 @@ def _scores(database: Path, connection: sqlite3.Connection, configuration_id: st
                 fold_sharpe=sum(sharpes) / len(sharpes) if sharpes else None,
             )
             overfit = rolling.get("idea_overfitting") or {}
-            scores["luck"] = _number((overfit.get("deflated_sharpe") or {}).get("probability"))
-            scores["overfitting"] = _number((overfit.get("overfitting_pbo") or {}).get("probability"))
+            scores["luck"] = _number(overfit.get("deflated_sharpe_probability"))
+            scores["overfitting"] = _number(overfit.get("pbo"))
         statuses = [s for s in (_status(_evidence(database, connection, configuration_id, stage)) for stage in STRESS_STAGES) if s]
         scores["stress_status"] = ("failed" if "failed" in statuses else "passed" if "passed" in statuses else statuses[0]) if statuses else None
     except (sqlite3.Error, ValueError, TypeError, KeyError, AttributeError):
@@ -90,16 +90,28 @@ def load_shortlist(*, database: str | Path | None = None) -> list[dict[str, Any]
         return []
     try:
         rows = connection.execute(
-            BASE_CTE + " SELECT candidate_id, title, symbol, configuration_id, run_id, "
+            BASE_CTE + " SELECT candidate_id, title, symbol, configuration_id, run_id, oos_run_id, "
             "CAST(json_extract(oos_metrics_json,'$.sharpe_ratio') AS REAL) AS sharpe "
-            "FROM candidates WHERE oos_metrics_json IS NOT NULL AND configuration_id IS NOT NULL "
+            "FROM candidates WHERE (oos_metrics_json IS NOT NULL OR oos_run_id IS NOT NULL) AND configuration_id IS NOT NULL "
             "ORDER BY sharpe DESC, candidate_id LIMIT ?", _base_params() + [SHORTLIST_LIMIT],
         ).fetchall()
+        found = []
+        for r in rows:
+            sharpe = _number(r["sharpe"])
+            if sharpe is None:  # the pipeline keeps unseen-data metrics in its report, not in parameter rows
+                report = oos_report_metrics(database=database_path, run_id=r["oos_run_id"]) or {}
+                if report.get("_test_status") != "passed":
+                    continue
+                sharpe = _number(report.get("sharpe_ratio"))
+                if sharpe is None:
+                    continue
+            found.append((sharpe, r))
+        found.sort(key=lambda item: (-item[0], str(item[1]["candidate_id"])))
         return [
             {"candidate_id": str(r["candidate_id"]), "title": str(r["title"] or "Untitled idea"), "symbol": str(r["symbol"] or ""),
-             "run_id": r["run_id"], "rank": index + 1, "sharpe": _number(r["sharpe"]),
+             "run_id": r["run_id"], "rank": index + 1, "sharpe": sharpe,
              **_scores(database_path, connection, str(r["configuration_id"]))}
-            for index, r in enumerate(rows)
+            for index, (sharpe, r) in enumerate(found)
         ]
     except sqlite3.Error:
         return []

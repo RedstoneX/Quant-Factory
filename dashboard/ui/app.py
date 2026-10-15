@@ -436,7 +436,7 @@ def create_app() -> Dash:
         if trigger == "compare-clear": return "/candidates", "?clear_compare=1"
         if trigger in {"open-results", "candidate-open-results", "factory-open-results"}:
             selected = values[-4] if trigger == "open-results" else values[-3] if trigger == "candidate-open-results" else values[-2]
-            run_id = (selected or {}).get("run_id")
+            run_id = (selected or {}).get("results_run_id") or (selected or {}).get("run_id")
             return "/results", f"?run_id={run_id}" if run_id else ""
         if trigger == "compare-selected":
             run_ids = [str(row.get("run_id")) for row in (values[-1] or []) if row.get("run_id")]
