@@ -139,3 +139,5 @@ class SignalResult:
     stop_loss: pd.Series | None = None
     take_profit: pd.Series | None = None
     trailing_stop: pd.Series | None = None
+    # Gain from entry (fraction) before the trailing stop activates: VectorBT PRO from_signals tsl_th.
+    trailing_threshold: pd.Series | None = None

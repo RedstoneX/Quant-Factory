@@ -281,6 +281,12 @@ class RuleEvaluator:
         if operator == "not":
             return ~self.condition(value)
         mask = np.zeros(self.shape, dtype=bool)
+        if operator == "every_minutes":
+            # Bar ends that sit on pandas' N-minute resample grid (Timestamp.floor uses the same epoch-anchored bins
+            # as DataFrame.resample(f"{N}min", closed="right", label="right")), e.g. every 5-minute close on 1m bars.
+            ends = pd.Timestamp(0) + pd.to_timedelta(first_bar_end_minutes(self.bar) + np.arange(self.shape[0]) * BAR_MINUTES[self.bar], unit="min")
+            mask[np.asarray(ends.floor(f"{value}min") == ends)] = True
+            return mask
         if operator == "time_is":
             mask[bar_position(value, self.bar)] = True
         else:
@@ -300,8 +306,24 @@ class RuleEvaluator:
         """Stop or target distance as a fraction of the signal-bar close."""
         return self.cached("distance", node, lambda: self._distance_fraction(node))
 
+    def level_fraction(self, node: Any) -> np.ndarray:
+        """Signed ``(entry open - level) / entry open`` of a stop level read on the signal bar.
+
+        The entry fills at the next bar's open, the price VectorBT PRO's ``stop_entry_price="Open"`` measures a
+        ``delta_format="Percent"`` ``sl_stop`` from, so this fraction puts the engine's stop exactly on the level.
+        Positive: the level is below the entry (a long's stop side); negative: above (a short's).
+        """
+        entry_open = np.full(self.shape, np.nan)
+        entry_open[:-1] = self.bars.open[1:]  # next bar of the same session; the session's last bar has none
+        return _divide(entry_open - self.series(node), entry_open)
+
     def _distance_fraction(self, node: Mapping[str, Any]) -> np.ndarray:
         kind, value = next(iter(node.items()))
+        if kind == "level":
+            return np.abs(self.level_fraction(value))
+        if kind == "r_multiple":
+            # R units; rule_spec_strategy multiplies them by the entry's stop-loss fraction (tp_stop = R * sl_stop).
+            return np.full(self.shape, self.amount(value))
         if kind == "percent":
             return np.full(self.shape, self.amount(value) / 100.0)
         if kind == "points":

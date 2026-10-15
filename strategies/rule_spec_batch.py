@@ -102,10 +102,17 @@ def bar_sides(spec: Mapping[str, Any], evaluator: RuleEvaluator) -> np.ndarray:
     return sides
 
 
-def walk_columns(spec: Mapping[str, Any], sides: np.ndarray, after: np.ndarray, valid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def walk_columns(
+    spec: Mapping[str, Any],
+    sides: np.ndarray,
+    after: np.ndarray,
+    valid: np.ndarray,
+    leave_when: tuple[np.ndarray, np.ndarray] | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Run the flat/long/short state machine down every column at once.
 
     ``sides`` and ``valid`` are (bars, columns); ``after`` holds one ``after_bars`` per column (inf = none).
+    ``leave_when`` is the (long, short) ``exit_when`` masks, (bars, columns): a held position of that side exits.
     Returns int8 event codes (bars, columns) and the entries skipped per column for an unusable stop distance.
     """
     exit_rules = spec["exit"]
@@ -123,6 +130,8 @@ def walk_columns(spec: Mapping[str, Any], sides: np.ndarray, after: np.ndarray, 
         side = sides[row]
         holding = state != 0
         leave = holding & ((row - entry_row >= after) | (opposite & (side == -state)))
+        if leave_when is not None:
+            leave |= holding & (((state > 0) & leave_when[0][row]) | ((state < 0) & leave_when[1][row]))
         if row == flat or row == at_time:
             leave = holding
         codes[row, leave & (state > 0)] = _EXIT
@@ -162,13 +171,19 @@ def _plan(spec: Mapping[str, Any], prepared: PreparedSessions, parameters: Mappi
     after = float(evaluator.count(exit_rules["after_bars"])) if "after_bars" in exit_rules else np.inf
     sides_key = evaluator.key("sides", spec["signals"])
     digest = hashlib.blake2b(np.packbits(valid).tobytes(), digest_size=16).hexdigest()
-    walk = f"{sides_key}|{after}|{digest}"
+    when = exit_rules.get("exit_when", {})
+    walk = f"{sides_key}|{after}|{digest}|{evaluator.key('exit_when', when) if when else ''}"
     if walk not in walks:
-        walks[walk] = (evaluator.cached("sides", spec["signals"], lambda: bar_sides(spec, evaluator)), after, valid)
+        sides = evaluator.cached("sides", spec["signals"], lambda: bar_sides(spec, evaluator))
+        leave = None
+        if when:
+            never = np.zeros(evaluator.shape, dtype=bool)
+            leave = tuple(evaluator.condition(when[side]) if side in when else never for side in ("long", "short"))
+        walks[walk] = (sides, after, valid, leave)
     return _Setting(dict(parameters), evaluator, walk, fractions)
 
 
-def _run_walks(spec: Mapping[str, Any], walks: Mapping[str, tuple[np.ndarray, float, np.ndarray]]) -> dict[str, tuple[np.ndarray, int]]:
+def _run_walks(spec: Mapping[str, Any], walks: Mapping[str, tuple[np.ndarray, float, np.ndarray, Any]]) -> dict[str, tuple[np.ndarray, int]]:
     """Step distinct walks together, ``_WALK_COLUMNS`` session columns at a time."""
     results: dict[str, tuple[np.ndarray, int]] = {}
     keys = list(walks)
@@ -179,7 +194,10 @@ def _run_walks(spec: Mapping[str, Any], walks: Mapping[str, tuple[np.ndarray, fl
         sides = np.hstack([walks[key][0] for key in chunk]).astype(np.int8)
         valid = np.hstack([walks[key][2] for key in chunk])
         after = np.repeat([walks[key][1] for key in chunk], sessions)
-        codes, skipped = walk_columns(spec, sides, after, valid)
+        leave_when = None
+        if "exit_when" in spec["exit"]:
+            leave_when = tuple(np.hstack([walks[key][3][number] for key in chunk]) for number in (0, 1))
+        codes, skipped = walk_columns(spec, sides, after, valid, leave_when)
         for number, key in enumerate(chunk):
             columns = slice(number * sessions, (number + 1) * sessions)
             results[key] = (codes[:, columns], int(skipped[columns].sum()))
@@ -209,7 +227,7 @@ def iter_batch_signals(
     present = [key for key in STOP_KEYS if key in spec["exit"]]
     cache: dict = _BoundedCache()
     for start in range(0, len(settings), chunk):
-        walks: dict[str, tuple[np.ndarray, float, np.ndarray]] = {}
+        walks: dict[str, tuple[np.ndarray, float, np.ndarray, Any]] = {}
         planned = (
             [_plan(spec, prepared, parameters, cache, walks) for parameters in settings[start : start + chunk]]
             if prepared.bars is not None

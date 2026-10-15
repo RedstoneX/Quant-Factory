@@ -104,7 +104,14 @@ Distances: {"percent": x}, {"points": x}, {"ticks": n} or {"atr": {"length": N, 
 Each distance is fixed when the trade is entered (an ATR distance uses the ATR at the signal bar).
 If a bar opens beyond a stop, the exit fills at that open, not at the stop.
 Example "exit":
-""" + json.dumps(STOPS_EXAMPLE_EXIT, separators=(",", ":")) + "\n"
+""" + json.dumps(STOPS_EXAMPLE_EXIT, separators=(",", ":")) + "\n" + """\
+stop_loss {"level": S}: a price read at the signal bar, e.g. {"range_low": {"from": "09:30", "to": "10:00"}}; entry skipped if its fill is through it.
+take_profit {"r_multiple": R}: R x the stop-loss distance. trail_after (a distance or R): gain that switches trailing_stop on;
+  breakeven then trail = same distance in both, e.g. {"trailing_stop": {"points": 4}, "trail_after": {"points": 4}}.
+exit_when {"long": C, "short": C}: exit at the next open when condition C is true; a later signal may re-enter.
+  Trail off the prior N-bar low: {"long": {"lt": ["close", {"prev": {"donchian": {}, "length": N, "output": "lower"}, "bars": 1}]}}.
+{"every_minutes": N}: bars ending on an N-minute boundary; with {"time_between": ["09:50", "15:50"]} = every 5m close on 1m bars.
+"""
 
 
 def _example() -> dict[str, Any]:

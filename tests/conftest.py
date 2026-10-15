@@ -23,6 +23,8 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_deflated_sharpe.py::test_selected_column_alone_is_undefined",
         "tests/test_deflated_sharpe.py::test_walk_forward_counts_every_setting_tried_not_per_fold",
         "tests/test_overfitting_pbo.py::test_noise_grid_is_near_one_half",
+        "tests/test_rule_language_exits.py::test_level_stop_and_target_fill_in_vectorbt",
+        "tests/test_rule_language_exits.py::test_breakeven_then_trail_in_vectorbt",
         "tests/test_overfitting_pbo.py::test_dominant_setting_has_low_pbo",
         "tests/test_overfitting_pbo.py::test_single_setting_is_rejected",
         "tests/test_overfitting_pbo.py::test_experiment_records_pbo_next_to_deflated_sharpe_and_never_screens",

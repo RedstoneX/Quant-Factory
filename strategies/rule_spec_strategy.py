@@ -20,6 +20,7 @@ import os
 import re
 import tempfile
 import threading
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
@@ -45,6 +46,7 @@ from strategies.models import (
     TradingAssumptions,
 )
 from strategies.rule_spec_batch import PreparedSessions, iter_batch_signals, prepare_sessions
+from strategies.rule_spec_evaluation import RuleEvaluator
 
 RULE_COMPILER_VERSION = "1.0.0"
 RULE_STRATEGY_PREFIX = "rules_"
@@ -299,6 +301,8 @@ def _metadata(definition: Mapping[str, Any], prepared: PreparedSessions, skipped
         metadata["trailing_stop_distance"] = (
             "the trailing stop's fraction is fixed at entry; the engine trails it behind the best price since entry."
         )
+    if "trail_after" in present:
+        metadata["trail_after"] = "the trailing stop switches on once price gains trail_after from the entry (from_signals tsl_th)."
     if present:
         metadata["stop_distance_approximation"] = (
             "points, ticks and ATR distances are divided by the signal-bar close to give the engine's fractional "
@@ -325,17 +329,71 @@ def iter_rule_signals(
     batches = iter_batch_signals(spec, prepared, settings)
     for parameters, (flags, levels, skipped) in zip(settings, batches):
         # Each stop's distance is fixed at entry: the fraction measured on the signal bar is written on the entry row.
+        dropped = _engine_exit_inputs(spec, prepared, parameters, flags, levels)
+        metadata = _metadata(definition, prepared, skipped, present)
+        if "level" in spec["exit"].get("stop_loss", {}):
+            metadata["entries_dropped_level_stop_on_wrong_side"] = dropped
+        if "exit_when" in spec["exit"]:
+            metadata["exit_when"] = (
+                "exit_when is a rule exit: the compiler closes the position on that bar (from_signals exits/short_exits), "
+                "so a later signal can enter again within max_trades_per_session."
+            )
         yield SignalResult(
             entries=flags["entry"],
             exits=flags["exit"],
             short_entries=flags["short_entry"],
             short_exits=flags["short_exit"],
             parameters=dict(parameters),
-            metadata=_metadata(definition, prepared, skipped, present),
+            metadata=metadata,
             stop_loss=levels.get("stop_loss"),
             take_profit=levels.get("take_profit"),
             trailing_stop=levels.get("trailing_stop"),
+            trailing_threshold=levels.get("trail_after"),
         )
+
+
+def _engine_exit_inputs(
+    spec: Mapping[str, Any],
+    prepared: PreparedSessions,
+    parameters: Mapping[str, Any],
+    flags: dict[str, pd.Series],
+    levels: dict[str, pd.Series],
+) -> int:
+    """Translate level stops and R-multiples into Portfolio.from_signals stop inputs.
+
+    (``exit_when`` is handled by the rule walk in ``strategies.rule_spec_batch`` like any other rule exit.)
+    - ``stop_loss.level`` -> ``sl_stop`` as the fraction from the entry open to the level (the runner passes
+      ``delta_format="Percent"``, ``stop_entry_price="Open"``, so the engine's stop sits on the level; a bar
+      opening beyond it fills at that open). An entry whose open is already through its level is dropped.
+    - ``take_profit.r_multiple`` -> ``tp_stop`` and ``trail_after.r_multiple`` -> ``tsl_th``, each R x that entry's
+      ``sl_stop`` fraction.
+    Returns the number of entries dropped for a level on the wrong side of the entry open.
+    """
+    exit_rules = spec["exit"]
+    level = exit_rules.get("stop_loss", {}).get("level")
+    multiples = [key for key in ("take_profit", "trail_after") if "r_multiple" in exit_rules.get(key, {})]
+    if prepared.bars is None or (level is None and not multiples):
+        return 0
+    evaluator = RuleEvaluator(replace(prepared.bars, parameters=dict(parameters)))
+
+    def on_index(values: np.ndarray, fill: Any) -> np.ndarray:
+        result = np.full(len(prepared.index), fill, dtype=values.dtype)
+        result[prepared.positions] = values
+        return result
+
+    dropped = 0
+    if level is not None:
+        signed = on_index(evaluator.level_fraction(level), np.nan)
+        with np.errstate(invalid="ignore"):
+            wrong = (flags["entry"].to_numpy() & ~(signed > 0)) | (flags["short_entry"].to_numpy() & ~(signed < 0))
+        dropped = int(wrong.sum())
+        for name in ("entry", "short_entry"):
+            flags[name] = flags[name] & ~wrong
+        for key in levels:
+            levels[key] = levels[key].mask(wrong)
+    for key in multiples:
+        levels[key] = levels[key] * levels["stop_loss"]
+    return dropped
 
 
 def compile_rule_signals(
