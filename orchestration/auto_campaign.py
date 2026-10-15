@@ -300,9 +300,13 @@ def _draft_market(candidate_json: str) -> tuple[str, str] | None:
 
 
 def earlier_owner_of_strategy(
-    *, database: str | Path, strategy_id: str, candidate_id: str, symbol: str, timeframe: str
+    *, database: str | Path, strategy_id: str, candidate_id: str, symbol: str, timeframe: str,
+    without_result: Collection[str] = (),
 ) -> str | None:
-    """Return another idea already linked to a setup for this strategy on the same symbol and timeframe."""
+    """Return another idea already linked to a setup for this strategy on the same symbol and timeframe.
+
+    Ideas in `without_result` (failed, interrupted or blocked: no numbers) never own the strategy.
+    """
     service = PersistenceService(database)
     try:
         configuration_ids = {row.configuration_id for row in service.configurations.list(strategy_id=strategy_id)}
@@ -310,6 +314,7 @@ def earlier_owner_of_strategy(
             (draft.created_at, draft.draft_id)
             for draft in service.idea_drafts.list()
             if draft.configuration_id in configuration_ids and draft.draft_id != candidate_id
+            and draft.draft_id not in without_result
             and _draft_market(draft.candidate_json) == (symbol, timeframe)
         )
         return owners[0][1] if owners else None

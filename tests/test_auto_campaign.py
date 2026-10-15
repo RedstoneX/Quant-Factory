@@ -190,6 +190,41 @@ def test_same_rules_symbol_and_timeframe_with_new_title_is_still_a_duplicate(tmp
     assert harness.events("idea_second01")[-1]["reason_detail"] == "idea_first001"
 
 
+def _second_idea_after_first(tmp_path, chain=None, first_outcome=None, reopen=False):
+    harness = Harness(tmp_path, chain=chain)
+    harness.draft("idea_first001")
+    harness.campaign(first_outcome).run_once()
+    if reopen:
+        store = GatewayStore(harness.gateway_database)
+        try:
+            store.append_campaign_event(
+                candidate_id="idea_first001", policy_id=POLICY_ID, state="running", reason_code="started",
+                packet_sha256=harness.events("idea_first001")[-1]["packet_sha256"],
+            )
+        finally:
+            store.close()
+    harness.draft("idea_second01")
+    harness.campaign().run_once()
+    return harness
+
+
+def test_earlier_idea_that_failed_does_not_block_a_rerun(tmp_path):
+    harness = _second_idea_after_first(tmp_path, chain=_chain("invalid", None, ()))  # linked setup, no numbers
+    assert harness.states("idea_first001")[-1] == ("failed", "run_error")
+    assert ("duplicate_closed", "same_rules") not in harness.states("idea_second01")
+
+
+def test_earlier_idea_screened_out_is_still_a_duplicate(tmp_path):
+    harness = _second_idea_after_first(tmp_path, chain=_chain("stopped", "walk_forward", ("Negative.",)))
+    assert harness.states("idea_first001")[-1][0] == "screened_out"
+    assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
+
+
+def test_earlier_idea_still_in_progress_is_still_a_duplicate(tmp_path):
+    harness = _second_idea_after_first(tmp_path, reopen=True)
+    assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
+
+
 def test_screened_out_uses_pipeline_stage_names():
     outcome = outcome_from_chain(_chain("stopped", "walk_forward", ("Walk-forward return was negative.",)), "run_x")
     assert (outcome.state, outcome.reason_code, outcome.reason_detail) == (
