@@ -52,8 +52,22 @@ def page_header(title: str, subtitle: str, *actions: Any) -> dmc.Group:
     ], justify="space-between", gap="sm", px="lg", py="md", style={"borderBottom": f"1px solid {BORDER}"})
 
 
+TILE_NOTES = {
+    "Net return": "Profit after trading costs, as a share of starting money.",
+    "Best net return": "Profit after trading costs for the best setting.",
+    "Sharpe": "Return per unit of risk. Above 0.5 is decent, above 1 is strong.",
+    "Sharpe on first check": "Return per unit of risk on the first-check data.",
+    "Sharpe on unseen data": "Return per unit of risk on data it never saw while being built.",
+    "Max drawdown": "Biggest fall from a peak to a low along the way. Smaller is better.",
+    "Trades": "How many trades it took. More trades make the numbers more trustworthy.",
+    "Win rate": "Share of trades that made money. Low is fine if wins are bigger than losses.",
+    "Profit factor": "Money won per dollar lost. Above 1 means it made money.",
+}
+
+
 def stat_card(label: str, value: Any, note: Any = "", *, color: str | None = None, value_id: str | None = None, note_id: str | None = None) -> dmc.Paper:
     """A flat figure card: small label, one colour-coded number, a plain note."""
+    note = note or TILE_NOTES.get(label, "")
     value_props = {"id": value_id} if value_id else {}
     note_props = {"id": note_id} if note_id else {}
     return dmc.Paper(dmc.Stack([

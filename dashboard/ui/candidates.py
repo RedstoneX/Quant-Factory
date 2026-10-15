@@ -298,8 +298,9 @@ def register_candidate_callbacks(application: Any) -> None:
             detail = load_candidate_detail(candidate_id) if candidate_id else None
             if detail:
                 return {"candidate_id": candidate_id, "run_id": detail.get("run_id")}
-        if "candidate-grid.cellClicked" in ctx.triggered_prop_ids and clicked and clicked.get("colId") != "ag-Grid-SelectionColumn" and clicked.get("data"):
-            row = clicked["data"]; return {"candidate_id": row.get("candidate_id"), "run_id": row.get("run_id")}
+        if "candidate-grid.cellClicked" in ctx.triggered_prop_ids and clicked and clicked.get("colId") != "ag-Grid-SelectionColumn" and clicked.get("rowId"):
+            # AG Grid's cellClicked carries the row id (getRowId = candidate_id), not the row data.
+            return {"candidate_id": clicked["rowId"], "run_id": None}
         if current:
             return current
         rows = (response or {}).get("rowData") or []
@@ -330,7 +331,7 @@ def register_candidate_callbacks(application: Any) -> None:
             return "No selection", "gray", "Pick an idea", "Choose a row to see its results here.", _detail_body(None, tab)
         state = lifecycle_label(record.get("lifecycle") or "received")
         rank = f"Rank {record.get('rank')}" if record.get("rank") else ""
-        meta = " · ".join(str(part) for part in (record.get("symbol"), record.get("family"), rank) if part)
+        meta = " · ".join(str(part) for part in (record.get("symbol"), _human_label(record.get("family")), rank) if part)
         return state, STATE_COLORS.get(str(record.get("lifecycle")), "gray"), record.get("title") or "Untitled idea", meta, _detail_body(record, tab)
 
     application.clientside_callback("(click) => click && click.colId !== 'ag-Grid-SelectionColumn' ? true : window.dash_clientside.no_update", Output("candidate-detail-drawer", "opened"), Input("candidate-grid", "cellClicked"), prevent_initial_call=True)

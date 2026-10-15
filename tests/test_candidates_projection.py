@@ -40,7 +40,7 @@ def _candidate_database(path: Path) -> None:
             connection.execute("INSERT INTO experiment_configurations VALUES (?,?)", (configuration_id, json.dumps({"market_data": {"symbol": "MES", "asset_class": "futures"}})))
     connection.executemany("INSERT INTO experiment_runs VALUES (?,?,?,?,?,?,?,?)", [
         ("gold-oos", "gold-cfg", "oos", "succeeded", now, now, None, now),
-        ("active-wf", "active-cfg", "walk_forward", "running", now, None, None, now),
+        ("active-wf", "active-cfg", "walk_forward", "created", now, None, None, now),
         ("closed-oos", "closed-cfg", "oos", "succeeded", now, now, None, now),
     ])
     connection.executemany("INSERT INTO parameter_results VALUES (?,?,?,?,?,?,?)", [
@@ -81,3 +81,34 @@ def test_candidates_projection_is_bounded_sorted_filterable_and_exact(tmp_path: 
     assert closed_detail["screening_sharpe"] == 0.3
     assert closed_detail["screening_reasons"] == "Sharpe below gate"
     assert hashlib.sha256(database.read_bytes()).hexdigest() == before
+
+
+def test_home_and_ideas_share_one_count_definition(tmp_path: Path) -> None:
+    from dashboard.overview_projection import load_dashboard_snapshot
+
+    database = tmp_path / "state.sqlite3"; _candidate_database(database)
+    connection = sqlite3.connect(database)
+    connection.execute("INSERT INTO idea_drafts VALUES (?,?,?,?,?,?)", ("probe", "Connection test 7", "", json.dumps({"candidate": {"title": "Connection test 7"}}), None, "2026-10-09T00:00:00+00:00"))
+    for statement in (  # the home page also reads run-level columns the Ideas fixture leaves out
+        "ALTER TABLE strategies ADD COLUMN strategy_version TEXT", "ALTER TABLE strategies ADD COLUMN display_name TEXT",
+        "ALTER TABLE experiment_runs ADD COLUMN strategy_id TEXT", "ALTER TABLE experiment_runs ADD COLUMN strategy_version TEXT",
+        "ALTER TABLE experiment_configurations ADD COLUMN experiment_id TEXT",
+    ):
+        connection.execute(statement)
+    connection.commit(); connection.close()
+
+    ideas = load_candidates_summary(database=database)["counts"]
+    home = load_dashboard_snapshot(window="ytd", database=database)
+    assert home["population_count"] == ideas["all"] == 4  # the throwaway entry is in neither
+    assert home["counts"]["advancing"] == ideas["advancing"] == 1
+
+
+def test_tile_notes_and_stress_note_explain_themselves() -> None:
+    from dashboard.ui.layout import stat_card
+    from dashboard.ui.scores import score_cards
+
+    assert "after trading costs" in str(stat_card("Net return", "1.62%")).lower()
+    failed = {"stress_status": "failed", "stress_failed": ["the shuffled-trades check"]}
+    stress = str(score_cards(failed)[2])
+    assert "not a pass mark" in stress and "shuffled-trades" in stress
+    assert "not a pass mark" not in str(score_cards({"stress_status": "passed"})[2])

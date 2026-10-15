@@ -22,6 +22,9 @@ SURVIVOR_EVENT_MESSAGE = "Factory filter chain completed and is ready for the pr
 CHART_LIMIT = 200
 SURVIVOR_LIMIT = 50
 CANDIDATE_PAGE_LIMIT = 100
+# Throwaway entries (connectivity probes, smoke runs): hidden from every count and list by default; never deleted.
+TEST_TITLE_PATTERNS = ("connection test%", "smoke test%", "test idea%", "test candidate%", "dummy%")
+IS_TEST_SQL = "CASE WHEN " + " OR ".join(f"LOWER(d.title) LIKE '{pattern}'" for pattern in TEST_TITLE_PATTERNS) + " THEN 1 ELSE 0 END"
 
 
 def live_run_clause(status: str, candidate_id: str) -> str:
@@ -37,7 +40,7 @@ def live_run_clause(status: str, candidate_id: str) -> str:
 STAGE_REACH = "WHEN 'oos' THEN 3 WHEN 'walk_forward' THEN 4 WHEN 'robustness' THEN 5 WHEN 'monte_carlo' THEN 5 ELSE 0"
 # Funnel levels: 1 received, 2 after costs, 3 unseen data, 4 over time, 5 stress test, 6 passed.
 FUNNEL_LEVEL = {"submitted": 1, "costs": 2, "oos": 3, "walk_forward": 4, "robustness": 5, "survivors": 6}
-ADVANCING_CONDITION = live_run_clause("c.run_status", "c.candidate_id")
+ADVANCING_CONDITION = "(" + live_run_clause("c.run_status", "c.candidate_id") + " AND c.survivor=0)"  # a passed idea counts as passed, not as testing
 
 
 def configured_database_path() -> Path:
@@ -79,6 +82,7 @@ BASE_CTE = f"""
 WITH candidate_base AS (
     SELECT d.draft_id AS candidate_id, d.title, d.description, d.candidate_json,
            d.configuration_id, d.updated_at,
+           {IS_TEST_SQL} AS is_test,
            campaign.policy_id AS campaign_policy_id,
            campaign.state AS campaign_state,
            campaign.reason_code AS campaign_reason_code,
@@ -159,7 +163,7 @@ def _base_params() -> list[Any]:
 
 
 def _filter_clause(*, window: str, market: str, alias: str = "c", include_window: bool = True) -> tuple[str, list[Any]]:
-    clauses = [f"(? = 'all' OR {alias}.asset_class = ?)"]
+    clauses = [f"(? = 'all' OR {alias}.asset_class = ?)", f"{alias}.is_test=0"]
     params: list[Any] = [market, market]
     boundary = _window_boundary(window) if include_window else None
     if boundary:
@@ -178,7 +182,16 @@ def _finite_number(value: Any) -> float | None:
     return result if math.isfinite(result) else None
 
 
-def _row_view(row: sqlite3.Row, *, oos_metric: bool) -> dict[str, Any]:
+def _unseen_report(row: sqlite3.Row, database: Path) -> dict[str, Any] | None:
+    """The unseen-data report for this row's unseen-data run, the same source the Ideas page reads."""
+    from dashboard.results_projection import oos_report_metrics  # results_projection imports this module
+
+    keys = row.keys()
+    run_id = row["oos_run_id"] if "oos_run_id" in keys and row["oos_run_id"] else (row["run_id"] if row["stage"] == "oos" else None)
+    return oos_report_metrics(database=database, run_id=str(run_id)) if run_id else None
+
+
+def _row_view(row: sqlite3.Row, *, oos_metric: bool, report: dict[str, Any] | None = None) -> dict[str, Any]:
     candidate_json = str(row["candidate_json"] or "")
     try:
         candidate = json.loads(candidate_json).get("candidate") or {}
@@ -193,6 +206,8 @@ def _row_view(row: sqlite3.Row, *, oos_metric: bool) -> dict[str, Any]:
         metrics = json.loads(str(row[metric_field] or "{}"))
     except json.JSONDecodeError:
         metrics = {}
+    if oos_metric and report and _finite_number(metrics.get("sharpe_ratio")) is None:
+        metrics = report  # the pipeline keeps unseen-data metrics in its report artifact, not in parameter rows
     drawdown = _finite_number(metrics.get("max_drawdown"))
     if drawdown is not None:
         drawdown = abs(drawdown) * 100 if abs(drawdown) <= 1 else abs(drawdown)
@@ -382,9 +397,9 @@ def load_dashboard_snapshot(*, window: str = "90d", market: str = "all", databas
             "window": window, "market": market, "observed_at": datetime.now(timezone.utc).isoformat(),
             "counts": {"running": running, "queued": queued, "survivors": survivors_count, "advancing": advancing, "needs": None, "failed": failed},
             "stages": stages, "operation": {"active": running + queued, "terminal": terminal, "bottleneck": str(bottleneck).replace("_", " ").title(), "median_minutes": None},
-            "chart": [_row_view(row, oos_metric=True) for row in chart_rows],
-            "survivors": [_row_view(row, oos_metric=True) for row in survivor_rows],
-            "latest_finding": _row_view(latest_row, oos_metric=True) if latest_row else None,
+            "chart": [_row_view(row, oos_metric=True, report=_unseen_report(row, database_path)) for row in chart_rows],
+            "survivors": [_row_view(row, oos_metric=True, report=_unseen_report(row, database_path)) for row in survivor_rows],
+            "latest_finding": _row_view(latest_row, oos_metric=True, report=_unseen_report(latest_row, database_path)) if latest_row else None,
             "chart_limit": CHART_LIMIT, "survivor_limit": SURVIVOR_LIMIT, "population_count": population,
         }
     except (sqlite3.Error, ValueError, TypeError) as exc:
