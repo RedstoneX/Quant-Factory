@@ -51,7 +51,7 @@ CANDIDATE_COLUMNS = [
 ]
 MARKETS = [{"value": "all", "label": "All markets"}, {"value": "futures", "label": "Futures"}, {"value": "equities", "label": "Equities"}, {"value": "crypto", "label": "Crypto"}, {"value": "unclassified", "label": "Unclassified"}]
 EVIDENCE = [{"value": "any", "label": "Any test result"}, {"value": "all_gates", "label": "Passed every test"}, {"value": "failed_oos", "label": "Failed on unseen data"}, {"value": "semantic_exception", "label": "Rules unclear"}]
-STATE_COLORS = {"survivor": "teal", "rejected": "red", "crashed": "red", "blocked": "yellow", "needs_review": "yellow", "advancing": "blue"}
+STATE_COLORS = {"survivor": "teal", "rejected": "gray", "crashed": "red", "blocked": "yellow", "needs_review": "yellow", "advancing": "blue"}
 
 
 def _lifecycle_tabs(counts: dict[str, Any]) -> list[dict[str, str]]:
@@ -76,14 +76,14 @@ def candidates_layout(search: str | None = None) -> html.Div:
     family_options = [{"value": "all", "label": "All families"}] + [{"value": family, "label": family} for family in summary.get("families", [])]
     saved_views = dmc.Menu([
         dmc.MenuTarget(dmc.Button("Saved views", leftSection=_icon("bookmark"), variant="default")),
-        dmc.MenuDropdown([dmc.MenuItem("Passed, best first", id="view-survivors"), dmc.MenuItem("All ideas", id="view-all"), dmc.MenuItem("Failed testing", id="view-rejected")]),
+        dmc.MenuDropdown([dmc.MenuItem("Passed, best first", id="view-survivors"), dmc.MenuItem("All ideas", id="view-all"), dmc.MenuItem("Screened out", id="view-rejected")]),
     ], position="bottom-end")
     header = page_header(
         "Ideas", "Every idea the factory has received, best out-of-sample Sharpe first", saved_views,
         dmc.Button("Columns", id="candidate-columns", leftSection=_icon("columns"), variant="default"),
         dmc.Button("Submit an idea", id="candidate-submit"),
     )
-    lifecycle = dmc.ScrollArea(dmc.SegmentedControl(id="candidate-lifecycle", value=initial_lifecycle, data=_lifecycle_tabs(counts), size="xs"), type="auto", scrollbars="x", offsetScrollbars=False, w="100%", mb="sm")
+    lifecycle = dmc.ScrollArea(dmc.SegmentedControl(id="candidate-lifecycle", value=initial_lifecycle, data=_lifecycle_tabs(counts), size="xs"), type="never", w="100%", mb="sm")
     filters = dmc.Group([
         dmc.TextInput(id="candidate-search", value=initial_search, placeholder="Search idea, market, family…", leftSection=_icon("search"), size="xs", w={"base": "100%", "sm": 240}, debounce=True, persistence=True, persistence_type="local", **{"aria-label": "Search ideas"}),
         dmc.Select(id="candidate-market", data=MARKETS, value="all", allowDeselect=False, size="xs", w={"base": "100%", "sm": 140}, persistence=True, persistence_type="local", **{"aria-label": "Market"}),
@@ -93,7 +93,7 @@ def candidates_layout(search: str | None = None) -> html.Div:
     ], gap="xs", mb="sm")
     grid = dag.AgGrid(
         id="candidate-grid", columnDefs=CANDIDATE_COLUMNS, rowModelType="infinite",
-        defaultColDef={**COLUMN_DEFAULTS, "filter": True, "floatingFilter": False},
+        defaultColDef={**COLUMN_DEFAULTS, "filter": True, "floatingFilter": False, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
         dashGridOptions=grid_options(
             "No ideas match these filters.",
             rowSelection={"mode": "multiRow", "checkboxes": True, "headerCheckbox": False, "enableClickSelection": True},
@@ -101,26 +101,23 @@ def candidates_layout(search: str | None = None) -> html.Div:
             cacheBlockSize=50, maxBlocksInCache=4, rowBuffer=10, animateRows=False,
             suppressCellFocus=False, enableCellTextSelection=True, suppressPropertyNamesCheck=True,
         ),
-        getRowId="params.data.candidate_id", className="candidates-grid", columnSize="responsiveSizeToFit",
+        getRowId="params.data.candidate_id", style={"height": "calc(100dvh - 380px)", "minHeight": 360}, columnSize="responsiveSizeToFit",
         eventListeners={event: [*code, "params.api.sizeColumnsToFit()"] for event, code in hide_when_narrow("symbol", "lifecycle", "max_drawdown", "retained", "net_return", "robustness", "paper").items()},
         persistence=True, persisted_props=["filterModel"], persistence_type="local",
     )
-    detail = dmc.Paper([
+    detail = dmc.Drawer(dmc.Stack([
         dmc.Stack([
             dmc.Badge("No selection", id="candidate-detail-state", color="gray"),
             dmc.Title("Pick an idea", id="candidate-detail-name", order=5, lineClamp=2),
             dmc.Text("Choose a row to see its results here.", id="candidate-detail-meta", size="xs", c="dimmed"),
-        ], gap=6, p="md"),
+        ], gap=6),
         dmc.ScrollArea(dmc.Tabs(
             dmc.TabsList([dmc.TabsTab("Overview", value="overview"), dmc.TabsTab("Results", value="evidence"), dmc.TabsTab("History", value="history"), dmc.TabsTab("Origin", value="lineage")]),
             id="candidate-detail-tab", value="overview",
-        ), type="never", px="md"),
+        ), type="never"),
         html.Div(id="candidate-detail-body", className="candidate-detail-body"),
-    ], className="candidate-detail")
-    workspace = html.Div([
-        html.Div([grid, html.Footer([html.Span(id="candidate-page-count"), html.Span(id="candidate-total-count")], className="candidate-grid-footer")], className="candidate-grid-region"),
-        detail,
-    ], className="candidate-workspace")
+    ], gap="md"), id="candidate-detail-drawer", opened=bool(requested_candidate), position="right", size="min(100%, 420px)", withOverlay=False, lockScroll=False, title="Idea details")
+    workspace = dmc.Stack([grid, dmc.Group([dmc.Text(id="candidate-page-count", size="xs", c="dimmed"), dmc.Text(id="candidate-total-count", size="xs", c="dimmed")], justify="space-between")], gap="xs")
     stores = [
         dcc.Store(id="candidate-summary", data=summary), dcc.Store(id="candidate-query", data={"lifecycle": initial_lifecycle, "market": "all", "family": "all", "evidence": "any", "search": initial_search}),
         dcc.Store(id="candidate-selection", data={"candidate_id": requested_candidate, "run_id": (initial_detail or {}).get("run_id")} if requested_candidate else None, storage_type="local"),
@@ -128,7 +125,7 @@ def candidates_layout(search: str | None = None) -> html.Div:
         dcc.Store(id="candidate-detail-record"),
         dcc.Store(id="candidate-cache-reset"),
     ]
-    return html.Div([*stores, header, html.Div([lifecycle, filters, workspace], className="candidates-body")], className="candidates-app")
+    return html.Div([*stores, detail, header, dmc.Box([lifecycle, filters, workspace], p="lg")])
 
 
 def _fmt(value: Any, *, percent: bool = False) -> str:
@@ -312,6 +309,8 @@ def register_candidate_callbacks(application: Any) -> None:
         rank = f"Rank {record.get('rank')}" if record.get("rank") else ""
         meta = " · ".join(str(part) for part in (record.get("symbol"), record.get("family"), rank) if part)
         return state, STATE_COLORS.get(str(record.get("lifecycle")), "gray"), record.get("title") or "Untitled idea", meta, _detail_body(record, tab)
+
+    application.clientside_callback("(rows) => rows && rows.length ? true : window.dash_clientside.no_update", Output("candidate-detail-drawer", "opened"), Input("candidate-grid", "selectedRows"), prevent_initial_call=True)
 
     @application.callback(Output("candidate-detail-tab", "value"), Input("candidate-open-evidence", "n_clicks", allow_optional=True), prevent_initial_call=True)
     def open_evidence(_clicks: int | None):

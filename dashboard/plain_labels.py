@@ -11,7 +11,7 @@ from typing import Any
 TESTING = "Testing"
 CANT_TEST = "Can't test yet"
 DUPLICATE = "Duplicate"
-FAILED_TESTING = "Failed testing"
+FAILED_TESTING = "Screened out"
 PASSED = "Passed — needs your review"
 CRASHED = "Test crashed"
 
