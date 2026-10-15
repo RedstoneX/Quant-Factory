@@ -125,7 +125,7 @@ def _finding_content(item: dict[str, Any] | None, snapshot: dict[str, Any]) -> l
             dmc.Group([dmc.Button("Open Results", id="open-results", className="primary", disabled=not item.get("run_id")), dmc.Button("Open in Ideas", id="open-candidate", className="ghost", variant="default", disabled=True)], gap=7, className="finding-actions"),
         ]
     screened_out = str(item.get("outcome") or "").lower() == "screened_out"
-    status = "Failed testing" if screened_out else status
+    status = "Screened out" if screened_out else status
     return [
         dmc.Group([dmc.Badge(status, leftSection=DashIconify(icon="tabler:check", width=12) if item.get("state") == "survivor" else None, className=f"badge{' rejected' if screened_out else ''}"), copy_id(item.get("run_id"))], justify="space-between", className="status-row"),
         dmc.Title(item.get("title") or "Untitled idea", order=2),

@@ -57,7 +57,7 @@ def stat_card(label: str, value: Any, note: Any = "", *, color: str | None = Non
     value_props = {"id": value_id} if value_id else {}
     note_props = {"id": note_id} if note_id else {}
     return dmc.Paper(dmc.Stack([
-        dmc.Text(label, size="xs", c="dimmed"), dmc.Text(value, fz=18, fw=600, c=color, **value_props), dmc.Text(note, size="xs", c="dimmed", **note_props),
+        dmc.Text(label, size="xs", c="dimmed"), dmc.Text(value, fz=18, fw=600, **({"c": color} if color else {}), **value_props), dmc.Text(note, size="xs", c="dimmed", **note_props),
     ], gap=2), p="md")
 
 
