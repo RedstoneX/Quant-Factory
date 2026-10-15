@@ -70,10 +70,10 @@ def explained_score_cards(scores: dict[str, Any] | None, *, passed: bool) -> lis
 TRADE_COLUMNS = [
     {"field": "trade_id", "headerName": "Trade", "minWidth": 70, "flex": .6},
     {"field": "direction", "headerName": "Side", "minWidth": 70, "flex": .6},
-    {"field": "entry_display", "headerName": "Entry (Eastern)", "minWidth": 130, "flex": 1.4},
-    {"field": "exit_display", "headerName": "Exit (Eastern)", "minWidth": 130, "flex": 1.4},
-    {"field": "duration", "headerName": "Duration", "minWidth": 80, "flex": .8},
-    {"field": "pnl", "headerName": "Profit or loss", "type": "numericColumn", "minWidth": 90, "valueFormatter": {"function": MONEY_JS}, "cellStyle": {"styleConditions": [{"condition": "params.value > 0", "style": {"color": UP}}, {"condition": "params.value < 0", "style": {"color": DOWN}}]}},
+    {"field": "entry_display", "headerName": "Entry (Eastern)", "minWidth": 220, "flex": 1.4},
+    {"field": "exit_display", "headerName": "Exit (Eastern)", "minWidth": 220, "flex": 1.4},
+    {"field": "duration", "headerName": "Duration", "minWidth": 90, "flex": .8},
+    {"field": "pnl", "headerName": "Profit or loss", "type": "numericColumn", "minWidth": 120, "flex": 1, "valueFormatter": {"function": MONEY_JS}, "cellStyle": {"styleConditions": [{"condition": "params.value > 0", "style": {"color": UP}}, {"condition": "params.value < 0", "style": {"color": DOWN}}]}},
     {"field": "outcome", "headerName": "Outcome", "minWidth": 86, "flex": .8},
 ]
 METRIC_COLUMNS = [
@@ -82,7 +82,7 @@ METRIC_COLUMNS = [
     {"field": "max_drawdown", "headerName": "Max drawdown", "type": "numericColumn", "width": 82, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
     {"field": "number_of_trades", "headerName": "Trades", "type": "numericColumn", "width": 72, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
     {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 76, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
-    {"field": "screening_status", "headerName": "Outcome", "width": 134, "valueFormatter": {"function": "params.value === 'screened_out' ? '" + FAILED_TESTING + "' : params.value"}},
+    {"field": "screening_status", "headerName": "Outcome", "width": 134, "valueFormatter": {"function": "params.value === 'screened_out' ? '" + FAILED_TESTING + "' : params.value ? params.value.charAt(0).toUpperCase() + params.value.slice(1) : '—'"}},
 ]
 
 
@@ -268,14 +268,14 @@ def results_layout(search: str | None = None) -> html.Div:
     ledger = dmc.Paper(dmc.Stack([
         dmc.Group([dmc.Stack([dmc.Title("Trades", id="results-ledger-title", order=5), dmc.Text("Pick a trade to see it on the chart", id="results-ledger-subtitle", size="xs", c="dimmed")], gap=2),
                    dmc.TextInput(id="results-trade-search", placeholder="Search trades", size="xs", debounce=True, w={"base": "100%", "sm": 200})], justify="space-between", align="flex-end"),
-        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], columnSize="responsiveSizeToFit", defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
+        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
                    dashGridOptions=grid_options("No trades for this run.", rowSelection={"mode": "singleRow", "enableClickSelection": True}, pagination=True, paginationPageSize=10, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
                    getRowId="params.data.trade_id || params.data.row_id", eventListeners=hide_when_narrow("exit_display", "duration", "direction")),
         dmc.Text("0 trades", id="results-trade-count", size="xs", c="dimmed"),
     ], gap="sm"), p="md")
     linked = dmc.Paper(dmc.Stack([
         dmc.Title("More detail", order=5),
-        dmc.ScrollArea(dmc.Tabs(dmc.TabsList([dmc.TabsTab("Trades", value="trades"), dmc.TabsTab("Equity and drops", value="equity"), dmc.TabsTab("Robustness", value="robustness"), dmc.TabsTab("Rolling test", value="walk_forward"), dmc.TabsTab("Shuffle test", value="monte_carlo"), dmc.TabsTab("Origin", value="lineage")]), id="results-evidence-tab", value="trades"), type="never"),
+        dmc.ScrollArea(dmc.Tabs(dmc.TabsList([dmc.TabsTab("Equity and drops", value="equity"), dmc.TabsTab("Robustness", value="robustness"), dmc.TabsTab("Rolling test", value="walk_forward"), dmc.TabsTab("Shuffle test", value="monte_carlo"), dmc.TabsTab("Origin", value="lineage")]), id="results-evidence-tab", value="equity"), type="never"),
         html.Div(id="results-evidence-body"),
     ], gap="sm"), p="md")
     stores = [dcc.Store(id="results-record"), dcc.Store(id="results-configuration-evidence"), dcc.Store(id="results-range-nonce", data=0)]
@@ -458,16 +458,6 @@ def trades_figure(price: list[dict[str, Any]], trades: list[dict[str, Any]], sel
     return figure
 
 
-def _linked_trades_grid(rows: list[dict[str, Any]]) -> Any:
-    """Saved trades in the More-detail tab; picking one focuses it on the price chart."""
-    return dag.AgGrid(
-        id="results-linked-trade-grid", columnDefs=TRADE_COLUMNS, rowData=rows,
-        defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
-        dashGridOptions=grid_options("No trades for this setting.", rowSelection={"mode": "singleRow", "enableClickSelection": True}, pagination=True, paginationPageSize=4, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
-        getRowId="params.data.trade_id", className="results-linked-trade-grid",
-    )
-
-
 def _chart_session(session: str | None, selected: dict[str, Any] | None, trades: list[dict[str, Any]]) -> str | None:
     """The Eastern day to draw: the picked trade's day, else the chosen session, else the last traded day."""
     if selected and selected.get("entry_timestamp"):
@@ -482,14 +472,14 @@ def _register_figure_callbacks(application: Any) -> None:
     @application.callback(
         Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"),
         Input("results-range-nonce", "data"), Input("results-session", "value"), Input("results-bars", "value"),
-        Input("results-configuration-evidence", "data"), Input("results-linked-trade-grid", "selectedRows"),
+        Input("results-configuration-evidence", "data"),
     )
-    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None, evidence: dict[str, Any] | None = None, linked_rows: list[dict[str, Any]] | None = None) -> Any:
+    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None, evidence: dict[str, Any] | None = None) -> Any:
         record = record or {}
         graph = lambda figure: dcc.Graph(figure=figure, config=_GRAPH_CONFIG, style={"height": "560px"})
         if record.get("screening_rows"):  # a first-check run: the chosen setting's saved bars and trades
             evidence = evidence or {}
-            return graph(trades_figure(evidence.get("price") or [], evidence.get("trades") or [], (linked_rows or [None])[-1], evidence.get("message"), nonce))
+            return graph(trades_figure(evidence.get("price") or [], evidence.get("trades") or [], None, evidence.get("message"), nonce))
         oos = record.get("oos_chart")
         if oos and not record.get("price"):  # an unseen-data run: bars saved by the first-check run it came from
             trades = record.get("trades") or []
@@ -510,13 +500,9 @@ def _register_figure_callbacks(application: Any) -> None:
                 return html.Div([html.Div([html.Span(item["label"]), html.Strong(item["value"])], className="candidate-evidence-item") for item in fields[:8]], className="results-evidence-list")
             if not configuration_evidence.get("available"):
                 return html.Div(configuration_evidence.get("message") or "Select a configuration with retained evidence.", className="results-stage-stop")
-            if tab == "trades":
-                return _linked_trades_grid(configuration_evidence.get("trades") or [])
             if tab == "equity":
                 return dcc.Graph(figure=_configuration_equity_figure(configuration_evidence), config={"displayModeBar": False, "responsive": True})
             return html.Div(f"{tab.replace('_', ' ').title()} was not reached because all configurations failed initial screening.", className="results-stage-stop")
-        if tab == "trades" and record.get("trades"):  # the run's own saved trades, the same rows as the ledger
-            return _linked_trades_grid(record["trades"])
         if tab == "equity": return dcc.Graph(figure=_evidence_figure(record, tab), config={"displayModeBar": False, "responsive": True})
         fields = record.get("lineage") if tab == "lineage" else []
         if fields:

@@ -23,7 +23,7 @@ _PERCENT = "params.value == null ? '—' : (params.value * 100).toFixed(0) + '%'
 
 SHORTLIST_COLUMNS = [
     {"field": "rank", "headerName": "#", "maxWidth": 56, "sortable": False},
-    {"field": "title", "headerName": "Idea", "flex": 2, "tooltipField": "candidate_id"},
+    {"field": "title", "headerName": "Idea", "flex": 2, "minWidth": 160, "tooltipField": "candidate_id", "wrapText": True, "autoHeight": True, "cellStyle": {"whiteSpace": "normal", "lineHeight": "1.3"}},
     {"field": "symbol", "headerName": "Market", "flex": .6},
     {"field": "sharpe", "headerName": "Unseen-data Sharpe", "type": "numericColumn", "flex": 1, "sort": "desc",
      "headerTooltip": "Return per unit of risk on data the idea never saw while being built. Higher is better.",
