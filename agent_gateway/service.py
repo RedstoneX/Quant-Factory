@@ -21,6 +21,7 @@ from agent_gateway.contracts import (
     failure,
     success,
 )
+from agent_gateway import results
 from agent_gateway.store import GatewayStore
 from orchestration.auto_campaign import POLICY_ID as CAMPAIGN_POLICY_ID
 from orchestration.auto_campaign_stocks import UNIVERSE as STOCK_UNIVERSE
@@ -32,8 +33,7 @@ from research_intake import (
 )
 RunLauncher = Callable[[str, str, str], str]
 _AUTOMATIC_RUNS_MESSAGE = "Runs start automatically for every valid idea that has a rule_spec; submit or update the idea instead."
-_STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request"}
-_SAFE_EVIDENCE_STATES = {"gated", "not_applicable", None}
+_STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request", "campaign.requeue"}
 _WORD = re.compile(r"[a-z0-9]+")
 _SECRET_KEY = re.compile(
     r"(?i)(api[_-]?key|access[_-]?token|auth(?:orization)?|credential|password|private[_-]?key|secret|token)"
@@ -164,6 +164,8 @@ class AgentResearchGateway:
             "run.results": self._run_results,
             "run.evidence": self._run_evidence,
             "campaign.status": self._campaign_status,
+            "campaign.requeue": self._campaign_requeue,
+            "run.trades": self._run_trades,
         }
         return handlers[request.operation](request, identity, store)
 
@@ -319,6 +321,22 @@ class AgentResearchGateway:
         latest = store.latest_campaign_event(candidate_id)
         return {"candidate_id": candidate_id, "policy_id": CAMPAIGN_POLICY_ID, "latest_event": latest}
 
+    def _campaign_requeue(
+        self, request: GatewayRequest, _identity: GatewayIdentity, store: GatewayStore
+    ) -> dict[str, Any]:
+        return results.requeue_interrupted(store, _identifier(request.arguments.get("candidate_id"), "candidate"))
+
+    def _run_trades(
+        self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore
+    ) -> dict[str, Any]:
+        run_id = _identifier(request.arguments.get("run_id"), "run")
+        service = PersistenceService(self.database)
+        try:
+            run = _permitted_run(service, run_id, finished_ok=True)
+            return {"run": _run_summary(run), **results.trade_list(service, run, self.artifact_root)}
+        finally:
+            service.close()
+
     def _run_status(
         self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore
     ) -> dict[str, Any]:
@@ -336,7 +354,10 @@ class AgentResearchGateway:
         run_id = _identifier(request.arguments.get("run_id"), "run")
         service = PersistenceService(self.database)
         try:
-            run = _permitted_run(service, run_id)
+            run = _permitted_run(service, run_id, finished_ok=True)
+            finished = results.finished_stage_results(service, run, self.artifact_root)
+            if finished is not None:
+                return {"run": _run_summary(run), **finished}
             if run.stage not in {RunStage.FIXTURE, RunStage.SCREENING}:
                 raise GatewayError("protected_result_denied", "full results are unavailable for this run stage")
             rows = service.results.list_parameter_results(run_id)
@@ -363,29 +384,14 @@ class AgentResearchGateway:
         run_id = _identifier(request.arguments.get("run_id"), "run")
         service = PersistenceService(self.database)
         try:
-            run = _permitted_run(service, run_id)
+            run = _permitted_run(service, run_id, finished_ok=True)
+            if run.stage == RunStage.OOS:
+                return {"run": _run_summary(run), **results.oos_results(service, run, self.artifact_root)}
             retrieval = service.retrieve_run_artifacts(run_id, artifact_root=self.artifact_root)
             invalid = [item.reason for item in retrieval.validations if not item.valid]
             if invalid:
                 raise GatewayError("evidence_invalid", "run evidence failed persisted artifact validation")
-            summaries = []
-            for artifact, checked in zip(retrieval.artifacts, retrieval.validations, strict=True):
-                if artifact.artifact_type.value != "validation_evidence":
-                    continue
-                path = Path(checked.resolved_path or "")
-                document = json.loads(path.read_text())
-                protected_states = set(_values_for_key(document, "protected_data_state"))
-                if not protected_states.issubset(_SAFE_EVIDENCE_STATES):
-                    raise GatewayError("protected_result_denied", "protected evidence is not available through this gateway")
-                normalized = (document.get("evidence") or {}).get("normalized_evidence")
-                summaries.append(
-                    {
-                        "logical_name": artifact.logical_name,
-                        "checksum": artifact.checksum,
-                        "evidence_identity": (document.get("artifact") or {}).get("evidence_identity"),
-                        "normalized_evidence": normalized,
-                    }
-                )
+            summaries = results.evidence_summaries(retrieval)
             return {
                 "run": _run_summary(run),
                 "manifest_checksum": retrieval.manifest_checksum,
@@ -443,11 +449,11 @@ def _run_summary(run: Any) -> dict[str, Any]:
     }
 
 
-def _permitted_run(service: PersistenceService, run_id: str) -> Any:
+def _permitted_run(service: PersistenceService, run_id: str, *, finished_ok: bool = False) -> Any:
     run = service.runs.get(run_id)
     if run is None:
         raise GatewayError("not_found", "run was not found")
-    if run.stage == RunStage.OOS:
+    if run.stage == RunStage.OOS and not (finished_ok and results.is_finished(run)):
         raise GatewayError("protected_result_denied", "protected-stage records are unavailable through this gateway")
     return run
 
@@ -498,19 +504,6 @@ def _lineage_argument(arguments: Mapping[str, Any]) -> dict[str, str] | None:
     if set(value) - allowed:
         raise GatewayError("lineage_invalid", "Candidate lineage contains unsupported fields")
     return {key: _text(value.get(key)) for key in allowed}
-
-
-def _values_for_key(value: Any, key: str) -> list[Any]:
-    found: list[Any] = []
-    if isinstance(value, Mapping):
-        for name, child in value.items():
-            if name == key:
-                found.append(child)
-            found.extend(_values_for_key(child, key))
-    elif isinstance(value, list):
-        for child in value:
-            found.extend(_values_for_key(child, key))
-    return found
 
 
 def _required_payload(request: GatewayRequest) -> str:

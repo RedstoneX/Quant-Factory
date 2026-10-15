@@ -11,6 +11,8 @@ OPERATION_LEVELS = {
     "run.evidence": 0,
     "lineage.get": 0,
     "campaign.status": 0,
+    "run.trades": 0,
+    "campaign.requeue": 1,
     "candidate.validate": 1,
     "candidate.submit": 1,
     "research.note.add": 1,
