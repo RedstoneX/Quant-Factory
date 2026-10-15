@@ -67,6 +67,7 @@ CONDITION_OPERATORS = (
     "not",
     "time_is",
     "time_between",
+    "every_minutes",
 )
 SIDE_OPERATORS = ("sign_of", "opposite_sign_of")
 DISTANCE_KINDS = ("percent", "points", "ticks", "atr")
@@ -95,7 +96,9 @@ _TOP_LEVEL_KEYS = (
     "signals",
     "max_trades_per_session",
 )
-_EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_profit", "trailing_stop")
+_EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_profit", "trailing_stop", "exit_when")
+# Stop distance kinds valid for one stop only: a price level fixed at entry (stop_loss) and R-multiples of it (take_profit).
+_STOP_ONLY_KINDS = {"level": "stop_loss", "r_multiple": "take_profit"}
 # Engine-side stops, each optional and independent; their distances are fixed at entry.
 STOP_KEYS = ("stop_loss", "take_profit", "trailing_stop")
 _CLOCK = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])")
@@ -314,13 +317,24 @@ class _Validator:
         result["on_opposite_signal"] = opposite
         for key in STOP_KEYS:
             if key in node:
-                result[key] = self.distance(node[key], f"{path}.{key}")
+                result[key] = self.distance(node[key], f"{path}.{key}", stop=key)
+        if "r_multiple" in result.get("take_profit", {}) and "stop_loss" not in result:
+            raise RuleSpecError(f"{path}.take_profit.r_multiple", "needs a stop_loss: R is the stop-loss distance")
+        if "exit_when" in node:
+            when = _object(node["exit_when"], f"{path}.exit_when", optional=("long", "short"))
+            if not when:
+                raise RuleSpecError(f"{path}.exit_when", 'needs "long", "short" or both, each a condition')
+            result["exit_when"] = {side: self.condition(when[side], f"{path}.exit_when.{side}") for side in sorted(when)}
         return result
 
-    def distance(self, node: Any, path: str) -> dict[str, Any]:
-        kind = _operator(node, path, DISTANCE_KINDS, "distance")
+    def distance(self, node: Any, path: str, stop: str = "") -> dict[str, Any]:
+        kind = _operator(node, path, (*DISTANCE_KINDS, *_STOP_ONLY_KINDS), "distance")
         _object(node, path, required=(kind,))
         where = f"{path}.{kind}"
+        if kind in _STOP_ONLY_KINDS:
+            if stop != _STOP_ONLY_KINDS[kind]:
+                raise RuleSpecError(where, f"is allowed only in {_STOP_ONLY_KINDS[kind]}")
+            return {kind: self.series(node[kind], where) if kind == "level" else self.amount(node[kind], where)}
         if kind == "atr":
             atr = _object(node[kind], where, required=("length", "multiple"))
             return {
@@ -354,6 +368,10 @@ class _Validator:
             return {operator: [self.condition(item, f"{where}[{index}]") for index, item in enumerate(value)]}
         if operator == "not":
             return {"not": self.condition(value, where)}
+        if operator == "every_minutes":
+            if not _is_count(value, self.step, SESSION_CLOSE_MINUTES - SESSION_OPEN_MINUTES) or value % self.step:
+                raise RuleSpecError(where, f"must be a whole number of minutes, a multiple of the {self.step}-minute bar, up to 390")
+            return {"every_minutes": value}
         if operator == "time_is":
             return {"time_is": _clock(value, where, earliest=self.first_end, latest=SESSION_CLOSE_MINUTES, step=self.step)}
         start, end = _pair(value, where)
