@@ -173,6 +173,23 @@ def test_duplicate_rules_close_before_install(tmp_path):
     assert len(harness.adapter.installed) == 1
 
 
+def test_same_rules_on_a_different_symbol_are_not_a_duplicate(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_first001", symbol="MES")
+    harness.draft("idea_second01", symbol="QQQ")
+    harness.campaign().run_once()
+    assert ("duplicate_closed", "same_rules") not in harness.states("idea_second01")
+
+
+def test_same_rules_symbol_and_timeframe_with_new_title_is_still_a_duplicate(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_first001", symbol="MES")
+    harness.draft("idea_second01", symbol="MES")  # titles differ: "Idea <id>"
+    harness.campaign().run_once()
+    assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
+    assert harness.events("idea_second01")[-1]["reason_detail"] == "idea_first001"
+
+
 def test_screened_out_uses_pipeline_stage_names():
     outcome = outcome_from_chain(_chain("stopped", "walk_forward", ("Walk-forward return was negative.",)), "run_x")
     assert (outcome.state, outcome.reason_code, outcome.reason_detail) == (

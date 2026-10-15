@@ -283,8 +283,26 @@ def auto_test_definition(
     return CandidatePipelineDefinition(experiment=experiment, strategy_version=strategy_version, validation=validation)
 
 
-def earlier_owner_of_strategy(*, database: str | Path, strategy_id: str, candidate_id: str) -> str | None:
-    """Return another idea already linked to a setup for this exact strategy."""
+def packet_market(packet: Mapping[str, Any]) -> tuple[str, str]:
+    """Return the (symbol, timeframe) a candidate packet asks to be tested on."""
+    market = packet.get("market") if isinstance(packet.get("market"), Mapping) else {}
+    instruments = market.get("instruments") if isinstance(market.get("instruments"), Mapping) else {}
+    preferred = instruments.get("preferred") or [""]
+    return str(preferred[0] or ""), str(market.get("timeframe") or "")
+
+
+def _draft_market(candidate_json: str) -> tuple[str, str] | None:
+    try:
+        document = json.loads(candidate_json or "")
+    except ValueError:
+        return None
+    return packet_market(document) if isinstance(document, Mapping) else None
+
+
+def earlier_owner_of_strategy(
+    *, database: str | Path, strategy_id: str, candidate_id: str, symbol: str, timeframe: str
+) -> str | None:
+    """Return another idea already linked to a setup for this strategy on the same symbol and timeframe."""
     service = PersistenceService(database)
     try:
         configuration_ids = {row.configuration_id for row in service.configurations.list(strategy_id=strategy_id)}
@@ -292,6 +310,7 @@ def earlier_owner_of_strategy(*, database: str | Path, strategy_id: str, candida
             (draft.created_at, draft.draft_id)
             for draft in service.idea_drafts.list()
             if draft.configuration_id in configuration_ids and draft.draft_id != candidate_id
+            and _draft_market(draft.candidate_json) == (symbol, timeframe)
         )
         return owners[0][1] if owners else None
     finally:
