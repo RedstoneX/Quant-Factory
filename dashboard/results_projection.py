@@ -23,9 +23,6 @@ TRADE_LIMIT = 500
 EQUITY_LIMIT = 2_000
 
 
-STARTING_CASH = 100_000.0  # the test engine's fixed account size; trade P&L sums to the saved net return on it
-
-
 def _trade_row(group: Any) -> dict[str, Any]:
     """One grid/chart row for a grouped trade, in Eastern wall time."""
     return {
@@ -47,8 +44,21 @@ def _trade_row(group: Any) -> dict[str, Any]:
     }
 
 
-def equity_from_trades(trades: list[dict[str, Any]], *, starting_cash: float = STARTING_CASH) -> list[dict[str, Any]]:
+def _saved_initial_cash(detail: Any) -> float | None:
+    """The run's own saved starting cash (its execution assumptions), or None when it was not saved."""
+    for field in detail.execution:
+        if field.label == "Initial Cash":
+            try:
+                return float(field.value)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def equity_from_trades(trades: list[dict[str, Any]], *, starting_cash: float | None) -> list[dict[str, Any]]:
     """Account value after each closed trade: starting cash plus cumulative P&L (pandas cumsum) at exit time."""
+    if starting_cash is None:
+        return []
     closed = pd.DataFrame([t for t in trades if t.get("exit_timestamp") and t.get("pnl") is not None])
     if closed.empty:
         return []
@@ -517,9 +527,9 @@ def load_results_record(
             {**dict(row), "timestamp": eastern_plot_timestamp(row["timestamp"])}
             for row in evidence.equity_curve[-EQUITY_LIMIT:] if row.get("timestamp")
         ]
-        equity_from_saved_trades = not equity and bool(grouped.groups)
+        equity_from_saved_trades = not equity and bool(grouped.groups) and _saved_initial_cash(detail) is not None
         if equity_from_saved_trades:  # no saved curve: rebuild it from every saved trade
-            equity = equity_from_trades([_trade_row(group) for group in grouped.groups])[-EQUITY_LIMIT:]
+            equity = equity_from_trades([_trade_row(group) for group in grouped.groups], starting_cash=_saved_initial_cash(detail))[-EQUITY_LIMIT:]
         return {
             "available": True,
             "message": "Saved results for this run loaded.",

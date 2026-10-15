@@ -122,4 +122,5 @@ def test_equity_from_trades_is_starting_cash_plus_cumulative_pnl_at_exit_time() 
         {"exit_timestamp": None, "pnl": 99.0},
     ]
     assert [row["value"] for row in equity_from_trades(trades, starting_cash=100.0)] == [110.0, 105.0]
-    assert equity_from_trades([]) == []
+    assert equity_from_trades([], starting_cash=100.0) == []
+    assert equity_from_trades(trades, starting_cash=None) == []  # no saved starting cash: no curve, no guess
