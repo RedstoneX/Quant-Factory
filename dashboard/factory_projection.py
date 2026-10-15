@@ -20,7 +20,7 @@ from dashboard.overview_projection import (
 
 RUN_PAGE_LIMIT = 100
 # Test fixtures that leaked into the research database; hidden from default views, never deleted.
-TEST_TITLE_MARKERS = ("connection test", "five-bar run exhaustion")
+TEST_TITLE_MARKERS = ("connection test",)
 STOPPED_NOTE = "Stopped. This run was left over from a server restart and is not running now. Safe to run again."
 # (text found in the stored error, plain wording shown to the trader), first match wins.
 PLAIN_ERRORS = (
