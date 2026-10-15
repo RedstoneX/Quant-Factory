@@ -32,12 +32,16 @@ def split_chronologically(
     if not data.index.is_unique:
         raise ValueError("market data index must be unique")
 
-    train_end = int(len(data) * config.train_fraction)
-    selection_end = train_end + int(len(data) * config.selection_fraction)
+    # Cut on whole calendar days so intraday sessions are never split and
+    # partition date bounds cannot touch.
+    days = data.index.normalize()
+    unique_days = days.unique()
+    train_end = int(len(unique_days) * config.train_fraction)
+    selection_end = train_end + int(len(unique_days) * config.selection_fraction)
     frames = (
-        data.iloc[:train_end],
-        data.iloc[train_end:selection_end],
-        data.iloc[selection_end:],
+        data[days.isin(unique_days[:train_end])],
+        data[days.isin(unique_days[train_end:selection_end])],
+        data[days.isin(unique_days[selection_end:])],
     )
     names = ("train", "selection", "test")
     for name, frame in zip(names, frames, strict=True):
