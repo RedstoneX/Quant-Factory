@@ -9,7 +9,7 @@ import math
 import os
 from pathlib import Path
 import sqlite3
-from typing import Any
+from typing import Any, Callable
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -182,13 +182,13 @@ def _finite_number(value: Any) -> float | None:
     return result if math.isfinite(result) else None
 
 
-def _unseen_report(row: sqlite3.Row, database: Path) -> dict[str, Any] | None:
-    """The unseen-data report for this row's unseen-data run, the same source the Ideas page reads."""
-    from dashboard.results_projection import oos_report_metrics  # results_projection imports this module
-
+def _unseen_report(row: sqlite3.Row, database: Path, reader: Callable[..., dict[str, Any] | None] | None) -> dict[str, Any] | None:
+    """The unseen-data report for this row's unseen-data run; the caller above this module supplies the reader."""
+    if reader is None:
+        return None
     keys = row.keys()
     run_id = row["oos_run_id"] if "oos_run_id" in keys and row["oos_run_id"] else (row["run_id"] if row["stage"] == "oos" else None)
-    return oos_report_metrics(database=database, run_id=str(run_id)) if run_id else None
+    return reader(database=database, run_id=str(run_id)) if run_id else None
 
 
 def _row_view(row: sqlite3.Row, *, oos_metric: bool, report: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -330,7 +330,10 @@ def _validated_connection(database: Path) -> tuple[sqlite3.Connection | None, st
         return None, f"Research state is unavailable: {exc}"
 
 
-def load_dashboard_snapshot(*, window: str = "90d", market: str = "all", database: str | Path | None = None) -> dict[str, Any]:
+def load_dashboard_snapshot(
+    *, window: str = "90d", market: str = "all", database: str | Path | None = None,
+    unseen_report: Callable[..., dict[str, Any] | None] | None = None,
+) -> dict[str, Any]:
     """Read SQL-side aggregates and bounded display cohorts without mutation."""
     database_path = Path(database) if database is not None else configured_database_path()
     connection, error = _validated_connection(database_path)
@@ -397,9 +400,9 @@ def load_dashboard_snapshot(*, window: str = "90d", market: str = "all", databas
             "window": window, "market": market, "observed_at": datetime.now(timezone.utc).isoformat(),
             "counts": {"running": running, "queued": queued, "survivors": survivors_count, "advancing": advancing, "needs": None, "failed": failed},
             "stages": stages, "operation": {"active": running + queued, "terminal": terminal, "bottleneck": str(bottleneck).replace("_", " ").title(), "median_minutes": None},
-            "chart": [_row_view(row, oos_metric=True, report=_unseen_report(row, database_path)) for row in chart_rows],
-            "survivors": [_row_view(row, oos_metric=True, report=_unseen_report(row, database_path)) for row in survivor_rows],
-            "latest_finding": _row_view(latest_row, oos_metric=True, report=_unseen_report(latest_row, database_path)) if latest_row else None,
+            "chart": [_row_view(row, oos_metric=True, report=_unseen_report(row, database_path, unseen_report)) for row in chart_rows],
+            "survivors": [_row_view(row, oos_metric=True, report=_unseen_report(row, database_path, unseen_report)) for row in survivor_rows],
+            "latest_finding": _row_view(latest_row, oos_metric=True, report=_unseen_report(latest_row, database_path, unseen_report)) if latest_row else None,
             "chart_limit": CHART_LIMIT, "survivor_limit": SURVIVOR_LIMIT, "population_count": population,
         }
     except (sqlite3.Error, ValueError, TypeError) as exc:
