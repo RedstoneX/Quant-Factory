@@ -34,8 +34,8 @@ Set rule_spec "bar" and market.timeframe to the same value; the data must match 
 Regular session only (09:30-16:00 New York, flat before the close). Times are bar END times:
 the first 5m bar ends 09:35, the first 1m bar ends 09:31. Lengths, after_bars and max_trades are bar counts:
 30 bars is 150 minutes on 5m but 30 minutes on 1m, so pick them for the bar size.
-MES: trading costs are known, so results include fees and slippage.
-History ends 2026-02-13.
+MES: trading costs are known, so results include fees and slippage. History ends 2026-02-13.
+Optional rule_spec "skip_days": ["cpi", "fomc"] takes no new entries on US CPI release days and/or FOMC decision days.
 Numeric variables only, every one used by rule_spec.
 
 NOT SUPPORTED

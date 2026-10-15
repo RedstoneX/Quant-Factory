@@ -14,6 +14,7 @@ written by integer-array assignment (``numpy`` fancy indexing) instead of one ``
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 from dataclasses import dataclass, replace
 from typing import Any, Iterable, Iterator, Mapping, Sequence
 
@@ -87,6 +88,19 @@ def prepare_sessions(
         stacked = {name.lower(): np.ascontiguousarray(values[positions, k]) for k, name in enumerate(fields)}
         bars = SessionBars(**stacked, tick_size=float(tick_size), parameters={}, bar=bar)
     return PreparedSessions(frame.index, positions, bars, len(schedule))
+
+
+_CALENDAR_DIR = Path(__file__).resolve().parent.parent / "market_data" / "calendars"
+_CALENDAR_FILES = {"cpi": "cpi_release_dates.txt", "fomc": "fomc_decision_dates.txt"}
+
+
+def skipped_sessions(spec: Mapping[str, Any], prepared: PreparedSessions) -> np.ndarray:
+    """Per-session bool: the session's New York date is a CPI release or FOMC decision day named by ``skip_days``."""
+    dates = pd.DatetimeIndex([])
+    for name in spec.get("skip_days", ()):
+        dates = dates.append(pd.DatetimeIndex(pd.read_csv(_CALENDAR_DIR / _CALENDAR_FILES[name], header=None, comment="#")[0]))
+    opens = prepared.index[prepared.positions[0]].tz_convert(SESSION_TIMEZONE).tz_localize(None).normalize()
+    return np.asarray(opens.isin(dates))
 
 
 def bar_sides(spec: Mapping[str, Any], evaluator: RuleEvaluator) -> np.ndarray:
@@ -172,13 +186,16 @@ def _plan(spec: Mapping[str, Any], prepared: PreparedSessions, parameters: Mappi
     sides_key = evaluator.key("sides", spec["signals"])
     digest = hashlib.blake2b(np.packbits(valid).tobytes(), digest_size=16).hexdigest()
     when = exit_rules.get("exit_when", {})
-    walk = f"{sides_key}|{after}|{digest}|{evaluator.key('exit_when', when) if when else ''}"
+    blocked = skipped_sessions(spec, prepared) if spec.get("skip_days") else None
+    walk = f"{sides_key}|{after}|{digest}|{spec.get('skip_days', '')}|{evaluator.key('exit_when', when) if when else ''}"
     if walk not in walks:
         sides = evaluator.cached("sides", spec["signals"], lambda: bar_sides(spec, evaluator))
         leave = None
         if when:
             never = np.zeros(evaluator.shape, dtype=bool)
             leave = tuple(evaluator.condition(when[side]) if side in when else never for side in ("long", "short"))
+        if blocked is not None:
+            sides = np.where(blocked[None, :], 0, sides)  # no new entries on a skipped day; open positions still exit
         walks[walk] = (sides, after, valid, leave)
     return _Setting(dict(parameters), evaluator, walk, fractions)
 

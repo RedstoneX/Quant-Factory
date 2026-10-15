@@ -96,6 +96,7 @@ _TOP_LEVEL_KEYS = (
     "signals",
     "max_trades_per_session",
 )
+SKIP_DAY_CALENDARS = ("cpi", "fomc")
 _EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_profit", "trailing_stop", "trail_after", "exit_when")
 # Distance kinds valid for some stops only: a price level fixed at entry (stop_loss) and R-multiples of that stop.
 _STOP_ONLY_KINDS = {"level": ("stop_loss",), "r_multiple": ("take_profit", "trail_after")}
@@ -260,7 +261,7 @@ class _Validator:
 
     def spec(self, spec: Mapping[str, Any]) -> dict[str, Any]:
         path = "rule_spec"
-        _object(spec, path, required=_TOP_LEVEL_KEYS, optional=("exit",))
+        _object(spec, path, required=_TOP_LEVEL_KEYS, optional=("exit", "skip_days"))
         if spec["language"] != RULE_LANGUAGE:
             raise RuleSpecError(f"{path}.language", f"must be {RULE_LANGUAGE!r}")
         bar = spec["bar"]
@@ -293,7 +294,15 @@ class _Validator:
         max_trades = spec["max_trades_per_session"]
         if not _is_count(max_trades, 1, self.bars_per_session):
             raise RuleSpecError(f"{path}.max_trades_per_session", f"must be a whole number from 1 to {self.bars_per_session}")
-        return {
+        skip_days = spec.get("skip_days")
+        if "skip_days" in spec and (
+            not isinstance(skip_days, (list, tuple))
+            or any(not isinstance(name, str) for name in skip_days)
+            or len(set(skip_days)) != len(skip_days)
+            or any(name not in SKIP_DAY_CALENDARS for name in skip_days)
+        ):
+            raise RuleSpecError(f"{path}.skip_days", f"must be a list without duplicates drawn from {list(SKIP_DAY_CALENDARS)}")
+        result = {
             "language": RULE_LANGUAGE,
             "bar": bar,
             "tick_size": spec["tick_size"],
@@ -303,6 +312,9 @@ class _Validator:
             "exit": self.exit(spec.get("exit", {}), f"{path}.exit", clock_minutes(flat_at)),
             "max_trades_per_session": max_trades,
         }
+        if skip_days:
+            result["skip_days"] = list(skip_days)
+        return result
 
     def exit(self, node: Any, path: str, flat_at: int) -> dict[str, Any]:
         _object(node, path, optional=_EXIT_KEYS)
