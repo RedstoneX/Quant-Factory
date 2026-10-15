@@ -8,14 +8,10 @@ def resample_paths(values, config):
     if config.method == "iid_bootstrap":
         return rng.choice(source, size=(sims, n), replace=True)
     if config.method == "path_permutation":
-        return np.stack([rng.permutation(source) for _ in range(sims)])
+        return rng.permuted(np.tile(source, (sims, 1)), axis=1)
     block = config.block_length
     starts = np.arange(0, n - block + 1)
-    paths = []
-    for _ in range(sims):
-        pieces = []
-        while sum(len(x) for x in pieces) < n:
-            start = int(rng.choice(starts))
-            pieces.append(source[start:start + block])
-        paths.append(np.concatenate(pieces)[:n])
-    return np.stack(paths)
+    pieces = -(-n // block)
+    idx = rng.choice(starts, size=(sims, pieces))
+    window = (idx[:, :, None] + np.arange(block)).reshape(sims, -1)[:, :n]
+    return source[window]
