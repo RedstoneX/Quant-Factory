@@ -26,3 +26,15 @@ group-readable, never group-writable.
 The established tailnet listener proxies port 8050 to `127.0.0.1:8050`. The
 systemd service, rather than an agent shell, owns that local process so the
 review URL remains available after an implementation session ends.
+
+## Results page
+
+- One page per idea: `/results?candidate_id=<idea id>`. Ideas, Home and Factory "Open Results" go here.
+- An old `/results?run_id=<run>` link opens that run's idea with its test selected and that exact run shown.
+- Top line: five numbers from the unseen-data test (net profit, max drawdown, trades, win rate, profit factor).
+- Test strip: costs test and unseen data are pass marks; rolling, stress and shuffle tests are scores (a weak score is amber).
+- Costs test and unseen data open strategy-tester tabs: account value over the whole period, the performance
+  summary (read from the run's `performance_summary` artifact, never computed in the dashboard), list of trades with
+  a running total, the price chart (whole period, bar size chosen to fit; picking a trade zooms to its day), and the
+  settings the costs test tried (picking one loads that setting).
+- Rolling, stress and shuffle tests make no trades; they show the score tiles and their own saved periods, checks or reasons.
