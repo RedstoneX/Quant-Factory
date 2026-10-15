@@ -90,6 +90,9 @@ class WalkForwardWindow:
     train: DataPartition
     selection: DataPartition | None
     test: DataPartition
+    # Set on intraday data: cuts sit on this exchange calendar's session starts.
+    session_calendar: str | None = None
+    session_interval: str | None = None
 
 
 @dataclass(frozen=True)
