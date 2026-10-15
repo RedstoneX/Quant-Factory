@@ -24,6 +24,7 @@ from orchestration.auto_campaign import (
     dataset_profile,
     earlier_owner_of_strategy,
     packet_market,
+    packet_requested_start,
     safe_detail,
 )
 from persistence import PersistenceService
@@ -191,7 +192,7 @@ class AutoTestCampaign:
         )
         if earlier is not None:
             return record("duplicate_closed", "same_rules", earlier)
-        profile = dataset_profile(symbol, timeframe)
+        profile = dataset_profile(symbol, timeframe, packet_requested_start(packet))
         if profile is None:
             return record(
                 "implementation_blocked", "data_unavailable",

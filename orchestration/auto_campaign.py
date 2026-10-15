@@ -7,7 +7,8 @@ is tuned. Only datasets whose contract costs that setup records are supported.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import date
 import functools
 import importlib.util
 import itertools
@@ -167,18 +168,25 @@ Launch = Callable[[str, str], tuple[str, Any]]
 DataCheck = Callable[[CandidatePipelineDefinition, DatasetProfile], None]
 
 
-def dataset_profile(symbol: str, timeframe: str) -> DatasetProfile | None:
-    """MES 5m from the fixed table; a universe stock at 1m from its manifest and measured spread."""
+def dataset_profile(symbol: str, timeframe: str, requested_start: str | None = None) -> DatasetProfile | None:
+    """MES 5m from the fixed table; a universe stock at 1m from its manifest and measured spread.
+
+    A packet's own start date narrows the history when it falls inside the dataset.
+    """
     key = (symbol.strip().upper(), timeframe.strip())
     if key in _PROFILES:
-        return _PROFILES[key]
-    if key[1] != STOCK_INTERVAL or key[0] not in UNIVERSE:
+        profile = _PROFILES[key]
+    elif key[1] != STOCK_INTERVAL or key[0] not in UNIVERSE:
         return None
-    try:
-        return DatasetProfile(**stock_profile_fields(key[0]))
-    except (StockCostsUnavailable, DatasetUnavailableError, FileNotFoundError):
-        # No measured spread or no manifest: the caller reports no dataset with costs.
-        return None
+    else:
+        try:
+            profile = DatasetProfile(**stock_profile_fields(key[0]))
+        except (StockCostsUnavailable, DatasetUnavailableError, FileNotFoundError):
+            # No measured spread or no manifest: the caller reports no dataset with costs.
+            return None
+    if requested_start and profile.requested_start[:10] < requested_start < profile.dataset_end[:10]:
+        return replace(profile, requested_start=requested_start)
+    return profile
 
 
 def campaign_idempotency_key(candidate_id: str, strategy_id: str, attempt: int = 0) -> str:
@@ -291,6 +299,15 @@ def packet_market(packet: Mapping[str, Any]) -> tuple[str, str]:
     instruments = market.get("instruments") if isinstance(market.get("instruments"), Mapping) else {}
     preferred = instruments.get("preferred") or [""]
     return str(preferred[0] or ""), str(market.get("timeframe") or "")
+
+
+def packet_requested_start(packet: Mapping[str, Any]) -> str | None:
+    """The packet's market.requested_start as an ISO date, or None when absent or malformed."""
+    market = packet.get("market") if isinstance(packet.get("market"), Mapping) else {}
+    try:
+        return date.fromisoformat(str(market.get("requested_start"))[:10]).isoformat()
+    except ValueError:
+        return None
 
 
 def _draft_market(candidate_json: str) -> tuple[str, str] | None:
