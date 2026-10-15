@@ -173,6 +173,8 @@ def normalize_signals(signals: SignalResult) -> SignalResult:
         trailing_threshold=signals.trailing_threshold,
         td_stop=signals.td_stop,
         upon_opposite_entry=signals.upon_opposite_entry,
+        session_entry_cap=signals.session_entry_cap,
+        session_id=signals.session_id,
     )
 
 

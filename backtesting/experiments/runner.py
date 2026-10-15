@@ -109,6 +109,8 @@ def align_signals_for_execution(
             ),
             td_stop=(signals.td_stop.shift(1, fill_value=-1) if signals.td_stop is not None else None),
             upon_opposite_entry=signals.upon_opposite_entry,
+            session_entry_cap=signals.session_entry_cap,
+            session_id=signals.session_id,  # the fill bar's own session: not shifted
         )
     raise ValueError(f"Unsupported execution mode: {execution.mode}")
 
@@ -197,6 +199,12 @@ def _construct_portfolio(
     # Stop kwargs keep their place after the cost kwargs, as before the one-pass change.
     leading = {key: value for key, value in setting_args.items() if key in _LEADING_ARGS}
     stops = {key: value for key, value in setting_args.items() if key not in _LEADING_ARGS}
+    first = aligned[0] if isinstance(aligned, (list, tuple)) else aligned
+    if first.session_entry_cap is not None:
+        from backtesting.experiments.session_cap import session_cap_kwargs
+
+        columns = len(aligned) if isinstance(aligned, (list, tuple)) else 1
+        stops |= session_cap_kwargs(first.session_id, data.index, first.session_entry_cap, columns)
     return vbt.Portfolio.from_signals(
         close=close,
         **leading,
@@ -206,7 +214,7 @@ def _construct_portfolio(
         leverage=execution.leverage,
         init_cash=execution.initial_cash,
         fees=execution.fees,
-        slippage=execution.slippage,
+        slippage=execution_slippage(data, execution),
         fixed_fees=execution.fixed_fee_per_order,
         **stops,
         **_whole_share_args(execution),
@@ -270,25 +278,18 @@ def build_execution_price(
     aligned: SignalResult,
     execution: ExecutionConfig,
 ) -> pd.Series:
-    """Build adverse absolute-slippage prices and apply the contract multiplier."""
-    price = data[execution.execution_price_field].astype(float).copy()
+    """Signal fill price with the contract multiplier; slippage is VectorBT's own (``execution_slippage``)."""
+    return data[execution.execution_price_field].astype(float) * execution.price_multiplier
+
+
+def execution_slippage(data: pd.DataFrame, execution: ExecutionConfig) -> Any:
+    """from_signals ``slippage`` (a fraction of each order's price, adverse for buys and sells, every fill
+    including stop exits): the configured fraction plus absolute points (ticks x tick size) over the bar's
+    execution price, so a signal fill moves by exactly those points and a stop fill by points x stop / open."""
     points = execution.absolute_slippage_points
     if not points:
-        return price * execution.price_multiplier
-
-    false = pd.Series(False, index=price.index, dtype=bool)
-    long_entries = aligned.entries
-    long_exits = aligned.exits
-    short_entries = aligned.short_entries if aligned.short_entries is not None else false
-    short_exits = aligned.short_exits if aligned.short_exits is not None else false
-    buy_orders = long_entries | short_exits
-    sell_orders = long_exits | short_entries
-    conflicts = buy_orders & sell_orders
-    if conflicts.any():
-        raise ValueError("absolute slippage cannot price simultaneous buy and sell orders")
-    price.loc[buy_orders] += points
-    price.loc[sell_orders] -= points
-    return price * execution.price_multiplier
+        return execution.slippage
+    return execution.slippage + points / data[execution.execution_price_field].astype(float)
 
 
 def validate_for_simulation(

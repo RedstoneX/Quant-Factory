@@ -15,6 +15,7 @@ from backtesting.experiments import (
     SignalResult,
     align_signals_for_execution,
     build_execution_price,
+    execution_slippage,
     build_portfolio,
     execute_experiment,
 )
@@ -219,14 +220,14 @@ def test_long_futures_fee_and_slippage_direction(tmp_path: Path) -> None:
     signals = _signals(data.index)
     execution = _futures_execution("longonly")
     aligned = align_signals_for_execution(signals, execution)
-    prices = build_execution_price(data, aligned, execution)
-    assert prices.iloc[2] == (data["Open"].iloc[2] + 0.25) * 5
-    assert prices.iloc[3] == (data["Open"].iloc[3] - 0.25) * 5
+    # One tick against the trade on every fill, through VectorBT's own slippage (a fraction of the order price).
+    prices = pd.Series([(data["Open"].iloc[2] + 0.25) * 5, (data["Open"].iloc[3] - 0.25) * 5], index=[2, 3])
+    assert build_execution_price(data, aligned, execution).iloc[2] == data["Open"].iloc[2] * 5
 
     portfolio = build_portfolio(data, signals, _config(tmp_path, execution))
     orders = portfolio.orders.records_readable
     assert orders["Price"].tolist() == pytest.approx(
-        [prices.iloc[2], prices.iloc[3]]
+        [prices.loc[2], prices.loc[3]]
     )
     assert orders["Fees"].tolist() == pytest.approx([0.62, 0.62])
     assert orders["Fees"].sum() == pytest.approx(1.24)
@@ -245,14 +246,12 @@ def test_short_futures_fee_and_slippage_direction(tmp_path: Path) -> None:
     )
     execution = _futures_execution("shortonly")
     aligned = align_signals_for_execution(signals, execution)
-    prices = build_execution_price(data, aligned, execution)
-    assert prices.iloc[2] == (data["Open"].iloc[2] - 0.25) * 5
-    assert prices.iloc[3] == (data["Open"].iloc[3] + 0.25) * 5
+    prices = pd.Series([(data["Open"].iloc[2] - 0.25) * 5, (data["Open"].iloc[3] + 0.25) * 5], index=[2, 3])
 
     portfolio = build_portfolio(data, signals, _config(tmp_path, execution))
     orders = portfolio.orders.records_readable
     assert orders["Price"].tolist() == pytest.approx(
-        [prices.iloc[2], prices.iloc[3]]
+        [prices.loc[2], prices.loc[3]]
     )
     assert orders["Fees"].tolist() == pytest.approx([0.62, 0.62])
 
@@ -265,9 +264,9 @@ def test_futures_slippage_can_be_configured_in_price_points() -> None:
         slippage_points=0.5,
     )
     aligned = align_signals_for_execution(_signals(_data().index), execution)
-    prices = build_execution_price(_data(), aligned, execution)
     assert execution.absolute_slippage_points == 0.5
-    assert prices.iloc[2] == (_data()["Open"].iloc[2] + 0.5) * 5
+    slippage = execution_slippage(_data(), execution)
+    assert slippage.iloc[2] * _data()["Open"].iloc[2] == pytest.approx(0.5)
     assert prices.iloc[3] == (_data()["Open"].iloc[3] - 0.5) * 5
 
 

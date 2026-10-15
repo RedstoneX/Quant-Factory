@@ -18,6 +18,7 @@ from backtesting.experiments.runner import _construct_portfolio, align_signals_f
 from rule_language import RuleSpecError, validate_rule_spec
 from strategies.rule_spec_evaluation import RuleEvaluator, SessionBars
 from tests.test_rule_language_stops import _execution
+from tests.rule_trades import trades
 from tests.test_rule_spec_strategy import _frame, _run, _spec
 
 LONG_AT_10 = [{"when": {"time_is": "10:00"}, "side": "long"}]
@@ -34,18 +35,18 @@ def test_exit_when_closes_the_trade_for_its_side_only() -> None:
     closes = np.full(78, 100.0)
     closes[10:] = 106.0  # close first exceeds 105 on row 10 (bar ending 10:25)
     exit_rules = {"exit_when": {"long": {"crosses_above": ["close", 105]}}}
-    signals = _run(_spec(LONG_AT_10, exit=exit_rules), _frame([closes]))
-    assert _rows(signals.entries) == [SIGNAL_ROW]
-    assert _rows(signals.exits) == [10]  # the trade is closed on row 10, so there is no flat_at exit
+    frame = _frame([closes])
+    signals = _run(_spec(LONG_AT_10, exit=exit_rules), frame)
+    assert trades(signals, frame) == [("long", "05 10:00", "05 10:25")]  # closed on row 10, before flat_at
     assert not signals.short_exits.any()
-    assert "closes the position" in signals.metadata["exit_when"]
+    assert "rule exit" in signals.metadata["exit_when"]
 
 
 def test_exit_when_never_fires_on_the_entry_bar_and_ignores_the_other_side() -> None:
     exit_rules = {"exit_when": {"long": {"time_between": ["10:00", "10:05"]}, "short": {"time_is": "10:05"}}}
-    signals = _run(_spec(LONG_AT_10, exit=exit_rules), _frame([np.full(78, 100.0)]))
-    assert _rows(signals.exits) == [SIGNAL_ROW + 1]  # true on the entry bar too, but only a held trade exits
-    assert not signals.short_exits.any()
+    frame = _frame([np.full(78, 100.0)])
+    # exit_when is true on the entry bar too, but only a held trade exits; the short rule never touches a long.
+    assert trades(_run(_spec(LONG_AT_10, exit=exit_rules), frame), frame) == [("long", "05 10:00", "05 10:05")]
 
 
 def test_exit_when_exit_allows_a_new_entry() -> None:
@@ -53,9 +54,10 @@ def test_exit_when_exit_allows_a_new_entry() -> None:
     closes[5:] = 103.0
     closes[10] = 99.0  # exit_when (close < 100) on row 10; the signal (close > 102) fires again on row 11
     spec = _spec([{"when": {"gt": ["close", 102]}, "side": "long"}], exit={"exit_when": {"long": {"lt": ["close", 100]}}})
-    signals = _run({**spec, "max_trades_per_session": 2}, _frame([closes]))
-    assert _rows(signals.entries) == [SIGNAL_ROW, 11]
-    assert _rows(signals.exits) == [10, FLAT_ROW]
+    frame = _frame([closes])
+    assert trades(_run({**spec, "max_trades_per_session": 2}, frame), frame) == [
+        ("long", "05 10:00", "05 10:25"), ("long", "05 10:30", "05 15:55"),
+    ]
 
 
 def _level_closes() -> np.ndarray:

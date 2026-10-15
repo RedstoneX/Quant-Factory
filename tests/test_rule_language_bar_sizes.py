@@ -10,7 +10,9 @@ import pytest
 
 from rule_language import RuleSpecError, bars_per_session, canonical_rule_spec_json, validate_rule_spec
 from strategies.rule_spec_evaluation import bar_position
+from strategies.models import SignalResult
 from strategies.rule_spec_strategy import RuleSpecStrategy, rule_strategy_definition
+from tests.rule_trades import trades
 
 SESSION = {"timezone": "America/New_York", "open": "09:30", "close": "16:00"}
 DAYS = pd.bdate_range("2026-10-05", periods=6)  # NYSE full sessions, no holidays
@@ -144,11 +146,17 @@ def test_bar_position_uses_the_bar_size() -> None:
 def test_five_minute_spec_is_identical_to_main() -> None:
     definition = rule_strategy_definition(rule_spec=golden_spec("5m"), variables=VARIABLES)
     assert hashlib.sha256(canonical_rule_spec_json(definition).encode()).hexdigest() == MAIN_DEFINITION_SHA256
-    signals = RuleSpecStrategy(definition).generate_signals(golden_frame(5), {"fast": 4})
+    frame = golden_frame(5)
+    signals = RuleSpecStrategy(definition).generate_signals(frame, {"fast": 4})
+    # main's compiled flags (its own per-session walk) simulate to exactly the same trades as today's signals.
+    flags = {}
     for name, positions in MAIN_SIGNAL_POSITIONS.items():
-        assert [int(i) for i in np.flatnonzero(getattr(signals, name).to_numpy())] == positions
-    stops = hashlib.sha256(np.nan_to_num(signals.stop_loss.to_numpy()).tobytes()).hexdigest()
-    assert stops == MAIN_STOP_SHA256
+        flags[name] = pd.Series(False, index=frame.index)
+        flags[name].iloc[positions] = True
+    main = SignalResult(parameters={"fast": 4}, stop_loss=signals.stop_loss, **flags)
+    assert trades(signals, frame) == trades(main, frame) != []
+    on_main_entries = signals.stop_loss.where(flags["entries"] | flags["short_entries"])
+    assert hashlib.sha256(np.nan_to_num(on_main_entries.to_numpy()).tobytes()).hexdigest() == MAIN_STOP_SHA256
 
 
 def test_one_minute_spec_runs_on_one_minute_data() -> None:
@@ -172,16 +180,13 @@ def _stamps(series: pd.Series) -> list[str]:
 
 
 def test_one_minute_entry_and_at_time_exit_fire_on_the_right_minute() -> None:
-    signals = _run(_simple("1m", {"time_is": "10:00"}, exit={"at_time": "11:30"}), 1)
-    # Bars are labelled by their start: the bar ending 10:00 starts 09:59; the exit bar ending 11:30 starts 11:29.
-    assert _stamps(signals.entries)[0] == "05 09:59"
-    assert _stamps(signals.exits)[0] == "05 11:29"
-    assert len(_stamps(signals.entries)) == len(_stamps(signals.exits)) == len(DAYS)
+    held = trades(_run(_simple("1m", {"time_is": "10:00"}, exit={"at_time": "11:30"}), 1), golden_frame(1))
+    # Fills are at the open after the signal bar: the bar ending 10:00 fills at 10:00, the at_time exit at 11:30.
+    assert held[0] == ("long", "05 10:00", "05 11:30")
+    assert len(held) == len(DAYS)
 
 
 def test_one_minute_after_bars_and_flat_at_count_minutes() -> None:
-    signals = _run(_simple("1m", {"time_is": "10:00"}, exit={"after_bars": 45}), 1)
-    assert _stamps(signals.exits)[0] == "05 10:44"
-    signals = _run(_simple("1m", {"time_is": "15:57"}, flat_at="15:59"), 1)
-    assert _stamps(signals.entries)[0] == "05 15:56"
-    assert _stamps(signals.exits)[0] == "05 15:58"
+    frame = golden_frame(1)
+    assert trades(_run(_simple("1m", {"time_is": "10:00"}, exit={"after_bars": 45}), 1), frame)[0] == ("long", "05 10:00", "05 10:45")
+    assert trades(_run(_simple("1m", {"time_is": "15:57"}, flat_at="15:59"), 1), frame)[0] == ("long", "05 15:57", "05 15:59")

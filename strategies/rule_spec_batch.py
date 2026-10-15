@@ -119,18 +119,6 @@ def _entry_window(spec: Mapping[str, Any], rows: int) -> np.ndarray:
     return allowed
 
 
-def _first_entries(candidate: np.ndarray, sides: np.ndarray, limit: int) -> np.ndarray:
-    """``candidate`` reduced to the first bar of each run of same-side signals, at most ``limit`` runs per session.
-
-    Columns are sessions, so the count restarts every session. It counts signal runs, not fills: VectorBT ignores a
-    run that starts while a position is open, and that run still counts.
-    """
-    signed = np.where(candidate, sides, 0)
-    previous = np.vstack([np.zeros((1, signed.shape[1])), signed[:-1]])
-    starts = candidate & (signed != previous)
-    return starts & (np.cumsum(starts, axis=0) <= limit)
-
-
 @dataclass
 class _Setting:
     parameters: dict[str, Any]
@@ -170,7 +158,7 @@ def _signals(spec: Mapping[str, Any], prepared: PreparedSessions, setting: _Sett
     if spec.get("skip_days"):
         allowed &= ~skipped_sessions(spec, prepared)[None, :]  # no new entries on a skipped day; exits still apply
     skipped = int((allowed & ~valid).sum())
-    first = _first_entries(allowed & valid, sides, spec["max_trades_per_session"])
+    first = allowed & valid  # max_trades_per_session caps fills in the simulation (session_entry_cap)
     rows = prepared.positions
     flags["entry"][rows[first & (sides > 0)]] = True
     flags["short_entry"][rows[first & (sides < 0)]] = True

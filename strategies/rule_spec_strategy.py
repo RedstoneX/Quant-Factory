@@ -293,8 +293,8 @@ def _metadata(definition: Mapping[str, Any], prepared: PreparedSessions, skipped
         "sessions_in_schedule": prepared.sessions_in_schedule,
         "entries_skipped_without_valid_stop_distance": skipped,
         "max_trades_counting": (
-            "max_trades_per_session keeps the first bar of at most that many same-side signal runs per session; "
-            "a run that starts while VectorBT holds a position is ignored by VectorBT and still counts."
+            "max_trades_per_session counts entry fills per session in the VectorBT simulation; a position closed by "
+            "a stop frees no slot, and a later signal may enter again while the count is below the limit."
         ),
         "holding": (
             "VectorBT holds positions on the continuous bar history: overnight unless flat_at is set "
@@ -332,6 +332,7 @@ def iter_rule_signals(
     prepared = prepare_sessions(frame, schedule, _REQUIRED_FIELDS, tick_size=spec["tick_size"], bar=spec["bar"])
     present = [key for key in STOP_KEYS if key in spec["exit"]]
     batches = iter_batch_signals(spec, prepared, settings)
+    session_ids = _session_ids(prepared)
     for parameters, (flags, levels, time_stops, skipped) in zip(settings, batches):
         # Each stop's distance is fixed at entry: the fraction measured on the signal bar is written on the entry row.
         dropped = _engine_exit_inputs(spec, prepared, parameters, flags, levels)
@@ -340,8 +341,8 @@ def iter_rule_signals(
             metadata["entries_dropped_level_stop_on_wrong_side"] = dropped
         if "exit_when" in spec["exit"]:
             metadata["exit_when"] = (
-                "exit_when is a rule exit (from_signals exits/short_exits); a bar that is also an entry signal of the "
-                "same side is a VectorBT signal conflict and is ignored (upon_long_conflict default)."
+                "exit_when is a rule exit (from_signals exits/short_exits): a held position exits on that bar, and a "
+                "later signal can enter again within max_trades_per_session."
             )
         yield SignalResult(
             entries=flags["entry"],
@@ -357,7 +358,16 @@ def iter_rule_signals(
             td_stop=time_stops["td_stop"] if "after_bars" in spec["exit"] else None,
             # An opposite signal never reverses a position; on_opposite_signal closes it through exits/short_exits.
             upon_opposite_entry="Ignore",
+            session_entry_cap=spec["max_trades_per_session"],
+            session_id=session_ids,
         )
+
+
+def _session_ids(prepared: PreparedSessions) -> pd.Series:
+    """One id per bar: the column number of its full regular session, -1 for every other bar."""
+    ids = np.full(len(prepared.index), -1, dtype=np.int64)
+    ids[prepared.positions] = np.arange(prepared.positions.shape[1])[None, :]
+    return pd.Series(ids, index=prepared.index)
 
 
 def _engine_exit_inputs(
