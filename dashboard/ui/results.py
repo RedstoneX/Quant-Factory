@@ -8,6 +8,8 @@ from urllib.parse import parse_qs
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, dcc, html, no_update
+import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 
 from dashboard.overview_projection import configured_database_path
@@ -37,7 +39,7 @@ METRIC_COLUMNS = [
     {"field": "max_drawdown", "headerName": "Maximum DD", "type": "numericColumn", "width": 102, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
     {"field": "number_of_trades", "headerName": "Trades", "type": "numericColumn", "width": 80, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
     {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 88, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
-    {"field": "screening_status", "headerName": "Outcome", "minWidth": 112, "flex": 1, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Failed testing' : params.value"}},
+    {"field": "screening_status", "headerName": "Outcome", "minWidth": 140, "flex": 1, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Failed testing' : params.value"}},
 ]
 
 
@@ -390,9 +392,33 @@ def _register_configuration_callbacks(application: Any) -> None:
         )
 
 
+_RESAMPLE = {"5m": "5min", "15m": "15min", "1D": "1D"}
+_DEFAULT_SESSIONS = 20
+
+
+def window_figure(portfolio: Any, session: str | None, interval: str | None) -> go.Figure:
+    """Plot only the selected Eastern session (or the last sessions) of the exact rebuilt portfolio."""
+    index = portfolio.wrapper.index
+    if session and session != "all":
+        start = pd.Timestamp(session, tz="US/Eastern")
+        end = start + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
+    else:
+        end = index[-1].tz_convert("US/Eastern")
+        start = (end - pd.Timedelta(days=_DEFAULT_SESSIONS)).normalize()
+    window = portfolio.loc[start:end]  # vbt Portfolio label indexing
+    window = window.resample(_RESAMPLE.get(interval or "15m", "15min"))  # vbt Portfolio.resample
+    figure = window.plot(subplots=["trades", "value", "underwater"], subplot_settings={"trades": {"title": ""}}, template="qf", make_subplots_kwargs={"row_heights": [0.6, 0.2, 0.2], "vertical_spacing": 0.03})
+    for trace in figure.data:  # plotly draws wall-clock values, so express every x in Eastern
+        if getattr(trace, "x", None) is not None and len(trace.x) and isinstance(trace.x[0], (pd.Timestamp, np.datetime64, str)):
+            trace.x = pd.to_datetime(list(trace.x), utc=True).tz_convert("US/Eastern").tz_localize(None)
+    breaks = [{"bounds": ["sat", "mon"]}] + ([{"bounds": [16, 9.5], "pattern": "hour"}] if interval != "1D" else [])
+    figure.update_xaxes(rangebreaks=breaks, title_text="Eastern time")  # Plotly rangebreaks: hide weekends and the overnight gap
+    return figure
+
+
 def _register_figure_callbacks(application: Any) -> None:
-    @application.callback(Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"))
-    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any) -> Any:
+    @application.callback(Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"), Input("results-session", "value"), Input("results-bars", "value"))
+    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None) -> Any:
         screening_rows = (record or {}).get("screening_rows")
         if not screening_rows:
             return dcc.Graph(figure=_price_figure(record, (selected_rows or [None])[-1], view or "session", nonce), config=_GRAPH_CONFIG)
@@ -402,10 +428,10 @@ def _register_figure_callbacks(application: Any) -> None:
             return dmc.Alert(str(error), color="yellow", title="Chart not shown")
         if not rebuild.exact:
             return dmc.Alert(rebuild.reason, color="yellow", title="Chart not shown")
-        figure = rebuild.portfolio.plot(subplots=["trades", "value", "underwater"], subplot_settings={"trades": {"title": ""}}, template="qf", make_subplots_kwargs={"row_heights": [0.6, 0.2, 0.2], "vertical_spacing": 0.03})
-        figure.update_layout(height=560, uirevision=f"{selected_rows}-{nonce}")
+        figure = window_figure(rebuild.portfolio, session, interval)
+        figure.update_layout(height=560, width=None, autosize=True, uirevision=f"{selected_rows}-{nonce}")
         figure.update_yaxes(side="right")
-        return dcc.Graph(figure=figure, config=_GRAPH_CONFIG)
+        return dcc.Graph(figure=figure, config=_GRAPH_CONFIG, className="results-portfolio-graph", style={"height": "560px"})
 
     @application.callback(Output("results-evidence-body", "children"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-evidence-tab", "value"), Input("results-trade-grid", "selectedRows"))
     def render_evidence(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, tab: str, selected_rows: list[dict[str, Any]] | None):
