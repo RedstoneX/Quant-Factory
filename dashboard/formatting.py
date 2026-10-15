@@ -18,6 +18,14 @@ def format_metric(name: str, value: Any) -> str:
     return str(value)
 
 
+def format_percent(value: Any) -> str:
+    """A fraction as a percent without trailing zeros, e.g. 0.0173 -> 1.73%, 0.35 -> 35%, 1 -> 100%."""
+    if value is None:
+        return "—"
+    text = f"{float(value) * 100:.2f}".rstrip("0").rstrip(".")
+    return f"{'0' if text in {'-0', ''} else text}%"
+
+
 def format_assumption(name: str, value: Any) -> str:
     if value is None:
         return "None"

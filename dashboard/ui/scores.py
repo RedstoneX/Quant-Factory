@@ -15,8 +15,8 @@ from dashboard.ui.layout import stat_card
 from dashboard.ui.theme import COLUMN_DEFAULTS, WARNING, grid_options, hide_when_narrow
 
 AMBER = "yellow.5"
-STRESS_WORDS = {"passed": "Held up", "failed": "Did not hold up", "insufficient_evidence": "Not enough data"}
-_STRESS_JS = "({'passed':'Held up','failed':'Did not hold up','insufficient_evidence':'Not enough data'})[params.value] || '—'"
+STRESS_WORDS = {"passed": "Held up", "failed": "Weak", "insufficient_evidence": "Not enough data"}
+_STRESS_JS = "({'passed':'Held up','failed':'Weak','insufficient_evidence':'Not enough data'})[params.value] || '—'"
 _AMBER_ROLLING = {"styleConditions": [{"condition": "params.data.rolling_status === 'failed'", "style": {"color": WARNING}}]}
 _AMBER_STRESS = {"styleConditions": [{"condition": "params.data.stress_status === 'failed'", "style": {"color": WARNING}}]}
 _PERCENT = "params.value == null ? '—' : (params.value * 100).toFixed(0) + '%'"
