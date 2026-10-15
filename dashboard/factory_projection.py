@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+
 from pathlib import Path
 import sqlite3
 from typing import Any
 
+from dashboard.time_display import eastern_label
 from dashboard.overview_projection import (
     SURVIVOR_EVENT_MESSAGE,
     SURVIVOR_EVENT_SOURCE,
@@ -64,8 +66,7 @@ def _display_timestamp(value: Any) -> str:
     if not value:
         return "—"
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-        return f"{parsed.strftime('%b')} {parsed.day}, {parsed.strftime('%H:%M')}"
+        return eastern_label(str(value))
     except ValueError:
         return str(value)
 

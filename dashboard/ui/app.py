@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+
 import os
 from pathlib import Path
 import sys
@@ -27,6 +28,7 @@ from dashboard.ui.layout import app_shell, copy_id, page_content, page_header, s
 from dashboard.ui.paper import paper_layout
 from dashboard.ui.results import register_results_callbacks, results_layout
 from dashboard.ui.submit import register_submit_callbacks, submit_layout
+from dashboard.time_display import eastern_time_label
 from dashboard.ui.theme import ACCENT, COLUMN_DEFAULTS, FONT_URL, UP, grid_options, hide_when_narrow
 
 
@@ -281,7 +283,7 @@ def register_callbacks(application: Dash) -> None:
         counts = snapshot.get("counts", {})
         item = _selected_item(snapshot, selection)
         try:
-            observed_label = datetime.fromisoformat(str(snapshot.get("observed_at") or "")).strftime("%H:%M:%S UTC")
+            observed_label = eastern_time_label(str(snapshot.get("observed_at") or ""))
         except ValueError:
             observed_label = "time unavailable"
         health = f"State refreshed {observed_label}" if snapshot.get("available") else "Can't load right now · click to retry"
