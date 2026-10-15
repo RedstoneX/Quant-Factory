@@ -12,7 +12,7 @@
     "[\"market_data/providers/alpaca.py\",\"AlpacaHistoricalBarsProvider._build_manifest\",\"FunctionDef\",1]": 208,
     "[\"orchestration/candidate_pipeline_runtime.py\",\"CandidatePipelineDefinition.from_configuration_document\",\"FunctionDef\",1]": 469,
     "[\"orchestration/candidate_pipeline_runtime.py\",\"CandidatePipelineRuntime._stage_adapters\",\"FunctionDef\",1]": 185,
-    "[\"orchestration/filter_chain.py\",\"FactoryFilterChainService._run\",\"FunctionDef\",1]": 215,
+    "[\"orchestration/filter_chain.py\",\"FactoryFilterChainService._run\",\"FunctionDef\",1]": 204,
     "[\"orchestration/research_launch_claims.py\",\"DurableResearchLaunchService.bind_prefect_identity\",\"FunctionDef\",1]": 179,
     "[\"orchestration/run_service.py\",\"FixtureRunService.launch_fixture\",\"FunctionDef\",1]": 163,
     "[\"research_intake/qf_candidate.py\",\"validate_candidate_packet\",\"FunctionDef\",1]": 174,

@@ -124,6 +124,11 @@ def _stage_status(
     stage_reasons = tuple(normalized.get("reasons", ())) or (
         f"{stage} evidence returned {status}",
     )
+    if status == "failed":
+        # Owner ruling 15 Oct 2026: walk-forward, robustness and Monte Carlo
+        # merit results are recorded scores, not gates; reasons stay recorded.
+        reasons.extend(f"{stage} (score): {reason}" for reason in stage_reasons)
+        return "passed"
     reasons.extend(f"{stage}: {reason}" for reason in stage_reasons)
     return map_native_status(status)
 

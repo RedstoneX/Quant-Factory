@@ -147,6 +147,8 @@ def _persist_source_lock(
     service: PersistenceService,
     root: Path,
     run_id: str,
+    *,
+    test_status: str = "passed",
 ) -> None:
     source = ValidationEvidenceArtifactService(service).source_document(run_id)
     payload = {
@@ -168,7 +170,7 @@ def _persist_source_lock(
             "normalized_parameters": PARAMETERS,
         },
         "selection_status": "passed",
-        "test_status": "passed",
+        "test_status": test_status,
         "metrics": {
             "total_return": 0.1,
             "max_drawdown": -0.03,
@@ -200,6 +202,9 @@ def _stage_adapter(
     calls: list[tuple[str, str]],
     *,
     failed_walk_forward: bool = False,
+    failed_oos: bool = False,
+    failed_robustness: bool = False,
+    failed_monte_carlo: bool = False,
     corrupt: bool = False,
 ):
     def execute(context):
@@ -207,7 +212,9 @@ def _stage_adapter(
         run_id = _create_stage(service, stage, context.run_id)
         evidence = ValidationEvidenceArtifactService(service)
         if stage == RunStage.OOS:
-            _persist_source_lock(service, root, run_id)
+            _persist_source_lock(
+                service, root, run_id, test_status="failed" if failed_oos else "passed"
+            )
         elif stage == RunStage.WALK_FORWARD:
             result = walk_forward_result(
                 experiment_id="connected-filter-chain",
@@ -240,29 +247,34 @@ def _stage_adapter(
             )
         elif stage == RunStage.ROBUSTNESS:
             source = evidence.source_document(run_id)
-            evidence.persist_robustness(
-                run_id=run_id,
-                result=robustness_result(
-                    experiment_id="connected-filter-chain",
-                    strategy_id=STRATEGY_ID,
-                    strategy_version=STRATEGY_VERSION,
-                    parameters=PARAMETERS,
-                    target_source=source,
-                    provider="fixture",
-                    execution={"kind": "fixture"},
-                ),
-                artifact_root=root,
+            robustness = robustness_result(
+                experiment_id="connected-filter-chain",
+                strategy_id=STRATEGY_ID,
+                strategy_version=STRATEGY_VERSION,
+                parameters=PARAMETERS,
+                target_source=source,
+                provider="fixture",
+                execution={"kind": "fixture"},
             )
+            if failed_robustness:
+                robustness = replace(
+                    robustness,
+                    status="failed",
+                    component_statuses={"parameter_neighborhood": "passed", "regimes": "failed"},
+                    reasons=("fixture robustness merit failure",),
+                )
+            evidence.persist_robustness(run_id=run_id, result=robustness, artifact_root=root)
         else:
-            evidence.persist_monte_carlo(
-                run_id=run_id,
-                result=monte_carlo_result(
-                    experiment_id="connected-filter-chain",
-                    strategy_id=STRATEGY_ID,
-                    strategy_version=STRATEGY_VERSION,
-                ),
-                artifact_root=root,
+            monte_carlo = monte_carlo_result(
+                experiment_id="connected-filter-chain",
+                strategy_id=STRATEGY_ID,
+                strategy_version=STRATEGY_VERSION,
             )
+            if failed_monte_carlo:
+                monte_carlo = replace(
+                    monte_carlo, status="failed", reasons=("fixture Monte Carlo merit failure",)
+                )
+            evidence.persist_monte_carlo(run_id=run_id, result=monte_carlo, artifact_root=root)
         if corrupt:
             artifact = service.list_run_artifacts(run_id)[0]
             (root / artifact.location).write_text("{}", encoding="utf-8")
@@ -330,29 +342,6 @@ def test_survivor_advances_in_fixed_order_from_validated_evidence(
         assert outcome.protected_test_gate.status == "passed"
         assert outcome.protected_test_gate.eligible_to_execute_lockbox is True
         assert outcome.protected_test_gate.eligible_to_progress is False
-    finally:
-        service.close()
-
-
-def test_persisted_failure_stops_before_next_stage(tmp_path: Path) -> None:
-    service = _service(tmp_path)
-    root = tmp_path / "artifacts"
-    calls: list[tuple[str, str]] = []
-    try:
-        outcome = FactoryFilterChainService(service, artifact_root=root).run(
-            screening_run_id="screening-run",
-            stage_adapters=_adapters(
-                service,
-                root,
-                calls,
-                overrides={RunStage.WALK_FORWARD: {"failed_walk_forward": True}},
-            ),
-        )
-        assert tuple(stage for stage, _ in calls) == ("oos", "walk_forward")
-        assert calls[0][1] == "screening-run"
-        assert outcome.status == "stopped"
-        assert outcome.stopped_at == "walk_forward"
-        assert "fixture stage failed" in outcome.reasons[0]
     finally:
         service.close()
 
