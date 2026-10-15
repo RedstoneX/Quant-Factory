@@ -22,6 +22,43 @@ class ScreeningPortfolioSnapshot:
     trades: pd.DataFrame
     orders: pd.DataFrame
     value: pd.Series | pd.DataFrame
+    performance: dict[str, Any] | None = None
+
+
+def _finite(value: Any) -> float | None:
+    """JSON-safe number: NaN/inf (VBT's "no such trades") become null."""
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def _direction_summary(view: Any) -> dict[str, Any]:
+    """VectorBT's own trade/portfolio stats for one portfolio view."""
+    trades = view.trades
+    return {
+        "net_profit": _finite(trades.pnl.sum()),
+        "gross_profit": _finite(trades.winning.pnl.sum()),
+        "gross_loss": _finite(trades.losing.pnl.sum()),
+        "profit_factor": _finite(trades.profit_factor),
+        "max_drawdown": _finite(view.max_drawdown),
+        "total_trades": int(trades.count()),
+        "win_rate": _finite(trades.win_rate),
+        "avg_trade": _finite(trades.pnl.mean()),
+        "avg_win": _finite(trades.winning.pnl.mean()),
+        "avg_loss": _finite(trades.losing.pnl.mean()),
+        "largest_win": _finite(trades.pnl.max()),
+        "largest_loss": _finite(trades.pnl.min()),
+        "avg_bars_in_trade": _finite(trades.duration.mean()),
+        "commission_paid": _finite(view.orders.fees.sum()),
+    }
+
+
+def performance_summary(portfolio: Any) -> dict[str, Any]:
+    """All / Long / Short columns from VBT's Portfolio.long_view / short_view."""
+    return {
+        "all": _direction_summary(portfolio),
+        "long": _direction_summary(portfolio.long_view),
+        "short": _direction_summary(portfolio.short_view),
+    }
 
 
 def snapshot_screening_portfolio(portfolio: Any) -> ScreeningPortfolioSnapshot:
@@ -31,6 +68,7 @@ def snapshot_screening_portfolio(portfolio: Any) -> ScreeningPortfolioSnapshot:
         trades=portfolio.trades.records_readable.copy(),
         orders=portfolio.orders.records_readable.copy(),
         value=value.copy(),
+        performance=performance_summary(portfolio),
     )
 
 def _artifact_value(value: Any) -> Any:
@@ -156,13 +194,22 @@ def persist_screening_artifacts(*, persistence: PersistenceService, artifact_roo
                                 include_price_series: bool = True,
                                 price_window_only: bool = False,
                                 only: tuple[ArtifactType, ...] | None = None) -> None:
-    for artifact_type, logical_name, document in _screening_artifacts(
+    artifacts = list(_screening_artifacts(
         result=result, portfolio=portfolio, data=data, config=config,
         parameter_row_id=parameter_row_id, include_price_series=include_price_series,
         price_window_only=price_window_only,
-    ):
-        if only is not None and artifact_type not in only:
-            continue
+    ))
+    if only is not None:
+        artifacts = [item for item in artifacts if item[0] in only]
+    performance = (portfolio.performance if isinstance(portfolio, ScreeningPortfolioSnapshot)
+                   else performance_summary(portfolio))
+    if performance is not None:
+        artifacts.append((ArtifactType.METRICS, "performance_summary", {
+            "parameter_row_id": parameter_row_id, "instrument": config.market_data.symbol,
+            "pnl_unit": "USD", "source": "VectorBT PRO Portfolio (all / long_view / short_view)",
+            "performance": performance,
+        }))
+    for artifact_type, logical_name, document in artifacts:
         qualified_name = f"{namespace}/{logical_name}" if namespace else logical_name
         relative_path = f"state/artifacts/{run_id}/{qualified_name}.json"
         destination = artifact_root / relative_path

@@ -48,63 +48,8 @@ from persistence import (
     canonical_json,
 )
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
+from tests.fake_vectorbt import FAKE_VECTORBT
 
-def _FakeTrades(count: int) -> SimpleNamespace:
-    return SimpleNamespace(count=lambda: count, win_rate=0.60, records_readable=pd.DataFrame({"Trade Id": range(count)}))
-
-class _FakePortfolioResult:
-    def __init__(self, index: pd.Index, trade_count: int) -> None:
-        self.total_return = 0.05
-        self.annualized_return = 0.10
-        self.sharpe_ratio = 1.0
-        self.max_drawdown = -0.02
-        self.trades = _FakeTrades(max(1, trade_count))
-        self.orders = SimpleNamespace(records_readable=pd.DataFrame({"Order Id": range(max(1, trade_count))}))
-        self.value = pd.Series(10_000.0, index=index, dtype=float)
-        self.returns = pd.Series(0.001, index=index, dtype=float)
-
-class _FakePortfolio:
-    @staticmethod
-    def from_signals(*, close, entries, short_entries=None, **_kwargs):
-        counts = pd.DataFrame(entries).sum() + (0 if short_entries is None else pd.DataFrame(short_entries).sum())
-        columns = [_FakePortfolioResult(close.index, int(count)) for count in counts]
-        return _FakeSweep(columns) if isinstance(entries, pd.DataFrame) else columns[0]
-
-class _FakeSweep:
-    """One column per setting: each property holds one value per column, like VectorBT."""
-
-    def __init__(self, columns: list[_FakePortfolioResult]) -> None:
-        self.columns, self.iloc, self.value = columns, self, pd.concat([column.value for column in columns], axis=1)
-        self.__dict__.update({name: pd.Series([getattr(c, name) for c in columns]) for name in ("total_return", "annualized_return", "sharpe_ratio", "max_drawdown")})
-        self.trades = SimpleNamespace(count=lambda: pd.Series([c.trades.count() for c in columns]), win_rate=pd.Series([c.trades.win_rate for c in columns]))
-
-    def __getitem__(self, key):
-        return self.columns[key[1]]
-
-
-class _FakeRSIResult:
-    def __init__(self, index: pd.Index) -> None:
-        self._index = index
-
-    def rsi_crossed_below(self, _threshold: int) -> pd.Series:
-        values = pd.Series(False, index=self._index, dtype=bool)
-        values.iloc[2::8] = True
-        return values
-
-    def rsi_crossed_above(self, _threshold: int) -> pd.Series:
-        values = pd.Series(False, index=self._index, dtype=bool)
-        values.iloc[5::8] = True
-        return values
-
-
-class _FakeRSI:
-    @staticmethod
-    def run(close: pd.Series, *, window: int) -> _FakeRSIResult:
-        _ = window
-        return _FakeRSIResult(close.index)
-
-
-FAKE_VECTORBT = SimpleNamespace(Portfolio=_FakePortfolio, RSI=_FakeRSI)
 
 def _direct_pipeline_launcher(*, runtime, submission):
     """Exercise orchestration directly without importing or constructing Prefect."""
@@ -514,7 +459,7 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
         assert all(run.status == RunStatus.SUCCEEDED for run in runs)
         assert sum(event.message == SURVIVOR_EVENT_MESSAGE for event in persistence.events.list_for_run(first.launch.claim.run.run_id)) == 1
         assert all(persistence.read_persisted_run_manifest(run.run_id) for run in runs)
-        assert {a.logical_name.split(":")[0] for a in persistence.list_run_artifacts(first.chain.completed[0].run_id)} == {"source_lock_evidence", "trades_and_orders"}
+        assert {a.logical_name.split(":")[0] for a in persistence.list_run_artifacts(first.chain.completed[0].run_id)} == {"source_lock_evidence", "trades_and_orders", "performance_summary"}
         assert all(
             persistence.list_run_artifacts(handoff.run_id)
             for handoff in first.chain.completed[1:]
