@@ -30,6 +30,12 @@ def _finite_metrics(metrics: Any) -> bool:
     )
 
 
+def _lead_with_failure_reason(payload: Mapping[str, Any], reasons: list[str]) -> list[str]:
+    """The artifact's own failure reason says why the stage stopped; lead with it."""
+    reason = payload.get("failure_reason")
+    return [reason, *reasons] if isinstance(reason, str) else reasons
+
+
 def _failed(path: Path, kind: str, reasons: list[str]) -> SourceLockEvidence:
     return SourceLockEvidence(
         status="invalid_input",
@@ -201,7 +207,7 @@ def load_lock_artifact(
         metrics = {}
 
     if reasons:
-        failed = _failed(path, kind, reasons)
+        failed = _failed(path, kind, _lead_with_failure_reason(payload, reasons))
         return SourceLockEvidence(
             **{
                 **failed.__dict__,

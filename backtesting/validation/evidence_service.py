@@ -279,6 +279,7 @@ class ValidationEvidenceArtifactService:
         if not isinstance(document, dict):
             raise ValueError("source-lock configuration is malformed")
         source_locks = []
+        rejected = []
         for candidate in candidates:
             try:
                 source_lock = self._retrieve_validated_source_lock(
@@ -287,14 +288,13 @@ class ValidationEvidenceArtifactService:
                     target_configuration=document,
                     artifact_root=artifact_root,
                 )
-            except ValueError:
+            except ValueError as exc:
+                rejected.append(str(exc))
                 continue
             if source_lock.artifact_kind == "out_of_sample":
                 source_locks.append(source_lock)
         if len(source_locks) != 1:
-            raise ValueError(
-                "out-of-sample run must contain exactly one valid source-lock artifact"
-            )
+            raise ValueError("out-of-sample run has no single valid source-lock artifact: " + " | ".join(rejected))
         source_lock = source_locks[0]
         if not self._configuration_allows_locked_parameters(
             document.get("parameters"), source_lock.locked_parameters
