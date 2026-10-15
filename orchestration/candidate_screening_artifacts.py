@@ -48,7 +48,6 @@ def _direction_summary(view: Any) -> dict[str, Any]:
         "largest_win": _finite(trades.pnl.max()),
         "largest_loss": _finite(trades.pnl.min()),
         "avg_bars_in_trade": _finite(trades.duration.mean()),
-        "sharpe_ratio": _finite(view.sharpe_ratio),
         "commission_paid": _finite(view.orders.fees.sum()),
     }
 

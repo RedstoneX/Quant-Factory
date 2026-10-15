@@ -14,7 +14,7 @@ pytestmark = pytest.mark.licensed_vectorbt
 
 KEYS = {"net_profit", "gross_profit", "gross_loss", "profit_factor", "max_drawdown", "total_trades",
         "win_rate", "avg_trade", "avg_win", "avg_loss", "largest_win", "largest_loss",
-        "avg_bars_in_trade", "sharpe_ratio", "commission_paid"}
+        "avg_bars_in_trade", "commission_paid"}
 
 
 def _portfolio():
