@@ -23,6 +23,67 @@ TRADE_LIMIT = 500
 EQUITY_LIMIT = 2_000
 
 
+def _trade_row(group: Any) -> dict[str, Any]:
+    """One grid/chart row for a grouped trade, in Eastern wall time."""
+    return {
+        "trade_id": group.trade_id,
+        "direction": (group.direction or "Unrecorded").title(),
+        "entry_timestamp": eastern_plot_timestamp(group.entry.timestamp) if group.entry else None,
+        "entry_display": eastern_label(group.entry.timestamp) if group.entry else "—",
+        "entry_price": group.entry.price if group.entry else None,
+        "exit_timestamp": eastern_plot_timestamp(group.exit.timestamp) if group.exit else None,
+        "exit_display": eastern_label(group.exit.timestamp) if group.exit else "—",
+        "exit_price": group.exit.price if group.exit else None,
+        "duration": (
+            f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
+            if group.entry and group.exit else "—"
+        ),
+        "pnl": None if group.pnl is None else round(float(group.pnl), 2),
+        "outcome": (group.outcome or group.status).replace("_", " ").title(),
+        "status": group.status,
+    }
+
+
+def _saved_initial_cash(detail: Any) -> float | None:
+    """The run's own saved starting cash (its execution assumptions), or None when it was not saved."""
+    for field in detail.execution:
+        if field.label == "Initial Cash":
+            try:
+                return float(field.value)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def equity_from_trades(trades: list[dict[str, Any]], *, starting_cash: float | None) -> list[dict[str, Any]]:
+    """Account value after each closed trade: starting cash plus cumulative P&L (pandas cumsum) at exit time."""
+    if starting_cash is None:
+        return []
+    closed = pd.DataFrame([t for t in trades if t.get("exit_timestamp") and t.get("pnl") is not None])
+    if closed.empty:
+        return []
+    closed = closed.sort_values("exit_timestamp")
+    values = starting_cash + closed["pnl"].cumsum()
+    return [{"timestamp": ts, "value": float(v)} for ts, v in zip(closed["exit_timestamp"], values)]
+
+
+def load_screening_configuration_trades(
+    run_id: str | None, parameter_row_id: str | None, *, database: str | Path | None = None,
+) -> dict[str, Any]:
+    """Every saved trade of one first-check setting (newest bounded set), for the Trades list."""
+    if not run_id or not parameter_row_id:
+        return {"trades": [], "trade_count": 0}
+    database_path = Path(database) if database is not None else configured_database_path()
+    document = _artifact_document(
+        database=database_path, run_id=run_id,
+        logical_name=f"screening_configuration/{parameter_row_id}/trades_and_orders",
+    )
+    if not document:
+        return {"trades": [], "trade_count": 0}
+    grouped = group_trade_rows(_candidate_trade_rows(document))
+    return {"trades": [_trade_row(g) for g in grouped.groups[-TRADE_LIMIT:]], "trade_count": len(grouped.groups)}
+
+
 def _artifact_root(database: Path) -> Path:
     return database.parent.parent if database.parent.name == "state" else database.parent
 
@@ -275,23 +336,7 @@ def load_screening_configuration_evidence(
         group.entry and eastern_session(group.entry.timestamp) == selected_session
     )]
     trades = [
-        {
-            "trade_id": group.trade_id,
-            "direction": (group.direction or "Unrecorded").title(),
-            "entry_timestamp": eastern_plot_timestamp(group.entry.timestamp) if group.entry else None,
-            "entry_display": eastern_label(group.entry.timestamp) if group.entry else "—",
-            "entry_price": group.entry.price if group.entry else None,
-            "exit_timestamp": eastern_plot_timestamp(group.exit.timestamp) if group.exit else None,
-            "exit_display": eastern_label(group.exit.timestamp) if group.exit else "—",
-            "exit_price": group.exit.price if group.exit else None,
-            "duration": (
-                f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
-                if group.entry and group.exit else "—"
-            ),
-            "pnl": None if group.pnl is None else round(float(group.pnl), 2),
-            "outcome": (group.outcome or group.status).replace("_", " ").title(),
-            "status": group.status,
-        }
+        _trade_row(group)
         # Keep the bounded trade cohort aligned with the selected session so
         # entry and exit markers cannot silently disappear from its chart.
         for group in groups[-TRADE_LIMIT:]
@@ -475,25 +520,16 @@ def load_results_record(
         ] if prepared.available else []
         grouped = group_trade_rows(evidence.trades)
         trades = [
-            {
-                "trade_id": group.trade_id,
-                "direction": (group.direction or "Unrecorded").title(),
-                "entry_timestamp": eastern_plot_timestamp(group.entry.timestamp) if group.entry else None,
-                "entry_display": eastern_label(group.entry.timestamp) if group.entry else "—",
-                "entry_price": group.entry.price if group.entry else None,
-                "exit_timestamp": eastern_plot_timestamp(group.exit.timestamp) if group.exit else None,
-                "exit_display": eastern_label(group.exit.timestamp) if group.exit else "—",
-                "exit_price": group.exit.price if group.exit else None,
-                "duration": (
-                    f"{int((group.exit.timestamp - group.entry.timestamp).total_seconds() // 60)}m"
-                    if group.entry and group.exit else "—"
-                ),
-                "pnl": None if group.pnl is None else round(float(group.pnl), 2),
-                "outcome": (group.outcome or group.status).replace("_", " ").title(),
-                "status": group.status,
-            }
+            _trade_row(group)
             for group in grouped.groups[:TRADE_LIMIT]
         ]
+        equity = [
+            {**dict(row), "timestamp": eastern_plot_timestamp(row["timestamp"])}
+            for row in evidence.equity_curve[-EQUITY_LIMIT:] if row.get("timestamp")
+        ]
+        equity_from_saved_trades = not equity and bool(grouped.groups) and _saved_initial_cash(detail) is not None
+        if equity_from_saved_trades:  # no saved curve: rebuild it from every saved trade
+            equity = equity_from_trades([_trade_row(group) for group in grouped.groups], starting_cash=_saved_initial_cash(detail))[-EQUITY_LIMIT:]
         return {
             "available": True,
             "message": "Saved results for this run loaded.",
@@ -512,10 +548,8 @@ def load_results_record(
             "price_reason": prepared.reason,
             "source_interval": evidence.source_interval,
             "interval": interval,
-            "equity": [
-                {**dict(row), "timestamp": eastern_plot_timestamp(row["timestamp"])}
-                for row in evidence.equity_curve[-EQUITY_LIMIT:] if row.get("timestamp")
-            ],
+            "equity": equity,
+            "equity_from_trades": equity_from_saved_trades,
             "drawdown": [
                 {**dict(row), "timestamp": eastern_plot_timestamp(row["timestamp"])}
                 for row in evidence.drawdown_curve[-EQUITY_LIMIT:] if row.get("timestamp")
@@ -547,6 +581,6 @@ def load_results_record(
 
 
 __all__ = [
-    "list_results_runs", "list_screening_configuration_sessions", "load_session_price",
+    "list_results_runs", "equity_from_trades", "load_screening_configuration_trades", "list_screening_configuration_sessions", "load_session_price",
     "load_results_record", "load_screening_configuration_evidence",
 ]
