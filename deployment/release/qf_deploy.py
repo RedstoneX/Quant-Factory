@@ -196,8 +196,16 @@ def install_infra(release: Path, drift: list[str]) -> list[tuple[Path, Path | No
     return restored
 
 
-def compose(*args: str) -> None:
-    run("docker", "compose", "--project-directory", str(RESEARCH), "--file", str(RESEARCH / "compose.yaml"), *args)
+def compose(*args: str, capture: bool = False) -> str:
+    return run("docker", "compose", "--project-directory", str(RESEARCH), "--file", str(RESEARCH / "compose.yaml"),
+               *args, capture=capture)
+
+
+def active_flow_runs() -> int:
+    """Count Prefect flow runs in RUNNING or PENDING state (Prefect's own CLI, run inside the prefect service)."""
+    out = compose("exec", "-T", "-e", "PREFECT_API_URL=http://127.0.0.1:4200/api", "prefect", "prefect", "flow-run", "ls",
+                  "--state-type", "RUNNING", "--state-type", "PENDING", "--limit", "200", "--output", "json", capture=True)
+    return len(json.loads(out or "[]"))
 
 
 def switch_containers(revision: str) -> None:
@@ -300,6 +308,10 @@ def deploy(requested: str | None, *, admin: bool, force: bool, unpin: bool) -> i
     if state.get("revision") == target and not drift and not force:
         if unpin:
             write_state(pinned=None)
+        return 0
+    busy = active_flow_runs()
+    if busy and not force:
+        log(f"deferred: {busy} tests running; {target[:12]} will deploy when they finish")
         return 0
     try:
         return _switch(target, release, drift, state, pinned=requested is not None)

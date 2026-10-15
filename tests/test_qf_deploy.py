@@ -75,3 +75,37 @@ def test_installed_dashboard_unit_runs_the_deployed_release() -> None:
     assert "WorkingDirectory=/opt/quant-factory-dashboard/current\n" in text
     assert "ExecStart=/opt/quant-factory-dashboard/current/.venv/bin/gunicorn " in text
     assert "/home/" not in text
+
+
+def _stub_deploy(monkeypatch: pytest.MonkeyPatch, busy: int) -> list[str]:
+    calls: list[str] = []
+    monkeypatch.setattr(qf_deploy, "read_state", lambda: {})
+    monkeypatch.setattr(qf_deploy, "fetch_main", lambda: SHA_B)
+    monkeypatch.setattr(qf_deploy, "export_release", lambda revision: Path("/nonexistent"))
+    monkeypatch.setattr(qf_deploy, "infra_drift", lambda release, installed: [])
+    monkeypatch.setattr(qf_deploy, "active_flow_runs", lambda: busy)
+    monkeypatch.setattr(qf_deploy, "_switch", lambda *args, **kwargs: calls.append("switch") or 0)
+    monkeypatch.setattr(qf_deploy, "write_state", lambda **changes: calls.append("write_state"))
+    return calls
+
+
+def test_deploy_defers_while_tests_are_running(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _stub_deploy(monkeypatch, busy=3)
+
+    assert qf_deploy.deploy(None, admin=False, force=False, unpin=False) == 0
+    assert calls == []
+
+
+def test_deploy_proceeds_when_idle(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _stub_deploy(monkeypatch, busy=0)
+
+    assert qf_deploy.deploy(None, admin=False, force=False, unpin=False) == 0
+    assert calls == ["switch"]
+
+
+def test_active_flow_runs_counts_the_prefect_cli_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[tuple[str, ...]] = []
+    monkeypatch.setattr(qf_deploy, "compose", lambda *args, capture=False: seen.append(args) or '[{"id": "1"}, {"id": "2"}]')
+
+    assert qf_deploy.active_flow_runs() == 2
+    assert "RUNNING" in seen[0] and "PENDING" in seen[0]
