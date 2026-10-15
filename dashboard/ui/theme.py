@@ -27,11 +27,11 @@ _BLUE = ["#cae8ff", "#a5d6ff", "#79c0ff", ACCENT, "#388bfd", "#1f6feb", "#1158c7
 MANTINE_THEME = {
     "fontFamily": FONT_FAMILY,
     "headings": {"fontFamily": FONT_FAMILY, "fontWeight": "600", "sizes": {
-        "h1": {"fontSize": "18px", "lineHeight": "1.3"}, "h2": {"fontSize": "15px", "lineHeight": "1.35"},
-        "h3": {"fontSize": "13px", "lineHeight": "1.4"}, "h4": {"fontSize": "13px", "lineHeight": "1.4"},
-        "h5": {"fontSize": "13px", "lineHeight": "1.4"}, "h6": {"fontSize": "12px", "lineHeight": "1.4"},
+        "h1": {"fontSize": "22px", "lineHeight": "1.3"}, "h2": {"fontSize": "18px", "lineHeight": "1.35"},
+        "h3": {"fontSize": "16px", "lineHeight": "1.4"}, "h4": {"fontSize": "16px", "lineHeight": "1.4"},
+        "h5": {"fontSize": "15px", "lineHeight": "1.4"}, "h6": {"fontSize": "15px", "lineHeight": "1.4"},
     }},
-    "fontSizes": {"xs": "11px", "sm": "12px", "md": "13px", "lg": "15px", "xl": "18px"},
+    "fontSizes": {"xs": "13px", "sm": "14px", "md": "15px", "lg": "17px", "xl": "20px"},
     "spacing": {"xs": "4px", "sm": "8px", "md": "12px", "lg": "16px", "xl": "24px"},
     "radius": {"xs": "4px", "sm": "6px", "md": "6px", "lg": "8px", "xl": "12px"},
     "defaultRadius": "sm",
@@ -49,18 +49,18 @@ MANTINE_THEME = {
 }
 
 _AXIS = {"gridcolor": "rgba(255,255,255,0.04)", "zeroline": False, "showline": False, "title": {"text": ""},
-         "tickfont": {"color": MUTED, "size": 11}, "showspikes": True, "spikemode": "across",
+         "tickfont": {"color": MUTED, "size": 13}, "showspikes": True, "spikemode": "across",
          "spikethickness": 1, "spikedash": "dot", "spikecolor": "#484f58"}
 
 QF_TEMPLATE = go.layout.Template(pio.templates["plotly_dark"])
 QF_TEMPLATE.layout.update(
     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-    font={"family": FONT_FAMILY, "size": 11, "color": MUTED},
+    font={"family": FONT_FAMILY, "size": 13, "color": MUTED},
     colorway=[ACCENT, UP, DOWN, WARNING],
     hovermode="x unified",
     hoverlabel={"bgcolor": PANEL, "bordercolor": BORDER, "font": {"color": TEXT, "size": 12, "family": FONT_FAMILY}},
     legend={"orientation": "h", "x": 1, "xanchor": "right", "y": 1.02, "yanchor": "bottom",
-            "bgcolor": "rgba(0,0,0,0)", "font": {"color": MUTED, "size": 11}},
+            "bgcolor": "rgba(0,0,0,0)", "font": {"color": MUTED, "size": 13}},
     margin={"l": 48, "r": 16, "t": 32, "b": 32},
     xaxis={**_AXIS, "rangeslider": {"visible": False}},
     yaxis={**_AXIS, "side": "right"},
@@ -72,8 +72,8 @@ pio.templates.default = "qf"
 AG_GRID_THEME = {"function": "themeQuartz.withParams(" + json.dumps({
     "browserColorScheme": "dark", "backgroundColor": PANEL, "foregroundColor": TEXT, "chromeBackgroundColor": PANEL,
     "headerBackgroundColor": PANEL, "headerTextColor": MUTED, "headerFontWeight": 500, "borderColor": BORDER,
-    "accentColor": ACCENT, "oddRowBackgroundColor": PANEL, "fontFamily": FONT_FAMILY, "fontSize": 12,
-    "headerFontSize": 12, "rowHeight": 32, "headerHeight": 32, "wrapperBorder": False, "spacing": 6,
+    "accentColor": ACCENT, "oddRowBackgroundColor": PANEL, "fontFamily": FONT_FAMILY, "fontSize": 14,
+    "headerFontSize": 14, "rowHeight": 40, "headerHeight": 40, "wrapperBorder": False, "spacing": 6,
     "cellHorizontalPaddingScale": 0.75,
 }) + ")"}
 
