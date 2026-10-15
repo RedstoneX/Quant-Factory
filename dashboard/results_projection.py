@@ -198,8 +198,9 @@ def oos_report_metrics(*, database: Path, run_id: str | None) -> dict[str, Any] 
 
 
 def _shared_price_rows(
-    *, database: Path, run_id: str, session: str | None,
+    *, database: Path, run_id: str, session: str | None, period: tuple[str, str] | None = None,
 ) -> list[dict[str, Any]] | None:
+    """Saved bars for one Eastern session, or for a whole Eastern date range (start and end days inclusive)."""
     reference = _artifact_reference(
         database=database, run_id=run_id, logical_name="screening_price_series"
     )
@@ -216,9 +217,10 @@ def _shared_price_rows(
             return None
         query = "SELECT timestamp, open, high, low, close FROM price_bars"
         parameters: list[str] = []
-        if session:
-            start = pd.Timestamp(session, tz="America/New_York")
-            end = start + pd.Timedelta(days=1)
+        if session or period:
+            first, last = period or (session, session)
+            start = pd.Timestamp(first, tz="America/New_York")
+            end = pd.Timestamp(last, tz="America/New_York") + pd.Timedelta(days=1)
             query += " WHERE timestamp>=? AND timestamp<?"
             parameters = [start.tz_convert("UTC").isoformat(), end.tz_convert("UTC").isoformat()]
         query += " ORDER BY timestamp"

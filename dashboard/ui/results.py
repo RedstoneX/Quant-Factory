@@ -1,4 +1,10 @@
-"""Production Results workspace in the accepted Quant Factory shell."""
+"""Results: one page per idea, laid out like a strategy tester.
+
+Header and verdict, five unseen-data numbers, a strip of the five tests, and
+tabs for the selected test: account value, performance summary, list of
+trades, price chart and the settings the costs test tried. Built from Dash,
+Dash Mantine, AG Grid, Plotly and pandas only.
+"""
 
 from __future__ import annotations
 
@@ -13,25 +19,22 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash_iconify import DashIconify
 
-from dashboard.overview_projection import configured_database_path
+from dashboard.formatting import format_money
+from dashboard.idea_results_projection import (
+    STAGES, TRADE_STAGES, idea_for_run, load_idea, load_period_price, load_stage_detail, load_trade_view,
+)
 from dashboard.plain_labels import FAILED_TESTING
+from dashboard.results_projection import list_results_runs, load_results_record, load_session_price
 from dashboard.score_projection import load_run_scores
-from dashboard.ui.layout import copy_id, page_header, stat_card
-from dashboard.ui.results_settings import display_settings_rows, register_settings_callbacks, settings_columns, settings_heatmap_layout, settings_identity
+from dashboard.ui.layout import page_header, stat_card
+from dashboard.ui.results_settings import display_settings_rows, register_settings_callbacks, settings_columns, settings_heatmap_layout
 from dashboard.ui.scores import score_cards
 from dashboard.ui.theme import COLUMN_DEFAULTS, DOWN, UP, grid_options, hide_when_narrow
 
-from dashboard.results_projection import (
-    list_results_runs,
-    list_screening_configuration_sessions,
-    load_results_record,
-    load_screening_configuration_evidence,
-    load_screening_configuration_trades,
-    load_session_price,
-)
-
 
 MONEY_JS = "params.value == null ? '—' : (params.value < 0 ? '-$' : '$') + Math.abs(params.value).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})"
+
+
 SCORE_NOTES = (
     "Share of the rolling test periods that made money. Higher is steadier.",
     "Average return per unit of risk across those periods. Above 0 is good.",
@@ -39,7 +42,11 @@ SCORE_NOTES = (
     "Chance the result is skill, not luck from trying many settings. Higher is better.",
     "Chance it only looks good because it was picked from many settings. Lower is better.",
 )
+
+
 SCORES_NOTE = "Scores are information, not pass marks — paper trading is the final test."
+
+
 CHART_UNAVAILABLE = "The price chart for this run is not available right now."
 
 
@@ -78,6 +85,8 @@ TRADE_COLUMNS = [
     {"field": "pnl", "headerName": "Profit or loss", "type": "numericColumn", "minWidth": 120, "flex": 1, "valueFormatter": {"function": MONEY_JS}, "cellStyle": {"styleConditions": [{"condition": "params.value > 0", "style": {"color": UP}}, {"condition": "params.value < 0", "style": {"color": DOWN}}]}},
     {"field": "outcome", "headerName": "Outcome", "minWidth": 86, "flex": .8},
 ]
+
+
 METRIC_COLUMNS = [
     {"field": "total_return", "headerName": "Net return", "type": "numericColumn", "width": 90, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
     {"field": "sharpe_ratio", "headerName": "Sharpe", "type": "numericColumn", "width": 78, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
@@ -91,6 +100,7 @@ METRIC_COLUMNS = [
 def _screening_columns(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     centred = {"headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}}
     return [{"field": "rank", "headerName": "Rank", "width": 66, "pinned": "left", **centred}, *settings_columns(rows), *METRIC_COLUMNS]
+
 
 _GRAPH_CONFIG = {"displayModeBar": False, "scrollZoom": True, "responsive": True}
 
@@ -118,26 +128,6 @@ def _style(figure: go.Figure, *, height: int) -> go.Figure:
     return figure
 
 
-def _price_figure(record: dict[str, Any] | None, selected: dict[str, Any] | None, view: str, nonce: Any) -> go.Figure:
-    record = record or {}
-    rows = record.get("price") or []
-    if not rows:
-        return _empty_figure(str(record.get("price_reason") or record.get("message") or "No price bars are saved for this run.").replace("persisted ", "saved "), height=326)
-    figure = go.Figure(go.Candlestick(
-        x=[row["timestamp"] for row in rows], open=[row["open"] for row in rows], high=[row["high"] for row in rows],
-        low=[row["low"] for row in rows], close=[row["close"] for row in rows], name="Price",
-        increasing_line_color="#38d39f", decreasing_line_color="#ff5f6d",
-    ))
-    if selected:
-        entry, exit_at = selected.get("entry_timestamp"), selected.get("exit_timestamp")
-        if entry: figure.add_vline(x=entry, line_color="#4aa8ff", line_dash="dot")
-        if exit_at: figure.add_vline(x=exit_at, line_color="#9b7bff", line_dash="dot")
-    if view == "morning":
-        figure.update_xaxes(rangebreaks=[])
-    figure.update_layout(xaxis_rangeslider_visible=False, uirevision=f"results-{nonce}")
-    return _style(figure, height=326)
-
-
 def _equity_figure(rows: list[dict[str, Any]], empty_message: str) -> go.Figure:
     """Equity on top, drawdown below on its own axis (plotly make_subplots); drawdown is value / pandas cummax - 1."""
     if not rows:
@@ -146,8 +136,8 @@ def _equity_figure(rows: list[dict[str, Any]], empty_message: str) -> go.Figure:
     values = frame["value"].astype(float)
     drawdown = (values / values.cummax() - 1) * 100
     figure = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[.68, .32], vertical_spacing=.08)
-    figure.add_trace(go.Scatter(x=frame["timestamp"], y=values, name="Equity", line={"color": "#4aa8ff", "width": 2}), row=1, col=1)
-    figure.add_trace(go.Scatter(x=frame["timestamp"], y=drawdown, name="Drawdown %", fill="tozeroy", line={"color": "#ff5f6d", "width": 1.2}), row=2, col=1)
+    figure.add_trace(go.Scatter(x=frame["timestamp"], y=values, name="Account value", line={"color": "#4aa8ff", "width": 2}), row=1, col=1)
+    figure.add_trace(go.Scatter(x=frame["timestamp"], y=drawdown, name="Drop from peak %", fill="tozeroy", line={"color": "#ff5f6d", "width": 1.2}), row=2, col=1)
     _style(figure, height=320)
     figure.update_xaxes(  # a multi-year axis: Plotly tickformatstops pick the label by zoom level
         tickformat=None, title_text=None,
@@ -163,272 +153,16 @@ def _equity_figure(rows: list[dict[str, Any]], empty_message: str) -> go.Figure:
     return figure
 
 
-def _evidence_figure(record: dict[str, Any], tab: str) -> go.Figure:
-    if tab != "equity":
-        return _empty_figure(f"{tab.replace('_', ' ').title()} chart evidence was not saved for this run.", height=168)
-    return _equity_figure(record.get("equity") or [], "No equity curve was saved for this run, and it has no trades to build one from.")
-
-
-def _configuration_equity_figure(evidence: dict[str, Any]) -> go.Figure:
-    return _equity_figure(evidence.get("equity") or [], "No equity curve was saved for this setting.")
-
-
-def _configuration_metric_cards(evidence: dict[str, Any]) -> list[Any]:
-    metrics = evidence.get("metrics") or {}
-
-    def percentage(key: str, *, absolute: bool = False) -> str:
-        value = metrics.get(key)
-        if value is None:
-            return "—"
-        number = float(value)
-        if abs(number) <= 1:
-            number *= 100
-        number = abs(number) if absolute else number
-        return f"{number:+.2f}%" if key == "total_return" else f"{number:.2f}%"
-
-    values = [
-        ("Net return", percentage("total_return"), _signed_color(percentage("total_return"))),
-        ("Sharpe", "—" if metrics.get("sharpe_ratio") is None else f"{float(metrics['sharpe_ratio']):.2f}", None),
-        ("Max drawdown", percentage("max_drawdown", absolute=True), "red.4"),
-        ("Trades", f"{int(metrics.get('number_of_trades') or 0):,}", None),
-        ("Win rate", percentage("win_rate"), None),
-    ]
-    return [_stat(label, value, color) for label, value, color in values]
-
-
-def _configuration_chart_caption(evidence: dict[str, Any], identity: str) -> str:
-    rows = evidence.get("price") or []
-    trades = evidence.get("trades") or []
-    if not rows:
-        return f"Selected configuration · {identity} · no retained price session"
-    first, last = str(rows[0]["timestamp"]), str(rows[-1]["timestamp"])
-    plotted = sum(
-        1 for trade in trades
-        if trade.get("entry_timestamp") and first <= str(trade["entry_timestamp"]) <= last
-    )
-    session = str(evidence.get("selected_session") or first[:10])
-    total = int(evidence.get("trade_count") or len(trades))
-    return f"Selected configuration · {identity} · session {session} Eastern · {plotted} of {total:,} trades shown"
-
-
-def _configuration_identity(selected: dict[str, Any]) -> str:
-    if selected.get("range_minutes") is not None:
-        offset = int(selected.get("breakout_offset_ticks") or 0)
-        tick_label = "tick" if offset == 1 else "ticks"
-        direction = str(selected.get("direction_variant") or "Unrecorded").title()
-        return f"{int(selected['range_minutes'])}-minute opening range · {offset} {tick_label} · {direction}"
-    return settings_identity(selected.get("parameters") or {})
-
-
-def _run_from_search(search: str | None, runs: list[dict[str, Any]]) -> str | None:
-    requested = parse_qs((search or "").lstrip("?")).get("run_id", [None])[0]
-    if requested and any(row["run_id"] == requested for row in runs):
-        return requested
-    return next((row["run_id"] for row in runs if row["status"] == "succeeded"), runs[0]["run_id"] if runs else None)
-
-
-def _stat(label: str, value: str, color: str | None = None) -> dmc.Paper:
-    return stat_card(label, value, color=color or "white")
-
-
-def _signed_color(value: str) -> str | None:
-    text = str(value).strip()
-    return "teal.4" if text.startswith("+") else "red.4" if text.startswith("-") else None
-
-
-def _chart_controls(suffix: str = "", *, width: Any = None) -> list[Any]:
-    """Bars, view and session pickers; the phone copy (suffix '-m') lives in the filter Drawer."""
-    size = {"size": "xs", "allowDeselect": False}
-    return [
-        dmc.Select(id=f"results-bars{suffix}", data=[{"value": "5m", "label": "5-minute bars"}, {"value": "15m", "label": "15-minute bars"}, {"value": "1D", "label": "Daily bars"}], value="15m", w=width, **size),
-        dmc.Select(id=f"results-view{suffix}", data=[{"value": "session", "label": "Full session"}, {"value": "trade", "label": "Selected trade"}, {"value": "morning", "label": "Morning"}], value="session", w=width, **size),
-        dmc.Select(id=f"results-session{suffix}", data=[{"value": "all", "label": "All sessions"}], value="all", w=width, **size),
-    ]
-
-
 def _trade_grid(grid_id: str) -> dag.AgGrid:
     """The one trade table (same columns and format wherever trades are listed)."""
     return dag.AgGrid(id=grid_id, columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
-                      dashGridOptions=grid_options("No trades for this run.", rowSelection={"mode": "singleRow", "enableClickSelection": True}, pagination=True, paginationPageSize=10, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
-                      getRowId="params.data.trade_id || params.data.row_id", eventListeners=hide_when_narrow("exit_display", "duration", "direction"))
-
-
-def results_layout(search: str | None = None) -> html.Div:
-    runs = list_results_runs()
-    selected = _run_from_search(search, runs)
-    choices = [{"value": row["run_id"], "label": f"{row['title']} · {str(row['stage']).replace('_', ' ')} · {str(row['status']).replace('_', ' ')}"} for row in runs]
-    menu = dmc.Menu([
-        dmc.MenuTarget(dmc.Button("More", variant="default", rightSection=DashIconify(icon="tabler:chevron-down", width=14))),
-        dmc.MenuDropdown([
-            dmc.MenuItem("Back to the idea", id="results-back-candidates", leftSection=DashIconify(icon="tabler:arrow-left", width=14)),
-            dmc.MenuItem("Why it was screened out", id="results-sensitivity"), dmc.MenuItem("Where it came from", id="results-package"),
-            dmc.MenuDivider(), dmc.MenuItem("Reset zoom", id="results-reset-range", leftSection=DashIconify(icon="tabler:refresh", width=14)), dmc.MenuItem("Reset layout", id="results-reset-layout"),
-        ]),
-    ], position="bottom-end")
-    header = page_header("Results", "Price chart and trades for one test run", dmc.Badge("Loading", id="results-state"),
-                         dmc.Button("Filters", id="results-filters-open", variant="default", hiddenFrom="sm", leftSection=DashIconify(icon="tabler:adjustments", width=14)), menu)
-    drawer = dmc.Drawer(dmc.Stack([dmc.Text("Chart options", size="xs", c="dimmed"), *_chart_controls("-m", width="100%")], gap="sm", pb="md"), id="results-filters-drawer", title="Filters", opened=False, position="bottom", size="auto")
-    run_picker = dmc.Select(id="results-run", data=choices, value=selected, allowDeselect=False, searchable=True, placeholder="No runs yet", size="xs", w={"base": "100%", "sm": 420})
-    identity = dmc.Stack([dmc.Title("Loading", id="results-run-name", order=5, lineClamp=2), dmc.Group(id="results-meta", gap=6)], gap=2)
-    toolbar = dmc.Group([run_picker, dmc.Group(_chart_controls(width=150), gap="xs", visibleFrom="sm")], gap="xs", wrap="wrap")
-    chart = dmc.Paper(dmc.Stack([
-        dmc.Stack([dmc.Title("Price and trades", id="results-chart-title", order=5), dmc.Text("Scroll to zoom; pick a trade to focus on it", id="results-chart-caption", size="xs", c="dimmed")], gap=2),
-        dcc.Loading(html.Div(id="results-price-chart"), type="dot"),
-        dmc.Group(id="results-assumptions", gap="lg"),
-    ], gap="sm"), p="md")
-    ledger = dmc.Paper(dmc.Stack([
-        dmc.Group([dmc.Stack([dmc.Title("Trades", id="results-ledger-title", order=5), dmc.Text("Pick a trade to see it on the chart", id="results-ledger-subtitle", size="xs", c="dimmed")], gap=2),
-                   dmc.TextInput(id="results-trade-search", placeholder="Search trades", size="xs", debounce=True, w={"base": "100%", "sm": 200})], justify="space-between", align="flex-end"),
-        _trade_grid("results-trade-grid"),
-        dmc.Text("0 trades", id="results-trade-count", size="xs", c="dimmed"),
-    ], gap="sm"), p="md")
-    setting_trades = dmc.Paper(dmc.Stack([
-        dmc.Stack([dmc.Title("Trades", order=5), dmc.Text("Trades for the chosen setting; pick one to see it on the chart", size="xs", c="dimmed")], gap=2),
-        _trade_grid("results-setting-trade-grid"),
-        dmc.Text("0 trades", id="results-setting-trade-count", size="xs", c="dimmed"),
-    ], gap="sm"), p="md", id="results-setting-trades", style={"display": "none"})
-    linked = dmc.Paper(dmc.Stack([
-        dmc.Title("More detail", order=5),
-        dmc.ScrollArea(dmc.Tabs(dmc.TabsList([dmc.TabsTab("Equity and drops", value="equity"), dmc.TabsTab("Robustness", value="robustness"), dmc.TabsTab("Rolling test", value="walk_forward"), dmc.TabsTab("Shuffle test", value="monte_carlo"), dmc.TabsTab("Origin", value="lineage")]), id="results-evidence-tab", value="equity"), type="never"),
-        html.Div(id="results-evidence-body"),
-    ], gap="sm"), p="md")
-    stores = [dcc.Store(id="results-record"), dcc.Store(id="results-configuration-evidence"), dcc.Store(id="results-range-nonce", data=0)]
-    return html.Div([*stores, drawer, header, dmc.Stack([identity, toolbar, dmc.SimpleGrid(id="results-metrics", cols={"base": 2, "sm": 3}, spacing="sm"), dmc.SimpleGrid(score_cards(None), id="results-scores", cols={"base": 2, "sm": 5}, spacing="sm"), chart, settings_heatmap_layout(), ledger, setting_trades, linked], gap="md", p="lg")])
-
-
-def _metric_value(metrics: list[dict[str, str]], *labels: str) -> str:
-    return next((item["value"] for item in metrics if item["label"] in labels), "—")
-
-
-def _display_trades(record: dict[str, Any], search: str | None) -> list[dict[str, Any]]:
-    rows = record.get("screening_rows") or record.get("trades") or []
-    token = (search or "").strip().lower()
-    if token:
-        rows = [row for row in rows if token in " ".join(str(value).lower() for value in row.values())]
-    return rows
-
-
-def _register_record_callbacks(application: Any) -> None:
-    @application.callback(Output("results-record", "data"), Input("results-run", "value"), Input("results-bars", "value"))
-    def load_record(run_id: str | None, interval: str) -> dict[str, Any]:
-        return load_results_record(run_id, interval=interval or "15m")
-
-    @application.callback(Output("results-scores", "children"), Input("results-record", "data"))
-    def render_scores(record: dict[str, Any] | None):
-        run = (record or {}).get("run") or {}
-        passed = str(run.get("status")) == "succeeded" and not (record or {}).get("screening_rows")
-        return explained_score_cards(load_run_scores(run.get("run_id")), passed=passed)
-
-    @application.callback(
-        Output("results-run-name", "children"), Output("results-meta", "children"), Output("results-state", "children"), Output("results-state", "color"),
-        Output("results-assumptions", "children"),
-        Output("results-chart-title", "children"), Output("results-ledger-title", "children"), Output("results-ledger-subtitle", "children"), Output("results-trade-search", "placeholder"),
-        Output("results-bars", "disabled"), Output("results-view", "disabled"), Output("results-reset-range", "disabled"),
-        Input("results-record", "data"),
-    )
-    def render_record(record: dict[str, Any] | None):
-        record = record or {}; run = record.get("run") or {}
-        title = run.get("title") or "Results unavailable"; run_id = run.get("run_id") or ""
-        result_status = str(record.get("result_status") or "").strip().lower()
-        screening_rows = record.get("screening_rows") or []
-        screened_out = bool(screening_rows) and int(record.get("screened_out_count") or 0) == len(screening_rows)
-        failed = str(run.get("status") or "").lower() == "failed"
-        state = FAILED_TESTING if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
-        color = "gray" if screened_out else "red" if failed or result_status == "invalid" else "teal" if state == "Succeeded" else "blue"
-        meta = [dmc.Text(f"{run.get('symbol') or 'Unknown market'} · { {'screening': 'first check', 'oos': 'unseen-data test', 'walk_forward': 'rolling test', 'monte_carlo': 'shuffle test'}.get(str(run.get('stage')), str(run.get('stage') or 'unknown').replace('_', ' ')) }", size="xs", c="dimmed"), copy_id(run_id)] if run_id else []
-        return (
-            title, meta, state, color, [],
-            "Price and trades for the chosen setting" if screened_out else "Price and trades",
-            "Settings tried" if screening_rows else "Trades",
-            "Pick a setting to see why it failed" if screened_out else "Pick a setting to see its trades and chart" if screening_rows else "Pick a trade to see it on the chart",
-            "Search settings" if screening_rows else "Search trades",
-            False, screened_out, False,
-        )
-
-    @application.callback(
-        Output("results-session", "data"), Output("results-session", "value"), Output("results-session", "disabled"),
-        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-setting-trade-grid", "selectedRows"),
-    )
-    def configure_sessions(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, picked_trade: list[dict[str, Any]] | None = None):
-        record = record or {}; screening_rows = record.get("screening_rows") or []
-        if screening_rows:
-            selected = (selected_rows or screening_rows[:1])[-1]
-            sessions = list_screening_configuration_sessions(
-                (record.get("run") or {}).get("run_id"), selected.get("row_id")
-            )
-            data = [{"value": day, "label": f"Session · {day} (Eastern)"} for day in sessions]
-            day = str(((picked_trade or [{}])[-1]).get("entry_timestamp") or "")[:10]  # a picked trade shows its own day
-            return data, (day if day in sessions else sessions[-1] if sessions else None), not bool(sessions)
-        sessions = sorted({str(row.get("entry_timestamp") or "")[:10] for row in record.get("trades") or [] if row.get("entry_timestamp")})
-        data = [{"value": "all", "label": "All sessions"}] + [{"value": day, "label": f"Session · {day}"} for day in sessions]
-        return data, "all", False
-
-
-def _register_configuration_callbacks(application: Any) -> None:
-    @application.callback(
-        Output("results-chart-caption", "children"), Output("results-metrics", "children"),
-        Input("results-record", "data"), Input("results-configuration-evidence", "data"),
-    )
-    def render_selected_configuration(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None):
-        record = record or {}; configuration_evidence = configuration_evidence or {}
-        screening_rows = record.get("screening_rows") or []
-        if screening_rows and configuration_evidence.get("available"):
-            row_id = configuration_evidence.get("parameter_row_id")
-            selected = next((row for row in screening_rows if row.get("row_id") == row_id), {})
-            return _configuration_chart_caption(configuration_evidence, _configuration_identity(selected)), _configuration_metric_cards(configuration_evidence)
-        metrics = record.get("metrics") or []
-        labels = (
-            ("Best net return", "Total Return", True), ("Sharpe on first check", "Sharpe Ratio", False), ("Max drawdown", "Max Drawdown", False),
-            ("Trades", "Number Of Trades", False), ("Win rate", "Win Rate", False), ("Profit factor", "Profit Factor", False),
-        ) if screening_rows else (
-            ("Net return", "Total Return", True), ("Sharpe on unseen data", "Sharpe Ratio", False), ("Max drawdown", "Max Drawdown", False),
-            ("Trades", "Number Of Trades", False), ("Win rate", "Win Rate", False), ("Profit factor", "Profit Factor", False),
-        )
-        cards = [_stat(label, _metric_value(metrics, key), _signed_color(_metric_value(metrics, key)) if signed else "red.4" if "drawdown" in label else None) for label, key, signed in labels]
-        caption = (configuration_evidence.get("message") if screening_rows else None) or ("" if record.get("oos_chart") else str(record.get("price_reason") or "").replace("persisted ", "saved ")) or "Scroll to zoom; pick a trade to focus on it"
-        return caption, cards
-
-    @application.callback(Output("results-trade-grid", "rowData"), Output("results-trade-grid", "columnDefs"), Output("results-trade-count", "children"), Input("results-record", "data"), Input("results-trade-search", "value"), Input("results-session", "value"))
-    def render_trades(record: dict[str, Any] | None, search: str | None, session: str):
-        record = record or {}; rows = _display_trades(record, search)
-        screening = bool(record.get("screening_rows"))
-        if not screening and session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
-        if screening:
-            total = int(record.get("screening_count") or 0)
-            return display_settings_rows(rows), _screening_columns(rows), settings_tried_line(total, int(record.get("screened_out_count") or 0))
-        total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
-        return rows, TRADE_COLUMNS, f"{total:,} trades" + (f" · showing the first {bounded:,}" if total > bounded else "")
-
-    @application.callback(
-        Output("results-setting-trade-grid", "rowData"), Output("results-setting-trade-count", "children"), Output("results-setting-trades", "style"),
-        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"),
-    )
-    def render_setting_trades(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None):
-        record = record or {}; screening_rows = record.get("screening_rows") or []
-        if not screening_rows:
-            return [], "", {"display": "none"}
-        selected = (selected_rows or screening_rows[:1])[-1]
-        loaded = load_screening_configuration_trades((record.get("run") or {}).get("run_id"), selected.get("row_id"))
-        total, shown = int(loaded["trade_count"]), len(loaded["trades"])
-        return loaded["trades"], f"{total:,} trades" + (f" · showing the latest {shown:,}" if total > shown else ""), {}
-
-    @application.callback(
-        Output("results-configuration-evidence", "data"),
-        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-bars", "value"), Input("results-session", "value"),
-    )
-    def load_configuration_evidence(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, interval: str, session: str | None) -> dict[str, Any]:
-        record = record or {}
-        screening_rows = record.get("screening_rows") or []
-        if not screening_rows:
-            return {}
-        selected = (selected_rows or screening_rows[:1])[-1]
-        run_id = (record.get("run") or {}).get("run_id")
-        return load_screening_configuration_evidence(
-            run_id, selected.get("row_id"), interval=interval or "15m", session=session,
-        )
+                      dashGridOptions=grid_options("No trades for this run.", rowSelection={"mode": "singleRow", "checkboxes": False, "enableClickSelection": True}, pagination=True, paginationPageSize=10, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
+                      getRowId="params.data.trade_id || params.data.row_id", eventListeners=hide_when_narrow("trade_id", "exit_display", "duration", "direction", "outcome", "cum_pnl"))
 
 
 BG, PANEL, GRID, TEXT, MUTED = "#0d1117", "#161b22", "rgba(255,255,255,0.05)", "#e6edf3", "#7d8590"
+
+
 UP, DOWN, ACCENT = "#26a69a", "#ef5350", "#58a6ff"
 
 
@@ -496,78 +230,276 @@ def _chart_session(session: str | None, selected: dict[str, Any] | None, trades:
     return max(days) if days else None
 
 
-def _register_figure_callbacks(application: Any) -> None:
+
+TOP_NOTES = {
+    "Net profit": "What it made on data it never saw.",
+    "Max drawdown": "Biggest drop from a high point.",
+    "Trades": "Trades it took on that data.",
+    "Win rate": "Share of trades that made money.",
+    "Profit factor": "Money won ÷ money lost; above 1 makes money.",
+}
+SUMMARY_ROWS = (
+    ("net_profit", "Net profit"), ("gross_profit", "Money won"), ("gross_loss", "Money lost"), ("profit_factor", "Profit factor"),
+    ("max_drawdown", "Biggest drop from a high"), ("total_trades", "Trades"), ("win_rate", "Win rate"), ("avg_trade", "Average trade"),
+    ("avg_win", "Average win"), ("avg_loss", "Average loss"), ("largest_win", "Largest win"), ("largest_loss", "Largest loss"),
+    ("avg_bars_in_trade", "Average bars in a trade"), ("commission_paid", "Commission paid"),
+)
+MONEY_KEYS = {"net_profit", "gross_profit", "gross_loss", "max_drawdown", "avg_trade", "avg_win", "avg_loss", "largest_win", "largest_loss", "commission_paid"}
+SUMMARY_MISSING = "Saved when the idea is next tested."
+BAR_WORDS = {"5m": "5-minute", "15m": "15-minute", "1D": "daily"}
+NUMBER_JS = "params.value == null ? '—' : Number(params.value).toLocaleString('en-US', {maximumFractionDigits: 4})"
+PERIOD_COLUMNS = [
+    {"field": "period", "headerName": "Test period", "minWidth": 180, "flex": 1.4},
+    {"field": "result", "headerName": "Result", "minWidth": 80, "flex": .6, "narrow": False},
+    {"field": "trades", "headerName": "Trades", "minWidth": 70, "flex": .5, "narrow": False},
+    {"field": "net_return", "headerName": "Net return", "minWidth": 90, "flex": .6, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
+    {"field": "note", "headerName": "Why", "minWidth": 260, "flex": 2, "wrapText": True, "autoHeight": True, "narrow": False},
+]
+CHECK_COLUMNS = [
+    {"field": "check", "headerName": "Check", "minWidth": 150, "flex": 2, "wrapText": True, "autoHeight": True},
+    {"field": "result", "headerName": "Result", "minWidth": 70, "flex": .6},
+    {"field": "measured", "headerName": "Measured", "minWidth": 90, "flex": .7, "valueFormatter": {"function": NUMBER_JS}},
+    {"field": "needed", "headerName": "Needed", "minWidth": 80, "flex": .6, "valueFormatter": {"function": NUMBER_JS}, "narrow": False},
+]
+TRADE_COLUMNS = [*TRADE_COLUMNS[:5], {**TRADE_COLUMNS[5], "minWidth": 100},
+                 {**TRADE_COLUMNS[5], "field": "cum_pnl", "headerName": "Running total"}, TRADE_COLUMNS[6]]
+
+
+def _query(search: str | None) -> dict[str, str]:
+    return {key: values[0] for key, values in parse_qs((search or "").lstrip("?")).items() if values}
+
+
+def _resolve(search: str | None) -> tuple[dict[str, Any], str]:
+    """The idea a URL names (?candidate_id=, or an old ?run_id= link opened on its idea with that test selected)."""
+    query = _query(search)
+    candidate_id, run_id, test = query.get("candidate_id"), query.get("run_id"), query.get("test")
+    if run_id:
+        found = idea_for_run(run_id) or {}
+        candidate_id = candidate_id or found.get("candidate_id")
+        test = test or found.get("stage")
+    if not candidate_id and not run_id:
+        latest = next((row for row in list_results_runs() if row.get("candidate_id")), None)
+        candidate_id = (latest or {}).get("candidate_id")
+    idea = load_idea(candidate_id, run_id=run_id)
+    stages = [stage for stage, _label in STAGES]
+    if test not in stages:
+        test = "oos" if "oos" in (idea.get("runs") or {}) else "screening"
+    return idea, test
+
+
+def _signed(value: float | None) -> str | None:
+    return None if value is None else "teal.4" if value > 0 else "red.4" if value < 0 else None
+
+
+def top_line(idea: dict[str, Any]) -> list[Any]:
+    """Five unseen-data numbers, each with one plain line (Net profit from the saved summary, else the sum of its trades)."""
+    run_id = ((idea.get("runs") or {}).get("oos") or {}).get("run_id")
+    record = load_results_record(run_id) if run_id else {}
+    metrics = {item["label"]: item["value"] for item in record.get("metrics") or []}
+    view = load_trade_view(idea, "oos") if run_id else {}
+    saved = (((view.get("performance") or {}).get("performance") or {}).get("all") or {}).get("net_profit")
+    trades = view.get("trades") or []
+    complete = trades and len(trades) == int(view.get("trade_count") or 0)
+    net = saved if saved is not None else float(pd.Series([t.get("pnl") for t in trades], dtype="float64").sum()) if complete else None
+    percent = metrics.get("Total Return")
+    values = [
+        ("Net profit", f"{format_money(net)} ({percent or '—'})" if net is not None else percent or "—", _signed(net)),
+        ("Max drawdown", str(metrics.get("Max Drawdown", "—")).lstrip("-"), "red.4"),
+        ("Trades", metrics.get("Number Of Trades", "—"), None),
+        ("Win rate", metrics.get("Win Rate", "—"), None),
+        ("Profit factor", metrics.get("Profit Factor", "—"), None),
+    ]
+    return [stat_card(label, value, TOP_NOTES[label], color=color or "white") for label, value, color in values]
+
+
+def _test_tab(test: dict[str, Any]) -> dmc.TabsTab:
+    return dmc.TabsTab(dmc.Stack([
+        dmc.Text(test["label"], size="sm", fw=600),
+        dmc.Badge(test["status_text"], color=test["color"], size="xs", variant="light"),
+        dmc.Text(test["line"], size="xs", c="dimmed", style={"whiteSpace": "normal"}),
+    ], gap=4, align="flex-start"), value=test["stage"], className="results-test-card")
+
+
+def _panel(*children: Any) -> dmc.Paper:
+    return dmc.Paper(dmc.Stack(list(children), gap="sm"), p={"base": "xs", "sm": "md"})
+
+
+def _tabs() -> dmc.Tabs:
+    names = (("overview", "Overview"), ("summary", "Performance summary"), ("trades", "List of trades"), ("chart", "Price chart"), ("settings", "Settings tried"))
+    graph = {"displayModeBar": False, "responsive": True}
+    panels = {
+        "overview": [dmc.Text("Account value over the whole period, with the drop from its peak below.", id="results-equity-note", size="xs", c="dimmed"),
+                     dcc.Loading(dcc.Graph(id="results-equity", config=graph), type="dot")],
+        "summary": [html.Div(id="results-summary")],
+        "trades": [_trade_grid("results-trade-grid"), dmc.Text("", id="results-trade-count", size="xs", c="dimmed")],
+        "chart": [dmc.Group([dmc.Text("", id="results-chart-caption", size="xs", c="dimmed", style={"flex": 1, "minWidth": 200}),
+                             dmc.Button("Show whole period", id="results-whole", size="xs", variant="default")], justify="space-between", gap="xs"),
+                  dcc.Loading(dcc.Graph(id="results-price-chart", config=_GRAPH_CONFIG, style={"height": "560px"}), type="dot")],
+        "settings": [dmc.Text("", id="results-settings-count", size="xs", c="dimmed"),
+                     dag.AgGrid(id="results-settings-grid", rowData=[], columnDefs=[], defaultColDef={**COLUMN_DEFAULTS, "suppressHeaderMenuButton": True},
+                                dashGridOptions=grid_options("The costs test saved no settings.", rowSelection={"mode": "singleRow", "checkboxes": False, "enableClickSelection": True}, domLayout="autoHeight", animateRows=False)),
+                     dmc.Text("Pick a setting to see its trades, account value and chart.", size="xs", c="dimmed"), settings_heatmap_layout()],
+    }
+    return dmc.Tabs([
+        dmc.ScrollArea(dmc.TabsList([dmc.TabsTab(label, value=value) for value, label in names]), type="never"),
+        *[dmc.TabsPanel(dmc.Stack(panels[value], gap="sm", pt="sm"), value=value) for value, _label in names],
+    ], id="results-tab", value="overview")
+
+
+def results_layout(search: str | None = None) -> html.Div:
+    idea, test = _resolve(search)
+    if not idea.get("available"):
+        return html.Div([dcc.Store(id="results-record", data=idea), page_header("Results", idea.get("message") or "No saved results yet."),
+                         dmc.Text("Pick an idea on the Ideas page and open its results.", size="sm", c="dimmed", p="lg")])
+    menu = dmc.Menu([dmc.MenuTarget(dmc.Button("More", variant="default", rightSection=DashIconify(icon="tabler:chevron-down", width=14))),
+                     dmc.MenuDropdown([dmc.MenuItem("Back to the idea", id="results-back-candidates", leftSection=DashIconify(icon="tabler:arrow-left", width=14))])], position="bottom-end")
+    header = page_header(idea["title"], f"{idea['symbol']} · every test this idea went through", dmc.Badge(idea["verdict"], color=idea["verdict_color"], size="lg", variant="light"), menu)
+    strip = dmc.Tabs(dmc.TabsList([_test_tab(item) for item in idea["tests"]], className="results-test-strip"), id="results-test", value=test, variant="pills")
+    stores = [dcc.Store(id="results-record", data=idea), dcc.Store(id="results-view"), dcc.Store(id="results-setting")]
+    body = dmc.Stack([
+        dmc.Text("On data it never saw", size="xs", c="dimmed", fw=600),
+        dmc.SimpleGrid(top_line(idea), cols={"base": 2, "sm": 5}, spacing="sm"),
+        dmc.Text("The five tests — pick one to see its detail", size="xs", c="dimmed", fw=600),
+        strip,
+        html.Div(_panel(dmc.Title("", id="results-view-label", order=5), _tabs()), id="results-trade-panel"),
+        html.Div(id="results-score-panel", style={"display": "none"}),
+    ], gap="md", p={"base": "sm", "sm": "lg"})
+    return html.Div([*stores, header, body])
+
+
+def _grid(grid_id: str, rows: list[dict[str, Any]], columns: list[dict[str, Any]], empty: str) -> dag.AgGrid:
+    narrow = [column["field"] for column in columns if column.get("narrow") is False]
+    columns = [{key: value for key, value in column.items() if key != "narrow"} for column in columns]
+    return dag.AgGrid(id=grid_id, rowData=rows, columnDefs=columns, defaultColDef={**COLUMN_DEFAULTS, "suppressHeaderMenuButton": True, "cellStyle": {"lineHeight": "1.4", "paddingTop": "8px", "paddingBottom": "8px"}},
+                      dashGridOptions=grid_options(empty, domLayout="autoHeight", animateRows=False), eventListeners=hide_when_narrow(*narrow) if narrow else {})
+
+
+def score_detail(idea: dict[str, Any], stage: str) -> list[Any]:
+    """The rolling, stress or shuffle test's own detail: the idea's score tiles, then its periods, checks or reasons."""
+    test = next(item for item in idea["tests"] if item["stage"] == stage)
+    detail = load_stage_detail(idea, stage)
+    passed = all(item["status"] == "passed" for item in idea["tests"] if item["stage"] in TRADE_STAGES)
+    run_id = next((item["run_id"] for item in idea["tests"] if item["run_id"]), None)
+    parts: list[Any] = [
+        dmc.Group([dmc.Title(test["label"], order=5), dmc.Badge(test["status_text"], color=test["color"], variant="light")], gap="xs"),
+        dmc.Text(test["line"], size="sm"),
+        dmc.Text("This test makes no trades of its own; it scores the idea. The scores:", size="xs", c="dimmed"),
+        dmc.SimpleGrid(explained_score_cards(load_run_scores(run_id), passed=passed), cols={"base": 2, "sm": 5}, spacing="sm"),
+    ]
+    if detail["periods"]:
+        parts += [dmc.Text("Each rolling period: the idea picked its setting on earlier data, then traded the next stretch.", size="xs", c="dimmed"),
+                  _grid("results-period-grid", detail["periods"], PERIOD_COLUMNS, "No periods were saved.")]
+    if detail["checks"]:
+        parts += [dmc.Text("Each check: what was measured and what was needed.", size="xs", c="dimmed"),
+                  _grid("results-check-grid", detail["checks"], CHECK_COLUMNS, "No checks were saved.")]
+    parts += [dmc.List([dmc.ListItem(reason) for reason in detail["reasons"]], size="sm")] if detail["reasons"] else []
+    if not test["run_id"]:
+        parts = parts[:2]
+    return [_panel(*parts)]
+
+
+def performance_table(view: dict[str, Any]) -> Any:
+    """All / Long / Short table from the run's saved performance summary; never computed here."""
+    document = view.get("performance")
+    if not document:
+        return dmc.Text(SUMMARY_MISSING, size="sm", c="dimmed")
+    performance = document.get("performance") or {}
+
+    def shown(key: str, value: Any) -> str:
+        if value is None:
+            return "—"
+        if key in MONEY_KEYS:
+            return format_money(value)
+        if key == "win_rate":
+            number = float(value)
+            return f"{number * 100 if abs(number) <= 1 else number:.2f}%"
+        if key == "total_trades":
+            return f"{int(value):,}"
+        return f"{float(value):.2f}"
+
+    rows = [{"measure": label, **{side: shown(key, (performance.get(side) or {}).get(key)) for side in ("all", "long", "short")}} for key, label in SUMMARY_ROWS]
+    columns = [{"field": "measure", "headerName": "", "minWidth": 150, "flex": 1.4}] + [
+        {"field": side, "headerName": side.title(), "minWidth": 80, "flex": 1, "type": "rightAligned"} for side in ("all", "long", "short")]
+    return _grid("results-summary-grid", rows, columns, SUMMARY_MISSING)
+
+
+def _register_view_callbacks(application: Any) -> None:
+    @application.callback(Output("results-view", "data"), Input("results-test", "value"), Input("results-setting", "data"), State("results-record", "data"))
+    def load_view(test: str | None, row_id: str | None, idea: dict[str, Any] | None) -> dict[str, Any]:
+        return load_trade_view(idea, test, row_id) if test in TRADE_STAGES else {}
+
     @application.callback(
-        Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"),
-        Input("results-range-nonce", "data"), Input("results-session", "value"), Input("results-bars", "value"),
-        Input("results-configuration-evidence", "data"), Input("results-setting-trade-grid", "selectedRows"),
+        Output("results-trade-panel", "style"), Output("results-score-panel", "style"), Output("results-score-panel", "children"),
+        Input("results-test", "value"), State("results-record", "data"),
     )
-    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None, evidence: dict[str, Any] | None = None, picked_trade: list[dict[str, Any]] | None = None) -> Any:
-        record = record or {}
-        graph = lambda figure: dcc.Graph(figure=figure, config=_GRAPH_CONFIG, style={"height": "560px"})
-        if record.get("screening_rows"):  # a first-check run: the chosen setting's saved bars and trades
-            evidence = evidence or {}
-            return graph(trades_figure(evidence.get("price") or [], evidence.get("trades") or [], (picked_trade or [None])[-1], evidence.get("message"), nonce))
-        oos = record.get("oos_chart")
-        if oos and not record.get("price"):  # an unseen-data run: bars saved by the first-check run it came from
-            trades = record.get("trades") or []
-            selected = (selected_rows or [None])[-1]
-            day = _chart_session(session, selected, trades)
-            bars = load_session_price(oos["source_run_id"], day, interval=interval or "15m")
-            return graph(trades_figure(bars["price"], trades, selected, bars["reason"], nonce))
-        return dcc.Graph(figure=_price_figure(record, (selected_rows or [None])[-1], view or "session", nonce), config=_GRAPH_CONFIG)
+    def choose_panel(test: str | None, idea: dict[str, Any] | None):
+        if test in TRADE_STAGES:
+            return {}, {"display": "none"}, []
+        return {"display": "none"}, {}, score_detail(idea or {}, test)
 
-    @application.callback(Output("results-evidence-body", "children"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-evidence-tab", "value"), Input("results-trade-grid", "selectedRows"))
-    def render_evidence(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, tab: str, selected_rows: list[dict[str, Any]] | None):
-        record = record or {}
-        configuration_evidence = configuration_evidence or {}
-        screening_rows = record.get("screening_rows") or []
-        if screening_rows:
-            if tab == "lineage":
-                fields = record.get("lineage") or []
-                return html.Div([html.Div([html.Span(item["label"]), html.Strong(item["value"])], className="candidate-evidence-item") for item in fields[:8]], className="results-evidence-list")
-            if not configuration_evidence.get("available"):
-                return html.Div(configuration_evidence.get("message") or "Select a configuration with retained evidence.", className="results-stage-stop")
-            if tab == "equity":
-                return dcc.Graph(figure=_configuration_equity_figure(configuration_evidence), config={"displayModeBar": False, "responsive": True})
-            return html.Div(f"{tab.replace('_', ' ').title()} was not reached because all configurations failed initial screening.", className="results-stage-stop")
-        if tab == "equity":
-            graph = dcc.Graph(figure=_evidence_figure(record, tab), config={"displayModeBar": False, "responsive": True})
-            if record.get("equity_from_trades"):
-                return html.Div([dmc.Text("No equity curve was saved for this run, so this one is built from its saved trades: starting cash plus profit or loss at each exit.", size="xs", c="dimmed"), graph])
-            return graph
-        fields = record.get("lineage") if tab == "lineage" else []
-        if fields:
-            return html.Div([html.Div([html.Span(item["label"]), html.Strong(item["value"])], className="candidate-evidence-item") for item in fields[:8]], className="results-evidence-list")
-        return html.Div([dcc.Graph(figure=_evidence_figure(record, tab), config={"displayModeBar": False})])
+    @application.callback(
+        Output("results-view-label", "children"), Output("results-equity", "figure"), Output("results-equity-note", "children"), Output("results-summary", "children"),
+        Output("results-trade-grid", "rowData"), Output("results-trade-count", "children"), Output("results-trade-grid", "selectedRows"),
+        Input("results-view", "data"),
+    )
+    def render_view(view: dict[str, Any] | None):
+        view = view or {}
+        if not view.get("available"):
+            message = view.get("message") or "Pick a test above."
+            return message, _empty_figure(message, height=320), "", dmc.Text(message, size="sm", c="dimmed"), [], "", []
+        note = "Account value over the whole period, with the drop from its peak below."
+        if view.get("equity_from_trades"):
+            note += " No curve was saved, so it is built from the saved trades: starting cash plus profit or loss at each exit."
+        count = int(view.get("trade_count") or 0)
+        return (view.get("label"), _equity_figure(view.get("equity") or [], "No account value was saved for this test."), note,
+                performance_table(view), view.get("trades") or [], f"{count:,} trades · pick one to see it on the price chart", [])  # a new test starts on its whole period
 
-    @application.callback(Output("results-range-nonce", "data"), Input("results-reset-range", "n_clicks"), State("results-range-nonce", "data"), prevent_initial_call=True)
-    def reset_range(_clicks: int, nonce: int | None) -> int:
-        return int(nonce or 0) + 1
+    @application.callback(
+        Output("results-settings-grid", "rowData"), Output("results-settings-grid", "columnDefs"), Output("results-settings-count", "children"),
+        Input("results-record", "data"),
+    )
+    def render_settings(idea: dict[str, Any] | None):
+        rows = (idea or {}).get("screening_rows") or []
+        return display_settings_rows(rows), _screening_columns(rows), settings_tried_line(len(rows), int((idea or {}).get("screened_out_count") or 0))
 
-    @application.callback(Output("results-view", "value"), Output("results-evidence-tab", "value"), Input("results-reset-layout", "n_clicks"), Input("results-sensitivity", "n_clicks"), Input("results-package", "n_clicks"), prevent_initial_call=True)
-    def change_layout(*_clicks: Any):
-        if ctx.triggered_id == "results-sensitivity": return no_update, "equity"
-        if ctx.triggered_id == "results-package": return no_update, "lineage"
-        return "session", "equity"
+    @application.callback(Output("results-setting", "data"), Output("results-test", "value"), Output("results-tab", "value", allow_duplicate=True),
+                          Input("results-settings-grid", "selectedRows"), prevent_initial_call=True)
+    def pick_setting(rows: list[dict[str, Any]] | None):
+        if not rows:
+            return no_update, no_update, no_update
+        return rows[-1].get("row_id"), "screening", "overview"
 
 
-def _register_filter_drawer(application: Any) -> None:
-    """The phone Drawer holds a copy of the chart pickers; each pair is kept in step with Dash callbacks."""
-    application.clientside_callback("(clicks) => true", Output("results-filters-drawer", "opened"), Input("results-filters-open", "n_clicks"), prevent_initial_call=True)
-    for name in ("bars", "view", "session"):
-        same = "(value, other) => value === other ? window.dash_clientside.no_update : value"
-        application.clientside_callback(same, Output(f"results-{name}", "value", allow_duplicate=True), Input(f"results-{name}-m", "value"), State(f"results-{name}", "value"), prevent_initial_call=True)
-        application.clientside_callback(same, Output(f"results-{name}-m", "value"), Input(f"results-{name}", "value"), State(f"results-{name}-m", "value"))
-    application.clientside_callback("(data, disabled) => [data, disabled]", Output("results-session-m", "data"), Output("results-session-m", "disabled"), Input("results-session", "data"), Input("results-session", "disabled"))
+def _register_chart_callbacks(application: Any) -> None:
+    @application.callback(
+        Output("results-price-chart", "figure"), Output("results-chart-caption", "children"),
+        Input("results-view", "data"), Input("results-trade-grid", "selectedRows"), Input("results-whole", "n_clicks"),
+    )
+    def render_price(view: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, _whole: int | None):
+        view = view or {}
+        trades = view.get("trades") or []
+        selected = (selected_rows or [None])[-1] if ctx.triggered_id == "results-trade-grid" else None
+        if selected and selected.get("entry_timestamp"):  # a picked trade: its own day in 5-minute bars, entry and exit both drawn
+            day = _chart_session(None, selected, trades)
+            bars = load_session_price(view.get("price_run_id"), day, interval="5m")
+            caption = f"Trade {selected.get('trade_id')} · {selected.get('direction')} · in {selected.get('entry_display')} · out {selected.get('exit_display')} · {format_money(selected.get('pnl'))}"
+            return trades_figure(bars["price"], trades, selected, bars["reason"], 0), caption
+        if not view.get("available"):
+            return _empty_figure(view.get("message") or CHART_UNAVAILABLE, height=560), ""
+        price = load_period_price(view.get("price_run_id"), view.get("period"))
+        caption = (f"Whole period in {BAR_WORDS.get(price['interval'], price['interval'])} bars · {int(view.get('trade_count') or 0):,} trades marked · "
+                   "pick a trade in the list to zoom to its day") if price["price"] else ""
+        return trades_figure(price["price"], trades, None, price["reason"] or CHART_UNAVAILABLE, 0), caption
+
+    @application.callback(Output("results-tab", "value"), Input("results-trade-grid", "selectedRows"), prevent_initial_call=True)
+    def open_chart(rows: list[dict[str, Any]] | None):
+        return "chart" if rows else no_update
 
 
 def register_results_callbacks(application: Any) -> None:
-    _register_record_callbacks(application)
-    _register_configuration_callbacks(application)
-    _register_figure_callbacks(application)
-    _register_filter_drawer(application)
+    _register_view_callbacks(application)
+    _register_chart_callbacks(application)
     register_settings_callbacks(application)
 
 
-__all__ = ["register_results_callbacks", "results_layout"]
+__all__ = ["register_results_callbacks", "results_layout", "top_line", "score_detail", "performance_table"]
