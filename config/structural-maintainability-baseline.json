@@ -5,7 +5,7 @@
   },
   "oversized_python_functions": {
     "[\"backtesting/robustness/artifact_loader.py\",\"load_lock_artifact\",\"FunctionDef\",1]": 187,
-    "[\"backtesting/robustness/evaluation.py\",\"evaluate_neighborhood\",\"FunctionDef\",1]": 167,
+    "[\"backtesting/robustness/evaluation.py\",\"evaluate_neighborhood\",\"FunctionDef\",1]": 166,
     "[\"backtesting/validation/evidence_decision_artifacts/validator.py\",\"validate_evidence_decision_document\",\"FunctionDef\",1]": 172,
     "[\"dashboard/run_adapter.py\",\"configuration_readiness\",\"FunctionDef\",1]": 311,
     "[\"dashboard/run_detail_adapter.py\",\"_evidence_view\",\"FunctionDef\",1]": 166,
