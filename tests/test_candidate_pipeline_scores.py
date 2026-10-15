@@ -75,6 +75,22 @@ def test_merit_failure_is_recorded_as_score_and_idea_continues(
         service.close()
 
 
+def test_too_few_windows_for_monte_carlo_is_unscored_and_idea_continues(tmp_path: Path) -> None:
+    service, calls, chain, adapters = _run(tmp_path, {RunStage.MONTE_CARLO: {"insufficient_monte_carlo": True}})
+    try:
+        outcome = chain.run(screening_run_id="screening-run", stage_adapters=adapters)
+
+        assert outcome.status == "ready_for_protected_test"
+        unscored = _handoff(outcome, RunStage.MONTE_CARLO)
+        assert unscored.status == "insufficient_evidence"
+        assert unscored.eligible_to_progress is True
+        assert any("received 8" in item for item in unscored.reasons)
+        assert outcome.protected_test_gate.eligible_to_execute_lockbox is True
+        assert any(item.startswith("monte_carlo (unscored):") for item in outcome.protected_test_gate.reasons)
+    finally:
+        service.close()
+
+
 @pytest.mark.parametrize("stage", (RunStage.WALK_FORWARD, RunStage.ROBUSTNESS))
 def test_invalid_evidence_still_stops_the_idea(tmp_path: Path, stage: RunStage) -> None:
     service, calls, chain, adapters = _run(tmp_path, {stage: {"corrupt": True}})

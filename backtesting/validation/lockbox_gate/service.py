@@ -129,6 +129,10 @@ def _stage_status(
         # merit results are recorded scores, not gates; reasons stay recorded.
         reasons.extend(f"{stage} (score): {reason}" for reason in stage_reasons)
         return "passed"
+    if stage == "monte_carlo" and status == "insufficient_evidence":
+        # Too few walk-forward windows to resample: recorded as unscored, not a stop.
+        reasons.extend(f"{stage} (unscored): {reason}" for reason in stage_reasons)
+        return "passed"
     reasons.extend(f"{stage}: {reason}" for reason in stage_reasons)
     return map_native_status(status)
 
