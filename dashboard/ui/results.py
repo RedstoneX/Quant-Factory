@@ -10,6 +10,7 @@ import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, dcc, html, no_update
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from dash_iconify import DashIconify
 
 from dashboard.overview_projection import configured_database_path
@@ -25,6 +26,7 @@ from dashboard.results_projection import (
     list_screening_configuration_sessions,
     load_results_record,
     load_screening_configuration_evidence,
+    load_screening_configuration_trades,
     load_session_price,
 )
 
@@ -136,37 +138,39 @@ def _price_figure(record: dict[str, Any] | None, selected: dict[str, Any] | None
     return _style(figure, height=326)
 
 
+def _equity_figure(rows: list[dict[str, Any]], empty_message: str) -> go.Figure:
+    """Equity on top, drawdown below on its own axis (plotly make_subplots); drawdown is value / pandas cummax - 1."""
+    if not rows:
+        return _empty_figure(empty_message, height=168)
+    frame = pd.DataFrame(rows)
+    values = frame["value"].astype(float)
+    drawdown = (values / values.cummax() - 1) * 100
+    figure = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[.68, .32], vertical_spacing=.08)
+    figure.add_trace(go.Scatter(x=frame["timestamp"], y=values, name="Equity", line={"color": "#4aa8ff", "width": 2}), row=1, col=1)
+    figure.add_trace(go.Scatter(x=frame["timestamp"], y=drawdown, name="Drawdown %", fill="tozeroy", line={"color": "#ff5f6d", "width": 1.2}), row=2, col=1)
+    _style(figure, height=320)
+    figure.update_xaxes(  # a multi-year axis: Plotly tickformatstops pick the label by zoom level
+        tickformat=None, title_text=None,
+        tickformatstops=[
+            {"dtickrange": [None, 86400000], "value": "%b %d<br>%I:%M %p"},
+            {"dtickrange": [86400000, "M1"], "value": "%b %d, %Y"},
+            {"dtickrange": ["M1", None], "value": "%b %Y"},
+        ],
+    )
+    figure.update_xaxes(showticklabels=False, title_text=None, row=1, col=1)  # dates only under the drawdown panel
+    figure.update_yaxes(tickprefix="$", row=1, col=1)
+    figure.update_yaxes(ticksuffix="%", row=2, col=1)
+    return figure
+
+
 def _evidence_figure(record: dict[str, Any], tab: str) -> go.Figure:
     if tab != "equity":
         return _empty_figure(f"{tab.replace('_', ' ').title()} chart evidence was not saved for this run.", height=168)
-    equity, drawdown = record.get("equity") or [], record.get("drawdown") or []
-    if not equity:
-        return _empty_figure("No equity curve was saved for this run.", height=168)
-    figure = go.Figure()
-    figure.add_trace(go.Scatter(x=[row.get("timestamp") for row in equity], y=[row.get("value") for row in equity], name="Equity", line={"color": "#4aa8ff", "width": 2}))
-    if drawdown:
-        figure.add_trace(go.Scatter(x=[row.get("timestamp") for row in drawdown], y=[row.get("drawdown") for row in drawdown], name="Drawdown", yaxis="y2", line={"color": "#ff5f6d", "width": 1.4}))
-        figure.update_layout(yaxis2={"overlaying": "y", "side": "right", "showgrid": False})
-    return _style(figure, height=168)
+    return _equity_figure(record.get("equity") or [], "No equity curve was saved for this run, and it has no trades to build one from.")
 
 
 def _configuration_equity_figure(evidence: dict[str, Any]) -> go.Figure:
-    rows = evidence.get("equity") or []
-    if not rows:
-        return _empty_figure("No equity curve was saved for this setting.", height=168)
-    values = [float(row["value"]) for row in rows]
-    peaks: list[float] = []
-    peak = values[0]
-    for value in values:
-        peak = max(peak, value)
-        peaks.append(peak)
-    drawdown = [((value / high) - 1) * 100 if high else 0 for value, high in zip(values, peaks)]
-    timestamps = [row.get("timestamp") for row in rows]
-    figure = go.Figure()
-    figure.add_trace(go.Scatter(x=timestamps, y=values, name="Equity", line={"color": "#4aa8ff", "width": 2}))
-    figure.add_trace(go.Scatter(x=timestamps, y=drawdown, name="Drawdown %", yaxis="y2", line={"color": "#ff5f6d", "width": 1.4}))
-    figure.update_layout(yaxis2={"overlaying": "y", "side": "right", "showgrid": False, "ticksuffix": "%"})
-    return _style(figure, height=168)
+    return _equity_figure(evidence.get("equity") or [], "No equity curve was saved for this setting.")
 
 
 def _configuration_metric_cards(evidence: dict[str, Any]) -> list[Any]:
@@ -242,6 +246,13 @@ def _chart_controls(suffix: str = "", *, width: Any = None) -> list[Any]:
     ]
 
 
+def _trade_grid(grid_id: str) -> dag.AgGrid:
+    """The one trade table (same columns and format wherever trades are listed)."""
+    return dag.AgGrid(id=grid_id, columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
+                      dashGridOptions=grid_options("No trades for this run.", rowSelection={"mode": "singleRow", "enableClickSelection": True}, pagination=True, paginationPageSize=10, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
+                      getRowId="params.data.trade_id || params.data.row_id", eventListeners=hide_when_narrow("exit_display", "duration", "direction"))
+
+
 def results_layout(search: str | None = None) -> html.Div:
     runs = list_results_runs()
     selected = _run_from_search(search, runs)
@@ -268,18 +279,21 @@ def results_layout(search: str | None = None) -> html.Div:
     ledger = dmc.Paper(dmc.Stack([
         dmc.Group([dmc.Stack([dmc.Title("Trades", id="results-ledger-title", order=5), dmc.Text("Pick a trade to see it on the chart", id="results-ledger-subtitle", size="xs", c="dimmed")], gap=2),
                    dmc.TextInput(id="results-trade-search", placeholder="Search trades", size="xs", debounce=True, w={"base": "100%", "sm": 200})], justify="space-between", align="flex-end"),
-        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
-                   dashGridOptions=grid_options("No trades for this run.", rowSelection={"mode": "singleRow", "enableClickSelection": True}, pagination=True, paginationPageSize=10, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
-                   getRowId="params.data.trade_id || params.data.row_id", eventListeners=hide_when_narrow("exit_display", "duration", "direction")),
+        _trade_grid("results-trade-grid"),
         dmc.Text("0 trades", id="results-trade-count", size="xs", c="dimmed"),
     ], gap="sm"), p="md")
+    setting_trades = dmc.Paper(dmc.Stack([
+        dmc.Stack([dmc.Title("Trades", order=5), dmc.Text("Trades for the chosen setting; pick one to see it on the chart", size="xs", c="dimmed")], gap=2),
+        _trade_grid("results-setting-trade-grid"),
+        dmc.Text("0 trades", id="results-setting-trade-count", size="xs", c="dimmed"),
+    ], gap="sm"), p="md", id="results-setting-trades", style={"display": "none"})
     linked = dmc.Paper(dmc.Stack([
         dmc.Title("More detail", order=5),
         dmc.ScrollArea(dmc.Tabs(dmc.TabsList([dmc.TabsTab("Equity and drops", value="equity"), dmc.TabsTab("Robustness", value="robustness"), dmc.TabsTab("Rolling test", value="walk_forward"), dmc.TabsTab("Shuffle test", value="monte_carlo"), dmc.TabsTab("Origin", value="lineage")]), id="results-evidence-tab", value="equity"), type="never"),
         html.Div(id="results-evidence-body"),
     ], gap="sm"), p="md")
     stores = [dcc.Store(id="results-record"), dcc.Store(id="results-configuration-evidence"), dcc.Store(id="results-range-nonce", data=0)]
-    return html.Div([*stores, drawer, header, dmc.Stack([identity, toolbar, dmc.SimpleGrid(id="results-metrics", cols={"base": 2, "sm": 3}, spacing="sm"), dmc.SimpleGrid(score_cards(None), id="results-scores", cols={"base": 2, "sm": 5}, spacing="sm"), chart, settings_heatmap_layout(), ledger, linked], gap="md", p="lg")])
+    return html.Div([*stores, drawer, header, dmc.Stack([identity, toolbar, dmc.SimpleGrid(id="results-metrics", cols={"base": 2, "sm": 3}, spacing="sm"), dmc.SimpleGrid(score_cards(None), id="results-scores", cols={"base": 2, "sm": 5}, spacing="sm"), chart, settings_heatmap_layout(), ledger, setting_trades, linked], gap="md", p="lg")])
 
 
 def _metric_value(metrics: list[dict[str, str]], *labels: str) -> str:
@@ -325,17 +339,17 @@ def _register_record_callbacks(application: Any) -> None:
         return (
             title, meta, state, color, [],
             "Price and trades for the chosen setting" if screened_out else "Price and trades",
-            f"{len(screening_rows):,} settings tried" if screened_out else "Trades",
-            "Pick a setting to see why it failed" if screened_out else "Pick a trade to see it on the chart",
-            "Search settings" if screened_out else "Search trades",
+            "Settings tried" if screening_rows else "Trades",
+            "Pick a setting to see why it failed" if screened_out else "Pick a setting to see its trades and chart" if screening_rows else "Pick a trade to see it on the chart",
+            "Search settings" if screening_rows else "Search trades",
             False, screened_out, False,
         )
 
     @application.callback(
         Output("results-session", "data"), Output("results-session", "value"), Output("results-session", "disabled"),
-        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"),
+        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-setting-trade-grid", "selectedRows"),
     )
-    def configure_sessions(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None):
+    def configure_sessions(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, picked_trade: list[dict[str, Any]] | None = None):
         record = record or {}; screening_rows = record.get("screening_rows") or []
         if screening_rows:
             selected = (selected_rows or screening_rows[:1])[-1]
@@ -343,7 +357,8 @@ def _register_record_callbacks(application: Any) -> None:
                 (record.get("run") or {}).get("run_id"), selected.get("row_id")
             )
             data = [{"value": day, "label": f"Session · {day} (Eastern)"} for day in sessions]
-            return data, (sessions[-1] if sessions else None), not bool(sessions)
+            day = str(((picked_trade or [{}])[-1]).get("entry_timestamp") or "")[:10]  # a picked trade shows its own day
+            return data, (day if day in sessions else sessions[-1] if sessions else None), not bool(sessions)
         sessions = sorted({str(row.get("entry_timestamp") or "")[:10] for row in record.get("trades") or [] if row.get("entry_timestamp")})
         data = [{"value": "all", "label": "All sessions"}] + [{"value": day, "label": f"Session · {day}"} for day in sessions]
         return data, "all", False
@@ -383,6 +398,19 @@ def _register_configuration_callbacks(application: Any) -> None:
             return display_settings_rows(rows), _screening_columns(rows), settings_tried_line(total, int(record.get("screened_out_count") or 0))
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
         return rows, TRADE_COLUMNS, f"{total:,} trades" + (f" · showing the first {bounded:,}" if total > bounded else "")
+
+    @application.callback(
+        Output("results-setting-trade-grid", "rowData"), Output("results-setting-trade-count", "children"), Output("results-setting-trades", "style"),
+        Input("results-record", "data"), Input("results-trade-grid", "selectedRows"),
+    )
+    def render_setting_trades(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None):
+        record = record or {}; screening_rows = record.get("screening_rows") or []
+        if not screening_rows:
+            return [], "", {"display": "none"}
+        selected = (selected_rows or screening_rows[:1])[-1]
+        loaded = load_screening_configuration_trades((record.get("run") or {}).get("run_id"), selected.get("row_id"))
+        total, shown = int(loaded["trade_count"]), len(loaded["trades"])
+        return loaded["trades"], f"{total:,} trades" + (f" · showing the latest {shown:,}" if total > shown else ""), {}
 
     @application.callback(
         Output("results-configuration-evidence", "data"),
@@ -472,14 +500,14 @@ def _register_figure_callbacks(application: Any) -> None:
     @application.callback(
         Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"),
         Input("results-range-nonce", "data"), Input("results-session", "value"), Input("results-bars", "value"),
-        Input("results-configuration-evidence", "data"),
+        Input("results-configuration-evidence", "data"), Input("results-setting-trade-grid", "selectedRows"),
     )
-    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None, evidence: dict[str, Any] | None = None) -> Any:
+    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None, evidence: dict[str, Any] | None = None, picked_trade: list[dict[str, Any]] | None = None) -> Any:
         record = record or {}
         graph = lambda figure: dcc.Graph(figure=figure, config=_GRAPH_CONFIG, style={"height": "560px"})
         if record.get("screening_rows"):  # a first-check run: the chosen setting's saved bars and trades
             evidence = evidence or {}
-            return graph(trades_figure(evidence.get("price") or [], evidence.get("trades") or [], None, evidence.get("message"), nonce))
+            return graph(trades_figure(evidence.get("price") or [], evidence.get("trades") or [], (picked_trade or [None])[-1], evidence.get("message"), nonce))
         oos = record.get("oos_chart")
         if oos and not record.get("price"):  # an unseen-data run: bars saved by the first-check run it came from
             trades = record.get("trades") or []
@@ -503,7 +531,11 @@ def _register_figure_callbacks(application: Any) -> None:
             if tab == "equity":
                 return dcc.Graph(figure=_configuration_equity_figure(configuration_evidence), config={"displayModeBar": False, "responsive": True})
             return html.Div(f"{tab.replace('_', ' ').title()} was not reached because all configurations failed initial screening.", className="results-stage-stop")
-        if tab == "equity": return dcc.Graph(figure=_evidence_figure(record, tab), config={"displayModeBar": False, "responsive": True})
+        if tab == "equity":
+            graph = dcc.Graph(figure=_evidence_figure(record, tab), config={"displayModeBar": False, "responsive": True})
+            if record.get("equity_from_trades"):
+                return html.Div([dmc.Text("No equity curve was saved for this run, so this one is built from its saved trades: starting cash plus profit or loss at each exit.", size="xs", c="dimmed"), graph])
+            return graph
         fields = record.get("lineage") if tab == "lineage" else []
         if fields:
             return html.Div([html.Div([html.Span(item["label"]), html.Strong(item["value"])], className="candidate-evidence-item") for item in fields[:8]], className="results-evidence-list")

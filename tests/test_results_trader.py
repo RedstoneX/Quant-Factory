@@ -98,3 +98,28 @@ def test_trade_grid_fits_by_flex_keeps_dates_whole_and_has_no_duplicate_trades_t
     assert '"columnSize"' not in main_grid
     assert '"value": "trades"' not in layout and "results-linked-trade-grid" not in layout
     assert "charAt(0).toUpperCase()" in json.dumps(page.METRIC_COLUMNS)
+
+
+def test_equity_figure_gives_drawdown_its_own_axis_and_a_date_axis_that_suits_years() -> None:
+    rows = [{"timestamp": f"2024-0{month}-01T00:00:00", "value": value} for month, value in ((1, 100.0), (2, 110.0), (3, 99.0))]
+    figure = page._equity_figure(rows, "none")
+    assert len(figure.data) == 2 and figure.data[0].yaxis != figure.data[1].yaxis
+    assert [round(float(v), 6) for v in figure.data[1].y] == [0.0, 0.0, -10.0]  # value / cummax - 1, in percent
+    assert not figure.layout.xaxis.tickformat and figure.layout.xaxis.tickformatstops
+
+
+def test_results_page_has_a_separate_trades_card_for_the_chosen_setting() -> None:
+    layout = json.dumps(page.results_layout().to_plotly_json(), default=lambda item: item.to_plotly_json())
+    assert '"id": "results-setting-trade-grid"' in layout and '"id": "results-setting-trades"' in layout
+
+
+def test_equity_from_trades_is_starting_cash_plus_cumulative_pnl_at_exit_time() -> None:
+    from dashboard.results_projection import equity_from_trades
+
+    trades = [
+        {"exit_timestamp": "2024-01-03T10:00:00", "pnl": -5.0},
+        {"exit_timestamp": "2024-01-02T10:00:00", "pnl": 10.0},
+        {"exit_timestamp": None, "pnl": 99.0},
+    ]
+    assert [row["value"] for row in equity_from_trades(trades, starting_cash=100.0)] == [110.0, 105.0]
+    assert equity_from_trades([]) == []
