@@ -50,7 +50,12 @@ from persistence import (
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
 
 def _FakeTrades(count: int) -> SimpleNamespace:
-    return SimpleNamespace(count=lambda: count, win_rate=0.60, records_readable=pd.DataFrame({"Trade Id": range(count)}))
+    pnl = pd.Series([1.0] * count, dtype=float)
+    return SimpleNamespace(
+        count=lambda: count, win_rate=0.60, records_readable=pd.DataFrame({"Trade Id": range(count)}),
+        pnl=pnl, winning=SimpleNamespace(pnl=pnl), losing=SimpleNamespace(pnl=pnl.iloc[:0]),
+        profit_factor=float("inf"), duration=pd.Series([2] * count, dtype=float),
+    )
 
 class _FakePortfolioResult:
     def __init__(self, index: pd.Index, trade_count: int) -> None:
@@ -59,7 +64,9 @@ class _FakePortfolioResult:
         self.sharpe_ratio = 1.0
         self.max_drawdown = -0.02
         self.trades = _FakeTrades(max(1, trade_count))
-        self.orders = SimpleNamespace(records_readable=pd.DataFrame({"Order Id": range(max(1, trade_count))}))
+        self.orders = SimpleNamespace(records_readable=pd.DataFrame({"Order Id": range(max(1, trade_count))}),
+                                      fees=pd.Series([0.1] * max(1, trade_count)))
+        self.long_view = self.short_view = self  # the summary reads VectorBT's direction views
         self.value = pd.Series(10_000.0, index=index, dtype=float)
         self.returns = pd.Series(0.001, index=index, dtype=float)
 
@@ -514,7 +521,7 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
         assert all(run.status == RunStatus.SUCCEEDED for run in runs)
         assert sum(event.message == SURVIVOR_EVENT_MESSAGE for event in persistence.events.list_for_run(first.launch.claim.run.run_id)) == 1
         assert all(persistence.read_persisted_run_manifest(run.run_id) for run in runs)
-        assert {a.logical_name.split(":")[0] for a in persistence.list_run_artifacts(first.chain.completed[0].run_id)} == {"source_lock_evidence", "trades_and_orders"}
+        assert {a.logical_name.split(":")[0] for a in persistence.list_run_artifacts(first.chain.completed[0].run_id)} == {"source_lock_evidence", "trades_and_orders", "performance_summary"}
         assert all(
             persistence.list_run_artifacts(handoff.run_id)
             for handoff in first.chain.completed[1:]
