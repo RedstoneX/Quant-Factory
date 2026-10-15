@@ -3,7 +3,6 @@
 from pathlib import Path
 
 from dashboard.results_projection import load_screening_configuration_evidence
-from dashboard.ui.results import _configuration_identity
 from persistence import ArtifactType, canonical_json
 from tests.test_artifact_contracts import _service_with_run
 
@@ -64,11 +63,3 @@ def test_selected_screening_configuration_loads_exact_chart_and_trade_evidence(t
     assert evidence["trades"][0]["entry_display"] == "Jan 2, 2026 · 9:35 AM ET"
     assert evidence["sessions"] == ["2026-01-02"]
     assert evidence["metrics"]["number_of_trades"] == 1
-
-
-def test_orb_configuration_identity_uses_persisted_parameters() -> None:
-    assert _configuration_identity({
-        "range_minutes": 15,
-        "breakout_offset_ticks": 2,
-        "direction_variant": "long",
-    }) == "15-minute opening range · 2 ticks · Long"

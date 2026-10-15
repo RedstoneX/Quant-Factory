@@ -89,14 +89,17 @@ def test_settings_line_never_says_all_screened_out_for_a_passed_run() -> None:
     assert "screened out" not in page.settings_tried_line(3, 0)
 
 
-def test_trade_grid_fits_by_flex_keeps_dates_whole_and_has_no_duplicate_trades_tab() -> None:
+def test_trade_grid_fits_by_flex_keeps_dates_whole_and_shows_running_total(monkeypatch) -> None:
     columns = {column["field"]: column for column in page.TRADE_COLUMNS}
     assert columns["entry_display"]["minWidth"] >= 220 and columns["exit_display"]["minWidth"] >= 220
     assert all("flex" in column for column in columns.values())
+    assert columns["cum_pnl"]["headerName"] == "Running total"
+    monkeypatch.setattr(page, "_resolve", lambda search: (FAKE_IDEA, "oos"))
+    monkeypatch.setattr(page, "top_line", lambda idea: [])
     layout = json.dumps(page.results_layout().to_plotly_json(), default=lambda item: item.to_plotly_json())
     main_grid = layout.split('"id": "results-trade-grid"')[1].split('"id": "results-trade-count"')[0]
     assert '"columnSize"' not in main_grid
-    assert '"value": "trades"' not in layout and "results-linked-trade-grid" not in layout
+    assert "results-linked-trade-grid" not in layout
     assert "charAt(0).toUpperCase()" in json.dumps(page.METRIC_COLUMNS)
 
 
@@ -108,9 +111,46 @@ def test_equity_figure_gives_drawdown_its_own_axis_and_a_date_axis_that_suits_ye
     assert not figure.layout.xaxis.tickformat and figure.layout.xaxis.tickformatstops
 
 
-def test_results_page_has_a_separate_trades_card_for_the_chosen_setting() -> None:
-    layout = json.dumps(page.results_layout().to_plotly_json(), default=lambda item: item.to_plotly_json())
-    assert '"id": "results-setting-trade-grid"' in layout and '"id": "results-setting-trades"' in layout
+FAKE_IDEA = {
+    "available": True, "title": "MES idea", "symbol": "MES", "verdict": "Passed the costs and unseen-data tests", "verdict_color": "teal",
+    "runs": {}, "screening_rows": [], "screened_out_count": 0,
+    "tests": [{"stage": stage, "label": label, "run_id": f"run_{stage}", "status": "passed", "status_text": "Passed", "color": "teal", "line": "fine"}
+              for stage, label in page.STAGES],
+}
+
+
+def test_results_is_one_page_per_idea_with_a_test_strip_and_strategy_tester_tabs(monkeypatch) -> None:
+    monkeypatch.setattr(page, "_resolve", lambda search: (FAKE_IDEA, "oos"))
+    monkeypatch.setattr(page, "top_line", lambda idea: [])
+    layout = json.dumps(page.results_layout("?candidate_id=c1").to_plotly_json(), default=lambda item: item.to_plotly_json())
+    for words in ("Costs test", "Unseen data", "Rolling test", "Stress test", "Shuffle test", "Overview", "Performance summary",
+                  "List of trades", "Price chart", "Settings tried", "MES idea"):
+        assert words in layout
+    assert '"id": "results-test"' in layout and '"id": "results-settings-grid"' in layout
+
+
+def test_old_run_link_opens_its_idea_with_that_test_selected(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(page, "idea_for_run", lambda run_id: {"candidate_id": "c1", "stage": "walk_forward"})
+    monkeypatch.setattr(page, "load_idea", lambda candidate_id, run_id=None: calls.append((candidate_id, run_id)) or FAKE_IDEA)
+    assert page._resolve("?run_id=r9") == (FAKE_IDEA, "walk_forward")
+    assert calls == [("c1", "r9")]
+
+
+def test_performance_summary_is_read_from_the_saved_file_never_computed() -> None:
+    assert page.performance_table({}).children == page.SUMMARY_MISSING
+    document = {"performance": {"all": {"net_profit": 12.5, "win_rate": 0.5, "total_trades": 4}, "long": {"net_profit": -3}, "short": {}}}
+    grid = page.performance_table({"performance": document})
+    rows = {row["measure"]: row for row in grid.rowData}
+    assert rows["Net profit"] == {"measure": "Net profit", "all": "$12.50", "long": "-$3.00", "short": "—"}
+    assert rows["Win rate"]["all"] == "50.00%" and rows["Trades"]["all"] == "4"
+
+
+def test_a_test_without_trades_shows_its_own_detail_not_an_empty_chart(monkeypatch) -> None:
+    monkeypatch.setattr(page, "load_stage_detail", lambda idea, stage: {"periods": [], "checks": [{"check": "Worst drop from peak", "result": "Passed", "measured": .01, "needed": .35}], "reasons": []})
+    monkeypatch.setattr(page, "load_run_scores", lambda run_id: {})
+    detail = json.dumps(page.score_detail(FAKE_IDEA, "robustness")[0].to_plotly_json(), default=lambda item: item.to_plotly_json())
+    assert "results-check-grid" in detail and "Worst drop from peak" in detail and "Graph" not in detail
 
 
 def test_equity_from_trades_is_starting_cash_plus_cumulative_pnl_at_exit_time() -> None:
