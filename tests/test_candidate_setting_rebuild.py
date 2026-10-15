@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from types import SimpleNamespace
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -19,29 +20,30 @@ from orchestration.candidate_setting_rebuild import (
     rebuild_portfolio,
     rebuild_setting,
 )
-from backtesting.robustness import ParameterNeighborhoodDefinition
+from market_data.cache import write_cache
 from orchestration import CandidatePipelineRuntime
 from persistence import PersistenceService, StrategyLifecycle
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
 from tests.test_candidate_pipeline_runtime import FAKE_VECTORBT, _definition, _direct_pipeline_launcher
 
-# RSI(7) on the shared sine fixture spans 35-77, so this setting trades (the shared default never does).
-TRADING_SETTING = {"window": 7, "entry_threshold": 40, "exit_threshold": 70}
+# An approved-grid setting.  The shared sine fixture never takes RSI(7) below 35, so a
+# V-shaped drift (0.5 per bar down, then up) is added to every price; this setting then
+# makes 6 closed trades on the real engine [measured].
+TRADING_SETTING = {"window": 7, "entry_threshold": 30, "exit_threshold": 50}
 
 
 def _trading_runtime(tmp_path) -> CandidatePipelineRuntime:
     base = _definition(tmp_path)
-    neighborhood = replace(
-        base.validation.robustness_neighborhood,
-        definitions=tuple(
-            ParameterNeighborhoodDefinition(name, "explicit_values", explicit_values=(value - 5, value, value + 5))
-            for name, value in TRADING_SETTING.items()
-        ),
-    )
+    config = base.experiment.market_data
+    market = load_market_data(config, now=pd.Timestamp(base.validation.data_as_of), allow_download=False)
+    frame = market.data.copy()
+    half = len(frame) // 2
+    drift = 0.5 * np.abs(np.arange(len(frame)) - half) + 0.5 * half
+    for column in ("Open", "High", "Low", "Close"):
+        frame[column] = frame[column] + drift
+    write_cache(frame, market.audit, config)
     definition = replace(
-        base,
-        experiment=replace(base.experiment, parameter_combinations=(TRADING_SETTING,)),
-        validation=replace(base.validation, robustness_neighborhood=neighborhood),
+        base, experiment=replace(base.experiment, parameter_combinations=(TRADING_SETTING,))
     )
     database = tmp_path / "state" / "factory.sqlite3"
     persistence = PersistenceService(database)

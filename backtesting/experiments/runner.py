@@ -132,8 +132,15 @@ def _construct_portfolio(
         }
     execution_price = build_execution_price(data, aligned, execution)
     stop_args = _stop_args(data, aligned, execution)
+    # Open/High/Low always go in: stops read them, and Portfolio.plot_trades draws candles from them.
+    bars = {
+        field.lower(): data[field] * execution.price_multiplier
+        for field in ("Open", "High", "Low")
+        if field in data.columns
+    }
     return vbt.Portfolio.from_signals(
         close=close,
+        **bars,
         **signal_args,
         price=execution_price,
         size=float("inf") if execution.position_sizing == "all_cash_whole_shares" else execution.order_size,
@@ -183,9 +190,6 @@ def _stop_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionCo
     if execution.mode != "next_bar_open":
         raise ValueError("Bar-based stop orders require next-bar-open execution")
     return {
-        "open": data["Open"] * execution.price_multiplier,
-        "high": data["High"] * execution.price_multiplier,
-        "low": data["Low"] * execution.price_multiplier,
         **present,
         "delta_format": "Percent",
         "stop_entry_price": "Open",
