@@ -121,7 +121,11 @@ def rebuild_portfolio(saved: SavedSetting, data: pd.DataFrame) -> SettingRebuild
         if installed == saved.run_vectorbtpro_version
         else (f"VectorBT PRO {installed} is installed; the run used {saved.run_vectorbtpro_version}",)
     )
-    return SettingRebuild(saved.run_id, saved.row_id, True, "Rebuilt exactly", portfolio, data, warnings)
+    # Attach bars after the exactness check so Portfolio.plot_trades draws candles; results are unchanged.
+    multiplier = experiment.execution.price_multiplier
+    bars = {field.lower(): data[field] * multiplier for field in ("Open", "High", "Low") if field in data}
+    chartable = portfolio.replace(**bars) if bars else portfolio
+    return SettingRebuild(saved.run_id, saved.row_id, True, "Rebuilt exactly", chartable, data, warnings)
 
 
 @lru_cache(maxsize=32)

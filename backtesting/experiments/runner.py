@@ -188,11 +188,8 @@ def _construct_portfolio(
     # Stop kwargs keep their place after the cost kwargs, as before the one-pass change.
     leading = {key: value for key, value in setting_args.items() if key in _LEADING_ARGS}
     stops = {key: value for key, value in setting_args.items() if key not in _LEADING_ARGS}
-    # Open/High/Low always go in: stops read them, and Portfolio.plot_trades draws candles from them.
-    bars = {field.lower(): data[field] * execution.price_multiplier for field in ("Open", "High", "Low") if field in data}
     return vbt.Portfolio.from_signals(
         close=close,
-        **bars,
         **leading,
         size=float("inf") if execution.position_sizing == "all_cash_whole_shares" else execution.order_size,
         direction=None if execution.direction == "both" else execution.direction,
@@ -250,6 +247,9 @@ def _stop_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionCo
     if execution.mode != "next_bar_open":
         raise ValueError("Bar-based stop orders require next-bar-open execution")
     return {
+        "open": data["Open"] * execution.price_multiplier,
+        "high": data["High"] * execution.price_multiplier,
+        "low": data["Low"] * execution.price_multiplier,
         **present,
         "delta_format": "Percent",
         "stop_entry_price": "Open",
