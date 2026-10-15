@@ -9,6 +9,9 @@ from pathlib import Path
 import sqlite3
 from typing import Any, Iterator
 
+# Reason code an operator writes when requeueing an idea after a server fix; it restarts the interruption budget.
+REQUEUED_AFTER_FIX = "requeued_after_fix"
+
 
 SCHEMA_VERSION = 3
 _CAMPAIGN_FIELDS = ("event_id", "candidate_id", "policy_id", "state", "reason_code", "reason_detail", "packet_sha256", "run_id", "created_at")
@@ -336,6 +339,16 @@ class GatewayStore:
         row = self.connection.execute(
             "SELECT COUNT(*) FROM campaign_events WHERE candidate_id=? AND packet_sha256=? AND state='running'",
             (candidate_id, packet_sha256),
+        ).fetchone()
+        return int(row[0])
+
+    def campaign_attempts_since_requeue(self, candidate_id: str, packet_sha256: str) -> int:
+        """Starts since the operator last requeued this packet after a fix; earlier starts hit the old bug."""
+        row = self.connection.execute(
+            "SELECT COUNT(*) FROM campaign_events WHERE candidate_id=? AND packet_sha256=? AND state='running' "
+            "AND event_id > COALESCE((SELECT MAX(event_id) FROM campaign_events WHERE candidate_id=? "
+            "AND packet_sha256=? AND reason_code=?), 0)",
+            (candidate_id, packet_sha256, candidate_id, packet_sha256, REQUEUED_AFTER_FIX),
         ).fetchone()
         return int(row[0])
 

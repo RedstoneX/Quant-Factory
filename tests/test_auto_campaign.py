@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from agent_gateway.auto_campaign import MAX_ATTEMPTS, AutoTestCampaign
-from agent_gateway.store import GatewayStore
+from agent_gateway.store import REQUEUED_AFTER_FIX, GatewayStore
 from market_data import DatasetUnavailableError
 from orchestration.auto_campaign import (
     POLICY_ID,
@@ -535,3 +535,25 @@ def test_verified_data_is_loaded_once_per_dataset(tmp_path, monkeypatch):
     for _ in range(3):
         module._check_verified_data(definition, profile)
     assert len(calls) == 1
+
+
+def test_operator_requeue_after_fix_restarts_the_interruption_budget(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_restart3")
+    store = GatewayStore(harness.gateway_database)
+    try:
+        packet = PersistenceService(harness.database).idea_drafts.get("idea_restart3").candidate_json
+        digest = hashlib.sha256(packet.encode()).hexdigest()
+        for _ in range(MAX_ATTEMPTS):
+            store.append_campaign_event(candidate_id="idea_restart3", policy_id=POLICY_ID, state="running",
+                                        reason_code="started", packet_sha256=digest)
+        store.append_campaign_event(candidate_id="idea_restart3", policy_id=POLICY_ID, state="queued",
+                                    reason_code=REQUEUED_AFTER_FIX, packet_sha256=digest)
+        assert store.campaign_attempts_since_requeue("idea_restart3", digest) == 0
+        assert store.campaign_attempts("idea_restart3", digest) == MAX_ATTEMPTS
+    finally:
+        store.close()
+    campaign = harness.campaign()
+    campaign.run_once()
+    assert len(harness.launches) == 1
+    assert harness.launches[0][1].endswith(f"-r{MAX_ATTEMPTS}")
