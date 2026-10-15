@@ -42,6 +42,14 @@ SCORES_NOTE = "Scores are information, not pass marks — paper trading is the f
 CHART_UNAVAILABLE = "The price chart for this run is not available right now."
 
 
+def settings_tried_line(total: int, screened_out: int) -> str:
+    """Count line for the settings table, true to the rows of the run being shown."""
+    if total and screened_out == total:
+        return f"{total:,} settings tried · all screened out"
+    passed = total - screened_out
+    return f"{total:,} settings tried · {passed:,} passed" + (f", {screened_out:,} screened out" if screened_out else "")
+
+
 def _weak_scores(scores: dict[str, Any]) -> bool:
     return (
         scores.get("rolling_status") == "failed" or scores.get("stress_status") == "failed"
@@ -373,7 +381,7 @@ def _register_configuration_callbacks(application: Any) -> None:
         if not screening and session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
         if screening:
             total = int(record.get("screening_count") or 0)
-            return display_settings_rows(rows), _screening_columns(rows), f"{total:,} settings tried · all screened out"
+            return display_settings_rows(rows), _screening_columns(rows), settings_tried_line(total, int(record.get("screened_out_count") or 0))
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
         return rows, TRADE_COLUMNS, f"{total:,} trades" + (f" · showing the first {bounded:,}" if total > bounded else "")
 

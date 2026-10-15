@@ -81,3 +81,9 @@ def test_unseen_data_run_maps_to_the_first_check_setting_and_test_dates(tmp_path
 def test_unseen_data_run_without_report_has_no_target(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(projection, "_artifact_document", lambda **_: None)
     assert projection.oos_chart_target(database=tmp_path / "x.sqlite3", run_id="oos") is None
+
+
+def test_settings_line_never_says_all_screened_out_for_a_passed_run() -> None:
+    assert page.settings_tried_line(3, 3) == "3 settings tried · all screened out"
+    assert page.settings_tried_line(3, 1) == "3 settings tried · 2 passed, 1 screened out"
+    assert "screened out" not in page.settings_tried_line(3, 0)
