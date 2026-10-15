@@ -13,6 +13,8 @@ orjson==3.12.0
 pandas==2.3.3
 pandas-market-calendars==5.4.0
 plotly==6.8.0
+# VectorBT PRO Portfolio charts import matplotlib and raise ImportError without it.
+matplotlib==3.11.2
 tsdownsample==0.1.5.1
 prefect==3.7.8
 pyarrow==24.0.0
