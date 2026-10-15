@@ -25,7 +25,7 @@ def test_scores_read_from_rolling_and_stress_evidence(monkeypatch):
             {"test_metrics": {"total_return": 0.03, "sharpe_ratio": 1.5}},
         ],
         "normalized_evidence": {"status": "failed"},
-        "idea_overfitting": {"deflated_sharpe": {"probability": 0.91}, "overfitting_pbo": {"probability": 0.4}},
+        "idea_overfitting": {"deflated_sharpe_probability": 0.91, "pbo": 0.4},
     }
     docs = {"walk_forward": rolling, "robustness": {"normalized_evidence": {"status": "passed"}},
             "monte_carlo": {"normalized_evidence": {"status": "failed"}}}

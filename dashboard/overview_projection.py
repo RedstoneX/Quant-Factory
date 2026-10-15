@@ -119,6 +119,7 @@ WITH candidate_base AS (
            lr.error_summary AS error_summary,
            br.metrics_json, br.screening_status,
            obr.metrics_json AS oos_metrics_json,
+           oor.run_id AS oos_run_id,
            CASE WHEN sr.run_id IS NULL THEN 0 ELSE 1 END AS survivor,
            COALESCE(lr.created_at, cb.updated_at) AS observed_at
     FROM candidate_base cb

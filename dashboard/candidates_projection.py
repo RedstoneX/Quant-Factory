@@ -16,6 +16,7 @@ from dashboard.overview_projection import (
     _validated_connection,
     configured_database_path,
 )
+from dashboard.results_projection import oos_report_metrics
 
 
 COUNT_KEYS = ("survivor", "advancing", "blocked", "duplicate", "crashed", "needs_review", "rejected", "all")
@@ -34,7 +35,7 @@ def _candidate_source() -> str:
                c.title, c.symbol, c.asset_class,
                COALESCE(json_extract(c.candidate_json, '$.candidate.family'), 'Not recorded') AS family,
                COALESCE(json_extract(c.candidate_json, '$.candidate.status'), 'received') AS packet_status,
-               c.run_id, c.stage, c.run_status, c.screening_status, c.error_summary,
+               c.run_id, c.oos_run_id, c.stage, c.run_status, c.screening_status, c.error_summary,
                c.campaign_policy_id, c.campaign_state, c.campaign_reason_code,
                c.campaign_reason_detail,
                c.survivor, c.observed_at,
@@ -99,7 +100,17 @@ def _candidate_conditions(
     return conditions, params
 
 
-def _candidate_grid_row(row: sqlite3.Row, *, rank: int | None = None) -> dict[str, Any]:
+def _first_number(*values: Any) -> float | None:
+    return next((n for n in map(_finite_number, values) if n is not None), None)
+
+
+def _oos_for(row: sqlite3.Row, database: Path) -> dict[str, Any] | None:
+    if row["sharpe"] is not None or not row["oos_run_id"]:
+        return None
+    return oos_report_metrics(database=database, run_id=str(row["oos_run_id"]))
+
+
+def _candidate_grid_row(row: sqlite3.Row, *, rank: int | None = None, oos: dict[str, Any] | None = None) -> dict[str, Any]:
     def percent(value: Any, *, absolute: bool = False) -> float | None:
         number = _finite_number(value)
         if number is None:
@@ -122,8 +133,10 @@ def _candidate_grid_row(row: sqlite3.Row, *, rank: int | None = None) -> dict[st
         "campaign_state": str(row["campaign_state"] or "not_admitted"),
         "campaign_reason_code": str(row["campaign_reason_code"] or ""),
         "campaign_reason_detail": str(row["campaign_reason_detail"] or ""),
-        "sharpe": _finite_number(row["sharpe"]), "max_drawdown": percent(row["max_drawdown"], absolute=True),
-        "retained": _finite_number(row["retained"]), "net_return": percent(row["net_return"]),
+        "sharpe": _first_number(row["sharpe"], (oos or {}).get("sharpe_ratio")),
+        "max_drawdown": percent(_first_number(row["max_drawdown"], (oos or {}).get("max_drawdown")), absolute=True),
+        "retained": _finite_number(row["retained"]),
+        "net_return": percent(_first_number(row["net_return"], (oos or {}).get("total_return"))),
         "screening_sharpe": _finite_number(row["screening_sharpe"]),
         "screening_max_drawdown": percent(row["screening_max_drawdown"], absolute=True),
         "screening_return": percent(row["screening_return"]),
@@ -193,11 +206,20 @@ def load_candidates_page(
         total = _scalar(connection, source + f" SELECT COUNT(*) FROM candidate_records WHERE {where}", base_params)
         limit = min(CANDIDATE_PAGE_LIMIT, max(1, int(end) - int(start)))
         rows = connection.execute(source + f" SELECT * FROM candidate_records WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?", base_params + [limit, max(0, int(start))]).fetchall()
-        return {"rowData": [_candidate_grid_row(row, rank=max(0, int(start)) + index + 1) for index, row in enumerate(rows)], "rowCount": total}
+        return {"rowData": [_candidate_grid_row(row, rank=max(0, int(start)) + index + 1, oos=_oos_for(row, database_path)) for index, row in enumerate(rows)], "rowCount": total}
     except (sqlite3.Error, ValueError, TypeError):
         return {"rowData": [], "rowCount": 0}
     finally:
         connection.close()
+
+
+def _results_run_id(progression: list[dict[str, Any]]) -> str | None:
+    """The run worth opening: unseen-data test first, then the first check; later stages have no chart."""
+    for stage in ("oos", "screening"):
+        run = next((p for p in progression if p["stage"] == stage and p["status"] == "succeeded"), None)
+        if run:
+            return str(run["run_id"])
+    return None
 
 
 def load_candidate_detail(candidate_id: str | None, *, database: str | Path | None = None) -> dict[str, Any] | None:
@@ -213,7 +235,7 @@ def load_candidate_detail(candidate_id: str | None, *, database: str | Path | No
         row = connection.execute(source + " SELECT * FROM candidate_records WHERE candidate_id=?", _base_params() + [candidate_id]).fetchone()
         if row is None:
             return None
-        detail = _candidate_grid_row(row)
+        detail = _candidate_grid_row(row, oos=_oos_for(row, database_path))
         stages = connection.execute("""
             WITH ranked AS (
               SELECT run_id, stage, status, created_at, completed_at, error_summary,
@@ -222,6 +244,7 @@ def load_candidate_detail(candidate_id: str | None, *, database: str | Path | No
             ) SELECT run_id,stage,status,created_at,completed_at,error_summary FROM ranked WHERE recency=1 ORDER BY created_at
         """, [detail["configuration_id"]]).fetchall() if detail["configuration_id"] else []
         detail["progression"] = [dict(stage) for stage in stages]
+        detail["results_run_id"] = _results_run_id(detail["progression"]) or detail["run_id"]
         return detail
     except (sqlite3.Error, ValueError, TypeError):
         return None
