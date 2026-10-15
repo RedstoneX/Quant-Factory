@@ -452,9 +452,9 @@ def _register_figure_callbacks(application: Any) -> None:
                 rows = configuration_evidence.get("trades") or []
                 return dag.AgGrid(
                     columnDefs=TRADE_COLUMNS, rowData=rows,
-                    defaultColDef={"sortable": True, "resizable": True, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
-                    dashGridOptions={"pagination": True, "paginationPageSize": 4, "paginationPageSizeSelector": False, "animateRows": False},
-                    getRowId="params.data.trade_id", className="ag-theme-quartz-dark results-linked-trade-grid",
+                    defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
+                    dashGridOptions=grid_options("No trades for this setting.", pagination=True, paginationPageSize=4, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
+                    getRowId="params.data.trade_id", className="results-linked-trade-grid",
                 )
             if tab == "equity":
                 return dcc.Graph(figure=_configuration_equity_figure(configuration_evidence), config={"displayModeBar": False, "responsive": True})
