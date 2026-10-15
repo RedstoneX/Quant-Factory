@@ -523,7 +523,7 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
         persistence.close()
 
 
-def test_persisted_robustness_failure_stops_before_monte_carlo(
+def test_persisted_robustness_merit_failure_is_scored_and_continues(
     tmp_path: Path,
     monkeypatch, no_licensed_luck_score,
 ) -> None:
@@ -534,20 +534,20 @@ def test_persisted_robustness_failure_stops_before_monte_carlo(
     result = runtime.launch(idempotency_key="backend_completion_stop_fixture")
     replay = runtime.launch(idempotency_key="backend_completion_stop_fixture")
 
-    assert result.chain.status == "stopped"
+    assert result.chain.status == "ready_for_protected_test", result.chain
     assert replay.chain == result.chain
     assert replay.launch.dispatch.invoked is False
-    assert result.chain.stopped_at == "robustness"
     assert tuple(item.stage for item in result.chain.completed) == (
         RunStage.OOS,
         RunStage.WALK_FORWARD,
         RunStage.ROBUSTNESS,
+        RunStage.MONTE_CARLO,
     )
     persistence = PersistenceService(runtime.database)
     try:
-        assert all(run.stage != RunStage.MONTE_CARLO for run in persistence.runs.list())
-        robustness = result.chain.completed[-1]
+        robustness = result.chain.completed[2]
         assert robustness.status == "failed"
+        assert robustness.eligible_to_progress is True
         assert persistence.runs.get(robustness.run_id).status == RunStatus.SUCCEEDED
         assert persistence.read_persisted_run_manifest(robustness.run_id) is not None
     finally:

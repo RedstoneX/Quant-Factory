@@ -660,7 +660,7 @@ def test_missing_walk_forward_fold_lock_fails_closed(tmp_path: Path) -> None:
         service.close()
 
 
-def test_failed_walk_forward_without_successful_fold_locks_remains_failed(
+def test_failed_walk_forward_is_a_recorded_score_not_a_gate(
     tmp_path: Path,
 ) -> None:
     service = _service(tmp_path)
@@ -670,9 +670,9 @@ def test_failed_walk_forward_without_successful_fold_locks_remains_failed(
 
         result = _gate(service, root)
 
-        assert result.status == "failed"
-        assert result.eligible_to_execute_lockbox is False
-        assert any("walk_forward: fold_001: selection failed" in reason for reason in result.reasons)
+        assert result.status == "passed"
+        assert result.eligible_to_execute_lockbox is True
+        assert any("walk_forward (score): fold_001: selection failed" in reason for reason in result.reasons)
         assert not any("parameter-lock identity is missing" in reason for reason in result.reasons)
     finally:
         service.close()
@@ -722,7 +722,7 @@ def test_source_lock_overlap_mismatch_fails_closed(
         service.close()
 
 
-def test_failed_prerequisite_is_failed(tmp_path: Path) -> None:
+def test_failed_monte_carlo_is_a_recorded_score_not_a_gate(tmp_path: Path) -> None:
     service = _service(tmp_path)
     root = tmp_path / "artifacts"
     try:
@@ -730,9 +730,9 @@ def test_failed_prerequisite_is_failed(tmp_path: Path) -> None:
 
         result = _gate(service, root)
 
-        assert result.status == "failed"
-        assert result.eligible_to_execute_lockbox is False
-        assert any(reason.startswith("monte_carlo:") for reason in result.reasons)
+        assert result.status == "passed"
+        assert result.eligible_to_execute_lockbox is True
+        assert any(reason.startswith("monte_carlo (score):") for reason in result.reasons)
     finally:
         service.close()
 

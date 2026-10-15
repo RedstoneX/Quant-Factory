@@ -34,6 +34,29 @@ VALIDATION_STAGE_ORDER = (
     RunStage.MONTE_CARLO,
 )
 FILTER_HANDOFF_ENVIRONMENT_KEY = "filter_handoff"
+# Owner ruling 15 Oct 2026: paper trading is the real filter. A merit result
+# ("failed") at these stages is recorded as a score and does not stop the idea;
+# invalid or missing evidence still stops it. Costs screen and OOS stay gates.
+SCORED_VALIDATION_STAGES = frozenset(
+    {RunStage.WALK_FORWARD, RunStage.ROBUSTNESS, RunStage.MONTE_CARLO}
+)
+
+
+def _stage_may_progress(stage: RunStage, outcome: Any) -> bool:
+    """Stop only on evidence that is invalid or missing, never on a scored merit result."""
+    if outcome.status == "passed":
+        return True
+    if stage in SCORED_VALIDATION_STAGES and outcome.status == "failed":
+        return True
+    return (
+        stage == RunStage.WALK_FORWARD
+        and outcome.status == "insufficient_evidence"
+        and outcome.reasons
+        == (
+            "successful walk-forward folds do not define an overall "
+            "acceptance decision",
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -278,22 +301,11 @@ class FactoryFilterChainService:
                     reference.run_id,
                     artifact_root=self._artifact_root,
                 )
-                walk_forward_complete = (
-                    expected_stage == RunStage.WALK_FORWARD
-                    and outcome.status == "insufficient_evidence"
-                    and outcome.reasons
-                    == (
-                        "successful walk-forward folds do not define an overall "
-                        "acceptance decision",
-                    )
-                )
                 handoff = FilterStageHandoff(
                     stage=expected_stage,
                     run_id=reference.run_id,
                     status=outcome.status,
-                    eligible_to_progress=(
-                        outcome.status == "passed" or walk_forward_complete
-                    ),
+                    eligible_to_progress=_stage_may_progress(expected_stage, outcome),
                     evidence_identity=outcome.evidence_identity,
                     reasons=outcome.reasons,
                 )
