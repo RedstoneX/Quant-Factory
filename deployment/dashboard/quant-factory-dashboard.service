@@ -12,6 +12,7 @@ WorkingDirectory=/opt/quant-factory-dashboard/current
 EnvironmentFile=/etc/quant-factory/dashboard.env
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=QF_RULE_STRATEGY_ROOT=/opt/quant-factory-research/runtime/rule_strategies
+Environment=QUANT_FACTORY_DATA_LOCATIONS=/opt/quant-factory-dashboard/current/deployment/dashboard/data_locations.host.toml
 ExecStart=/opt/quant-factory-dashboard/current/.venv/bin/gunicorn --bind 127.0.0.1:8050 --workers 1 --threads 4 --timeout 120 dashboard.ui.app:server
 Restart=on-failure
 RestartSec=3
