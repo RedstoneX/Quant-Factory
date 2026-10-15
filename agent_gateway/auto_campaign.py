@@ -199,10 +199,11 @@ class AutoTestCampaign:
                 f"at {timeframe or 'an unstated timeframe'}.",
             )
         attempt = store.campaign_attempts(draft.draft_id, digest)
-        if attempt >= MAX_ATTEMPTS:
+        recent = store.campaign_attempts_since_requeue(draft.draft_id, digest)
+        if recent >= MAX_ATTEMPTS:
             return record(
                 "failed", "run_error",
-                f"The test was interrupted {attempt} times before finishing and was not started again.",
+                f"The test was interrupted {recent} times before finishing and was not started again.",
             )
         record("running", "started")
         outcome = self.executor(
