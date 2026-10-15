@@ -10,6 +10,9 @@ import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, dcc, html, no_update
 import plotly.graph_objects as go
 
+from dashboard.overview_projection import configured_database_path
+from orchestration.candidate_setting_rebuild import SettingRebuildRefused, rebuild_setting
+
 from dashboard.results_projection import (
     list_results_runs,
     list_screening_configuration_sessions,
@@ -28,10 +31,7 @@ TRADE_COLUMNS = [
     {"field": "pnl", "headerName": "Net P&L", "type": "numericColumn", "width": 90},
     {"field": "outcome", "headerName": "Outcome", "width": 86},
 ]
-SCREENING_COLUMNS = [
-    {"field": "rank", "headerName": "Rank", "width": 64, "pinned": "left", "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
-    {"field": "run_length", "headerName": "Run bars", "width": 86, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
-    {"field": "minimum_ticks_per_bar", "headerName": "Minimum ticks", "width": 106, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
+METRIC_COLUMNS = [
     {"field": "total_return", "headerName": "Net return", "type": "numericColumn", "width": 98, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
     {"field": "sharpe_ratio", "headerName": "Sharpe", "type": "numericColumn", "width": 84, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
     {"field": "max_drawdown", "headerName": "Maximum DD", "type": "numericColumn", "width": 102, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
@@ -39,13 +39,15 @@ SCREENING_COLUMNS = [
     {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 88, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
     {"field": "screening_status", "headerName": "Outcome", "minWidth": 112, "flex": 1, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Failed testing' : params.value"}},
 ]
-ORB_SCREENING_COLUMNS = [
-    {"field": "rank", "headerName": "Rank", "width": 64, "pinned": "left", "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
-    {"field": "range_minutes", "headerName": "Opening range", "width": 112, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value + ' min'"}},
-    {"field": "breakout_offset_ticks", "headerName": "Entry offset", "width": 104, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value + (params.value === 1 ? ' tick' : ' ticks')"}},
-    {"field": "direction_variant", "headerName": "Direction", "width": 94, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.charAt(0).toUpperCase() + params.value.slice(1)"}},
-    *SCREENING_COLUMNS[3:],
-]
+
+
+def _screening_columns(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    names = list((rows[0].get("parameters") or {}) if rows else [])
+    centred = {"headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}}
+    parameters = [{"field": f"parameters.{name}", "headerName": name.replace("_", " ").capitalize(), "minWidth": 90, **centred} for name in names]
+    return [{"field": "rank", "headerName": "Rank", "minWidth": 64, "pinned": "left", **centred}, *parameters, *METRIC_COLUMNS]
+
+_GRAPH_CONFIG = {"displayModeBar": False, "scrollZoom": True, "responsive": True}
 
 
 def _icon(name: str) -> html.Span:
@@ -105,42 +107,6 @@ def _price_figure(record: dict[str, Any] | None, selected: dict[str, Any] | None
     if view == "morning":
         figure.update_xaxes(rangebreaks=[])
     figure.update_layout(xaxis_rangeslider_visible=False, uirevision=f"results-{nonce}")
-    return _style(figure, height=326)
-
-
-def _configuration_price_figure(evidence: dict[str, Any], nonce: Any) -> go.Figure:
-    rows = evidence.get("price") or []
-    if not rows:
-        return _empty_figure(evidence.get("message") or "No persisted configuration bars are available.", height=326)
-    figure = go.Figure(go.Candlestick(
-        x=[row["timestamp"] for row in rows], open=[row["open"] for row in rows],
-        high=[row["high"] for row in rows], low=[row["low"] for row in rows],
-        close=[row["close"] for row in rows], name="Persisted OHLC",
-        increasing_line_color="#38d39f", decreasing_line_color="#ff5f6d",
-    ))
-    first, last = str(rows[0]["timestamp"]), str(rows[-1]["timestamp"])
-    visible = [
-        trade for trade in evidence.get("trades") or []
-        if trade.get("entry_timestamp") and first <= str(trade["entry_timestamp"]) <= last
-    ]
-    if visible:
-        figure.add_trace(go.Scatter(
-            x=[trade["entry_timestamp"] for trade in visible],
-            y=[trade["entry_price"] for trade in visible], mode="markers", name="Entries",
-            marker={"symbol": "triangle-up", "size": 13, "color": "#4aa8ff", "line": {"color": "#d9efff", "width": 1}},
-            text=[f"Trade {trade['trade_id']} · {trade['direction']}" for trade in visible],
-            hovertemplate="%{text}<br>%{x}<br>%{y}<extra></extra>",
-        ))
-        exited = [trade for trade in visible if trade.get("exit_timestamp") and trade.get("exit_price") is not None]
-        if exited:
-            figure.add_trace(go.Scatter(
-                x=[trade["exit_timestamp"] for trade in exited],
-                y=[trade["exit_price"] for trade in exited], mode="markers", name="Exits",
-                marker={"symbol": "triangle-down", "size": 13, "color": "#ffbd59", "line": {"color": "#fff0c7", "width": 1}},
-                text=[f"Trade {trade['trade_id']} · {trade['outcome']}" for trade in exited],
-                hovertemplate="%{text}<br>%{x}<br>%{y}<extra></extra>",
-            ))
-    figure.update_layout(xaxis_rangeslider_visible=False, uirevision=f"configuration-{evidence.get('parameter_row_id')}-{nonce}")
     return _style(figure, height=326)
 
 
@@ -271,13 +237,13 @@ def results_layout(search: str | None = None) -> dmc.MantineProvider:
     ], gap=8, className="candidate-filters results-context")
     price_panel = dmc.Paper([
         dmc.Group([html.Div([dmc.Title("Price and completed trades", id="results-chart-title", order=3), dmc.Text("Persisted run evidence · select a trade to focus its interval", id="results-chart-caption", className="panel-subtitle")]), html.Div(className="top-spacer")], className="panel-head"),
-        dcc.Graph(id="results-price-chart", figure=_empty_figure("Loading persisted OHLC bars", height=326), config={"displayModeBar": False, "scrollZoom": True, "responsive": True}),
+        dcc.Loading(html.Div(id="results-price-chart", className="results-price-chart"), type="dot"),
         html.Div(id="results-assumptions", className="results-assumptions"),
     ], className="panel results-price", radius="md", withBorder=True)
     metrics = html.Aside(id="results-metrics", className="results-metrics")
     ledger = dmc.Paper([
         dmc.Group([html.Div([dmc.Title("Completed trade ledger", id="results-ledger-title", order=3), dmc.Text("Select a trade to focus its exact persisted interval", id="results-ledger-subtitle", className="panel-subtitle")]), html.Div(className="top-spacer"), dmc.TextInput(id="results-trade-search", placeholder="Search trades", className="results-trade-search", debounce=True)], className="panel-head"),
-        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={"sortable": True, "resizable": True, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True}, dashGridOptions={"rowSelection": {"mode": "singleRow", "enableClickSelection": True}, "pagination": True, "paginationPageSize": 6, "paginationPageSizeSelector": False, "animateRows": False}, getRowId="params.data.trade_id || params.data.row_id", className="ag-theme-quartz-dark results-trade-grid"),
+        dag.AgGrid(id="results-trade-grid", columnDefs=TRADE_COLUMNS, rowData=[], columnSize="responsiveSizeToFit", defaultColDef={"sortable": True, "resizable": True, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True}, dashGridOptions={"rowSelection": {"mode": "singleRow", "enableClickSelection": True}, "pagination": True, "paginationPageSize": 6, "paginationPageSizeSelector": False, "animateRows": False}, getRowId="params.data.trade_id || params.data.row_id", className="ag-theme-quartz-dark results-trade-grid"),
         html.Footer([html.Span("0 persisted trades", id="results-trade-count"), html.Div(className="top-spacer"), html.Span("Bounded ledger")], className="candidate-grid-footer"),
     ], className="panel results-ledger", radius="md", withBorder=True)
     linked = dmc.Paper([
@@ -404,8 +370,7 @@ def _register_configuration_callbacks(application: Any) -> None:
         if not screening and session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
         if screening:
             total = int(record.get("screening_count") or 0)
-            columns = ORB_SCREENING_COLUMNS if any(row.get("range_minutes") is not None for row in rows) else SCREENING_COLUMNS
-            return rows, columns, f"{len(rows):,} shown · {total:,} declared configurations · all screened out"
+            return rows, _screening_columns(rows), f"{len(rows):,} shown · {total:,} declared configurations · all screened out"
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
         return rows, TRADE_COLUMNS, f"{len(rows):,} shown · {total:,} persisted" + (f" · first {bounded:,} loaded" if total > bounded else "")
 
@@ -426,11 +391,21 @@ def _register_configuration_callbacks(application: Any) -> None:
 
 
 def _register_figure_callbacks(application: Any) -> None:
-    @application.callback(Output("results-price-chart", "figure"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"))
-    def render_price(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any) -> go.Figure:
-        if (record or {}).get("screening_rows"):
-            return _configuration_price_figure(configuration_evidence or {}, nonce)
-        return _price_figure(record, (selected_rows or [None])[-1], view or "session", nonce)
+    @application.callback(Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"))
+    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any) -> Any:
+        screening_rows = (record or {}).get("screening_rows")
+        if not screening_rows:
+            return dcc.Graph(figure=_price_figure(record, (selected_rows or [None])[-1], view or "session", nonce), config=_GRAPH_CONFIG)
+        try:
+            rebuild = rebuild_setting(str(configured_database_path()), record["run"]["run_id"], (selected_rows or screening_rows[:1])[-1]["row_id"])
+        except (SettingRebuildRefused, ValueError, OSError) as error:
+            return dmc.Alert(str(error), color="yellow", title="Chart not shown")
+        if not rebuild.exact:
+            return dmc.Alert(rebuild.reason, color="yellow", title="Chart not shown")
+        figure = rebuild.portfolio.plot(subplots=["trades", "value", "underwater"], subplot_settings={"trades": {"title": ""}}, template="qf", make_subplots_kwargs={"row_heights": [0.6, 0.2, 0.2], "vertical_spacing": 0.03})
+        figure.update_layout(height=560, uirevision=f"{selected_rows}-{nonce}")
+        figure.update_yaxes(side="right")
+        return dcc.Graph(figure=figure, config=_GRAPH_CONFIG)
 
     @application.callback(Output("results-evidence-body", "children"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-evidence-tab", "value"), Input("results-trade-grid", "selectedRows"))
     def render_evidence(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, tab: str, selected_rows: list[dict[str, Any]] | None):
