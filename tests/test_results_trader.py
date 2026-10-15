@@ -87,3 +87,14 @@ def test_settings_line_never_says_all_screened_out_for_a_passed_run() -> None:
     assert page.settings_tried_line(3, 3) == "3 settings tried · all screened out"
     assert page.settings_tried_line(3, 1) == "3 settings tried · 2 passed, 1 screened out"
     assert "screened out" not in page.settings_tried_line(3, 0)
+
+
+def test_trade_grid_fits_by_flex_keeps_dates_whole_and_has_no_duplicate_trades_tab() -> None:
+    columns = {column["field"]: column for column in page.TRADE_COLUMNS}
+    assert columns["entry_display"]["minWidth"] >= 220 and columns["exit_display"]["minWidth"] >= 220
+    assert all("flex" in column for column in columns.values())
+    layout = json.dumps(page.results_layout().to_plotly_json(), default=lambda item: item.to_plotly_json())
+    main_grid = layout.split('"id": "results-trade-grid"')[1].split('"id": "results-trade-count"')[0]
+    assert '"columnSize"' not in main_grid
+    assert '"value": "trades"' not in layout and "results-linked-trade-grid" not in layout
+    assert "charAt(0).toUpperCase()" in json.dumps(page.METRIC_COLUMNS)
