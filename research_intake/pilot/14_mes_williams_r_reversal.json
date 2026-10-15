@@ -1,0 +1,198 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES Williams %R exit-from-extreme reversal",
+    "one_line": "Buy %R crossing back up through the oversold line, short the mirror; ATR stop, N-bar exit. Source: Larry Williams (1973), How I Made One Million Dollars Last Year Trading Commodities.",
+    "family": "mean_reversion",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Larry Williams (1973), How I Made One Million Dollars Last Year Trading Commodities",
+      "creator": "Larry Williams",
+      "claim": "Buy %R crossing back up through the oversold line, short the mirror; ATR stop, N-bar exit.",
+      "url": "https://en.wikipedia.org/wiki/Williams_%25R"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Price leaving an extreme of its recent range may revert further.",
+    "failure_theory": [
+      "Extremes persist in trends.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES regular session 09:30-16:00 ET on 5m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "%R crosses above the oversold level, 09:50-15:30."
+    ],
+    "exits": {
+      "rule": "Exit after N bars; 1.5 ATR(14) stop.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 3,
+    "short_entry": [
+      "%R crosses below -100 minus that level."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 3,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "wr_len": {
+      "values": [
+        10,
+        14
+      ],
+      "rationale": "Lookback bars."
+    },
+    "os_level": {
+      "values": [
+        -80,
+        -90
+      ],
+      "rationale": "Oversold line."
+    },
+    "hold_bars": {
+      "values": [
+        6,
+        12
+      ],
+      "rationale": "Time exit in 5m bars."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_above": [
+                {
+                  "williams_r": {},
+                  "length": {
+                    "param": "wr_len"
+                  }
+                },
+                {
+                  "param": "os_level"
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_below": [
+                {
+                  "williams_r": {},
+                  "length": {
+                    "param": "wr_len"
+                  }
+                },
+                {
+                  "sub": [
+                    -100,
+                    {
+                      "param": "os_level"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "after_bars": {
+        "param": "hold_bars"
+      },
+      "stop_loss": {
+        "atr": {
+          "length": 14,
+          "multiple": 1.5
+        }
+      }
+    },
+    "max_trades_per_session": 3
+  }
+}

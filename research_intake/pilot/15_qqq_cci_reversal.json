@@ -1,0 +1,192 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "QQQ CCI reversal from +/-100",
+    "one_line": "Buy CCI crossing back above -threshold, short crossing back below +threshold; N-bar exit, 0.4% stop. Source: Donald Lambert (1980), Commodity Channel Index, Commodities magazine.",
+    "family": "mean_reversion",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Donald Lambert (1980), Commodity Channel Index, Commodities magazine",
+      "creator": "Donald Lambert",
+      "claim": "Buy CCI crossing back above -threshold, short crossing back below +threshold; N-bar exit, 0.4% stop.",
+      "url": "https://en.wikipedia.org/wiki/Commodity_channel_index"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "CCI returning from an extreme may mark a reversal.",
+    "failure_theory": [
+      "Extremes persist in trends.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "QQQ"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_QQQ_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "QQQ regular session 09:30-16:00 ET on 1m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "CCI crosses above -threshold, 09:50-15:30."
+    ],
+    "exits": {
+      "rule": "Exit after N bars; 0.4% stop.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 4,
+    "short_entry": [
+      "CCI crosses below +threshold."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 4,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "cci_len": {
+      "values": [
+        14,
+        20,
+        30
+      ],
+      "rationale": "Lookback bars."
+    },
+    "cci_level": {
+      "values": [
+        100,
+        150
+      ],
+      "rationale": "Extreme level."
+    },
+    "hold_bars": {
+      "values": [
+        15,
+        30
+      ],
+      "rationale": "Time exit in 1m bars."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_above": [
+                {
+                  "cci": {},
+                  "length": {
+                    "param": "cci_len"
+                  }
+                },
+                {
+                  "neg": {
+                    "param": "cci_level"
+                  }
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_below": [
+                {
+                  "cci": {},
+                  "length": {
+                    "param": "cci_len"
+                  }
+                },
+                {
+                  "param": "cci_level"
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "after_bars": {
+        "param": "hold_bars"
+      },
+      "stop_loss": {
+        "percent": 0.4
+      }
+    },
+    "max_trades_per_session": 4
+  }
+}
