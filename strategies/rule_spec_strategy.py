@@ -461,6 +461,8 @@ def install_rule_strategy(
     directory.mkdir(parents=True, exist_ok=True)
     handle, temporary = tempfile.mkstemp(prefix=f".{strategy_id}.", suffix=".tmp", dir=directory)
     try:
+        # mkstemp creates 0600; group-readable so the Dashboard (same group) can rebuild tested ideas.
+        os.fchmod(handle, 0o640)
         with os.fdopen(handle, "w", encoding="utf-8") as stream:
             stream.write(text)
             stream.flush()
