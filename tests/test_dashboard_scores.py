@@ -51,6 +51,11 @@ def test_shortlist_columns_have_plain_headers_and_tooltips():
     assert next(c for c in SHORTLIST_COLUMNS if c["field"] == "sharpe")["sort"] == "desc"
 
 
+def test_shortlist_idea_name_wraps_instead_of_truncating():
+    title = next(c for c in SHORTLIST_COLUMNS if c["field"] == "title")
+    assert title["wrapText"] and title["autoHeight"] and title["cellStyle"]["whiteSpace"] == "normal"
+
+
 def test_waiting_banner_text():
     assert score_projection.waiting_banner_text({"review": 0, "decision": 0}) is None
     assert score_projection.waiting_banner_text({"review": 2, "decision": 1}) == (
