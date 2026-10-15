@@ -165,7 +165,7 @@ def test_whole_share_sizing_passes_size_granularity(monkeypatch: pytest.MonkeyPa
     data = pd.DataFrame({"Open": [1.0, 2.0], "Close": [1.0, 2.0]})
     flags = pd.Series([False, False])
     aligned = SimpleNamespace(entries=flags, exits=flags, short_entries=flags, short_exits=flags,
-                              stop_loss=None, take_profit=None, trailing_stop=None)
+                              stop_loss=None, take_profit=None, trailing_stop=None, trailing_threshold=None)
     runner._construct_portfolio(data, aligned, experiment)
     assert calls[0]["size_granularity"] == 1.0 and math.isinf(calls[0]["size"])
     with pytest.raises(ValueError, match="requires order_size 1.0"):

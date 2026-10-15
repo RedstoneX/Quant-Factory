@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import time
 from pathlib import Path
 import sqlite3
 import sys
@@ -37,6 +39,22 @@ RESULT_STATES = frozenset({"survivor", "screened_out"})  # finished with numbers
 # A test cut short by a restart (usually a deploy) is rerun under a fresh launch key;
 # an idea that is interrupted this many times is reported instead of rerun forever.
 MAX_ATTEMPTS = 3
+# qf-deploy writes this marker (shared /run/quant-factory mount) while a deploy waits for running tests.
+DRAIN_MARKER = Path(os.environ.get("QF_DEPLOY_DRAIN_MARKER", "/run/quant-factory/deploy-drain"))
+DRAIN_STALE_SECONDS = 2 * 3600
+
+
+def drain_requested(marker: Path | None = None, now: float | None = None) -> bool:
+    """True while a deploy is waiting; a marker older than two hours is ignored so testing cannot stall."""
+    marker = marker or DRAIN_MARKER
+    try:
+        age = (time.time() if now is None else now) - marker.stat().st_mtime
+    except OSError:
+        return False
+    if age > DRAIN_STALE_SECONDS:
+        print(f"deploy drain marker is {int(age)}s old; ignoring it", file=sys.stderr, flush=True)
+        return False
+    return True
 
 
 class AutoTestCampaign:
@@ -108,6 +126,8 @@ class AutoTestCampaign:
                 for draft, packet, invalid, digest in queued:
                     if self._stop.is_set():
                         break
+                    if drain_requested():
+                        break  # a deploy is waiting: no new test starts; running ones finished above
                     try:
                         self._process(store, draft, packet, invalid, digest)
                     except (OSError, sqlite3.Error, KeyError, ValueError, RuntimeError) as exc:

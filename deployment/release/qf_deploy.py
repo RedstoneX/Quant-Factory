@@ -41,6 +41,8 @@ IMAGE = "quant-factory-research"
 GATEWAY_CLIENT = Path("/opt/quant-factory-gateway/client/agent_gateway")
 KEEP_RELEASES = 5
 GATEWAY_DB = Path(os.environ.get("QF_GATEWAY_DB", "/opt/quant-factory-gateway/state/agent_gateway.sqlite3"))
+# Drain marker: shared with the gateway container through its /run/quant-factory mount.
+DRAIN_MARKER = Path(os.environ.get("QF_DEPLOY_DRAIN_MARKER", "/run/quant-factory/deploy-drain"))
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 REQUIREMENTS = ("requirements-runtime.txt", "requirements-dashboard.txt")
 # Tracked privileged files and where they are installed; only --install-infra copies them.
@@ -312,6 +314,25 @@ def running_auto_tests(database: Path | None = None) -> int | None:
         return None
 
 
+def set_drain_marker() -> None:
+    """Ask the gateway not to start new auto-tests; keep the first mtime so a stale marker expires."""
+    try:
+        if not DRAIN_MARKER.exists():
+            DRAIN_MARKER.write_text(datetime.now(timezone.utc).isoformat(timespec="seconds") + "\n", encoding="utf-8")
+            os.chmod(DRAIN_MARKER, 0o664)
+    except OSError as exc:
+        log(f"WARNING: cannot set the drain marker: {exc}")
+
+
+def clear_drain_marker() -> None:
+    try:
+        DRAIN_MARKER.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        log(f"WARNING: cannot clear the drain marker: {exc}")
+
+
 def deploy(requested: str | None, *, admin: bool, force: bool, unpin: bool) -> int:
     state = read_state()
     if state.get("pinned") and requested is None and not unpin:
@@ -328,13 +349,16 @@ def deploy(requested: str | None, *, admin: bool, force: bool, unpin: bool) -> i
     if state.get("revision") == target and not drift and not force:
         if unpin:
             write_state(pinned=None)
+        clear_drain_marker()
         return 0
     if os.environ.get("QF_DEPLOY_FORCE") != "1":
         running = running_auto_tests()
         if running:
             # Recreating the gateway interrupts a running test and burns one of its 3 attempts.
-            log(f"deploy deferred: {running} auto-tests running")
+            log(f"deploy deferred: {running} auto-tests running; draining (no new tests start)")
+            set_drain_marker()
             return 0
+    clear_drain_marker()
     try:
         return _switch(target, release, drift, state, pinned=requested is not None)
     except Exception as exc:

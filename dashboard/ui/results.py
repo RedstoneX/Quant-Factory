@@ -15,7 +15,9 @@ from dash_iconify import DashIconify
 
 from dashboard.overview_projection import configured_database_path
 from dashboard.plain_labels import FAILED_TESTING
+from dashboard.score_projection import load_run_scores
 from dashboard.ui.layout import copy_id, page_header, stat_card
+from dashboard.ui.scores import score_cards
 from dashboard.ui.theme import COLUMN_DEFAULTS, DOWN, UP, grid_options, hide_when_narrow
 from orchestration.candidate_setting_rebuild import SettingRebuildRefused, rebuild_setting
 
@@ -243,7 +245,7 @@ def results_layout(search: str | None = None) -> html.Div:
         html.Div(id="results-evidence-body"),
     ], gap="sm"), p="md")
     stores = [dcc.Store(id="results-record"), dcc.Store(id="results-configuration-evidence"), dcc.Store(id="results-range-nonce", data=0)]
-    return html.Div([*stores, drawer, header, dmc.Stack([identity, toolbar, dmc.SimpleGrid(id="results-metrics", cols={"base": 2, "sm": 3}, spacing="sm"), chart, ledger, linked], gap="md", p="lg")])
+    return html.Div([*stores, drawer, header, dmc.Stack([identity, toolbar, dmc.SimpleGrid(id="results-metrics", cols={"base": 2, "sm": 3}, spacing="sm"), dmc.SimpleGrid(score_cards(None), id="results-scores", cols={"base": 2, "sm": 5}, spacing="sm"), chart, ledger, linked], gap="md", p="lg")])
 
 
 def _metric_value(metrics: list[dict[str, str]], *labels: str) -> str:
@@ -262,6 +264,10 @@ def _register_record_callbacks(application: Any) -> None:
     @application.callback(Output("results-record", "data"), Input("results-run", "value"), Input("results-bars", "value"))
     def load_record(run_id: str | None, interval: str) -> dict[str, Any]:
         return load_results_record(run_id, interval=interval or "15m")
+
+    @application.callback(Output("results-scores", "children"), Input("results-record", "data"))
+    def render_scores(record: dict[str, Any] | None):
+        return score_cards(load_run_scores(((record or {}).get("run") or {}).get("run_id")))
 
     @application.callback(
         Output("results-run-name", "children"), Output("results-meta", "children"), Output("results-state", "children"), Output("results-state", "color"),

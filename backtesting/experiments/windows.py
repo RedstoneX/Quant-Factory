@@ -16,6 +16,7 @@ from strategies.models import SignalResult
 
 SIGNAL_SERIES = (
     "entries", "exits", "short_entries", "short_exits", "stop_loss", "take_profit", "trailing_stop",
+    "trailing_threshold",
 )
 
 
