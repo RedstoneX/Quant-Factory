@@ -36,7 +36,7 @@
     "persistence/service.py": 1757,
     "prefect_spike/fixture_flow.py": 651,
     "prefect_spike/spym_vectorbt_fixture.py": 689,
-    "tests/test_candidate_pipeline_runtime.py": 664,
+    "tests/test_candidate_pipeline_runtime.py": 609,
     "tests/test_evidence_decision_artifacts.py": 1093,
     "tests/test_factory_filter_chain.py": 612,
     "tests/test_lockbox_gate.py": 879,
