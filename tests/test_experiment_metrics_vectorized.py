@@ -1,0 +1,240 @@
+"""Vectorised session-close metrics must equal the frozen per-column original exactly."""
+
+from __future__ import annotations
+
+import math
+from types import SimpleNamespace
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from backtesting.experiments.metrics import (
+    _portfolio_asset_series,
+    _portfolio_value_series,
+    extract_sweep_metrics,
+    session_close_metrics,
+)
+from market_data.calendars import get_exchange_calendar
+
+INTERVAL = pd.Timedelta("30min")
+N_COLS = 12
+
+
+# ---- frozen copy of the pre-vectorisation implementation (do not edit) ----
+def _frozen_session_close_metrics(
+    portfolio: Any,
+    data: pd.DataFrame,
+    config: ExperimentConfig,
+) -> tuple[float, float, float]:
+    """Calculate return and Sharpe from exact completed session closes."""
+    policy = config.metric_policy
+    if policy is None or policy.sampling != "exchange_session_close":
+        raise RuntimeError("exchange-session metric policy is required")
+    value = _portfolio_value_series(portfolio)
+    if not data.index.equals(value.index):
+        raise RuntimeError("portfolio values must align exactly with source data")
+    schedule = get_exchange_calendar(config.market_data).schedule(
+        start_date=value.index[0].date(),
+        end_date=value.index[-1].date(),
+    )
+    try:
+        interval = pd.Timedelta(config.market_data.interval)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("session metrics require a fixed source interval") from exc
+    # Bars are labelled by their open, so the last bar is observed through its end.
+    observed_through = value.index[-1] + interval
+    completed = schedule.loc[schedule["market_close"] <= observed_through]
+    partial = schedule.loc[
+        (schedule["market_open"] <= value.index[-1])
+        & (schedule["market_close"] > observed_through)
+    ]
+    if not partial.empty:
+        raise RuntimeError("session metrics cannot include a partially observed final session")
+    if len(completed) < 2:
+        raise RuntimeError("session metrics require at least two completed sessions")
+    session_values: list[float] = []
+    session_labels: list[object] = []
+    assets = _portfolio_asset_series(portfolio)
+    for session_label, row in completed.iterrows():
+        market_open = pd.Timestamp(row["market_open"]).tz_convert(value.index.tz)
+        market_close = pd.Timestamp(row["market_close"]).tz_convert(value.index.tz)
+        closing_bar = market_close - interval
+        try:
+            closing_value = value.loc[closing_bar]
+        except KeyError as exc:
+            observed = value.loc[(value.index >= market_open) & (value.index < market_close)]
+            if observed.empty:
+                before = value.index[value.index < market_open]
+                after = value.index[value.index >= market_close]
+                if (
+                    assets is not None
+                    and assets.index.equals(value.index)
+                    and len(before)
+                    and len(after)
+                    and float(assets.loc[before[-1]]) == 0.0
+                    and float(assets.loc[after[0]]) == 0.0
+                ):
+                    # A wholly absent exchange session bracketed by verified
+                    # flat exposure has the same exact cash equity as the last
+                    # observation before it. Retain the zero-return session in
+                    # the annualization sample instead of shrinking the sample.
+                    closing_value = value.loc[before[-1]]
+                else:
+                    raise RuntimeError(
+                        f"source data is missing the closing bar for exchange session {session_label}"
+                    ) from exc
+            elif assets is None or not assets.index.equals(value.index):
+                raise RuntimeError(
+                    f"source data is missing the closing bar for exchange session {session_label}"
+                ) from exc
+            else:
+                last_observed = observed.index[-1]
+                if last_observed >= closing_bar or float(assets.loc[last_observed]) != 0.0:
+                    raise RuntimeError(
+                        f"source data is missing the closing bar for exchange session {session_label}"
+                    ) from exc
+                # With zero asset exposure, portfolio equity is cash and cannot vary
+                # with the missing market-price observation before the session close.
+                closing_value = observed.iloc[-1]
+        session_labels.append(session_label)
+        session_values.append(float(closing_value))
+    equity = pd.Series(session_values, index=session_labels, dtype=float)
+    previous = pd.Series(
+        [config.execution.initial_cash, *equity.iloc[:-1].tolist()],
+        index=equity.index,
+        dtype=float,
+    )
+    returns = equity / previous - 1.0
+    periods = float(policy.periods_per_year)
+    final_ratio = float(equity.iloc[-1]) / config.execution.initial_cash
+    annualized_return = final_ratio ** (periods / len(equity)) - 1.0
+    period_risk_free = (1.0 + float(policy.risk_free_rate)) ** (1.0 / periods) - 1.0
+    excess = returns - period_risk_free
+    volatility = float(excess.std(ddof=1))
+    if not math.isfinite(volatility):
+        raise RuntimeError("session-return sample standard deviation must be finite")
+    sharpe = (
+        float("nan")
+        if volatility == 0.0
+        else float(excess.mean()) / volatility * math.sqrt(periods)
+    )
+    if not math.isfinite(annualized_return):
+        raise RuntimeError("session annualized return must be finite")
+    return final_ratio - 1.0, annualized_return, sharpe
+
+
+def _frozen_sweep(portfolio, count, data, config):
+    value = portfolio.value
+    assets = portfolio.assets
+    session = [
+        _frozen_session_close_metrics(
+            SimpleNamespace(value=value.iloc[:, i], assets=None if assets is None else assets.iloc[:, i]),
+            data,
+            config,
+        )
+        for i in range(count)
+    ]
+    return session
+
+
+
+def _config():
+    policy = SimpleNamespace(
+        sampling="exchange_session_close", periods_per_year=252.0, risk_free_rate=0.03
+    )
+    return SimpleNamespace(
+        metric_policy=policy,
+        market_data=SimpleNamespace(exchange_calendar="NYSE", interval="30min"),
+        execution=SimpleNamespace(initial_cash=100_000.0),
+    )
+
+
+def _bar_index(start: str, end: str) -> pd.DatetimeIndex:
+    schedule = get_exchange_calendar(_config().market_data).schedule(start, end)
+    parts = [
+        pd.date_range(row.market_open, row.market_close - INTERVAL, freq=INTERVAL)
+        for row in schedule.itertuples()
+    ]
+    return parts[0].append(parts[1:]).tz_convert("America/New_York")
+
+
+def _portfolio(index, flat=True, seed=0):
+    rng = np.random.default_rng(seed)
+    steps = rng.normal(0.0, 0.002, size=(len(index), N_COLS))
+    value = pd.DataFrame(100_000.0 * np.exp(steps.cumsum(axis=0)), index=index)
+    assets = pd.DataFrame(0.0 if flat else 5.0, index=index, columns=value.columns)
+    return SimpleNamespace(value=value, assets=assets)
+
+
+def _assert_identical(portfolio, index):
+    config = _config()
+    data = pd.DataFrame({"close": 1.0}, index=index)
+    expected = _frozen_sweep(portfolio, N_COLS, data, config)
+    got = [
+        session_close_metrics(
+            SimpleNamespace(
+                value=portfolio.value.iloc[:, i], assets=portfolio.assets.iloc[:, i]
+            ),
+            data,
+            config,
+        )
+        for i in range(N_COLS)
+    ]
+    assert got == [tuple(e) for e in expected] or all(
+        all(a == b or (math.isnan(a) and math.isnan(b)) for a, b in zip(g, e))
+        for g, e in zip(got, expected)
+    )
+    # whole-frame path used by sweeps
+    portfolio.trades = SimpleNamespace(count=lambda: np.zeros(N_COLS), win_rate=np.zeros(N_COLS))
+    portfolio.total_return = portfolio.annualized_return = portfolio.sharpe_ratio = np.zeros(N_COLS)
+    portfolio.max_drawdown = np.zeros(N_COLS)
+    rows = extract_sweep_metrics(portfolio, N_COLS, data=data, config=config)
+    for row, e in zip(rows, expected):
+        for key, ev in zip(("total_return", "annualized_return", "sharpe_ratio"), e):
+            assert row[key] == ev or (math.isnan(row[key]) and math.isnan(ev))
+
+
+# 2023-11-20..30 has Thanksgiving (closed) and the 24th half-day (13:00 close).
+def test_multi_column_with_half_day_matches_frozen():
+    index = _bar_index("2023-11-20", "2023-11-30")
+    schedule = get_exchange_calendar(_config().market_data).schedule("2023-11-24", "2023-11-24")
+    assert (schedule["market_close"] - schedule["market_open"]).iloc[0] < pd.Timedelta(hours=6)
+    _assert_identical(_portfolio(index, flat=False), index)
+
+
+def test_missing_closing_bar_and_absent_session_flat_matches_frozen():
+    index = _bar_index("2023-11-20", "2023-11-30")
+    day = index.normalize()
+    drop_close = index[day == pd.Timestamp("2023-11-21", tz=index.tz)][-1]
+    absent = day == pd.Timestamp("2023-11-27", tz=index.tz)
+    index = index[~absent & (index != drop_close)]
+    _assert_identical(_portfolio(index, flat=True, seed=1), index)
+
+
+def test_missing_closing_bar_with_exposure_raises_same_error():
+    index = _bar_index("2023-11-20", "2023-11-30")
+    drop_close = index[index.normalize() == pd.Timestamp("2023-11-21", tz=index.tz)][-1]
+    index = index[index != drop_close]
+    portfolio = _portfolio(index, flat=False, seed=2)
+    config = _config()
+    data = pd.DataFrame({"close": 1.0}, index=index)
+    with pytest.raises(RuntimeError) as old:
+        _frozen_session_close_metrics(
+            SimpleNamespace(value=portfolio.value.iloc[:, 0], assets=portfolio.assets.iloc[:, 0]),
+            data, config,
+        )
+    with pytest.raises(RuntimeError) as new:
+        session_close_metrics(
+            SimpleNamespace(value=portfolio.value.iloc[:, 0], assets=portfolio.assets.iloc[:, 0]),
+            data, config,
+        )
+    assert str(old.value) == str(new.value)
+
+
+def test_flat_column_mix_in_one_frame_matches_frozen():
+    index = _bar_index("2023-11-20", "2023-11-30")
+    drop_close = index[index.normalize() == pd.Timestamp("2023-11-22", tz=index.tz)][-1]
+    index = index[index != drop_close]
+    portfolio = _portfolio(index, flat=True, seed=3)
+    _assert_identical(portfolio, index)
