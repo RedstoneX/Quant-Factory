@@ -15,6 +15,10 @@ from market_data.models import MarketDataConfig
 LICENSED_VECTORBT_NODE_IDS = frozenset(
     {
         "tests/test_deflated_sharpe.py::test_matches_library_on_fixture",
+        "tests/test_walk_forward_splitter_vbt.py::test_full_history_signals_differ_from_slice_only_in_the_warm_up",
+        "tests/test_walk_forward_splitter_vbt.py::test_window_result_does_not_depend_on_later_bars",
+        "tests/test_walk_forward_splitter_vbt.py::test_whole_range_matches_a_plain_run",
+        "tests/test_walk_forward_splitter_vbt.py::test_signals_are_generated_once_per_parameter_set",
         "tests/test_deflated_sharpe.py::test_flat_settings_are_undefined",
         "tests/test_deflated_sharpe.py::test_deflated_sharpe_is_record_only",
         "tests/test_rule_engine_vectorized.py::test_library_indicators_batch_equals_per_setting_reference",
@@ -35,6 +39,8 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_experiment_runner.py::test_portfolio_metrics_and_result_provenance",
         "tests/test_parameter_sweep_one_pass.py::test_experiment_outputs_equal_one_simulation_per_setting",
         "tests/test_parameter_sweep_one_pass.py::test_one_pass_columns_equal_single_setting_portfolios",
+        "tests/test_runner_memory.py::test_chunked_sweep_is_identical_to_one_call",
+        "tests/test_runner_memory.py::test_locked_column_equals_resimulating_the_locked_setting",
         "tests/test_milestone21c_spym_fixture.py::test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades",
         "tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage",
         "tests/test_rsi_mean_reversion.py::test_common_interface_signal_result_matches_preserved_rsi_rules",

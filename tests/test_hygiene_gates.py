@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import backtesting.experiments.chunking as chunking_module
 import backtesting.experiments.runner as runner_module
 from backtesting.experiments import SignalResult, execute_experiment, validate_for_simulation
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
@@ -103,7 +104,7 @@ def _install_portable_runner_boundaries(
         lambda data, aligned, config: object(),
     )
     monkeypatch.setattr(
-        runner_module,
+        chunking_module,
         "extract_sweep_metrics",
         lambda portfolio, count, **kwargs: count * [{
             "total_return": 0.10,

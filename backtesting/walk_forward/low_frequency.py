@@ -145,6 +145,7 @@ def _fold_evidence(
     window,
     audit: DataAudit,
     evaluator: ExperimentEvaluator,
+    full_history: dict | None = None,
 ) -> LowFrequencyFoldEvidence:
     if window.selection is not None:
         raise ValueError("low-frequency evidence uses validation windows, not selection")
@@ -154,6 +155,7 @@ def _fold_evidence(
         audit,
         (dict(config.fixed_parameters),),
         evaluator,
+        **(full_history or {}),
     )
     if len(result.ranked_results) != 1:
         raise ValueError("fixed-parameter validation must produce exactly one row")
@@ -238,8 +240,10 @@ def execute_low_frequency_evidence(
     if not windows:
         raise ValueError("low-frequency configuration produced no validation folds")
     strategy = get_strategy(config.walk_forward.experiment.strategy_id)
+    # Signals once on the full (pre-cutoff) history; each fold scores only its window.
+    full_history = {"history": data, "signal_cache": {}}
     folds = tuple(
-        _fold_evidence(config, window, audit, evaluator) for window in windows
+        _fold_evidence(config, window, audit, evaluator, full_history) for window in windows
     )
     aggregate = aggregate_low_frequency_evidence(folds, config)
     result = LowFrequencyEvidenceResult(

@@ -260,7 +260,7 @@ def _robustness_result(
 ):
     """Use the real robustness runner with deterministic, non-backtest seams."""
 
-    def deterministic_execute(config, received_data, received_audit, *, write_output):
+    def deterministic_execute(config, received_data, received_audit, *, write_output, portfolio_observer=None):
         del received_audit
         assert write_output is False
         rows = []
@@ -295,6 +295,13 @@ def _robustness_result(
                     rejection_reasons=(),
                 )
             )
+        for screening in screenings:
+            portfolio_observer(
+                screening.parameter_row_id,
+                SimpleNamespace(
+                    returns=pd.Series(0.01, index=received_data.index, name="strategy_return")
+                ),
+            )
         return SimpleNamespace(
             ranked_results=pd.DataFrame(rows),
             screening_results=tuple(screenings),
@@ -310,14 +317,7 @@ def _robustness_result(
             parameters=dict(parameters),
         )
 
-    def deterministic_portfolio(received_data, signals, config):
-        del signals, config
-        return SimpleNamespace(
-            returns=pd.Series(0.01, index=received_data.index, name="strategy_return")
-        )
-
     monkeypatch.setattr(robustness_evaluation, "execute_experiment", deterministic_execute)
-    monkeypatch.setattr(robustness_evaluation, "build_portfolio", deterministic_portfolio)
     monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
 
     neighborhood = NeighborhoodConfig(

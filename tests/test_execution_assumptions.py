@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+import backtesting.experiments.chunking as chunking_module
 import backtesting.experiments.runner as runner_module
 from backtesting.execution_comparison import build_execution_comparison
 from backtesting.experiments import (
@@ -132,7 +133,7 @@ def _install_portable_runner_boundaries(
         lambda data, aligned, config: object(),
     )
     monkeypatch.setattr(
-        runner_module,
+        chunking_module,
         "extract_sweep_metrics",
         lambda portfolio, count, **kwargs: count * [{
             "total_return": 0.10,
@@ -378,3 +379,15 @@ def test_execution_comparison_reports_metric_and_ranking_change(tmp_path: Path) 
     assert comparison.loc[0, "old_mode"] == "same_bar_close"
     assert comparison.loc[0, "new_mode"] == "next_bar_open"
     assert "change_total_return" in comparison.columns
+
+
+def test_recorded_execution_keeps_declared_slippage_fields() -> None:
+    # Source-lock checks compare recorded assumptions field-by-field with the
+    # declared configuration; a tick-based slippage must not be rewritten as points.
+    from backtesting.out_of_sample.runner import _json_scalar
+
+    execution = _futures_execution("longonly")
+    recorded = runner_module._execution_values(execution)
+    assert recorded["slippage_points"] == execution.slippage_points == 0.0
+    assert recorded["slippage_ticks"] == 1.0
+    assert _json_scalar(execution.slippage_points) == 0.0

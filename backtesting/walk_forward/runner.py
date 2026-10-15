@@ -41,10 +41,14 @@ def _fold_result(
     window,
     audit: DataAudit,
     evaluator: ExperimentEvaluator,
+    full_history: dict | None = None,
 ) -> WalkForwardFoldResult:
     base = config.experiment
+    full_history = full_history or {}
     candidates = tuple(dict(item) for item in base.parameter_combinations)
-    training = _run_partition(base, window.train, audit, candidates, evaluator)
+    training = _run_partition(
+        base, window.train, audit, candidates, evaluator, **full_history
+    )
     try:
         shortlist = tuple(
             parameters
@@ -69,7 +73,7 @@ def _fold_result(
 
     if window.selection is not None:
         selection = _run_partition(
-            base, window.selection, audit, shortlist, evaluator
+            base, window.selection, audit, shortlist, evaluator, **full_history
         )
         lock_source = selection
         lock_partition = window.selection
@@ -96,7 +100,7 @@ def _fold_result(
             failure_reason=str(exc),
         )
     test = evaluate_locked_test(
-        base, window.test, audit, parameter_lock, evaluator
+        base, window.test, audit, parameter_lock, evaluator, **full_history
     )
     metrics = {
         name: test.ranked_results.iloc[0][name]
@@ -224,9 +228,12 @@ def execute_walk_forward(
     windows = build_walk_forward_windows(data, config)
     if not windows:
         raise ValueError("walk-forward configuration produced no complete folds")
+    # Signals are computed once per parameter set on the full history (warm-up kept at every
+    # fold start); each fold then simulates and scores only its own train/selection/test bars.
+    full_history = {"history": data, "signal_cache": {}}
     folds: list[WalkForwardFoldResult] = []
     for window in windows:
-        folds.append(_fold_result(config, window, audit, evaluator))
+        folds.append(_fold_result(config, window, audit, evaluator, full_history))
     result = _aggregate(tuple(folds))
     if write_output:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -18,7 +18,9 @@ from backtesting.experiments.models import (
     ExperimentResult,
     RejectedParameters,
 )
-from backtesting.experiments.metrics import extract_metrics, extract_sweep_metrics
+from backtesting.experiments.chunking import setting_portfolio as _setting_portfolio, simulate_in_chunks
+from backtesting.experiments.metrics import extract_metrics
+from backtesting.experiments.windows import cut_to_window, generate_signals_once
 from backtesting.validation.gates import (
     normalize_signals,
     validate_execution,
@@ -204,15 +206,6 @@ def _construct_portfolio(
     )
 
 
-def _setting_portfolio(portfolio: Any, position: int) -> Any:
-    """One setting's column of a one-pass portfolio (VectorBT PRO pf.iloc[:, i]).
-
-    An engine object without column indexing holds a single setting and is returned as is.
-    """
-    indexer = getattr(portfolio, "iloc", None)
-    return portfolio if indexer is None else indexer[:, position]
-
-
 def _whole_share_args(execution: ExecutionConfig) -> dict[str, Any]:
     # size=np.inf buys with all cash; size_granularity=1.0 floors each order to whole
     # shares ("granularity of 1.0 makes the quantity to behave like an integer. Placing
@@ -346,7 +339,7 @@ def _execution_values(execution: ExecutionConfig) -> dict[str, Any]:
         "price_multiplier": execution.price_multiplier,
         "fixed_fee_per_contract_per_side": execution.fixed_fee_per_contract_per_side,
         "fixed_fee_per_order": execution.fixed_fee_per_order,
-        "slippage_points": execution.absolute_slippage_points,
+        "slippage_points": execution.slippage_points,
         "slippage_ticks": execution.slippage_ticks,
         "tick_size": execution.tick_size,
     }
@@ -379,15 +372,6 @@ def _result_columns(config: ExperimentConfig, parameter_names: tuple[str, ...]) 
     )
 
 
-def _value_columns(portfolio: Any, count: int) -> list[np.ndarray | None]:
-    """Each setting's value from one read of the sweep's value; None if the engine has none."""
-    value = getattr(portfolio, "value", None)
-    value = value() if callable(value) else value
-    if not isinstance(value, pd.DataFrame) or value.shape[1] != count:
-        return [None] * count
-    return [value.iloc[:, position].to_numpy(dtype=float) for position in range(count)]
-
-
 def _record_luck(
     value_columns: list[np.ndarray | None], initial_cash: float
 ) -> DeflatedSharpeResult | None:
@@ -411,7 +395,7 @@ def _validated_settings(
     strategy: Any,
     data: pd.DataFrame,
     rejections: list[RejectedParameters],
-    validation_by_gate: dict[str, ValidationResult],
+    validation_by_gate: dict[str, ValidationResult], signal_cache: dict | None = None,
 ) -> list[tuple[dict[str, Any], SignalResult, tuple[ValidationResult, ...]]]:
     """Validate and align every setting (in one pass if the strategy class has ``iter_signals_batch``)."""
     accepted: list[dict[str, Any]] = []
@@ -421,9 +405,7 @@ def _validated_settings(
             accepted.append(strategy.validate_parameters(candidate))
         except (TypeError, ValueError) as exc:
             rejections.append(RejectedParameters(parameters=candidate, error=str(exc)))
-    batch = getattr(type(strategy), "iter_signals_batch", None)
-    one_by_one = (strategy.generate_signals(data, normalized) for normalized in accepted)
-    generated = one_by_one if batch is None else batch(strategy, data, accepted)
+    generated = generate_signals_once(strategy, data, accepted, signal_cache)
     settings = []
     for normalized, signals in zip(accepted, generated):
         aligned, validation_results = validate_for_simulation(
@@ -442,6 +424,7 @@ def execute_experiment(
     run_timestamp: str | None = None,
     write_output: bool = True,
     portfolio_observer: Callable[[str, Any], None] | None = None,
+    evaluation_range: tuple | None = None, signal_cache: dict | None = None,  # see experiments.windows
 ) -> ExperimentResult:
     """Validate, simulate, rank, and optionally persist one experiment."""
     strategy = get_strategy(config.strategy_id)
@@ -464,15 +447,14 @@ def execute_experiment(
     execution_assumptions = _execution_assumptions(config, strategy)
     parameter_names = tuple(strategy.spec.parameter_map)
 
-    settings = _validated_settings(config, strategy, data, rejections, validation_by_gate)
+    settings = _validated_settings(config, strategy, data, rejections, validation_by_gate, signal_cache)
+    data, settings = cut_to_window(data, settings, evaluation_range)
 
     # Every validated setting is one column of a single VectorBT simulation.
     aligned_settings = tuple(aligned for _, aligned, _ in settings)
-    sweep = _construct_portfolio(data, aligned_settings, config) if settings else None
-    sweep_metrics = (
-        extract_sweep_metrics(sweep, len(settings), data=data, config=config) if settings else []
+    sweep_metrics, value_columns, observed = simulate_in_chunks(
+        data, aligned_settings, config, _construct_portfolio, keep_portfolios=portfolio_observer is not None
     )
-    value_columns = _value_columns(sweep, len(settings))
     for position, (normalized, _, validation_results) in enumerate(settings):
         metrics = sweep_metrics[position]
         screening = screen_metrics(
@@ -486,7 +468,7 @@ def execute_experiment(
         )
         screening_results.append(screening)
         if portfolio_observer is not None:
-            portfolio_observer(screening.parameter_row_id, _setting_portfolio(sweep, position))
+            portfolio_observer(screening.parameter_row_id, observed[position])
         rows.append(
             _parameter_row(normalized, config)
             | metrics

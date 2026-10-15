@@ -200,7 +200,7 @@ def test_pipeline_adapter_evaluates_only_valid_candidates_with_same_assumptions(
     data, audit = data_and_audit()
     captured = {}
 
-    def fake_execute(experiment, received_data, received_audit, write_output):
+    def fake_execute(experiment, received_data, received_audit, write_output, portfolio_observer):
         captured["parameters"] = tuple(dict(item) for item in experiment.parameter_combinations)
         captured["execution"] = experiment.execution
         captured["index"] = received_data.index.copy()
@@ -227,6 +227,8 @@ def test_pipeline_adapter_evaluates_only_valid_candidates_with_same_assumptions(
                     rejection_reasons=(),
                 )
             )
+        for screen in screens:
+            portfolio_observer(screen.parameter_row_id, FakePortfolio())
         return SimpleNamespace(
             ranked_results=pd.DataFrame(rows),
             screening_results=tuple(screens),
@@ -236,7 +238,6 @@ def test_pipeline_adapter_evaluates_only_valid_candidates_with_same_assumptions(
         returns = pd.Series(np.zeros(len(data)), index=data.index)
 
     monkeypatch.setattr(evaluation_module, "execute_experiment", fake_execute)
-    monkeypatch.setattr(evaluation_module, "build_portfolio", lambda *args: FakePortfolio())
     result = evaluate_neighborhood(
         config, neighborhood, EXPERIMENT_CONFIG, data, audit
     )
@@ -256,16 +257,17 @@ def test_zero_locked_return_marks_relative_degradation_unavailable(monkeypatch):
     neighborhood = build_neighborhood(get_strategy(config.strategy_id), LOCKED, config.neighborhood)
     data, audit = data_and_audit()
 
-    def fake_execute(experiment, received_data, received_audit, write_output):
+    def fake_execute(experiment, received_data, received_audit, write_output, portfolio_observer):
         rows, screens = [], []
         for parameters in experiment.parameter_combinations:
             row_id = f"row-{parameters['window']}"
             rows.append({"parameter_row_id": row_id, "total_return": 0.0, "max_drawdown": -0.1, "sharpe_ratio": 0.0, "number_of_trades": 25})
             screens.append(SimpleNamespace(parameter_row_id=row_id, normalized_parameters=dict(parameters), passed=True, rejection_reasons=()))
+        for screen in screens:
+            portfolio_observer(screen.parameter_row_id, SimpleNamespace(returns=pd.Series(np.zeros(len(data)), index=data.index)))
         return SimpleNamespace(ranked_results=pd.DataFrame(rows), screening_results=tuple(screens))
 
     monkeypatch.setattr(evaluation_module, "execute_experiment", fake_execute)
-    monkeypatch.setattr(evaluation_module, "build_portfolio", lambda *args: SimpleNamespace(returns=pd.Series(np.zeros(len(data)), index=data.index)))
     result = evaluate_neighborhood(config, neighborhood, EXPERIMENT_CONFIG, data, audit)
     assert all(item.relative_degradation is None for item in result.points)
     assert all(item.warnings for item in result.points)
