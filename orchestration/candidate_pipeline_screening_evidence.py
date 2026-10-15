@@ -78,5 +78,4 @@ def execute_oos_saving_trades(config: OutOfSampleConfig, data: pd.DataFrame, aud
             portfolio=portfolio, data=data, config=config.experiment, parameter_row_id=row_id,
             include_price_series=False, only=(ArtifactType.TRADES_OR_ORDERS,),
         )
-    persistence.persist_run_manifest(persistence.build_run_manifest(run_id))
     return result
