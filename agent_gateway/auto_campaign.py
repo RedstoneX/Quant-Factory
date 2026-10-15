@@ -126,7 +126,12 @@ class AutoTestCampaign:
         latest = store.latest_campaign_events()
         service = PersistenceService(self.database)
         try:
-            drafts = sorted(service.idea_drafts.list(), key=lambda draft: (draft.created_at, draft.draft_id))
+            # A setup-linked idea cannot change its packet, so once it has a terminal event it is never revisited.
+            settled = {
+                candidate for candidate, event in latest.items()
+                if event["state"] not in OPEN_STATES | {"duplicate_closed"}
+            }
+            drafts = sorted(service.idea_drafts.list(skip_linked_ids=settled), key=lambda draft: (draft.created_at, draft.draft_id))
         finally:
             service.close()
         queued = []

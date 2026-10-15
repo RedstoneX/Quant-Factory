@@ -472,3 +472,66 @@ def test_launch_error_after_acknowledgement_uses_the_completed_run_or_reports_th
     outcome = run_auto_test(request, adapter=harness.adapter, launch=always, data_check=lambda *_: None)
     assert (outcome.state, outcome.reason_code) == ("failed", "run_error")
     assert "OSError: disk" in outcome.reason_detail
+
+
+def test_a_pass_does_not_touch_closed_ideas(tmp_path, monkeypatch):
+    import agent_gateway.auto_campaign as module
+
+    harness = Harness(tmp_path)
+    packet = (ROOT / "research_intake" / "mes_sma_10_30_candidate.json").read_text()
+    digest = hashlib.sha256(packet.encode("utf-8")).hexdigest()
+    ids = [f"idea_bulk{index:05d}" for index in range(2000)]
+    service = PersistenceService(harness.database)
+    try:
+        for draft_id in ids:
+            service.save_idea_draft(title=draft_id, draft_id=draft_id)
+            service.set_idea_candidate_packet(draft_id=draft_id, candidate_json=packet)
+        connection = service.idea_drafts.connection
+        connection.execute("PRAGMA foreign_keys=OFF")
+        connection.execute("UPDATE idea_drafts SET configuration_id='cfg_closed'")  # finished ideas are linked to a setup
+        connection.commit()
+    finally:
+        service.close()
+    store = GatewayStore(harness.gateway_database)
+    try:
+        for draft_id in ids:
+            store.append_campaign_event(
+                candidate_id=draft_id, policy_id="p", state="survivor", reason_code="awaiting_owner_review",
+                packet_sha256=digest,
+            )
+        calls = []
+        real = module._eligible_packet
+        monkeypatch.setattr(module, "_eligible_packet", lambda text: calls.append(text) or real(text))
+        listed = []
+        from persistence.repositories import IdeaDraftRepository
+
+        real_list = IdeaDraftRepository.list
+        monkeypatch.setattr(
+            IdeaDraftRepository, "list",
+            lambda self, **kw: listed.append(real_list(self, **kw)) or listed[-1],
+        )
+        assert harness.campaign()._queue(store) == []
+    finally:
+        store.close()
+    assert calls == []
+    assert sum(len(rows) for rows in listed) == 0  # closed ideas are not even read
+
+
+def test_verified_data_is_loaded_once_per_dataset(tmp_path, monkeypatch):
+    import orchestration.auto_campaign as module
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class Config:
+        cache_path: Path
+
+    cache = tmp_path / "d.csv"
+    cache.write_text("x")
+    calls = []
+    monkeypatch.setattr(module, "load_market_data", lambda *a, **k: calls.append(1))
+    module._load_verified.cache_clear()
+    definition = SimpleNamespace(experiment=SimpleNamespace(market_data=Config(cache)))
+    profile = SimpleNamespace(dataset_end="2025-01-02")
+    for _ in range(3):
+        module._check_verified_data(definition, profile)
+    assert len(calls) == 1
