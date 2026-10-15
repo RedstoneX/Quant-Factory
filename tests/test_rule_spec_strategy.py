@@ -83,6 +83,7 @@ def test_same_sign_run_range_high_and_value_at_series() -> None:
     assert np.isnan(at_ten[:5]).all() and (at_ten[5:] == closes[5]).all()
 
 
+@pytest.mark.licensed_vectorbt
 def test_run_entry_with_after_bars_exit_and_dynamic_side() -> None:
     closes = np.full(78, 100.0)
     closes[10:14] = [101, 102, 103, 104]
@@ -96,6 +97,7 @@ def test_run_entry_with_after_bars_exit_and_dynamic_side() -> None:
     assert signals.td_stop.eq(2 * 5 * 60 * 10**9).all()
 
 
+@pytest.mark.licensed_vectorbt
 def test_at_time_and_flat_at_exits() -> None:
     frame = _frame([np.full(78, 100.0)])
     timed = _run(_spec([{"when": {"time_is": "10:00"}, "side": "long"}], exit={"at_time": "11:00"}), frame)
@@ -104,6 +106,7 @@ def test_at_time_and_flat_at_exits() -> None:
     assert trades(late, frame) == [("long", "05 12:00", "05 15:30")]
 
 
+@pytest.mark.licensed_vectorbt
 def test_without_flat_at_positions_hold_overnight_until_the_td_stop() -> None:
     spec = _spec([{"when": {"time_is": "10:00"}, "side": "long"}], exit={"after_bars": 100})
     del spec["flat_at"]
@@ -114,6 +117,7 @@ def test_without_flat_at_positions_hold_overnight_until_the_td_stop() -> None:
     ]
 
 
+@pytest.mark.licensed_vectorbt
 def test_max_trades_and_no_same_bar_entry_and_exit() -> None:
     spec = _spec([{"when": {"gt": ["close", 0]}, "side": "long"}], exit={"after_bars": 1}, max_trades_per_session=3)
     frame = _frame([np.full(78, 100.0)] * 2)
@@ -121,6 +125,7 @@ def test_max_trades_and_no_same_bar_entry_and_exit() -> None:
     assert trades(_run(spec, frame), frame) == [("long", f"{day} {a}", f"{day} {b}") for day in ("05", "06") for a, b in held]
 
 
+@pytest.mark.licensed_vectorbt
 def test_opposite_signal_exit_without_same_bar_reversal() -> None:
     spec = _spec(
         [
@@ -150,6 +155,7 @@ def test_incomplete_session_is_ignored_and_stops_are_fractions() -> None:
     assert "signal-bar close" in signals.metadata["stop_distance_approximation"]
 
 
+@pytest.mark.licensed_vectorbt
 def test_golden_mes_sma_10_30_matches_hand_written_candidate() -> None:
     rng = np.random.default_rng(20261006)
     days = []

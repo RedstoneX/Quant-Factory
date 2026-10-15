@@ -31,6 +31,7 @@ def _rows(series: pd.Series) -> list[int]:
     return [int(position) for position in np.flatnonzero(series.to_numpy())]
 
 
+@pytest.mark.licensed_vectorbt
 def test_exit_when_closes_the_trade_for_its_side_only() -> None:
     closes = np.full(78, 100.0)
     closes[10:] = 106.0  # close first exceeds 105 on row 10 (bar ending 10:25)
@@ -42,6 +43,7 @@ def test_exit_when_closes_the_trade_for_its_side_only() -> None:
     assert "rule exit" in signals.metadata["exit_when"]
 
 
+@pytest.mark.licensed_vectorbt
 def test_exit_when_never_fires_on_the_entry_bar_and_ignores_the_other_side() -> None:
     exit_rules = {"exit_when": {"long": {"time_between": ["10:00", "10:05"]}, "short": {"time_is": "10:05"}}}
     frame = _frame([np.full(78, 100.0)])
@@ -49,6 +51,7 @@ def test_exit_when_never_fires_on_the_entry_bar_and_ignores_the_other_side() -> 
     assert trades(_run(_spec(LONG_AT_10, exit=exit_rules), frame), frame) == [("long", "05 10:00", "05 10:05")]
 
 
+@pytest.mark.licensed_vectorbt
 def test_exit_when_exit_allows_a_new_entry() -> None:
     closes = np.full(78, 100.0)
     closes[5:] = 103.0

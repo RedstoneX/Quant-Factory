@@ -55,6 +55,7 @@ def _fingerprint(exit_rules: dict) -> str:
     return hashlib.sha256((normalized + "\n" + records.round(6).to_csv(index=False)).encode()).hexdigest()
 
 
+@pytest.mark.licensed_vectorbt
 @pytest.mark.parametrize("name", sorted(LEGACY_EXITS))
 def test_legacy_both_or_neither_specs_are_byte_identical_to_main(name: str) -> None:
     assert _fingerprint(LEGACY_EXITS[name]) == MAIN_FINGERPRINTS[name]

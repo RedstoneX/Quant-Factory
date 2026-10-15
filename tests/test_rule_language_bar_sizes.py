@@ -143,6 +143,7 @@ def test_bar_position_uses_the_bar_size() -> None:
     assert bar_position("16:00", "1m") == 389 and bar_position("16:00", "5m") == 77
 
 
+@pytest.mark.licensed_vectorbt
 def test_five_minute_spec_is_identical_to_main() -> None:
     definition = rule_strategy_definition(rule_spec=golden_spec("5m"), variables=VARIABLES)
     assert hashlib.sha256(canonical_rule_spec_json(definition).encode()).hexdigest() == MAIN_DEFINITION_SHA256
@@ -179,6 +180,7 @@ def _stamps(series: pd.Series) -> list[str]:
     return [stamp.tz_convert("America/New_York").strftime("%d %H:%M") for stamp in series[series].index]
 
 
+@pytest.mark.licensed_vectorbt
 def test_one_minute_entry_and_at_time_exit_fire_on_the_right_minute() -> None:
     held = trades(_run(_simple("1m", {"time_is": "10:00"}, exit={"at_time": "11:30"}), 1), golden_frame(1))
     # Fills are at the open after the signal bar: the bar ending 10:00 fills at 10:00, the at_time exit at 11:30.
@@ -186,6 +188,7 @@ def test_one_minute_entry_and_at_time_exit_fire_on_the_right_minute() -> None:
     assert len(held) == len(DAYS)
 
 
+@pytest.mark.licensed_vectorbt
 def test_one_minute_after_bars_and_flat_at_count_minutes() -> None:
     frame = golden_frame(1)
     assert trades(_run(_simple("1m", {"time_is": "10:00"}, exit={"after_bars": 45}), 1), frame)[0] == ("long", "05 10:00", "05 10:45")

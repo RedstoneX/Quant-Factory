@@ -161,11 +161,13 @@ def _assert_batch_matches_reference(signals, variables, exit_rules, seed: int, *
     assert entries > 0
 
 
+@pytest.mark.licensed_vectorbt
 @pytest.mark.parametrize("seed", [1, 2, 3])
 def test_core_features_batch_equals_per_setting_reference(seed: int) -> None:
     _assert_batch_matches_reference(CORE_SIGNALS, CORE_VARIABLES, CORE_EXIT, seed)
 
 
+@pytest.mark.licensed_vectorbt
 def test_single_trade_and_no_exit_rules_batch_equals_reference() -> None:
     _assert_batch_matches_reference(CORE_SIGNALS[:2], {"n": {"values": [3, 5]}, "m": {"values": [4, 9]}}, {}, 4, max_trades=1)
 
