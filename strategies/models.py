@@ -141,3 +141,8 @@ class SignalResult:
     trailing_stop: pd.Series | None = None
     # Gain from entry (fraction) before the trailing stop activates: VectorBT PRO from_signals tsl_th.
     trailing_threshold: pd.Series | None = None
+    # VectorBT PRO from_signals td_stop: maximum hold from the fill, int64 nanoseconds, -1 for none
+    # (time_delta_format "Index").
+    td_stop: pd.Series | None = None
+    # from_signals upon_opposite_entry; None keeps VectorBT's default.
+    upon_opposite_entry: str | None = None

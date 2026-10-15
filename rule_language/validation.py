@@ -92,7 +92,6 @@ _TOP_LEVEL_KEYS = (
     "bar",
     "tick_size",
     "session",
-    "flat_at",
     "signals",
     "max_trades_per_session",
 )
@@ -261,7 +260,7 @@ class _Validator:
 
     def spec(self, spec: Mapping[str, Any]) -> dict[str, Any]:
         path = "rule_spec"
-        _object(spec, path, required=_TOP_LEVEL_KEYS, optional=("exit", "skip_days"))
+        _object(spec, path, required=_TOP_LEVEL_KEYS, optional=("exit", "skip_days", "flat_at"))
         if spec["language"] != RULE_LANGUAGE:
             raise RuleSpecError(f"{path}.language", f"must be {RULE_LANGUAGE!r}")
         bar = spec["bar"]
@@ -278,8 +277,11 @@ class _Validator:
                     f"{path}.session.{key}",
                     f"{RULE_LANGUAGE} supports only the America/New_York 09:30-16:00 regular session; got {session[key]!r}",
                 )
-        flat_at = _clock(
-            spec["flat_at"], f"{path}.flat_at", earliest=self.first_end + self.step, latest=self.last_exit, step=self.step
+        # flat_at: the day-trade (futures) end-of-day exit; without it positions may be held overnight (stocks).
+        flat_at = (
+            _clock(spec["flat_at"], f"{path}.flat_at", earliest=self.first_end + self.step, latest=self.last_exit, step=self.step)
+            if "flat_at" in spec
+            else None
         )
         signals = spec["signals"]
         if not isinstance(signals, (list, tuple)) or not signals:
@@ -307,22 +309,26 @@ class _Validator:
             "bar": bar,
             "tick_size": spec["tick_size"],
             "session": dict(SUPPORTED_SESSION),
-            "flat_at": flat_at,
             "signals": normalized_signals,
-            "exit": self.exit(spec.get("exit", {}), f"{path}.exit", clock_minutes(flat_at)),
+            "exit": self.exit(spec.get("exit", {}), f"{path}.exit", None if flat_at is None else clock_minutes(flat_at)),
             "max_trades_per_session": max_trades,
         }
+        if flat_at is not None:
+            result["flat_at"] = flat_at
         if skip_days:
             result["skip_days"] = list(skip_days)
         return result
 
-    def exit(self, node: Any, path: str, flat_at: int) -> dict[str, Any]:
+    def exit(self, node: Any, path: str, flat_at: int | None) -> dict[str, Any]:
         _object(node, path, optional=_EXIT_KEYS)
         result: dict[str, Any] = {}
         if "after_bars" in node:
-            result["after_bars"] = self.count(node["after_bars"], f"{path}.after_bars", maximum=self.bars_per_session - 1)
+            # A day trade cannot outlast its session; an overnight hold is bounded like an across-session window.
+            longest = self.bars_per_session - 1 if flat_at is not None else MAX_WINDOW_BARS
+            result["after_bars"] = self.count(node["after_bars"], f"{path}.after_bars", maximum=longest)
         if "at_time" in node:
-            result["at_time"] = _clock(node["at_time"], f"{path}.at_time", earliest=self.first_end + self.step, latest=flat_at, step=self.step)
+            latest = self.last_exit if flat_at is None else flat_at
+            result["at_time"] = _clock(node["at_time"], f"{path}.at_time", earliest=self.first_end + self.step, latest=latest, step=self.step)
         opposite = node.get("on_opposite_signal", False)
         if not isinstance(opposite, bool):
             raise RuleSpecError(f"{path}.on_opposite_signal", "must be true or false")

@@ -107,12 +107,16 @@ def align_signals_for_execution(
             trailing_threshold=(
                 signals.trailing_threshold.shift(1) if signals.trailing_threshold is not None else None
             ),
+            td_stop=(signals.td_stop.shift(1, fill_value=-1) if signals.td_stop is not None else None),
+            upon_opposite_entry=signals.upon_opposite_entry,
         )
     raise ValueError(f"Unsupported execution mode: {execution.mode}")
 
 
 _LEADING_ARGS = ("entries", "exits", "short_entries", "short_exits", "price")
-_SETTING_FRAMES = ("entries", "exits", "short_entries", "short_exits", "price", "sl_stop", "tp_stop", "tsl_stop", "tsl_th")
+_SETTING_FRAMES = (
+    "entries", "exits", "short_entries", "short_exits", "price", "sl_stop", "tp_stop", "tsl_stop", "tsl_th", "td_stop",
+)
 
 
 def _setting_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionConfig) -> dict[str, Any]:
@@ -160,7 +164,7 @@ def _stack_settings(data: pd.DataFrame, close: pd.Series, settings: list[dict[st
         elif all(value is None for value in values):
             stacked[key] = None
         else:
-            fill = np.nan if key.endswith(("_stop", "_th")) else False
+            fill = -1 if key == "td_stop" else np.nan if key.endswith(("_stop", "_th")) else False
             frame = pd.concat(
                 [pd.Series(fill, index=data.index) if value is None else value for value in values],
                 axis=1,
@@ -237,11 +241,14 @@ def _stop_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionCo
             ("tsl_stop", aligned.trailing_stop),
             # tsl_th: the trailing stop activates only once price has gained this fraction from the entry.
             ("tsl_th", aligned.trailing_threshold),
+            # VectorBT's own time exit: td_stop, the maximum hold from the fill (-1 disables it).
+            ("td_stop", aligned.td_stop),
         )
         if level is not None
     }
+    options = {"upon_opposite_entry": aligned.upon_opposite_entry} if aligned.upon_opposite_entry is not None else {}
     if not present:
-        return {}
+        return options
     if execution.mode != "next_bar_open":
         raise ValueError("Bar-based stop orders require next-bar-open execution")
     return {
@@ -253,6 +260,8 @@ def _stop_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionCo
         "stop_entry_price": "Open",
         "stop_exit_price": "Stop",
         "use_stops": True,
+        **({"time_delta_format": "Index"} if "td_stop" in present else {}),
+        **options,
     }
 
 
