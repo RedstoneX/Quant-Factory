@@ -16,6 +16,7 @@ from dash_iconify import DashIconify
 from dashboard.overview_projection import configured_database_path
 from dashboard.plain_labels import FAILED_TESTING
 from dashboard.ui.layout import copy_id, page_header, stat_card
+from dashboard.ui.results_settings import display_settings_rows, register_settings_callbacks, settings_columns, settings_heatmap_layout, settings_identity
 from dashboard.ui.theme import COLUMN_DEFAULTS, DOWN, UP, grid_options, hide_when_narrow
 from orchestration.candidate_setting_rebuild import SettingRebuildRefused, rebuild_setting
 
@@ -47,10 +48,8 @@ METRIC_COLUMNS = [
 
 
 def _screening_columns(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    names = list((rows[0].get("parameters") or {}) if rows else [])
     centred = {"headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}}
-    parameters = [{"field": f"parameters.{name}", "headerName": name.replace("_", " ").capitalize(), "minWidth": 50, "flex": 1, **centred} for name in names]
-    return [{"field": "rank", "headerName": "Rank", "width": 66, "pinned": "left", **centred}, *parameters, *METRIC_COLUMNS]
+    return [{"field": "rank", "headerName": "Rank", "width": 66, "pinned": "left", **centred}, *settings_columns(rows), *METRIC_COLUMNS]
 
 _GRAPH_CONFIG = {"displayModeBar": False, "scrollZoom": True, "responsive": True}
 
@@ -175,9 +174,7 @@ def _configuration_identity(selected: dict[str, Any]) -> str:
         tick_label = "tick" if offset == 1 else "ticks"
         direction = str(selected.get("direction_variant") or "Unrecorded").title()
         return f"{int(selected['range_minutes'])}-minute opening range · {offset} {tick_label} · {direction}"
-    if selected.get("run_length") is not None:
-        return f"{selected['run_length']} run bars · {selected.get('minimum_ticks_per_bar', '—')} minimum ticks"
-    return "Exact saved settings"
+    return settings_identity(selected.get("parameters") or {})
 
 
 def _run_from_search(search: str | None, runs: list[dict[str, Any]]) -> str | None:
@@ -243,7 +240,7 @@ def results_layout(search: str | None = None) -> html.Div:
         html.Div(id="results-evidence-body"),
     ], gap="sm"), p="md")
     stores = [dcc.Store(id="results-record"), dcc.Store(id="results-configuration-evidence"), dcc.Store(id="results-range-nonce", data=0)]
-    return html.Div([*stores, drawer, header, dmc.Stack([identity, toolbar, dmc.SimpleGrid(id="results-metrics", cols={"base": 2, "sm": 3}, spacing="sm"), chart, ledger, linked], gap="md", p="lg")])
+    return html.Div([*stores, drawer, header, dmc.Stack([identity, toolbar, dmc.SimpleGrid(id="results-metrics", cols={"base": 2, "sm": 3}, spacing="sm"), chart, settings_heatmap_layout(), ledger, linked], gap="md", p="lg")])
 
 
 def _metric_value(metrics: list[dict[str, str]], *labels: str) -> str:
@@ -338,7 +335,7 @@ def _register_configuration_callbacks(application: Any) -> None:
         if not screening and session and session != "all": rows = [row for row in rows if str(row.get("entry_timestamp") or "").startswith(session)]
         if screening:
             total = int(record.get("screening_count") or 0)
-            return rows, _screening_columns(rows), f"{total:,} settings tried · all screened out"
+            return display_settings_rows(rows), _screening_columns(rows), f"{total:,} settings tried · all screened out"
         total = int(record.get("trade_count") or 0); bounded = int(record.get("trade_limit") or 0)
         return rows, TRADE_COLUMNS, f"{total:,} trades" + (f" · showing the first {bounded:,}" if total > bounded else "")
 
@@ -494,6 +491,7 @@ def register_results_callbacks(application: Any) -> None:
     _register_configuration_callbacks(application)
     _register_figure_callbacks(application)
     _register_filter_drawer(application)
+    register_settings_callbacks(application)
 
 
 __all__ = ["register_results_callbacks", "results_layout"]
