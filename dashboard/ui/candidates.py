@@ -83,13 +83,13 @@ def candidates_layout(search: str | None = None) -> html.Div:
         dmc.Button("Columns", id="candidate-columns", leftSection=_icon("columns"), variant="default"),
         dmc.Button("Submit an idea", id="candidate-submit"),
     )
-    lifecycle = dmc.ScrollArea(dmc.SegmentedControl(id="candidate-lifecycle", value=initial_lifecycle, data=_lifecycle_tabs(counts), size="xs"), type="never", mb="sm")
+    lifecycle = dmc.ScrollArea(dmc.SegmentedControl(id="candidate-lifecycle", value=initial_lifecycle, data=_lifecycle_tabs(counts), size="xs"), type="auto", scrollbars="x", offsetScrollbars=False, w="100%", mb="sm")
     filters = dmc.Group([
-        dmc.TextInput(id="candidate-search", value=initial_search, placeholder="Search idea, market, family…", leftSection=_icon("search"), size="xs", w=240, debounce=True, persistence=True, persistence_type="local", **{"aria-label": "Search ideas"}),
-        dmc.Select(id="candidate-market", data=MARKETS, value="all", allowDeselect=False, size="xs", w=140, persistence=True, persistence_type="local", **{"aria-label": "Market"}),
-        dmc.Select(id="candidate-family", data=family_options, value="all", allowDeselect=False, size="xs", w=160, persistence=True, persistence_type="local", **{"aria-label": "Family"}),
-        dmc.Select(id="candidate-evidence", data=EVIDENCE, value="any", allowDeselect=False, size="xs", w=170, persistence=True, persistence_type="local", **{"aria-label": "Test result"}),
-        dmc.Button("Compare selected · 0", id="compare-selected", variant="default", disabled=True, ml="auto"),
+        dmc.TextInput(id="candidate-search", value=initial_search, placeholder="Search idea, market, family…", leftSection=_icon("search"), size="xs", w={"base": "100%", "sm": 240}, debounce=True, persistence=True, persistence_type="local", **{"aria-label": "Search ideas"}),
+        dmc.Select(id="candidate-market", data=MARKETS, value="all", allowDeselect=False, size="xs", w={"base": "100%", "sm": 140}, persistence=True, persistence_type="local", **{"aria-label": "Market"}),
+        dmc.Select(id="candidate-family", data=family_options, value="all", allowDeselect=False, size="xs", w={"base": "100%", "sm": 160}, persistence=True, persistence_type="local", **{"aria-label": "Family"}),
+        dmc.Select(id="candidate-evidence", data=EVIDENCE, value="any", allowDeselect=False, size="xs", w={"base": "100%", "sm": 170}, persistence=True, persistence_type="local", **{"aria-label": "Test result"}),
+        dmc.Button("Compare selected · 0", id="compare-selected", variant="default", disabled=True, ml={"base": 0, "sm": "auto"}, w={"base": "100%", "sm": "auto"}),
     ], gap="xs", mb="sm")
     grid = dag.AgGrid(
         id="candidate-grid", columnDefs=CANDIDATE_COLUMNS, rowModelType="infinite",
@@ -102,7 +102,7 @@ def candidates_layout(search: str | None = None) -> html.Div:
             suppressCellFocus=False, enableCellTextSelection=True, suppressPropertyNamesCheck=True,
         ),
         getRowId="params.data.candidate_id", className="candidates-grid", columnSize="responsiveSizeToFit",
-        eventListeners=hide_when_narrow("symbol", "lifecycle", "max_drawdown", "retained", "net_return", "robustness", "paper"),
+        eventListeners={event: [*code, "params.api.sizeColumnsToFit()"] for event, code in hide_when_narrow("symbol", "lifecycle", "max_drawdown", "retained", "net_return", "robustness", "paper").items()},
         persistence=True, persisted_props=["filterModel"], persistence_type="local",
     )
     detail = dmc.Paper([
