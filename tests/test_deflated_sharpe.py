@@ -223,3 +223,37 @@ def test_deflated_sharpe_is_record_only(engine, tmp_path) -> None:
     assert not any(
         "deflated" in rule.metric for result in recorded.screening_results for rule in result.rule_results
     )
+
+
+# --- walk-forward: one idea-level deflation over every setting tried --------------------------
+
+
+def test_selected_column_alone_is_undefined() -> None:
+    # Library rule: deflate the whole grid, never the selected column alone.
+    assert math.isnan(deflated_sharpe(_fixture()[:, :1], 1_000).probability)
+
+
+def test_walk_forward_counts_every_setting_tried_not_per_fold() -> None:
+    from backtesting.walk_forward.runner import execute_walk_forward
+    from tests.test_spy_donchian_oos import _audit as wf_audit
+    from tests.test_walk_forward_splitter_vbt import DONCHIAN, _market, _wf_config
+
+    data = _market()
+    config = _wf_config(300, 100, 100, 100, "rolling", "drop", 30, experiment=DONCHIAN)
+    result = execute_walk_forward(config, data, wf_audit(data), write_output=False)
+    grid_size = len(DONCHIAN.parameter_combinations)
+    idea = result.overfitting
+    assert idea.trials == grid_size and idea.deflated_sharpe.trials == grid_size
+    # Per-fold calls each saw only their own window; the idea-level one sees the whole span.
+    trainings = [f.training_result.deflated_sharpe for f in result.folds]
+    assert all(t.observations < idea.deflated_sharpe.observations for t in trainings)
+    # The idea-level value is the library DSR of the whole grid over the whole span.
+    span = (
+        result.folds[0].window.train.data.index[0],
+        result.folds[-1].window.test.data.index[-1],
+    )
+    whole = execute_experiment(
+        DONCHIAN, data, wf_audit(data), write_output=False, evaluation_range=span
+    )
+    assert idea.deflated_sharpe.probability == pytest.approx(whole.deflated_sharpe.probability)
+    assert idea.overfitting_pbo.probability == pytest.approx(whole.overfitting_pbo.probability)

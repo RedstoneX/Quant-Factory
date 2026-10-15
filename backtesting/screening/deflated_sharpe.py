@@ -6,7 +6,10 @@ which treats every column as one trial.  The value is RECORD-ONLY and never
 screens a setting out; 95% (DSR >= 0.95) is the paper's convention.
 
 The library counts raw trials, so ``effective_trials`` records the trial count
-(no correlation-based reduction is applied).
+(no correlation-based reduction is applied).  Because each column is one trial,
+call this on the WHOLE grid (every setting tried for the idea), never on a
+shortlist or the selected setting alone; walk-forward records one idea-level
+value over the full span (see ``backtesting.walk_forward.overfitting``).
 """
 
 from dataclasses import dataclass
@@ -37,6 +40,22 @@ class DeflatedSharpeResult:
         return math.isfinite(self.probability) and self.probability >= self.confidence
 
 
+def grid_returns(
+    values: np.ndarray, initial_cash: float, index: pd.Index | None = None
+) -> pd.DataFrame:
+    """Per-bar simple returns of a (bars x trials) value matrix via ``vbt.to_returns``."""
+    values = np.asarray(values, dtype=float)
+    if values.ndim != 2 or values.shape[1] < 1 or values.shape[0] < 2:
+        raise ValueError("deflated Sharpe needs a (bars x trials) value matrix")
+    import vectorbtpro  # noqa: F401  (registers the .vbt accessors)
+
+    start = np.full((1, values.shape[1]), initial_cash)
+    returns = pd.DataFrame(np.vstack([start, values])).vbt.to_returns().iloc[1:]
+    if index is not None:
+        returns.index = index
+    return returns
+
+
 def deflated_sharpe(
     values: np.ndarray, initial_cash: float, confidence: float = DSR_CONFIDENCE
 ) -> DeflatedSharpeResult:
@@ -48,12 +67,7 @@ def deflated_sharpe(
     zero return variance has an undefined (failing) probability.
     """
     values = np.asarray(values, dtype=float)
-    if values.ndim != 2 or values.shape[1] < 1 or values.shape[0] < 2:
-        raise ValueError("deflated Sharpe needs a (bars x trials) value matrix")
-    import vectorbtpro  # noqa: F401  (registers the .vbt accessors)
-
-    start = np.full((1, values.shape[1]), initial_cash)
-    returns = pd.DataFrame(np.vstack([start, values])).vbt.to_returns().iloc[1:]
+    returns = grid_returns(values, initial_cash)
     accessor = returns.vbt.returns()
     sharpe = accessor.sharpe_ratio(annualized=False).to_numpy(dtype=float)
     probabilities = accessor.deflated_sharpe_ratio().to_numpy(dtype=float)

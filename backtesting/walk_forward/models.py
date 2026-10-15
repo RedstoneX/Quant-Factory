@@ -139,3 +139,5 @@ class WalkForwardResult:
     endpoint_max_drawdown: float | None
     fold_return_sharpe: float | None
     total_trades: int
+    # Idea-level, record-only: Deflated Sharpe and PBO over every setting tried.
+    overfitting: Any = None
