@@ -42,7 +42,7 @@ from orchestration.candidate_run_service import CandidateRunService, CandidateSc
 from orchestration.candidate_pipeline_contracts import CandidatePipelineLauncher
 from orchestration.candidate_pipeline_screening_evidence import (
     capture_screening_portfolios,
-    persist_captured_screening_evidence,
+    persist_captured_screening_evidence, execute_oos_saving_trades,
 )
 from orchestration.candidate_runtime_robustness import execute_candidate_robustness
 from orchestration.candidate_pipeline_parsing import (
@@ -974,7 +974,7 @@ class CandidatePipelineRuntime:
                 shortlist_size=plan.out_of_sample_shortlist_size,
             )
             try:
-                execute_out_of_sample(config, data, audit, write_output=True)
+                execute_oos_saving_trades(config, data, audit, persistence, self.artifact_root, context.run_id)
             except OutOfSampleProgressionError:
                 persist_oos_report(context, path)
                 return complete(context)

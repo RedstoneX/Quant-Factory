@@ -154,12 +154,15 @@ def persist_screening_artifacts(*, persistence: PersistenceService, artifact_roo
                                 data: pd.DataFrame, config: ExperimentConfig,
                                 parameter_row_id: str, namespace: str | None = None,
                                 include_price_series: bool = True,
-                                price_window_only: bool = False) -> None:
+                                price_window_only: bool = False,
+                                only: tuple[ArtifactType, ...] | None = None) -> None:
     for artifact_type, logical_name, document in _screening_artifacts(
         result=result, portfolio=portfolio, data=data, config=config,
         parameter_row_id=parameter_row_id, include_price_series=include_price_series,
         price_window_only=price_window_only,
     ):
+        if only is not None and artifact_type not in only:
+            continue
         qualified_name = f"{namespace}/{logical_name}" if namespace else logical_name
         relative_path = f"state/artifacts/{run_id}/{qualified_name}.json"
         destination = artifact_root / relative_path
