@@ -41,7 +41,7 @@ def test_missing_scores_are_dashes_and_failed_scores_are_amber():
     assert _texts(score_cards(None)).count("—") >= 4
     cards = score_cards({**score_projection.EMPTY_SCORES, "folds_profitable": 1, "folds_total": 4, "folds_share": .25,
                          "fold_sharpe": -.2, "rolling_status": "failed", "stress_status": "failed"})
-    assert {"1 of 4", "25%", "Did not hold up"} <= set(_texts(cards))
+    assert {"1 of 4", "25%", "Weak"} <= set(_texts(cards))
     assert "yellow.5" in repr(cards[0]) and "red" not in repr(cards)
 
 

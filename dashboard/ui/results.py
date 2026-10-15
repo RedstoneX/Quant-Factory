@@ -157,7 +157,7 @@ def _trade_grid(grid_id: str) -> dag.AgGrid:
     """The one trade table (same columns and format wherever trades are listed)."""
     return dag.AgGrid(id=grid_id, columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
                       dashGridOptions=grid_options("No trades for this run.", rowSelection={"mode": "singleRow", "checkboxes": False, "enableClickSelection": True}, pagination=True, paginationPageSize=10, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
-                      getRowId="params.data.trade_id || params.data.row_id", eventListeners=hide_when_narrow("trade_id", "exit_display", "duration", "direction", "outcome", "cum_pnl"))
+                      getRowId="params.data.trade_id || params.data.row_id")  # phones scroll sideways (column minWidth) rather than lose the running total
 
 
 BG, PANEL, GRID, TEXT, MUTED = "#0d1117", "#161b22", "rgba(255,255,255,0.05)", "#e6edf3", "#7d8590"
@@ -247,7 +247,6 @@ SUMMARY_ROWS = (
 MONEY_KEYS = {"net_profit", "gross_profit", "gross_loss", "max_drawdown", "avg_trade", "avg_win", "avg_loss", "largest_win", "largest_loss", "commission_paid"}
 SUMMARY_MISSING = "Saved when the idea is next tested."
 BAR_WORDS = {"5m": "5-minute", "15m": "15-minute", "1D": "daily"}
-NUMBER_JS = "params.value == null ? '—' : Number(params.value).toLocaleString('en-US', {maximumFractionDigits: 4})"
 PERIOD_COLUMNS = [
     {"field": "period", "headerName": "Test period", "minWidth": 180, "flex": 1.4},
     {"field": "result", "headerName": "Result", "minWidth": 80, "flex": .6, "narrow": False},
@@ -258,8 +257,8 @@ PERIOD_COLUMNS = [
 CHECK_COLUMNS = [
     {"field": "check", "headerName": "Check", "minWidth": 150, "flex": 2, "wrapText": True, "autoHeight": True},
     {"field": "result", "headerName": "Result", "minWidth": 70, "flex": .6},
-    {"field": "measured", "headerName": "Measured", "minWidth": 90, "flex": .7, "valueFormatter": {"function": NUMBER_JS}},
-    {"field": "needed", "headerName": "Needed", "minWidth": 80, "flex": .6, "valueFormatter": {"function": NUMBER_JS}, "narrow": False},
+    {"field": "measured", "headerName": "Measured", "minWidth": 90, "flex": .7, },
+    {"field": "needed", "headerName": "Needed", "minWidth": 80, "flex": .6, "narrow": False},
 ]
 TRADE_COLUMNS = [*TRADE_COLUMNS[:5], {**TRADE_COLUMNS[5], "minWidth": 100},
                  {**TRADE_COLUMNS[5], "field": "cum_pnl", "headerName": "Running total"}, TRADE_COLUMNS[6]]

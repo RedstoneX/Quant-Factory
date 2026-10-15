@@ -16,6 +16,7 @@ from typing import Any
 
 import pandas as pd
 
+from dashboard.formatting import format_metric, format_percent
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_model import group_trade_rows, prepare_interval
 from dashboard.results_projection import (
@@ -54,6 +55,21 @@ def plain_reason(text: Any) -> str:
         if re.fullmatch(pattern, text):
             return re.sub(pattern, words, text)
     return text[:1].upper() + text[1:] if text else ""
+
+
+CHECK_KINDS = {  # check key -> how its numbers read: percent, ratio (return per unit of risk) or count
+    "minimum_return": "percent", "maximum_drawdown": "percent", "worst_drawdown": "percent", "required_pass_proportion": "percent",
+    "degradation_proportion": "percent", "locked_point": "percent", "minimum_sharpe": "ratio",
+    "minimum_observations": "count", "minimum_valid_neighbors": "count",
+}
+
+
+def _check_value(threshold_id: str, value: Any) -> str:
+    """A check's measured or needed number in the unit its check uses."""
+    kind = CHECK_KINDS.get(str(threshold_id).rpartition(":")[2])
+    if value is None or kind is None:
+        return "—" if value is None else format_metric("", value)
+    return format_percent(value) if kind == "percent" else format_metric("sharpe_ratio" if kind == "ratio" else "number_of_trades", value)
 
 
 def _check_name(threshold_id: str) -> str:
@@ -298,7 +314,7 @@ def load_stage_detail(idea: dict[str, Any] | None, stage: str, *, database: str 
         })
     checks = [
         {"check": _check_name(item.get("threshold_id")), "result": STATUS_WORDS.get(item.get("status"), str(item.get("status")).capitalize()),
-         "measured": item.get("observed"), "needed": item.get("threshold")}
+         "measured": _check_value(item.get("threshold_id"), item.get("observed")), "needed": _check_value(item.get("threshold_id"), item.get("threshold"))}
         for item in normalized.get("threshold_results") or []
     ]
     reasons = [] if checks or periods else [plain_reason(reason) for reason in (normalized.get("reasons") or [])][:12]  # periods and checks already say why

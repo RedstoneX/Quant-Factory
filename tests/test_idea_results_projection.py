@@ -47,3 +47,10 @@ def test_long_account_curves_are_thinned_but_keep_the_whole_period() -> None:
 def test_a_test_that_never_ran_has_no_trade_view() -> None:
     assert projection.load_trade_view({"runs": {}}, "oos")["available"] is False
     assert projection.load_trade_view({"runs": {"walk_forward": {"run_id": "r"}}}, "walk_forward")["available"] is False
+
+
+def test_check_numbers_read_in_their_own_unit() -> None:
+    value = projection._check_value
+    assert [value("worst_drawdown", .0173), value("bearish|high_volatility:minimum_return", -.0024), value("x:maximum_drawdown", .35)] == ["1.73%", "-0.24%", "35%"]
+    assert [value("required_pass_proportion", .6), value("locked_point", 1), value("locked_point", None)] == ["60%", "100%", "—"]
+    assert [value("a:minimum_sharpe", -13.2269), value("a:minimum_observations", 91893.0), value("minimum_valid_neighbors", 3)] == ["-13.23", "91,893", "3"]
