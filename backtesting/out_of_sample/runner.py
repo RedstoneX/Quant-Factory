@@ -101,8 +101,15 @@ def _passing_parameters(
             if stage == "training"
             else "parameters were not locked"
         )
+        causes = [
+            reason
+            for item in result.screening_results
+            for reason in getattr(item, "rejection_reasons", ())
+        ]
+        # Lead with the screen's own first rejection so the real cause is not buried.
+        lead = f"{stage}: {causes[0]}; " if causes else ""
         raise OutOfSampleProgressionError(
-            f"{stage} screening produced no passing candidates; {suffix}"
+            f"{lead}{stage} screening produced no passing candidates; {suffix}"
         )
     screening_by_id = {
         item.parameter_row_id: item for item in result.screening_results

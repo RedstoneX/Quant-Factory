@@ -128,6 +128,9 @@ def _fake_evaluator(
                     parameter_row_id=row_id,
                     normalized_parameters=normalized,
                     passed=passed,
+                    rejection_reasons=()
+                    if passed
+                    else ("sharpe_ratio failed: expected >= 0.5; observed 0.477",),
                 )
             )
         ranked = pd.DataFrame(results).sort_values(
@@ -251,6 +254,24 @@ def test_stable_tie_breaking_controls_shortlist_membership(tmp_path):
         write_output=False,
     )
     assert calls[1]["parameters"][0]["window"] == 7
+
+
+def test_no_training_survivor_reason_leads_with_screen_rejection(tmp_path):
+    data = _frame()
+    with pytest.raises(OutOfSampleProgressionError) as excinfo:
+        execute_out_of_sample(
+            _config(tmp_path),
+            data,
+            _audit(data),
+            evaluator=_fake_evaluator(
+                [], passing_windows={"train": set(), "selection": {7}, "test": {7}}
+            ),
+            write_output=False,
+        )
+    assert str(excinfo.value).startswith(
+        "training: sharpe_ratio failed: expected >= 0.5; observed 0.477; "
+        "training screening produced no passing candidates"
+    )
 
 
 def test_no_training_survivor_stops_before_selection_and_test(tmp_path):
