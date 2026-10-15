@@ -23,6 +23,7 @@ from orchestration.auto_campaign import (
     RuleStrategyAdapter,
     dataset_profile,
     earlier_owner_of_strategy,
+    packet_market,
     safe_detail,
 )
 from persistence import PersistenceService
@@ -163,13 +164,13 @@ class AutoTestCampaign:
         except ValueError as exc:
             return record("implementation_blocked", "rules_invalid", f"The rule_spec is invalid: {safe_detail(exc)}")
         strategy_id = str(definition["strategy_id"])
-        earlier = earlier_owner_of_strategy(database=self.database, strategy_id=strategy_id, candidate_id=draft.draft_id)
+        symbol, timeframe = packet_market(packet)
+        earlier = earlier_owner_of_strategy(
+            database=self.database, strategy_id=strategy_id, candidate_id=draft.draft_id,
+            symbol=symbol, timeframe=timeframe,
+        )
         if earlier is not None:
             return record("duplicate_closed", "same_rules", earlier)
-        market = packet.get("market") if isinstance(packet.get("market"), Mapping) else {}
-        instruments = market.get("instruments") if isinstance(market.get("instruments"), Mapping) else {}
-        preferred = instruments.get("preferred") or [""]
-        symbol, timeframe = str(preferred[0] or ""), str(market.get("timeframe") or "")
         profile = dataset_profile(symbol, timeframe)
         if profile is None:
             return record(
