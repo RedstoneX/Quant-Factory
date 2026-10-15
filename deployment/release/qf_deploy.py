@@ -37,6 +37,7 @@ STATE = ROOT / "deployed.json"
 UNIT_NAME = "quant-factory-dashboard.service"
 DASHBOARD_URL = "http://127.0.0.1:8050"
 IMAGE = "quant-factory-research"
+GATEWAY_CLIENT = Path("/opt/quant-factory-gateway/client/agent_gateway")
 KEEP_RELEASES = 5
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 REQUIREMENTS = ("requirements-runtime.txt", "requirements-dashboard.txt")
@@ -44,6 +45,9 @@ REQUIREMENTS = ("requirements-runtime.txt", "requirements-dashboard.txt")
 INFRA = {
     "compose.yaml": RESEARCH / "compose.yaml",
     f"deployment/dashboard/{UNIT_NAME}": Path("/etc/systemd/system") / UNIT_NAME,
+    "agent_gateway/contracts.py": GATEWAY_CLIENT / "contracts.py",
+    "agent_gateway/cli.py": GATEWAY_CLIENT / "cli.py",
+    "agent_gateway/ssh_command.py": GATEWAY_CLIENT / "ssh_command.py",
 }
 
 
