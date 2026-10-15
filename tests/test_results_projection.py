@@ -61,7 +61,7 @@ def test_selected_screening_configuration_loads_exact_chart_and_trade_evidence(t
     assert evidence["trade_count"] == 1
     assert evidence["trades"][0]["trade_id"] == "7"
     assert evidence["trades"][0]["entry_timestamp"] == "2026-01-02T09:35:00"
-    assert evidence["trades"][0]["entry_display"] == "Jan 02, 2026 · 09:35 AM EST"
+    assert evidence["trades"][0]["entry_display"] == "Jan 2, 2026 · 9:35 AM ET"
     assert evidence["sessions"] == ["2026-01-02"]
     assert evidence["metrics"]["number_of_trades"] == 1
 

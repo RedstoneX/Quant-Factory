@@ -20,6 +20,7 @@ from dashboard.evidence_chart_window import (
     detail_cache_key,
 )
 from dashboard.formatting import format_metric
+from dashboard.time_display import eastern_range_label
 from dashboard.results_model import ResultsDataError, validate_ohlc_rows
 
 
@@ -179,8 +180,7 @@ def _lineage_fields(document: dict[str, Any] | None) -> tuple[DetailField, ...]:
         DetailField("Provider identity", _display(data.get("provider_identity"))),
         DetailField("Symbol", _display(data.get("symbol"))),
         DetailField("Timeframe", _display(data.get("timeframe"))),
-        DetailField("Requested coverage", _display(data.get("requested_coverage"))),
-        DetailField("Actual coverage", _display(data.get("actual_coverage"))),
+        *(DetailField(name, eastern_range_label(data.get(key)) or _display(data.get(key))) for name, key in (("Requested coverage", "requested_coverage"), ("Actual coverage", "actual_coverage"))),
         DetailField("Dataset manifest", _display(data.get("dataset_manifest_reference"))),
         DetailField("Dataset checksum", _display(data.get("dataset_checksum"))),
         DetailField("Parent/child lineage", "Not recorded for this run"),
