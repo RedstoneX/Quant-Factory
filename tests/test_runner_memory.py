@@ -50,6 +50,8 @@ def test_chunked_sweep_is_identical_to_one_call(chunk: int) -> None:
 def test_locked_column_equals_resimulating_the_locked_setting() -> None:
     data = _data()
     config = robustness_config(
+        source_start=str(data.index[0].date()),
+        source_end=str(data.index[-1].date()),
         neighborhood=NeighborhoodConfig(
             definitions=(ParameterNeighborhoodDefinition("window", "explicit_values", explicit_values=(7, 14, 21)),),
             minimum_valid_neighbors=3,
