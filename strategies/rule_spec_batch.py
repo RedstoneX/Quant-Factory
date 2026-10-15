@@ -1,19 +1,16 @@
-"""Signals of many settings of one rule strategy in one pass over the data.
+"""Signals of many settings of one rule strategy, for one VectorBT simulation on the continuous bar history.
 
-Setting-independent work is done once per batch: the session split (``pandas.DatetimeIndex.get_indexer`` on
-the whole bar grid), the stacked session bars, and every rule node whose value does not depend on a
-setting's parameters (one ``RuleEvaluator`` cache shared by all settings, keyed by the node plus the values
-of the parameters it refers to, so settings that agree on them share one array).
-
-The flat/long/short state machine runs once per DISTINCT walk input (signal sides, ``after_bars``, the
-valid-stop mask), with distinct walks stacked side by side as columns and stepped bar by bar with NumPy
-boolean masks, so one step advances every session of every setting together.  Flags and stop levels are
-written by integer-array assignment (``numpy`` fancy indexing) instead of one ``Series.at`` per event.
+Rule nodes are evaluated on full regular sessions stacked as columns (indicators such as the opening range are
+defined per session), with one ``RuleEvaluator`` cache shared by all settings.  Nothing is simulated here: the
+signals are written onto the continuous bar index and VectorBT's ``Portfolio.from_signals`` holds positions,
+overnight when the spec has no ``flat_at``.  Time exits are VectorBT's own: ``after_bars`` -> ``td_stop`` (a
+duration, so a swept variable sweeps the maximum hold).  ``flat_at`` and ``at_time`` are VectorBT's documented
+session pattern: an exit signal on that bar of every session (so the exit pays the same next-open price and slippage
+as any other signal exit).
 """
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from dataclasses import dataclass, replace
 from typing import Any, Iterable, Iterator, Mapping, Sequence
@@ -28,8 +25,6 @@ from strategies.rule_spec_evaluation import RuleEvaluator, SessionBars, bar_posi
 
 _REGULAR_SESSION = pd.Timedelta(hours=6, minutes=30)
 EVENTS = ("entry", "exit", "short_entry", "short_exit")
-_ENTRY, _EXIT, _SHORT_ENTRY, _SHORT_EXIT = 1, 2, 3, 4
-_WALK_COLUMNS = 200_000  # session columns stepped together (about 80 MB of int8 for 390-bar sessions)
 _CACHE_BYTES = 500_000_000  # shared node cache budget; the cache is only an accelerator, so it is just cleared
 
 
@@ -116,149 +111,91 @@ def bar_sides(spec: Mapping[str, Any], evaluator: RuleEvaluator) -> np.ndarray:
     return sides
 
 
-def walk_columns(
-    spec: Mapping[str, Any],
-    sides: np.ndarray,
-    after: np.ndarray,
-    valid: np.ndarray,
-    leave_when: tuple[np.ndarray, np.ndarray] | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Run the flat/long/short state machine down every column at once.
-
-    ``sides`` and ``valid`` are (bars, columns); ``after`` holds one ``after_bars`` per column (inf = none).
-    ``leave_when`` is the (long, short) ``exit_when`` masks, (bars, columns): a held position of that side exits.
-    Returns int8 event codes (bars, columns) and the entries skipped per column for an unusable stop distance.
-    """
-    exit_rules = spec["exit"]
-    flat = bar_position(spec["flat_at"], spec["bar"])
-    at_time = bar_position(exit_rules["at_time"], spec["bar"]) if "at_time" in exit_rules else None
-    opposite = bool(exit_rules["on_opposite_signal"])
-    limit = spec["max_trades_per_session"]
-    rows, columns = sides.shape
-    codes = np.zeros((rows, columns), dtype=np.int8)
-    state = np.zeros(columns)
-    entry_row = np.full(columns, -1.0)
-    taken = np.zeros(columns, dtype=np.int64)
-    skipped = np.zeros(columns, dtype=np.int64)
-    for row in range(rows):
-        side = sides[row]
-        holding = state != 0
-        leave = holding & ((row - entry_row >= after) | (opposite & (side == -state)))
-        if leave_when is not None:
-            leave |= holding & (((state > 0) & leave_when[0][row]) | ((state < 0) & leave_when[1][row]))
-        if row == flat or row == at_time:
-            leave = holding
-        codes[row, leave & (state > 0)] = _EXIT
-        codes[row, leave & (state < 0)] = _SHORT_EXIT
-        state[leave] = 0.0
-        if row >= flat:
-            continue
-        wants = ~holding & (taken < limit) & (side != 0)
-        skipped += wants & ~valid[row]
-        enter = wants & valid[row]
-        codes[row, enter & (side > 0)] = _ENTRY
-        codes[row, enter & (side < 0)] = _SHORT_ENTRY
-        state[enter] = side[enter]
-        entry_row[enter] = row
-        taken += enter
-    return codes, skipped
+def _entry_window(spec: Mapping[str, Any], rows: int) -> np.ndarray:
+    """(bars, 1) bool: rows whose signal may open a position (before ``flat_at``'s signal row, when it is set)."""
+    allowed = np.ones((rows, 1), dtype=bool)
+    if "flat_at" in spec:
+        allowed[bar_position(spec["flat_at"], spec["bar"]) :] = False
+    return allowed
 
 
 @dataclass
 class _Setting:
     parameters: dict[str, Any]
     evaluator: RuleEvaluator
-    walk: str
     fractions: dict[str, np.ndarray]
 
 
-def _plan(spec: Mapping[str, Any], prepared: PreparedSessions, parameters: Mapping[str, Any], cache: dict, walks: dict) -> _Setting:
-    """Evaluate one setting's rule nodes (through the shared cache) and register its walk input."""
+def _plan(spec: Mapping[str, Any], prepared: PreparedSessions, parameters: Mapping[str, Any], cache: dict) -> _Setting:
+    """Evaluate one setting's rule nodes through the shared cache."""
     exit_rules = spec["exit"]
     evaluator = RuleEvaluator(replace(prepared.bars, parameters=dict(parameters)), cache)
     present = [key for key in STOP_KEYS if key in exit_rules]
     fractions = {key: evaluator.distance_fraction(exit_rules[key]) for key in present}
-    valid = np.ones(evaluator.shape, dtype=bool)
-    with np.errstate(invalid="ignore"):
-        for key in present:
-            valid &= np.isfinite(fractions[key]) & (fractions[key] > 0)
-    after = float(evaluator.count(exit_rules["after_bars"])) if "after_bars" in exit_rules else np.inf
-    sides_key = evaluator.key("sides", spec["signals"])
-    digest = hashlib.blake2b(np.packbits(valid).tobytes(), digest_size=16).hexdigest()
-    when = exit_rules.get("exit_when", {})
-    blocked = skipped_sessions(spec, prepared) if spec.get("skip_days") else None
-    walk = f"{sides_key}|{after}|{digest}|{spec.get('skip_days', '')}|{evaluator.key('exit_when', when) if when else ''}"
-    if walk not in walks:
-        sides = evaluator.cached("sides", spec["signals"], lambda: bar_sides(spec, evaluator))
-        leave = None
-        if when:
-            never = np.zeros(evaluator.shape, dtype=bool)
-            leave = tuple(evaluator.condition(when[side]) if side in when else never for side in ("long", "short"))
-        if blocked is not None:
-            sides = np.where(blocked[None, :], 0, sides)  # no new entries on a skipped day; open positions still exit
-        walks[walk] = (sides, after, valid, leave)
-    return _Setting(dict(parameters), evaluator, walk, fractions)
+    return _Setting(dict(parameters), evaluator, fractions)
 
 
-def _run_walks(spec: Mapping[str, Any], walks: Mapping[str, tuple[np.ndarray, float, np.ndarray, Any]]) -> dict[str, tuple[np.ndarray, int]]:
-    """Step distinct walks together, ``_WALK_COLUMNS`` session columns at a time."""
-    results: dict[str, tuple[np.ndarray, int]] = {}
-    keys = list(walks)
-    sessions = next(iter(walks.values()))[0].shape[1] if walks else 0
-    per_chunk = max(1, _WALK_COLUMNS // max(sessions, 1))
-    for start in range(0, len(keys), per_chunk):
-        chunk = keys[start : start + per_chunk]
-        sides = np.hstack([walks[key][0] for key in chunk]).astype(np.int8)
-        valid = np.hstack([walks[key][2] for key in chunk])
-        after = np.repeat([walks[key][1] for key in chunk], sessions)
-        leave_when = None
-        if "exit_when" in spec["exit"]:
-            leave_when = tuple(np.hstack([walks[key][3][number] for key in chunk]) for number in (0, 1))
-        codes, skipped = walk_columns(spec, sides, after, valid, leave_when)
-        for number, key in enumerate(chunk):
-            columns = slice(number * sessions, (number + 1) * sessions)
-            results[key] = (codes[:, columns], int(skipped[columns].sum()))
-    return results
+def _signals(spec: Mapping[str, Any], prepared: PreparedSessions, setting: _Setting | None, present: Iterable[str]):
+    """from_signals inputs of one setting on the continuous bar index (no per-session simulation).
 
-
-def _signals(prepared: PreparedSessions, setting: _Setting | None, walked: tuple[np.ndarray, int] | None, present: Iterable[str]):
+    Entries, exits and each stop's fraction sit on the signal bar; ``td_stop`` (``after_bars`` as a duration from
+    the fill) is VectorBT's own time exit.
+    """
     length = len(prepared.index)
     flags = {name: np.zeros(length, dtype=bool) for name in EVENTS}
     levels = {key: np.full(length, np.nan) for key in present}
-    skipped = 0
-    if setting is not None and walked is not None:
-        codes, skipped = walked
-        for code, name in enumerate(EVENTS, start=1):
-            flags[name][prepared.positions[codes == code]] = True
-        entered = (codes == _ENTRY) | (codes == _SHORT_ENTRY)
-        rows = prepared.positions[entered]
-        for key, level in levels.items():
-            level[rows] = setting.fractions[key][entered]
-    return flags, levels, skipped
+    stops = {"td_stop": np.full(length, -1, dtype=np.int64)}
+    if setting is None:
+        return flags, levels, stops, 0
+    exit_rules = spec["exit"]
+    evaluator = setting.evaluator
+    sides = evaluator.cached("sides", spec["signals"], lambda: bar_sides(spec, evaluator))
+    valid = np.ones(evaluator.shape, dtype=bool)
+    with np.errstate(invalid="ignore"):
+        for fraction in setting.fractions.values():
+            valid &= np.isfinite(fraction) & (fraction > 0)
+    allowed = _entry_window(spec, evaluator.shape[0]) & (sides != 0)
+    if spec.get("skip_days"):
+        allowed &= ~skipped_sessions(spec, prepared)[None, :]  # no new entries on a skipped day; exits still apply
+    skipped = int((allowed & ~valid).sum())
+    first = allowed & valid  # max_trades_per_session caps fills in the simulation (session_entry_cap)
+    rows = prepared.positions
+    flags["entry"][rows[first & (sides > 0)]] = True
+    flags["short_entry"][rows[first & (sides < 0)]] = True
+    when = exit_rules.get("exit_when", {})
+    clock = np.zeros((evaluator.shape[0], 1), dtype=bool)  # the session-end and at_time exit rows
+    if "flat_at" in spec:
+        clock[bar_position(spec["flat_at"], spec["bar"])] = True
+    if "at_time" in exit_rules:
+        clock[bar_position(exit_rules["at_time"], spec["bar"])] = True
+    for name, side, opposite in (("exit", "long", sides < 0), ("short_exit", "short", sides > 0)):
+        leave = evaluator.condition(when[side]) if side in when else np.zeros(evaluator.shape, dtype=bool)
+        if exit_rules["on_opposite_signal"]:
+            leave = leave | opposite
+        leave = leave | clock
+        flags[name][rows[leave]] = True
+    for key, level in levels.items():
+        level[rows[first]] = setting.fractions[key][first]
+    if "after_bars" in exit_rules:
+        stops["td_stop"][:] = pd.Timedelta(minutes=BAR_MINUTES[spec["bar"]] * evaluator.count(exit_rules["after_bars"])).value
+    return flags, levels, stops, skipped
 
 
 def iter_batch_signals(
-    spec: Mapping[str, Any], prepared: PreparedSessions, settings: Sequence[Mapping[str, Any]], *, chunk: int = 64
-) -> Iterator[tuple[dict[str, pd.Series], dict[str, pd.Series], int]]:
-    """Yield (flags, stop levels, skipped entries) per setting, in order, ``chunk`` settings at a time."""
+    spec: Mapping[str, Any], prepared: PreparedSessions, settings: Sequence[Mapping[str, Any]]
+) -> Iterator[tuple[dict[str, pd.Series], dict[str, pd.Series], dict[str, pd.Series], int]]:
+    """Yield (flags, stop levels, time stops, skipped entries) per setting, in order."""
     present = [key for key in STOP_KEYS if key in spec["exit"]]
     cache: dict = _BoundedCache()
-    for start in range(0, len(settings), chunk):
-        walks: dict[str, tuple[np.ndarray, float, np.ndarray, Any]] = {}
-        planned = (
-            [_plan(spec, prepared, parameters, cache, walks) for parameters in settings[start : start + chunk]]
-            if prepared.bars is not None
-            else [None] * len(settings[start : start + chunk])
+    for parameters in settings:
+        setting = _plan(spec, prepared, parameters, cache) if prepared.bars is not None else None
+        flags, levels, stops, skipped = _signals(spec, prepared, setting, present)
+        yield (
+            {name: pd.Series(values, index=prepared.index) for name, values in flags.items()},
+            {key: pd.Series(values, index=prepared.index) for key, values in levels.items()},
+            {key: pd.Series(values, index=prepared.index) for key, values in stops.items()},
+            skipped,
         )
-        walked = _run_walks(spec, walks)
-        del walks
-        for setting in planned:
-            flags, levels, skipped = _signals(prepared, setting, walked.get(setting.walk) if setting else None, present)
-            yield (
-                {name: pd.Series(values, index=prepared.index) for name, values in flags.items()},
-                {key: pd.Series(values, index=prepared.index) for key, values in levels.items()},
-                skipped,
-            )
 
 
-__all__ = ["EVENTS", "PreparedSessions", "bar_sides", "iter_batch_signals", "prepare_sessions", "walk_columns"]
+__all__ = ["EVENTS", "PreparedSessions", "bar_sides", "iter_batch_signals", "prepare_sessions"]

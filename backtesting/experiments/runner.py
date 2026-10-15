@@ -107,12 +107,18 @@ def align_signals_for_execution(
             trailing_threshold=(
                 signals.trailing_threshold.shift(1) if signals.trailing_threshold is not None else None
             ),
+            td_stop=(signals.td_stop.shift(1, fill_value=-1) if signals.td_stop is not None else None),
+            upon_opposite_entry=signals.upon_opposite_entry,
+            session_entry_cap=signals.session_entry_cap,
+            session_id=signals.session_id,  # the fill bar's own session: not shifted
         )
     raise ValueError(f"Unsupported execution mode: {execution.mode}")
 
 
 _LEADING_ARGS = ("entries", "exits", "short_entries", "short_exits", "price")
-_SETTING_FRAMES = ("entries", "exits", "short_entries", "short_exits", "price", "sl_stop", "tp_stop", "tsl_stop", "tsl_th")
+_SETTING_FRAMES = (
+    "entries", "exits", "short_entries", "short_exits", "price", "sl_stop", "tp_stop", "tsl_stop", "tsl_th", "td_stop",
+)
 
 
 def _setting_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionConfig) -> dict[str, Any]:
@@ -160,7 +166,7 @@ def _stack_settings(data: pd.DataFrame, close: pd.Series, settings: list[dict[st
         elif all(value is None for value in values):
             stacked[key] = None
         else:
-            fill = np.nan if key.endswith(("_stop", "_th")) else False
+            fill = -1 if key == "td_stop" else np.nan if key.endswith(("_stop", "_th")) else False
             frame = pd.concat(
                 [pd.Series(fill, index=data.index) if value is None else value for value in values],
                 axis=1,
@@ -193,6 +199,12 @@ def _construct_portfolio(
     # Stop kwargs keep their place after the cost kwargs, as before the one-pass change.
     leading = {key: value for key, value in setting_args.items() if key in _LEADING_ARGS}
     stops = {key: value for key, value in setting_args.items() if key not in _LEADING_ARGS}
+    first = aligned[0] if isinstance(aligned, (list, tuple)) else aligned
+    if first.session_entry_cap is not None:
+        from backtesting.experiments.session_cap import session_cap_kwargs
+
+        columns = len(aligned) if isinstance(aligned, (list, tuple)) else 1
+        stops |= session_cap_kwargs(first.session_id, data.index, first.session_entry_cap, columns, stops.get("td_stop"))
     return vbt.Portfolio.from_signals(
         close=close,
         **leading,
@@ -202,7 +214,7 @@ def _construct_portfolio(
         leverage=execution.leverage,
         init_cash=execution.initial_cash,
         fees=execution.fees,
-        slippage=execution.slippage,
+        slippage=execution_slippage(data, execution),
         fixed_fees=execution.fixed_fee_per_order,
         **stops,
         **_whole_share_args(execution),
@@ -237,11 +249,14 @@ def _stop_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionCo
             ("tsl_stop", aligned.trailing_stop),
             # tsl_th: the trailing stop activates only once price has gained this fraction from the entry.
             ("tsl_th", aligned.trailing_threshold),
+            # VectorBT's own time exit: td_stop, the maximum hold from the fill (-1 disables it).
+            ("td_stop", aligned.td_stop),
         )
         if level is not None
     }
+    options = {"upon_opposite_entry": aligned.upon_opposite_entry} if aligned.upon_opposite_entry is not None else {}
     if not present:
-        return {}
+        return options
     if execution.mode != "next_bar_open":
         raise ValueError("Bar-based stop orders require next-bar-open execution")
     return {
@@ -253,6 +268,8 @@ def _stop_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionCo
         "stop_entry_price": "Open",
         "stop_exit_price": "Stop",
         "use_stops": True,
+        **({"time_delta_format": "Index"} if "td_stop" in present else {}),
+        **options,
     }
 
 
@@ -261,25 +278,18 @@ def build_execution_price(
     aligned: SignalResult,
     execution: ExecutionConfig,
 ) -> pd.Series:
-    """Build adverse absolute-slippage prices and apply the contract multiplier."""
-    price = data[execution.execution_price_field].astype(float).copy()
+    """Signal fill price with the contract multiplier; slippage is VectorBT's own (``execution_slippage``)."""
+    return data[execution.execution_price_field].astype(float) * execution.price_multiplier
+
+
+def execution_slippage(data: pd.DataFrame, execution: ExecutionConfig) -> Any:
+    """from_signals ``slippage`` (a fraction of each order's price, adverse for buys and sells, every fill
+    including stop exits): the configured fraction plus absolute points (ticks x tick size) over the bar's
+    execution price, so a signal fill moves by exactly those points and a stop fill by points x stop / open."""
     points = execution.absolute_slippage_points
     if not points:
-        return price * execution.price_multiplier
-
-    false = pd.Series(False, index=price.index, dtype=bool)
-    long_entries = aligned.entries
-    long_exits = aligned.exits
-    short_entries = aligned.short_entries if aligned.short_entries is not None else false
-    short_exits = aligned.short_exits if aligned.short_exits is not None else false
-    buy_orders = long_entries | short_exits
-    sell_orders = long_exits | short_entries
-    conflicts = buy_orders & sell_orders
-    if conflicts.any():
-        raise ValueError("absolute slippage cannot price simultaneous buy and sell orders")
-    price.loc[buy_orders] += points
-    price.loc[sell_orders] -= points
-    return price * execution.price_multiplier
+        return execution.slippage
+    return execution.slippage + points / data[execution.execution_price_field].astype(float)
 
 
 def validate_for_simulation(

@@ -31,10 +31,10 @@ fixed: values that never change. exclusions: what this idea must not do.
 SUPPORTED
 Bar sizes: "5m" (MES futures data; 5-minute bars, 78 per session) and "1m" (US stock/ETF library; 390 per session).
 Set rule_spec "bar" and market.timeframe to the same value; the data must match (nothing is resampled).
-Regular session only (09:30-16:00 New York, flat before the close). Times are bar END times:
-the first 5m bar ends 09:35, the first 1m bar ends 09:31. Lengths, after_bars and max_trades are bar counts:
-30 bars is 150 minutes on 5m but 30 minutes on 1m, so pick them for the bar size.
-MES: trading costs are known, so results include fees and slippage. History ends 2026-02-13.
+Entries 09:30-16:00 New York; bar END times (first 5m bar ends 09:35, 1m 09:31). Lengths and after_bars are bar
+counts (30 bars: 150 min on 5m, 30 min on 1m). Continuous history: MES sets "flat_at": "15:55"; without it stocks may
+hold overnight. after_bars = max hold (a variable can sweep the source's hold); max_trades_per_session counts fills.
+MES costs are known: fees, and 1-tick slippage on every fill incl. stop exits (owner, 15 Oct). History ends 2026-02-13.
 Optional rule_spec "skip_days": ["cpi", "fomc"] takes no new entries on US CPI release days and/or FOMC decision days.
 Numeric variables only, every one used by rule_spec.
 

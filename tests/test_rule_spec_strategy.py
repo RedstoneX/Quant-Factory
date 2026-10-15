@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from rule_language import RuleSpecError
+from tests.rule_trades import trades
 from strategies import get_strategy
 from strategies.mes_sma_crossover_candidate import generate_candidate_signals
 from strategies.parameter_governance import summarize_parameter_plan
@@ -82,6 +83,7 @@ def test_same_sign_run_range_high_and_value_at_series() -> None:
     assert np.isnan(at_ten[:5]).all() and (at_ten[5:] == closes[5]).all()
 
 
+@pytest.mark.licensed_vectorbt
 def test_run_entry_with_after_bars_exit_and_dynamic_side() -> None:
     closes = np.full(78, 100.0)
     closes[10:14] = [101, 102, 103, 104]
@@ -89,26 +91,41 @@ def test_run_entry_with_after_bars_exit_and_dynamic_side() -> None:
         [{"when": {"gte": [{"same_sign_run": {"change": "close"}}, 3]}, "side": {"opposite_sign_of": {"change": "close"}}}],
         exit={"after_bars": 2},
     )
-    signals = _run(spec, _frame([closes]))
-    assert _ends(signals.short_entries) == ["05 10:35"]
-    assert _ends(signals.short_exits) == ["05 10:45"]
-    assert not signals.entries.any() and not signals.exits.any()
+    frame = _frame([closes])
+    signals = _run(spec, frame)
+    assert trades(signals, frame) == [("short", "05 10:35", "05 10:45")]  # after_bars -> VectorBT td_stop
+    assert signals.td_stop.eq(2 * 5 * 60 * 10**9).all()
 
 
+@pytest.mark.licensed_vectorbt
 def test_at_time_and_flat_at_exits() -> None:
-    timed = _run(_spec([{"when": {"time_is": "10:00"}, "side": "long"}], exit={"at_time": "11:00"}), _frame([np.full(78, 100.0)]))
-    assert (_ends(timed.entries), _ends(timed.exits)) == (["05 10:00"], ["05 11:00"])
-    late = _run(_spec([{"when": {"time_is": "12:00"}, "side": "long"}], exit={"at_time": "11:00"}, flat_at="15:30"), _frame([np.full(78, 100.0)]))
-    assert (_ends(late.entries), _ends(late.exits)) == (["05 12:00"], ["05 15:30"])
+    frame = _frame([np.full(78, 100.0)])
+    timed = _run(_spec([{"when": {"time_is": "10:00"}, "side": "long"}], exit={"at_time": "11:00"}), frame)
+    assert trades(timed, frame) == [("long", "05 10:00", "05 11:00")]
+    late = _run(_spec([{"when": {"time_is": "12:00"}, "side": "long"}], exit={"at_time": "11:00"}, flat_at="15:30"), frame)
+    assert trades(late, frame) == [("long", "05 12:00", "05 15:30")]
 
 
+@pytest.mark.licensed_vectorbt
+def test_without_flat_at_positions_hold_overnight_until_the_td_stop() -> None:
+    spec = _spec([{"when": {"time_is": "10:00"}, "side": "long"}], exit={"after_bars": 100})
+    del spec["flat_at"]
+    frame = _frame([np.full(78, 100.0)] * 3)
+    # 100 bars of 5 minutes from the 10:00 fill: the first bar at or after 18:20 is the next day's 09:30 open.
+    assert trades(_run(spec, frame), frame) == [
+        ("long", "05 10:00", "06 09:30"), ("long", "06 10:00", "07 09:30"), ("long", "07 10:00", "open"),
+    ]
+
+
+@pytest.mark.licensed_vectorbt
 def test_max_trades_and_no_same_bar_entry_and_exit() -> None:
     spec = _spec([{"when": {"gt": ["close", 0]}, "side": "long"}], exit={"after_bars": 1}, max_trades_per_session=3)
-    signals = _run(spec, _frame([np.full(78, 100.0)] * 2))
-    assert _ends(signals.entries) == ["05 09:35", "05 09:45", "05 09:55", "06 09:35", "06 09:45", "06 09:55"]
-    assert _ends(signals.exits) == ["05 09:40", "05 09:50", "05 10:00", "06 09:40", "06 09:50", "06 10:00"]
+    frame = _frame([np.full(78, 100.0)] * 2)
+    held = [("09:35", "09:40"), ("09:45", "09:50"), ("09:55", "10:00")]  # three entry fills, then the session cap holds
+    assert trades(_run(spec, frame), frame) == [("long", f"{day} {a}", f"{day} {b}") for day in ("05", "06") for a, b in held]
 
 
+@pytest.mark.licensed_vectorbt
 def test_opposite_signal_exit_without_same_bar_reversal() -> None:
     spec = _spec(
         [
@@ -118,9 +135,8 @@ def test_opposite_signal_exit_without_same_bar_reversal() -> None:
         exit={"on_opposite_signal": True},
         max_trades_per_session=2,
     )
-    signals = _run(spec, _frame([np.full(78, 100.0)]))
-    assert (_ends(signals.entries), _ends(signals.exits)) == (["05 10:00"], ["05 11:00"])
-    assert (_ends(signals.short_entries), _ends(signals.short_exits)) == (["05 11:05"], ["05 15:55"])
+    frame = _frame([np.full(78, 100.0)])
+    assert trades(_run(spec, frame), frame) == [("long", "05 10:00", "05 11:00"), ("short", "05 11:05", "05 15:55")]
 
 
 def test_incomplete_session_is_ignored_and_stops_are_fractions() -> None:
@@ -135,10 +151,11 @@ def test_incomplete_session_is_ignored_and_stops_are_fractions() -> None:
     assert signals.take_profit[entry] == pytest.approx(0.01)
     assert signals.stop_loss.drop(entry).isna().all()
     assert signals.metadata["sessions_traded"] == 1
-    assert "not tracked" in signals.metadata["max_trades_counting"]
+    assert "entry fills" in signals.metadata["max_trades_counting"]
     assert "signal-bar close" in signals.metadata["stop_distance_approximation"]
 
 
+@pytest.mark.licensed_vectorbt
 def test_golden_mes_sma_10_30_matches_hand_written_candidate() -> None:
     rng = np.random.default_rng(20261006)
     days = []
@@ -159,8 +176,7 @@ def test_golden_mes_sma_10_30_matches_hand_written_candidate() -> None:
     golden = generate_candidate_signals(frame)
     assert golden.entries.any() and golden.short_entries.any()
     assert not golden.entries[golden.entries.index.normalize() == DAYS[7].tz_localize("UTC")].any()
-    for name in ("entries", "exits", "short_entries", "short_exits"):
-        pd.testing.assert_series_equal(getattr(compiled, name), getattr(golden, name), check_names=False)
+    assert trades(compiled, frame) == trades(golden, frame) != []
     assert compiled.parameters == golden.parameters == {}
     assert compiled.stop_loss is None and compiled.take_profit is None
 

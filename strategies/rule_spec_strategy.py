@@ -202,7 +202,7 @@ def _specification(definition: Mapping[str, Any]) -> StrategySpecification:
             slippage_rate=0.0,
             stop_loss=_describe_stop(exit_rules),
             profit_target=_describe(exit_rules.get("take_profit")),
-            maximum_holding_period=after_bars if isinstance(after_bars, int) else None,
+            maximum_holding_period=after_bars if isinstance(after_bars, int) else None,  # bars, VectorBT td_stop
             pyramiding=False,
             same_bar_limitation="No same-bar entry and exit and no same-bar reversal; signals fill at the next open.",
         ),
@@ -293,8 +293,13 @@ def _metadata(definition: Mapping[str, Any], prepared: PreparedSessions, skipped
         "sessions_in_schedule": prepared.sessions_in_schedule,
         "entries_skipped_without_valid_stop_distance": skipped,
         "max_trades_counting": (
-            "max_trades_per_session counts entry signals. Engine-side stop-loss and take-profit exits are not "
-            "tracked by the compiler, which keeps treating the position as open until its own rule exit."
+            "max_trades_per_session counts entry fills per session in the VectorBT simulation; a position closed by "
+            "a stop frees no slot, and a later signal may enter again while the count is below the limit."
+        ),
+        "holding": (
+            "VectorBT holds positions on the continuous bar history: overnight unless flat_at is set "
+            "(flat_at and at_time -> an exit signal on that bar of every session; after_bars -> from_signals td_stop, "
+            "a duration from the fill)."
         ),
     }
     if "trailing_stop" in present:
@@ -327,7 +332,8 @@ def iter_rule_signals(
     prepared = prepare_sessions(frame, schedule, _REQUIRED_FIELDS, tick_size=spec["tick_size"], bar=spec["bar"])
     present = [key for key in STOP_KEYS if key in spec["exit"]]
     batches = iter_batch_signals(spec, prepared, settings)
-    for parameters, (flags, levels, skipped) in zip(settings, batches):
+    session_ids = _session_ids(prepared)
+    for parameters, (flags, levels, time_stops, skipped) in zip(settings, batches):
         # Each stop's distance is fixed at entry: the fraction measured on the signal bar is written on the entry row.
         dropped = _engine_exit_inputs(spec, prepared, parameters, flags, levels)
         metadata = _metadata(definition, prepared, skipped, present)
@@ -335,8 +341,8 @@ def iter_rule_signals(
             metadata["entries_dropped_level_stop_on_wrong_side"] = dropped
         if "exit_when" in spec["exit"]:
             metadata["exit_when"] = (
-                "exit_when is a rule exit: the compiler closes the position on that bar (from_signals exits/short_exits), "
-                "so a later signal can enter again within max_trades_per_session."
+                "exit_when is a rule exit (from_signals exits/short_exits): a held position exits on that bar, and a "
+                "later signal can enter again within max_trades_per_session."
             )
         yield SignalResult(
             entries=flags["entry"],
@@ -349,7 +355,19 @@ def iter_rule_signals(
             take_profit=levels.get("take_profit"),
             trailing_stop=levels.get("trailing_stop"),
             trailing_threshold=levels.get("trail_after"),
+            td_stop=time_stops["td_stop"] if "after_bars" in spec["exit"] else None,
+            # An opposite signal never reverses a position; on_opposite_signal closes it through exits/short_exits.
+            upon_opposite_entry="Ignore",
+            session_entry_cap=spec["max_trades_per_session"],
+            session_id=session_ids,
         )
+
+
+def _session_ids(prepared: PreparedSessions) -> pd.Series:
+    """One id per bar: the column number of its full regular session, -1 for every other bar."""
+    ids = np.full(len(prepared.index), -1, dtype=np.int64)
+    ids[prepared.positions] = np.arange(prepared.positions.shape[1])[None, :]
+    return pd.Series(ids, index=prepared.index)
 
 
 def _engine_exit_inputs(
@@ -361,7 +379,7 @@ def _engine_exit_inputs(
 ) -> int:
     """Translate level stops and R-multiples into Portfolio.from_signals stop inputs.
 
-    (``exit_when`` is handled by the rule walk in ``strategies.rule_spec_batch`` like any other rule exit.)
+    (``exit_when`` is a from_signals exit written by ``strategies.rule_spec_batch`` like any other rule exit.)
     - ``stop_loss.level`` -> ``sl_stop`` as the fraction from the entry open to the level (the runner passes
       ``delta_format="Percent"``, ``stop_entry_price="Open"``, so the engine's stop sits on the level; a bar
       opening beyond it fills at that open). An entry whose open is already through its level is dropped.
