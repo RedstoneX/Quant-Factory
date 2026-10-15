@@ -5,16 +5,16 @@ from __future__ import annotations
 from typing import Any
 
 import dash_mantine_components as dmc
-from dash import Input, Output, State, clientside_callback, html
+from dash import Input, Output, State, clientside_callback, dcc, html
 from dash_iconify import DashIconify
 
-from dashboard.ui.theme import MANTINE_THEME
+from dashboard.ui.theme import BORDER, MANTINE_THEME
 
 NAV_ITEMS = (
     ("/", "Dashboard", "tabler:layout-dashboard"),
-    ("/submit", "Submit strategies", "tabler:upload"),
+    ("/submit", "Submit ideas", "tabler:upload"),
     ("/factory", "Factory runs", "tabler:building-factory-2"),
-    ("/candidates", "Candidates", "tabler:list-details"),
+    ("/candidates", "Ideas", "tabler:list-details"),
     ("/results", "Results", "tabler:chart-candle"),
     ("/paper-trading", "Paper trading", "tabler:currency-dollar"),
 )
@@ -35,12 +35,36 @@ def app_shell(*children: Any) -> dmc.MantineProvider:
     """Wrap the routed page in the shared theme and navigation."""
     shell = dmc.AppShell([
         dmc.AppShellHeader(dmc.Group([dmc.Burger(id="qf-burger", size="sm", opened=False, hiddenFrom="sm"), _brand()], h="100%", px="md", gap="md")),
+        # Pinned to the window bottom so its border runs the full height whatever the viewport unit reports.
         dmc.AppShellNavbar([
             dmc.Stack([_nav_link(*item) for item in NAV_ITEMS], gap=2, px="xs", pt="xs"),
-        ]),
+        ], h="auto", bottom=0),
         dmc.AppShellMain(html.Div(list(children))),
     ], id="qf-shell", header={"height": 48}, navbar={"width": 200, "breakpoint": "sm", "collapsed": {"mobile": True}}, padding=0)
     return dmc.MantineProvider(shell, theme=MANTINE_THEME, forceColorScheme="dark")
+
+
+def page_header(title: str, subtitle: str, *actions: Any) -> dmc.Group:
+    """Title, one plain line under it, and actions that wrap below on phones."""
+    return dmc.Group([
+        dmc.Stack([dmc.Title(title, order=1), dmc.Text(subtitle, size="xs", c="dimmed")], gap=2),
+        dmc.Group(list(actions), gap="xs"),
+    ], justify="space-between", gap="sm", px="lg", py="md", style={"borderBottom": f"1px solid {BORDER}"})
+
+
+def stat_card(label: str, value: Any, note: Any = "", *, color: str | None = None, value_id: str | None = None, note_id: str | None = None) -> dmc.Paper:
+    """A flat figure card: small label, one colour-coded number, a plain note."""
+    value_props = {"id": value_id} if value_id else {}
+    note_props = {"id": note_id} if note_id else {}
+    return dmc.Paper(dmc.Stack([
+        dmc.Text(label, size="xs", c="dimmed"), dmc.Text(value, fz=18, fw=600, c=color, **value_props), dmc.Text(note, size="xs", c="dimmed", **note_props),
+    ], gap=2), p="md")
+
+
+def copy_id(value: Any) -> Any:
+    """Keep an identifier out of the text: a copy icon whose hover title shows it."""
+    text = str(value or "")
+    return dcc.Clipboard(content=text, title=f"Copy {text}", style={"display": "inline-block", "cursor": "pointer"}) if text else "—"
 
 
 def page_content(layout: Any) -> Any:
