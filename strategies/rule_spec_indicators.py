@@ -1,11 +1,10 @@
 """Technical indicators for ``qf_rules_v1``, computed by VectorBT PRO and TA-Lib (no hand-written formulas).
 
-Each operator maps to a library call (value at bar t uses only bars up to and including t):
-- rsi, atr, adx: ``vbt.RSI`` / ``vbt.ATR`` / ``vbt.ADX`` (Wilder smoothing; ``vbt.ATR`` with ``wtype="simple"`` for
-  the plain-mean ATR).
-- macd, bollinger, stochastic, obv: ``vbt.MACD``, ``vbt.BBANDS`` (population standard deviation), ``vbt.STOCH``,
-  ``vbt.OBV``.
-- cci, williams_r, roc: TA-Lib ``CCI``, ``WILLR``, ``ROC`` through ``vbt.talib_func``.
+One adapter runs every library indicator: ``vbt.IF.get_indicator(name).run(...)`` with the inputs, parameters and
+output its metadata declares (``rule_language.indicators``).  The named operators are aliases of library indicators
+(rsi = ``vbt:RSI`` Wilder, macd = ``vbt:MACD``, bollinger = ``vbt:BBANDS`` with population deviation, stochastic =
+``vbt:STOCH`` slow k/d, adx = ``vbt:ADX``, obv = ``vbt:OBV``, roc / cci / williams_r = ``talib:ROC`` / ``CCI`` /
+``WILLR``), except two combinations of library calls with no single library indicator:
 - keltner: middle = ``vbt.MA`` (exponential) of close, bands = middle +/- mult * Wilder ``vbt.ATR``.
 - donchian: rolling highest high / lowest low of the last ``length`` bars INCLUDING the current bar (generic
   accessor ``rolling_max`` / ``rolling_min``), middle = their mean.  For a breakout test compare against the channel
@@ -20,125 +19,45 @@ CCI and Williams %R on a flat window) are the library's.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Callable, Mapping
+from typing import Any, Mapping
 
 import numpy as np
 import pandas as pd
 from backtesting.vectorbt_runtime import require_vectorbtpro
-from rule_language.indicators import INDICATORS
+from rule_language.indicators import INDICATORS, PRICE_INPUTS, library_indicator
 
 _RUN = {"hide_params": True}
+Frames = dict[str, pd.DataFrame]
 
 
-@dataclass(frozen=True)
-class _Inputs:
-    x: pd.DataFrame
-    high: pd.DataFrame
-    low: pd.DataFrame
-    close: pd.DataFrame
-    volume: pd.DataFrame
-
-
-def _atr(data: _Inputs, length: int, wtype: str) -> pd.DataFrame:
+def _run_library(name: str, inputs: Frames, params: Mapping[str, Any], output: str) -> pd.DataFrame:
+    """The one adapter: run library indicator ``name`` and return one of its outputs (or output properties)."""
     vbt = require_vectorbtpro()
-    return vbt.ATR.run(data.high, data.low, data.close, window=length, wtype=wtype, **_RUN).atr
+    return getattr(vbt.IF.get_indicator(name).run(**inputs, **params, **_RUN), output)
 
 
-def wilder_atr(data: _Inputs, length: int) -> pd.DataFrame:
+def _atr(data: Frames, length: int, wtype: str) -> pd.DataFrame:
+    return _run_library("vbt:ATR", {key: data[key] for key in ("high", "low", "close")}, {"window": length, "wtype": wtype}, "atr")
+
+
+def wilder_atr(data: Frames, length: int) -> pd.DataFrame:
     return _atr(data, length, "wilder")
 
 
-def _rsi(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    return {"value": vbt.RSI.run(data.x, window=p["length"], wtype="wilder", **_RUN).rsi}
-
-
-def _roc(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    return {"value": vbt.talib_func("ROC")(data.x, timeperiod=p["length"])}
-
-
-def _macd(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    run = vbt.MACD.run(data.x, fast_window=p["fast"], slow_window=p["slow"], signal_window=p["signal"], **_RUN)
-    return {"line": run.macd, "signal": run.signal, "histogram": run.hist}
-
-
-def _bollinger(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    run = vbt.BBANDS.run(data.x, window=p["length"], alpha=p["std_mult"], **_RUN)
-    return {
-        "upper": run.upper,
-        "middle": run.middle,
-        "lower": run.lower,
-        "percent_b": run.percent_b,
-        "bandwidth": run.bandwidth,
-    }
-
-
-def _stochastic(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    run = vbt.STOCH.run(
-        data.high,
-        data.low,
-        data.close,
-        fast_k_window=p["k_length"],
-        slow_k_window=p["k_smooth"],
-        slow_d_window=p["d_length"],
-        **_RUN,
-    )
-    return {"k": run.slow_k, "d": run.slow_d}
-
-
-def _adx(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    run = vbt.ADX.run(data.high, data.low, data.close, window=p["length"], **_RUN)
-    return {"adx": run.adx, "plus_di": run.plus_di, "minus_di": run.minus_di}
-
-
-def _cci(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    return {"value": vbt.talib_func("CCI")(data.high, data.low, data.close, timeperiod=p["length"])}
-
-
-def _williams_r(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    return {"value": vbt.talib_func("WILLR")(data.high, data.low, data.close, timeperiod=p["length"])}
-
-
-def _obv(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    return {"value": vbt.OBV.run(data.close, data.volume, **_RUN).obv}
-
-
-def _keltner(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
-    middle = vbt.MA.run(data.close, window=p["length"], wtype="exp", **_RUN).ma
+def _keltner(data: Frames, p: Mapping[str, Any]) -> Frames:
+    middle = _run_library("vbt:MA", {"close": data["close"]}, {"window": p["length"], "wtype": "exp"}, "ma")
     band = p["mult"] * wilder_atr(data, p["atr_length"])
     return {"upper": middle + band, "middle": middle, "lower": middle - band}
 
 
-def _donchian(data: _Inputs, p: Mapping[str, Any]) -> dict[str, pd.DataFrame]:
-    vbt = require_vectorbtpro()
+def _donchian(data: Frames, p: Mapping[str, Any]) -> Frames:
+    require_vectorbtpro()
     length = p["length"]
-    upper, lower = data.high.vbt.rolling_max(length, minp=length), data.low.vbt.rolling_min(length, minp=length)
+    upper, lower = data["high"].vbt.rolling_max(length, minp=length), data["low"].vbt.rolling_min(length, minp=length)
     return {"upper": upper, "lower": lower, "middle": (upper + lower) / 2.0}
 
 
-_FORMULAS: dict[str, Callable[[_Inputs, Mapping[str, Any]], dict[str, pd.DataFrame]]] = {
-    "rsi": _rsi,
-    "roc": _roc,
-    "macd": _macd,
-    "bollinger": _bollinger,
-    "stochastic": _stochastic,
-    "adx": _adx,
-    "cci": _cci,
-    "williams_r": _williams_r,
-    "obv": _obv,
-    "keltner": _keltner,
-    "donchian": _donchian,
-}
+_COMBINED = {"keltner": _keltner, "donchian": _donchian}
 
 
 class _Scope:
@@ -157,28 +76,45 @@ class _Scope:
         return values.reshape(self.shape, order="F") if self.across else values
 
 
-def _inputs(evaluator: Any, scope: _Scope, source: np.ndarray | None) -> _Inputs:
+def _frames(evaluator: Any, scope: _Scope, sources: Mapping[str, np.ndarray]) -> Frames:
+    """Price fields as frames, with ``sources`` (input name -> series) replacing those inputs."""
     bars = evaluator.bars
-    return _Inputs(
-        x=scope.frame(source if source is not None else bars.close),
-        high=scope.frame(bars.high),
-        low=scope.frame(bars.low),
-        close=scope.frame(bars.close),
-        volume=scope.frame(bars.volume),
-    )
+    return {key: scope.frame(sources[key] if key in sources else getattr(bars, key)) for key in {*PRICE_INPUTS, *sources}}
 
 
 def indicator_series(evaluator: Any, operator: str, node: Mapping[str, Any]) -> np.ndarray:
-    """Evaluate one validated indicator node; ``evaluator`` supplies bars, parameters and the source series."""
+    """Evaluate one validated named indicator node; ``evaluator`` supplies bars, parameters and the source series."""
     spec = INDICATORS[operator]
     params = {
         key: evaluator.count(node[key]) if kind == "count" else evaluator.amount(node[key])
         for key, kind, _ in spec.params
     }
     scope = _Scope(evaluator.shape, node["across_sessions"])
-    source = evaluator.series(node[operator]) if spec.takes_series else None
-    outputs = _FORMULAS[operator](_inputs(evaluator, scope, source), params)
-    return scope.array(outputs[node["output"] if spec.outputs else "value"])
+    output = node["output"] if spec.outputs else "value"
+    if not spec.library:
+        data = _frames(evaluator, scope, {})
+        return scope.array(_COMBINED[operator](data, params)[output])
+    library = library_indicator(spec.library)
+    sources = {library.inputs[0]: evaluator.series(node[operator])} if spec.takes_series else {}
+    data = _frames(evaluator, scope, sources)
+    library_params = {**dict(spec.fixed), **{name: params[key] for (key, _, _), name in zip(spec.params, spec.library_params)}}
+    library_output = spec.library_outputs[spec.outputs.index(output)] if spec.outputs else spec.library_outputs[0]
+    inputs = {key: data[key] for key in library.inputs}
+    return scope.array(_run_library(spec.library, inputs, library_params, library_output))
+
+
+def library_series(evaluator: Any, node: Mapping[str, Any]) -> np.ndarray:
+    """Evaluate one validated ``{"indicator": ...}`` node."""
+    library = library_indicator(node["indicator"])
+    kinds = dict(library.params)
+    params = {
+        key: evaluator.count(value) if kinds[key] == "count" else evaluator.amount(value)
+        for key, value in node["params"].items()
+    }
+    scope = _Scope(evaluator.shape, node["across_sessions"])
+    data = _frames(evaluator, scope, {key: evaluator.series(value) for key, value in node["inputs"].items()})
+    inputs = {key: data[key] for key in library.inputs}
+    return scope.array(_run_library(node["indicator"], inputs, params, node["output"]))
 
 
 def atr_series(evaluator: Any, node: Mapping[str, Any]) -> np.ndarray:
@@ -188,8 +124,8 @@ def atr_series(evaluator: Any, node: Mapping[str, Any]) -> np.ndarray:
     if smoothing == "sma" and not across:
         return evaluator.atr(length)
     scope = _Scope(evaluator.shape, across)
-    data = _inputs(evaluator, scope, None)
+    data = _frames(evaluator, scope, {})
     return scope.array(_atr(data, length, "wilder" if smoothing == "wilder" else "simple"))
 
 
-__all__ = ["atr_series", "indicator_series", "wilder_atr"]
+__all__ = ["atr_series", "indicator_series", "library_series", "wilder_atr"]

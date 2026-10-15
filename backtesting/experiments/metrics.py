@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 import math
+from types import SimpleNamespace
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from backtesting.experiments.models import ExperimentConfig, MetricPolicy
@@ -233,3 +235,70 @@ def extract_metrics(
         "number_of_trades": int(_as_float(portfolio.trades.count())),
         "win_rate": _as_float(portfolio.trades.win_rate),
     }
+
+
+def _per_setting(value: Any, count: int) -> list[float]:
+    """Split one library property read on the whole sweep into one float per setting."""
+    values = np.asarray(value.to_numpy() if hasattr(value, "to_numpy") else value, dtype=float).reshape(-1)
+    if values.size != count:
+        raise RuntimeError(f"sweep metric has {values.size} values for {count} settings")
+    return values.tolist()
+
+
+def _sweep_frame(portfolio: Any, name: str) -> pd.DataFrame | None:
+    frame = getattr(portfolio, name, None)
+    frame = frame() if callable(frame) else frame
+    return frame if isinstance(frame, pd.DataFrame) else None
+
+
+def extract_sweep_metrics(
+    portfolio: Any,
+    count: int,
+    *,
+    data: pd.DataFrame | None = None,
+    config: ExperimentConfig | None = None,
+) -> list[dict[str, float | int]]:
+    """Every setting's metrics from one multi-column VectorBT PRO portfolio.
+
+    Each library property (total_return, annualized_return, sharpe_ratio, max_drawdown,
+    trades.count(), trades.win_rate) is read once and returns one value per column.
+    A declared session policy reads value and assets once and applies
+    session_close_metrics to each column.
+    """
+    if config is not None and config.metric_policy is not None:
+        if data is None:
+            raise ValueError("declared metric policy requires source data")
+        value = _sweep_frame(portfolio, "value")
+        if value is None or value.shape[1] != count:
+            raise RuntimeError("sweep portfolio value must have one column per setting")
+        assets = _sweep_frame(portfolio, "assets")
+        session = [
+            session_close_metrics(
+                SimpleNamespace(
+                    value=value.iloc[:, position],
+                    assets=None if assets is None else assets.iloc[:, position],
+                ),
+                data,
+                config,
+            )
+            for position in range(count)
+        ]
+        total_return, annualized_return, sharpe_ratio = (list(column) for column in zip(*session))
+    else:
+        total_return = _per_setting(portfolio.total_return, count)
+        annualized_return = _per_setting(portfolio.annualized_return, count)
+        sharpe_ratio = _per_setting(portfolio.sharpe_ratio, count)
+    max_drawdown = _per_setting(portfolio.max_drawdown, count)
+    trade_counts = _per_setting(portfolio.trades.count(), count)
+    win_rate = _per_setting(portfolio.trades.win_rate, count)
+    return [
+        {
+            "total_return": total_return[position],
+            "annualized_return": annualized_return[position],
+            "sharpe_ratio": sharpe_ratio[position],
+            "max_drawdown": max_drawdown[position],
+            "number_of_trades": int(trade_counts[position]),
+            "win_rate": win_rate[position],
+        }
+        for position in range(count)
+    ]
