@@ -72,7 +72,7 @@ def test_candidates_projection_is_bounded_sorted_filterable_and_exact(tmp_path: 
     detail = load_candidate_detail("gold", database=database)
     assert detail is not None and detail["candidate_id"] == "gold"
     assert detail["run_id"] == "gold-oos"
-    assert detail["progression"] == [{"run_id": "gold-oos", "stage": "oos", "status": "succeeded", "created_at": "2026-10-09T00:00:00+00:00", "completed_at": "2026-10-09T00:00:00+00:00", "error_summary": None}]
+    assert detail["progression"] == [{"run_id": "gold-oos", "stage": "oos", "status": "succeeded", "created_at": "2026-10-09T00:00:00+00:00", "completed_at": "2026-10-09T00:00:00+00:00", "error_summary": None, "passed_count": 1, "result_count": 1}]
     assert load_candidate_detail("missing", database=database) is None
     closed_detail = load_candidate_detail("closed", database=database)
     assert closed_detail is not None
