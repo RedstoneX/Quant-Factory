@@ -4,12 +4,15 @@ from dataclasses import replace
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from backtesting.out_of_sample import ChronologicalSplitConfig, OutOfSampleConfig, execute_out_of_sample
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
 from backtesting.screening import ScreeningConfig
 from orchestration.candidate_pipeline_screening_evidence import capture_screening_portfolios
 from tests.test_out_of_sample import _audit
+
+pytestmark = pytest.mark.licensed_vectorbt
 
 
 def _wavy(rows: int = 600) -> pd.DataFrame:
