@@ -20,7 +20,9 @@ from dashboard.candidates_projection import (
     load_candidates_page,
     load_candidates_summary,
 )
+from dashboard.score_projection import load_shortlist
 from dashboard.ui.layout import copy_id, page_header
+from dashboard.ui.scores import shortlist_grid
 from dashboard.ui.theme import COLUMN_DEFAULTS, grid_options, hide_when_narrow
 
 
@@ -125,7 +127,12 @@ def candidates_layout(search: str | None = None) -> html.Div:
         dcc.Store(id="candidate-detail-record"),
         dcc.Store(id="candidate-cache-reset"),
     ]
-    return html.Div([*stores, detail, header, dmc.Box([lifecycle, filters, workspace], p="lg")])
+    view_switch = dmc.SegmentedControl(id="candidate-view", value="all", data=[{"value": "all", "label": "All ideas"}, {"value": "shortlist", "label": "Paper-trading shortlist"}], size="xs", mb="sm")
+    shortlist = html.Div([
+        dmc.Text("Ideas that cleared the costs screen and the unseen-data test, best unseen-data Sharpe first. Amber means it would have failed the old pass mark; it is a score now, not a stop.", size="xs", c="dimmed", mb="sm"),
+        shortlist_grid(),
+    ], id="candidate-shortlist-view", style={"display": "none"})
+    return html.Div([*stores, detail, header, dmc.Box([view_switch, html.Div([lifecycle, filters, workspace], id="candidate-all-view"), shortlist], p="lg")])
 
 
 def _fmt(value: Any, *, percent: bool = False) -> str:
@@ -231,6 +238,15 @@ def register_candidate_callbacks(application: Any) -> None:
         Output("candidate-cache-reset", "data"), Input("candidate-query", "data"),
         prevent_initial_call=True,
     )
+
+    @application.callback(
+        Output("candidate-all-view", "style"), Output("candidate-shortlist-view", "style"), Output("shortlist-grid", "rowData"),
+        Input("candidate-view", "value"),
+    )
+    def switch_view(view: str | None):
+        if view == "shortlist":
+            return {"display": "none"}, {}, load_shortlist()
+        return {}, {"display": "none"}, no_update
 
     @application.callback(Output("candidate-lifecycle", "data"), Output("candidate-family", "data"), Input("candidate-summary", "data"))
     def render_summary(summary: dict[str, Any] | None):
