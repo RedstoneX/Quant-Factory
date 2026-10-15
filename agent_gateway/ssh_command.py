@@ -9,7 +9,7 @@ import sys
 from agent_gateway.cli import main as cli_main
 
 
-_READ_WITH_ID = {("candidate", "get"), ("run", "status"), ("run", "results"), ("run", "evidence"), ("lineage", "get")}
+_READ_WITH_ID = {("candidate", "get"), ("run", "status"), ("run", "results"), ("run", "evidence"), ("lineage", "get"), ("campaign", "status")}
 
 
 def allowed_arguments(command: str) -> list[str]:
