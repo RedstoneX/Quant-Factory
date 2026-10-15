@@ -17,7 +17,7 @@ CONTRACT = {
     "running": ("Testing", ["started"]),
     "implementation_blocked": ("Can't test yet", ["rules_missing", "rules_invalid", "data_unavailable"]),
     "duplicate_closed": ("Duplicate", ["same_rules"]),
-    "screened_out": ("Failed testing", ["stage"]),
+    "screened_out": ("Screened out", ["stage"]),
     "survivor": ("Passed — needs your review", ["awaiting_owner_review"]),
     "failed": ("Test crashed", ["run_error", "run_timeout"]),
 }
@@ -44,7 +44,7 @@ def test_unknown_state_is_not_dressed_up_as_a_known_one():
 
 
 def test_rejected_bucket_is_relabelled_and_blocked_group_exists():
-    assert lifecycle_label("rejected") == "Failed testing"
+    assert lifecycle_label("rejected") == "Screened out"
     assert lifecycle_label("blocked") == "Can't test yet"
     assert lifecycle_label("advancing") == "Testing"
     assert lifecycle_label("survivor") == "Passed — needs your review"
@@ -69,7 +69,7 @@ def test_crashed_and_duplicate_have_their_own_groups_and_failed_testing_is_only_
     assert lifecycle_label("crashed") == "Test crashed"
     assert "duplicate" in LIFECYCLE_ORDER and "crashed" in LIFECYCLE_ORDER
     groups = {state: label for state, label in STATE_LABELS.items()}
-    assert [s for s, label in groups.items() if label == "Failed testing"] == ["screened_out"]
+    assert [s for s, label in groups.items() if label == "Screened out"] == ["screened_out"]
 
 
 def test_projection_sql_sends_each_state_to_its_own_group():

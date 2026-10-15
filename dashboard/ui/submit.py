@@ -88,7 +88,7 @@ def _batch_panel(*, gateway_ready: bool) -> html.Div:
         _line("Testing", "Not running"),
         dmc.Alert("Submitting saves your ideas. Testing starts only when a test campaign is switched on.", variant="light", color="gray", my="sm"),
         dmc.Title("Problems found", order=5),
-        html.Div("Choose a file to check it.", id="submit-issues", className="submit-empty"),
+        dmc.Text("Choose a file to check it.", id="submit-issues", size="xs", c="dimmed"),
         html.Div(id="submit-canonical-result"),
     ], className="side-body")], className="panel submit-policy")
     return html.Div([left,right],id="submit-batch",className="submit-workspace")
@@ -96,14 +96,14 @@ def _batch_panel(*, gateway_ready: bool) -> html.Div:
 
 def _manual_panel(*, gateway_ready: bool) -> html.Div:
     editor = dmc.Paper([_head("Paste one idea", "YAML or JSON in the QF Candidate v1 format", dmc.SegmentedControl(id="submit-manual-format",value="yaml",data=[{"value":"yaml","label":"YAML"},{"value":"json","label":"JSON"}],size="xs")),dmc.Textarea(id="submit-manual-text",value="",placeholder="Paste one idea as YAML or JSON…",autosize=False,className="submit-editor"),dmc.Group([dmc.Button("Load example",id="submit-load-example",variant="default"),dmc.Button("Check",id="submit-manual-validate",variant="default"),dmc.Button("Submit",id="submit-manual-canonical",disabled=not gateway_ready)],gap=8,className="submit-editor-actions"),html.Div(id="submit-manual-submit-result",className="submit-api-result")],className="panel")
-    parsed = dmc.Paper([_head("What the idea says", "Check this before you submit", dmc.Badge("Draft",id="submit-manual-state",color="yellow")),html.Div(id="submit-manual-result",children=[html.Div("Nothing checked yet.",className="submit-empty")],className="side-body")],className="panel")
+    parsed = dmc.Paper([_head("What the idea says", "Check this before you submit", dmc.Badge("Draft",id="submit-manual-state",color="yellow")),html.Div(id="submit-manual-result",children=[dmc.Text("Nothing checked yet.",size="xs",c="dimmed")],className="side-body")],className="panel")
     return html.Div([editor,parsed],id="submit-manual",className="submit-workspace",style={"display":"none"})
 
 
 def _api_panel(status: dict[str, Any]) -> html.Div:
     gateway_ready = bool(status.get("ok"))
     info = dmc.Paper([_head("Send from a program", "Programs and AI assistants use the same format and checks", dmc.Badge("Service ready" if gateway_ready else "Service unavailable",color="green" if gateway_ready else "red")),html.Div([_line("Service","Private research gateway","Signed in" if gateway_ready else "Unavailable"),_line("Format","qf_candidate_v1",dcc.Clipboard(id="submit-copy-schema",content="qf_candidate_v1")),_line("Sign-in","Each program has its own identity","Required"),_line("Duplicates","Sending the same idea twice is ignored"),_line("Testing","Not running")],className="side-body")],className="panel")
-    recent = dmc.Paper([_head("Try it", "Check the example idea that ships with the code"),html.Div([html.Div("Programs send ideas through the gateway client.",className="submit-empty"),dmc.Button("Check the example",id="submit-api-validate"),html.Div(id="submit-api-result",className="submit-api-result")],className="side-body")],className="panel")
+    recent = dmc.Paper([_head("Try it", "Check the example idea that ships with the code"),html.Div([dmc.Text("Programs send ideas through the gateway client.",size="xs",c="dimmed"),dmc.Button("Check the example",id="submit-api-validate"),html.Div(id="submit-api-result",className="submit-api-result")],className="side-body")],className="panel")
     return html.Div([info,recent],id="submit-api",className="submit-workspace",style={"display":"none"})
 
 
@@ -126,7 +126,7 @@ def register_submit_callbacks(application: Any) -> None:
         data=data or {}; rows=data.get("rows") or []
         grid=[{**row,"validation":("Valid" if row.get("review_ready") else "Valid, cannot submit yet") if row.get("valid") else "Needs attention"} for row in rows]
         issues=[issue for row in rows for issue in row.get("issues",[]) if issue.get("severity") in {"error","warning"}]
-        detail=[html.Div([html.Strong(not_submittable_reason(row) or row.get("title",""))],className="submit-issue") for row in rows if row.get("valid") and not row.get("review_ready")][:4]+[html.Div([html.Strong(f"{issue['path']} · {issue['severity'].title()}"),html.P(issue["message"])],className="submit-issue") for issue in issues[:8]] or html.Div("No validation issues." if rows else "Choose a file to check it. Nothing is saved until you press Submit.",className="submit-empty")
+        detail=[html.Div([html.Strong(not_submittable_reason(row) or row.get("title",""))],className="submit-issue") for row in rows if row.get("valid") and not row.get("review_ready")][:4]+[html.Div([html.Strong(f"{issue['path']} · {issue['severity'].title()}"),html.P(issue["message"])],className="submit-issue") for issue in issues[:8]] or dmc.Text("No validation issues." if rows else "Choose a file to check it. Nothing is saved until you press Submit.",size="xs",c="dimmed")
         variations=int(data.get("variations") or 0)
         return grid,str(data.get("definitions",0)),str(data.get("valid",0)),str(data.get("needs_attention",0)),str(data.get("ready",0)),f"{variations:,} / 250,000",min(100,variations/2500),detail
 
