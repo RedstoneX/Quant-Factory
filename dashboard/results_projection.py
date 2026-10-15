@@ -178,6 +178,31 @@ def _shared_price_rows(
         return None
 
 
+def load_session_price(
+    run_id: str | None, session: str | None, *, interval: str = "15m", database: str | Path | None = None,
+) -> dict[str, Any]:
+    """One Eastern session of the bars a first-check run saved (checksummed), grouped to the chosen bar size.
+
+    An unseen-data run reads the bars of the first-check run it came from; no
+    backtest engine is needed to draw them.
+    """
+    if not run_id or not session:
+        return {"price": [], "reason": "No price bars were saved for this run."}
+    database_path = Path(database) if database is not None else configured_database_path()
+    rows = _shared_price_rows(database=database_path, run_id=run_id, session=session)
+    if not rows:
+        return {"price": [], "reason": f"No price bars were saved for {session}."}
+    prepared = prepare_interval(rows, interval, source_interval="5m")
+    return {
+        "price": [
+            {"timestamp": eastern_plot_timestamp(bar.timestamp), "open": bar.open, "high": bar.high,
+             "low": bar.low, "close": bar.close, "source_count": bar.source_count}
+            for bar in prepared.bars[-PRICE_LIMIT:]
+        ] if prepared.available else [],
+        "reason": prepared.reason,
+    }
+
+
 def list_screening_configuration_sessions(
     run_id: str | None, parameter_row_id: str | None, *, database: str | Path | None = None,
 ) -> list[str]:
@@ -522,6 +547,6 @@ def load_results_record(
 
 
 __all__ = [
-    "list_results_runs", "list_screening_configuration_sessions",
+    "list_results_runs", "list_screening_configuration_sessions", "load_session_price",
     "load_results_record", "load_screening_configuration_evidence",
 ]
