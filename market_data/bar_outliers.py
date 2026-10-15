@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from numpy.lib.stride_tricks import sliding_window_view
+from scipy.ndimage import rank_filter
 
 WINDOW = 50
 MAXI = 10
@@ -54,51 +54,61 @@ METHOD = (
 )
 
 
-def _row_medians(rows: np.ndarray, full: slice) -> np.ndarray:
-    """Median of each row. Rows inside ``full`` hold no padding and take the lower median
-    (RcppRoll weighted median); the others may hold NaN padding and take the plain median."""
-    count = rows.shape[0]
-    result = np.full(count, np.nan)
-    start, stop = (full.start or 0), min(full.stop, count)
-    if stop > start:
-        result[start:stop] = np.partition(rows[start:stop], (rows.shape[1] - 1) // 2, axis=1)[
-            :, (rows.shape[1] - 1) // 2
-        ]
-    edge = np.ones(count, dtype=bool)
-    edge[start : max(start, stop)] = False
-    if edge.any():
-        picked = rows[edge]
-        ordered = np.sort(picked, axis=1)  # NaN padding sorts last
+def _edge_medians(values: np.ndarray, rows: np.ndarray, offsets: np.ndarray, first: np.ndarray, stop: np.ndarray):
+    """Plain median (even counts averaged) of ``values[row + offset]`` clipped to each row's date.
+
+    Rows are gathered for all dates at once; positions outside [first, stop) become NaN and
+    the sorted window then gives the plain median of what remains (no values gives NaN)."""
+    result = np.full(len(rows), np.nan)
+    for lo in range(0, len(rows), 50_000):  # bounded memory
+        part = rows[lo : lo + 50_000]
+        index = part[:, None] + offsets[None, :]
+        inside = (index >= first[part, None]) & (index < stop[part, None])
+        picked = np.where(inside, values[np.clip(index, 0, len(values) - 1)], np.nan)
+        ordered = np.sort(picked, axis=1)  # numpy.sort puts the NaN padding last
         valid = (~np.isnan(picked)).sum(axis=1)
-        position = np.arange(len(picked))
-        lower = ordered[position, np.maximum((valid - 1) // 2, 0)]
-        upper = ordered[position, np.maximum(valid // 2, 0)]
-        edge_values = (lower + upper) / 2
-        edge_values[valid == 0] = np.nan
-        result[edge] = edge_values
+        row = np.arange(len(part))
+        middle = (ordered[row, np.maximum((valid - 1) // 2, 0)] + ordered[row, np.maximum(valid // 2, 0)]) / 2
+        middle[valid == 0] = np.nan
+        result[lo : lo + 50_000] = middle
     return result
 
 
-def _criterion(values: np.ndarray, window: int) -> np.ndarray:
-    """Smallest distance to the centred, preceding and following medians for one date."""
+def _criterion(values: np.ndarray, first: np.ndarray, stop: np.ndarray, window: int) -> np.ndarray:
+    """Smallest distance to the centred, preceding and following medians, all dates at once.
+
+    ``first``/``stop`` give each row's date bounds. Interior windows (no padding) use
+    scipy.ndimage.rank_filter, an exact order statistic (RcppRoll's lower weighted median is
+    rank (window - 1) // 2); rows whose window touches a date edge take the plain median of the
+    date-clipped window."""
     count, half = len(values), window // 2
-    nan = np.nan
+    position = np.arange(count)
 
-    padded = np.concatenate([np.full(half, nan), values, np.full(half, nan)])
-    centre_rows = np.delete(sliding_window_view(padded, window + 1), half, axis=1)
-    centre = _row_medians(centre_rows, slice(half, count - half))
+    # (1) centred window of ``window`` neighbours excluding the value itself: lower median of the
+    # window+1 rolling values with the value removed = s[half] if value > s[half-1] else s[half].
+    low = rank_filter(values, half - 1, size=window + 1, mode="nearest")
+    high = rank_filter(values, half, size=window + 1, mode="nearest")
+    centre = np.where(values <= low, high, low)
+    edge = ~((position - half >= first) & (position + half < stop))
+    rows = position[edge]
+    offsets = np.delete(np.arange(-half, half + 1), half)
+    centre[rows] = _edge_medians(values, rows, offsets, first, stop)
 
-    padded = np.concatenate([np.full(window, nan), values])
-    trail = _row_medians(sliding_window_view(padded, window)[:count], slice(window, count))
+    # (2) the ``window`` preceding values.
+    lower = rank_filter(values, (window - 1) // 2, size=window, mode="nearest", origin=window // 2 - 1)  # ends at i
+    trail = np.full(count, np.nan)
+    trail[1:] = lower[:-1]
+    rows = position[~(position - window >= first)]
+    trail[rows] = _edge_medians(values, rows, np.arange(-window, 0), first, stop)
 
-    padded = np.concatenate([values, np.full(window, nan)])
-    follow = _row_medians(sliding_window_view(padded, window + 1)[:count, 1:], slice(0, count - window))
-    quirk_start = max(count - window, 0)
-    if count - 1 > quirk_start:  # source's end handling: x[(i - window):n], see module docstring
-        padded = np.concatenate([np.full(window, nan), values, np.full(2 * window, nan)])
-        rows = sliding_window_view(padded, 2 * window)[quirk_start : count - 1]
-        follow[quirk_start : count - 1] = _row_medians(rows, slice(0, 0))
-    follow[count - 1] = nan
+    # (3) the ``window`` following values; the last ``window`` rows copy the source's quirk
+    # (window reaches back and holds the value itself, x[(i - window):n]) and the last row has none.
+    follow = np.full(count, np.nan)
+    if count > window:
+        follow[:-window] = lower[window:]
+    quirk = (position >= np.maximum(stop - window, first)) & (position < stop - 1)
+    follow[quirk] = _edge_medians(values, position[quirk], np.arange(-window, window), first, stop)
+    follow[position == stop - 1] = np.nan
 
     distances = np.abs(values[None, :] - np.vstack([centre, trail, follow]))
     with np.errstate(all="ignore"):
@@ -106,13 +116,15 @@ def _criterion(values: np.ndarray, window: int) -> np.ndarray:
 
 
 def _flag_column(values: np.ndarray, bounds: np.ndarray, window: int, maxi: float) -> np.ndarray:
-    flags = np.zeros(len(values), dtype=bool)
-    for start, stop in zip(bounds[:-1], bounds[1:]):
-        day = values[start:stop]
-        mad = max(MAD_CONSTANT * np.median(np.abs(day - np.median(day))), MIN_MAD)
-        with np.errstate(invalid="ignore"):
-            flags[start:stop] = _criterion(day, window) >= maxi * mad
-    return flags
+    sizes = np.diff(bounds)
+    first = np.repeat(bounds[:-1], sizes)
+    stop = np.repeat(bounds[1:], sizes)
+    date = pd.Series(np.repeat(np.arange(len(sizes)), sizes))
+    by_date = pd.Series(values).groupby(date)
+    deviation = (pd.Series(values) - by_date.transform("median")).abs()
+    mad = (MAD_CONSTANT * deviation.groupby(date).transform("median")).clip(lower=MIN_MAD).to_numpy()
+    with np.errstate(invalid="ignore"):
+        return _criterion(values, first, stop, window) >= maxi * mad
 
 
 def flag_suspect_bars(

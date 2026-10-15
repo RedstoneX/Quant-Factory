@@ -133,14 +133,43 @@ def _signs(values: np.ndarray) -> np.ndarray:
     return signs
 
 
-class RuleEvaluator:
-    """Evaluate normalized rule nodes against the stacked bars of traded sessions."""
+def _referenced_parameters(node: Any, names: set[str]) -> set[str]:
+    """Names of the candidate variables a node refers to through ``{"param": name}``."""
+    if isinstance(node, Mapping):
+        for key, value in node.items():
+            if key == "param" and isinstance(value, str):
+                names.add(value)
+            else:
+                _referenced_parameters(value, names)
+    elif isinstance(node, (list, tuple)):
+        for item in node:
+            _referenced_parameters(item, names)
+    return names
 
-    def __init__(self, bars: SessionBars) -> None:
+
+class RuleEvaluator:
+    """Evaluate normalized rule nodes against the stacked bars of traded sessions.
+
+    ``cache`` may be shared by evaluators of several settings over the SAME bars: each key carries the
+    values of the parameters its node refers to, so settings that agree on them reuse one array.
+    """
+
+    def __init__(self, bars: SessionBars, cache: dict[str, np.ndarray] | None = None) -> None:
         self.bars = bars
         self.shape = bars.close.shape
         self.bar = bars.bar
-        self._cache: dict[str, np.ndarray] = {}
+        self._cache: dict[str, np.ndarray] = {} if cache is None else cache
+
+    def key(self, kind: str, node: Any) -> str:
+        """Cache key of ``node`` bound to the values of the parameters it references."""
+        names = sorted(_referenced_parameters(node, set()))
+        return canonical_rule_spec_json([kind, node, {name: self.bars.parameters[name] for name in names}])
+
+    def cached(self, kind: str, node: Any, compute: Any) -> np.ndarray:
+        key = self.key(kind, node)
+        if key not in self._cache:
+            self._cache[key] = compute()
+        return self._cache[key]
 
     def count(self, node: Any) -> int:
         return int(self.bars.parameters[node["param"]]) if isinstance(node, Mapping) else int(node)
@@ -153,11 +182,8 @@ class RuleEvaluator:
             return getattr(self.bars, node)
         if isinstance(node, (int, float)):
             return np.full(self.shape, float(node))
-        key = canonical_rule_spec_json(node)
-        if key not in self._cache:
-            operator = next(name for name in node if name not in _MODIFIERS)
-            self._cache[key] = self._operator(operator, node)
-        return self._cache[key]
+        operator = next(name for name in node if name not in _MODIFIERS)
+        return self.cached("series", node, lambda: self._operator(operator, node))
 
     def _operator(self, operator: str, node: Mapping[str, Any]) -> np.ndarray:
         value = node[operator]
@@ -235,6 +261,9 @@ class RuleEvaluator:
         return runs
 
     def condition(self, node: Mapping[str, Any]) -> np.ndarray:
+        return self.cached("condition", node, lambda: self._condition(node))
+
+    def _condition(self, node: Mapping[str, Any]) -> np.ndarray:
         operator, value = next(iter(node.items()))
         if operator in ("gt", "gte", "lt", "lte", "eq", "crosses_above", "crosses_below"):
             left, right = self.series(value[0]), self.series(value[1])
@@ -269,6 +298,9 @@ class RuleEvaluator:
 
     def distance_fraction(self, node: Mapping[str, Any]) -> np.ndarray:
         """Stop or target distance as a fraction of the signal-bar close."""
+        return self.cached("distance", node, lambda: self._distance_fraction(node))
+
+    def _distance_fraction(self, node: Mapping[str, Any]) -> np.ndarray:
         kind, value = next(iter(node.items()))
         if kind == "percent":
             return np.full(self.shape, self.amount(value) / 100.0)

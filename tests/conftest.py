@@ -17,6 +17,7 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_deflated_sharpe.py::test_matches_library_on_fixture",
         "tests/test_deflated_sharpe.py::test_flat_settings_are_undefined",
         "tests/test_deflated_sharpe.py::test_deflated_sharpe_is_record_only",
+        "tests/test_rule_engine_vectorized.py::test_library_indicators_batch_equals_per_setting_reference",
         "tests/test_rule_language_indicators.py::test_across_sessions_runs_through_the_session_boundary",
         "tests/test_rule_language_indicators.py::test_guide_example_condition_is_valid_and_evaluates",
         "tests/test_rule_language_indicators.py::test_indicator_matches_hand_computation",

@@ -75,3 +75,63 @@ def test_installed_dashboard_unit_runs_the_deployed_release() -> None:
     assert "WorkingDirectory=/opt/quant-factory-dashboard/current\n" in text
     assert "ExecStart=/opt/quant-factory-dashboard/current/.venv/bin/gunicorn " in text
     assert "/home/" not in text
+
+
+def _make_store(path: Path, states: list[tuple[str, str]]) -> Path:
+    import sqlite3
+
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE campaign_events (event_id INTEGER PRIMARY KEY, candidate_id TEXT, state TEXT)")
+    connection.executemany("INSERT INTO campaign_events(candidate_id, state) VALUES (?, ?)", states)
+    connection.commit()
+    connection.close()
+    return path
+
+
+@pytest.fixture
+def switched(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[str]:
+    calls: list[str] = []
+    monkeypatch.delenv("QF_DEPLOY_FORCE", raising=False)
+    monkeypatch.setattr(qf_deploy, "read_state", lambda: {})
+    monkeypatch.setattr(qf_deploy, "fetch_main", lambda: SHA_B)
+    monkeypatch.setattr(qf_deploy, "export_release", lambda revision: tmp_path)
+    monkeypatch.setattr(qf_deploy, "infra_drift", lambda release, installed: [])
+    monkeypatch.setattr(qf_deploy, "_switch", lambda target, *args, **kwargs: calls.append(target) or 0)
+    return calls
+
+
+def _deploy() -> int:
+    return qf_deploy.deploy(None, admin=False, force=False, unpin=False)
+
+
+def test_deploy_defers_while_an_auto_test_is_running(
+    switched: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    store = _make_store(tmp_path / "g.sqlite3", [("a", "queued"), ("a", "running"), ("b", "running"), ("b", "passed")])
+    monkeypatch.setattr(qf_deploy, "GATEWAY_DB", store)
+    assert _deploy() == 0
+    assert switched == []
+    assert "deploy deferred: 1 auto-tests running" in capsys.readouterr().out
+
+
+def test_deploy_proceeds_when_only_queued_or_finished(switched: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path / "g.sqlite3", [("a", "queued"), ("b", "running"), ("b", "passed")])
+    monkeypatch.setattr(qf_deploy, "GATEWAY_DB", store)
+    assert _deploy() == 0
+    assert switched == [SHA_B]
+
+
+def test_deploy_proceeds_with_a_warning_when_the_store_is_unreadable(
+    switched: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(qf_deploy, "GATEWAY_DB", tmp_path / "missing.sqlite3")
+    assert _deploy() == 0
+    assert switched == [SHA_B]
+    assert "WARNING: cannot read the auto-test store" in capsys.readouterr().out
+
+
+def test_force_env_deploys_despite_a_running_test(switched: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(qf_deploy, "GATEWAY_DB", _make_store(tmp_path / "g.sqlite3", [("a", "running")]))
+    monkeypatch.setenv("QF_DEPLOY_FORCE", "1")
+    assert _deploy() == 0
+    assert switched == [SHA_B]

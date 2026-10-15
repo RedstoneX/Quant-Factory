@@ -706,7 +706,7 @@ def test_exception_after_in_flow_binding_keeps_acknowledgement_and_propagates_er
         _bind(service, submission)
         raise RuntimeError("failure after durable acknowledgement")
 
-    with pytest.raises(ResearchLaunchInvocationError) as caught:
+    with pytest.raises(ResearchLaunchInvocationError, match="RuntimeError: failure after") as caught:
         service.dispatch(
             idempotency_key=key,
             dispatcher_instance_id=new_dispatcher_instance_id(),

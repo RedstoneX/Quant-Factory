@@ -413,16 +413,19 @@ def _validated_settings(
     rejections: list[RejectedParameters],
     validation_by_gate: dict[str, ValidationResult],
 ) -> list[tuple[dict[str, Any], SignalResult, tuple[ValidationResult, ...]]]:
-    """Validate every supplied setting and align its signals; record rejected ones."""
-    settings: list[tuple[dict[str, Any], SignalResult, tuple[ValidationResult, ...]]] = []
+    """Validate and align every setting (in one pass if the strategy class has ``iter_signals_batch``)."""
+    accepted: list[dict[str, Any]] = []
     for supplied in config.parameter_combinations:
         candidate = dict(supplied)
         try:
-            normalized = strategy.validate_parameters(candidate)
+            accepted.append(strategy.validate_parameters(candidate))
         except (TypeError, ValueError) as exc:
             rejections.append(RejectedParameters(parameters=candidate, error=str(exc)))
-            continue
-        signals = strategy.generate_signals(data, normalized)
+    batch = getattr(type(strategy), "iter_signals_batch", None)
+    one_by_one = (strategy.generate_signals(data, normalized) for normalized in accepted)
+    generated = one_by_one if batch is None else batch(strategy, data, accepted)
+    settings = []
+    for normalized, signals in zip(accepted, generated):
         aligned, validation_results = validate_for_simulation(
             data, signals, config, required_fields=strategy.spec.data.required_fields
         )

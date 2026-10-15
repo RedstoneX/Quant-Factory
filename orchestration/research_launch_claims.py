@@ -1337,7 +1337,7 @@ class DurableResearchLaunchService:
                     "research submission outcome is unknown and will not be retried automatically"
                 ) from exc
             raise ResearchLaunchInvocationError(
-                "research submission was acknowledged but invocation reported an error"
+                f"research submission was acknowledged but invocation reported an error: {type(exc).__name__}: {exc}"
             ) from exc
         current = self.get(idempotency_key)
         assert current is not None

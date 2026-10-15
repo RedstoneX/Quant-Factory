@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime, timezone
+import json
 import sqlite3
 from typing import Any
 
@@ -501,13 +502,11 @@ class IdeaDraftRepository:
             ).fetchone()
         )
 
-    def list(self) -> tuple[IdeaDraftRecord, ...]:
-        return tuple(
-            _idea_draft(row)
-            for row in self.connection.execute(
-                "SELECT * FROM idea_drafts ORDER BY updated_at DESC, draft_id"
-            )
-        )
+    def list(self, *, configuration_ids: set[str] | None = None, skip_linked_ids: set[str] = frozenset()) -> tuple[IdeaDraftRecord, ...]:
+        sql = ("SELECT * FROM idea_drafts WHERE (?1 IS NULL OR configuration_id IN (SELECT value FROM json_each(?1))) "
+               "AND NOT (configuration_id IS NOT NULL AND draft_id IN (SELECT value FROM json_each(?2))) ORDER BY updated_at DESC, draft_id")
+        keep = None if configuration_ids is None else json.dumps(sorted(configuration_ids))
+        return tuple(_idea_draft(row) for row in self.connection.execute(sql, (keep, json.dumps(sorted(skip_linked_ids)))))
 
     def delete(self, draft_id: str) -> bool:
         cursor = self.connection.execute(

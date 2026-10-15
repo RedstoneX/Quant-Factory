@@ -8,6 +8,7 @@ is tuned. Only datasets whose contract costs that setup records are supported.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import functools
 import importlib.util
 import itertools
 import json
@@ -38,6 +39,7 @@ from orchestration.candidate_pipeline_runtime import (
     CandidatePipelineRuntime,
     CandidateValidationPlan,
 )
+from orchestration.research_launch_claims import ResearchLaunchError, ResearchLaunchInvocationError
 from persistence import PersistenceService, StrategyLifecycle, canonical_json
 
 POLICY_ID = "auto_test_v1"
@@ -283,15 +285,39 @@ def auto_test_definition(
     return CandidatePipelineDefinition(experiment=experiment, strategy_version=strategy_version, validation=validation)
 
 
-def earlier_owner_of_strategy(*, database: str | Path, strategy_id: str, candidate_id: str) -> str | None:
-    """Return another idea already linked to a setup for this exact strategy."""
+def packet_market(packet: Mapping[str, Any]) -> tuple[str, str]:
+    """Return the (symbol, timeframe) a candidate packet asks to be tested on."""
+    market = packet.get("market") if isinstance(packet.get("market"), Mapping) else {}
+    instruments = market.get("instruments") if isinstance(market.get("instruments"), Mapping) else {}
+    preferred = instruments.get("preferred") or [""]
+    return str(preferred[0] or ""), str(market.get("timeframe") or "")
+
+
+def _draft_market(candidate_json: str) -> tuple[str, str] | None:
+    try:
+        document = json.loads(candidate_json or "")
+    except ValueError:
+        return None
+    return packet_market(document) if isinstance(document, Mapping) else None
+
+
+def earlier_owner_of_strategy(
+    *, database: str | Path, strategy_id: str, candidate_id: str, symbol: str, timeframe: str,
+    without_result: Collection[str] = (),
+) -> str | None:
+    """Return another idea already linked to a setup for this strategy on the same symbol and timeframe.
+
+    Ideas in `without_result` (failed, interrupted or blocked: no numbers) never own the strategy.
+    """
     service = PersistenceService(database)
     try:
         configuration_ids = {row.configuration_id for row in service.configurations.list(strategy_id=strategy_id)}
         owners = sorted(
             (draft.created_at, draft.draft_id)
-            for draft in service.idea_drafts.list()
-            if draft.configuration_id in configuration_ids and draft.draft_id != candidate_id
+            for draft in service.idea_drafts.list(configuration_ids=configuration_ids)
+            if draft.draft_id != candidate_id
+            and draft.draft_id not in without_result
+            and _draft_market(draft.candidate_json) == (symbol, timeframe)
         )
         return owners[0][1] if owners else None
     finally:
@@ -310,8 +336,19 @@ def outcome_from_chain(chain: Any, run_id: str) -> AutoTestOutcome:
     return AutoTestOutcome("failed", "run_error", safe_detail(f"The pipeline finished with an unrecognized outcome {status!r}."), run_id)
 
 
+@functools.lru_cache(maxsize=32)
+def _load_verified(config: Any, dataset_end: str, mtime_ns: int) -> None:
+    # Only successes are cached; mtime_ns changes the key when the dataset file changes.
+    load_market_data(config, now=pd.Timestamp(dataset_end), allow_download=False)
+
+
 def _check_verified_data(definition: CandidatePipelineDefinition, profile: DatasetProfile) -> None:
-    load_market_data(definition.experiment.market_data, now=pd.Timestamp(profile.dataset_end), allow_download=False)
+    config = definition.experiment.market_data
+    try:
+        mtime_ns = Path(config.cache_path).stat().st_mtime_ns
+    except OSError:
+        mtime_ns = -1
+    _load_verified(config, profile.dataset_end, mtime_ns)
 
 
 def runtime_launch(*, database: str | Path, artifact_root: str | Path, pipeline_launcher: Any) -> Launch:
@@ -365,4 +402,11 @@ def run_auto_test(
             "failed", "run_error",
             "An earlier attempt was interrupted before finishing and was not run a second time.",
         )
+    except ResearchLaunchInvocationError as exc:
+        # The launch reported an error after acknowledging the run. If the run itself completed, the
+        # same key reopens its recorded outcome without running it again; otherwise report the cause.
+        try:
+            run_id, chain = launch(configuration.configuration_id, key)
+        except (ResearchLaunchError, CandidatePipelineReplayIncompleteError):
+            return AutoTestOutcome("failed", "run_error", safe_detail(exc))
     return outcome_from_chain(chain, run_id)

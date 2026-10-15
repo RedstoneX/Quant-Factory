@@ -22,6 +22,7 @@ from orchestration.auto_campaign import (
     run_auto_test,
 )
 from orchestration.auto_campaign_process import run_in_child
+from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from orchestration import CandidatePipelineDefinition
 from persistence import PersistenceService
 from strategies.rule_spec_strategy import install_rule_strategy, rule_strategy_definition
@@ -171,6 +172,58 @@ def test_duplicate_rules_close_before_install(tmp_path):
     assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
     assert harness.events("idea_second01")[-1]["reason_detail"] == "idea_first001"
     assert len(harness.adapter.installed) == 1
+
+
+def test_same_rules_on_a_different_symbol_are_not_a_duplicate(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_first001", symbol="MES")
+    harness.draft("idea_second01", symbol="QQQ")
+    harness.campaign().run_once()
+    assert ("duplicate_closed", "same_rules") not in harness.states("idea_second01")
+
+
+def test_same_rules_symbol_and_timeframe_with_new_title_is_still_a_duplicate(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_first001", symbol="MES")
+    harness.draft("idea_second01", symbol="MES")  # titles differ: "Idea <id>"
+    harness.campaign().run_once()
+    assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
+    assert harness.events("idea_second01")[-1]["reason_detail"] == "idea_first001"
+
+
+def _second_idea_after_first(tmp_path, chain=None, first_outcome=None, reopen=False):
+    harness = Harness(tmp_path, chain=chain)
+    harness.draft("idea_first001")
+    harness.campaign(first_outcome).run_once()
+    if reopen:
+        store = GatewayStore(harness.gateway_database)
+        try:
+            store.append_campaign_event(
+                candidate_id="idea_first001", policy_id=POLICY_ID, state="running", reason_code="started",
+                packet_sha256=harness.events("idea_first001")[-1]["packet_sha256"],
+            )
+        finally:
+            store.close()
+    harness.draft("idea_second01")
+    harness.campaign().run_once()
+    return harness
+
+
+def test_earlier_idea_that_failed_does_not_block_a_rerun(tmp_path):
+    harness = _second_idea_after_first(tmp_path, chain=_chain("invalid", None, ()))  # linked setup, no numbers
+    assert harness.states("idea_first001")[-1] == ("failed", "run_error")
+    assert ("duplicate_closed", "same_rules") not in harness.states("idea_second01")
+
+
+def test_earlier_idea_screened_out_is_still_a_duplicate(tmp_path):
+    harness = _second_idea_after_first(tmp_path, chain=_chain("stopped", "walk_forward", ("Negative.",)))
+    assert harness.states("idea_first001")[-1][0] == "screened_out"
+    assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
+
+
+def test_earlier_idea_still_in_progress_is_still_a_duplicate(tmp_path):
+    harness = _second_idea_after_first(tmp_path, reopen=True)
+    assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
 
 
 def test_screened_out_uses_pipeline_stage_names():
@@ -330,3 +383,155 @@ def test_campaign_events_are_append_only(tmp_path, operation):
             store.connection.execute(operation)
     finally:
         store.close()
+
+
+def test_duplicate_closed_against_an_owner_that_later_failed_is_tested_again(tmp_path):
+    harness = Harness(tmp_path, chain=_chain("invalid", None, ()))
+    harness.draft("idea_first001")
+    harness.campaign().run_once()  # links a setup; its test then fails without numbers
+    harness.draft("idea_second01")
+    digest = harness.events("idea_first001")[-1]["packet_sha256"]
+    store = GatewayStore(harness.gateway_database)
+    try:
+        store.append_campaign_event(candidate_id="idea_first001", policy_id=POLICY_ID, state="running",
+                                    reason_code="started", packet_sha256=digest)  # still in progress
+    finally:
+        store.close()
+    campaign = harness.campaign(lambda _request: pytest.fail("the owner must not be run here"))
+    campaign._stop.set()  # queue and close the resubmission only
+    store = GatewayStore(harness.gateway_database)
+    try:
+        queued = campaign._queue(store)
+        second = next(item for item in queued if item[0].draft_id == "idea_second01")
+        campaign._process(store, *second)
+        assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
+        store.append_campaign_event(candidate_id="idea_first001", policy_id=POLICY_ID, state="failed",
+                                    reason_code="run_error", packet_sha256=digest)
+        assert any(item[0].draft_id == "idea_second01" for item in campaign._queue(store))
+    finally:
+        store.close()
+
+
+def test_an_error_while_testing_one_idea_is_recorded_for_that_idea_only(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_first001", symbol="MES")
+    harness.draft("idea_second01", symbol="MNQ")
+
+    def explode_on_first(request):
+        if request.candidate_id == "idea_first001":
+            raise RuntimeError("boom at /home/ubuntu/secret/place.py")
+        return harness.executor(request)
+
+    campaign = harness.campaign(explode_on_first)
+    campaign.run_once()
+    assert harness.states("idea_first001")[-1] == ("failed", "run_error")
+    assert "RuntimeError: boom" in harness.events("idea_first001")[-1]["reason_detail"]
+    assert "/home/ubuntu" not in harness.events("idea_first001")[-1]["reason_detail"]
+    assert harness.states("idea_second01")[-1][0] != "failed"
+    before = len(harness.events("idea_first001"))
+    campaign.run_once()
+    assert len(harness.events("idea_first001")) == before  # not re-started
+
+
+def test_loop_survives_a_failed_pass(tmp_path):
+    campaign = Harness(tmp_path).campaign()
+    calls = []
+
+    def run_once():
+        calls.append(1)
+        if len(calls) == 1:
+            raise OSError("unexpected")
+        campaign._stop.set()
+
+    campaign.run_once = run_once
+    campaign.poll_seconds = 0
+    campaign._loop()
+    assert len(calls) == 2
+
+
+def test_launch_error_after_acknowledgement_uses_the_completed_run_or_reports_the_cause(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_first001")
+    state = {"calls": 0}
+
+    def flaky(configuration_id, key):
+        state["calls"] += 1
+        if state["calls"] == 1:
+            raise ResearchLaunchInvocationError("acknowledged but invocation reported an error: OSError: disk")
+        return "run_" + "0" * 32, harness.chain
+
+    seen = []
+    harness.campaign(lambda request: seen.append(request) or AutoTestOutcome("failed", "run_error")).run_once()
+    request = seen[0]
+    outcome = run_auto_test(request, adapter=harness.adapter, launch=flaky, data_check=lambda *_: None)
+    assert outcome.state == "survivor"
+
+    def always(configuration_id, key):
+        raise ResearchLaunchInvocationError("acknowledged but invocation reported an error: OSError: disk")
+
+    outcome = run_auto_test(request, adapter=harness.adapter, launch=always, data_check=lambda *_: None)
+    assert (outcome.state, outcome.reason_code) == ("failed", "run_error")
+    assert "OSError: disk" in outcome.reason_detail
+
+
+def test_a_pass_does_not_touch_closed_ideas(tmp_path, monkeypatch):
+    import agent_gateway.auto_campaign as module
+
+    harness = Harness(tmp_path)
+    packet = (ROOT / "research_intake" / "mes_sma_10_30_candidate.json").read_text()
+    digest = hashlib.sha256(packet.encode("utf-8")).hexdigest()
+    ids = [f"idea_bulk{index:05d}" for index in range(2000)]
+    service = PersistenceService(harness.database)
+    try:
+        for draft_id in ids:
+            service.save_idea_draft(title=draft_id, draft_id=draft_id)
+            service.set_idea_candidate_packet(draft_id=draft_id, candidate_json=packet)
+        connection = service.idea_drafts.connection
+        connection.execute("PRAGMA foreign_keys=OFF")
+        connection.execute("UPDATE idea_drafts SET configuration_id='cfg_closed'")  # finished ideas are linked to a setup
+        connection.commit()
+    finally:
+        service.close()
+    store = GatewayStore(harness.gateway_database)
+    try:
+        for draft_id in ids:
+            store.append_campaign_event(
+                candidate_id=draft_id, policy_id="p", state="survivor", reason_code="awaiting_owner_review",
+                packet_sha256=digest,
+            )
+        calls = []
+        real = module._eligible_packet
+        monkeypatch.setattr(module, "_eligible_packet", lambda text: calls.append(text) or real(text))
+        listed = []
+        from persistence.repositories import IdeaDraftRepository
+
+        real_list = IdeaDraftRepository.list
+        monkeypatch.setattr(
+            IdeaDraftRepository, "list",
+            lambda self, **kw: listed.append(real_list(self, **kw)) or listed[-1],
+        )
+        assert harness.campaign()._queue(store) == []
+    finally:
+        store.close()
+    assert calls == []
+    assert sum(len(rows) for rows in listed) == 0  # closed ideas are not even read
+
+
+def test_verified_data_is_loaded_once_per_dataset(tmp_path, monkeypatch):
+    import orchestration.auto_campaign as module
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class Config:
+        cache_path: Path
+
+    cache = tmp_path / "d.csv"
+    cache.write_text("x")
+    calls = []
+    monkeypatch.setattr(module, "load_market_data", lambda *a, **k: calls.append(1))
+    module._load_verified.cache_clear()
+    definition = SimpleNamespace(experiment=SimpleNamespace(market_data=Config(cache)))
+    profile = SimpleNamespace(dataset_end="2025-01-02")
+    for _ in range(3):
+        module._check_verified_data(definition, profile)
+    assert len(calls) == 1
