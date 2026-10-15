@@ -263,11 +263,10 @@ def test_futures_slippage_can_be_configured_in_price_points() -> None:
         tick_size=None,
         slippage_points=0.5,
     )
-    aligned = align_signals_for_execution(_signals(_data().index), execution)
     assert execution.absolute_slippage_points == 0.5
     slippage = execution_slippage(_data(), execution)
     assert slippage.iloc[2] * _data()["Open"].iloc[2] == pytest.approx(0.5)
-    assert prices.iloc[3] == (_data()["Open"].iloc[3] - 0.5) * 5
+    assert slippage.iloc[3] * _data()["Open"].iloc[3] == pytest.approx(0.5)
 
 
 @pytest.mark.licensed_vectorbt

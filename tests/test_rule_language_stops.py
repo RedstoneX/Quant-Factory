@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import itertools
-import json
 from types import SimpleNamespace
 
 import numpy as np
@@ -14,16 +13,19 @@ import pytest
 from rule_language import canonical_rule_spec_json, validate_rule_spec
 from strategies.models import SignalResult
 from strategies.rule_spec_strategy import RuleSpecStrategy, rule_strategy_definition
+from backtesting.experiments.runner import _construct_portfolio, align_signals_for_execution
+from tests.rule_trades import ZERO_COST
 from tests.test_rule_spec_strategy import _frame, _run, _spec
 
 LONG_AT_10 = [{"when": {"time_is": "10:00"}, "side": "long"}]
 BOTH_SIDES = LONG_AT_10 + [{"when": {"time_is": "13:00"}, "side": "short"}]
 
-# sha256 of _fingerprint(...) computed on origin/main (e1bdcec) before this change.
+# sha256 of _fingerprint(...) computed on main (563a4dc, the per-session walk) before the move to continuous
+# history: the normalized spec plus every simulated trade, so the hash pins results, not internal signal flags.
 MAIN_FINGERPRINTS = {
-    "both_ticks_percent": "31bff4880710da172b280ee550f43ae0b28f5747644cc80077763ddd6b20fe6b",
-    "both_atr_points": "f23afc426af0e0d955225ad88033393091cbfc2f5c31c0f4926ea317fd7d597c",
-    "neither": "70018a94c27d530247e3b683ae79350da5cc46fb83f327e3221f1afc64a4a5e6",
+    "both_ticks_percent": "5fa15db5425e1f6be4171f16d81c545bb4fcb3db3a93e8a68779407e99e6b545",
+    "both_atr_points": "c47c2e541555e2bf94171941e34b2d7caba60653ab10476635d2bc33e9beb400",
+    "neither": "2ade4de97621aa6e6b544e578441341a3013f5f2d1a8faf0e79e4c0c06a72253",
 }
 LEGACY_EXITS = {
     "both_ticks_percent": {"stop_loss": {"ticks": 8}, "take_profit": {"percent": 1}, "after_bars": 20},
@@ -40,18 +42,17 @@ def _legacy_frame() -> pd.DataFrame:
 
 
 def _fingerprint(exit_rules: dict) -> str:
-    """Hash every observable output of validation and compilation for one spec."""
+    """Hash the normalized spec and every trade VectorBT simulates from it (zero costs)."""
     spec = _spec(BOTH_SIDES, exit=exit_rules, max_trades_per_session=2)
     normalized = canonical_rule_spec_json(validate_rule_spec(spec, variables={}))
     definition = rule_strategy_definition(candidate_id="cand-test", title="Test rules", rule_spec=spec, variables={})
-    strategy = RuleSpecStrategy(definition)
-    signals = strategy.generate_signals(_legacy_frame(), {})
-    parts = [normalized, repr(strategy.spec.assumptions), json.dumps(signals.parameters)]
-    for name in ("entries", "exits", "short_entries", "short_exits", "stop_loss", "take_profit"):
-        series = getattr(signals, name)
-        parts.append("None" if series is None else repr(list(zip(series.index.astype(str), series.tolist()))))
-    parts.append(json.dumps(signals.metadata, default=str))
-    return hashlib.sha256("\n".join(parts).encode()).hexdigest()
+    frame = _legacy_frame()
+    signals = RuleSpecStrategy(definition).generate_signals(frame, {})
+    portfolio = _construct_portfolio(frame, align_signals_for_execution(signals, ZERO_COST), SimpleNamespace(execution=ZERO_COST))
+    columns = ["Direction", "Entry Index", "Exit Index", "Avg Entry Price", "Avg Exit Price", "PnL", "Status"]
+    records = portfolio.trades.records_readable[columns]
+    assert len(records) > 0
+    return hashlib.sha256((normalized + "\n" + records.round(6).to_csv(index=False)).encode()).hexdigest()
 
 
 @pytest.mark.parametrize("name", sorted(LEGACY_EXITS))

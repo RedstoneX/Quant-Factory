@@ -38,7 +38,7 @@ def test_exit_when_closes_the_trade_for_its_side_only() -> None:
     frame = _frame([closes])
     signals = _run(_spec(LONG_AT_10, exit=exit_rules), frame)
     assert trades(signals, frame) == [("long", "05 10:00", "05 10:25")]  # closed on row 10, before flat_at
-    assert not signals.short_exits.any()
+    assert _rows(signals.short_exits) == [FLAT_ROW]  # only the flat_at clock: the long rule never touches shorts
     assert "rule exit" in signals.metadata["exit_when"]
 
 

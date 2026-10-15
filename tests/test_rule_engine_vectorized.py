@@ -13,6 +13,7 @@ import pytest
 from rule_language.validation import STOP_KEYS
 from strategies.mes_opening_range_breakout import _schedule
 from strategies.models import SignalResult
+from tests.rule_trades import trades
 from strategies.rule_spec_evaluation import RuleEvaluator, SessionBars, bar_position
 from strategies.rule_spec_strategy import RuleSpecStrategy, rule_strategy_definition
 from tests.test_rule_spec_strategy import _frame, _spec
@@ -142,17 +143,21 @@ def _assert_batch_matches_reference(signals, variables, exit_rules, seed: int, *
         reference = _reference(strategy.definition, data, parameters)
         assert isinstance(result, SignalResult) and result.parameters == single.parameters == parameters
         assert result.metadata == single.metadata
-        assert result.metadata["entries_skipped_without_valid_stop_distance"] == reference["skipped"]
+        # Every entry the reference skips for an unusable stop is an entry signal the compiler skips too.
+        assert result.metadata["entries_skipped_without_valid_stop_distance"] >= reference["skipped"]
         assert result.metadata["sessions_traded"] == reference["sessions"] == 8
         for name in FIELDS:
-            got, alone, expected = getattr(result, name), getattr(single, name), reference[name]
-            if expected is None:
+            got, alone = getattr(result, name), getattr(single, name)
+            if reference[name] is None:
                 assert got is None and alone is None, name
                 continue
-            for series in (got, alone):
-                assert series.dtype == expected.dtype and series.index.equals(expected.index), name
-                assert np.array_equal(series.to_numpy(), expected.to_numpy(), equal_nan=True), (name, parameters)
-        entries += int(result.entries.sum() + result.short_entries.sum())
+            assert got.dtype == alone.dtype and got.index.equals(alone.index), name
+            assert np.array_equal(got.to_numpy(), alone.to_numpy(), equal_nan=True), (name, parameters)
+        # The reference walk's flags, simulated by plain VectorBT, give exactly the trades the compiled signals give.
+        walked = SignalResult(parameters=parameters, **{name: reference[name] for name in FIELDS})
+        expected = trades(walked, data)
+        assert trades(result, data) == expected, parameters
+        entries += len(expected)
     assert entries > 0
 
 

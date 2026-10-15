@@ -204,7 +204,7 @@ def _construct_portfolio(
         from backtesting.experiments.session_cap import session_cap_kwargs
 
         columns = len(aligned) if isinstance(aligned, (list, tuple)) else 1
-        stops |= session_cap_kwargs(first.session_id, data.index, first.session_entry_cap, columns)
+        stops |= session_cap_kwargs(first.session_id, data.index, first.session_entry_cap, columns, stops.get("td_stop"))
     return vbt.Portfolio.from_signals(
         close=close,
         **leading,
