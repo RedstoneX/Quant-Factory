@@ -19,6 +19,7 @@ from backtesting.experiments.models import (
     RejectedParameters,
 )
 from backtesting.experiments.metrics import extract_metrics, extract_sweep_metrics
+from backtesting.experiments.windows import cut_to_window, generate_signals_once
 from backtesting.validation.gates import (
     normalize_signals,
     validate_execution,
@@ -406,34 +407,12 @@ def _with_luck(
     ]
 
 
-def _signal_key(normalized: dict[str, Any]) -> str:
-    return repr(sorted(normalized.items()))
-
-
-_SIGNAL_SERIES = (
-    "entries", "exits", "short_entries", "short_exits", "stop_loss", "take_profit", "trailing_stop",
-)
-
-
-def _signals_in_window(aligned: SignalResult, index: pd.Index) -> SignalResult:
-    """Cut full-history signals to one evaluation window (pandas ``.loc``)."""
-    return replace(
-        aligned,
-        **{
-            name: getattr(aligned, name).loc[index]
-            for name in _SIGNAL_SERIES
-            if getattr(aligned, name) is not None
-        },
-    )
-
-
 def _validated_settings(
     config: ExperimentConfig,
     strategy: Any,
     data: pd.DataFrame,
     rejections: list[RejectedParameters],
-    validation_by_gate: dict[str, ValidationResult],
-    signal_cache: dict[str, SignalResult] | None = None,
+    validation_by_gate: dict[str, ValidationResult], signal_cache: dict | None = None,
 ) -> list[tuple[dict[str, Any], SignalResult, tuple[ValidationResult, ...]]]:
     """Validate and align every setting (in one pass if the strategy class has ``iter_signals_batch``)."""
     accepted: list[dict[str, Any]] = []
@@ -443,15 +422,7 @@ def _validated_settings(
             accepted.append(strategy.validate_parameters(candidate))
         except (TypeError, ValueError) as exc:
             rejections.append(RejectedParameters(parameters=candidate, error=str(exc)))
-    # Signals are generated once per setting per history: a caller that evaluates several
-    # windows of the same history passes one ``signal_cache`` and reuses them.
-    cache = {} if signal_cache is None else signal_cache
-    missing = [normalized for normalized in accepted if _signal_key(normalized) not in cache]
-    batch = getattr(type(strategy), "iter_signals_batch", None)
-    one_by_one = (strategy.generate_signals(data, normalized) for normalized in missing)
-    fresh = one_by_one if batch is None or not missing else batch(strategy, data, missing)
-    cache.update(zip((_signal_key(normalized) for normalized in missing), fresh))
-    generated = [cache[_signal_key(normalized)] for normalized in accepted]
+    generated = generate_signals_once(strategy, data, accepted, signal_cache)
     settings = []
     for normalized, signals in zip(accepted, generated):
         aligned, validation_results = validate_for_simulation(
@@ -470,15 +441,9 @@ def execute_experiment(
     run_timestamp: str | None = None,
     write_output: bool = True,
     portfolio_observer: Callable[[str, Any], None] | None = None,
-    evaluation_range: tuple[pd.Timestamp, pd.Timestamp] | None = None,
-    signal_cache: dict[str, SignalResult] | None = None,
+    evaluation_range: tuple | None = None, signal_cache: dict | None = None,  # see experiments.windows
 ) -> ExperimentResult:
-    """Validate, simulate, rank, and optionally persist one experiment.
-
-    With ``evaluation_range`` (inclusive first and last timestamps), signals are computed on
-    the whole ``data`` history, so indicators are warmed up by the bars before the window,
-    and only the window is simulated and scored (a flat start at the window's first bar).
-    """
+    """Validate, simulate, rank, and optionally persist one experiment."""
     strategy = get_strategy(config.strategy_id)
     parameter_plan_summary = summarize_parameter_plan(
         strategy.spec, require_approved=True
@@ -499,15 +464,8 @@ def execute_experiment(
     execution_assumptions = _execution_assumptions(config, strategy)
     parameter_names = tuple(strategy.spec.parameter_map)
 
-    settings = _validated_settings(
-        config, strategy, data, rejections, validation_by_gate, signal_cache
-    )
-    if evaluation_range is not None:
-        data = data.loc[evaluation_range[0] : evaluation_range[1]]
-        settings = [
-            (normalized, _signals_in_window(aligned, data.index), results)
-            for normalized, aligned, results in settings
-        ]
+    settings = _validated_settings(config, strategy, data, rejections, validation_by_gate, signal_cache)
+    data, settings = cut_to_window(data, settings, evaluation_range)
 
     # Every validated setting is one column of a single VectorBT simulation.
     aligned_settings = tuple(aligned for _, aligned, _ in settings)

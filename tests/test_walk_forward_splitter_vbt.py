@@ -97,19 +97,20 @@ def test_whole_range_matches_a_plain_run():
     pd.testing.assert_frame_equal(plain.ranked_results, ranged.ranked_results)
 
 
-def test_signals_are_generated_once_per_parameter_set(monkeypatch):
+def test_signals_are_generated_once_per_parameter_set():
     data = _market()
-    strategy_type = type(get_strategy(DONCHIAN.strategy_id))
-    calls: list[int] = []
-    original = strategy_type.generate_signals
-
-    def counting(self, frame, parameters):
-        calls.append(len(frame))
-        return original(self, frame, parameters)
-
-    monkeypatch.setattr(strategy_type, "generate_signals", counting)
+    audit = _audit(data)
+    cache: dict = {}
+    first = (data.index[300], data.index[399])
+    second = (data.index[500], data.index[599])
+    execute_experiment(DONCHIAN, data, audit, write_output=False, evaluation_range=first, signal_cache=cache)
+    generated = dict(cache)
+    assert len(generated) == len(DONCHIAN.parameter_combinations)
+    assert all(signals.entries.index.equals(data.index) for signals in generated.values())
+    execute_experiment(DONCHIAN, data, audit, write_output=False, evaluation_range=second, signal_cache=cache)
+    # The second window reused the same signal objects: nothing was regenerated.
+    assert cache.keys() == generated.keys()
+    assert all(cache[key] is generated[key] for key in generated)
+    # The walk-forward runner shares one cache across every fold and stage.
     config = _wf_config(300, 100, 100, 100, "rolling", "drop", 30, experiment=DONCHIAN)
-    result = execute_walk_forward(config, data, _audit(data), write_output=False)
-    assert result.total_fold_count == 5
-    assert len(calls) == len(DONCHIAN.parameter_combinations)
-    assert set(calls) == {len(data)}
+    assert execute_walk_forward(config, data, audit, write_output=False).total_fold_count == 5
