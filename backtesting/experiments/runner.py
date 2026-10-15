@@ -339,7 +339,7 @@ def _execution_values(execution: ExecutionConfig) -> dict[str, Any]:
         "price_multiplier": execution.price_multiplier,
         "fixed_fee_per_contract_per_side": execution.fixed_fee_per_contract_per_side,
         "fixed_fee_per_order": execution.fixed_fee_per_order,
-        "slippage_points": execution.absolute_slippage_points,
+        "slippage_points": execution.slippage_points,
         "slippage_ticks": execution.slippage_ticks,
         "tick_size": execution.tick_size,
     }

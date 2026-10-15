@@ -218,7 +218,7 @@ def _report_execution(config: ExperimentConfig) -> dict[str, object]:
             execution.fixed_fee_per_contract_per_side
         ),
         "fixed_fee_per_order": _json_scalar(execution.fixed_fee_per_order),
-        "slippage_points": _json_scalar(execution.absolute_slippage_points),
+        "slippage_points": _json_scalar(execution.slippage_points),
         "slippage_ticks": _json_scalar(execution.slippage_ticks),
         "tick_size": _json_scalar(execution.tick_size),
     }
