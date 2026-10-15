@@ -301,6 +301,8 @@ def _metadata(definition: Mapping[str, Any], prepared: PreparedSessions, skipped
         metadata["trailing_stop_distance"] = (
             "the trailing stop's fraction is fixed at entry; the engine trails it behind the best price since entry."
         )
+    if "trail_after" in present:
+        metadata["trail_after"] = "the trailing stop switches on once price gains trail_after from the entry (from_signals tsl_th)."
     if present:
         metadata["stop_distance_approximation"] = (
             "points, ticks and ATR distances are divided by the signal-bar close to give the engine's fractional "
@@ -333,8 +335,8 @@ def iter_rule_signals(
             metadata["entries_dropped_level_stop_on_wrong_side"] = dropped
         if "exit_when" in spec["exit"]:
             metadata["exit_when"] = (
-                "exit_when exits are passed to the engine as from_signals exits/short_exits; like engine stops they are "
-                "not tracked by the compiler, which keeps treating the position as open until its own rule exit."
+                "exit_when is a rule exit: the compiler closes the position on that bar (from_signals exits/short_exits), "
+                "so a later signal can enter again within max_trades_per_session."
             )
         yield SignalResult(
             entries=flags["entry"],
@@ -346,6 +348,7 @@ def iter_rule_signals(
             stop_loss=levels.get("stop_loss"),
             take_profit=levels.get("take_profit"),
             trailing_stop=levels.get("trailing_stop"),
+            trailing_threshold=levels.get("trail_after"),
         )
 
 
@@ -356,20 +359,20 @@ def _engine_exit_inputs(
     flags: dict[str, pd.Series],
     levels: dict[str, pd.Series],
 ) -> int:
-    """Translate ``exit_when``, level stops and R-multiple targets into Portfolio.from_signals inputs.
+    """Translate level stops and R-multiples into Portfolio.from_signals stop inputs.
 
-    - ``exit_when.long``/``.short`` -> ``exits``/``short_exits`` (cleared on the same side's entry bar so the
-      engine never sees an entry and an exit of one side together).
+    (``exit_when`` is handled by the rule walk in ``strategies.rule_spec_batch`` like any other rule exit.)
     - ``stop_loss.level`` -> ``sl_stop`` as the fraction from the entry open to the level (the runner passes
       ``delta_format="Percent"``, ``stop_entry_price="Open"``, so the engine's stop sits on the level; a bar
       opening beyond it fills at that open). An entry whose open is already through its level is dropped.
-    - ``take_profit.r_multiple`` -> ``tp_stop`` = R x that entry's ``sl_stop`` fraction.
+    - ``take_profit.r_multiple`` -> ``tp_stop`` and ``trail_after.r_multiple`` -> ``tsl_th``, each R x that entry's
+      ``sl_stop`` fraction.
     Returns the number of entries dropped for a level on the wrong side of the entry open.
     """
     exit_rules = spec["exit"]
     level = exit_rules.get("stop_loss", {}).get("level")
-    when = exit_rules.get("exit_when", {})
-    if prepared.bars is None or (level is None and not when and "r_multiple" not in exit_rules.get("take_profit", {})):
+    multiples = [key for key in ("take_profit", "trail_after") if "r_multiple" in exit_rules.get(key, {})]
+    if prepared.bars is None or (level is None and not multiples):
         return 0
     evaluator = RuleEvaluator(replace(prepared.bars, parameters=dict(parameters)))
 
@@ -388,12 +391,8 @@ def _engine_exit_inputs(
             flags[name] = flags[name] & ~wrong
         for key in levels:
             levels[key] = levels[key].mask(wrong)
-    if "r_multiple" in exit_rules.get("take_profit", {}):
-        levels["take_profit"] = levels["take_profit"] * levels["stop_loss"]
-    for side, exit_name, entry_name in (("long", "exit", "entry"), ("short", "short_exit", "short_entry")):
-        if side in when:
-            fired = on_index(evaluator.condition(when[side]), False)
-            flags[exit_name] = flags[exit_name] | (fired & ~flags[entry_name].to_numpy())
+    for key in multiples:
+        levels[key] = levels[key] * levels["stop_loss"]
     return dropped
 
 

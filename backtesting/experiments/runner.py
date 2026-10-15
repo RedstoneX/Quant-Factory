@@ -104,12 +104,15 @@ def align_signals_for_execution(
             stop_loss=(signals.stop_loss.shift(1) if signals.stop_loss is not None else None),
             take_profit=(signals.take_profit.shift(1) if signals.take_profit is not None else None),
             trailing_stop=(signals.trailing_stop.shift(1) if signals.trailing_stop is not None else None),
+            trailing_threshold=(
+                signals.trailing_threshold.shift(1) if signals.trailing_threshold is not None else None
+            ),
         )
     raise ValueError(f"Unsupported execution mode: {execution.mode}")
 
 
 _LEADING_ARGS = ("entries", "exits", "short_entries", "short_exits", "price")
-_SETTING_FRAMES = ("entries", "exits", "short_entries", "short_exits", "price", "sl_stop", "tp_stop", "tsl_stop")
+_SETTING_FRAMES = ("entries", "exits", "short_entries", "short_exits", "price", "sl_stop", "tp_stop", "tsl_stop", "tsl_th")
 
 
 def _setting_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionConfig) -> dict[str, Any]:
@@ -157,7 +160,7 @@ def _stack_settings(data: pd.DataFrame, close: pd.Series, settings: list[dict[st
         elif all(value is None for value in values):
             stacked[key] = None
         else:
-            fill = np.nan if key.endswith("_stop") else False
+            fill = np.nan if key.endswith(("_stop", "_th")) else False
             frame = pd.concat(
                 [pd.Series(fill, index=data.index) if value is None else value for value in values],
                 axis=1,
@@ -232,6 +235,8 @@ def _stop_args(data: pd.DataFrame, aligned: SignalResult, execution: ExecutionCo
             ("sl_stop", aligned.stop_loss),
             ("tp_stop", aligned.take_profit),
             ("tsl_stop", aligned.trailing_stop),
+            # tsl_th: the trailing stop activates only once price has gained this fraction from the entry.
+            ("tsl_th", aligned.trailing_threshold),
         )
         if level is not None
     }

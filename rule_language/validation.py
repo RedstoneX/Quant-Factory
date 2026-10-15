@@ -96,11 +96,11 @@ _TOP_LEVEL_KEYS = (
     "signals",
     "max_trades_per_session",
 )
-_EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_profit", "trailing_stop", "exit_when")
-# Stop distance kinds valid for one stop only: a price level fixed at entry (stop_loss) and R-multiples of it (take_profit).
-_STOP_ONLY_KINDS = {"level": "stop_loss", "r_multiple": "take_profit"}
+_EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_profit", "trailing_stop", "trail_after", "exit_when")
+# Distance kinds valid for some stops only: a price level fixed at entry (stop_loss) and R-multiples of that stop.
+_STOP_ONLY_KINDS = {"level": ("stop_loss",), "r_multiple": ("take_profit", "trail_after")}
 # Engine-side stops, each optional and independent; their distances are fixed at entry.
-STOP_KEYS = ("stop_loss", "take_profit", "trailing_stop")
+STOP_KEYS = ("stop_loss", "take_profit", "trailing_stop", "trail_after")
 _CLOCK = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])")
 
 
@@ -318,8 +318,11 @@ class _Validator:
         for key in STOP_KEYS:
             if key in node:
                 result[key] = self.distance(node[key], f"{path}.{key}", stop=key)
-        if "r_multiple" in result.get("take_profit", {}) and "stop_loss" not in result:
-            raise RuleSpecError(f"{path}.take_profit.r_multiple", "needs a stop_loss: R is the stop-loss distance")
+        for key in ("take_profit", "trail_after"):
+            if "r_multiple" in result.get(key, {}) and "stop_loss" not in result:
+                raise RuleSpecError(f"{path}.{key}.r_multiple", "needs a stop_loss: R is the stop-loss distance")
+        if "trail_after" in result and "trailing_stop" not in result:
+            raise RuleSpecError(f"{path}.trail_after", "needs a trailing_stop: it is the gain that switches the trailing stop on")
         if "exit_when" in node:
             when = _object(node["exit_when"], f"{path}.exit_when", optional=("long", "short"))
             if not when:
@@ -332,8 +335,8 @@ class _Validator:
         _object(node, path, required=(kind,))
         where = f"{path}.{kind}"
         if kind in _STOP_ONLY_KINDS:
-            if stop != _STOP_ONLY_KINDS[kind]:
-                raise RuleSpecError(where, f"is allowed only in {_STOP_ONLY_KINDS[kind]}")
+            if stop not in _STOP_ONLY_KINDS[kind]:
+                raise RuleSpecError(where, f"is allowed only in {' or '.join(_STOP_ONLY_KINDS[kind])}")
             return {kind: self.series(node[kind], where) if kind == "level" else self.amount(node[kind], where)}
         if kind == "atr":
             atr = _object(node[kind], where, required=("length", "multiple"))

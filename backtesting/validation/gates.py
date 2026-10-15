@@ -170,6 +170,7 @@ def normalize_signals(signals: SignalResult) -> SignalResult:
         stop_loss=signals.stop_loss,
         take_profit=signals.take_profit,
         trailing_stop=signals.trailing_stop,
+        trailing_threshold=signals.trailing_threshold,
     )
 
 

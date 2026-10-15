@@ -30,22 +30,32 @@ def _rows(series: pd.Series) -> list[int]:
     return [int(position) for position in np.flatnonzero(series.to_numpy())]
 
 
-def test_exit_when_becomes_from_signals_exits_for_its_side_only() -> None:
+def test_exit_when_closes_the_trade_for_its_side_only() -> None:
     closes = np.full(78, 100.0)
     closes[10:] = 106.0  # close first exceeds 105 on row 10 (bar ending 10:25)
     exit_rules = {"exit_when": {"long": {"crosses_above": ["close", 105]}}}
     signals = _run(_spec(LONG_AT_10, exit=exit_rules), _frame([closes]))
     assert _rows(signals.entries) == [SIGNAL_ROW]
-    assert _rows(signals.exits) == [10, FLAT_ROW]  # exit_when on row 10, the rule's own flat_at exit on row 76
+    assert _rows(signals.exits) == [10]  # the trade is closed on row 10, so there is no flat_at exit
     assert not signals.short_exits.any()
-    assert "from_signals exits/short_exits" in signals.metadata["exit_when"]
+    assert "closes the position" in signals.metadata["exit_when"]
 
 
-def test_exit_when_is_cleared_on_the_same_side_entry_bar() -> None:
+def test_exit_when_never_fires_on_the_entry_bar_and_ignores_the_other_side() -> None:
     exit_rules = {"exit_when": {"long": {"time_between": ["10:00", "10:05"]}, "short": {"time_is": "10:05"}}}
     signals = _run(_spec(LONG_AT_10, exit=exit_rules), _frame([np.full(78, 100.0)]))
-    assert _rows(signals.exits) == [SIGNAL_ROW + 1, FLAT_ROW]  # row 5 (the entry bar) is dropped
-    assert _rows(signals.short_exits) == [SIGNAL_ROW + 1]
+    assert _rows(signals.exits) == [SIGNAL_ROW + 1]  # true on the entry bar too, but only a held trade exits
+    assert not signals.short_exits.any()
+
+
+def test_exit_when_exit_allows_a_new_entry() -> None:
+    closes = np.full(78, 100.0)
+    closes[5:] = 103.0
+    closes[10] = 99.0  # exit_when (close < 100) on row 10; the signal (close > 102) fires again on row 11
+    spec = _spec([{"when": {"gt": ["close", 102]}, "side": "long"}], exit={"exit_when": {"long": {"lt": ["close", 100]}}})
+    signals = _run({**spec, "max_trades_per_session": 2}, _frame([closes]))
+    assert _rows(signals.entries) == [SIGNAL_ROW, 11]
+    assert _rows(signals.exits) == [10, FLAT_ROW]
 
 
 def _level_closes() -> np.ndarray:
@@ -72,6 +82,7 @@ def test_level_on_the_wrong_side_of_the_entry_open_drops_the_entry() -> None:
     assert signals.metadata["entries_dropped_level_stop_on_wrong_side"] == 1
 
 
+@pytest.mark.licensed_vectorbt
 @pytest.mark.parametrize(
     ("row", "bar", "fill"),
     [
@@ -81,17 +92,47 @@ def test_level_on_the_wrong_side_of_the_entry_open_drops_the_entry() -> None:
     ],
 )
 def test_level_stop_and_target_fill_in_vectorbt(row: int, bar: tuple, fill: float) -> None:
-    pytest.importorskip("vectorbtpro")
     frame = _frame([_level_closes()])
     frame.iloc[row, :4] = bar
     exit_rules = {"stop_loss": {"level": OPENING_RANGE_LOW}, "take_profit": {"r_multiple": 2}}
     signals = _run(_spec(LONG_AT_10, exit=exit_rules), frame)
+    prices, fills = _fills(frame, signals)
+    assert prices == pytest.approx([100.0, fill])
+    assert fills[1] == frame.index[row]
+
+
+def _fills(frame: pd.DataFrame, signals) -> tuple[list[float], list]:
     execution = _execution()
     portfolio = _construct_portfolio(frame, align_signals_for_execution(signals, execution), SimpleNamespace(execution=execution))
-    prices = portfolio.orders.readable["Price"].to_numpy() / execution.price_multiplier
-    fills = portfolio.orders.readable["Fill Index"].to_list()
-    assert prices.tolist() == pytest.approx([100.0, fill])
-    assert fills[1] == frame.index[row]
+    orders = portfolio.orders.readable
+    return (orders["Price"].to_numpy() / execution.price_multiplier).tolist(), orders["Fill Index"].to_list()
+
+
+def test_trail_after_r_multiple_is_r_times_the_stop_fraction() -> None:
+    exit_rules = {"stop_loss": {"level": OPENING_RANGE_LOW}, "trailing_stop": {"percent": 1}, "trail_after": {"r_multiple": 1}}
+    signals = _run(_spec(LONG_AT_10, exit=exit_rules), _frame([_level_closes()]))
+    entry = signals.entries[signals.entries].index[0]
+    assert signals.trailing_threshold[entry] == pytest.approx(0.025)  # 1R = 100 - 97.5 on a 100 entry
+    assert signals.trailing_stop[entry] == pytest.approx(0.01)
+
+
+@pytest.mark.licensed_vectorbt
+@pytest.mark.parametrize(
+    ("high_row_7", "fills"),
+    [
+        # +3 only: the trail never switches on, so the 98 low on row 8 does not exit; flat_at exits at the open.
+        ((102.5, 103.0, 102.0, 102.5), [100.0, 100.0]),
+        # +5 (high 105): trail on at +4, stop 105 x 0.96 = 100.8, hit on row 8 (low 100.5), above the 100 entry.
+        ((104.5, 105.0, 104.0, 104.5), [100.0, 100.8]),
+    ],
+)
+def test_breakeven_then_trail_in_vectorbt(high_row_7: tuple, fills: list) -> None:
+    frame = _frame([np.full(78, 100.0)])
+    frame.iloc[7, :4] = high_row_7
+    frame.iloc[8, :4] = (101.0, 101.5, 98.0, 100.0) if high_row_7[1] < 104 else (103.0, 103.5, 100.5, 101.0)
+    exit_rules = {"trailing_stop": {"points": 4}, "trail_after": {"points": 4}}
+    prices, _ = _fills(frame, _run(_spec(LONG_AT_10, exit=exit_rules), frame))
+    assert prices == pytest.approx(fills)
 
 
 def test_every_minutes_marks_five_minute_closes_on_one_minute_bars() -> None:
@@ -117,11 +158,14 @@ def test_legacy_exit_normalization_has_no_new_keys() -> None:
     ("signals", "exit_rules", "message"),
     [
         (LONG_AT_10, {"take_profit": {"level": "low"}}, "take_profit.level: is allowed only in stop_loss"),
-        (LONG_AT_10, {"stop_loss": {"r_multiple": 2}}, "stop_loss.r_multiple: is allowed only in take_profit"),
+        (LONG_AT_10, {"stop_loss": {"r_multiple": 2}}, "stop_loss.r_multiple: is allowed only in take_profit or trail_after"),
         (LONG_AT_10, {"trailing_stop": {"level": "low"}}, "trailing_stop.level: is allowed only in stop_loss"),
         (LONG_AT_10, {"take_profit": {"r_multiple": 2}}, "take_profit.r_multiple: needs a stop_loss"),
         (LONG_AT_10, {"stop_loss": {"points": 1}, "take_profit": {"r_multiple": 0}}, "r_multiple: must be a number greater than zero"),
         (LONG_AT_10, {"stop_loss": {"level": "price"}}, "unknown price field 'price'"),
+        (LONG_AT_10, {"trail_after": {"points": 4}}, "trail_after: needs a trailing_stop"),
+        (LONG_AT_10, {"trailing_stop": {"points": 4}, "trail_after": {"level": "low"}}, "trail_after.level: is allowed only in stop_loss"),
+        (LONG_AT_10, {"trailing_stop": {"points": 4}, "trail_after": {"r_multiple": 1}}, "trail_after.r_multiple: needs a stop_loss"),
         (LONG_AT_10, {"exit_when": {}}, 'exit_when: needs "long", "short" or both'),
         (LONG_AT_10, {"exit_when": {"both": {"time_is": "10:00"}}}, "exit_when: unknown key 'both'"),
         (LONG_AT_10, {"exit_when": {"long": {"gt": ["close"]}}}, "exit_when.long.gt: must be a list of exactly two items"),
