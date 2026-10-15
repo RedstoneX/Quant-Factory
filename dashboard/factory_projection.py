@@ -100,8 +100,10 @@ def load_factory_summary(*, database: str | Path | None = None) -> dict[str, Any
         counts = {"open": 0, "completed": 0, "failed": 0, "running": 0, "queued": 0}
         for row in rows:
             counts[str(row["cohort"])] += int(row["count"])
-            if row["status"] == "running": counts["running"] += int(row["count"])
             if row["status"] == "created": counts["queued"] += int(row["count"])
+        # A run left "running" by a restart is only live if its idea's latest campaign event says so.
+        live = _scalar(connection, source + " SELECT COUNT(*) FROM run_records rr WHERE rr.status='running' AND (rr.candidate_id IS NULL OR EXISTS (SELECT 1 FROM qf_campaign_admissions q WHERE q.candidate_id=rr.candidate_id AND q.state='running'))", _params())
+        counts["running"] = int(live or 0)
         boundary = datetime.fromtimestamp(datetime.now(timezone.utc).timestamp() - 86400, timezone.utc).isoformat()
         throughput = _scalar(connection, "SELECT COUNT(*) FROM parameter_results p JOIN experiment_runs r ON r.run_id=p.run_id WHERE COALESCE(r.completed_at,r.created_at)>=?", [boundary])
         durations = [_duration_minutes(row[0], row[1]) for row in connection.execute("SELECT started_at,completed_at FROM experiment_runs WHERE completed_at IS NOT NULL")]
