@@ -138,7 +138,7 @@ def test_intervals_report_explicit_unsupported_and_unavailable_reasons() -> None
     assert unsupported.available is False
     assert "not supported" in unsupported.reason
     assert empty.available is False
-    assert empty.reason == "No persisted OHLC bars are available for this run."
+    assert empty.reason == "No price chart was saved for this run."
     assert finer_than_source.available is False
     assert "cannot be fabricated" in finer_than_source.reason
     assert missing_source.available is False

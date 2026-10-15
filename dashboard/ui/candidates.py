@@ -76,7 +76,7 @@ def candidates_layout(search: str | None = None) -> html.Div:
     family_options = [{"value": "all", "label": "All families"}] + [{"value": family, "label": family} for family in summary.get("families", [])]
     saved_views = dmc.Menu([
         dmc.MenuTarget(dmc.Button("Saved views", leftSection=_icon("bookmark"), variant="default")),
-        dmc.MenuDropdown([dmc.MenuItem("Passed, best first", id="view-survivors"), dmc.MenuItem("All ideas", id="view-all"), dmc.MenuItem("Screened out", id="view-rejected")]),
+        dmc.MenuDropdown([dmc.MenuItem("Passed, best first", id="view-survivors"), dmc.MenuItem("All ideas", id="view-all"), dmc.MenuItem(FAILED_TESTING, id="view-rejected")]),
     ], position="bottom-end")
     header = page_header(
         "Ideas", "Every idea the factory has received, best out-of-sample Sharpe first", saved_views,

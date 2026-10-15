@@ -189,7 +189,7 @@ def load_screening_configuration_evidence(
 ) -> dict[str, Any]:
     """Load bounded, exact artifacts for one persisted screening configuration."""
     if not run_id or not parameter_row_id:
-        return {"available": False, "message": "Select a persisted configuration."}
+        return {"available": False, "message": "Select a saved setting."}
     database_path = Path(database) if database is not None else configured_database_path()
     namespace = f"screening_configuration/{parameter_row_id}"
     trades_document = _artifact_document(
@@ -221,7 +221,7 @@ def load_screening_configuration_evidence(
     if not all((price_document, trades_document, equity_document, metrics_document)):
         return {
             "available": False,
-            "message": "This historical configuration retained aggregate metrics only; chart and trade evidence were not persisted.",
+            "message": "This historical configuration retained aggregate metrics only; no price chart or trades were saved.",
             "run_id": run_id,
             "parameter_row_id": parameter_row_id,
         }
@@ -266,8 +266,8 @@ def load_screening_configuration_evidence(
     return {
         "available": bool(prepared.available),
         "message": (
-            "Exact persisted configuration evidence loaded."
-            if prepared.available else prepared.reason or "No persisted price bars are available."
+            "Saved results for this setting loaded."
+            if prepared.available else prepared.reason or "No price chart was saved for this run."
         ),
         "run_id": run_id,
         "parameter_row_id": parameter_row_id,
@@ -356,7 +356,7 @@ def load_results_record(
     runs = list_results_runs(database=database_path)
     run = _run_choice(run_id, runs)
     if run is None:
-        return {"available": False, "message": "No persisted Results run is available.", "runs": []}
+        return {"available": False, "message": "No saved test run is available.", "runs": []}
     screening_rows: list[dict[str, Any]] = []
     connection, _error = _validated_connection(database_path)
     if connection is not None:
@@ -406,7 +406,7 @@ def load_results_record(
         ]
         return {
             "available": True,
-            "message": "Persisted run evidence loaded read-only.",
+            "message": "Saved results for this run loaded.",
             "run": run,
             "runs": runs,
             "metrics": _fields(evidence.metrics),
@@ -443,7 +443,7 @@ def load_results_record(
     except (KeyError, RuntimeError, ValueError, OSError) as exc:
         return {
             "available": False,
-            "message": f"Persisted Results evidence is unavailable: {exc}",
+            "message": f"Saved results are unavailable: {exc}",
             "run": run,
             "runs": runs,
             "screening_rows": screening_rows,

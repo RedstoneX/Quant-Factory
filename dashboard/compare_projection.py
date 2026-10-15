@@ -34,7 +34,7 @@ def load_compare_records(search: str | None, *, database: str | Path | None = No
             candidate = _candidate_grid_row(row)
             evidence = load_results_record(run_id, database=database_path)
             records.append({**candidate, "evidence": evidence})
-        return {"available": True, "message": "Exact persisted survivors loaded read-only.", "records": records, "shared_period": _shared_period(records)}
+        return {"available": True, "message": "Saved passed ideas loaded.", "records": records, "shared_period": _shared_period(records)}
     except (sqlite3.Error, ValueError, TypeError) as exc:
         return {"available": False, "message": f"Comparison could not be projected safely: {exc}", "records": []}
     finally:
@@ -72,7 +72,7 @@ def _shared_period(records: list[dict[str, Any]]) -> str:
     if len(ranges) != len(records):
         return "Shared period unavailable"
     start = max(item[0] for item in ranges); end = min(item[1] for item in ranges)
-    return f"{start} → {end}" if start <= end else "No shared persisted period"
+    return f"{start} → {end}" if start <= end else "No shared time period"
 
 
 __all__ = ["comparison_series", "load_compare_records"]

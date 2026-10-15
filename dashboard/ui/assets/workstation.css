@@ -12,7 +12,7 @@
 
 /* Factory: live oversight cards above a bounded operational grid. */
 .factory-summary-grid{gap:10px}.factory-summary{position:relative;min-height:82px;padding:13px 14px;border-radius:6px;background:var(--panel);overflow:hidden}.factory-summary:nth-child(3):after{background:rgba(125,133,144,.10)}.factory-summary:nth-child(4):after{background:rgba(38,166,154,.09)}.factory-summary:nth-child(5):after{background:rgba(210,153,34,.09)}
-.factory-outcome-card{border-radius:6px;background:var(--panel)}.factory-outcome-card.screened-out{background:rgba(239,83,80,.075)}
+.factory-outcome-card{border-radius:6px;background:var(--panel)}
 
 /* Results: chart-first investigation followed by synchronized evidence. */
 .results-run-identity{min-width:260px;padding-left:18px;border-left:1px solid var(--line)}.results-run-kicker{color:var(--muted)!important;font-size:11px!important;text-transform:uppercase;letter-spacing:.08em}.results-run-name{color:var(--text)!important;font-size:12px!important;font-weight:600!important;margin-top:2px}.results-run-meta{color:var(--muted)!important;font-size:11px!important;margin-top:1px}.results-primary{grid-template-columns:minmax(0,1fr) 210px;gap:12px}.results-price,.results-ledger,.results-linked{position:relative;border-radius:6px!important;background:var(--panel)}.results-metrics{gap:7px}.results-metric{position:relative;border-radius:6px;padding:10px 12px;background:var(--panel);overflow:hidden}

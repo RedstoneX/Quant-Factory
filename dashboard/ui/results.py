@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 from dash_iconify import DashIconify
 
 from dashboard.overview_projection import configured_database_path
+from dashboard.plain_labels import FAILED_TESTING
 from dashboard.ui.layout import copy_id, page_header, stat_card
 from dashboard.ui.theme import COLUMN_DEFAULTS, DOWN, UP, grid_options, hide_when_narrow
 from orchestration.candidate_setting_rebuild import SettingRebuildRefused, rebuild_setting
@@ -41,7 +42,7 @@ METRIC_COLUMNS = [
     {"field": "max_drawdown", "headerName": "Biggest drop", "type": "numericColumn", "width": 82, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2) + '%'"}},
     {"field": "number_of_trades", "headerName": "Trades", "type": "numericColumn", "width": 72, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}},
     {"field": "win_rate", "headerName": "Win rate", "type": "numericColumn", "width": 76, "headerClass": "qf-center-header", "cellStyle": {"textAlign": "center"}, "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
-    {"field": "screening_status", "headerName": "Outcome", "width": 134, "valueFormatter": {"function": "params.value === 'screened_out' ? 'Screened out' : params.value"}},
+    {"field": "screening_status", "headerName": "Outcome", "width": 134, "valueFormatter": {"function": "params.value === 'screened_out' ? '" + FAILED_TESTING + "' : params.value"}},
 ]
 
 
@@ -276,7 +277,7 @@ def _register_record_callbacks(application: Any) -> None:
         screening_rows = record.get("screening_rows") or []
         screened_out = bool(screening_rows) and int(record.get("screened_out_count") or 0) == len(screening_rows)
         failed = str(run.get("status") or "").lower() == "failed"
-        state = "Screened out" if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
+        state = FAILED_TESTING if screened_out else "Evidence invalid" if result_status == "invalid" else str(run.get("status") or "Unavailable").replace("_", " ").title()
         color = "gray" if screened_out else "red" if failed or result_status == "invalid" else "teal" if state == "Succeeded" else "blue"
         meta = [dmc.Text(f"{run.get('symbol') or 'Unknown market'} · { {'screening': 'first check', 'oos': 'unseen-data test', 'walk_forward': 'rolling test', 'monte_carlo': 'shuffle test'}.get(str(run.get('stage')), str(run.get('stage') or 'unknown').replace('_', ' ')) }", size="xs", c="dimmed"), copy_id(run_id)] if run_id else []
         return (
