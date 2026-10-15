@@ -6,8 +6,6 @@ import math
 import pandas as pd
 import pytest
 
-import vectorbtpro as vbt
-
 from orchestration.candidate_screening_artifacts import performance_summary, snapshot_screening_portfolio
 
 pytestmark = pytest.mark.licensed_vectorbt
@@ -18,6 +16,8 @@ KEYS = {"net_profit", "gross_profit", "gross_loss", "profit_factor", "max_drawdo
 
 
 def _portfolio():
+    import vectorbtpro as vbt
+
     index = pd.date_range("2024-01-01", periods=12, freq="D", tz="UTC")
     close = pd.Series([10, 11, 12, 11, 10, 11, 12, 13, 12, 11, 12, 13.0], index=index)
 
