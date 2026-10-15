@@ -44,3 +44,5 @@
 }
 
 .results-price .results-portfolio-graph,.results-price .results-portfolio-graph .js-plotly-plot,.results-price .results-portfolio-graph .plot-container,.results-price .results-portfolio-graph .svg-container{height:560px!important;min-height:560px;width:100%!important}
+
+.candidate-state.screened-out{color:#7d8590!important;border-color:#30363d!important;background:rgba(125,133,144,.1)!important}
