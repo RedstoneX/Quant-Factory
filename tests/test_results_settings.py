@@ -31,7 +31,7 @@ def test_display_formats_words_and_identity_uses_recorded_names() -> None:
     assert settings_identity({"stop_atr": 1.0}) == "Stop atr 1.0"
 
 
-def test_heatmap_uses_vectorbt_heatmap_over_chosen_parameters() -> None:
+def test_heatmap_uses_plotly_heatmap_over_chosen_parameters() -> None:
     figure = heatmap_figure(ROWS, "stop_atr", "offset_ticks", "sharpe_ratio")
     trace = figure.data[0]
     assert trace.type == "heatmap" and trace.z.shape == (2, 3)

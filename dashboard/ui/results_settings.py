@@ -6,7 +6,7 @@ from typing import Any
 
 import dash_mantine_components as dmc
 import pandas as pd
-import vectorbtpro as vbt  # noqa: F401  (registers the .vbt accessor)
+import plotly.express as px
 from dash import Input, Output, State, dcc
 
 from dashboard.time_display import eastern_label
@@ -63,14 +63,14 @@ def varying_parameters(rows: list[dict[str, Any]]) -> list[str]:
 
 
 def heatmap_figure(rows: list[dict[str, Any]], x: str, y: str, metric: str):
-    """VectorBT PRO heatmap of the metric over two parameters, averaging over any others."""
+    """Plotly heatmap of the metric over two parameters, averaging over any others."""
     data = pd.DataFrame({
         x: [(r.get("parameters") or {}).get(x) for r in rows],
         y: [(r.get("parameters") or {}).get(y) for r in rows],
         "value": [r.get(metric) for r in rows],
     }).dropna()
     series = data.groupby([x, y])["value"].mean()
-    figure = series.vbt.heatmap(x_level=x, y_level=y, template="qf")
+    figure = px.imshow(series.unstack(x), origin="lower", aspect="auto", template="qf")
     figure.update_traces(texttemplate="%{z:.2f}", colorbar={"thickness": 10, "len": 0.9, "x": 1.02, "xpad": 0})
     figure.update_xaxes(type="category", title_text=_label(x), side="bottom")
     figure.update_yaxes(type="category", title_text=_label(y), side="left")
