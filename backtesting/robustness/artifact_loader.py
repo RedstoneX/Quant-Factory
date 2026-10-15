@@ -200,6 +200,9 @@ def load_lock_artifact(
         reasons.append("required metrics are missing or non-finite")
         metrics = {}
 
+    # The artifact's own failure reason says why the stage stopped; lead with it.
+    if reasons and isinstance(payload.get("failure_reason"), str):
+        reasons.insert(0, payload["failure_reason"])
     if reasons:
         failed = _failed(path, kind, reasons)
         return SourceLockEvidence(
