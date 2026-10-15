@@ -6,7 +6,7 @@
       "dashboard.run_detail_adapter": 1304,
       "orchestration.candidate_pipeline_runtime": 1109,
       "orchestration.research_launch_claims": 1353,
-      "persistence.repositories": 1223,
+      "persistence.repositories": 1222,
       "persistence.service": 1757
     }
   },

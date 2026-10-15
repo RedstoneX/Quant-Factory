@@ -8,6 +8,7 @@ is tuned. Only datasets whose contract costs that setup records are supported.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import functools
 import importlib.util
 import itertools
 import json
@@ -313,8 +314,8 @@ def earlier_owner_of_strategy(
         configuration_ids = {row.configuration_id for row in service.configurations.list(strategy_id=strategy_id)}
         owners = sorted(
             (draft.created_at, draft.draft_id)
-            for draft in service.idea_drafts.list()
-            if draft.configuration_id in configuration_ids and draft.draft_id != candidate_id
+            for draft in service.idea_drafts.list(configuration_ids=configuration_ids)
+            if draft.draft_id != candidate_id
             and draft.draft_id not in without_result
             and _draft_market(draft.candidate_json) == (symbol, timeframe)
         )
@@ -335,8 +336,19 @@ def outcome_from_chain(chain: Any, run_id: str) -> AutoTestOutcome:
     return AutoTestOutcome("failed", "run_error", safe_detail(f"The pipeline finished with an unrecognized outcome {status!r}."), run_id)
 
 
+@functools.lru_cache(maxsize=32)
+def _load_verified(config: Any, dataset_end: str, mtime_ns: int) -> None:
+    # Only successes are cached; mtime_ns changes the key when the dataset file changes.
+    load_market_data(config, now=pd.Timestamp(dataset_end), allow_download=False)
+
+
 def _check_verified_data(definition: CandidatePipelineDefinition, profile: DatasetProfile) -> None:
-    load_market_data(definition.experiment.market_data, now=pd.Timestamp(profile.dataset_end), allow_download=False)
+    config = definition.experiment.market_data
+    try:
+        mtime_ns = Path(config.cache_path).stat().st_mtime_ns
+    except OSError:
+        mtime_ns = -1
+    _load_verified(config, profile.dataset_end, mtime_ns)
 
 
 def runtime_launch(*, database: str | Path, artifact_root: str | Path, pipeline_launcher: Any) -> Launch:
