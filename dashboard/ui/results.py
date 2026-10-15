@@ -8,7 +8,6 @@ from urllib.parse import parse_qs
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, dcc, html, no_update
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from dash_iconify import DashIconify
@@ -20,13 +19,13 @@ from dashboard.ui.layout import copy_id, page_header, stat_card
 from dashboard.ui.results_settings import display_settings_rows, register_settings_callbacks, settings_columns, settings_heatmap_layout, settings_identity
 from dashboard.ui.scores import score_cards
 from dashboard.ui.theme import COLUMN_DEFAULTS, DOWN, UP, grid_options, hide_when_narrow
-from orchestration.candidate_setting_rebuild import SettingRebuildRefused, rebuild_setting
 
 from dashboard.results_projection import (
     list_results_runs,
     list_screening_configuration_sessions,
     load_results_record,
     load_screening_configuration_evidence,
+    load_session_price,
 )
 
 
@@ -371,7 +370,7 @@ def _register_configuration_callbacks(application: Any) -> None:
             ("Trades", "Number Of Trades", False), ("Win rate", "Win Rate", False), ("Profit factor", "Profit Factor", False),
         )
         cards = [_stat(label, _metric_value(metrics, key), _signed_color(_metric_value(metrics, key)) if signed else "red.4" if "drawdown" in label else None) for label, key, signed in labels]
-        caption = (configuration_evidence.get("message") if screening_rows else None) or str(record.get("price_reason") or "").replace("persisted ", "saved ") or "Scroll to zoom; pick a trade to focus on it"
+        caption = (configuration_evidence.get("message") if screening_rows else None) or ("" if record.get("oos_chart") else str(record.get("price_reason") or "").replace("persisted ", "saved ")) or "Scroll to zoom; pick a trade to focus on it"
         return caption, cards
 
     @application.callback(Output("results-trade-grid", "rowData"), Output("results-trade-grid", "columnDefs"), Output("results-trade-count", "children"), Input("results-record", "data"), Input("results-trade-search", "value"), Input("results-session", "value"))
@@ -401,10 +400,6 @@ def _register_configuration_callbacks(application: Any) -> None:
         )
 
 
-_RESAMPLE = {"5m": "5min", "15m": "15min", "1D": "1D"}
-_DEFAULT_SESSIONS = 20
-
-
 BG, PANEL, GRID, TEXT, MUTED = "#0d1117", "#161b22", "rgba(255,255,255,0.05)", "#e6edf3", "#7d8590"
 UP, DOWN, ACCENT = "#26a69a", "#ef5350", "#58a6ff"
 
@@ -425,67 +420,84 @@ def _tradingview_style(figure: go.Figure) -> None:
         if trace.name and trace.name.startswith("Exit"):
             win = "Profit" in trace.name
             trace.update(marker={"symbol": "triangle-down", "size": 10, "color": UP if win else DOWN, "line": {"width": 1, "color": BG}}, name="Exit · win" if win else "Exit · loss")
-    figure.update_traces(selector={"name": "Value"}, line={"color": ACCENT, "width": 1.6}, name="Account value")
-    figure.update_traces(selector={"name": "Drawdown"}, line={"color": DOWN, "width": 1.2})
-    for shape in figure.layout.shapes:
-        if shape.type == "rect":
-            shape.update(opacity=0.12, line_width=0)
-        elif shape.type == "line":
-            shape.update(line={"color": "#30363d", "width": 1, "dash": "dot"})
 
 
-def window_figure(portfolio: Any, session: str | None, interval: str | None, bounds: tuple[str, str] | None = None) -> go.Figure:
-    """Plot only the selected Eastern session (or the last sessions) of the exact rebuilt portfolio."""
-    if bounds:  # an unseen-data run is drawn only over its own test period
-        portfolio = portfolio.loc[pd.Timestamp(bounds[0], tz="US/Eastern"):pd.Timestamp(bounds[1], tz="US/Eastern") + pd.Timedelta(days=1)]
-    index = portfolio.wrapper.index
-    if session and session != "all":
-        start = pd.Timestamp(session, tz="US/Eastern")
-        end = start + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
-    else:
-        end = index[-1].tz_convert("US/Eastern")
-        start = (end - pd.Timedelta(days=_DEFAULT_SESSIONS)).normalize()
-    window = portfolio.loc[start:end]  # vbt Portfolio label indexing
-    window = window.resample(_RESAMPLE.get(interval or "15m", "15min"))  # vbt Portfolio.resample
-    window = window.replace(wrapper=window.wrapper.replace(index=window.wrapper.index.tz_convert("US/Eastern")))  # one Eastern clock for bars, markers and zones
-    figure = window.plot(subplots=["trades", "value", "underwater"], subplot_settings={"trades": {"title": ""}}, template="qf", make_subplots_kwargs={"row_heights": [0.6, 0.2, 0.2], "vertical_spacing": 0.03})
-    for trace in figure.data:  # plotly draws wall-clock values, so express every x in Eastern
-        if getattr(trace, "x", None) is not None and len(trace.x) and isinstance(trace.x[0], (pd.Timestamp, np.datetime64, str)):
-            trace.x = pd.to_datetime(list(trace.x), utc=True).tz_convert("US/Eastern").tz_localize(None)
-    for shape in figure.layout.shapes:  # trade zones: same wall-clock as the traces
-        if isinstance(shape.x0, pd.Timestamp):
-            shape.x0, shape.x1 = shape.x0.tz_convert("US/Eastern").tz_localize(None), shape.x1.tz_convert("US/Eastern").tz_localize(None)
-    for trace in figure.data:  # drop the solid value fill, soften the drawdown fill
-        if trace.name == "Drawdown":
-            trace.fillcolor = "rgba(220,57,18,0.12)"
-        elif trace.type == "scatter" and trace.fill is not None:
-            trace.fill = "none"
+def trades_figure(price: list[dict[str, Any]], trades: list[dict[str, Any]], selected: dict[str, Any] | None, message: str | None, nonce: Any) -> go.Figure:
+    """Saved bars as Plotly candles with the saved trades as markers; a picked trade is outlined and zoomed to."""
+    if not price:
+        return _empty_figure(str(message or "No price bars were saved for this run.").replace("persisted ", "saved "), height=560)
+    first, last = str(price[0]["timestamp"]), str(price[-1]["timestamp"])
+    figure = go.Figure(go.Candlestick(
+        x=[row["timestamp"] for row in price], open=[row["open"] for row in price], high=[row["high"] for row in price],
+        low=[row["low"] for row in price], close=[row["close"] for row in price], name="Price",
+    ))
+    shown = [trade for trade in trades if trade.get("entry_timestamp") and first[:10] <= str(trade["entry_timestamp"])[:10] <= last[:10]]
+    entries = [trade for trade in shown if trade.get("entry_price") is not None]
+    if entries:
+        figure.add_trace(go.Scatter(
+            x=[trade["entry_timestamp"] for trade in entries], y=[trade["entry_price"] for trade in entries], mode="markers", name="Entry",
+            text=[f"Trade {trade['trade_id']} · {trade['direction']}" for trade in entries], hovertemplate="%{text}<br>%{y}<extra></extra>",
+        ))
+    exited = [trade for trade in shown if trade.get("exit_timestamp") and trade.get("exit_price") is not None]
+    for label, group in (("Exit Profit", [t for t in exited if (t.get("pnl") or 0) > 0]), ("Exit Loss", [t for t in exited if (t.get("pnl") or 0) <= 0])):
+        if group:
+            figure.add_trace(go.Scatter(
+                x=[trade["exit_timestamp"] for trade in group], y=[trade["exit_price"] for trade in group], mode="markers", name=label,
+                text=[f"Trade {trade['trade_id']} · {trade['outcome']}" for trade in group], hovertemplate="%{text}<br>%{y}<extra></extra>",
+            ))
     _tradingview_style(figure)
-    for note in figure.layout.annotations:  # small muted panel labels at the left edge, as in the mock
-        note.update(text={"Value": "ACCOUNT VALUE", "Underwater": "DRAWDOWN"}.get(note.text, ""), font={"size": 10, "color": MUTED}, x=0.003, xanchor="left")
-    breaks = [{"bounds": ["sat", "mon"]}] + ([{"bounds": [16, 9.5], "pattern": "hour"}] if interval != "1D" else [])
-    figure.update_xaxes(rangebreaks=breaks, title_text=None)  # Plotly rangebreaks: hide weekends and the overnight gap
+    revision = f"trades-{nonce}"
+    if selected and selected.get("entry_timestamp"):
+        start = pd.Timestamp(selected["entry_timestamp"]); end = pd.Timestamp(selected.get("exit_timestamp") or selected["entry_timestamp"])
+        figure.add_vrect(x0=start, x1=end, fillcolor=ACCENT, opacity=0.12, line_width=0)
+        pad = max((end - start) / 2, pd.Timedelta(minutes=45))
+        figure.update_xaxes(range=[start - pad, end + pad])  # Plotly axis range: focus the picked trade
+        revision = f"trade-{selected.get('trade_id')}-{nonce}"
+    figure.update_xaxes(rangebreaks=[{"bounds": ["sat", "mon"]}])  # Plotly rangebreaks: hide weekends
+    figure.update_layout(height=560, uirevision=revision)
     return figure
 
 
+def _linked_trades_grid(rows: list[dict[str, Any]]) -> Any:
+    """Saved trades in the More-detail tab; picking one focuses it on the price chart."""
+    return dag.AgGrid(
+        id="results-linked-trade-grid", columnDefs=TRADE_COLUMNS, rowData=rows,
+        defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
+        dashGridOptions=grid_options("No trades for this setting.", rowSelection={"mode": "singleRow", "enableClickSelection": True}, pagination=True, paginationPageSize=4, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
+        getRowId="params.data.trade_id", className="results-linked-trade-grid",
+    )
+
+
+def _chart_session(session: str | None, selected: dict[str, Any] | None, trades: list[dict[str, Any]]) -> str | None:
+    """The Eastern day to draw: the picked trade's day, else the chosen session, else the last traded day."""
+    if selected and selected.get("entry_timestamp"):
+        return str(selected["entry_timestamp"])[:10]
+    if session and session != "all":
+        return session
+    days = [str(trade["entry_timestamp"])[:10] for trade in trades if trade.get("entry_timestamp")]
+    return max(days) if days else None
+
+
 def _register_figure_callbacks(application: Any) -> None:
-    @application.callback(Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"), Input("results-range-nonce", "data"), Input("results-session", "value"), Input("results-bars", "value"))
-    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None) -> Any:
-        screening_rows = (record or {}).get("screening_rows")
-        oos = (record or {}).get("oos_chart")
-        if not screening_rows and not oos:
-            return dcc.Graph(figure=_price_figure(record, (selected_rows or [None])[-1], view or "session", nonce), config=_GRAPH_CONFIG)
-        source_run, row_id = (oos["source_run_id"], oos["row_id"]) if oos else (record["run"]["run_id"], (selected_rows or screening_rows[:1])[-1]["row_id"])
-        try:
-            rebuild = rebuild_setting(str(configured_database_path()), source_run, row_id)
-        except (SettingRebuildRefused, ValueError, OSError, KeyError, ImportError):
-            return dmc.Alert(CHART_UNAVAILABLE, color="gray", variant="light", title="Chart not shown")
-        if not rebuild.exact:
-            return dmc.Alert(CHART_UNAVAILABLE, color="gray", variant="light", title="Chart not shown")
-        figure = window_figure(rebuild.portfolio, session, interval, (oos["start"], oos["end"]) if oos else None)
-        figure.update_layout(height=560, width=None, autosize=True, uirevision=f"{selected_rows}-{nonce}")
-        figure.update_yaxes(side="right")
-        return dcc.Graph(figure=figure, config=_GRAPH_CONFIG, style={"height": "560px"})
+    @application.callback(
+        Output("results-price-chart", "children"), Input("results-record", "data"), Input("results-trade-grid", "selectedRows"), Input("results-view", "value"),
+        Input("results-range-nonce", "data"), Input("results-session", "value"), Input("results-bars", "value"),
+        Input("results-configuration-evidence", "data"), Input("results-linked-trade-grid", "selectedRows"),
+    )
+    def render_price(record: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, view: str, nonce: Any, session: str | None = None, interval: str | None = None, evidence: dict[str, Any] | None = None, linked_rows: list[dict[str, Any]] | None = None) -> Any:
+        record = record or {}
+        graph = lambda figure: dcc.Graph(figure=figure, config=_GRAPH_CONFIG, style={"height": "560px"})
+        if record.get("screening_rows"):  # a first-check run: the chosen setting's saved bars and trades
+            evidence = evidence or {}
+            return graph(trades_figure(evidence.get("price") or [], evidence.get("trades") or [], (linked_rows or [None])[-1], evidence.get("message"), nonce))
+        oos = record.get("oos_chart")
+        if oos and not record.get("price"):  # an unseen-data run: bars saved by the first-check run it came from
+            trades = record.get("trades") or []
+            selected = (selected_rows or [None])[-1]
+            day = _chart_session(session, selected, trades)
+            bars = load_session_price(oos["source_run_id"], day, interval=interval or "15m")
+            return graph(trades_figure(bars["price"], trades, selected, bars["reason"], nonce))
+        return dcc.Graph(figure=_price_figure(record, (selected_rows or [None])[-1], view or "session", nonce), config=_GRAPH_CONFIG)
 
     @application.callback(Output("results-evidence-body", "children"), Input("results-record", "data"), Input("results-configuration-evidence", "data"), Input("results-evidence-tab", "value"), Input("results-trade-grid", "selectedRows"))
     def render_evidence(record: dict[str, Any] | None, configuration_evidence: dict[str, Any] | None, tab: str, selected_rows: list[dict[str, Any]] | None):
@@ -499,16 +511,12 @@ def _register_figure_callbacks(application: Any) -> None:
             if not configuration_evidence.get("available"):
                 return html.Div(configuration_evidence.get("message") or "Select a configuration with retained evidence.", className="results-stage-stop")
             if tab == "trades":
-                rows = configuration_evidence.get("trades") or []
-                return dag.AgGrid(
-                    columnDefs=TRADE_COLUMNS, rowData=rows,
-                    defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
-                    dashGridOptions=grid_options("No trades for this setting.", pagination=True, paginationPageSize=4, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
-                    getRowId="params.data.trade_id", className="results-linked-trade-grid",
-                )
+                return _linked_trades_grid(configuration_evidence.get("trades") or [])
             if tab == "equity":
                 return dcc.Graph(figure=_configuration_equity_figure(configuration_evidence), config={"displayModeBar": False, "responsive": True})
             return html.Div(f"{tab.replace('_', ' ').title()} was not reached because all configurations failed initial screening.", className="results-stage-stop")
+        if tab == "trades" and record.get("trades"):  # the run's own saved trades, the same rows as the ledger
+            return _linked_trades_grid(record["trades"])
         if tab == "equity": return dcc.Graph(figure=_evidence_figure(record, tab), config={"displayModeBar": False, "responsive": True})
         fields = record.get("lineage") if tab == "lineage" else []
         if fields:
