@@ -16,9 +16,10 @@ from dashboard.results_projection import _artifact_document, oos_report_metrics
 
 SHORTLIST_LIMIT = 200
 STRESS_STAGES = ("robustness", "monte_carlo")
+STRESS_STAGE_WORDS = {"robustness": "the worse-costs check", "monte_carlo": "the shuffled-trades check"}
 EMPTY_SCORES: dict[str, Any] = {
     "folds_total": None, "folds_profitable": None, "folds_share": None, "fold_sharpe": None,
-    "rolling_status": None, "stress_status": None, "luck": None, "overfitting": None,
+    "rolling_status": None, "stress_status": None, "stress_failed": [], "luck": None, "overfitting": None,
 }
 
 
@@ -61,6 +62,10 @@ def _scores(database: Path, connection: sqlite3.Connection, configuration_id: st
             scores["luck"] = _number(overfit.get("deflated_sharpe_probability"))
             scores["overfitting"] = _number(overfit.get("pbo"))
         statuses = [s for s in (_status(_evidence(database, connection, configuration_id, stage)) for stage in STRESS_STAGES) if s]
+        scores["stress_failed"] = [
+            STRESS_STAGE_WORDS[stage] for stage in STRESS_STAGES
+            if _status(_evidence(database, connection, configuration_id, stage)) == "failed"
+        ]
         scores["stress_status"] = ("failed" if "failed" in statuses else "passed" if "passed" in statuses else statuses[0]) if statuses else None
     except (sqlite3.Error, ValueError, TypeError, KeyError, AttributeError):
         return dict(EMPTY_SCORES)

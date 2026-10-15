@@ -21,6 +21,7 @@ if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from dashboard.overview_projection import load_dashboard_snapshot, load_drilldown_page
+from dashboard.results_projection import oos_report_metrics
 from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
 from dashboard.ui.compare import compare_layout, register_compare_callbacks
 from dashboard.ui.factory import factory_layout, register_factory_callbacks
@@ -256,7 +257,7 @@ def _selected_item(snapshot: dict[str, Any], selection: dict[str, Any] | None) -
 def register_callbacks(application: Dash) -> None:
     @application.callback(Output("snapshot-store", "data"), Input("time-window", "value"), Input("market-filter", "value"), Input("refresh-state", "n_clicks"))
     def refresh_snapshot(window: str, market: str, _refresh: int | None) -> dict[str, Any]:
-        return load_dashboard_snapshot(window=window or "90d", market=market or "all")
+        return load_dashboard_snapshot(window=window or "90d", market=market or "all", unseen_report=oos_report_metrics)
 
     @application.callback(Output("selected-candidate", "data"), Input("candidate-chart", "clickData"), Input("survivor-grid", "selectedRows"), Input("snapshot-store", "data"), State("selected-candidate", "data"))
     def sync_selection(click_data: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, snapshot: dict[str, Any] | None, current: dict[str, Any] | None) -> dict[str, Any] | None:
