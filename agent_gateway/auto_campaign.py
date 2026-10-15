@@ -32,6 +32,7 @@ from research_intake import validate_candidate_packet
 RuleSpecReader = Callable[[Mapping[str, Any]], "dict[str, Any] | None"]
 Executor = Callable[[AutoTestRequest], AutoTestOutcome]
 OPEN_STATES = frozenset({"queued", "running"})
+RESULT_STATES = frozenset({"survivor", "screened_out"})  # finished with numbers: owns its strategy
 # A test cut short by a restart (usually a deploy) is rerun under a fresh launch key;
 # an idea that is interrupted this many times is reported instead of rerun forever.
 MAX_ATTEMPTS = 3
@@ -165,9 +166,13 @@ class AutoTestCampaign:
             return record("implementation_blocked", "rules_invalid", f"The rule_spec is invalid: {safe_detail(exc)}")
         strategy_id = str(definition["strategy_id"])
         symbol, timeframe = packet_market(packet)
+        without_result = {
+            candidate for candidate, event in store.latest_campaign_events().items()
+            if event["state"] not in OPEN_STATES | RESULT_STATES
+        }
         earlier = earlier_owner_of_strategy(
             database=self.database, strategy_id=strategy_id, candidate_id=draft.draft_id,
-            symbol=symbol, timeframe=timeframe,
+            symbol=symbol, timeframe=timeframe, without_result=without_result,
         )
         if earlier is not None:
             return record("duplicate_closed", "same_rules", earlier)
