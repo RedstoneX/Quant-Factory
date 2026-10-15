@@ -48,6 +48,8 @@ def _stage_may_progress(stage: RunStage, outcome: Any) -> bool:
         return True
     if stage in SCORED_VALIDATION_STAGES and outcome.status == "failed":
         return True
+    if stage == RunStage.MONTE_CARLO and outcome.status == "insufficient_evidence":
+        return True  # too few walk-forward windows to resample: recorded as unscored, not a stop
     return (
         stage == RunStage.WALK_FORWARD
         and outcome.status == "insufficient_evidence"

@@ -741,13 +741,13 @@ def test_insufficient_prerequisite_remains_distinct(tmp_path: Path) -> None:
     service = _service(tmp_path)
     root = tmp_path / "artifacts"
     try:
-        _persist_prerequisites(service, root, mc_status="insufficient_evidence")
+        _persist_prerequisites(service, root, robust_status="insufficient_evidence")
 
         result = _gate(service, root)
 
         assert result.status == "insufficient_evidence"
         assert result.eligible_to_execute_lockbox is False
-        assert any(reason.startswith("monte_carlo:") for reason in result.reasons)
+        assert any(reason.startswith("robustness:") for reason in result.reasons)
     finally:
         service.close()
 

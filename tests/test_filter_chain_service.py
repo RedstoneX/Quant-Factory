@@ -205,6 +205,7 @@ def _stage_adapter(
     failed_oos: bool = False,
     failed_robustness: bool = False,
     failed_monte_carlo: bool = False,
+    insufficient_monte_carlo: bool = False,
     corrupt: bool = False,
 ):
     def execute(context):
@@ -273,6 +274,11 @@ def _stage_adapter(
             if failed_monte_carlo:
                 monte_carlo = replace(
                     monte_carlo, status="failed", reasons=("fixture Monte Carlo merit failure",)
+                )
+            if insufficient_monte_carlo:
+                monte_carlo = replace(
+                    monte_carlo, status="insufficient_evidence",
+                    reasons=("requires at least 10 observations; received 8",),
                 )
             evidence.persist_monte_carlo(run_id=run_id, result=monte_carlo, artifact_root=root)
         if corrupt:
