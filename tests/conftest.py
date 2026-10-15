@@ -15,6 +15,10 @@ from market_data.models import MarketDataConfig
 LICENSED_VECTORBT_NODE_IDS = frozenset(
     {
         "tests/test_deflated_sharpe.py::test_matches_library_on_fixture",
+        "tests/test_walk_forward_splitter_vbt.py::test_full_history_signals_differ_from_slice_only_in_the_warm_up",
+        "tests/test_walk_forward_splitter_vbt.py::test_window_result_does_not_depend_on_later_bars",
+        "tests/test_walk_forward_splitter_vbt.py::test_whole_range_matches_a_plain_run",
+        "tests/test_walk_forward_splitter_vbt.py::test_signals_are_generated_once_per_parameter_set",
         "tests/test_deflated_sharpe.py::test_flat_settings_are_undefined",
         "tests/test_deflated_sharpe.py::test_deflated_sharpe_is_record_only",
         "tests/test_rule_engine_vectorized.py::test_library_indicators_batch_equals_per_setting_reference",
