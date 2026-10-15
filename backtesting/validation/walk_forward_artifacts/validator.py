@@ -43,6 +43,8 @@ def _validate_folds_document(
     document: dict[str, Any],
     rules: WalkForwardWindowRules,
 ) -> tuple[str, tuple[str, ...]]:
+    from backtesting.walk_forward.sessions import grid_for_labels, require_session_boundary, size_within
+
     folds = document.get("evidence", {}).get("folds")
     if not isinstance(folds, list):
         raise ValueError("walk-forward evidence folds are missing")
@@ -51,6 +53,16 @@ def _validate_folds_document(
     previous_test_end: str | None = None
     previous_train_start: str | None = None
     expected_train_size = rules.training_window_size
+    labels = [
+        part[key]
+        for fold in folds
+        if isinstance(fold, dict)
+        for part in (fold.get("train"), fold.get("test"))
+        if isinstance(part, dict)
+        for key in ("start", "end")
+        if isinstance(part.get(key), str)
+    ]
+    grid = grid_for_labels(document["evidence"].get("session_alignment"), labels)
     failed_reasons: list[str] = []
     for fold in folds:
         if not isinstance(fold, dict):
@@ -81,13 +93,13 @@ def _validate_folds_document(
         train_start, train_end, train_size = train
         test_start, test_end, test_size = test
         if rules.training_mode == "rolling":
-            if train_size != rules.training_window_size:
+            if not size_within(train_size, rules.training_window_size, grid):
                 raise ValueError(
                     f"{fold_id}: rolling train window has {train_size} rows; "
                     f"expected {rules.training_window_size}"
                 )
         elif rules.training_mode == "expanding":
-            if train_size != expected_train_size:
+            if not size_within(train_size, expected_train_size, grid, open_ended=True):
                 raise ValueError(
                     f"{fold_id}: expanding train window has {train_size} rows; "
                     f"expected {expected_train_size}"
@@ -104,12 +116,13 @@ def _validate_folds_document(
                 raise ValueError(f"{fold_id}: selection window is not declared")
             if not train_end < test_start:
                 raise ValueError(f"{fold_id}: test overlaps train period")
+            require_session_boundary(fold_id, train_end, test_start, grid)
         else:
             selection = _partition_bounds(f"{fold_id}:selection", fold["selection"])
             if selection is None:
                 raise ValueError(f"{fold_id}:selection partition is missing")
             selection_start, selection_end, selection_size = selection
-            if selection_size != rules.selection_window_size:
+            if not size_within(selection_size, rules.selection_window_size, grid):
                 raise ValueError(
                     f"{fold_id}: selection window has {selection_size} rows; "
                     f"expected {rules.selection_window_size}"
@@ -118,13 +131,17 @@ def _validate_folds_document(
                 raise ValueError(f"{fold_id}: selection overlaps train period")
             if not selection_end < test_start:
                 raise ValueError(f"{fold_id}: test overlaps selection period")
-        if test_size != rules.test_window_size:
+            require_session_boundary(fold_id, train_end, selection_start, grid)
+            require_session_boundary(fold_id, selection_end, test_start, grid)
+        if not size_within(test_size, rules.test_window_size, grid):
             raise ValueError(
                 f"{fold_id}: test window has {test_size} rows; "
                 f"expected {rules.test_window_size}"
             )
         if previous_test_end is not None and previous_test_end >= test_start:
             raise ValueError(f"{fold_id}: test window overlaps a prior test window")
+        if previous_test_end is not None:
+            require_session_boundary(fold_id, previous_test_end, test_start, grid)
         previous_test_end = test_end
         if status == "successful" and fold["selected_parameters"] is not None:
             lock_id = fold["parameter_lock_id"]
@@ -190,6 +207,7 @@ def validate_walk_forward_evidence_document(
             or "training mode" in message
             or "selection window is not declared" in message
             or "expanding train window start changed" in message
+            or "splits an exchange session" in message
         ):
             raise ValueError(
                 "declared walk-forward rules are inconsistent with persisted folds"
@@ -208,6 +226,11 @@ def validate_walk_forward_evidence_document(
             "folds": document["evidence"]["folds"],
             "normalized_evidence": document["evidence"]["normalized_evidence"],
         }
+        | (
+            {"session_alignment": document["evidence"]["session_alignment"]}
+            if "session_alignment" in document["evidence"]
+            else {}
+        )
     )
     if artifact_doc.get("evidence_identity") != expected_identity:
         raise ValueError("walk-forward evidence identity mismatch")

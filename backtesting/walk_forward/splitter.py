@@ -2,27 +2,34 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from backtesting.out_of_sample.models import DataPartition
 from backtesting.walk_forward.models import WalkForwardConfig, WalkForwardWindow
+from backtesting.walk_forward.sessions import SessionGrid, alignment_for, boundary_label
 
 
-def _partition(name: str, data: pd.DataFrame) -> DataPartition:
+def _partition(name: str, data: pd.DataFrame, aligned: bool) -> DataPartition:
     return DataPartition(
         name=name,
         data=data.copy(),
-        start=str(data.index[0].date()),
-        end=str(data.index[-1].date()),
+        start=boundary_label(data.index[0], aligned),
+        end=boundary_label(data.index[-1], aligned),
         row_count=len(data),
     )
 
 
-def _day_start(dates: pd.Index, position: int) -> int:
-    """First row at or after ``position`` that opens a new day, so no day straddles two partitions."""
+def _day_start(dates, position: int) -> int:
+    """First row at or after ``position`` that opens a new session, so none straddles two partitions."""
     if position <= 0 or position >= len(dates):
         return position
-    return int(dates.searchsorted(dates[position - 1], side="right"))
+    return int(np.searchsorted(dates, dates[position - 1], side="right"))
+
+
+def _session_floor(dates, position: int) -> int:
+    """First row of the session containing ``position``, so a rolling train window keeps its rows."""
+    return int(np.searchsorted(dates, dates[position], side="left"))
 
 
 def build_walk_forward_windows(
@@ -38,8 +45,13 @@ def build_walk_forward_windows(
         raise ValueError("market data index must be unique")
 
     selection_size = config.selection_window_size or 0
-    # Partitions are labelled by date, so intraday cuts are moved to the next day's first row.
-    dates = data.index.normalize()
+    # Intraday cuts move to the first bar of the next exchange session; daily rows keep date cuts.
+    alignment = alignment_for(data, config.experiment.market_data)
+    aligned = alignment is not None
+    if aligned:
+        dates = SessionGrid(alignment, data.index[0], data.index[-1]).session_of(data.index)
+    else:
+        dates = data.index.normalize()
     raw_cursor = config.training_window_size
     windows: list[WalkForwardWindow] = []
     fold_number = 1
@@ -57,19 +69,20 @@ def build_walk_forward_windows(
             test_end = _day_start(dates, requested_test_end)
 
         train_start = (
-            0 if config.training_mode == "expanding" else _day_start(dates, raw_cursor - config.training_window_size)
+            0 if config.training_mode == "expanding" else _session_floor(dates, cursor - config.training_window_size)
         )
         fold_id = f"fold_{fold_number:03d}"
-        train = _partition(f"{fold_id}:train", data.iloc[train_start:cursor])
+        train = _partition(f"{fold_id}:train", data.iloc[train_start:cursor], aligned)
         selection = (
             _partition(
                 f"{fold_id}:selection",
                 data.iloc[cursor:selection_end],
+                aligned,
             )
             if selection_size
             else None
         )
-        test = _partition(f"{fold_id}:test", data.iloc[selection_end:test_end])
+        test = _partition(f"{fold_id}:test", data.iloc[selection_end:test_end], aligned)
         if selection is not None:
             ordered = train.end < selection.start < test.start
         else:
@@ -82,8 +95,11 @@ def build_walk_forward_windows(
                 train=train,
                 selection=selection,
                 test=test,
+                session_calendar=alignment["exchange_calendar"] if aligned else None,
+                session_interval=alignment["interval"] if aligned else None,
             )
         )
         fold_number += 1
-        raw_cursor += config.step_size
+        # Next train end: one step on, and never so early that the next test overlaps this one.
+        raw_cursor = max(cursor + config.step_size, test_end - selection_size)
     return tuple(windows)

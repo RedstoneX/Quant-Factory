@@ -88,6 +88,10 @@ def build_walk_forward_evidence_document(
             "eligible_to_progress": normalized.eligible_to_progress,
         },
     }
+    calendar = getattr(result.folds[0].window, "session_calendar", None) if result.folds else None
+    if calendar is not None:  # intraday: window cuts sit on this calendar's session starts
+        interval = result.folds[0].window.session_interval
+        evidence_payload["session_alignment"] = {"exchange_calendar": calendar, "interval": interval}
     evidence_identity = _identity(evidence_payload)
     document = {
         "artifact_schema_version": WALK_FORWARD_EVIDENCE_SCHEMA_VERSION,

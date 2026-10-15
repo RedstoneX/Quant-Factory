@@ -151,7 +151,9 @@ def _partition_bounds(partition: object) -> tuple[Any, Any]:
     return getattr(partition, "start"), getattr(partition, "end")
 
 
-def _partition_boundary_label(value: object) -> str:
+def _partition_boundary_label(value: object, aligned: bool = False) -> str:
+    if aligned and hasattr(value, "isoformat"):
+        return value.isoformat()
     if hasattr(value, "date"):
         return str(value.date())
     return str(value)
@@ -172,7 +174,7 @@ def _partition_row_count(partition: object) -> int:
     return row_count
 
 
-def _require_partition(name: str, partition: object) -> None:
+def _require_partition(name: str, partition: object, aligned: bool = False) -> None:
     if partition is None:
         raise ValueError(f"{name} partition is missing")
     if not isinstance(getattr(partition, "name"), str) or not partition.name.strip():
@@ -189,9 +191,9 @@ def _require_partition(name: str, partition: object) -> None:
     if index is not None:
         if len(index) != partition.row_count:
             raise ValueError(f"{name} partition row_count does not match data length")
-        if partition.start != _partition_boundary_label(index[0]):
+        if partition.start != _partition_boundary_label(index[0], aligned):
             raise ValueError(f"{name} partition start does not match data")
-        if partition.end != _partition_boundary_label(index[-1]):
+        if partition.end != _partition_boundary_label(index[-1], aligned):
             raise ValueError(f"{name} partition end does not match data")
 
 
@@ -201,6 +203,8 @@ def _validate_walk_forward_windows(
 ) -> tuple[str, ...]:
     if rules is None:
         return ()
+    from backtesting.walk_forward.sessions import grid_for_window, require_session_boundary, size_within
+
     folds = tuple(getattr(result, "folds"))
     previous_test_end = None
     previous_train_start = None
@@ -218,13 +222,14 @@ def _validate_walk_forward_windows(
         train = getattr(window, "train")
         selection = getattr(window, "selection")
         test = getattr(window, "test")
-        _require_partition(f"{fold_id}:train", train)
-        _require_partition(f"{fold_id}:test", test)
+        grid = grid_for_window(window, _partition_bounds(train)[0], _partition_bounds(test)[1])
+        _require_partition(f"{fold_id}:train", train, grid is not None)
+        _require_partition(f"{fold_id}:test", test, grid is not None)
         train_start, train_end = _partition_bounds(train)
         train_size = _partition_row_count(train)
         test_start, test_end = _partition_bounds(test)
         if rules.training_mode == "rolling":
-            if train_size != rules.training_window_size:
+            if not size_within(train_size, rules.training_window_size, grid):
                 raise ValueError(
                     f"{fold_id}: rolling train window has {train_size} rows; "
                     f"expected {rules.training_window_size}"
@@ -232,12 +237,17 @@ def _validate_walk_forward_windows(
             if previous_train_index is not None:
                 if rules.step_size < len(previous_train_index):
                     expected_start = previous_train_index[rules.step_size]
-                    if train_start != expected_start:
+                    if grid is not None:  # train start floors back < 1 session; train end moves < 3 on
+                        moved = previous_train_index.get_indexer([train_start])[0] - rules.step_size
+                        advanced = previous_train_start < train_start and abs(moved) < 4 * grid.max_session_rows
+                    else:
+                        advanced = train_start == expected_start
+                    if not advanced:
                         raise ValueError(
                             f"{fold_id}: rolling train window advanced by a different step"
                         )
         elif rules.training_mode == "expanding":
-            if train_size != expected_train_size:
+            if not size_within(train_size, expected_train_size, grid, open_ended=True):
                 raise ValueError(
                     f"{fold_id}: expanding train window has {train_size} rows; "
                     f"expected {expected_train_size}"
@@ -255,11 +265,12 @@ def _validate_walk_forward_windows(
                 raise ValueError(f"{fold_id}: selection window is not declared")
             if not train_end < test_start:
                 raise ValueError(f"{fold_id}: test overlaps train period")
+            require_session_boundary(fold_id, train_end, test_start, grid)
         else:
-            _require_partition(f"{fold_id}:selection", selection)
+            _require_partition(f"{fold_id}:selection", selection, grid is not None)
             selection_start, selection_end = _partition_bounds(selection)
             selection_size = _partition_row_count(selection)
-            if selection_size != rules.selection_window_size:
+            if not size_within(selection_size, rules.selection_window_size, grid):
                 raise ValueError(
                     f"{fold_id}: selection window has {selection_size} rows; "
                     f"expected {rules.selection_window_size}"
@@ -268,8 +279,10 @@ def _validate_walk_forward_windows(
                 raise ValueError(f"{fold_id}: selection overlaps train period")
             if not selection_end < test_start:
                 raise ValueError(f"{fold_id}: test overlaps selection period")
+            require_session_boundary(fold_id, train_end, selection_start, grid)
+            require_session_boundary(fold_id, selection_end, test_start, grid)
         test_size = _partition_row_count(test)
-        if test_size != rules.test_window_size:
+        if not size_within(test_size, rules.test_window_size, grid):
             is_short_final = (
                 fold is folds[-1]
                 and rules.incomplete_final_window == "include"
