@@ -31,16 +31,10 @@ fixed: values that never change. exclusions: what this idea must not do.
 SUPPORTED
 Bar sizes: "5m" (MES futures data; 5-minute bars, 78 per session) and "1m" (US stock/ETF library; 390 per session).
 Set rule_spec "bar" and market.timeframe to the same value; the data must match (nothing is resampled).
-Entries in the regular session (09:30-16:00 New York). Times are bar END times:
-the first 5m bar ends 09:35, the first 1m bar ends 09:31. Lengths and after_bars are bar counts:
-30 bars is 150 minutes on 5m but 30 minutes on 1m, so pick them for the bar size.
-Positions are simulated on continuous history. Futures (MES) must set "flat_at": "15:55" (flat before the close);
-without flat_at a position may be held overnight (stocks).
-exit "after_bars" is the maximum hold (VectorBT's own time exit); it may be a variable, so the hold taken from the
-idea's source can be swept. max_trades_per_session counts entries filled per session; a trade closed by a stop still
-counts and holds its slot until a rule exit (exit_when, opposite signal, at_time, flat_at) or its maximum hold.
-MES: trading costs are known, so results include fees and slippage; the 1-tick slippage is charged on every fill,
-stop exits included (owner ruling 15 Oct 2026). History ends 2026-02-13.
+Entries 09:30-16:00 New York; bar END times (first 5m bar ends 09:35, 1m 09:31). Lengths and after_bars are bar
+counts (30 bars: 150 min on 5m, 30 min on 1m). Continuous history: MES sets "flat_at": "15:55"; without it stocks may
+hold overnight. after_bars = max hold (a variable can sweep the source's hold); max_trades_per_session counts fills.
+MES costs are known: fees, and 1-tick slippage on every fill incl. stop exits (owner, 15 Oct). History ends 2026-02-13.
 Optional rule_spec "skip_days": ["cpi", "fomc"] takes no new entries on US CPI release days and/or FOMC decision days.
 Numeric variables only, every one used by rule_spec.
 
