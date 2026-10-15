@@ -21,6 +21,9 @@ from dashboard.results_projection import oos_report_metrics
 
 COUNT_KEYS = ("survivor", "advancing", "blocked", "duplicate", "crashed", "needs_review", "rejected", "all")
 
+# Throwaway entries (connectivity probes, smoke runs) hidden by default; never deleted.
+TEST_TITLE_PATTERNS = ("connection test%", "smoke test%", "test idea%", "test candidate%", "dummy%")
+
 CANDIDATE_SORT_FIELDS = {
     "title": "title", "symbol": "symbol", "family": "family",
     "lifecycle": "lifecycle", "sharpe": "sharpe", "max_drawdown": "max_drawdown",
@@ -71,15 +74,16 @@ def _candidate_source() -> str:
                  WHEN c.stage IN ('robustness','monte_carlo') AND c.run_status='succeeded' THEN 'Passed'
                  WHEN c.stage IN ('robustness','monte_carlo') AND c.run_status IN ('created','running') THEN 'Testing'
                  ELSE 'Not run' END AS robustness,
-               CASE WHEN c.survivor=1 THEN 'Lane inactive' ELSE 'Ineligible' END AS paper
+               CASE WHEN c.survivor=1 THEN 'Not started' ELSE '' END AS paper,
+               CASE WHEN """ + " OR ".join(f"LOWER(c.title) LIKE '{pattern}'" for pattern in TEST_TITLE_PATTERNS) + """ THEN 1 ELSE 0 END AS is_test
         FROM candidates c
     """
 
 
 def _candidate_conditions(
-    *, lifecycle: str, market: str, family: str, evidence: str, search: str,
+    *, lifecycle: str, market: str, family: str, evidence: str, search: str, show_test: bool = False,
 ) -> tuple[list[str], list[Any]]:
-    conditions = ["1=1"]
+    conditions = ["1=1" if show_test else "is_test=0"]
     params: list[Any] = []
     if lifecycle != "all":
         conditions.append("lifecycle=?"); params.append(lifecycle)
@@ -146,7 +150,7 @@ def _candidate_grid_row(row: sqlite3.Row, *, rank: int | None = None, oos: dict[
         "screening_reasons": str(row["screening_reasons"] or ""),
         "screening_count": int(row["screening_count"] or 0),
         "screened_out_count": int(row["screened_out_count"] or 0),
-        "robustness": str(row["robustness"]), "paper": str(row["paper"]),
+        "robustness": str(row["robustness"]), "paper": str(row["paper"]), "is_test": bool(row["is_test"]),
         "updated_at": str(row["observed_at"]), "rank": rank,
     }
 
@@ -159,7 +163,7 @@ def load_candidates_summary(*, database: str | Path | None = None) -> dict[str, 
         return {"available": False, "message": error, "counts": {key: 0 for key in COUNT_KEYS}, "families": []}
     try:
         source = BASE_CTE + ", candidate_records AS (" + _candidate_source() + ")"
-        rows = connection.execute(source + " SELECT lifecycle, COUNT(*) AS count FROM candidate_records GROUP BY lifecycle", _base_params()).fetchall()
+        rows = connection.execute(source + " SELECT lifecycle, COUNT(*) AS count FROM candidate_records WHERE is_test=0 GROUP BY lifecycle", _base_params()).fetchall()
         counts = {key: 0 for key in COUNT_KEYS}
         for row in rows:
             key = str(row["lifecycle"]); counts[key] = int(row["count"]); counts["all"] += int(row["count"])
@@ -173,7 +177,7 @@ def load_candidates_summary(*, database: str | Path | None = None) -> dict[str, 
 
 def load_candidates_page(
     *, lifecycle: str = "survivor", market: str = "all", family: str = "all",
-    evidence: str = "any", search: str = "", start: int = 0, end: int = 50,
+    evidence: str = "any", search: str = "", show_test: bool = False, start: int = 0, end: int = 50,
     sort_model: list[dict[str, Any]] | None = None,
     filter_model: dict[str, dict[str, Any]] | None = None,
     database: str | Path | None = None,
@@ -184,7 +188,7 @@ def load_candidates_page(
     if connection is None:
         return {"rowData": [], "rowCount": 0}
     try:
-        conditions, params = _candidate_conditions(lifecycle=lifecycle, market=market, family=family, evidence=evidence, search=search)
+        conditions, params = _candidate_conditions(lifecycle=lifecycle, market=market, family=family, evidence=evidence, search=search, show_test=show_test)
         for field, model in (filter_model or {}).items():
             column = CANDIDATE_SORT_FIELDS.get(field)
             value = model.get("filter")
@@ -239,9 +243,11 @@ def load_candidate_detail(candidate_id: str | None, *, database: str | Path | No
         stages = connection.execute("""
             WITH ranked AS (
               SELECT run_id, stage, status, created_at, completed_at, error_summary,
+                     (SELECT COUNT(*) FROM parameter_results p WHERE p.run_id=experiment_runs.run_id AND p.screening_status='passed') AS passed_count,
+                     (SELECT COUNT(*) FROM parameter_results p WHERE p.run_id=experiment_runs.run_id) AS result_count,
                      ROW_NUMBER() OVER (PARTITION BY stage ORDER BY created_at DESC, run_id DESC) AS recency
               FROM experiment_runs WHERE configuration_id=?
-            ) SELECT run_id,stage,status,created_at,completed_at,error_summary FROM ranked WHERE recency=1 ORDER BY created_at
+            ) SELECT run_id,stage,status,created_at,completed_at,error_summary,passed_count,result_count FROM ranked WHERE recency=1 ORDER BY created_at
         """, [detail["configuration_id"]]).fetchall() if detail["configuration_id"] else []
         detail["progression"] = [dict(stage) for stage in stages]
         detail["results_run_id"] = _results_run_id(detail["progression"]) or detail["run_id"]

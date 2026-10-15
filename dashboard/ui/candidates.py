@@ -13,7 +13,7 @@ from dash import Input, Output, State, ctx, dcc, html, no_update
 from dash_iconify import DashIconify
 
 from dashboard.plain_labels import (
-    CANT_TEST, FAILED_TESTING, LIFECYCLE_LABELS, LIFECYCLE_ORDER, lifecycle_label, plain_status,
+    CANT_TEST, FAILED_TESTING, LIFECYCLE_LABELS, LIFECYCLE_ORDER, lifecycle_label, plain_reason_detail, plain_rejection_reasons, plain_status, stage_verdict,
 )
 from dashboard.candidates_projection import (
     load_candidate_detail,
@@ -41,13 +41,13 @@ def _human_label(value: Any) -> str:
 
 
 CANDIDATE_COLUMNS = [
-    {"field": "title", "headerName": "Idea", "flex": 2, "filter": "agTextColumnFilter", "tooltipField": "candidate_id"},
+    {"field": "title", "headerName": "Idea", "flex": 3, "minWidth": 120, "filter": "agTextColumnFilter", "tooltipField": "title", "wrapText": True, "cellStyle": {"whiteSpace": "normal", "lineHeight": "1.3"}},
     {"field": "symbol", "headerName": "Market", "flex": .6, "filter": "agTextColumnFilter"},
-    {"field": "lifecycle", "headerName": "Status", "flex": .9, "filter": "agTextColumnFilter", "valueFormatter": {"function": "(" + json.dumps(LIFECYCLE_LABELS) + ")[params.value] || (params.value ? params.value.charAt(0).toUpperCase() + params.value.slice(1) : '—')"}},
-    {"field": "sharpe", "headerName": "Out-of-sample Sharpe", "type": "numericColumn", "flex": 1, "filter": "agNumberColumnFilter", "sort": "desc", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
+    {"field": "lifecycle", "headerName": "Status", "flex": 1.2, "minWidth": 80, "filter": "agTextColumnFilter", "wrapText": True, "cellStyle": {"whiteSpace": "normal", "lineHeight": "1.3"}, "valueFormatter": {"function": "(" + json.dumps(LIFECYCLE_LABELS) + ")[params.value] || (params.value ? params.value.charAt(0).toUpperCase() + params.value.slice(1) : '—')"}},
+    {"field": "sharpe", "headerName": "Sharpe", "headerTooltip": "Out-of-sample Sharpe", "type": "numericColumn", "flex": 1, "filter": "agNumberColumnFilter", "sort": "desc", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
     {"field": "max_drawdown", "headerName": "Max drawdown", "type": "numericColumn", "flex": .8, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
     {"field": "retained", "headerName": "Kept out-of-sample", "type": "numericColumn", "flex": .9, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(1) + '%'"}},
-    {"field": "net_return", "headerName": "Net return", "type": "numericColumn", "flex": .75, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : (params.value > 0 ? '+' : '') + params.value.toFixed(1) + '%'"}},
+    {"field": "net_return", "headerName": "Return", "headerTooltip": "Net return after costs", "type": "numericColumn", "flex": .75, "filter": "agNumberColumnFilter", "valueFormatter": {"function": "params.value == null ? '—' : (params.value > 0 ? '+' : '') + params.value.toFixed(1) + '%'"}},
     {"field": "robustness", "headerName": "Robustness", "flex": .78, "filter": "agTextColumnFilter"},
     {"field": "paper", "headerName": "Paper", "flex": .8, "filter": "agTextColumnFilter"},
 ]
@@ -91,6 +91,7 @@ def candidates_layout(search: str | None = None) -> html.Div:
         dmc.Select(id="candidate-market", data=MARKETS, value="all", allowDeselect=False, size="xs", w={"base": "100%", "sm": 140}, persistence=True, persistence_type="local", **{"aria-label": "Market"}),
         dmc.Select(id="candidate-family", data=family_options, value="all", allowDeselect=False, size="xs", w={"base": "100%", "sm": 160}, persistence=True, persistence_type="local", **{"aria-label": "Family"}),
         dmc.Select(id="candidate-evidence", data=EVIDENCE, value="any", allowDeselect=False, size="xs", w={"base": "100%", "sm": 170}, persistence=True, persistence_type="local", **{"aria-label": "Test result"}),
+        dmc.Switch(id="candidate-show-test", label="Show test entries", checked=False, size="xs"),
         dmc.Button("Compare selected · 0", id="compare-selected", variant="default", disabled=True, ml={"base": 0, "sm": "auto"}, w={"base": "100%", "sm": "auto"}),
     ], gap="xs", mb="sm")
     grid = dag.AgGrid(
@@ -98,13 +99,13 @@ def candidates_layout(search: str | None = None) -> html.Div:
         defaultColDef={**COLUMN_DEFAULTS, "filter": True, "floatingFilter": False, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
         dashGridOptions=grid_options(
             "No ideas match these filters.",
-            rowSelection={"mode": "multiRow", "checkboxes": True, "headerCheckbox": False, "enableClickSelection": True},
+            rowSelection={"mode": "multiRow", "checkboxes": True, "headerCheckbox": False, "enableClickSelection": False},
             selectionColumnDef={"pinned": "left", "width": 38, "minWidth": 38, "maxWidth": 38, "resizable": False, "sortable": False},
             cacheBlockSize=50, maxBlocksInCache=4, rowBuffer=10, animateRows=False,
             suppressCellFocus=False, enableCellTextSelection=True, suppressPropertyNamesCheck=True,
         ),
         getRowId="params.data.candidate_id", style={"height": "calc(100dvh - 380px)", "minHeight": 360}, columnSize="responsiveSizeToFit",
-        eventListeners={event: [*code, "params.api.sizeColumnsToFit()"] for event, code in hide_when_narrow("symbol", "lifecycle", "max_drawdown", "retained", "net_return", "robustness", "paper").items()},
+        eventListeners={event: [*code, "params.api.sizeColumnsToFit()"] for event, code in hide_when_narrow("symbol", "max_drawdown", "retained", "robustness", "paper").items()},
         persistence=True, persisted_props=["filterModel"], persistence_type="local",
     )
     detail = dmc.Drawer(dmc.Stack([
@@ -121,7 +122,7 @@ def candidates_layout(search: str | None = None) -> html.Div:
     ], gap="md"), id="candidate-detail-drawer", opened=bool(requested_candidate), position="right", size="min(100%, 420px)", withOverlay=False, lockScroll=False, title="Idea details")
     workspace = dmc.Stack([grid, dmc.Group([dmc.Text(id="candidate-page-count", size="xs", c="dimmed"), dmc.Text(id="candidate-total-count", size="xs", c="dimmed")], justify="space-between")], gap="xs")
     stores = [
-        dcc.Store(id="candidate-summary", data=summary), dcc.Store(id="candidate-query", data={"lifecycle": initial_lifecycle, "market": "all", "family": "all", "evidence": "any", "search": initial_search}),
+        dcc.Store(id="candidate-summary", data=summary), dcc.Store(id="candidate-query", data={"lifecycle": initial_lifecycle, "market": "all", "family": "all", "evidence": "any", "search": initial_search, "show_test": False}),
         dcc.Store(id="candidate-selection", data={"candidate_id": requested_candidate, "run_id": (initial_detail or {}).get("run_id")} if requested_candidate else None, storage_type="local"),
         dcc.Store(id="candidate-compare-selection", storage_type="local"),
         dcc.Store(id="candidate-detail-record"),
@@ -164,11 +165,11 @@ def _outcome(record: dict[str, Any]) -> tuple[str, str]:
         return "Needs review", "Something in this idea needs your call"
     if lifecycle == "rejected":
         if known:
-            return label, why
+            return label, why if why and why != "Did not pass a testing stage" else "; ".join(_why_failed(record)) or why
         if record.get("run_id") and record.get("screening_status") == "screened_out":
             return (
                 f"{FAILED_TESTING} · {int(record.get('screened_out_count') or 0):,} of {int(record.get('screening_count') or 0):,} settings failed",
-                "Stopped at the first check; later tests did not run",
+                "; ".join(_why_failed(record)) or "Stopped at the first check; later tests did not run",
             )
         return FAILED_TESTING, "Its results are kept"
     return "Idea received", "Next step not recorded yet"
@@ -180,8 +181,12 @@ def _screening_summary(record: dict[str, Any]) -> str:
         f"The best one returned {_fmt(record.get('screening_return'), percent=True)} "
         f"with Sharpe {_fmt(record.get('screening_sharpe'))} and "
         f"{_fmt(record.get('screening_max_drawdown'), percent=True)} maximum drawdown. "
-        "Open Results for every setting and why each one failed."
+        "Open Results for every setting."
     )
+
+
+def _why_failed(record: dict[str, Any]) -> list[str]:
+    return plain_rejection_reasons(record.get("screening_reasons"))
 
 
 def _item(label: str, value: Any, note: Any = "") -> html.Div:
@@ -220,10 +225,11 @@ def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
     return [
         _item("Outcome", outcome),
         _item("Next", next_state),
-        html.Div(_screening_summary(record) if record.get("run_id") and record.get("screening_status") == "screened_out" else record.get("campaign_reason_detail") or record.get("error_summary") or record.get("description") or "No further notes.", className=f"candidate-explanation {record.get('lifecycle') or ''}"),
-        dmc.Group([dmc.Button("Open Results", id="candidate-open-results", disabled=not record.get("run_id")), dmc.Button("See test results", id="candidate-open-evidence", variant="default")], gap=8, className="candidate-detail-actions"),
-        dmc.Title("Tests passed so far", order=5, className="candidate-progression-title"),
-        *[_item(_human_label(item.get("stage")), _human_label(item.get("status")), "✓" if item.get("status") == "succeeded" else "") for item in progression],
+        html.Div(_screening_summary(record) if record.get("run_id") and record.get("screening_status") == "screened_out" else plain_reason_detail(record.get("campaign_reason_detail")) or record.get("error_summary") or record.get("description") or "No further notes.", className=f"candidate-explanation {record.get('lifecycle') or ''}"),
+        *([html.Div([html.Strong("Why it was screened out"), html.Ul([html.Li(reason) for reason in _why_failed(record)])])] if record.get("lifecycle") == "rejected" and _why_failed(record) else []),
+        dmc.Group([dmc.Button("Open Results", id="candidate-open-results", disabled=not record.get("run_id"))], gap=8, className="candidate-detail-actions"),
+        dmc.Title("Test results", order=5, className="candidate-progression-title"),
+        *[_item(_human_label(item.get("stage")), *(lambda v: (dmc.Badge(v[0], color=v[1], variant="light"), ""))(stage_verdict(item.get("status"), item.get("passed_count"), item.get("result_count"), idea_passed=record.get("lifecycle") == "survivor"))) for item in progression],
         *([] if progression else [dmc.Text("No tests have run yet.", size="xs", c="dimmed")]),
     ]
 
@@ -273,9 +279,9 @@ def register_candidate_callbacks(application: Any) -> None:
             return "rejected", "all", "all", "any", ""
         return no_update, no_update, no_update, no_update, no_update
 
-    @application.callback(Output("candidate-query", "data"), Input("candidate-lifecycle", "value"), Input("candidate-market", "value"), Input("candidate-family", "value"), Input("candidate-evidence", "value"), Input("candidate-search", "value"))
-    def update_query(lifecycle: str, market: str, family: str, evidence: str, search: str | None) -> dict[str, Any]:
-        return {"lifecycle": lifecycle or "survivor", "market": market or "all", "family": family or "all", "evidence": evidence or "any", "search": search or ""}
+    @application.callback(Output("candidate-query", "data"), Input("candidate-lifecycle", "value"), Input("candidate-market", "value"), Input("candidate-family", "value"), Input("candidate-evidence", "value"), Input("candidate-search", "value"), Input("candidate-show-test", "checked"))
+    def update_query(lifecycle: str, market: str, family: str, evidence: str, search: str | None, show_test: bool | None) -> dict[str, Any]:
+        return {"lifecycle": lifecycle or "survivor", "market": market or "all", "family": family or "all", "evidence": evidence or "any", "search": search or "", "show_test": bool(show_test)}
 
     @application.callback(Output("candidate-grid", "getRowsResponse"), Output("candidate-page-count", "children"), Output("candidate-total-count", "children"), Input("candidate-grid", "getRowsRequest"), Input("candidate-query", "data"))
     def load_grid(request: dict[str, Any] | None, query: dict[str, Any] | None):
@@ -285,15 +291,15 @@ def register_candidate_callbacks(application: Any) -> None:
         total = int(page["rowCount"])
         return page, "" if total else "No ideas match these filters.", f"{total:,} ideas" if total else ""
 
-    @application.callback(Output("candidate-selection", "data"), Input("candidate-grid", "selectedRows"), Input("candidate-grid", "getRowsResponse"), Input("router-location", "search"), State("candidate-selection", "data"), prevent_initial_call=True)
-    def persist_primary_selection(selected_rows: list[dict[str, Any]] | None, response: dict[str, Any] | None, search: str | None, current: dict[str, Any] | None):
+    @application.callback(Output("candidate-selection", "data"), Input("candidate-grid", "cellClicked"), Input("candidate-grid", "getRowsResponse"), Input("router-location", "search"), State("candidate-selection", "data"), prevent_initial_call=True)
+    def persist_primary_selection(clicked: dict[str, Any] | None, response: dict[str, Any] | None, search: str | None, current: dict[str, Any] | None):
         if "router-location.search" in ctx.triggered_prop_ids:
             candidate_id = parse_qs((search or "").lstrip("?")).get("candidate_id", [None])[0]
             detail = load_candidate_detail(candidate_id) if candidate_id else None
             if detail:
                 return {"candidate_id": candidate_id, "run_id": detail.get("run_id")}
-        if "candidate-grid.selectedRows" in ctx.triggered_prop_ids and selected_rows:
-            row = selected_rows[-1]; return {"candidate_id": row.get("candidate_id"), "run_id": row.get("run_id")}
+        if "candidate-grid.cellClicked" in ctx.triggered_prop_ids and clicked and clicked.get("colId") != "ag-Grid-SelectionColumn" and clicked.get("data"):
+            row = clicked["data"]; return {"candidate_id": row.get("candidate_id"), "run_id": row.get("run_id")}
         if current:
             return current
         rows = (response or {}).get("rowData") or []
@@ -307,11 +313,12 @@ def register_candidate_callbacks(application: Any) -> None:
             return current or []
         return [{"candidate_id": row.get("candidate_id"), "run_id": row.get("run_id"), "title": row.get("title")} for row in rows if row.get("lifecycle") == "survivor"]
 
-    @application.callback(Output("compare-selected", "children"), Output("compare-selected", "disabled"), Input("candidate-compare-selection", "data"))
-    def compare_state(rows: list[dict[str, Any]] | None):
-        valid = [row for row in (rows or []) if row.get("run_id")]
-        count = len(valid)
-        return f"Compare selected · {count}", not 2 <= count <= 4
+    @application.callback(Output("compare-selected", "children"), Output("compare-selected", "disabled"), Input("candidate-compare-selection", "data"), Input("candidate-grid", "selectedRows"))
+    def compare_state(rows: list[dict[str, Any]] | None, selected: list[dict[str, Any]] | None):
+        count = len([row for row in (rows or []) if row.get("run_id")])
+        skipped = len(selected or []) - count
+        note = f" · {skipped} not passed, skipped" if skipped > 0 else ""
+        return f"Compare selected · {count}{note}", not 2 <= count <= 4
 
     @application.callback(Output("candidate-detail-record", "data"), Input("candidate-selection", "data"))
     def load_detail(selection: dict[str, Any] | None):
@@ -326,11 +333,7 @@ def register_candidate_callbacks(application: Any) -> None:
         meta = " · ".join(str(part) for part in (record.get("symbol"), record.get("family"), rank) if part)
         return state, STATE_COLORS.get(str(record.get("lifecycle")), "gray"), record.get("title") or "Untitled idea", meta, _detail_body(record, tab)
 
-    application.clientside_callback("(rows) => rows && rows.length ? true : window.dash_clientside.no_update", Output("candidate-detail-drawer", "opened"), Input("candidate-grid", "selectedRows"), prevent_initial_call=True)
-
-    @application.callback(Output("candidate-detail-tab", "value"), Input("candidate-open-evidence", "n_clicks", allow_optional=True), prevent_initial_call=True)
-    def open_evidence(_clicks: int | None):
-        return "evidence" if _clicks else no_update
+    application.clientside_callback("(click) => click && click.colId !== 'ag-Grid-SelectionColumn' ? true : window.dash_clientside.no_update", Output("candidate-detail-drawer", "opened"), Input("candidate-grid", "cellClicked"), prevent_initial_call=True)
 
     @application.callback(Output("candidate-grid", "columnDefs"), Input("candidate-columns", "n_clicks"), prevent_initial_call=True)
     def toggle_columns(clicks: int | None):

@@ -6,6 +6,7 @@ idea decides its state. This module only translates; it never decides.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 TESTING = "Testing"
@@ -79,7 +80,79 @@ def lifecycle_label(key: Any) -> str:
     return LIFECYCLE_LABELS.get(text, text.replace("_", " ").title())
 
 
+# Screening rule messages look like
+# "sharpe_ratio failed: expected >= 0.5 (inclusive); observed 0.08." joined by " | ".
+_RULE_MESSAGE = re.compile(r"(?P<metric>\w+) failed: expected (?P<op>[<>]=?) (?P<need>\S+) \((?:inclusive|exclusive)\); observed (?P<seen>.+?)\.?\s*$")
+_METRIC_WORDS: dict[str, tuple[str, str]] = {
+    "number_of_trades": ("Trades", "count"),
+    "total_return": ("Return", "percent"),
+    "annualized_return": ("Yearly return", "percent"),
+    "sharpe_ratio": ("Sharpe", "ratio"),
+    "max_drawdown": ("Biggest drop", "drop"),
+    "win_rate": ("Win rate", "percent"),
+}
+
+
+def _number(text: Any) -> float | None:
+    try:
+        value = float(text)
+    except (TypeError, ValueError):
+        return None
+    return value if value == value and abs(value) != float("inf") else None
+
+
+def _show(value: float | None, kind: str) -> str:
+    if value is None:
+        return "no value"
+    if kind == "count":
+        return f"{value:,.0f}"
+    if kind == "ratio":
+        return f"{value:.2f}"
+    return f"{abs(value) * 100 if kind == 'drop' else value * 100:.1f}%"
+
+
+def plain_rejection_reasons(text: Any) -> list[str]:
+    """Plain sentences for stored screening rejection reasons: which rule missed, by how much."""
+    sentences: list[str] = []
+    for part in str(text or "").split("|"):
+        part = part.strip()
+        if not part:
+            continue
+        match = _RULE_MESSAGE.match(part)
+        if not match or match["metric"] not in _METRIC_WORDS:
+            sentences.append(part)
+            continue
+        name, kind = _METRIC_WORDS[match["metric"]]
+        need, seen = _show(_number(match["need"]), kind), _show(_number(match["seen"]), kind)
+        if kind == "drop":
+            sentences.append(f"{name} {seen} vs {need} allowed")
+        else:
+            sentences.append(f"{name} {seen} vs {need} needed after costs" if kind in {"ratio", "percent"} and match["metric"] != "win_rate" else f"{name} {seen} vs {need} needed")
+    return sentences
+
+
+def plain_reason_detail(text: Any) -> str:
+    """Owner-facing wording for stored campaign notes that name internal locks."""
+    value = str(text or "")
+    if "Protected test remains locked" in value:
+        return "Passed every test. Paper trading is parked, so nothing is traded."
+    return value
+
+
+def stage_verdict(status: Any, passed: int | None, results: int | None, *, idea_passed: bool = False) -> tuple[str, str]:
+    """(word, colour) saying whether a test was passed, not merely whether it ran."""
+    status = str(status or "")
+    if status in {"created", "running"}:
+        return "Running", "blue"
+    if status != "succeeded":
+        return "Crashed", "red"
+    if results:
+        return ("Passed", "teal") if passed else ("Failed", "red")
+    return ("Passed", "teal") if idea_passed else ("Done", "gray")
+
+
 __all__ = [
+    "plain_reason_detail", "plain_rejection_reasons", "stage_verdict",
     "LIFECYCLE_LABELS", "LIFECYCLE_ORDER", "STATE_LABELS", "REASON_WORDS",
     "lifecycle_label", "plain_status", "reason_words", "state_label",
 ]
