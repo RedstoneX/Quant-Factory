@@ -65,6 +65,10 @@ def build_parser() -> argparse.ArgumentParser:
     lineage = commands.add_parser("lineage")
     lineage_get = lineage.add_subparsers(dest="action", required=True).add_parser("get")
     lineage_get.add_argument("candidate_id")
+
+    campaign = commands.add_parser("campaign")
+    campaign_status = campaign.add_subparsers(dest="action", required=True).add_parser("status")
+    campaign_status.add_argument("candidate_id")
     return parser
 
 
@@ -131,6 +135,8 @@ def _operation(args: argparse.Namespace) -> tuple[str, dict[str, object], str | 
         return "research.note.add", {"candidate_id": args.candidate_id}, _read_payload(args.file)
     if args.group == "lineage":
         return "lineage.get", {"candidate_id": args.candidate_id}, payload
+    if args.group == "campaign":
+        return "campaign.status", {"candidate_id": args.candidate_id}, payload
     raise ValueError("unsupported command")
 
 

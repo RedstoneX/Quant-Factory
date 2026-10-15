@@ -563,7 +563,13 @@ def test_ssh_forced_command_rejects_shell_files_and_transport_overrides(command)
         "qf-agent run evidence run_12345678",
         "qf-agent research note add --candidate qfc_12345678 --file -",
         "qf-agent lineage get qfc_12345678",
+        "qf-agent campaign status qfc_12345678",
     ],
 )
 def test_ssh_forced_command_accepts_only_documented_grammar(command):
     assert allowed_arguments(command)
+
+
+def test_cli_campaign_status_maps_to_read_operation():
+    args = build_parser().parse_args(["campaign", "status", "qfc_12345678"])
+    assert (args.group, args.action, args.candidate_id) == ("campaign", "status", "qfc_12345678")
