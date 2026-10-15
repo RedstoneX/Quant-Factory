@@ -350,3 +350,16 @@ def test_report_contains_fold_provenance_and_failures(tmp_path):
     assert '"fold_001"' in text
     assert '"failed_folds": 1' in text
     assert '"parameter_change_percentage"' in text
+
+
+def test_intraday_row_windows_never_split_a_day(tmp_path):
+    # 7 bars per day: row-count cuts land mid-day and must move to the next day's first bar.
+    days = pd.bdate_range("2024-01-01", periods=12, tz="UTC")
+    index = pd.DatetimeIndex([day + pd.Timedelta(hours=14, minutes=30 * bar) for day in days for bar in range(7)])
+    data = pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0, "Volume": 1.0}, index=index)
+    windows = build_walk_forward_windows(data, _config(tmp_path))
+    assert windows
+    for fold in windows:
+        assert fold.train.end < fold.selection.start < fold.test.start
+        for part in (fold.train, fold.selection, fold.test):
+            assert part.data.index[0].time() == index[0].time()

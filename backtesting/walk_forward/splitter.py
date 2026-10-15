@@ -18,6 +18,13 @@ def _partition(name: str, data: pd.DataFrame) -> DataPartition:
     )
 
 
+def _day_start(dates: pd.Index, position: int) -> int:
+    """First row at or after ``position`` that opens a new day, so no day straddles two partitions."""
+    if position <= 0 or position >= len(dates):
+        return position
+    return int(dates.searchsorted(dates[position - 1], side="right"))
+
+
 def build_walk_forward_windows(
     data: pd.DataFrame,
     config: WalkForwardConfig,
@@ -31,11 +38,14 @@ def build_walk_forward_windows(
         raise ValueError("market data index must be unique")
 
     selection_size = config.selection_window_size or 0
-    cursor = config.training_window_size
+    # Partitions are labelled by date, so intraday cuts are moved to the next day's first row.
+    dates = data.index.normalize()
+    raw_cursor = config.training_window_size
     windows: list[WalkForwardWindow] = []
     fold_number = 1
-    while cursor + selection_size < len(data):
-        selection_end = cursor + selection_size
+    while _day_start(dates, raw_cursor) + selection_size < len(data):
+        cursor = _day_start(dates, raw_cursor)
+        selection_end = _day_start(dates, cursor + selection_size)
         requested_test_end = selection_end + config.test_window_size
         if requested_test_end > len(data):
             if config.incomplete_final_window == "drop":
@@ -44,9 +54,11 @@ def build_walk_forward_windows(
             if test_end - selection_end < config.minimum_rows_per_window:
                 break
         else:
-            test_end = requested_test_end
+            test_end = _day_start(dates, requested_test_end)
 
-        train_start = 0 if config.training_mode == "expanding" else cursor - config.training_window_size
+        train_start = (
+            0 if config.training_mode == "expanding" else _day_start(dates, raw_cursor - config.training_window_size)
+        )
         fold_id = f"fold_{fold_number:03d}"
         train = _partition(f"{fold_id}:train", data.iloc[train_start:cursor])
         selection = (
@@ -73,5 +85,5 @@ def build_walk_forward_windows(
             )
         )
         fold_number += 1
-        cursor += config.step_size
+        raw_cursor += config.step_size
     return tuple(windows)
