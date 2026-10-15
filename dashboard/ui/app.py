@@ -29,6 +29,7 @@ from dashboard.ui.paper import paper_layout
 from dashboard.ui.results import register_results_callbacks, results_layout
 from dashboard.ui.submit import register_submit_callbacks, submit_layout
 from dashboard.plain_labels import FAILED_TESTING
+from dashboard.score_projection import load_waiting_for_you, waiting_banner_text
 from dashboard.time_display import eastern_time_label
 from dashboard.ui.theme import ACCENT, COLUMN_DEFAULTS, FONT_URL, UP, grid_options, hide_when_narrow
 
@@ -236,7 +237,9 @@ def dashboard_layout() -> html.Div:
         id="context-drawer", title="Details", opened=False, position="right", size=330,
         overlayProps={"backgroundOpacity": .55, "blur": 1}, className="context-drawer",
     )
-    return html.Div([*stores, header, body, drawer], className="dashboard-app")
+    waiting = waiting_banner_text(load_waiting_for_you())
+    banner = dmc.Alert(waiting, id="waiting-banner", color="yellow", icon=DashIconify(icon="tabler:hourglass", width=18), m="lg", mb=0) if waiting else None
+    return html.Div([*stores, header, *([banner] if banner else []), body, drawer], className="dashboard-app")
 
 
 def _selected_item(snapshot: dict[str, Any], selection: dict[str, Any] | None) -> dict[str, Any] | None:
