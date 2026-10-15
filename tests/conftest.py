@@ -20,6 +20,12 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_walk_forward_splitter_vbt.py::test_whole_range_matches_a_plain_run",
         "tests/test_walk_forward_splitter_vbt.py::test_signals_are_generated_once_per_parameter_set",
         "tests/test_deflated_sharpe.py::test_flat_settings_are_undefined",
+        "tests/test_deflated_sharpe.py::test_selected_column_alone_is_undefined",
+        "tests/test_deflated_sharpe.py::test_walk_forward_counts_every_setting_tried_not_per_fold",
+        "tests/test_overfitting_pbo.py::test_noise_grid_is_near_one_half",
+        "tests/test_overfitting_pbo.py::test_dominant_setting_has_low_pbo",
+        "tests/test_overfitting_pbo.py::test_single_setting_is_rejected",
+        "tests/test_overfitting_pbo.py::test_experiment_records_pbo_next_to_deflated_sharpe_and_never_screens",
         "tests/test_deflated_sharpe.py::test_deflated_sharpe_is_record_only",
         "tests/test_rule_engine_vectorized.py::test_library_indicators_batch_equals_per_setting_reference",
         "tests/test_rule_language_indicators.py::test_across_sessions_runs_through_the_session_boundary",
@@ -217,4 +223,4 @@ def market_frame_factory(market_config):
 @pytest.fixture
 def no_licensed_luck_score(monkeypatch):
     """The record-only luck score needs the licensed engine, which portable fakes replace."""
-    monkeypatch.setattr("backtesting.experiments.runner._record_luck", lambda *args: None)
+    monkeypatch.setattr("backtesting.experiments.runner._record_luck", lambda *args: (None, None))

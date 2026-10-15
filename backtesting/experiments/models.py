@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, Mapping
 
 from market_data import DataAudit, MarketDataConfig
 from backtesting.screening.deflated_sharpe import DeflatedSharpeResult
+from backtesting.screening.overfitting_pbo import OverfittingPBOResult
 from backtesting.screening.models import ScreeningConfig
 
 if TYPE_CHECKING:
@@ -333,3 +334,5 @@ class ExperimentResult:
     parameter_plan_summary: ParameterPlanSummary
     # Experiment-level luck check; None when no trial exposed a value series.
     deflated_sharpe: DeflatedSharpeResult | None = None
+    # Record-only Probability of Backtest Overfitting on the same grid; never screens.
+    overfitting_pbo: OverfittingPBOResult | None = None

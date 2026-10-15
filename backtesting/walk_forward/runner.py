@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 from typing import Any
 
@@ -23,6 +23,7 @@ from backtesting.walk_forward.models import (
     WalkForwardFoldResult,
     WalkForwardResult,
 )
+from backtesting.walk_forward.overfitting import idea_overfitting
 from backtesting.walk_forward.splitter import build_walk_forward_windows
 from market_data import DataAudit
 
@@ -234,7 +235,10 @@ def execute_walk_forward(
     folds: list[WalkForwardFoldResult] = []
     for window in windows:
         folds.append(_fold_result(config, window, audit, evaluator, full_history))
-    result = _aggregate(tuple(folds))
+    result = replace(
+        _aggregate(tuple(folds)),
+        overfitting=idea_overfitting(config, windows, data, audit, evaluator, full_history),
+    )
     if write_output:
         config.output_path.parent.mkdir(parents=True, exist_ok=True)
         def partition_record(partition):
@@ -261,6 +265,7 @@ def execute_walk_forward(
                 "total_trades": result.total_trades,
                 "parameter_change_percentage": result.parameter_change_percentage,
                 "maximum_consecutive_persistence": result.maximum_consecutive_persistence,
+                "idea_overfitting": asdict(result.overfitting),
             },
             "folds": [
                 {
