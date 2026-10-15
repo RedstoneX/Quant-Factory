@@ -1,0 +1,192 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday",
+    "one_line": "Trade a close beyond the prior 20- or 55-day high/low channel with a Turtle 2N-style ATR stop, flat by 15:55. Source: Richard Donchian; Turtle Trading rules (Curtis Faith, Way of the Turtle, 2007).",
+    "family": "trend_following",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Richard Donchian; Turtle Trading rules (Curtis Faith, Way of the Turtle, 2007)",
+      "creator": "Richard Donchian",
+      "claim": "Trade a close beyond the prior 20- or 55-day high/low channel with a Turtle 2N-style ATR stop, flat by 15:55.",
+      "url": "https://en.wikipedia.org/wiki/Donchian_channel"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "A break of a multi-day channel may continue intraday.",
+    "failure_theory": [
+      "Multi-day breakouts may need multi-day holds the intraday mandate forbids.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES regular session 09:30-16:00 ET on 5m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "Close above the prior bar's multi-day Donchian upper, 09:40-15:30."
+    ],
+    "exits": {
+      "rule": "ATR(20) stop at 1/2/3 N; else flat at 15:55.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 1,
+    "short_entry": [
+      "Close below the prior bar's lower."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "channel_bars": {
+      "values": [
+        1560,
+        4290
+      ],
+      "rationale": "20 and 55 sessions of 78 five-minute bars."
+    },
+    "stop_atr": {
+      "values": [
+        1,
+        2,
+        3
+      ],
+      "rationale": "Stop in ATR(20) multiples; Turtle used 2N."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "gt": [
+                "close",
+                {
+                  "prev": {
+                    "donchian": {},
+                    "length": {
+                      "param": "channel_bars"
+                    },
+                    "output": "upper",
+                    "across_sessions": true
+                  },
+                  "bars": 1
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:40",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "lt": [
+                "close",
+                {
+                  "prev": {
+                    "donchian": {},
+                    "length": {
+                      "param": "channel_bars"
+                    },
+                    "output": "lower",
+                    "across_sessions": true
+                  },
+                  "bars": 1
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:40",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "stop_loss": {
+        "atr": {
+          "length": 20,
+          "multiple": {
+            "param": "stop_atr"
+          }
+        }
+      }
+    },
+    "max_trades_per_session": 1
+  }
+}

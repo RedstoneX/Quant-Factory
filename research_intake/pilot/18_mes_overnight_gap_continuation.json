@@ -1,0 +1,260 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES overnight gap-and-go continuation",
+    "one_line": "If the open gaps beyond a threshold and the first 5m bar closes in the gap direction, trade with it at 09:35; ATR stop. Source: Breakaway gap continuation (Bulkowski, Encyclopedia of Chart Patterns).",
+    "family": "intraday_momentum",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Breakaway gap continuation (Bulkowski, Encyclopedia of Chart Patterns)",
+      "creator": "Thomas Bulkowski",
+      "claim": "If the open gaps beyond a threshold and the first 5m bar closes in the gap direction, trade with it at 09:35; ATR stop.",
+      "url": "https://en.wikipedia.org/wiki/Gap_(chart_pattern)"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Gaps confirmed by the first bar may continue through the session.",
+    "failure_theory": [
+      "Gaps often fill instead.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES regular session 09:30-16:00 ET on 5m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "Gap up beyond threshold and first bar closes above open: long at 09:35."
+    ],
+    "exits": {
+      "rule": "ATR(14) stop; flat at 15:55.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 1,
+    "short_entry": [
+      "Gap down mirror: short."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "gap_frac": {
+      "values": [
+        0.002,
+        0.004,
+        0.006
+      ],
+      "rationale": "Gap size as a fraction of prior close."
+    },
+    "stop_atr": {
+      "values": [
+        1,
+        2
+      ],
+      "rationale": "Stop in ATR(14) multiples."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "time_is": "09:35"
+            },
+            {
+              "gt": [
+                {
+                  "div": [
+                    {
+                      "sub": [
+                        {
+                          "session_open": {}
+                        },
+                        {
+                          "value_at": {
+                            "sub": [
+                              {
+                                "sum": "close",
+                                "length": 2,
+                                "across_sessions": true
+                              },
+                              "close"
+                            ]
+                          },
+                          "time": "09:35"
+                        }
+                      ]
+                    },
+                    {
+                      "value_at": {
+                        "sub": [
+                          {
+                            "sum": "close",
+                            "length": 2,
+                            "across_sessions": true
+                          },
+                          "close"
+                        ]
+                      },
+                      "time": "09:35"
+                    }
+                  ]
+                },
+                {
+                  "param": "gap_frac"
+                }
+              ]
+            },
+            {
+              "gt": [
+                "close",
+                {
+                  "session_open": {}
+                }
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "time_is": "09:35"
+            },
+            {
+              "lt": [
+                {
+                  "div": [
+                    {
+                      "sub": [
+                        {
+                          "session_open": {}
+                        },
+                        {
+                          "value_at": {
+                            "sub": [
+                              {
+                                "sum": "close",
+                                "length": 2,
+                                "across_sessions": true
+                              },
+                              "close"
+                            ]
+                          },
+                          "time": "09:35"
+                        }
+                      ]
+                    },
+                    {
+                      "value_at": {
+                        "sub": [
+                          {
+                            "sum": "close",
+                            "length": 2,
+                            "across_sessions": true
+                          },
+                          "close"
+                        ]
+                      },
+                      "time": "09:35"
+                    }
+                  ]
+                },
+                {
+                  "neg": {
+                    "param": "gap_frac"
+                  }
+                }
+              ]
+            },
+            {
+              "lt": [
+                "close",
+                {
+                  "session_open": {}
+                }
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "stop_loss": {
+        "atr": {
+          "length": 14,
+          "multiple": {
+            "param": "stop_atr"
+          }
+        }
+      }
+    },
+    "max_trades_per_session": 1
+  }
+}
