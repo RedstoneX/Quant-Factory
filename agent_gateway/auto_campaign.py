@@ -107,7 +107,15 @@ class AutoTestCampaign:
                 for draft, packet, invalid, digest in queued:
                     if self._stop.is_set():
                         break
-                    self._process(store, draft, packet, invalid, digest)
+                    try:
+                        self._process(store, draft, packet, invalid, digest)
+                    except (OSError, sqlite3.Error, KeyError, ValueError, RuntimeError) as exc:
+                        # Record the real cause for THIS idea so it is not silently re-started each pass.
+                        print(f"automatic test of {draft.draft_id} failed: {safe_detail(exc)}", file=sys.stderr, flush=True)
+                        store.append_campaign_event(
+                            candidate_id=draft.draft_id, policy_id=POLICY_ID, state="failed", reason_code="run_error",
+                            reason_detail=safe_detail(f"{type(exc).__name__}: {exc}"), packet_sha256=digest,
+                        )
                 return len(queued)
             finally:
                 store.close()
@@ -128,7 +136,9 @@ class AutoTestCampaign:
                 continue  # no packet, or a hand-built setup: never touched
             digest = hashlib.sha256(draft.candidate_json.encode("utf-8")).hexdigest()
             if event is not None and event["state"] not in OPEN_STATES and event["packet_sha256"] == digest:
-                continue  # decided already; re-evaluated only when the packet changes
+                owner = latest.get(str(event["reason_detail"])) if event["state"] == "duplicate_closed" else None
+                if owner is None or owner["state"] in OPEN_STATES | RESULT_STATES:
+                    continue  # decided already; re-evaluated when the packet changes or its owner proved to have no result
             eligible = _eligible_packet(draft.candidate_json)
             if eligible is None:
                 continue

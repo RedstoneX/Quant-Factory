@@ -38,6 +38,7 @@ from orchestration.candidate_pipeline_runtime import (
     CandidatePipelineRuntime,
     CandidateValidationPlan,
 )
+from orchestration.research_launch_claims import ResearchLaunchError, ResearchLaunchInvocationError
 from persistence import PersistenceService, StrategyLifecycle, canonical_json
 
 POLICY_ID = "auto_test_v1"
@@ -389,4 +390,11 @@ def run_auto_test(
             "failed", "run_error",
             "An earlier attempt was interrupted before finishing and was not run a second time.",
         )
+    except ResearchLaunchInvocationError as exc:
+        # The launch reported an error after acknowledging the run. If the run itself completed, the
+        # same key reopens its recorded outcome without running it again; otherwise report the cause.
+        try:
+            run_id, chain = launch(configuration.configuration_id, key)
+        except (ResearchLaunchError, CandidatePipelineReplayIncompleteError):
+            return AutoTestOutcome("failed", "run_error", safe_detail(exc))
     return outcome_from_chain(chain, run_id)

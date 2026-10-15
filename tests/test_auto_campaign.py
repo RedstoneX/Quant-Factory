@@ -22,6 +22,7 @@ from orchestration.auto_campaign import (
     run_auto_test,
 )
 from orchestration.auto_campaign_process import run_in_child
+from orchestration.research_launch_claims import ResearchLaunchInvocationError
 from orchestration import CandidatePipelineDefinition
 from persistence import PersistenceService
 from strategies.rule_spec_strategy import install_rule_strategy, rule_strategy_definition
@@ -382,3 +383,92 @@ def test_campaign_events_are_append_only(tmp_path, operation):
             store.connection.execute(operation)
     finally:
         store.close()
+
+
+def test_duplicate_closed_against_an_owner_that_later_failed_is_tested_again(tmp_path):
+    harness = Harness(tmp_path, chain=_chain("invalid", None, ()))
+    harness.draft("idea_first001")
+    harness.campaign().run_once()  # links a setup; its test then fails without numbers
+    harness.draft("idea_second01")
+    digest = harness.events("idea_first001")[-1]["packet_sha256"]
+    store = GatewayStore(harness.gateway_database)
+    try:
+        store.append_campaign_event(candidate_id="idea_first001", policy_id=POLICY_ID, state="running",
+                                    reason_code="started", packet_sha256=digest)  # still in progress
+    finally:
+        store.close()
+    campaign = harness.campaign(lambda _request: pytest.fail("the owner must not be run here"))
+    campaign._stop.set()  # queue and close the resubmission only
+    store = GatewayStore(harness.gateway_database)
+    try:
+        queued = campaign._queue(store)
+        second = next(item for item in queued if item[0].draft_id == "idea_second01")
+        campaign._process(store, *second)
+        assert harness.states("idea_second01")[-1] == ("duplicate_closed", "same_rules")
+        store.append_campaign_event(candidate_id="idea_first001", policy_id=POLICY_ID, state="failed",
+                                    reason_code="run_error", packet_sha256=digest)
+        assert any(item[0].draft_id == "idea_second01" for item in campaign._queue(store))
+    finally:
+        store.close()
+
+
+def test_an_error_while_testing_one_idea_is_recorded_for_that_idea_only(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_first001", symbol="MES")
+    harness.draft("idea_second01", symbol="MNQ")
+
+    def explode_on_first(request):
+        if request.candidate_id == "idea_first001":
+            raise RuntimeError("boom at /home/ubuntu/secret/place.py")
+        return harness.executor(request)
+
+    campaign = harness.campaign(explode_on_first)
+    campaign.run_once()
+    assert harness.states("idea_first001")[-1] == ("failed", "run_error")
+    assert "RuntimeError: boom" in harness.events("idea_first001")[-1]["reason_detail"]
+    assert "/home/ubuntu" not in harness.events("idea_first001")[-1]["reason_detail"]
+    assert harness.states("idea_second01")[-1][0] != "failed"
+    before = len(harness.events("idea_first001"))
+    campaign.run_once()
+    assert len(harness.events("idea_first001")) == before  # not re-started
+
+
+def test_loop_survives_a_failed_pass(tmp_path):
+    campaign = Harness(tmp_path).campaign()
+    calls = []
+
+    def run_once():
+        calls.append(1)
+        if len(calls) == 1:
+            raise OSError("unexpected")
+        campaign._stop.set()
+
+    campaign.run_once = run_once
+    campaign.poll_seconds = 0
+    campaign._loop()
+    assert len(calls) == 2
+
+
+def test_launch_error_after_acknowledgement_uses_the_completed_run_or_reports_the_cause(tmp_path):
+    harness = Harness(tmp_path)
+    harness.draft("idea_first001")
+    state = {"calls": 0}
+
+    def flaky(configuration_id, key):
+        state["calls"] += 1
+        if state["calls"] == 1:
+            raise ResearchLaunchInvocationError("acknowledged but invocation reported an error: OSError: disk")
+        return "run_" + "0" * 32, harness.chain
+
+    seen = []
+    harness.campaign(lambda request: seen.append(request) or AutoTestOutcome("failed", "run_error")).run_once()
+    request = seen[0]
+    outcome = run_auto_test(request, adapter=harness.adapter, launch=flaky, data_check=lambda *_: None)
+    assert outcome.state == "survivor"
+
+    def always(configuration_id, key):
+        raise ResearchLaunchInvocationError("acknowledged but invocation reported an error: OSError: disk")
+
+    outcome = run_auto_test(request, adapter=harness.adapter, launch=always, data_check=lambda *_: None)
+    assert (outcome.state, outcome.reason_code) == ("failed", "run_error")
+    assert "OSError: disk" in outcome.reason_detail
