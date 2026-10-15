@@ -10,7 +10,6 @@ import pandas as pd
 
 from backtesting.experiments import (
     align_signals_for_execution,
-    build_portfolio,
     execute_experiment,
 )
 from backtesting.experiments.models import ExperimentConfig
@@ -74,11 +73,13 @@ def evaluate_neighborhood(
         experiment_id=source_run_identity,
         parameter_combinations=candidate_parameters,
     )
+    sweep_portfolios: dict[str, Any] = {}
     experiment_result = execute_experiment(
         robustness_experiment,
         data,
         audit,
         write_output=False,
+        portfolio_observer=sweep_portfolios.__setitem__,
     )
     rows_by_id = {
         str(row["parameter_row_id"]): row
@@ -188,7 +189,8 @@ def evaluate_neighborhood(
         )
 
     locked_signals = strategy.generate_signals(data, dict(config.locked_parameters))
-    locked_portfolio = build_portfolio(data, locked_signals, robustness_experiment)
+    # The locked point is already a column of the sweep (VectorBT PRO pf.iloc[:, i]); reuse it.
+    locked_portfolio = sweep_portfolios[locked_screen.parameter_row_id]
     locked_returns = _series(locked_portfolio.returns, data.index, "strategy_return")
     aligned_signals = align_signals_for_execution(
         locked_signals,
