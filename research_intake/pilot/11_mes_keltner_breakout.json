@@ -1,0 +1,189 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES Keltner channel breakout",
+    "one_line": "Trade closes crossing outside an EMA(20) +/- k ATR(10) channel; ATR trailing stop; reverse on opposite signal. Source: Chester Keltner (1960), How to Make Money in Commodities.",
+    "family": "volatility_breakout",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Chester Keltner (1960), How to Make Money in Commodities",
+      "creator": "Chester Keltner",
+      "claim": "Trade closes crossing outside an EMA(20) +/- k ATR(10) channel; ATR trailing stop; reverse on opposite signal.",
+      "url": "https://en.wikipedia.org/wiki/Keltner_channel"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Closes outside a volatility channel may mark intraday trend starts.",
+    "failure_theory": [
+      "Channel breaks may revert on range days.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES regular session 09:30-16:00 ET on 5m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "Close crosses above upper band, 09:50-15:30."
+    ],
+    "exits": {
+      "rule": "ATR(14) trailing stop; reverse on opposite signal.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 4,
+    "short_entry": [
+      "Close crosses below lower band."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 4,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "kc_mult": {
+      "values": [
+        1.5,
+        2,
+        2.5
+      ],
+      "rationale": "Channel width in ATR multiples."
+    },
+    "trail_atr": {
+      "values": [
+        2,
+        3
+      ],
+      "rationale": "Trailing stop in ATR(14) multiples."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_above": [
+                "close",
+                {
+                  "keltner": {},
+                  "length": 20,
+                  "atr_length": 10,
+                  "mult": {
+                    "param": "kc_mult"
+                  },
+                  "output": "upper"
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_below": [
+                "close",
+                {
+                  "keltner": {},
+                  "length": 20,
+                  "atr_length": 10,
+                  "mult": {
+                    "param": "kc_mult"
+                  },
+                  "output": "lower"
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "on_opposite_signal": true,
+      "trailing_stop": {
+        "atr": {
+          "length": 14,
+          "multiple": {
+            "param": "trail_atr"
+          }
+        }
+      }
+    },
+    "max_trades_per_session": 4
+  }
+}
