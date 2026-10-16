@@ -283,7 +283,7 @@ SUMMARY_ROWS = (
 )
 MONEY_KEYS = {"net_profit", "gross_profit", "gross_loss", "max_drawdown", "avg_trade", "avg_win", "avg_loss", "largest_win", "largest_loss", "commission_paid"}
 SUMMARY_MISSING = "Saved when the idea is next tested."
-BAR_WORDS = {"5m": "5-minute", "15m": "15-minute", "1h": "hourly", "1D": "daily"}
+BAR_WORDS = {"5m": "5-minute", "15m": "15-minute", "1h": "hourly", "1D": "daily", "1W": "weekly", "1M": "monthly"}
 PERIOD_COLUMNS = [
     {"field": "period", "headerName": "Test period", "minWidth": 180, "flex": 1.4},
     {"field": "result", "headerName": "Result", "minWidth": 80, "flex": .6, "narrow": False},
@@ -491,7 +491,7 @@ def _register_view_callbacks(application: Any) -> None:
             note += " No curve was saved, so it is built from the saved trades: starting cash plus profit or loss at each exit."
         count = int(view.get("trade_count") or 0)
         return (view.get("label"), _equity_figure(view.get("equity") or [], "No account value was saved for this test."), note,
-                performance_table(view), view.get("trades") or [], f"{count:,} trades · pick one to centre the chart on it", [])  # a new test starts on its whole period
+                performance_table(view), (view.get("trades") or [])[::-1], f"{count:,} trades · pick one to centre the chart on it", [])  # a new test starts on its whole period
 
     @application.callback(
         Output("results-settings-grid", "rowData"), Output("results-settings-grid", "columnDefs"), Output("results-settings-count", "children"),
