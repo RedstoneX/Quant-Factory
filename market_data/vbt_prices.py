@@ -8,7 +8,9 @@ one-minute library). The legacy modules are kept unchanged as the backup.
 What VectorBT does here (this module only translates):
 - first download: ``vbt.YFData.pull`` / ``vbt.AlpacaData.pull``
 - top-up: ``data.update(end=..., return_meta=True)``, which re-fetches the last
-  stored bar and reports it under ``revised`` if its prices moved. A revised or
+  stored bar and reports it under ``revised`` if its prices moved. For Alpaca SIP the
+  stored data is first cut (``data.loc``) before the most recent session, so that whole
+  session is re-fetched: the vendor fills late gaps and corrects bars there. A revised or
   removed bar means the provider re-adjusted history (split or dividend), so the
   symbol is pulled again in full instead of mixing adjustment bases.
 - persistence: ``data.save(path)`` / ``vbt.load(path)``. API keys are set with
@@ -44,13 +46,16 @@ from market_data.providers.alpaca_sip import (
     SipDataset,
     TopUpResult,
     bars_to_frame,
+    ends_at_or_after,
+    last_session_start,
     mark_sessions,
+    same_bars,
 )
 from market_data.alpaca_sip_universe import asset_type
 
 PRICE_DOWNLOADER_VARIABLE = "QF_PRICE_DOWNLOADER"
 PRICE_DOWNLOADERS = ("vbt", "legacy")
-DEFAULT_PRICE_DOWNLOADER = "legacy"  # vbt becomes default once live parity is measured
+DEFAULT_PRICE_DOWNLOADER = "vbt"  # QF_PRICE_DOWNLOADER=legacy selects the old downloader
 
 
 def price_downloader(environ: Mapping[str, str] | None = None) -> str:
@@ -68,15 +73,23 @@ class VbtPull:
     status: str  # full | incremental | refetched_after_adjustment_change | current
 
 
-def pull_or_update(data_cls: Any, path: Path, symbol: str, *, end: Any, **pull_kwargs: Any) -> VbtPull:
-    """Load ``path`` and ``update`` it, or ``pull`` in full; save when anything changed."""
+def pull_or_update(
+    data_cls: Any, path: Path, symbol: str, *, end: Any, keep_before: Any = None, **pull_kwargs: Any
+) -> VbtPull:
+    """Load ``path`` and ``update`` it, or ``pull`` in full; save when anything changed.
+
+    ``keep_before`` drops stored bars at or after it first, so ``update`` re-fetches them.
+    """
     vbt = require_vectorbtpro()
     status = "full"
     if path.is_file():
         stored = vbt.load(path)
         stored_kwargs = stored.select_fetch_kwargs(symbol)
         same_request = all(stored_kwargs.get(key) == value for key, value in pull_kwargs.items())
-        if same_request:
+        if same_request and keep_before is not None:
+            kept = stored.wrapper.index < keep_before
+            stored = stored.loc[kept] if kept.any() else None
+        if same_request and stored is not None:
             meta = stored.update(end=end, return_meta=True, silence_warnings=True)
             if len(meta["revised"]) or len(meta["removed"]):
                 status = "refetched_after_adjustment_change"
@@ -162,12 +175,17 @@ class VbtSipProvider(AlpacaSipProvider):
         data_cls.set_custom_settings(
             client_config=dict(api_key=self.credentials.key_id, secret_key=self.credentials.secret_key)
         )
+        first_vbt_run = not sip_store_path(self.locations, symbol).exists()
+        has_existing = existing is not None and not existing.empty
+        # Re-fetch the whole most recent session (late vendor gap fills and corrections).
+        session_start = last_session_start(existing["timestamp"]) if has_existing else None
         try:
             pulled = pull_or_update(
                 data_cls,
                 sip_store_path(self.locations, symbol),
                 symbol,
                 end=end + pd.Timedelta(minutes=1),  # VBT's end is exclusive
+                keep_before=session_start,
                 start=pd.Timestamp(since, tz=MARKET_TIMEZONE),
                 client_type="stocks",
                 timeframe="1m",
@@ -179,14 +197,25 @@ class VbtSipProvider(AlpacaSipProvider):
             status = getattr(exc, "status_code", None)
             raise AlpacaSipError(f"Alpaca bars request failed: HTTP {status} {type(exc).__name__}: {exc}") from exc
         frame = mark_sessions(vbt_bars_to_frame(pulled.data))
-        has_existing = existing is not None and not existing.empty
-        if has_existing and frame["timestamp"].iloc[-1] <= existing["timestamp"].iloc[-1]:
+        if has_existing and not first_vbt_run and (
+            not ends_at_or_after(frame, existing) or same_bars(frame, existing)
+        ):
             return TopUpResult(symbol, "current", len(existing), 0, target)
         adjusted = pulled.status == "refetched_after_adjustment_change"
-        previous = existing if has_existing and not adjusted else None
-        mode = pulled.status if has_existing else "full"
+        # First VBT run over a legacy store: one-time full rebuild, no prefix check against
+        # the legacy bars (the store writes the other slot, so the old slot stays as backup).
+        rebuild = adjusted or (has_existing and first_vbt_run)
+        # Every bar before the re-fetched session must still match byte-for-byte.
+        previous = existing.loc[existing["timestamp"] < session_start] if has_existing and not rebuild else None
+        if not has_existing:
+            mode = "full"
+        elif first_vbt_run and not adjusted:
+            mode = "full_rebuild_vbt"
+        else:
+            mode = "refetched_after_adjustment_change" if adjusted else "incremental"
         start = frame["timestamp"].iloc[0]
-        return self._store(dataset, frame, previous, mode, start, end, slot)
+        stored_rows = len(existing) if has_existing else None
+        return self._store(dataset, frame, previous, mode, start, end, slot, stored_rows=stored_rows)
 
 
 def sip_provider_class(environ: Mapping[str, str] | None = None) -> type[AlpacaSipProvider]:
