@@ -48,6 +48,14 @@ SCORES_NOTE = "Scores are information, not pass marks — paper trading is the f
 
 
 CHART_UNAVAILABLE = "The price chart for this run is not available right now."
+TRADE_MARKER_LIMIT = 300  # more markers than this in view read as a smear, so the chart asks to zoom in
+CHART_HELP = "scroll to zoom, drag to move, pick a trade below to centre on it"
+RANGE_BUTTONS = [  # Plotly rangeselector, as on a strategy tester
+    {"count": 7, "label": "1W", "step": "day", "stepmode": "backward"},
+    {"count": 1, "label": "1M", "step": "month", "stepmode": "backward"},
+    {"count": 1, "label": "1Y", "step": "year", "stepmode": "backward"},
+    {"label": "All", "step": "all"},
+]
 
 
 def settings_tried_line(total: int, screened_out: int) -> str:
@@ -184,8 +192,31 @@ def _tradingview_style(figure: go.Figure) -> None:
             trace.update(marker={"symbol": "triangle-down", "size": 10, "color": UP if win else DOWN, "line": {"width": 1, "color": BG}}, name="Exit · win" if win else "Exit · loss")
 
 
-def trades_figure(price: list[dict[str, Any]], trades: list[dict[str, Any]], selected: dict[str, Any] | None, message: str | None, nonce: Any) -> go.Figure:
-    """Saved bars as Plotly candles with the saved trades as markers; a picked trade is outlined and zoomed to."""
+def _stamp(value: Any) -> pd.Timestamp:
+    stamp = pd.Timestamp(value)
+    return stamp.tz_localize(None) if stamp.tzinfo else stamp
+
+
+def relayout_window(data: dict[str, Any] | None) -> tuple[pd.Timestamp, pd.Timestamp] | str | None:
+    """The x-range a Plotly zoom, pan or range button left (relayoutData); 'all' for autorange; None when x did not move."""
+    data = data or {}
+    if data.get("xaxis.autorange"):
+        return "all"
+    start, end = data.get("xaxis.range[0]"), data.get("xaxis.range[1]")
+    if start is None and isinstance(data.get("xaxis.range"), list):
+        start, end = data["xaxis.range"][:2]
+    return (_stamp(start), _stamp(end)) if start is not None and end is not None else None
+
+
+def trades_in(trades: list[dict[str, Any]], first: Any, last: Any) -> list[dict[str, Any]]:
+    """Trades whose entry falls between two times."""
+    start, end = _stamp(first), _stamp(last)
+    return [trade for trade in trades if trade.get("entry_timestamp") and start <= _stamp(trade["entry_timestamp"]) <= end]
+
+
+def trades_figure(price: list[dict[str, Any]], trades: list[dict[str, Any]], selected: dict[str, Any] | None, message: str | None, nonce: Any,
+                  window: tuple[Any, Any] | None = None) -> go.Figure:
+    """Saved bars as Plotly candles opened on `window`, with trade markers only when few enough are in view; a picked trade is outlined and zoomed to."""
     if not price:
         return _empty_figure(str(message or "No price bars were saved for this run.").replace("persisted ", "saved "), height=560)
     first, last = str(price[0]["timestamp"]), str(price[-1]["timestamp"])
@@ -194,6 +225,8 @@ def trades_figure(price: list[dict[str, Any]], trades: list[dict[str, Any]], sel
         low=[row["low"] for row in price], close=[row["close"] for row in price], name="Price",
     ))
     shown = [trade for trade in trades if trade.get("entry_timestamp") and first[:10] <= str(trade["entry_timestamp"])[:10] <= last[:10]]
+    if len(trades_in(shown, *(window or (first, last)))) > TRADE_MARKER_LIMIT:
+        shown = []
     entries = [trade for trade in shown if trade.get("entry_price") is not None]
     if entries:
         figure.add_trace(go.Scatter(
@@ -208,15 +241,19 @@ def trades_figure(price: list[dict[str, Any]], trades: list[dict[str, Any]], sel
                 text=[f"Trade {trade['trade_id']} · {trade['outcome']}" for trade in group], hovertemplate="%{text}<br>%{y}<extra></extra>",
             ))
     _tradingview_style(figure)
-    revision = f"trades-{nonce}"
+    figure.update_xaxes(rangeselector={"buttons": RANGE_BUTTONS, "x": 0, "y": 1.02, "yanchor": "bottom", "bgcolor": PANEL, "activecolor": "#30363d",
+                                       "bordercolor": "#30363d", "borderwidth": 1, "font": {"color": TEXT, "size": 11}})
+    figure.update_yaxes(fixedrange=True)  # zoom and drag move time only; prices refit to the bars in view
+    if window:
+        figure.update_xaxes(range=[_stamp(window[0]), _stamp(window[1])])
+    revision = str(nonce)
     if selected and selected.get("entry_timestamp"):
         start = pd.Timestamp(selected["entry_timestamp"]); end = pd.Timestamp(selected.get("exit_timestamp") or selected["entry_timestamp"])
         figure.add_vrect(x0=start, x1=end, fillcolor=ACCENT, opacity=0.12, line_width=0)
         pad = max((end - start) / 2, pd.Timedelta(minutes=45))
         figure.update_xaxes(range=[start - pad, end + pad])  # Plotly axis range: focus the picked trade
-        revision = f"trade-{selected.get('trade_id')}-{nonce}"
     figure.update_xaxes(rangebreaks=[{"bounds": ["sat", "mon"]}])  # Plotly rangebreaks: hide weekends
-    figure.update_layout(height=560, uirevision=revision)
+    figure.update_layout(height=560, uirevision=revision, dragmode="pan")
     return figure
 
 
@@ -246,7 +283,7 @@ SUMMARY_ROWS = (
 )
 MONEY_KEYS = {"net_profit", "gross_profit", "gross_loss", "max_drawdown", "avg_trade", "avg_win", "avg_loss", "largest_win", "largest_loss", "commission_paid"}
 SUMMARY_MISSING = "Saved when the idea is next tested."
-BAR_WORDS = {"5m": "5-minute", "15m": "15-minute", "1D": "daily"}
+BAR_WORDS = {"5m": "5-minute", "15m": "15-minute", "1h": "hourly", "1D": "daily"}
 PERIOD_COLUMNS = [
     {"field": "period", "headerName": "Test period", "minWidth": 180, "flex": 1.4},
     {"field": "result", "headerName": "Result", "minWidth": 80, "flex": .6, "narrow": False},
@@ -282,7 +319,7 @@ def _resolve(search: str | None) -> tuple[dict[str, Any], str]:
     idea = load_idea(candidate_id, run_id=run_id)
     stages = [stage for stage, _label in STAGES]
     if test not in stages:
-        test = "oos" if "oos" in (idea.get("runs") or {}) else "screening"
+        test = idea.get("open_test") or "screening"  # the furthest test the idea reached that saved a result
     return idea, test
 
 
@@ -324,16 +361,15 @@ def _panel(*children: Any) -> dmc.Paper:
 
 
 def _tabs() -> dmc.Tabs:
-    names = (("overview", "Overview"), ("summary", "Performance summary"), ("trades", "List of trades"), ("chart", "Price chart"), ("settings", "Settings tried"))
+    names = (("overview", "Overview"), ("chart", "Price chart and trades"), ("summary", "Performance summary"), ("settings", "Settings tried"))
     graph = {"displayModeBar": False, "responsive": True}
     panels = {
         "overview": [dmc.Text("Account value over the whole period, with the drop from its peak below.", id="results-equity-note", size="xs", c="dimmed"),
                      dcc.Loading(dcc.Graph(id="results-equity", config=graph), type="dot")],
         "summary": [html.Div(id="results-summary")],
-        "trades": [_trade_grid("results-trade-grid"), dmc.Text("", id="results-trade-count", size="xs", c="dimmed")],
-        "chart": [dmc.Group([dmc.Text("", id="results-chart-caption", size="xs", c="dimmed", style={"flex": 1, "minWidth": 200}),
-                             dmc.Button("Show whole period", id="results-whole", size="xs", variant="default")], justify="space-between", gap="xs"),
-                  dcc.Loading(dcc.Graph(id="results-price-chart", config=_GRAPH_CONFIG, style={"height": "560px"}), type="dot")],
+        "chart": [dmc.Text("", id="results-chart-caption", size="xs", c="dimmed"),
+                  dcc.Loading(dcc.Graph(id="results-price-chart", config=_GRAPH_CONFIG, style={"height": "560px"}), type="dot"),
+                  _trade_grid("results-trade-grid"), dmc.Text("", id="results-trade-count", size="xs", c="dimmed")],
         "settings": [dmc.Text("", id="results-settings-count", size="xs", c="dimmed"),
                      dag.AgGrid(id="results-settings-grid", rowData=[], columnDefs=[], defaultColDef={**COLUMN_DEFAULTS, "suppressHeaderMenuButton": True},
                                 dashGridOptions=grid_options("The costs test saved no settings.", rowSelection={"mode": "singleRow", "checkboxes": False, "enableClickSelection": True}, domLayout="autoHeight", animateRows=False)),
@@ -352,12 +388,16 @@ def results_layout(search: str | None = None) -> html.Div:
                          dmc.Text("Pick an idea on the Ideas page and open its results.", size="sm", c="dimmed", p="lg")])
     menu = dmc.Menu([dmc.MenuTarget(dmc.Button("More", variant="default", rightSection=DashIconify(icon="tabler:chevron-down", width=14))),
                      dmc.MenuDropdown([dmc.MenuItem("Back to the idea", id="results-back-candidates", leftSection=DashIconify(icon="tabler:arrow-left", width=14))])], position="bottom-end")
-    header = page_header(idea["title"], f"{idea['symbol']} · every test this idea went through", dmc.Badge(idea["verdict"], color=idea["verdict_color"], size="lg", variant="light"), menu)
+    verdict = dmc.Badge(idea["verdict"], color=idea["verdict_color"], size="lg", variant="light", style={"height": "auto", "maxWidth": "100%", "textTransform": "none"},
+                        styles={"label": {"whiteSpace": "normal", "overflow": "visible", "textOverflow": "clip"}})
+    header = page_header(idea["title"], f"{idea['symbol']} · every test this idea went through", verdict, menu)
+    unseen = next((item for item in idea["tests"] if item["stage"] == "oos"), {})
+    numbers = [dmc.Text("On data it never saw", size="xs", c="dimmed", fw=600), dmc.SimpleGrid(top_line(idea), cols={"base": 2, "sm": 5}, spacing="sm")] \
+        if unseen.get("run_id") and unseen.get("has_result", True) else [dmc.Text(f"On data it never saw: {unseen.get('line') or 'not tested yet.'}", size="sm", c="dimmed")]
     strip = dmc.Tabs(dmc.TabsList([_test_tab(item) for item in idea["tests"]], className="results-test-strip"), id="results-test", value=test, variant="pills")
     stores = [dcc.Store(id="results-record", data=idea), dcc.Store(id="results-view"), dcc.Store(id="results-setting")]
     body = dmc.Stack([
-        dmc.Text("On data it never saw", size="xs", c="dimmed", fw=600),
-        dmc.SimpleGrid(top_line(idea), cols={"base": 2, "sm": 5}, spacing="sm"),
+        *numbers,
         dmc.Text("The five tests — pick one to see its detail", size="xs", c="dimmed", fw=600),
         strip,
         html.Div(_panel(dmc.Title("", id="results-view-label", order=5), _tabs()), id="results-trade-panel"),
@@ -451,7 +491,7 @@ def _register_view_callbacks(application: Any) -> None:
             note += " No curve was saved, so it is built from the saved trades: starting cash plus profit or loss at each exit."
         count = int(view.get("trade_count") or 0)
         return (view.get("label"), _equity_figure(view.get("equity") or [], "No account value was saved for this test."), note,
-                performance_table(view), view.get("trades") or [], f"{count:,} trades · pick one to see it on the price chart", [])  # a new test starts on its whole period
+                performance_table(view), view.get("trades") or [], f"{count:,} trades · pick one to centre the chart on it", [])  # a new test starts on its whole period
 
     @application.callback(
         Output("results-settings-grid", "rowData"), Output("results-settings-grid", "columnDefs"), Output("results-settings-count", "children"),
@@ -472,27 +512,41 @@ def _register_view_callbacks(application: Any) -> None:
 def _register_chart_callbacks(application: Any) -> None:
     @application.callback(
         Output("results-price-chart", "figure"), Output("results-chart-caption", "children"),
-        Input("results-view", "data"), Input("results-trade-grid", "selectedRows"), Input("results-whole", "n_clicks"),
+        Input("results-view", "data"), Input("results-trade-grid", "selectedRows"), Input("results-price-chart", "relayoutData"),
+        Input("results-tab", "value"),
     )
-    def render_price(view: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, _whole: int | None):
+    def render_price(view: dict[str, Any] | None, selected_rows: list[dict[str, Any]] | None, relayout: dict[str, Any] | None, tab: str | None):
+        """Opens on the latest month; a zoom, pan or range button (relayoutData) reloads the bars in view at the finest size that fits.
+
+        Drawn only while its tab is open: Plotly cannot lay out a chart inside a hidden panel.
+        """
+        if tab != "chart":
+            return no_update, no_update
         view = view or {}
-        trades = view.get("trades") or []
-        selected = (selected_rows or [None])[-1] if ctx.triggered_id == "results-trade-grid" else None
-        if selected and selected.get("entry_timestamp"):  # a picked trade: its own day in 5-minute bars, entry and exit both drawn
-            day = _chart_session(None, selected, trades)
-            bars = load_session_price(view.get("price_run_id"), day, interval="5m")
-            caption = f"Trade {selected.get('trade_id')} · {selected.get('direction')} · in {selected.get('entry_display')} · out {selected.get('exit_display')} · {format_money(selected.get('pnl'))}"
-            return trades_figure(bars["price"], trades, selected, bars["reason"], 0), caption
         if not view.get("available"):
             return _empty_figure(view.get("message") or CHART_UNAVAILABLE, height=560), ""
-        price = load_period_price(view.get("price_run_id"), view.get("period"))
-        caption = (f"Whole period in {BAR_WORDS.get(price['interval'], price['interval'])} bars · {int(view.get('trade_count') or 0):,} trades marked · "
-                   "pick a trade in the list to zoom to its day") if price["price"] else ""
-        return trades_figure(price["price"], trades, None, price["reason"] or CHART_UNAVAILABLE, 0), caption
-
-    @application.callback(Output("results-tab", "value"), Input("results-trade-grid", "selectedRows"), prevent_initial_call=True)
-    def open_chart(rows: list[dict[str, Any]] | None):
-        return "chart" if rows else no_update
+        trades = view.get("trades") or []
+        selected = (selected_rows or [None])[-1]
+        revision = f"{view.get('run_id')}-{view.get('row_id')}-{(selected or {}).get('trade_id', 'latest')}"  # Plotly uirevision keeps the user's zoom
+        window = relayout_window(relayout) if ctx.triggered_id == "results-price-chart" else None
+        if ctx.triggered_id == "results-price-chart" and window is None:
+            return no_update, no_update
+        revision += "-all" if window == "all" else ""  # 'All' ends on the last saved bar, not Plotly's padded autorange
+        if ctx.triggered_id == "results-trade-grid" and selected and selected.get("entry_timestamp"):  # a picked trade: its own day in 5-minute bars
+            bars = load_session_price(view.get("price_run_id"), _chart_session(None, selected, trades), interval="5m")
+            caption = f"Trade {selected.get('trade_id')} · {selected.get('direction')} · in {selected.get('entry_display')} · out {selected.get('exit_display')} · {format_money(selected.get('pnl'))}"
+            return trades_figure(bars["price"], trades, selected, bars["reason"], revision), caption
+        whole = load_period_price(view.get("price_run_id"), view.get("period"))
+        if not whole["price"]:
+            return trades_figure([], trades, None, whole["reason"] or CHART_UNAVAILABLE, revision), ""
+        first, last = _stamp(whole["price"][0]["timestamp"]), _stamp(whole["price"][-1]["timestamp"])
+        start, end = (first, last) if window == "all" else window or (last - pd.DateOffset(months=1), last)
+        start, end = max(_stamp(start), first), min(_stamp(end), last)
+        price = whole if (start, end) == (first, last) else load_period_price(view.get("price_run_id"), [start.date().isoformat(), end.date().isoformat()])
+        count = len(trades_in(trades, start, end))
+        caption = (f"{BAR_WORDS.get(price['interval'], price['interval']).capitalize()} bars · {count:,} trades in view"
+                   + (" · zoom in to see trades" if count > TRADE_MARKER_LIMIT else "") + f" · {CHART_HELP}") if price["price"] else ""
+        return trades_figure(price["price"], trades, selected if window else None, price["reason"] or CHART_UNAVAILABLE, revision, window=(start, end)), caption
 
 
 def register_results_callbacks(application: Any) -> None:

@@ -124,9 +124,30 @@ def test_results_is_one_page_per_idea_with_a_test_strip_and_strategy_tester_tabs
     monkeypatch.setattr(page, "top_line", lambda idea: [])
     layout = json.dumps(page.results_layout("?candidate_id=c1").to_plotly_json(), default=lambda item: item.to_plotly_json())
     for words in ("Costs test", "Unseen data", "Rolling test", "Stress test", "Shuffle test", "Overview", "Performance summary",
-                  "List of trades", "Price chart", "Settings tried", "MES idea"):
+                  "Price chart and trades", "Settings tried", "MES idea"):
         assert words in layout
     assert '"id": "results-test"' in layout and '"id": "results-settings-grid"' in layout
+
+
+def test_price_chart_reacts_to_zoom_and_has_range_buttons() -> None:
+    assert page.relayout_window({"xaxis.autorange": True}) == "all"
+    assert page.relayout_window({"autosize": True}) is None
+    start, end = page.relayout_window({"xaxis.range[0]": "2026-01-01 09:30", "xaxis.range[1]": "2026-01-08 16:00"})
+    assert (str(start), str(end)) == ("2026-01-01 09:30:00", "2026-01-08 16:00:00")
+    price = [{"timestamp": f"2026-01-0{day}T10:00:00", "open": 1, "high": 2, "low": .5, "close": 1.5} for day in range(1, 9)]
+    trades = [{"trade_id": n, "direction": "Long", "outcome": "Win", "pnl": 1, "entry_timestamp": "2026-01-02T10:00:00", "entry_price": 1,
+               "exit_timestamp": "2026-01-02T11:00:00", "exit_price": 1.5} for n in range(page.TRADE_MARKER_LIMIT + 1)]
+    crowded = page.trades_figure(price, trades, None, None, "r", window=("2026-01-01", "2026-01-08"))
+    assert [trace.type for trace in crowded.data] == ["candlestick"]  # too many to read: no markers
+    readable = page.trades_figure(price, trades[:3], None, None, "r", window=("2026-01-01", "2026-01-08"))
+    assert len(readable.data) > 1 and readable.layout.dragmode == "pan" and readable.layout.uirevision == "r"
+    assert [button.label for button in readable.layout.xaxis.rangeselector.buttons] == ["1W", "1M", "1Y", "All"]
+    assert page._GRAPH_CONFIG["scrollZoom"] is True
+
+
+def test_page_opens_on_the_furthest_test_the_idea_reached(monkeypatch) -> None:
+    monkeypatch.setattr(page, "load_idea", lambda candidate_id, run_id=None: {**FAKE_IDEA, "open_test": "screening"})
+    assert page._resolve("?candidate_id=c1")[1] == "screening"
 
 
 def test_old_run_link_opens_its_idea_with_that_test_selected(monkeypatch) -> None:

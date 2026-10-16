@@ -14,7 +14,35 @@ def test_weak_scores_never_fail_an_idea_that_passed_costs_and_unseen_data() -> N
              _test("robustness", "failed"), _test("monte_carlo", "insufficient_evidence")]
     assert projection._verdict(tests) == ("Passed the costs and unseen-data tests", "teal")
     tests[1]["status"] = "failed"
-    assert projection._verdict(tests) == ("Failed the unseen data test", "red")
+    assert projection._verdict(tests) == ("Failed at: unseen data", "red")
+    tests[1]["failure"] = "scored 0.48, needed 0.50"
+    assert projection._verdict(tests) == ("Failed at: unseen data — scored 0.48, needed 0.50", "red")
+
+
+def test_failure_score_reads_the_best_training_result_saved_rejection() -> None:
+    report = {"training_results": [
+        {"sharpe_ratio": 0.31, "screening_rejection_reasons": "sharpe_ratio failed: expected >= 0.5 (inclusive); observed 0.31."},
+        {"sharpe_ratio": 0.4766, "screening_rejection_reasons": "sharpe_ratio failed: expected >= 0.5 (inclusive); observed 0.47664662150289044."},
+    ]}
+    assert projection.failure_score(report) == "scored 0.48, needed 0.50"
+    assert projection.failure_score({}) == ""
+
+
+def test_stage_runs_follow_the_newest_campaign_and_never_mix_in_older_runs() -> None:
+    import sqlite3
+
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    connection.execute("CREATE TABLE experiment_runs (run_id, configuration_id, stage, status, created_at, environment_json)")
+    rows = [  # an older campaign that reached the shuffle test, then a newer one that stopped at unseen data
+        ("s1", "screening", "t1", None), ("o1", "oos", "t2", "s1"), ("w1", "walk_forward", "t3", "o1"), ("m1", "monte_carlo", "t4", "w1"),
+        ("s2", "screening", "t5", None), ("o2", "oos", "t6", "s2"),
+    ]
+    for run_id, stage, created, source in rows:
+        environment = '{"filter_handoff": {"source_run_id": "%s"}}' % source if source else "{}"
+        connection.execute("INSERT INTO experiment_runs VALUES (?, 'c', ?, 'succeeded', ?, ?)", [run_id, stage, created, environment])
+    runs = projection._stage_runs(connection, "c")
+    assert {stage: run["run_id"] for stage, run in runs.items()} == {"screening": "s2", "oos": "o2"}
     assert projection._verdict([_test("screening", "passed"), _test("oos", None)]) == ("Still being tested", "blue")
 
 
@@ -28,6 +56,7 @@ def test_saved_reasons_and_check_names_read_as_plain_words() -> None:
 def test_bar_size_is_the_finest_that_fits_the_chart() -> None:
     assert projection._auto_interval(1_500) == "5m"
     assert projection._auto_interval(5_000) == "15m"
+    assert projection._auto_interval(7_000) == "1h"
     assert projection._auto_interval(95_000) == "1D"
 
 
