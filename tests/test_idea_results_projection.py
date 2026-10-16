@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pandas as pd
+
 from dashboard import idea_results_projection as projection
 
 
@@ -62,6 +64,7 @@ def test_bar_size_is_the_finest_that_fits_the_chart() -> None:
 
 def test_trade_list_carries_a_running_total_in_trade_order() -> None:
     rows = projection._with_cumulative([{"trade_id": "0", "pnl": 10.0}, {"trade_id": "1", "pnl": None}, {"trade_id": "2", "pnl": -4.5}])
+    assert [row["trade_id"] for row in rows] == ["1", "2", "3"]
     assert [row["cum_pnl"] for row in rows] == [10.0, 10.0, 5.5]
     assert rows[1]["pnl"] is None
 
@@ -83,3 +86,12 @@ def test_check_numbers_read_in_their_own_unit() -> None:
     assert [value("worst_drawdown", .0173), value("bearish|high_volatility:minimum_return", -.0024), value("x:maximum_drawdown", .35)] == ["1.73%", "-0.24%", "35%"]
     assert [value("required_pass_proportion", .6), value("locked_point", 1), value("locked_point", None)] == ["60%", "100%", "—"]
     assert [value("a:minimum_sharpe", -13.2269), value("a:minimum_observations", 91893.0), value("minimum_valid_neighbors", 3)] == ["-13.23", "91,893", "3"]
+
+
+def test_history_too_long_for_daily_bars_is_resampled_to_weekly() -> None:
+    days = pd.date_range("2008-01-01", periods=3_000, freq="D")
+    bars = [{"timestamp": day.isoformat(), "open": 1.0, "high": 3.0, "low": 0.5, "close": 2.0} for day in days]
+    interval, coarse = projection._coarsen(bars)
+    assert interval == "1W" and len(coarse) <= projection.PRICE_LIMIT
+    assert coarse[0]["timestamp"].startswith("2008") and coarse[-1]["timestamp"] >= "2016"
+    assert (coarse[1]["open"], coarse[1]["high"], coarse[1]["low"], coarse[1]["close"]) == (1.0, 3.0, 0.5, 2.0)

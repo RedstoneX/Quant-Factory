@@ -247,6 +247,7 @@ def _with_cumulative(trades: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not trades:
         return []
     frame = pd.DataFrame(trades)
+    frame["trade_id"] = [str(number) for number in range(1, len(frame) + 1)]  # numbered from 1, oldest first
     frame["cum_pnl"] = frame["pnl"].fillna(0).cumsum().round(2)
     return frame.astype(object).where(frame.notna(), None).to_dict("records")
 
@@ -312,6 +313,17 @@ def _auto_interval(row_count: int) -> str:
     return "1D"
 
 
+def _coarsen(bars: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+    """Weekly, then monthly OHLC bars (pandas resample) until the whole history fits the chart limit."""
+    frame = pd.DataFrame(bars).assign(timestamp=lambda data: pd.to_datetime(data["timestamp"])).set_index("timestamp")
+    for interval, rule in (("1W", "W"), ("1M", "MS")):
+        coarse = frame.resample(rule).agg({"open": "first", "high": "max", "low": "min", "close": "last"}).dropna()
+        if len(coarse) <= PRICE_LIMIT:
+            break
+    coarse.index = coarse.index.strftime("%Y-%m-%dT%H:%M:%S")
+    return interval, coarse.reset_index().to_dict("records")
+
+
 @lru_cache(maxsize=8)
 def _period_price(database: str, run_id: str, start: str | None, end: str | None) -> tuple[str, tuple[dict[str, Any], ...], str | None]:
     rows = _shared_price_rows(database=Path(database), run_id=run_id, session=None, period=(start, end) if start and end else None)
@@ -319,11 +331,13 @@ def _period_price(database: str, run_id: str, start: str | None, end: str | None
         return "", (), "No price bars were saved for this period."
     interval = _auto_interval(len(rows))
     prepared = prepare_interval(rows, interval, source_interval="5m")
-    bars = tuple(
+    bars = [
         {"timestamp": eastern_plot_timestamp(bar.timestamp), "open": bar.open, "high": bar.high, "low": bar.low, "close": bar.close}
-        for bar in prepared.bars[-PRICE_LIMIT:]
-    ) if prepared.available else ()
-    return interval, bars, prepared.reason
+        for bar in prepared.bars
+    ] if prepared.available else []
+    if len(bars) > PRICE_LIMIT:  # a window too long for daily bars: coarser bars keep the full history
+        interval, bars = _coarsen(bars)
+    return interval, tuple(bars), prepared.reason
 
 
 def load_period_price(run_id: str | None, period: list[str] | None, *, database: str | Path | None = None) -> dict[str, Any]:
