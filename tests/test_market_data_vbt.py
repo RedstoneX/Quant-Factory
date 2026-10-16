@@ -79,11 +79,11 @@ def make(cls: type, root: Path, server: type, now: str = NOW) -> AlpacaSipProvid
     return cls(credentials=CREDENTIALS, locations=locations(root), now=lambda: pd.Timestamp(now), alpaca_data=server)
 
 
-def test_setting_defaults_to_legacy_and_rejects_unknown_values():
-    assert price_downloader({}) == "legacy"
-    assert price_downloader({"QF_PRICE_DOWNLOADER": "VBT"}) == "vbt"
-    assert sip_provider_class({}) is AlpacaSipProvider
-    assert sip_provider_class({"QF_PRICE_DOWNLOADER": "vbt"}) is VbtSipProvider
+def test_setting_defaults_to_vbt_legacy_selectable_and_rejects_unknown_values():
+    assert price_downloader({}) == "vbt"
+    assert price_downloader({"QF_PRICE_DOWNLOADER": "LEGACY"}) == "legacy"
+    assert sip_provider_class({}) is VbtSipProvider
+    assert sip_provider_class({"QF_PRICE_DOWNLOADER": "legacy"}) is AlpacaSipProvider
     with pytest.raises(ValueError):
         price_downloader({"QF_PRICE_DOWNLOADER": "other"})
 
@@ -137,3 +137,29 @@ def test_pull_or_update_equals_a_fresh_full_pull(tmp_path):
     fresh = server.pull("SPY", end="2026-10-14", **kwargs)
     pd.testing.assert_frame_equal(updated.data.get(), fresh.get(), check_freq=False)
     assert pull_or_update(server, path, "SPY", end="2026-10-14", **kwargs).status == "current"
+
+
+@pytest.mark.licensed_vectorbt
+def test_first_vbt_run_over_legacy_store_is_a_full_rebuild_then_prefix_check_applies(tmp_path, monkeypatch):
+    server = bar_server(DAY_ONE)
+    legacy = make(AlpacaSipProvider, tmp_path, server)
+    old = legacy.top_up("SPY", since="2026-10-12")
+    corrected = [bar(b["t"], b["o"] + 5) if b is DAY_ONE[1] else b for b in DAY_ONE]
+    serve(corrected + DAY_TWO[:1])  # the broker has since corrected one bar the legacy store holds
+    provider = make(VbtSipProvider, tmp_path, server)
+    first = provider.top_up("SPY", since="2026-10-12")
+    assert first.status == "full_rebuild_vbt"
+    assert old.path.exists() and first.path != old.path  # earlier slot kept as backup
+
+    serve(corrected + DAY_TWO)
+    committed = provider._committed
+
+    def changed_older_bar(dataset):
+        target, frame = committed(dataset)
+        frame = frame.copy()
+        frame.loc[1, "open"] += 9  # a stored older bar no longer matches what VBT returns
+        return target, frame
+
+    monkeypatch.setattr(provider, "_committed", changed_older_bar)
+    with pytest.raises(Exception, match="previously stored bars changed"):
+        provider.top_up("SPY", since="2026-10-12")

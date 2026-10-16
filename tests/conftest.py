@@ -19,6 +19,7 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_market_data_vbt.py::test_moved_last_bar_triggers_full_refetch",
         "tests/test_market_data_vbt.py::test_saved_vbt_file_holds_no_api_keys",
         "tests/test_market_data_vbt.py::test_pull_or_update_equals_a_fresh_full_pull",
+        "tests/test_market_data_vbt.py::test_first_vbt_run_over_legacy_store_is_a_full_rebuild_then_prefix_check_applies",
         "tests/test_performance_summary_artifact.py::test_snapshot_keeps_summary_after_portfolio_is_released",
         "tests/test_performance_summary_artifact.py::test_summary_has_all_long_short_with_json_safe_values",
         "tests/test_oos_trades_saved.py::test_oos_test_partition_portfolio_is_observed_once",

@@ -50,7 +50,7 @@ from market_data.alpaca_sip_universe import asset_type
 
 PRICE_DOWNLOADER_VARIABLE = "QF_PRICE_DOWNLOADER"
 PRICE_DOWNLOADERS = ("vbt", "legacy")
-DEFAULT_PRICE_DOWNLOADER = "legacy"  # vbt becomes default once live parity is measured
+DEFAULT_PRICE_DOWNLOADER = "vbt"  # QF_PRICE_DOWNLOADER=legacy selects the old downloader
 
 
 def price_downloader(environ: Mapping[str, str] | None = None) -> str:
@@ -162,6 +162,7 @@ class VbtSipProvider(AlpacaSipProvider):
         data_cls.set_custom_settings(
             client_config=dict(api_key=self.credentials.key_id, secret_key=self.credentials.secret_key)
         )
+        first_vbt_run = not sip_store_path(self.locations, symbol).exists()
         try:
             pulled = pull_or_update(
                 data_cls,
@@ -183,8 +184,11 @@ class VbtSipProvider(AlpacaSipProvider):
         if has_existing and frame["timestamp"].iloc[-1] <= existing["timestamp"].iloc[-1]:
             return TopUpResult(symbol, "current", len(existing), 0, target)
         adjusted = pulled.status == "refetched_after_adjustment_change"
-        previous = existing if has_existing and not adjusted else None
-        mode = pulled.status if has_existing else "full"
+        # First VBT run over a legacy store: one-time full rebuild, no prefix check against
+        # the legacy bars (the store writes the other slot, so the old slot stays as backup).
+        rebuild = adjusted or (has_existing and first_vbt_run)
+        previous = existing if has_existing and not rebuild else None
+        mode = ("full_rebuild_vbt" if first_vbt_run and not adjusted else pulled.status) if has_existing else "full"
         start = frame["timestamp"].iloc[0]
         return self._store(dataset, frame, previous, mode, start, end, slot)
 
