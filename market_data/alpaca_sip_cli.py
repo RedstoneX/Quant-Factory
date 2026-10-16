@@ -8,6 +8,8 @@ Nightly top-up that stays running and fires once a day at a UTC time:
     python -m market_data.alpaca_sip_cli --all --daily-at 02:00
 
 Credentials come from QF_ALPACA_API_KEY and QF_ALPACA_SECRET_KEY.
+QF_PRICE_DOWNLOADER=vbt tops up through VectorBT PRO (market_data.vbt_prices);
+legacy (the default until live parity is measured) keeps the earlier downloader.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from market_data.providers.alpaca_sip import (
     AlpacaSipProvider,
     credentials_from_environment,
 )
+from market_data.vbt_prices import sip_provider_class
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_LOCATIONS_VARIABLE = "QUANT_FACTORY_DATA_LOCATIONS"
@@ -73,11 +76,17 @@ def run_top_up(
     since: str,
     data_locations: str | None = None,
     environ: Mapping[str, str] | None = None,
-    provider_factory: Callable[..., AlpacaSipProvider] = AlpacaSipProvider,
+    provider_factory: Callable[..., AlpacaSipProvider] | None = None,
 ) -> int:
-    """Top up each symbol; one symbol's failure never stops the others."""
+    """Top up each symbol; one symbol's failure never stops the others.
+
+    Without ``provider_factory``, ``QF_PRICE_DOWNLOADER`` picks VectorBT (``vbt``)
+    or the earlier downloader (``legacy``); see ``market_data.vbt_prices``.
+    """
     values = os.environ if environ is None else environ
     try:
+        if provider_factory is None:
+            provider_factory = sip_provider_class(values)
         credentials = credentials_from_environment(values)
         locations = _locations(data_locations, values)
     except (AlpacaSipError, FileNotFoundError, ValueError) as exc:
