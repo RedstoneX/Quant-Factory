@@ -19,6 +19,7 @@ SUPPORTED_INTERVALS: dict[str, timedelta] = {
     "1m": timedelta(minutes=1),
     "5m": timedelta(minutes=5),
     "15m": timedelta(minutes=15),
+    "1h": timedelta(hours=1),
     "1D": timedelta(days=1),
 }
 

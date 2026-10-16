@@ -31,10 +31,20 @@ review URL remains available after an implementation session ends.
 
 - One page per idea: `/results?candidate_id=<idea id>`. Ideas, Home and Factory "Open Results" go here.
 - An old `/results?run_id=<run>` link opens that run's idea with its test selected and that exact run shown.
-- Top line: five numbers from the unseen-data test (net profit, max drawdown, trades, win rate, profit factor).
+- Tests shown are the newest campaign only: the newest costs-test run, then each run handed off from it
+  (`filter_handoff.source_run_id`); runs from older campaigns are never mixed in.
+- Header verdict comes from the saved runs, e.g. "Failed at: unseen data — scored 0.48, needed 0.50" (the score is the
+  best training result's saved rejection reason). Tests after a failed pass mark say "Not reached".
+- The page opens on the furthest test the idea reached that saved a result, on the Overview tab (account value with
+  the drop from peak below).
+- Top line: five numbers from the unseen-data test (net profit, max drawdown, trades, win rate, profit factor); when
+  the idea never traded unseen data, one plain line says why instead.
 - Test strip: costs test and unseen data are pass marks; rolling, stress and shuffle tests are scores (a weak score is amber).
-- Costs test and unseen data open strategy-tester tabs: account value over the whole period, the performance
-  summary (read from the run's `performance_summary` artifact, never computed in the dashboard), list of trades with
-  a running total, the price chart (whole period, bar size chosen to fit; picking a trade zooms to its day), and the
-  settings the costs test tried (picking one loads that setting).
+- Costs test and unseen data open strategy-tester tabs: Overview, Price chart and trades, the performance summary
+  (read from the run's `performance_summary` artifact, never computed in the dashboard), and the settings the costs
+  test tried (picking one loads that setting).
+- Price chart: opens on the latest month; Plotly range buttons 1W / 1M / 1Y / All, scroll to zoom, drag to move.
+  Each zoom reloads the bars in view at the finest size that fits (5-minute, 15-minute, hourly or daily). Trade
+  markers show only when 300 or fewer trades are in view. The trade list sits under the chart; picking a trade
+  centres the chart on its day in 5-minute bars.
 - Rolling, stress and shuffle tests make no trades; they show the score tiles and their own saved periods, checks or reasons.

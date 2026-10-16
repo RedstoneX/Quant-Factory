@@ -20,7 +20,7 @@ from dashboard.formatting import format_metric, format_percent
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_model import group_trade_rows, prepare_interval
 from dashboard.results_projection import (
-    EQUITY_LIMIT, PRICE_LIMIT, _artifact_document, _shared_price_rows, _trade_row,
+    EQUITY_LIMIT, OOS_REPORT_LOGICAL_NAME, PRICE_LIMIT, _artifact_document, _shared_price_rows, _trade_row,
     load_results_record, oos_report_metrics,
 )
 from dashboard.run_detail_adapter import _candidate_trade_rows
@@ -31,8 +31,9 @@ STAGES = (
     ("robustness", "Stress test"), ("monte_carlo", "Shuffle test"),
 )
 TRADE_STAGES = ("screening", "oos")
-STATUS_WORDS = {"passed": "Passed", "failed": "Failed", "insufficient_evidence": "Too few trades", None: "Not run yet"}
-STATUS_COLORS = {"passed": "teal", "failed": "red", "insufficient_evidence": "yellow", None: "gray"}
+STATUS_WORDS = {"passed": "Passed", "failed": "Failed", "insufficient_evidence": "Too few trades", None: "Not run yet", "not_reached": "Not reached"}
+STATUS_COLORS = {"passed": "teal", "failed": "red", "insufficient_evidence": "yellow", None: "gray", "not_reached": "gray"}
+REJECTION = re.compile(r"(\w+) failed: expected ([<>]=?) ?(-?\d+(?:\.\d+)?(?:e-?\d+)?).*?observed (-?\d+(?:\.\d+)?(?:e-?\d+)?)")
 MARKET_WORDS = {"bearish": "Falling market", "bullish": "Rising market", "neutral": "Flat market",
                 "high_volatility": "big swings", "low_volatility": "small swings"}
 CHECK_WORDS = {
@@ -103,13 +104,38 @@ def idea_for_run(run_id: str | None, *, database: str | Path | None = None) -> d
 
 
 def _stage_runs(connection: sqlite3.Connection, configuration_id: str) -> dict[str, dict[str, Any]]:
+    """The newest campaign: the newest costs-test run, then each later run handed off from the one before it.
+
+    Each stage records the run it was handed from (environment_json filter_handoff.source_run_id), so runs
+    from older campaigns are never mixed in. Without a costs-test run, the newest run of each stage is used.
+    """
+    rows = [dict(row) for row in connection.execute(
+        "SELECT run_id, stage, status, json_extract(environment_json, '$.filter_handoff.source_run_id') AS source "
+        "FROM experiment_runs WHERE configuration_id=? ORDER BY (status='succeeded') DESC, created_at DESC, run_id DESC", [configuration_id],
+    )]
+    head = next((row for row in rows if row["stage"] == "screening"), None)
     runs: dict[str, dict[str, Any]] = {}
-    for row in connection.execute(
-        "SELECT run_id, stage, status FROM experiment_runs WHERE configuration_id=? "
-        "ORDER BY (status='succeeded') DESC, created_at DESC, run_id DESC", [configuration_id],
-    ):
-        runs.setdefault(str(row["stage"]), {"run_id": str(row["run_id"]), "status": str(row["status"])})
+    if head is None:
+        for row in rows:
+            runs.setdefault(str(row["stage"]), {"run_id": str(row["run_id"]), "status": str(row["status"])})
+        return runs
+    previous = str(head["run_id"])
+    runs["screening"] = {"run_id": previous, "status": str(head["status"])}
+    for stage, _label in STAGES[1:]:
+        found = next((row for row in rows if row["stage"] == stage and row["source"] == previous), None)
+        if found is None:
+            break
+        previous = str(found["run_id"])
+        runs[stage] = {"run_id": previous, "status": str(found["status"])}
     return runs
+
+
+def failure_score(report: dict[str, Any]) -> str:
+    """'scored 0.48, needed 0.50' from the best training result's saved rejection reason; '' when none was saved."""
+    results = [item for item in report.get("training_results") or [] if isinstance(item, dict)]
+    best = max(results, key=lambda item: float(item.get("sharpe_ratio") or float("-inf")), default={})
+    match = REJECTION.search(str(best.get("screening_rejection_reasons") or ""))
+    return f"scored {float(match.group(4)):.2f}, needed {float(match.group(3)):.2f}" if match else ""
 
 
 def _evidence(database: Path, run_id: str | None, stage: str) -> dict[str, Any]:
@@ -130,6 +156,12 @@ def _test_card(database: Path, stage: str, label: str, run: dict[str, Any] | Non
         status = report.get("_test_status")
         value = report.get("total_return")
         line = "No unseen-data result was saved." if value is None else f"{'Made' if value >= 0 else 'Lost'} {abs(float(value)) * 100:.2f}% on data it never saw."
+        saved = _artifact_document(database=database, run_id=run_id, logical_name=OOS_REPORT_LOGICAL_NAME) or {}
+        if value is None and saved.get("failure_stage"):  # stopped before the unseen data: the run's own saved failure
+            failure = failure_score(saved)
+            return {"stage": stage, "label": label, "run_id": run_id, "status": "failed", "status_text": "Failed", "color": "red",
+                    "line": f"No setting passed the training years{f' (best {failure})' if failure else ''}, so it never traded unseen data.",
+                    "failure": failure, "has_result": False}
     elif run_id:
         evidence = _evidence(database, run_id, stage)
         normalized = evidence.get("normalized_evidence") or {}
@@ -158,7 +190,7 @@ def _verdict(tests: list[dict[str, Any]]) -> tuple[str, str]:
     gates = [test for test in tests if test["stage"] in TRADE_STAGES]
     failed = next((test for test in gates if test["status"] == "failed"), None)
     if failed:
-        return f"Failed the {failed['label'].lower()} test" if failed["stage"] == "oos" else f"Failed the {failed['label'].lower()}", "red"
+        return f"Failed at: {failed['label'].lower()}" + (f" — {failed['failure']}" if failed.get("failure") else ""), "red"
     if all(test["status"] == "passed" for test in gates):
         return "Passed the costs and unseen-data tests", "teal"
     return "Still being tested", "blue"
@@ -194,12 +226,17 @@ def load_idea(candidate_id: str | None = None, *, run_id: str | None = None, dat
         runs[stage] = {"run_id": run_id, "status": runs.get(stage, {}).get("status", "succeeded")}
     screening = load_results_record(runs["screening"]["run_id"], database=database_path) if "screening" in runs else {}
     tests = [_test_card(database_path, stage, label, runs.get(stage), screening) for stage, label in STAGES]
+    stopped = next((index for index, test in enumerate(tests) if test["stage"] in TRADE_STAGES and test["status"] == "failed"), len(tests))
+    for test in tests[stopped + 1:]:
+        if not test["run_id"]:
+            test.update(status="not_reached", status_text=STATUS_WORDS["not_reached"], color="gray", line="It stopped at an earlier test, so this never ran.")
+    reached = [test["stage"] for test in tests if test["run_id"] and test.get("has_result", True)]
     verdict, color = _verdict(tests)
     title = (head["title"] if head else None) or str((head["experiment_id"] if head else None) or "Untitled idea").replace("_", " ").title()
     return {
         "available": True, "candidate_id": candidate_id or idea_for_run(run_id, database=database_path).get("candidate_id"),
         "configuration_id": configuration_id, "title": title, "symbol": str(head["symbol"]) if head else "Unrecorded",
-        "verdict": verdict, "verdict_color": color, "tests": tests, "runs": runs,
+        "verdict": verdict, "verdict_color": color, "tests": tests, "runs": runs, "open_test": reached[-1] if reached else "screening",
         "screening_rows": screening.get("screening_rows") or [], "screening_count": screening.get("screening_count") or 0,
         "screened_out_count": screening.get("screened_out_count") or 0,
     }
@@ -270,6 +307,8 @@ def _auto_interval(row_count: int) -> str:
         return "5m"
     if row_count / 3 <= PRICE_LIMIT:
         return "15m"
+    if row_count / 12 <= PRICE_LIMIT:
+        return "1h"
     return "1D"
 
 
@@ -321,4 +360,4 @@ def load_stage_detail(idea: dict[str, Any] | None, stage: str, *, database: str 
     return {"run_id": run_id, "status": normalized.get("status"), "periods": periods, "checks": checks, "reasons": reasons}
 
 
-__all__ = ["STAGES", "TRADE_STAGES", "idea_for_run", "load_idea", "load_period_price", "load_stage_detail", "load_trade_view", "plain_reason"]
+__all__ = ["STAGES", "TRADE_STAGES", "failure_score", "idea_for_run", "load_idea", "load_period_price", "load_stage_detail", "load_trade_view", "plain_reason"]
