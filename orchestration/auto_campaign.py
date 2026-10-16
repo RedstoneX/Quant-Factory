@@ -42,6 +42,7 @@ from orchestration.candidate_pipeline_runtime import (
 )
 from orchestration.research_launch_claims import ResearchLaunchError, ResearchLaunchInvocationError
 from persistence import PersistenceService, StrategyLifecycle, canonical_json
+from persistence.serialization import configuration_hash
 
 POLICY_ID = "auto_test_v1"
 _PATH = re.compile(r"(?:[A-Za-z]:)?(?:[\\/][^\s'\"\\/]+){2,}[\\/]?")
@@ -440,7 +441,16 @@ def run_auto_test(
             strategy_id=installed.strategy_id, strategy_version=installed.version, display_name=installed.name,
             description=installed.description, lifecycle=StrategyLifecycle.CANDIDATE, active=True,
         )
-        _draft, configuration = service.upsert_idea_configuration(draft_id=request.candidate_id, document=document)
+        linked = service.idea_drafts.get(request.candidate_id)
+        configuration = service.configurations.get(linked.configuration_id) if linked and linked.configuration_id else None
+        if configuration is None or configuration.config_hash == configuration_hash(document):
+            _draft, configuration = service.upsert_idea_configuration(draft_id=request.candidate_id, document=document)
+        elif (configuration.strategy_id, configuration.strategy_version) != (installed.strategy_id, installed.version):
+            return AutoTestOutcome(
+                "failed", "rules_changed",
+                "This idea was already tested with different rules. Submit the changed rules as a new idea.",
+            )
+        # Same rules, only the data cut-off or costs moved: the linked configuration is immutable, so re-run it as saved.
     finally:
         service.close()
     key = campaign_idempotency_key(request.candidate_id, installed.strategy_id, request.attempt)
