@@ -35,8 +35,17 @@ def download_yahoo_data(
     config: MarketDataConfig,
     completed_through: pd.Timestamp,
 ) -> tuple[pd.DataFrame, list[str]]:
-    """Load the optional VectorBT Pro Yahoo provider only when it is used."""
-    from market_data.providers.yahoo import download_yahoo_data as provider_download
+    """Load the optional VectorBT Pro Yahoo provider only when it is used.
+
+    ``QF_PRICE_DOWNLOADER=vbt`` tops up a saved VBT instance (``market_data.vbt_prices``);
+    ``legacy`` re-downloads the full range (``market_data.providers.yahoo``).
+    """
+    from market_data.vbt_prices import price_downloader
+
+    if price_downloader() == "vbt":
+        from market_data.vbt_prices import download_yahoo_data as provider_download
+    else:
+        from market_data.providers.yahoo import download_yahoo_data as provider_download
 
     return provider_download(config, completed_through)
 
