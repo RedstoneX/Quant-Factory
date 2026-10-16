@@ -9,7 +9,7 @@ import sys
 from agent_gateway.cli import main as cli_main
 
 
-_READ_WITH_ID = {("candidate", "get"), ("run", "status"), ("run", "results"), ("run", "evidence"), ("lineage", "get"), ("campaign", "status")}
+_READ_WITH_ID = {("candidate", "get"), ("run", "status"), ("run", "results"), ("run", "evidence"), ("lineage", "get"), ("campaign", "status"), ("run", "trades")}
 
 
 def allowed_arguments(command: str) -> list[str]:
@@ -25,6 +25,8 @@ def allowed_arguments(command: str) -> list[str]:
     if len(args) == 4 and args[:2] == ["prior", "search"] and args[2] == "--query":
         return args
     if len(args) == 3 and tuple(args[:2]) in _READ_WITH_ID:
+        return args
+    if len(args) == 3 and args[:2] == ["campaign", "requeue"]:
         return args
     if args in (["candidate", "validate", "-"], ["candidate", "submit", "-"]):
         return args
