@@ -22,6 +22,7 @@ from backtesting.experiments import (
     execute_experiment,
     extract_metrics,
 )
+from backtesting.experiments.metrics import session_close_metrics_frame
 from backtesting.screening import screen_metrics
 from market_data import DataAudit, MarketDataConfig
 from strategies import get_strategy
@@ -161,8 +162,10 @@ def test_typed_experiment_configuration(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.licensed_vectorbt
+@pytest.mark.parametrize("risk_free", [0.0, 0.04])
 def test_session_metrics_use_completed_exchange_sessions_not_overnight_bars(
-    tmp_path: Path,
+    tmp_path: Path, risk_free: float
 ) -> None:
     index = pd.DatetimeIndex(
         [
@@ -187,17 +190,6 @@ def test_session_metrics_use_completed_exchange_sessions_not_overnight_bars(
         ],
         index=index,
     )
-    portfolio = SimpleNamespace(
-        value=values,
-        total_return=99.0,
-        annualized_return=99.0,
-        sharpe_ratio=99.0,
-        max_drawdown=-0.10,
-        trades=SimpleNamespace(
-            count=lambda: 2,
-            win_rate=0.5,
-        ),
-    )
     config = replace(
         _config(tmp_path),
         market_data=replace(_market_config(tmp_path), interval="5m"),
@@ -205,21 +197,25 @@ def test_session_metrics_use_completed_exchange_sessions_not_overnight_bars(
         metric_policy=MetricPolicy(
             sampling="exchange_session_close",
             periods_per_year=252.0,
-            risk_free_rate=0.0,
+            risk_free_rate=risk_free,
             basis="complete exchange-session-close portfolio equity and session returns",
             source="test contract",
         ),
     )
     data = pd.DataFrame({"Close": 100.0}, index=index)
-    metrics = extract_metrics(portfolio, data=data, config=config)
-    returns = pd.Series([0.01, 100_500.0 / 101_000.0 - 1.0])
-
-    assert metrics["total_return"] == pytest.approx(0.005)
-    assert metrics["annualized_return"] == pytest.approx(1.005**126 - 1.0)
-    assert metrics["sharpe_ratio"] == pytest.approx(
-        returns.mean() / returns.std(ddof=1) * 252**0.5
+    total, annualized, sharpe = session_close_metrics_frame(
+        values.to_frame(), None, data, config
+    )[0]
+    # Published definitions VectorBT PRO's ReturnsAccessor implements: first
+    # return is against initial cash, the annual risk-free rate is compounded
+    # down to one session, sample std (ddof=1), annualised by sqrt(252).
+    excess = pd.Series([0.01, 100_500.0 / 101_000.0 - 1.0]) - (
+        (1.0 + risk_free) ** (1.0 / 252.0) - 1.0
     )
-    assert metrics["max_drawdown"] == -0.10
+
+    assert total == pytest.approx(0.005)
+    assert annualized == pytest.approx(1.005**126 - 1.0)
+    assert sharpe == pytest.approx(excess.mean() / excess.std(ddof=1) * 252**0.5)
 
 
 def test_session_metrics_fail_closed_without_exact_closing_bar(tmp_path: Path) -> None:
@@ -253,6 +249,7 @@ def test_session_metrics_fail_closed_without_exact_closing_bar(tmp_path: Path) -
         )
 
 
+@pytest.mark.licensed_vectorbt
 def test_session_metrics_use_last_observation_only_when_portfolio_is_flat(
     tmp_path: Path,
 ) -> None:
@@ -265,13 +262,10 @@ def test_session_metrics_use_last_observation_only_when_portfolio_is_flat(
             "2024-01-03T22:00:00Z",
         ]
     )
-    portfolio = SimpleNamespace(
-        value=pd.Series(
-            [100_000.0, 101_000.0, 101_000.0, 102_000.0, 102_000.0],
-            index=index,
-        ),
-        assets=pd.Series(0.0, index=index),
+    value = pd.DataFrame(
+        {"v": [100_000.0, 101_000.0, 101_000.0, 102_000.0, 102_000.0]}, index=index
     )
+    assets = pd.DataFrame({"v": 0.0}, index=index)
     config = replace(
         _config(tmp_path),
         market_data=replace(_market_config(tmp_path), interval="5m"),
@@ -284,15 +278,16 @@ def test_session_metrics_use_last_observation_only_when_portfolio_is_flat(
             source="test contract",
         ),
     )
-    total_return, annualized_return, sharpe = metrics_module.session_close_metrics(
-        portfolio, pd.DataFrame({"Close": 100.0}, index=index), config
-    )
+    total_return, annualized_return, sharpe = metrics_module.session_close_metrics_frame(
+        value, assets, pd.DataFrame({"Close": 100.0}, index=index), config
+    )[0]
     assert total_return == pytest.approx(0.02)
     returns = pd.Series([0.01, 102_000.0 / 101_000.0 - 1.0])
     assert annualized_return == pytest.approx(1.02 ** (252 / 2) - 1.0)
     assert sharpe == pytest.approx(returns.mean() / returns.std(ddof=1) * 252**0.5)
 
 
+@pytest.mark.licensed_vectorbt
 def test_session_metrics_exclude_wholly_absent_exchange_session(tmp_path: Path) -> None:
     index = pd.DatetimeIndex(
         [
@@ -302,10 +297,8 @@ def test_session_metrics_exclude_wholly_absent_exchange_session(tmp_path: Path) 
             "2024-01-04T22:00:00Z",
         ]
     )
-    portfolio = SimpleNamespace(
-        value=pd.Series([101_000.0, 101_000.0, 102_000.0, 102_000.0], index=index),
-        assets=pd.Series(0.0, index=index),
-    )
+    value = pd.DataFrame({"v": [101_000.0, 101_000.0, 102_000.0, 102_000.0]}, index=index)
+    assets = pd.DataFrame({"v": 0.0}, index=index)
     config = replace(
         _config(tmp_path),
         market_data=replace(_market_config(tmp_path), interval="5m"),
@@ -315,19 +308,20 @@ def test_session_metrics_exclude_wholly_absent_exchange_session(tmp_path: Path) 
             risk_free_rate=0.0, basis="absent-session proof", source="test contract",
         ),
     )
-    total_return, annualized_return, sharpe = metrics_module.session_close_metrics(
-        portfolio, pd.DataFrame({"Close": 100.0}, index=index), config
-    )
+    total_return, annualized_return, sharpe = metrics_module.session_close_metrics_frame(
+        value, assets, pd.DataFrame({"Close": 100.0}, index=index), config
+    )[0]
     assert total_return == pytest.approx(0.02)
     returns = pd.Series([0.01, 0.0, 102_000.0 / 101_000.0 - 1.0])
     assert annualized_return == pytest.approx(1.02 ** (252 / 3) - 1.0)
     assert sharpe == pytest.approx(returns.mean() / returns.std(ddof=1) * 252**0.5)
 
 
+@pytest.mark.licensed_vectorbt
 def test_session_metrics_count_a_final_bar_ending_at_the_close_as_complete(tmp_path: Path) -> None:
     # One-minute regular-session bars are labelled by their open: 15:59 New York ends at the close.
     index = pd.DatetimeIndex(["2024-01-02T20:59:00Z", "2024-01-03T20:59:00Z", "2024-01-04T20:59:00Z"])
-    portfolio = SimpleNamespace(value=pd.Series(100_000.0, index=index))
+    value = pd.DataFrame({"v": 100_000.0}, index=index)
     config = replace(
         _config(tmp_path),
         market_data=replace(_market_config(tmp_path), interval="1m"),
@@ -340,9 +334,9 @@ def test_session_metrics_count_a_final_bar_ending_at_the_close_as_complete(tmp_p
         ),
     )
 
-    result = metrics_module.session_close_metrics(
-        portfolio, pd.DataFrame({"Close": 100.0}, index=index), config
-    )
+    result = metrics_module.session_close_metrics_frame(
+        value, None, pd.DataFrame({"Close": 100.0}, index=index), config
+    )[0]
     assert len(result) == 3  # computed, not refused as a partial session
 
 
@@ -375,6 +369,7 @@ def test_session_metrics_fail_closed_on_partial_final_session(tmp_path: Path) ->
         )
 
 
+@pytest.mark.licensed_vectorbt
 def test_flat_session_metrics_are_truthfully_screened_out(tmp_path: Path) -> None:
     index = pd.DatetimeIndex(
         [
@@ -384,11 +379,7 @@ def test_flat_session_metrics_are_truthfully_screened_out(tmp_path: Path) -> Non
             "2024-01-03T22:00:00Z",
         ]
     )
-    portfolio = SimpleNamespace(
-        value=pd.Series(100_000.0, index=index),
-        max_drawdown=0.0,
-        trades=SimpleNamespace(count=lambda: 0, win_rate=float("nan")),
-    )
+    value = pd.DataFrame({"v": 100_000.0}, index=index)
     config = replace(
         _config(tmp_path),
         market_data=replace(_market_config(tmp_path), interval="5m"),
@@ -401,11 +392,17 @@ def test_flat_session_metrics_are_truthfully_screened_out(tmp_path: Path) -> Non
             source="test contract",
         ),
     )
-    metrics = extract_metrics(
-        portfolio,
-        data=pd.DataFrame({"Close": 100.0}, index=index),
-        config=config,
-    )
+    total_return, annualized_return, sharpe = metrics_module.session_close_metrics_frame(
+        value, None, pd.DataFrame({"Close": 100.0}, index=index), config
+    )[0]
+    metrics = {
+        "total_return": total_return,
+        "annualized_return": annualized_return,
+        "sharpe_ratio": sharpe,
+        "max_drawdown": 0.0,
+        "number_of_trades": 0,
+        "win_rate": float("nan"),
+    }
     screening = screen_metrics(
         experiment_id=config.experiment_id,
         strategy_id=config.strategy_id,

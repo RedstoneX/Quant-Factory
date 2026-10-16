@@ -181,10 +181,9 @@ def _assert_identical(portfolio, index):
         )
         for i in range(N_COLS)
     ]
-    assert got == [tuple(e) for e in expected] or all(
-        all(a == b or (math.isnan(a) and math.isnan(b)) for a, b in zip(g, e))
-        for g, e in zip(got, expected)
-    )
+    # The statistics now come from VectorBT PRO; its summation order differs
+    # from the frozen copy only at the last floating-point digits.
+    assert all(all(_same(a, b) for a, b in zip(g, e)) for g, e in zip(got, expected))
     # whole-frame path used by sweeps
     portfolio.trades = SimpleNamespace(count=lambda: np.zeros(N_COLS), win_rate=np.zeros(N_COLS))
     portfolio.total_return = portfolio.annualized_return = portfolio.sharpe_ratio = np.zeros(N_COLS)
@@ -192,10 +191,15 @@ def _assert_identical(portfolio, index):
     rows = extract_sweep_metrics(portfolio, N_COLS, data=data, config=config)
     for row, e in zip(rows, expected):
         for key, ev in zip(("total_return", "annualized_return", "sharpe_ratio"), e):
-            assert row[key] == ev or (math.isnan(row[key]) and math.isnan(ev))
+            assert _same(row[key], ev)
+
+
+def _same(a: float, b: float) -> bool:
+    return math.isclose(a, b, rel_tol=1e-12, abs_tol=1e-15) or (math.isnan(a) and math.isnan(b))
 
 
 # 2023-11-20..30 has Thanksgiving (closed) and the 24th half-day (13:00 close).
+@pytest.mark.licensed_vectorbt
 def test_multi_column_with_half_day_matches_frozen():
     index = _bar_index("2023-11-20", "2023-11-30")
     schedule = get_exchange_calendar(_config().market_data).schedule("2023-11-24", "2023-11-24")
@@ -203,6 +207,7 @@ def test_multi_column_with_half_day_matches_frozen():
     _assert_identical(_portfolio(index, flat=False), index)
 
 
+@pytest.mark.licensed_vectorbt
 def test_missing_closing_bar_and_absent_session_flat_matches_frozen():
     index = _bar_index("2023-11-20", "2023-11-30")
     day = index.normalize()
@@ -232,6 +237,7 @@ def test_missing_closing_bar_with_exposure_raises_same_error():
     assert str(old.value) == str(new.value)
 
 
+@pytest.mark.licensed_vectorbt
 def test_flat_column_mix_in_one_frame_matches_frozen():
     index = _bar_index("2023-11-20", "2023-11-30")
     drop_close = index[index.normalize() == pd.Timestamp("2023-11-22", tz=index.tz)][-1]
