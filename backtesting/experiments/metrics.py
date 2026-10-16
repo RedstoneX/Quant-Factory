@@ -154,6 +154,9 @@ def session_close_metrics_frame(
 ) -> list[tuple[float, float, float]]:
     """Return, annualized return and Sharpe per column from exact session closes.
 
+    Sampling (which bar closes each exchange session) is ours; the statistics
+    are VectorBT PRO ReturnsAccessor total, annualized and sharpe_ratio.
+
     The exchange calendar is queried once and the session-close bar index is
     built once; every column is then read with one DataFrame.loc selection.
     """
@@ -210,31 +213,26 @@ def session_close_metrics_frame(
                     closes[row],
                     closing_idx[row],
                 )
-    initial_cash = config.execution.initial_cash
-    previous = equity.shift(1)
-    previous.iloc[0] = initial_cash
-    returns = equity / previous - 1.0
+    # Statistics come from VectorBT PRO's ReturnsAccessor on the session-close
+    # equity: one row per exchange session, so freq is one day and year_freq is
+    # periods_per_year days, giving ann_factor == periods_per_year. The library
+    # converts the annual risk-free rate to a per-session rate itself.
+    import vectorbtpro as vbt
+
     periods = float(policy.periods_per_year)
-    period_risk_free = (1.0 + float(policy.risk_free_rate)) ** (1.0 / periods) - 1.0
-    excess = returns - period_risk_free
-    results: list[tuple[float, float, float]] = []
-    for position in range(equity.shape[1]):
-        column = equity.iloc[:, position]
-        final_ratio = float(column.iloc[-1]) / initial_cash
-        annualized_return = final_ratio ** (periods / len(column)) - 1.0
-        excess_col = excess.iloc[:, position]
-        volatility = float(excess_col.std(ddof=1))
-        if not math.isfinite(volatility):
-            raise RuntimeError("session-return sample standard deviation must be finite")
-        sharpe = (
-            float("nan")
-            if volatility == 0.0
-            else float(excess_col.mean()) / volatility * math.sqrt(periods)
-        )
-        if not math.isfinite(annualized_return):
-            raise RuntimeError("session annualized return must be finite")
-        results.append((final_ratio - 1.0, annualized_return, sharpe))
-    return results
+    returns = vbt.ReturnsAccessor.from_value(
+        equity.reset_index(drop=True),
+        init_value=float(config.execution.initial_cash),
+        freq="1D",
+        year_freq=pd.Timedelta(days=periods),
+        defaults=dict(risk_free=float(policy.risk_free_rate), ddof=1),
+    )
+    total = np.atleast_1d(np.asarray(returns.total(), dtype=float))
+    annualized = np.atleast_1d(np.asarray(returns.annualized(), dtype=float))
+    sharpe = np.atleast_1d(np.asarray(returns.sharpe_ratio(), dtype=float))
+    if not np.isfinite(annualized).all():
+        raise RuntimeError("session annualized return must be finite")
+    return list(zip(total.tolist(), annualized.tolist(), sharpe.tolist()))
 
 
 def session_close_metrics(

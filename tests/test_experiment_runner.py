@@ -22,6 +22,7 @@ from backtesting.experiments import (
     execute_experiment,
     extract_metrics,
 )
+from backtesting.experiments.metrics import session_close_metrics_frame
 from backtesting.screening import screen_metrics
 from market_data import DataAudit, MarketDataConfig
 from strategies import get_strategy
@@ -161,8 +162,10 @@ def test_typed_experiment_configuration(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.licensed_vectorbt
+@pytest.mark.parametrize("risk_free", [0.0, 0.04])
 def test_session_metrics_use_completed_exchange_sessions_not_overnight_bars(
-    tmp_path: Path,
+    tmp_path: Path, risk_free: float
 ) -> None:
     index = pd.DatetimeIndex(
         [
@@ -187,17 +190,6 @@ def test_session_metrics_use_completed_exchange_sessions_not_overnight_bars(
         ],
         index=index,
     )
-    portfolio = SimpleNamespace(
-        value=values,
-        total_return=99.0,
-        annualized_return=99.0,
-        sharpe_ratio=99.0,
-        max_drawdown=-0.10,
-        trades=SimpleNamespace(
-            count=lambda: 2,
-            win_rate=0.5,
-        ),
-    )
     config = replace(
         _config(tmp_path),
         market_data=replace(_market_config(tmp_path), interval="5m"),
@@ -205,21 +197,25 @@ def test_session_metrics_use_completed_exchange_sessions_not_overnight_bars(
         metric_policy=MetricPolicy(
             sampling="exchange_session_close",
             periods_per_year=252.0,
-            risk_free_rate=0.0,
+            risk_free_rate=risk_free,
             basis="complete exchange-session-close portfolio equity and session returns",
             source="test contract",
         ),
     )
     data = pd.DataFrame({"Close": 100.0}, index=index)
-    metrics = extract_metrics(portfolio, data=data, config=config)
-    returns = pd.Series([0.01, 100_500.0 / 101_000.0 - 1.0])
-
-    assert metrics["total_return"] == pytest.approx(0.005)
-    assert metrics["annualized_return"] == pytest.approx(1.005**126 - 1.0)
-    assert metrics["sharpe_ratio"] == pytest.approx(
-        returns.mean() / returns.std(ddof=1) * 252**0.5
+    total, annualized, sharpe = session_close_metrics_frame(
+        values.to_frame(), None, data, config
+    )[0]
+    # Published definitions VectorBT PRO's ReturnsAccessor implements: first
+    # return is against initial cash, the annual risk-free rate is compounded
+    # down to one session, sample std (ddof=1), annualised by sqrt(252).
+    excess = pd.Series([0.01, 100_500.0 / 101_000.0 - 1.0]) - (
+        (1.0 + risk_free) ** (1.0 / 252.0) - 1.0
     )
-    assert metrics["max_drawdown"] == -0.10
+
+    assert total == pytest.approx(0.005)
+    assert annualized == pytest.approx(1.005**126 - 1.0)
+    assert sharpe == pytest.approx(excess.mean() / excess.std(ddof=1) * 252**0.5)
 
 
 def test_session_metrics_fail_closed_without_exact_closing_bar(tmp_path: Path) -> None:
