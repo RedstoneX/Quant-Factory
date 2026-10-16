@@ -20,6 +20,7 @@ from market_data.providers.alpaca_sip import (
     SipDataset,
     credentials_from_environment,
     mark_sessions,
+    validate_bars,
 )
 
 CREDENTIALS = AlpacaCredentials(key_id="test-key-id", secret_key="test-secret-value")
@@ -160,7 +161,7 @@ def test_full_then_incremental_then_idempotent(tmp_path):
     server.calls.clear()
     second = provider(tmp_path, server).top_up("SPY")
     assert (second.status, second.new_rows, second.row_count) == ("incremental", 2, 5)
-    assert server.calls[0]["start"] == pd.Timestamp("2026-10-12T19:59:00Z")
+    assert server.calls[0]["start"] == pd.Timestamp("2026-10-12T12:00:00Z")  # newest session re-fetched
     assert stored_path(tmp_path).name == "SPY_1m_alpaca_sip.b.parquet"
     assert calculate_sha256(slot_a) == slot_a_digest  # committed slot never rewritten
     stored = pd.read_parquet(stored_path(tmp_path))
@@ -179,11 +180,12 @@ def test_full_then_incremental_then_idempotent(tmp_path):
 
 
 def test_split_since_last_run_refetches_whole_history(tmp_path):
-    server = BarServer(list(DAY_ONE))
-    provider(tmp_path, server, now="2026-10-12T23:00:00Z").top_up("SPY")
-    halved = [bar(item["t"], item["o"] / 2) for item in DAY_ONE + DAY_TWO]
+    server = BarServer(DAY_ONE + DAY_TWO)
+    provider(tmp_path, server).top_up("SPY")
+    day_three = [bar("2026-10-14T13:30:00Z", 105)]
+    halved = [bar(item["t"], item["o"] / 2) for item in DAY_ONE + DAY_TWO + day_three]
     server.bars = halved
-    result = provider(tmp_path, server).top_up("SPY")
+    result = provider(tmp_path, server, now="2026-10-16T12:00:00Z").top_up("SPY")
     assert result.status == "refetched_after_adjustment_change"
     stored = pd.read_parquet(stored_path(tmp_path))
     assert stored["open"].tolist() == [item["o"] for item in halved]
@@ -243,3 +245,34 @@ def test_symbol_listed_after_2016_records_true_first_bar(tmp_path):
     assert manifest["history_starts_after_requested_start"] is True
     assert manifest["universe"]["group"] == "stocks"
     assert "Oct 2026" in manifest["universe"]["survivorship_bias"]
+
+
+def test_newest_session_refetched_gap_filled_correction_taken_earlier_bars_kept(tmp_path):
+    day_three = [bar("2026-10-14T13:30:00Z", 105), bar("2026-10-14T19:59:00Z", 106)]
+    server = BarServer(DAY_ONE + [day_three[0]])  # vendor missed 19:59 on day three
+    first = provider(tmp_path, server, now="2026-10-16T12:00:00Z").top_up("SPY")
+    assert "regular-session minutes missing" in json.loads(manifest_file(tmp_path).read_text())["validation_notes"][0]
+
+    changed_older = [bar(item["t"], item["o"] + 9) if item is DAY_ONE[1] else item for item in DAY_ONE]
+    server.bars = changed_older + [bar(day_three[0]["t"], 99), day_three[1]]
+    server.calls.clear()
+    result = provider(tmp_path, server, now="2026-10-16T12:00:00Z").top_up("SPY")
+    assert (result.status, result.new_rows) == ("incremental", 1)
+    assert server.calls[0]["start"] == pd.Timestamp("2026-10-12T19:59:00Z")  # last bar before the session
+    stored = pd.read_parquet(stored_path(tmp_path))
+    assert stored["open"].tolist() == [100.0, 101.0, 102.0, 99.0, 106.0]  # older bar not re-taken
+    assert first.path.exists()
+    assert provider(tmp_path, server, now="2026-10-16T12:00:00Z").top_up("SPY").status == "current"
+
+
+def test_prefix_guard_rejects_a_changed_bar_two_sessions_back(tmp_path):
+    server = BarServer(DAY_ONE + DAY_TWO)
+    provider(tmp_path, server).top_up("SPY")
+    previous = pd.read_parquet(stored_path(tmp_path))
+    candidate = previous.copy()
+    candidate.loc[1, "close"] += 0.25  # day one, two sessions before a day-three top-up
+    problems = validate_bars(candidate, end=pd.Timestamp("2026-10-16T12:00:00Z"), previous=previous.iloc[:3])
+    assert problems == ["previously stored bars changed during an incremental top-up"]
+    notes: list[str] = []
+    assert validate_bars(previous, end=pd.Timestamp("2026-10-16T12:00:00Z"), previous=previous.iloc[:3], notes=notes) == []
+    assert "regular-session minutes missing" in notes[0]  # day two's gaps reported, not fatal

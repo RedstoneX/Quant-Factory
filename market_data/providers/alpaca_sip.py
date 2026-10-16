@@ -10,6 +10,11 @@ points at it (with its sha256). That manifest rename is the single commit point,
 so readers always see a data file and manifest that match, and the active slot is
 never written. A failed candidate moves to quarantine and nothing is committed.
 Manifests go to the persistent downloaded-manifest folder inside the data mount.
+
+Each incremental top-up re-fetches the whole most recent stored session, because
+Alpaca fills late gaps and corrects bars there (15 Oct: a 74-minute hole in every
+symbol, served later). Bars before that session are kept and must match byte-for-byte.
+Missing regular-session minutes are listed in the manifest's ``validation_notes``.
 """
 
 from __future__ import annotations
@@ -57,6 +62,7 @@ PRICE_COLUMNS = ("open", "high", "low", "close")
 COLUMNS = ("timestamp", *PRICE_COLUMNS, "volume", "trade_count", "vwap", "session")
 CREDENTIAL_VARIABLES = ("QF_ALPACA_API_KEY", "QF_ALPACA_SECRET_KEY")
 OVERLAP_RELATIVE_TOLERANCE = 1e-6
+GAP_NOTE_LIMIT = 20  # days listed in the manifest, as for suspect_bar_examples
 
 
 class AlpacaSipError(RuntimeError):
@@ -147,9 +153,17 @@ def mark_sessions(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def validate_bars(
-    frame: pd.DataFrame, *, end: pd.Timestamp, previous: pd.DataFrame | None
+    frame: pd.DataFrame,
+    *,
+    end: pd.Timestamp,
+    previous: pd.DataFrame | None,
+    notes: list[str] | None = None,
 ) -> list[str]:
-    """Return every integrity problem; an empty list means the frame may be stored."""
+    """Return every integrity problem; an empty list means the frame may be stored.
+
+    ``notes`` (when given) collects findings that are reported but not fatal: missing
+    regular-session minutes in the newly stored bars, which the next top-up re-fetches.
+    """
     if list(frame.columns) != list(COLUMNS):
         return [f"columns {list(frame.columns)} differ from {list(COLUMNS)}"]
     if frame.empty:
@@ -181,7 +195,55 @@ def validate_bars(
         problems.append(f"unknown session labels {sorted(unknown)}")
     if previous is not None and not previous.empty:
         problems.extend(_prefix_problems(frame, previous))
+    if notes is not None and not problems:
+        kept = 0 if previous is None else len(previous)
+        notes.extend(regular_session_gaps(frame.iloc[kept:], end=end))
     return problems
+
+
+def regular_session_gaps(frame: pd.DataFrame, *, end: pd.Timestamp) -> list[str]:
+    """Describe regular-session minutes the NYSE schedule expects but ``frame`` lacks."""
+    if frame.empty:
+        return []
+    timestamps = frame["timestamp"]
+    local_dates = timestamps.dt.tz_convert(MARKET_TIMEZONE).dt.date
+    schedule = mcal.get_calendar(EXCHANGE_CALENDAR).schedule(
+        start_date=local_dates.min(), end_date=local_dates.max()
+    )
+    if schedule.empty:
+        return []
+    expected = mcal.date_range(schedule, "1min", closed="left", force_close=False)  # bar opens
+    expected = expected[(expected >= timestamps.iloc[0]) & (expected <= end)]
+    missing = expected.difference(pd.DatetimeIndex(timestamps))
+    if missing.empty:
+        return []
+    by_day = pd.Series(missing, index=missing.tz_convert(MARKET_TIMEZONE).date).groupby(level=0)
+    notes = [
+        f"regular-session gap: {len(group)} missing minutes on {day} "
+        f"({group.iloc[0].isoformat()} to {group.iloc[-1].isoformat()})"
+        for day, group in by_day
+    ]
+    if len(notes) > GAP_NOTE_LIMIT:
+        notes = notes[:GAP_NOTE_LIMIT] + [f"... {len(notes) - GAP_NOTE_LIMIT} more days with gaps"]
+    return [f"{len(missing)} regular-session minutes missing in the newly stored bars", *notes]
+
+
+def last_session_start(timestamps: pd.Series) -> pd.Timestamp:
+    """Start (market-time midnight, in UTC) of the exchange day holding the last stored bar."""
+    return timestamps.iloc[-1].tz_convert(MARKET_TIMEZONE).normalize().tz_convert("UTC")
+
+
+def ends_at_or_after(frame: pd.DataFrame, existing: pd.DataFrame) -> bool:
+    """False when a re-fetch came back shorter than the store (never drop stored bars)."""
+    return not frame.empty and frame["timestamp"].iloc[-1] >= existing["timestamp"].iloc[-1]
+
+
+def same_bars(frame: pd.DataFrame, other: pd.DataFrame) -> bool:
+    """True when both hold the same timestamps, prices and volumes."""
+    keys = ["timestamp", *PRICE_COLUMNS, "volume"]
+    return len(frame) == len(other) and bool(
+        (frame[keys].to_numpy() == other[keys].to_numpy()).all()
+    )
 
 
 def _prefix_problems(frame: pd.DataFrame, previous: pd.DataFrame) -> list[str]:
@@ -250,21 +312,30 @@ class AlpacaSipProvider:
         last_stored = existing.iloc[-1]
         if last_stored["timestamp"] >= end:
             return TopUpResult(symbol, "current", len(existing), 0, target)
-        # Re-fetch the last stored bar too: if its split-adjusted prices moved, a split
-        # happened since the last run and every stored bar needs the new adjustment.
-        fetched = self.fetch(symbol, last_stored["timestamp"], end)
-        if not _overlap_matches(last_stored, fetched):
-            start = existing["timestamp"].iloc[0]
-            refetched = self.fetch(symbol, start, end)
-            return self._store(
-                dataset, refetched, None, "refetched_after_adjustment_change", start, end, slot
-            )
-        new_bars = fetched.loc[fetched["timestamp"] > last_stored["timestamp"]]
-        if new_bars.empty:
-            return TopUpResult(symbol, "current", len(existing), 0, target)
-        combined = pd.concat([existing, new_bars], ignore_index=True)
+        # The vendor fills late gaps and corrects bars in the most recent session, so that
+        # whole session is re-fetched and replaces the stored one; every earlier bar is kept
+        # and the prefix check proves it unchanged.
         start = existing["timestamp"].iloc[0]
-        return self._store(dataset, combined, existing, "incremental", start, end, slot)
+        kept = existing.loc[existing["timestamp"] < last_session_start(existing["timestamp"])]
+        if kept.empty:  # the store holds only that session: re-fetch all of it
+            combined, previous = self.fetch(symbol, start, end), None
+        else:
+            # Re-fetch the last kept bar too: if its split-adjusted prices moved, a split
+            # happened since the last run and every stored bar needs the new adjustment.
+            anchor = kept.iloc[-1]
+            fetched = self.fetch(symbol, anchor["timestamp"], end)
+            if not _overlap_matches(anchor, fetched):
+                refetched = self.fetch(symbol, start, end)
+                return self._store(
+                    dataset, refetched, None, "refetched_after_adjustment_change", start, end, slot
+                )
+            later = fetched.loc[fetched["timestamp"] > anchor["timestamp"]]
+            combined, previous = pd.concat([kept, later], ignore_index=True), kept
+        if not ends_at_or_after(combined, existing) or same_bars(combined, existing):
+            return TopUpResult(symbol, "current", len(existing), 0, target)
+        return self._store(
+            dataset, combined, previous, "incremental", start, end, slot, stored_rows=len(existing)
+        )
 
     def _committed(self, dataset: SipDataset) -> tuple[Path | None, pd.DataFrame | None]:
         """Return the committed data file and its bars, verified against the manifest."""
@@ -290,6 +361,7 @@ class AlpacaSipProvider:
         start: pd.Timestamp,
         end: pd.Timestamp,
         slot: str,
+        stored_rows: int | None = None,
     ) -> TopUpResult:
         frame, new_cut = cut_at_last_listing_gap(frame)
         earlier_cut = _stored_history_cut(dataset.manifest_path(self.locations))
@@ -304,16 +376,21 @@ class AlpacaSipProvider:
         tmp_path = target.with_name(target.name + ".tmp")
         frame.loc[:, list(COLUMNS)].to_parquet(tmp_path, index=False)
         on_disk = pd.read_parquet(tmp_path)
-        problems = validate_bars(on_disk, end=end, previous=previous)
+        notes: list[str] = []
+        problems = validate_bars(on_disk, end=end, previous=previous, notes=notes)
         if problems:
             quarantined = self._quarantine(dataset, tmp_path, problems)
             raise AlpacaSipValidationError(
                 f"{dataset.symbol}: validation failed ({'; '.join(problems)}); candidate "
                 f"quarantined at {quarantined}; stored file left unchanged"
             )
-        new_rows = len(on_disk) - (0 if previous is None else len(previous))
+        if stored_rows is None:
+            stored_rows = 0 if previous is None else len(previous)
+        new_rows = len(on_disk) - stored_rows
         os.replace(tmp_path, target)  # inactive slot: no committed manifest points here
-        manifest = build_manifest(dataset, on_disk, target, slot, mode, start, end, new_rows, history_cut)
+        manifest = build_manifest(
+            dataset, on_disk, target, slot, mode, start, end, new_rows, history_cut, notes
+        )
         write_manifest(manifest, dataset.manifest_path(self.locations))  # the commit
         return TopUpResult(dataset.symbol, mode, len(on_disk), new_rows, target)
 
@@ -343,6 +420,7 @@ def build_manifest(
     end: pd.Timestamp,
     new_rows: int,
     history_cut: dict[str, Any] | None = None,
+    validation_notes: list[str] | None = None,
 ) -> dict[str, Any]:
     """Describe one validated stored file in the repository's manifest format."""
     acquired = datetime.now(UTC).isoformat()
@@ -418,7 +496,8 @@ def build_manifest(
         "suspect_bar_counts_by_column": {k: v for k, v in suspect_counts.items() if k != "any"},
         "suspect_bar_examples": suspect_examples,
         "suspect_bar_method": SUSPECT_METHOD,
-        "validation_notes": [],
+        # Reported, not fatal: vendor gaps in the newest session are re-fetched next run.
+        "validation_notes": list(validation_notes or []),
     }
     if history_cut is not None:  # ticker reuse: bars before the cut are a different security
         manifest["history_cut"] = history_cut

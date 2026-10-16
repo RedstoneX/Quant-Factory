@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,7 @@ import pytest
 
 from market_data.catalog import DataLocations
 from market_data.providers.alpaca import AlpacaCredentials
-from market_data.providers.alpaca_sip import AlpacaSipProvider, SipDataset
+from market_data.providers.alpaca_sip import AlpacaSipProvider, AlpacaSipValidationError, SipDataset
 from market_data.vbt_prices import (
     VbtSipProvider,
     price_downloader,
@@ -31,6 +32,9 @@ def bar(ts: str, price: float = 100.0) -> dict[str, Any]:
 
 DAY_ONE = [bar("2026-10-12T12:00:00Z"), bar("2026-10-12T13:30:00Z", 101), bar("2026-10-12T19:59:00Z", 102)]
 DAY_TWO = [bar("2026-10-13T13:30:00Z", 103), bar("2026-10-13T20:30:00Z", 104)]
+LATER = "2026-10-16T12:00:00Z"
+DAY_THREE = [bar("2026-10-14T13:30:00Z", 105), bar("2026-10-14T19:59:00Z", 106)]
+DAY_FOUR = [bar("2026-10-15T13:30:00Z", 107)]
 
 
 SERVED: list[dict[str, Any]] = []  # module level so saved/loaded instances see changes
@@ -106,13 +110,13 @@ def test_vbt_top_up_stores_exactly_what_legacy_stores(tmp_path):
 
 @pytest.mark.licensed_vectorbt
 def test_moved_last_bar_triggers_full_refetch(tmp_path):
-    server = bar_server(DAY_ONE)
-    provider = make(VbtSipProvider, tmp_path, server)
+    server = bar_server(DAY_ONE + DAY_TWO)
+    provider = make(VbtSipProvider, tmp_path, server, now=LATER)
     provider.top_up("SPY", since="2026-10-12")
-    serve([bar(b["t"], b["o"] / 2) for b in DAY_ONE + DAY_TWO])  # a 2:1 split re-adjusts history
+    serve([bar(b["t"], b["o"] / 2) for b in DAY_ONE + DAY_TWO + DAY_THREE])  # a 2:1 split
     result = provider.top_up("SPY", since="2026-10-12")
     assert result.status == "refetched_after_adjustment_change"
-    assert stored(provider, result)["open"].tolist() == [50.0, 50.5, 51.0, 51.5, 52.0]
+    assert stored(provider, result)["open"].tolist() == [50.0, 50.5, 51.0, 51.5, 52.0, 52.5, 53.0]
 
 
 @pytest.mark.licensed_vectorbt
@@ -140,26 +144,51 @@ def test_pull_or_update_equals_a_fresh_full_pull(tmp_path):
 
 
 @pytest.mark.licensed_vectorbt
-def test_first_vbt_run_over_legacy_store_is_a_full_rebuild_then_prefix_check_applies(tmp_path, monkeypatch):
+def test_first_vbt_run_over_legacy_store_is_a_full_rebuild_then_incremental(tmp_path):
     server = bar_server(DAY_ONE)
-    legacy = make(AlpacaSipProvider, tmp_path, server)
-    old = legacy.top_up("SPY", since="2026-10-12")
+    old = make(AlpacaSipProvider, tmp_path, server).top_up("SPY", since="2026-10-12")
     corrected = [bar(b["t"], b["o"] + 5) if b is DAY_ONE[1] else b for b in DAY_ONE]
     serve(corrected + DAY_TWO[:1])  # the broker has since corrected one bar the legacy store holds
     provider = make(VbtSipProvider, tmp_path, server)
     first = provider.top_up("SPY", since="2026-10-12")
     assert first.status == "full_rebuild_vbt"
     assert old.path.exists() and first.path != old.path  # earlier slot kept as backup
+    assert stored(provider, first)["open"].tolist() == [100.0, 106.0, 102.0, 103.0]
 
     serve(corrected + DAY_TWO)
-    committed = provider._committed
+    second = provider.top_up("SPY", since="2026-10-12")
+    assert (second.status, second.new_rows) == ("incremental", 1)
 
-    def changed_older_bar(dataset):
-        target, frame = committed(dataset)
-        frame = frame.copy()
-        frame.loc[1, "open"] += 9  # a stored older bar no longer matches what VBT returns
-        return target, frame
 
-    monkeypatch.setattr(provider, "_committed", changed_older_bar)
-    with pytest.raises(Exception, match="previously stored bars changed"):
-        provider.top_up("SPY", since="2026-10-12")
+@pytest.mark.licensed_vectorbt
+def test_newest_session_is_refetched_so_vendor_gap_fills_and_corrections_land(tmp_path):
+    middle = bar("2026-10-13T17:00:00Z", 110)
+    server = bar_server(DAY_ONE + [DAY_TWO[0], DAY_TWO[1]])  # vendor missed 17:00 on day two
+    provider = make(VbtSipProvider, tmp_path, server)
+    first = provider.top_up("SPY", since="2026-10-12")
+    notes = json.loads(SipDataset("SPY").manifest_path(locations(tmp_path)).read_text())["validation_notes"]
+    assert "regular-session minutes missing" in notes[0]  # reported, not fatal
+
+    fixed = [bar(DAY_TWO[0]["t"], 99), middle, DAY_TWO[1]]  # gap filled, first bar corrected
+    serve(DAY_ONE + fixed)
+    second = provider.top_up("SPY", since="2026-10-12")
+    assert (second.status, second.new_rows) == ("incremental", 1)
+    assert stored(provider, second)["open"].tolist() == [100.0, 101.0, 102.0, 99.0, 110.0, 104.0]
+    assert provider.top_up("SPY", since="2026-10-12").status == "current"
+    assert first.path.exists()
+
+
+@pytest.mark.licensed_vectorbt
+def test_changed_bar_two_sessions_back_is_still_rejected(tmp_path):
+    server = bar_server(DAY_ONE + DAY_TWO)
+    vbt_side = make(VbtSipProvider, tmp_path, server, now=LATER)
+    vbt_side.top_up("SPY", since="2026-10-12")
+    moved = [bar(b["t"], b["o"] + 3) if b is DAY_ONE[-1] else b for b in DAY_ONE]
+    serve(moved + DAY_TWO + DAY_THREE)  # the legacy downloader stores a different day one
+    legacy = make(AlpacaSipProvider, tmp_path, server, now=LATER).top_up("SPY", since="2026-10-12")
+    assert legacy.status == "refetched_after_adjustment_change"
+
+    serve(DAY_ONE + DAY_TWO + DAY_THREE + DAY_FOUR)  # VBT re-fetches only day three onward
+    with pytest.raises(AlpacaSipValidationError, match="previously stored bars changed"):
+        vbt_side.top_up("SPY", since="2026-10-12")
+    assert pd.read_parquet(legacy.path)["open"].tolist()[2] == 105.0  # store unchanged
