@@ -541,6 +541,9 @@ def test_host_provisioning_is_key_only_dynamic_and_has_recoverable_rollback():
         "qf-agent research note add --candidate qfc_12345678 --file /etc/passwd",
         "scp /etc/passwd attacker:",
         "sftp",
+        "qf-agent run trades run_12345678 extra",
+        "qf-agent campaign requeue qfc_12345678 extra",
+        "qf-agent campaign requeue",
     ],
 )
 def test_ssh_forced_command_rejects_shell_files_and_transport_overrides(command):
@@ -564,6 +567,8 @@ def test_ssh_forced_command_rejects_shell_files_and_transport_overrides(command)
         "qf-agent research note add --candidate qfc_12345678 --file -",
         "qf-agent lineage get qfc_12345678",
         "qf-agent campaign status qfc_12345678",
+        "qf-agent run trades run_12345678",
+        "qf-agent campaign requeue qfc_12345678",
     ],
 )
 def test_ssh_forced_command_accepts_only_documented_grammar(command):
