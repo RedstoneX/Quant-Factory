@@ -13,6 +13,9 @@ What VectorBT does here (this module only translates):
   session is re-fetched: the vendor fills late gaps and corrects bars there. A revised or
   removed bar means the provider re-adjusted history (split or dividend), so the
   symbol is pulled again in full instead of mixing adjustment bases.
+- first VBT run over an existing store: the saved VBT copy is seeded from the stored,
+  validated bars with ``AlpacaData.from_data`` (no history download), then topped up
+  like any other run. A full ``pull`` happens only when nothing is stored yet.
 - persistence: ``data.save(path)`` / ``vbt.load(path)``. API keys are set with
   ``AlpacaData.set_custom_settings`` so they are never stored in the saved file.
 
@@ -157,6 +160,14 @@ def vbt_bars_to_frame(data: Any) -> pd.DataFrame:
     return bars_to_frame(frame.reset_index(drop=True))
 
 
+def seed_from_stored(data_cls: Any, symbol: str, stored_bars: pd.DataFrame, pull_kwargs: dict) -> Any:
+    """Stored SIP bars -> VBT Alpaca data, as ``pull`` would have returned them (``from_data``)."""
+    names = {stored: vbt_name for vbt_name, stored in VBT_ALPACA_COLUMNS.items()}
+    frame = stored_bars.set_index(pd.DatetimeIndex(stored_bars["timestamp"], name=None))
+    frame = frame[list(names)].rename(columns=names).astype({"Trade count": "float64"})
+    return data_cls.from_data({symbol: frame}, fetch_kwargs={symbol: dict(pull_kwargs)})
+
+
 class VbtSipProvider(AlpacaSipProvider):
     """Alpaca SIP top-up via ``vbt.AlpacaData.pull`` / ``update`` / ``save``.
 
@@ -175,42 +186,42 @@ class VbtSipProvider(AlpacaSipProvider):
         data_cls.set_custom_settings(
             client_config=dict(api_key=self.credentials.key_id, secret_key=self.credentials.secret_key)
         )
-        first_vbt_run = not sip_store_path(self.locations, symbol).exists()
         has_existing = existing is not None and not existing.empty
+        store_path = sip_store_path(self.locations, symbol)
+        pull_kwargs = dict(
+            start=pd.Timestamp(since, tz=MARKET_TIMEZONE),
+            client_type="stocks",
+            timeframe="1m",
+            feed=FEED,
+            adjustment=ADJUSTMENT,
+            sort="asc",
+        )
+        if has_existing and not store_path.exists():
+            # First VBT run over an existing store: seed the VBT copy from the stored bars
+            # instead of downloading the whole history again (that pull ran out of memory).
+            _save(seed_from_stored(data_cls, symbol, existing, pull_kwargs), store_path)
         # Re-fetch the whole most recent session (late vendor gap fills and corrections).
         session_start = last_session_start(existing["timestamp"]) if has_existing else None
         try:
             pulled = pull_or_update(
                 data_cls,
-                sip_store_path(self.locations, symbol),
+                store_path,
                 symbol,
                 end=end + pd.Timedelta(minutes=1),  # VBT's end is exclusive
                 keep_before=session_start,
-                start=pd.Timestamp(since, tz=MARKET_TIMEZONE),
-                client_type="stocks",
-                timeframe="1m",
-                feed=FEED,
-                adjustment=ADJUSTMENT,
-                sort="asc",
+                **pull_kwargs,
             )
         except Exception as exc:
             status = getattr(exc, "status_code", None)
             raise AlpacaSipError(f"Alpaca bars request failed: HTTP {status} {type(exc).__name__}: {exc}") from exc
         frame = mark_sessions(vbt_bars_to_frame(pulled.data))
-        if has_existing and not first_vbt_run and (
-            not ends_at_or_after(frame, existing) or same_bars(frame, existing)
-        ):
+        if has_existing and (not ends_at_or_after(frame, existing) or same_bars(frame, existing)):
             return TopUpResult(symbol, "current", len(existing), 0, target)
         adjusted = pulled.status == "refetched_after_adjustment_change"
-        # First VBT run over a legacy store: one-time full rebuild, no prefix check against
-        # the legacy bars (the store writes the other slot, so the old slot stays as backup).
-        rebuild = adjusted or (has_existing and first_vbt_run)
         # Every bar before the re-fetched session must still match byte-for-byte.
-        previous = existing.loc[existing["timestamp"] < session_start] if has_existing and not rebuild else None
+        previous = existing.loc[existing["timestamp"] < session_start] if has_existing and not adjusted else None
         if not has_existing:
             mode = "full"
-        elif first_vbt_run and not adjusted:
-            mode = "full_rebuild_vbt"
         else:
             mode = "refetched_after_adjustment_change" if adjusted else "incremental"
         start = frame["timestamp"].iloc[0]
