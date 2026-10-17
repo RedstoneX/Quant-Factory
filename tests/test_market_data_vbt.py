@@ -144,20 +144,38 @@ def test_pull_or_update_equals_a_fresh_full_pull(tmp_path):
 
 
 @pytest.mark.licensed_vectorbt
-def test_first_vbt_run_over_legacy_store_is_a_full_rebuild_then_incremental(tmp_path):
-    server = bar_server(DAY_ONE)
-    old = make(AlpacaSipProvider, tmp_path, server).top_up("SPY", since="2026-10-12")
-    corrected = [bar(b["t"], b["o"] + 5) if b is DAY_ONE[1] else b for b in DAY_ONE]
-    serve(corrected + DAY_TWO[:1])  # the broker has since corrected one bar the legacy store holds
-    provider = make(VbtSipProvider, tmp_path, server)
+def test_first_vbt_run_over_legacy_store_seeds_from_stored_bars_without_a_history_pull(tmp_path):
+    vbt = pytest.importorskip("vectorbtpro")
+    server = bar_server(DAY_ONE + DAY_TWO)
+    old = make(AlpacaSipProvider, tmp_path, server, now=LATER).top_up("SPY", since="2026-10-12")
+    # The vendor now serves a different early day-one bar: a full-history pull would fetch it.
+    moved = [bar(b["t"], b["o"] + 5) if b is DAY_ONE[0] else b for b in DAY_ONE]
+    serve(moved + DAY_TWO + DAY_THREE)
+    provider = make(VbtSipProvider, tmp_path, server, now=LATER)
     first = provider.top_up("SPY", since="2026-10-12")
-    assert first.status == "full_rebuild_vbt"
+    assert (first.status, first.new_rows) == ("incremental", 2)
     assert old.path.exists() and first.path != old.path  # earlier slot kept as backup
-    assert stored(provider, first)["open"].tolist() == [100.0, 106.0, 102.0, 103.0]
+    assert stored(provider, first)["open"].tolist() == [100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0]
+    seeded = vbt.load(sip_store_path(locations(tmp_path), "SPY"))
+    assert seeded.get("Open").iloc[0] == 100.0  # day one came from the store, not the vendor
+    assert seeded.select_fetch_kwargs("SPY")["timeframe"] == "1m"
 
-    serve(corrected + DAY_TWO)
-    second = provider.top_up("SPY", since="2026-10-12")
-    assert (second.status, second.new_rows) == ("incremental", 1)
+
+@pytest.mark.licensed_vectorbt
+def test_changed_bar_two_sessions_back_is_rejected_after_seeding(tmp_path):
+    server = bar_server(DAY_ONE + DAY_TWO)
+    make(AlpacaSipProvider, tmp_path, server, now=LATER).top_up("SPY", since="2026-10-12")
+    serve(DAY_ONE + DAY_TWO + DAY_THREE)
+    vbt_side = make(VbtSipProvider, tmp_path, server, now=LATER)
+    assert vbt_side.top_up("SPY", since="2026-10-12").status == "incremental"  # seeds the VBT copy
+    moved = [bar(b["t"], b["o"] + 3) if b is DAY_TWO[-1] else b for b in DAY_TWO]
+    serve(DAY_ONE + moved + DAY_THREE + DAY_FOUR)  # the legacy downloader stores a different day two
+    legacy = make(AlpacaSipProvider, tmp_path, server, now=LATER).top_up("SPY", since="2026-10-12")
+    assert legacy.status == "refetched_after_adjustment_change"
+
+    serve(DAY_ONE + DAY_TWO + DAY_THREE + DAY_FOUR)  # VBT re-fetches only day four
+    with pytest.raises(AlpacaSipValidationError, match="previously stored bars changed"):
+        vbt_side.top_up("SPY", since="2026-10-12")
 
 
 @pytest.mark.licensed_vectorbt
