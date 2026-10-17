@@ -83,10 +83,11 @@ def make(cls: type, root: Path, server: type, now: str = NOW) -> AlpacaSipProvid
     return cls(credentials=CREDENTIALS, locations=locations(root), now=lambda: pd.Timestamp(now), alpaca_data=server)
 
 
-def test_setting_defaults_to_vbt_legacy_selectable_and_rejects_unknown_values():
-    assert price_downloader({}) == "vbt"
+def test_setting_defaults_to_legacy_vbt_selectable_and_rejects_unknown_values():
+    assert price_downloader({}) == "legacy"
     assert price_downloader({"QF_PRICE_DOWNLOADER": "LEGACY"}) == "legacy"
-    assert sip_provider_class({}) is VbtSipProvider
+    assert sip_provider_class({}) is AlpacaSipProvider
+    assert sip_provider_class({"QF_PRICE_DOWNLOADER": "vbt"}) is VbtSipProvider
     assert sip_provider_class({"QF_PRICE_DOWNLOADER": "legacy"}) is AlpacaSipProvider
     with pytest.raises(ValueError):
         price_downloader({"QF_PRICE_DOWNLOADER": "other"})

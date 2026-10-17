@@ -58,7 +58,7 @@ from market_data.alpaca_sip_universe import asset_type
 
 PRICE_DOWNLOADER_VARIABLE = "QF_PRICE_DOWNLOADER"
 PRICE_DOWNLOADERS = ("vbt", "legacy")
-DEFAULT_PRICE_DOWNLOADER = "vbt"  # QF_PRICE_DOWNLOADER=legacy selects the old downloader
+DEFAULT_PRICE_DOWNLOADER = "legacy"  # vbt path OOMs the 2 GiB top-up container (measured 17 Oct); QF_PRICE_DOWNLOADER=vbt opts in
 
 
 def price_downloader(environ: Mapping[str, str] | None = None) -> str:
