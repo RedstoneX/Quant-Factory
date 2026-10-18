@@ -144,6 +144,8 @@ def test_licensed_lane_runs_in_a_networkless_throwaway_container_of_the_new_imag
     assert command[command.index("--network") + 1] == "none"
     assert f"{qf_deploy.IMAGE}:{SHA_A}" in command
     assert f"{tmp_path / qf_deploy.TEST_DEPS}:/opt/qf-pytest:ro" in command
+    # The image leaves tests out, so the gate mounts the release export's tests.
+    assert f"{tmp_path / 'tests'}:/app/tests:ro" in command
     assert command[-2:] == ["-c", qf_deploy.LICENSED_LANE]
     assert "licensed_vectorbt" in qf_deploy.LICENSED_LANE
 
