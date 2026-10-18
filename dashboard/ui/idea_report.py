@@ -101,12 +101,12 @@ def test_card(index: int, test: dict[str, Any]) -> dmc.Paper:
     bar: list[Any] = []
     if test["fraction"] is not None:
         tick = [html.Div(style={"position": "absolute", "top": -4, "left": f"{test['pass_line'] * 100:.1f}%", "width": 2, "height": 14, "background": TEXT})] if test["pass_line"] is not None else []
-        bar = [html.Div([dmc.Progress(value=max(0, min(1, test["fraction"])) * 100, color=tone, size=6), *tick], style={"position": "relative"})]
+        bar = [html.Div([dmc.Progress(value=max(0, min(1, test["fraction"])) * 100, color=tone, size=6), *tick], style={"position": "relative", "marginBottom": 10})]
     saved_note = []
     if test["stage"] == "walk_forward" and test["run_id"] and not test["detail"]["periods"]:
         saved_note = [dmc.Text("Per-window numbers: " + NOT_SAVED.lower(), size="xs", c=FAINT)]
     return dmc.Paper([
-        dmc.Group([dmc.Text(f"{index} · {test['label']}", fw=500, size="sm"), dmc.Badge(test["status"], color=tone, variant="light", size="sm")], justify="space-between", gap="xs"),
+        dmc.Group([dmc.Text(f"{index} · {test['label']}", fw=500, size="sm"), *([dmc.Badge(test["status"], color=tone, variant="light", size="sm")] if test["run_id"] else [])], justify="space-between", gap="xs"),
         dmc.Text(test["value"], size="lg", ff=MONO), *bar, *([dmc.Text(test["line"], size="xs", c=MUTED)] if test["line"] else []), *saved_note,
     ], p="md", radius="md", bg=INNER, style={"border": f"1px solid {LINE}"}, className="idea-report-test")
 
@@ -171,29 +171,46 @@ def returns_panel(report: dict[str, Any]) -> dmc.Paper | None:
     return _panel("Monthly returns", "% per month", *children) if children else None
 
 
-def _columns() -> list[dict[str, Any]]:
-    """The shared trade columns at fixed widths, so a phone scrolls sideways inside the card, with # and profit pinned."""
-    columns = []
+PHONE_DROPPED = {"entry_display", "exit_display", "duration"}
+
+
+def _columns(phone: bool) -> list[dict[str, Any]]:
+    """Desktop: #, Side, Entry, Exit, Duration, Profit or loss, Running total, Outcome, nothing pinned.
+    Phone: # and Profit or loss pinned, Exit and Duration dropped, Entry as a short date."""
+    columns: list[dict[str, Any]] = []
     for column in TRADE_COLUMNS:
+        if phone and column["field"] in PHONE_DROPPED:
+            if column["field"] == "entry_display":
+                columns.append({"field": "entry_short", "headerName": "Entry", "minWidth": 120, "flex": 1, "suppressHeaderFilterButton": True, "suppressHeaderMenuButton": True})
+            continue
         column = {**column, "minWidth": max(int(column.get("minWidth", 100)), 100), "flex": 1}
         if column["field"] == "trade_id":
-            column.pop("flex")
-            column.update(headerName="#", pinned="left", width=64, minWidth=64)
+            column.update(headerName="#", flex=None, width=48, minWidth=48, suppressHeaderFilterButton=True, suppressHeaderMenuButton=True, **({"pinned": "left"} if phone else {}))
+        if column["field"] == "direction" and phone:
+            column.update(minWidth=64, suppressHeaderFilterButton=True, suppressHeaderMenuButton=True)
         if column["field"] == "pnl":
-            column.pop("flex")
-            column.update(pinned="right", width=130, minWidth=130)
-        columns.append(column)
+            column.update(flex=None, width=90 if phone else 130, minWidth=90 if phone else 130, **({"pinned": "right", "wrapHeaderText": True, "autoHeaderHeight": True} if phone else {}))
+        columns.append({key: value for key, value in column.items() if value is not None})
     return columns
+
+
+def _short_entry(timestamp: Any) -> str:
+    stamp = pd.Timestamp(timestamp)
+    return f"{stamp.day} {stamp:%b %y}, {stamp.hour}:{stamp:%M}"
 
 
 def trades_panel(report: dict[str, Any]) -> dmc.Paper | None:
     if not report["trades"]:
         return None
+    rows = [{**trade, "entry_short": _short_entry(trade["entry_timestamp"])} for trade in report["trades"]]
     note = [] if report["unseen_trades_saved"] else [dmc.Text("Trades from the unseen period: " + NOT_SAVED.lower(), size="xs", c=FAINT)]
-    grid = dag.AgGrid(id="idea-report-trades", columnDefs=_columns(), rowData=report["trades"], defaultColDef={"sortable": True, "filter": True, "resizable": True},
-                      dashGridOptions={"theme": GRID_THEME, "pagination": True, "paginationPageSize": 10, "paginationPageSizeSelector": False},
-                      style={"height": 480}, getRowId="params.data.trade_id")
-    return _panel("Trades", "Sort or filter any column", *note, grid)
+
+    def grid(grid_id: str, phone: bool) -> dag.AgGrid:
+        return dag.AgGrid(id=grid_id, columnDefs=_columns(phone), rowData=rows, defaultColDef={"sortable": True, "filter": True, "resizable": True},
+                          dashGridOptions={"theme": GRID_THEME, "pagination": True, "paginationPageSize": 10, "paginationPageSizeSelector": False},
+                          style={"height": 480}, getRowId="params.data.trade_id")
+    # Mantine's own breakpoint props pick the layout (no grid scripting): the phone grid below "sm", the desktop grid from "sm" up
+    return _panel("Trades", "Sort or filter any column", *note, dmc.Box(grid("idea-report-trades", False), visibleFrom="sm"), dmc.Box(grid("idea-report-trades-phone", True), hiddenFrom="sm"))
 
 
 def header(report: dict[str, Any]) -> dmc.Stack:
@@ -218,7 +235,7 @@ def idea_report_layout(search: str | None = None) -> html.Div:
         lower = [panel for panel in (settings_panel(report), luck_panel(report), returns_panel(report)) if panel is not None]
         body = [header(report), strip(report), hero(report), tests_panel(report)]
         if lower:
-            body.append(dmc.SimpleGrid(lower, cols={"base": 1, "md": min(2, len(lower)), "xl": len(lower)}, spacing="md", style={"minWidth": 0}))
+            body.append(dmc.SimpleGrid(lower, cols={"base": 1, "md": min(2, len(lower)), "xl": len(lower)}, spacing="md", style={"minWidth": 0, "alignItems": "start"}))
         body = [item for item in [*body, trades_panel(report)] if item is not None]
     return html.Div(dmc.MantineProvider(dmc.Stack(body, gap="md", p={"base": "sm", "sm": "lg"}, maw=1440, mx="auto", style={"minWidth": 0}), theme=REPORT_THEME, forceColorScheme="dark"),
                     style={"background": BG, "minHeight": "100vh", "fontFamily": SANS, "color": TEXT})
