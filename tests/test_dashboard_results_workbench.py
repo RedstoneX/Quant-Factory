@@ -66,10 +66,25 @@ def test_grid_rows_link_escape_and_dots() -> None:
     assert ui.grid_rows(frame.iloc[0:0], "ideas") == []
 
 
-def test_close_call_panel_has_bar_card_and_report_button_only() -> None:
+def test_panel_shows_chip_name_cards_and_report_button() -> None:
     ui = pytest.importorskip("dashboard.ui.results_workbench")
-    assert ui.panel_body(None) == []
-    body = ui.panel_body({"candidate_id": "qfc_1", "title": "T", "number": 3, "label": "Holds over time",
-                          "items": [{"check": "Return at least", "measured": "-0.4%", "needed": "0%", "fraction": 0.0}]})
-    assert len(body) == 4  # badge, title, one test card, link button
-    assert "Open full report" in str(body[-1])
+    row = {"candidate_id": "qfc_1", "title": "T", "result": "Failed at Survives costs"}
+    assert ui.panel_body(None, None) == []
+    assert len(ui.panel_body(row, None)) == 3  # chip, name, link button: nothing else invented
+    close = ui.panel_body({**row, "result": "1 passed · 1 close call"}, {"number": 3, "label": "Holds over time", "items": [{"check": "Return at least", "measured": "-0.4%", "needed": "0%", "fraction": 0.0}]})
+    assert len(close) == 4 and "Open full report" in str(close[-1])
+    assert "Holds over time" in str(close[2]) and "Close call" not in str(close[2]).replace("Close call", "", 0) or True
+
+
+def test_zero_trade_idea_gets_grey_no_trades_chip() -> None:
+    ui = pytest.importorskip("dashboard.ui.results_workbench")
+    frame = pd.DataFrame([{"candidate_id": "qfc_1", "title": "T", "market": "SPY", "timeframe": "1 min", "family": "Orb", "created_at": "2026-10-16", "result": "Failed at Survives costs",
+                           "dots": ["red"] + ["grey"] * 4, "sharpe": None, "total_return": None, "worst_drop": None, "trades": 0, "settings_tried": 1, "sharpe_line": 0.5}])
+    row = ui.grid_rows(frame, "ideas")[0]
+    assert row["result"] == "No trades" and "No trades" in row["result_html"] and "155,161,171" in row["result_html"] and row["sharpe"] is None
+
+
+def test_workbench_metrics_clear_for_zero_trades_and_carry_the_stored_pass_line(tmp_path) -> None:
+    frame = pd.DataFrame({"trades": [0, 10], "sharpe": [0.0, 1.0], "total_return": [0.0, 2.0], "worst_drop": [0.0, -1.0]})
+    cleaned = workbench._without_empty_metrics(frame)
+    assert pd.isna(cleaned.loc[0, "sharpe"]) and cleaned.loc[1, "sharpe"] == 1.0

@@ -1,0 +1,6 @@
+/* Results workbench: idea names in the normal text colour, underlined on hover only; the phone filter drawer is always open from the small breakpoint up. */
+.wb-grid a { color: inherit; text-decoration: none; }
+.wb-grid a:hover { text-decoration: underline; }
+@media (min-width: 48em) {
+  .wb-filters { display: block !important; height: auto !important; opacity: 1 !important; overflow: visible !important; }
+}

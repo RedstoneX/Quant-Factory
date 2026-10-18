@@ -90,7 +90,7 @@ def _build(database: Path) -> dict[str, pd.DataFrame]:
             "SELECT d.draft_id AS candidate_id, COALESCE(json_extract(d.candidate_json, '$.candidate.title'), d.title) AS title, d.created_at, d.attribution, d.configuration_id, "
             "COALESCE(json_extract(d.candidate_json, '$.candidate.family'), 'other') AS family, "
             "COALESCE(json_extract(c.canonical_config_json, '$.market_data.symbol'), json_extract(c.canonical_config_json, '$.market_data.dataset_id'), 'Unrecorded') AS market, "
-            "json_extract(c.canonical_config_json, '$.market_data.interval') AS interval "
+            "json_extract(c.canonical_config_json, '$.market_data.interval') AS interval, json_extract(c.canonical_config_json, '$.screening.minimum_sharpe_ratio') AS sharpe_line "
             "FROM idea_drafts d JOIN experiment_configurations c ON c.configuration_id=d.configuration_id WHERE d.candidate_json<>'' ORDER BY d.draft_id",
         ).fetchall()
         ideas, settings, seen = [], [], set()
@@ -107,7 +107,7 @@ def _build(database: Path) -> dict[str, pd.DataFrame]:
             statuses, _ = _statuses(database, connection, head["configuration_id"], screening)
             best = _metrics(rows[0]["metrics_json"]) if rows else {}
             common = {"candidate_id": head["candidate_id"], "title": head["title"], "market": head["market"], "timeframe": INTERVALS.get(head["interval"], head["interval"] or ""),
-                      "family": str(head["family"]).replace("_", " ").capitalize(), "created_at": head["created_at"], "result": _overall(statuses), "dots": five_dots(statuses)}
+                      "family": str(head["family"]).replace("_", " ").capitalize(), "sharpe_line": head["sharpe_line"], "created_at": head["created_at"], "result": _overall(statuses), "dots": five_dots(statuses)}
             ideas.append({**common, "sharpe": best.get("sharpe_ratio"), "total_return": _pct(best.get("total_return")), "worst_drop": _pct(best.get("max_drawdown")),
                           "trades": best.get("number_of_trades"), "settings_tried": len(rows)})
             for row in rows:
@@ -119,8 +119,14 @@ def _build(database: Path) -> dict[str, pd.DataFrame]:
         return {"ideas": pd.DataFrame(), "settings": pd.DataFrame()}
     finally:
         connection.close()
-    return {"ideas": pd.DataFrame(ideas).sort_values("created_at", ascending=False).reset_index(drop=True) if ideas else pd.DataFrame(),
-            "settings": pd.DataFrame(settings).sort_values("created_at", ascending=False, kind="stable").reset_index(drop=True) if settings else pd.DataFrame()}
+    return {"ideas": _without_empty_metrics(pd.DataFrame(ideas).sort_values("created_at", ascending=False).reset_index(drop=True)) if ideas else pd.DataFrame(),
+            "settings": _without_empty_metrics(pd.DataFrame(settings).sort_values("created_at", ascending=False, kind="stable").reset_index(drop=True)) if settings else pd.DataFrame()}
+
+
+def _without_empty_metrics(frame: pd.DataFrame) -> pd.DataFrame:
+    """An idea or setting that made no trades has no Sharpe, return or drop to show: those are cleared so they read as unknown, not as zero."""
+    frame.loc[frame["trades"].fillna(0) == 0, ["sharpe", "total_return", "worst_drop"]] = None
+    return frame
 
 
 @lru_cache(maxsize=4)
