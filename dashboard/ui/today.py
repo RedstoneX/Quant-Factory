@@ -122,7 +122,8 @@ def scatter_panel(data: dict[str, Any]) -> dmc.Paper | None:
                                     hovertemplate="%{customdata[1]}<br>Return %{y:.1f}%, worst drop %{x:.1f}%<extra></extra>", marker=dict(color=color, size=size, opacity=opacity)))
     if not best.empty:  # the closest or best idea: bigger, indigo, labelled
         title = str(best.iloc[0]["title"])
-        figure.add_trace(go.Scatter(x=best["worst_drop"], y=best["total_return"], mode="markers+text", name=best_title(data), text=[title if len(title) <= 28 else title[:27] + "…"], textposition="middle left",
+        side = "middle right" if float(best.iloc[0]["worst_drop"]) < float(points["worst_drop"].median()) else "middle left"  # the label runs towards the middle of the plot, never off its edge
+        figure.add_trace(go.Scatter(x=best["worst_drop"], y=best["total_return"], mode="markers+text", name=best_title(data), text=[title if len(title) <= 22 else title[:21] + "…"], textposition=side, cliponaxis=False,
                                     textfont=dict(color=TEXT, size=11), customdata=best[["candidate_id", "title"]].to_numpy(), hovertemplate="%{customdata[1]}<br>Return %{y:.1f}%, worst drop %{x:.1f}%<extra></extra>",
                                     marker=dict(color=INDIGO, size=15, line=dict(color=TEXT, width=1.5))))
     figure.add_hline(y=0, line=dict(color="#3A3F48", width=1))

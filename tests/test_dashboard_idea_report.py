@@ -106,3 +106,17 @@ def test_unseen_run_that_succeeded_with_a_saved_failed_verdict_shows_failed(monk
     monkeypatch.setattr(results, "_artifact_document", lambda **_: {})
     card = results._test_card(tmp_path / "db.sqlite3", "oos", "Unseen data", {"run_id": "run_x", "status": "succeeded"}, {})
     assert report.report_status("oos", card["status"], "succeeded") == "Can't test"  # no saved verdict: still unknown, never guessed
+
+
+def test_factory_verdict_overrides_research_statuses_and_falls_back_without_one() -> None:
+    from dashboard import results_workbench_projection as workbench
+
+    stored = ["Passed", "Can't test", "Can't test", "Can't test", "Can't test"]  # the research DB has no unseen-data run for this idea
+    failed_unseen = report.apply_campaign_verdict(stored, ("screened_out", "oos"))
+    assert failed_unseen == ["Passed", "Failed", "Can't test", "Can't test", "Can't test"] and workbench.overall_status(failed_unseen) == "Failed: unseen"
+    assert report.apply_campaign_verdict(stored, ("screened_out", "screening"))[0] == "Failed"
+    assert report.apply_campaign_verdict(stored, ("screened_out", "walk_forward")) == ["Passed", "Passed", "Failed", "Can't test", "Can't test"]
+    assert report.apply_campaign_verdict(stored, ("survivor", "passed_all")) == ["Passed"] * 5
+    assert report.apply_campaign_verdict(stored, ("failed", "run_error"))[1] == "Crashed"
+    assert report.apply_campaign_verdict(stored, None) == stored  # no event: the research-DB statuses stand
+    assert report.apply_campaign_verdict(stored, ("queued", "waiting")) == stored  # waiting or running is no verdict yet
