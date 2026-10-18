@@ -30,6 +30,7 @@ from dashboard.ui.paper import paper_layout
 from dashboard.ui.results import register_results_callbacks, results_layout
 from dashboard.ui.submit import register_submit_callbacks, submit_layout
 from dashboard.plain_labels import FAILED_TESTING
+from dashboard.data_freshness import load_stale_price_banner
 from dashboard.score_projection import load_waiting_for_you, waiting_banner_text
 from dashboard.time_display import eastern_time_label
 from dashboard.ui.theme import ACCENT, COLUMN_DEFAULTS, FONT_URL, UP, grid_options, hide_when_narrow
@@ -240,7 +241,9 @@ def dashboard_layout() -> html.Div:
     )
     waiting = waiting_banner_text(load_waiting_for_you())
     banner = dmc.Alert(waiting, id="waiting-banner", color="yellow", icon=DashIconify(icon="tabler:hourglass", width=18), m="lg", mb=0) if waiting else None
-    return html.Div([*stores, header, *([banner] if banner else []), body, drawer], className="dashboard-app")
+    stale = load_stale_price_banner()
+    stale_banner = dmc.Alert(stale, id="stale-prices-banner", color="red", icon=DashIconify(icon="tabler:alert-triangle", width=18), m="lg", mb=0) if stale else None
+    return html.Div([*stores, header, *([stale_banner] if stale_banner else []), *([banner] if banner else []), body, drawer], className="dashboard-app")
 
 
 def _selected_item(snapshot: dict[str, Any], selection: dict[str, Any] | None) -> dict[str, Any] | None:
