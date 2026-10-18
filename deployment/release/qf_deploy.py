@@ -7,6 +7,10 @@ checkout, so merging a change to this file cannot run that change as root.  Code
 Privileged configuration tracked in the repository (compose.yaml and the Dashboard
 systemd unit) changes only when an administrator runs ``qf-deploy --install-infra``;
 until then the automatic deploy waits and records why.
+
+Before anything switches, the licensed VectorBT test lane (the tests GitHub CI cannot
+run) runs inside the newly built research image with no network.  A failing revision
+is refused, recorded as ``failed_revision`` and not retried until main moves.
 """
 from __future__ import annotations
 
@@ -45,6 +49,18 @@ GATEWAY_DB = Path(os.environ.get("QF_GATEWAY_DB", "/opt/quant-factory-gateway/st
 DRAIN_MARKER = Path(os.environ.get("QF_DEPLOY_DRAIN_MARKER", "/run/quant-factory/deploy-drain"))
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 REQUIREMENTS = ("requirements-runtime.txt", "requirements-dashboard.txt")
+# The research image ships no test runner: pytest is installed at its requirements-ci.txt
+# pin into the release and mounted read-only into the network-less test container.
+TEST_DEPS = ".qf-pytest"
+# Runs inside the image over only the files holding licensed tests, so test modules that
+# need the Dashboard's packages (absent from the research image) are never imported.
+LICENSED_LANE = (
+    "import sys, pytest\n"
+    "from tests.conftest import LICENSED_VECTORBT_NODE_IDS as ids\n"
+    "files = sorted({node.split('::')[0] for node in ids})\n"
+    "sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', '-m', 'licensed_vectorbt', *files]))\n"
+)
+PYTEST_SUMMARY = re.compile(r"\b(\d+) (?:failed|errors?)\b")
 # Tracked privileged files and where they are installed; only --install-infra copies them.
 INFRA = {
     "compose.yaml": RESEARCH / "compose.yaml",
@@ -80,6 +96,23 @@ def succeeds(*args: str) -> bool:
 
 
 # Pure helpers (unit tested).
+
+def licensed_lane_command(release: Path, revision: str) -> list[str]:
+    """The throwaway, network-less container run of the licensed lane in ``revision``'s image."""
+    return ["docker", "run", "--rm", "--network", "none", "--cpus", "2", "--entrypoint", "python",
+            "--workdir", "/app", "--volume", f"{release / TEST_DEPS}:/opt/qf-pytest:ro",
+            # The same read-only price store and data config the research services mount (compose.yaml).
+            "--volume", f"{RESEARCH / 'market-data'}:/var/lib/quant-factory/market-data:ro",
+            "--volume", f"{RESEARCH / 'config' / 'data_locations.local.toml'}:/app/config/data_locations.local.toml:ro",
+            "--env", "QUANT_FACTORY_DATA_LOCATIONS=/app/config/data_locations.local.toml",
+            "--env", "PYTHONPATH=/app:/opt/qf-pytest", f"{IMAGE}:{revision}", "-c", LICENSED_LANE]
+
+
+def failing_count(output: str) -> int:
+    """Failed plus errored tests on pytest's final summary line (0 when it reports none)."""
+    lines = [line for line in output.splitlines() if line.strip()]
+    return sum(int(count) for count in PYTEST_SUMMARY.findall(lines[-1])) if lines else 0
+
 
 def set_env_revision(text: str, revision: str) -> str:
     """Return compose .env text with its single QF_REVISION line set to ``revision``."""
@@ -186,6 +219,19 @@ def ensure_image(release: Path, revision: str) -> None:
     log(f"building research image {revision[:12]}")
     run("docker", "build", "--quiet", "--build-context", f"vectorbt_private={RESEARCH / 'private'}",
         "--build-arg", f"QF_REVISION={revision}", "--label", f"qf.deploy={revision}", "--tag", tag, str(release))
+
+
+def verify_image(release: Path, revision: str, venv: Path) -> None:
+    """Refuse ``revision`` unless the licensed lane passes inside its research image."""
+    deps = release / TEST_DEPS
+    shutil.rmtree(deps, ignore_errors=True)  # never reuse a half-finished install
+    run(str(venv / "bin" / "python"), "-m", "pip", "install", "--quiet", "--no-cache-dir", "--only-binary=:all:",
+        "--target", str(deps), "--constraint", str(release / "requirements-ci.txt"), "pytest")
+    log(f"running licensed tests in research image {revision[:12]}")
+    result = subprocess.run(licensed_lane_command(release, revision), check=False, text=True, capture_output=True)
+    if result.returncode != 0:
+        raise DeployError(f"licensed tests failed on {revision[:12]}: {failing_count(result.stdout)} failing "
+                          f"(pytest exit {result.returncode}); not switching")
 
 
 def install_infra(release: Path, drift: list[str]) -> list[tuple[Path, Path | None]]:
@@ -368,8 +414,9 @@ def deploy(requested: str | None, *, admin: bool, force: bool, unpin: bool) -> i
 
 
 def _switch(target: str, release: Path, drift: list[str], state: dict, *, pinned: bool) -> int:
-    ensure_venv(release)
+    venv = ensure_venv(release)
     ensure_image(release, target)
+    verify_image(release, target, venv)  # before anything switches; a failure is recorded as failed_revision
     env_file = RESEARCH / ".env"
     set_env_revision(env_file.read_text(encoding="utf-8"), target)  # refuse before changing anything
     previous_revision = env_revision(env_file.read_text(encoding="utf-8"))
