@@ -118,6 +118,9 @@ def plain_rejection_reasons(text: Any) -> list[str]:
         part = part.strip()
         if not part:
             continue
+        if part.endswith("the entry rule never fired in this period"):
+            sentences.append("No trades: the entry rule never fired in this period")
+            continue
         match = _RULE_MESSAGE.match(part)
         if not match or match["metric"] not in _METRIC_WORDS:
             sentences.append(part)
