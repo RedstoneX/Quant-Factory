@@ -12,6 +12,8 @@ OPERATION_LEVELS = {
     "lineage.get": 0,
     "campaign.status": 0,
     "run.trades": 0,
+    "data.files": 0,
+    "data.download": 0,
     "campaign.requeue": 1,
     "candidate.validate": 1,
     "candidate.submit": 1,

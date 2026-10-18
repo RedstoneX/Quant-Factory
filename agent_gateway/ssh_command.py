@@ -9,7 +9,7 @@ import sys
 from agent_gateway.cli import main as cli_main
 
 
-_READ_WITH_ID = {("candidate", "get"), ("run", "status"), ("run", "results"), ("run", "evidence"), ("lineage", "get"), ("campaign", "status"), ("run", "trades")}
+_READ_WITH_ID = {("candidate", "get"), ("run", "status"), ("run", "results"), ("run", "evidence"), ("lineage", "get"), ("campaign", "status"), ("run", "trades"), ("data", "download")}
 
 
 def allowed_arguments(command: str) -> list[str]:
@@ -20,7 +20,7 @@ def allowed_arguments(command: str) -> list[str]:
     if not words or words[0] != "qf-agent":
         raise ValueError("only qf-agent commands are allowed")
     args = words[1:]
-    if args in (["bootstrap"], ["context", "get"], ["candidate", "list"]):
+    if args in (["bootstrap"], ["context", "get"], ["candidate", "list"], ["data", "files"]):
         return args
     if len(args) == 4 and args[:2] == ["prior", "search"] and args[2] == "--query":
         return args

@@ -50,7 +50,9 @@ core logic does not change. A new transport still requires its own reviewed
 adapter. See `docs/AGENT_RESEARCH_OPERATING_CONTEXT.md` for the common research
 rules.
 
-Remote SSH accepts only the documented `qf-agent` grammar. Candidate and note
+Remote SSH accepts only the documented `qf-agent` grammar. `data download` streams a
+committed price file: the gateway opens it read-only and passes the open
+descriptor over the socket (SCM_RIGHTS), so the client never sees a path. Candidate and note
 payloads use stdin (`-`); SCP, SFTP, PTY, shell, forwarding, and arbitrary file
 paths are denied.
 

@@ -42,6 +42,16 @@ credential access are never available through the gateway.
 - Other markets have no trading-cost data yet, so they cannot be tested honestly.
 - No options data exists.
 
+## Downloading the price files
+
+- `qf-agent data files` lists every committed price file: symbol, timeframe,
+  first/last bar, row count, byte size and SHA-256. Files refresh nightly.
+- `ssh <host> qf-agent data download <dataset_id> > file.parquet 2> file.json`
+  writes the file's bytes to stdout and the answer (with its SHA-256) to stderr.
+  Only a `dataset_id` from the listing is accepted. Check the SHA-256 before use.
+- The 1-minute Alpaca SIP equity files include pre/post-market bars; keep
+  `session == 'regular'` for regular hours.
+
 ## Do not
 
 - Re-submit an idea already tried with only a symbol or parameter change.

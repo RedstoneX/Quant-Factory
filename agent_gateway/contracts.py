@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 import re
-from typing import Any, Mapping
+from typing import Any, BinaryIO, Mapping
 
 
 GATEWAY_PROTOCOL = "qf_agent_gateway_v1"
@@ -98,13 +98,17 @@ class GatewayResponse:
     ok: bool
     result: Any | None = None
     error: dict[str, str] | None = None
+    # An opened read-only file the transport passes to the client as a descriptor; never JSON.
+    attachment: BinaryIO | None = field(default=None, compare=False, repr=False)
 
     def document(self) -> dict[str, Any]:
-        return {"protocol": GATEWAY_PROTOCOL, **asdict(self)}
+        values = asdict(replace(self, attachment=None))
+        values.pop("attachment")
+        return {"protocol": GATEWAY_PROTOCOL, **values}
 
 
-def success(request_id: str, result: Any) -> GatewayResponse:
-    return GatewayResponse(request_id=request_id, ok=True, result=result)
+def success(request_id: str, result: Any, attachment: BinaryIO | None = None) -> GatewayResponse:
+    return GatewayResponse(request_id=request_id, ok=True, result=result, attachment=attachment)
 
 
 def failure(request_id: str, code: str, message: str) -> GatewayResponse:

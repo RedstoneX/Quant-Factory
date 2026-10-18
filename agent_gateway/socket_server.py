@@ -107,10 +107,15 @@ class _GatewayHandler(socketserver.StreamRequestHandler):
                 "internal_error",
                 "gateway transport failed without exposing internal details",
             )
-        self.wfile.write(
-            json.dumps(response.document(), sort_keys=True, separators=(",", ":")).encode()
-            + b"\n"
-        )
+        line = json.dumps(response.document(), sort_keys=True, separators=(",", ":")).encode() + b"\n"
+        if response.attachment is None:
+            self.wfile.write(line)
+            return
+        # Large files cannot ride the JSON line, so the opened read-only file travels as a
+        # descriptor (SCM_RIGHTS) with that line; the client copies it to its own stdout.
+        with response.attachment as stream:
+            sent = socket.send_fds(self.request, [line], [stream.fileno()])
+            self.request.sendall(line[sent:])
 
 
 class GatewayUnixServer(socketserver.UnixStreamServer):

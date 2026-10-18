@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import sys
 from uuid import uuid4
@@ -70,6 +71,11 @@ def build_parser() -> argparse.ArgumentParser:
     campaign_actions = campaign.add_subparsers(dest="action", required=True)
     for action in ("status", "requeue"):
         campaign_actions.add_parser(action).add_argument("candidate_id")
+
+    data = commands.add_parser("data")
+    data_actions = data.add_subparsers(dest="action", required=True)
+    data_actions.add_parser("files")
+    data_actions.add_parser("download").add_argument("dataset_id")
     return parser
 
 
@@ -138,6 +144,8 @@ def _operation(args: argparse.Namespace) -> tuple[str, dict[str, object], str | 
         return "lineage.get", {"candidate_id": args.candidate_id}, payload
     if args.group == "campaign":
         return f"campaign.{args.action}", {"candidate_id": args.candidate_id}, payload
+    if args.group == "data":
+        return f"data.{args.action}", ({"dataset_id": args.dataset_id} if args.action == "download" else {}), payload
     raise ValueError("unsupported command")
 
 
@@ -159,6 +167,15 @@ def _read_credential(path: str) -> str:
 
 
 def send(document: dict[str, object], socket_path: str) -> dict[str, object]:
+    response, files = send_with_files(document, socket_path)
+    for descriptor in files:
+        os.close(descriptor)
+    return response
+
+
+def send_with_files(document: dict[str, object], socket_path: str) -> tuple[dict[str, object], list[int]]:
+    """Send one request; return the JSON answer and any file descriptors passed with it."""
+    files: list[int] = []
     encoded = json.dumps(document, sort_keys=True, separators=(",", ":")).encode() + b"\n"
     if len(encoded) > MAX_REQUEST_BYTES:
         raise ValueError("request exceeds gateway size limit")
@@ -168,7 +185,8 @@ def send(document: dict[str, object], socket_path: str) -> dict[str, object]:
         client.sendall(encoded)
         response = b""
         while not response.endswith(b"\n"):
-            chunk = client.recv(65_536)
+            chunk, received, _flags, _address = socket.recv_fds(client, 65_536, 1)
+            files.extend(received)
             if not chunk:
                 break
             response += chunk
@@ -177,16 +195,31 @@ def send(document: dict[str, object], socket_path: str) -> dict[str, object]:
     document = json.loads(response)
     if not isinstance(document, dict):
         raise RuntimeError("gateway response is invalid")
-    return document
+    return document, files
+
+
+def download(document: dict[str, object], socket_path: str) -> dict[str, object]:
+    """Copy the passed read-only file to stdout; the JSON answer goes to stderr."""
+    response, files = send_with_files(document, socket_path)
+    if response.get("ok") and len(files) == 1:
+        with os.fdopen(files.pop(), "rb") as source:
+            shutil.copyfileobj(source, sys.stdout.buffer, 1024 * 1024)
+        sys.stdout.buffer.flush()
+    elif response.get("ok"):
+        response = {"protocol": GATEWAY_PROTOCOL, "ok": False, "error": {"code": "client_error", "message": "gateway sent no file"}}
+    for descriptor in files:
+        os.close(descriptor)
+    return response
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    is_download = args.group == "data" and args.action == "download"
     try:
-        response = send(request_document(args), args.socket)
+        response = (download if is_download else send)(request_document(args), args.socket)
     except (OSError, RuntimeError, ValueError) as exc:
         response = {"protocol": GATEWAY_PROTOCOL, "ok": False, "error": {"code": "client_error", "message": str(exc)}}
-    print(json.dumps(response, indent=2 if args.pretty else None, sort_keys=True))
+    print(json.dumps(response, indent=2 if args.pretty else None, sort_keys=True), file=sys.stderr if is_download else sys.stdout)
     return 0 if response.get("ok") else 1
 
 
