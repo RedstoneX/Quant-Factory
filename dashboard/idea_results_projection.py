@@ -157,6 +157,7 @@ def _test_card(database: Path, stage: str, label: str, run: dict[str, Any] | Non
         value = report.get("total_return")
         line = "No unseen-data result was saved." if value is None else f"{'Made' if value >= 0 else 'Lost'} {abs(float(value)) * 100:.2f}% on data it never saw."
         saved = _artifact_document(database=database, run_id=run_id, logical_name=OOS_REPORT_LOGICAL_NAME) or {}
+        status = status or saved.get("test_status")  # the saved verdict counts even when the report holds no metrics
         if value is None and saved.get("failure_stage"):  # stopped before the unseen data: the run's own saved failure
             failure = failure_score(saved)
             return {"stage": stage, "label": label, "run_id": run_id, "status": "failed", "status_text": "Failed", "color": "red",

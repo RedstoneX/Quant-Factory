@@ -93,3 +93,15 @@ def test_summary_strip_leaves_out_what_cannot_be_computed() -> None:
     items = dict(report.summary_strip(values, [{"pnl": 5.0}, {"pnl": -1.0}, {"pnl": 2.0}], 0.456))
     assert items == {"Return": "-1.0%", "Worst drop": "-10.0%", "Sharpe after costs": "0.46", "Trades": "3", "Win rate": "67%"}
     assert report.summary_strip(pd.Series(dtype=float), [], None) == []
+
+
+def test_unseen_run_that_succeeded_with_a_saved_failed_verdict_shows_failed(monkeypatch, tmp_path) -> None:
+    from dashboard import idea_results_projection as results
+
+    monkeypatch.setattr(results, "oos_report_metrics", lambda **_: None)  # the saved report holds no metrics, only the verdict
+    monkeypatch.setattr(results, "_artifact_document", lambda **_: {"artifact_kind": "out_of_sample", "test_status": "failed"})
+    card = results._test_card(tmp_path / "db.sqlite3", "oos", "Unseen data", {"run_id": "run_x", "status": "succeeded"}, {})
+    assert report.report_status("oos", card["status"], "succeeded") == "Failed"
+    monkeypatch.setattr(results, "_artifact_document", lambda **_: {})
+    card = results._test_card(tmp_path / "db.sqlite3", "oos", "Unseen data", {"run_id": "run_x", "status": "succeeded"}, {})
+    assert report.report_status("oos", card["status"], "succeeded") == "Can't test"  # no saved verdict: still unknown, never guessed
