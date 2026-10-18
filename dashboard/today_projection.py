@@ -60,8 +60,11 @@ def best_idea(ideas: pd.DataFrame) -> str | None:
 
 
 def scatter_points(ideas: pd.DataFrame) -> pd.DataFrame:
-    """Every idea that made trades: return and worst drop, with its result for colour."""
-    return ideas.dropna(subset=["total_return", "worst_drop"])[["candidate_id", "title", "total_return", "worst_drop", "result"]] if not ideas.empty else ideas
+    """Every idea that made trades (zero-trade ideas left out): return and worst drop, with its result for colour."""
+    if ideas.empty:
+        return ideas
+    made = ideas[ideas["result"] != "No trades"].dropna(subset=["total_return", "worst_drop"])
+    return made[["candidate_id", "title", "total_return", "worst_drop", "result"]]
 
 
 def heatmap(ideas: pd.DataFrame) -> pd.DataFrame:

@@ -54,6 +54,8 @@ def test_heatmap_is_best_sharpe_by_market_and_type_and_skips_no_trade_ideas() ->
 
 def test_scatter_keeps_only_ideas_with_return_and_drop() -> None:
     assert len(today.scatter_points(_ideas())) == 6
+    zero = _ideas().assign(total_return=1.0, worst_drop=-1.0)
+    assert "f" not in set(today.scatter_points(zero)["candidate_id"])  # a no-trade idea is never plotted, even with stray numbers
 
 
 def test_daily_counts_cover_last_14_days_zero_filled() -> None:
@@ -61,3 +63,19 @@ def test_daily_counts_cover_last_14_days_zero_filled() -> None:
     series = today.daily_counts(stamps, today=pd.Timestamp("2026-10-18T12:00:00Z"))
     assert len(series) == 14 and series.iloc[-1] == 2 and series.sum() == 3 and series.iloc[0] == 0  # the September run is outside the window
     assert today.daily_counts(pd.to_datetime([], utc=True), today=pd.Timestamp("2026-10-18", tz="UTC")).empty
+
+
+def test_heatmap_rows_sorted_by_best_cell_and_zero_prints_without_minus() -> None:
+    ui = pytest.importorskip("dashboard.ui.today")
+    rows = ui.heat_rows(today.heatmap(_ideas()))
+    assert list(rows.index) == ["SPY", "MES", "QQQ"]  # best cell first; the longer list (3 markets vs 2 types) runs down
+    assert ui.heat_text(-0.04) == "0.0" and ui.heat_text(-1.04) == "-1.0" and ui.heat_text(float("nan")) == ""
+    assert ui.short_label("Late session volatility reacceleration", True).endswith("…") and len(ui.short_label("Late session volatility reacceleration", True)) == 18
+    assert ui.short_label("Late session volatility reacceleration", False) == "Late session volatility reacceleration"
+
+
+def test_section_title_is_closest_so_far_until_an_idea_passes() -> None:
+    ui = pytest.importorskip("dashboard.ui.today")
+    ideas = _ideas()
+    assert ui.best_title({"waiting": today.needs_owner(ideas)}) == "Best idea"
+    assert ui.best_title({"waiting": today.needs_owner(ideas.iloc[2:])}) == "Closest so far"
