@@ -17,6 +17,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from backtesting.screening.deflated_sharpe import grid_returns
+
 PBO_FOLDS = 8
 PBO_TEST_FOLDS = 4
 
@@ -29,6 +31,16 @@ class OverfittingPBOResult:
     splits: int  # splits with a defined train best and test rank (70 when none are missing)
     trials: int
     observations: int
+
+
+def daily_grid_returns(values: np.ndarray, initial_cash: float, index: pd.Index) -> pd.DataFrame:
+    """Daily returns of a (bars x settings) value grid, from each day's closing value.
+
+    The recipe scores daily Sharpe (freq="1D"), so PBO gets one row per day, not every bar;
+    on minute data this also keeps its 70 splits small.
+    """
+    daily = pd.DataFrame(values, index=index).groupby(pd.DatetimeIndex(index).date).last()
+    return grid_returns(daily.to_numpy(), initial_cash, pd.DatetimeIndex(daily.index))
 
 
 def probability_of_backtest_overfitting(
