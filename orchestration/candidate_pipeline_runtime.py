@@ -50,6 +50,7 @@ from orchestration.candidate_pipeline_parsing import (
     _strict_number, _optional_number, _optional_int, _optional_text,
     parse_robustness_contract,
 )
+from orchestration.candidate_data_window import session_closed_data_end
 from orchestration.filter_chain import (
     FactoryFilterChainService,
     FilterChainOutcome,
@@ -812,10 +813,9 @@ class CandidatePipelineRuntime:
                 )
                 market = load_market_data(
                     self.definition.experiment.market_data,
-                    now=(
-                        pd.Timestamp(self.definition.validation.data_as_of)
-                        if self.definition.validation.data_as_of is not None
-                        else None
+                    now=session_closed_data_end(
+                        self.definition.experiment.market_data,
+                        self.definition.validation.data_as_of,
                     ),
                     allow_download=not self.cache_only,
                 )

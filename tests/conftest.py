@@ -15,6 +15,8 @@ from market_data.models import MarketDataConfig
 LICENSED_VECTORBT_NODE_IDS = frozenset(
     {
         "tests/test_deflated_sharpe.py::test_matches_library_on_fixture",
+        "tests/test_data_as_of_session_clip.py::test_clipped_mid_session_window_passes_session_metrics",
+        "tests/test_data_as_of_session_clip.py::test_early_close_window_passes_session_metrics",
         "tests/test_market_data_vbt.py::test_vbt_top_up_stores_exactly_what_legacy_stores",
         "tests/test_market_data_vbt.py::test_moved_last_bar_triggers_full_refetch",
         "tests/test_market_data_vbt.py::test_saved_vbt_file_holds_no_api_keys",

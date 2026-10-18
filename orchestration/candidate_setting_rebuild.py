@@ -20,6 +20,7 @@ import pandas as pd
 from backtesting.experiments import build_portfolio
 from backtesting.experiments.metrics import extract_metrics
 from market_data import load_market_data
+from orchestration.candidate_data_window import session_closed_data_end
 from orchestration.candidate_pipeline_runtime import CandidatePipelineDefinition
 from persistence import PersistenceService
 from persistence.service import RUNTIME_LINEAGE_ENVIRONMENT_KEY
@@ -137,7 +138,7 @@ def rebuild_setting(database: str, run_id: str, row_id: str) -> SettingRebuild:
     data_as_of = saved.definition.validation.data_as_of
     market = load_market_data(
         saved.definition.experiment.market_data,
-        now=pd.Timestamp(data_as_of) if data_as_of is not None else None,
+        now=session_closed_data_end(saved.definition.experiment.market_data, data_as_of),
         allow_download=False,
     )
     prove_same_data(market.audit, saved)
