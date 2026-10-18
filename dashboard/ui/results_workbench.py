@@ -19,7 +19,7 @@ from dashboard.ui.idea_report import AMBER, BG, FAINT, GREEN, GRID_THEME, INDIGO
 GRIDS = (("ideas", False), ("ideas", True), ("settings", False), ("settings", True))  # (mode, phone layout)
 BRUSHES = (("sharpe", "Sharpe"), ("worst_drop", "Worst drop (%)"), ("total_return", "Return (%)"), ("trades", "Trades"))
 DOT = '<span style="display:inline-block;width:18px;height:6px;border-radius:2px;margin-right:3px;background:{}"></span>'
-GROUPS = {"family": "Strategy family", "market": "Market", "none": "No grouping"}
+TYPE_ALL = "All strategy types"
 
 
 def grid_id(mode: str, phone: bool) -> str:
@@ -52,7 +52,7 @@ def _data_bar(scale: float, color: str, negative: str | None = None) -> dict[str
     return {"function": "({background: 'linear-gradient(90deg, " + (f"' + (params.value < 0 ? '{negative}' : '{color}') + '" if negative else color) + " ' + Math.min(100, Math.abs(params.value || 0) / " + f"{scale:.6f}" + " * 100) + '%, transparent 0)', fontFamily: \"'Geist Mono', monospace\"})"}
 
 
-def columns(phone: bool, group: str, bounds: dict[str, tuple[float, float]], grouped: bool) -> list[dict[str, Any]]:
+def columns(phone: bool, bounds: dict[str, tuple[float, float]]) -> list[dict[str, Any]]:
     number = lambda fmt: {"function": f"d3.format('{fmt}')(params.value)"}  # noqa: E731  (dash-ag-grid documented d3 formatter)
     pct = {"function": "params.value == null ? '' : d3.format('+.1f')(params.value) + '%'"}
     drop = {"function": "params.value == null ? '' : d3.format('.1f')(params.value) + '%'"}
@@ -68,9 +68,8 @@ def columns(phone: bool, group: str, bounds: dict[str, tuple[float, float]], gro
         {"field": "trades", "headerName": "Trades", "width": 110, "filter": "agNumberColumnFilter", "valueFormatter": number(","), "cellStyle": mono},
         {"field": "dots_html", "headerName": "Five tests", "width": 150, "cellRenderer": "markdown", "sortable": False, "filter": False},
         {"field": "result", "headerName": "Result", "width": 190, "filter": "agTextColumnFilter"},
-        {"field": "created_at", "headerName": "Submitted", "hide": True, "sort": "desc"},
-        {"field": "family", "headerName": GROUPS["family"], "hide": True, **({"rowGroup": True} if grouped and group == "family" else {})},
-        {"field": "market", "headerName": "Market", "hide": True, **({"rowGroup": True} if grouped and group == "market" else {})},
+        {"field": "family", "headerName": "Strategy type", "width": 190, "filter": "agTextColumnFilter", "sort": "asc", "sortIndex": 0},
+        {"field": "created_at", "headerName": "Submitted", "hide": True, "sort": "desc", "sortIndex": 1},
     ]
     return cols
 
@@ -79,18 +78,17 @@ def _bounds(frame: pd.DataFrame) -> dict[str, tuple[float, float]]:
     return {key: (float(frame[key].min()), float(frame[key].max())) if not frame.empty and frame[key].notna().any() else (0.0, 1.0) for key, _label in BRUSHES}
 
 
-def _grid(mode: str, phone: bool, frame: pd.DataFrame, first: str | None, group: str) -> dag.AgGrid:
+def _grid(mode: str, phone: bool, frame: pd.DataFrame, first: str | None) -> dag.AgGrid:
     options: dict[str, Any] = {"theme": GRID_THEME, "rowHeight": 54, "animateRows": False, "rowSelection": {"mode": "singleRow", "checkboxes": False, "enableClickSelection": True},
                                "tooltipShowDelay": 300}
     props: dict[str, Any] = {}
     if mode == "ideas":
-        options.update(groupDisplayType="groupRows", groupDefaultExpanded=-1)
-        props.update(rowData=grid_rows(frame, mode), getRowId="params.data.candidate_id", enableEnterpriseModules=True,
+        props.update(rowData=grid_rows(frame, mode), getRowId="params.data.candidate_id",
                      selectedRows=[row for row in grid_rows(frame, mode) if row["candidate_id"] == first])  # opens on the newest real idea
     else:
         options.update(cacheBlockSize=100, maxBlocksInCache=10)
         props.update(rowModelType="infinite", getRowId="params.data.row_id")
-    return dag.AgGrid(id=grid_id(mode, phone), columnDefs=columns(phone, group, _bounds(frame), mode == "ideas" and group != "none"), defaultColDef={"sortable": True, "resizable": True, "filter": True},
+    return dag.AgGrid(id=grid_id(mode, phone), columnDefs=columns(phone, _bounds(frame)), defaultColDef={"sortable": True, "resizable": True, "filter": True},
                       dashGridOptions=options, dangerously_allow_code=True, style={"height": 620}, **props)
 
 
@@ -143,12 +141,12 @@ def results_workbench_layout(search: str | None = None) -> html.Div:
         head = dmc.Stack([dmc.Text("Results", size="xs", c=FAINT), dmc.Title("Results workbench", order=1, size=26, fw=600)], gap=4)
         controls = dmc.Group([
             dmc.SegmentedControl(id="wb-mode", value="ideas", data=[{"value": "ideas", "label": f"Ideas · {len(ideas):,}"}, {"value": "settings", "label": f"Every setting tried · {len(settings):,}"}]),
-            dmc.Select(id="wb-group", value="family", data=[{"value": key, "label": f"Group: {label}"} for key, label in GROUPS.items()], allowDeselect=False, w=220),
+            dmc.Select(id="wb-type", value=TYPE_ALL, data=[TYPE_ALL, *sorted(ideas["family"].unique())], allowDeselect=False, w=260),
         ], gap="sm")
         brushes = brush_cards(ideas)
         def wrap(mode: str) -> dmc.Box:
-            return dmc.Box([dmc.Box(_grid(mode, False, ideas if mode == "ideas" else settings, first, "family"), visibleFrom="sm"),
-                            dmc.Box(_grid(mode, True, ideas if mode == "ideas" else settings, first, "family"), hiddenFrom="sm")], id=f"wb-wrap-{mode}", style={"display": "block" if mode == "ideas" else "none"})
+            return dmc.Box([dmc.Box(_grid(mode, False, ideas if mode == "ideas" else settings, first), visibleFrom="sm"),
+                            dmc.Box(_grid(mode, True, ideas if mode == "ideas" else settings, first), hiddenFrom="sm")], id=f"wb-wrap-{mode}", style={"display": "block" if mode == "ideas" else "none"})
         table = dmc.Paper([wrap("ideas"), wrap("settings")], radius="lg", bg=PANEL, style={"border": f"1px solid {LINE}", "minWidth": 0, "overflow": "hidden", "flex": "999 1 640px"})
         side = dmc.Paper(id="wb-panel", p="lg", radius="lg", bg=PANEL, style={"border": f"1px solid #2A2E36", "minWidth": 0, "flex": "1 1 340px", "display": "none"})
         body = [head, controls, *([dmc.SimpleGrid(brushes, cols={"base": 1, "sm": 2, "lg": len(brushes)}, spacing="md")] if brushes else []),
@@ -158,16 +156,16 @@ def results_workbench_layout(search: str | None = None) -> html.Div:
 
 
 def register_workbench_callbacks(application: Dash) -> None:
-    """Standard Dash callbacks only: slider ranges drive the grids' filterModel, the toggle swaps grids, infinite grids fetch pages, a selection fills the panel."""
+    """Standard Dash callbacks only: slider ranges and the strategy-type select drive the grids' filterModel, the toggle swaps grids, infinite grids fetch pages, a selection fills the panel."""
     keys = [key for key, _label in BRUSHES]
 
     @application.callback([Output(f"wb-hist-{key}", "figure") for key in keys] + [Output(f"wb-range-{key}", "children") for key in keys]
                           + [Output(grid_id(mode, phone), "filterModel") for mode, phone in GRIDS],
-                          [Input(f"wb-slider-{key}", "value") for key in keys] + [State("wb-mode", "value")], prevent_initial_call=True)
+                          [Input(f"wb-slider-{key}", "value") for key in keys] + [Input("wb-type", "value"), State("wb-mode", "value")], prevent_initial_call=True)
     def brush(*args: Any):
-        *ranges, mode = args
+        *ranges, strategy_type, mode = args
         frame = load_workbench()["ideas" if mode == "ideas" else "settings"]
-        model: dict[str, Any] = {}
+        model: dict[str, Any] = {} if strategy_type == TYPE_ALL else {"family": {"filterType": "text", "type": "equals", "filter": strategy_type}}
         figures, labels = [], []
         for key, (low, high) in zip(keys, ranges):
             full = (float(frame[key].min()), float(frame[key].max()))
@@ -190,11 +188,6 @@ def register_workbench_callbacks(application: Dash) -> None:
     @application.callback(Output("wb-wrap-ideas", "style"), Output("wb-wrap-settings", "style"), Input("wb-mode", "value"))
     def swap(mode: str):
         return {"display": "block" if mode == "ideas" else "none"}, {"display": "block" if mode == "settings" else "none"}
-
-    @application.callback(Output(grid_id("ideas", False), "columnDefs"), Output(grid_id("ideas", True), "columnDefs"), Input("wb-group", "value"))
-    def regroup(group: str):
-        bounds = _bounds(load_workbench()["ideas"])
-        return columns(False, group, bounds, group != "none"), columns(True, group, bounds, group != "none")
 
     for phone in (False, True):
         @application.callback(Output(grid_id("settings", phone), "getRowsResponse"), Input(grid_id("settings", phone), "getRowsRequest"))
