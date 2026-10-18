@@ -21,9 +21,9 @@ from agent_gateway.contracts import (
     failure,
     success,
 )
-from agent_gateway import data_files, results
+from agent_gateway import results
 from agent_gateway.store import GatewayStore
-from market_data.catalog import DataLocations, load_data_locations
+from orchestration import committed_price_files as data_files
 from orchestration.auto_campaign import POLICY_ID as CAMPAIGN_POLICY_ID
 from orchestration.auto_campaign_stocks import UNIVERSE as STOCK_UNIVERSE
 from persistence import PersistenceService, RunStage
@@ -53,7 +53,7 @@ class AgentResearchGateway:
         artifact_root: str | Path,
         run_launcher: RunLauncher | None = None,
         automatic_testing_enabled: bool = False,
-        data_locations: DataLocations | None = None,
+        data_locations: data_files.DataLocations | None = None,
     ) -> None:
         self.data_locations = data_locations
         self.database = Path(database)
@@ -94,9 +94,8 @@ class AgentResearchGateway:
             try:
                 lineage = _lineage_argument(request.arguments)
                 result = self._dispatch(request, identity, store)
-                attachment = None
-                if isinstance(result, data_files.Download):
-                    result, attachment = result.document, result.stream
+                download = result if isinstance(result, data_files.Download) else None
+                result, attachment = (download.document, download.stream) if download else (result, None)
                 response = success(request.request_id, result, attachment)
                 accepted, reason = True, "accepted"
                 if isinstance(result, Mapping):
@@ -172,15 +171,16 @@ class AgentResearchGateway:
             "campaign.status": self._campaign_status,
             "campaign.requeue": self._campaign_requeue,
             "run.trades": self._run_trades,
-            "data.files": lambda *_: data_files.list_datasets(self._locations()),
-            "data.download": lambda request, *_: data_files.open_dataset(
-                self._locations(), request.arguments.get("dataset_id")
-            ),
+            "data.files": lambda *_: data_files.list_datasets(self.data_locations or data_files.load_data_locations()),
+            "data.download": self._data_download,
         }
         return handlers[request.operation](request, identity, store)
 
-    def _locations(self) -> DataLocations:
-        return self.data_locations or load_data_locations()
+    def _data_download(self, request: GatewayRequest, *_: Any) -> data_files.Download:
+        try:
+            return data_files.open_dataset(self.data_locations or data_files.load_data_locations(), request.arguments.get("dataset_id"))
+        except data_files.PriceFileError as exc:
+            raise GatewayError(exc.code, str(exc)) from None
 
     def _context_get(self, *_: Any) -> dict[str, Any]:
         return build_research_context(STOCK_UNIVERSE)

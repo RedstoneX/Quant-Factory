@@ -1,4 +1,4 @@
-"""Read-only listing and opening of committed price files for the research gateway.
+"""Read-only listing and opening of committed price files (used by the research gateway).
 
 Every path comes from a manifest through the market-data catalog; the caller only
 ever supplies a dataset ID, which must match a listed ID exactly.
@@ -12,14 +12,35 @@ import os
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from agent_gateway.contracts import GatewayError
 from market_data.catalog import (
     DataLocations,
     DatasetUnavailableError,
+    load_data_locations,
     load_dataset_manifest,
     manifest_dir_for,
     resolve_dataset_path,
 )
+
+
+__all__ = ["DataLocations", "DatasetChangingError", "Download", "PriceFileError", "UnknownDatasetError", "list_datasets", "load_data_locations", "open_dataset"]
+
+
+class PriceFileError(Exception):
+    """A refusal with a stable code and a message safe to show the caller."""
+
+    code = "price_file_error"
+
+
+class UnknownDatasetError(PriceFileError, LookupError):
+    """The requested ID is not a committed, listed dataset."""
+
+    code = "unknown_dataset"
+
+
+class DatasetChangingError(PriceFileError, RuntimeError):
+    """The committed file no longer matches its manifest (a refresh is landing)."""
+
+    code = "dataset_changing"
 
 
 @dataclass(frozen=True)
@@ -72,10 +93,10 @@ def list_datasets(locations: DataLocations) -> dict[str, Any]:
 def open_dataset(locations: DataLocations, dataset_id: object) -> Download:
     committed = _committed(locations)
     if not isinstance(dataset_id, str) or dataset_id not in committed:
-        raise GatewayError("unknown_dataset", "dataset is not in the data_files listing")
+        raise UnknownDatasetError("dataset is not in the data_files listing")
     entry, path = committed[dataset_id]
     stream = path.open("rb")
     if os.fstat(stream.fileno()).st_size != entry["size_bytes"]:
         stream.close()
-        raise GatewayError("dataset_changing", "dataset is being refreshed; list again and retry")
+        raise DatasetChangingError("dataset is being refreshed; list again and retry")
     return Download(document={"dataset": entry}, stream=stream)
