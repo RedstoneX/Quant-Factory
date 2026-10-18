@@ -58,7 +58,7 @@ LICENSED_LANE = (
     "import sys, pytest\n"
     "from tests.conftest import LICENSED_VECTORBT_NODE_IDS as ids\n"
     "files = sorted({node.split('::')[0] for node in ids})\n"
-    "sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', '-m', 'licensed_vectorbt and not controlled_market_data', *files]))\n"
+    "sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', '-m', 'licensed_vectorbt', *files]))\n"
 )
 PYTEST_SUMMARY = re.compile(r"\b(\d+) (?:failed|errors?)\b")
 # Tracked privileged files and where they are installed; only --install-infra copies them.
@@ -101,6 +101,10 @@ def licensed_lane_command(release: Path, revision: str) -> list[str]:
     """The throwaway, network-less container run of the licensed lane in ``revision``'s image."""
     return ["docker", "run", "--rm", "--network", "none", "--cpus", "2", "--entrypoint", "python",
             "--workdir", "/app", "--volume", f"{release / TEST_DEPS}:/opt/qf-pytest:ro",
+            # The same read-only price store and data config the research services mount (compose.yaml).
+            "--volume", f"{RESEARCH / 'market-data'}:/var/lib/quant-factory/market-data:ro",
+            "--volume", f"{RESEARCH / 'config' / 'data_locations.local.toml'}:/app/config/data_locations.local.toml:ro",
+            "--env", "QUANT_FACTORY_DATA_LOCATIONS=/app/config/data_locations.local.toml",
             "--env", "PYTHONPATH=/app:/opt/qf-pytest", f"{IMAGE}:{revision}", "-c", LICENSED_LANE]
 
 

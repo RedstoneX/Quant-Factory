@@ -115,8 +115,6 @@ CONTROLLED_MARKET_DATA_NODE_IDS = frozenset(
     {
         "tests/test_mes_opening_range_breakout.py::test_cataloged_mes_file_matches_committed_manifest",
         "tests/test_futures_profiles.py::test_manifest_passes_the_same_verified_data_check_as_mes",
-        "tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage",
-        "tests/test_milestone21c_spym_fixture.py::test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades",
     }
 )
 
