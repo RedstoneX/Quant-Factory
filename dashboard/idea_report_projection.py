@@ -40,6 +40,33 @@ def report_status(stage: str, stored_status: str | None, run_status: str | None)
     return CANT_TEST
 
 
+def overall_chip(tests: list[dict[str, Any]]) -> tuple[str, str]:
+    """Header chip text and tone: the overall status from the five-status set, plus a count when mixed."""
+    if not any(test["run_id"] for test in tests):
+        return "Not tested yet", "grey"
+    gate = next((test for test in tests if test["stage"] in TRADE_STAGES and test["status"] == FAILED), None)
+    if gate:
+        return f"Failed at {gate['label']}", "red"
+    if all(test["status"] == PASSED for test in tests):
+        return PASSED, "green"
+    counts = [(word, sum(1 for test in tests if test["status"] == word)) for word in (PASSED, CLOSE_CALL, CRASHED, CANT_TEST)]
+    return " · ".join(f"{count} {word.lower()}" for word, count in counts if count), "red" if any(t["status"] == CRASHED for t in tests) else "grey"
+
+
+def summary_strip(whole: pd.Series, trades: list[dict[str, Any]], sharpe: float | None) -> list[tuple[str, str]]:
+    """Return, worst drop, Sharpe after costs, trades and win rate from stored account value and trades; anything not computable is left out."""
+    items: list[tuple[str, str]] = []
+    if len(whole) > 1:
+        items.append(("Return", f"{(whole.iloc[-1] / whole.iloc[0] - 1) * 100:+.1f}%"))
+        items.append(("Worst drop", f"{drawdown(whole).min():.1f}%"))
+    if sharpe is not None:
+        items.append(("Sharpe after costs", f"{float(sharpe):.2f}"))
+    pnl = pd.Series([trade["pnl"] for trade in trades if trade.get("pnl") is not None], dtype=float)
+    if not pnl.empty:
+        items += [("Trades", f"{len(pnl):,}"), ("Win rate", f"{(pnl > 0).mean() * 100:.0f}%")]
+    return items
+
+
 def never_ran_card(idea: dict[str, Any], tests: list[dict[str, Any]]) -> dict[str, str]:
     """Why no account-value history exists, and the one thing to do about it (from stored run states only)."""
     states = {test["run_status"] for test in tests if test["run_status"]}
@@ -183,7 +210,7 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
         detail = load_stage_detail(idea, stage, database=path) if stage in ("walk_forward", "robustness", "monte_carlo") and run else {"periods": [], "checks": []}
         stored_status = stored.get("status") if stored.get("status") in ("passed", "failed") else None
         tests.append({"stage": stage, "label": TEST_LABELS[stage], "run_id": run.get("run_id"), "run_status": run.get("status"),
-                      "status": report_status(stage, stored_status, run.get("status")), "line": stored.get("line") or "This test has not run for this idea yet.", "detail": detail})
+                      "status": report_status(stage, stored_status, run.get("status")), "line": (stored.get("line") or "") if run.get("run_id") else "", "detail": detail})
     screening_view = load_trade_view(idea, "screening", database=path) if "screening" in runs else {"available": False}
     unseen_view = load_trade_view(idea, "oos", database=path) if "oos" in runs else {"available": False}
     screening_equity = screening_view.get("equity") or [] if screening_view.get("available") else []
@@ -202,13 +229,11 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
             hold = close / close.iloc[0] * whole.iloc[0] if not close.empty else close
     trades = (screening_view.get("trades") if screening_view.get("available") else None) or (unseen_view.get("trades") if unseen_view.get("available") else None) or []
     has_chart = not whole.empty
-    passed = sum(1 for test in tests if test["status"] == PASSED)
-    failed_gate = next((test for test in tests if test["stage"] in TRADE_STAGES and test["status"] == FAILED), None)
     performance = ((unseen_view.get("performance") if unseen_equity else None) or screening_view.get("performance") or {}).get("performance", {}).get("all") or {}
     rows = idea.get("screening_rows") or []
     return {
         "available": True, "title": idea["title"], "symbol": idea.get("symbol") or "", "candidate_id": idea.get("candidate_id") or candidate_id,
-        "verdict": f"Failed at: {failed_gate['label'].lower()}" if failed_gate else f"Passed {passed} of {len(tests)}", "verdict_tone": "red" if failed_gate else "green" if passed == len(tests) else "grey",
+        "verdict": overall_chip(tests)[0], "verdict_tone": overall_chip(tests)[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
         "tested": _tested_label(path, (runs.get("screening") or {}).get("run_id")), "tests": tests,
         "hero": {"kind": "chart" if has_chart else "never_ran", **({} if has_chart else never_ran_card(idea, tests)),
                  "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if unseen_equity else NOT_SAVED},
@@ -221,4 +246,4 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
 
 
 __all__ = ["CANT_TEST", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
-           "monthly_returns", "never_ran_card", "report_status", "settings_grid"]
+           "monthly_returns", "never_ran_card", "overall_chip", "report_status", "summary_strip", "settings_grid"]

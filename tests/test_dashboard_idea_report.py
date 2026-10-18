@@ -73,3 +73,23 @@ def test_settings_grid_marks_chosen_setting() -> None:
     grid = report.settings_grid(rows, "r10")
     assert grid["count"] == 4 and grid["chosen"] == ("0.4", "5") and grid["down"] == "stop"
     assert report.settings_grid([], None) is None
+
+
+def _tests(statuses: list[str], ran: int) -> list[dict]:
+    stages = ["screening", "oos", "walk_forward", "robustness", "monte_carlo"]
+    return [{"stage": stage, "label": report.TEST_LABELS[stage], "status": status, "run_id": "r" if index < ran else None}
+            for index, (stage, status) in enumerate(zip(stages, statuses))]
+
+
+def test_header_chip() -> None:
+    assert report.overall_chip(_tests(["Passed"] * 5, 5)) == ("Passed", "green")
+    assert report.overall_chip(_tests(["Passed", "Can't test", "Can't test", "Can't test", "Can't test"], 1)) == ("1 passed · 4 can't test", "grey")
+    assert report.overall_chip(_tests(["Failed", "Can't test", "Can't test", "Can't test", "Can't test"], 1)) == ("Failed at Survives costs", "red")
+    assert report.overall_chip(_tests(["Can't test"] * 5, 0)) == ("Not tested yet", "grey")
+
+
+def test_summary_strip_leaves_out_what_cannot_be_computed() -> None:
+    values = pd.Series([100.0, 110.0, 99.0], index=pd.to_datetime(["2024-01-02", "2024-01-03", "2024-01-04"]))
+    items = dict(report.summary_strip(values, [{"pnl": 5.0}, {"pnl": -1.0}, {"pnl": 2.0}], 0.456))
+    assert items == {"Return": "-1.0%", "Worst drop": "-10.0%", "Sharpe after costs": "0.46", "Trades": "3", "Win rate": "67%"}
+    assert report.summary_strip(pd.Series(dtype=float), [], None) == []
