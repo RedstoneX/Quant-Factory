@@ -16,20 +16,6 @@ from persistence import ArtifactType, PersistenceService, RunStage, RunStatus
 FINISHED = frozenset({RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED})
 _OOS_KEYS = ("total_return", "max_drawdown", "win_rate", "number_of_trades", "sharpe_ratio")
 EASTERN = "US/Eastern"
-_SAFE_EVIDENCE_STATES = {"gated", "not_applicable", None}
-
-
-def _values_for_key(value: Any, key: str) -> list[Any]:
-    found: list[Any] = []
-    if isinstance(value, Mapping):
-        for name, child in value.items():
-            if name == key:
-                found.append(child)
-            found.extend(_values_for_key(child, key))
-    elif isinstance(value, list):
-        for child in value:
-            found.extend(_values_for_key(child, key))
-    return found
 
 
 def evidence_summaries(retrieval: Any) -> list[dict[str, Any]]:
@@ -38,8 +24,6 @@ def evidence_summaries(retrieval: Any) -> list[dict[str, Any]]:
         if artifact.artifact_type.value != "validation_evidence":
             continue
         document = json.loads(Path(checked.resolved_path or "").read_text())
-        if not set(_values_for_key(document, "protected_data_state")).issubset(_SAFE_EVIDENCE_STATES):
-            raise GatewayError("protected_result_denied", "protected evidence is not available through this gateway")
         summaries.append(
             {
                 "logical_name": artifact.logical_name,

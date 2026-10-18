@@ -145,6 +145,18 @@ def test_trade_list_in_eastern_time(tmp_path):
     assert trade["side"] == "Long" and trade["pnl_points"] == 2.5 and trade["pnl_percent"] == pytest.approx(2.5)
 
 
+def test_oos_trades_returned_after_finish(tmp_path):
+    trades = {"price_unit": "index_points", "trades": [{
+        "Entry Index": "2026-01-05T14:35:00+00:00", "Exit Index": "2026-01-05T15:05:00+00:00",
+        "Direction": "Long", "Avg Entry Price": 100.0, "Avg Exit Price": 102.5, "Return": 0.025, "PnL": 12.5,
+    }]}
+    run_id = _run(tmp_path, RunStage.OOS, finish=True,
+                  artifact=(ArtifactType.TRADES_OR_ORDERS, "trades_and_orders", trades))
+    response = _ask(_gateway(tmp_path), "run.trades", run_id=run_id)
+    assert response.ok, response.error
+    assert response.result["trades"][0]["side"] == "Long"
+
+
 def test_trade_list_says_not_saved(tmp_path):
     run_id = _run(tmp_path, RunStage.SCREENING, finish=True)
     response = _ask(_gateway(tmp_path), "run.trades", run_id=run_id)

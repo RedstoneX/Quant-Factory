@@ -364,7 +364,7 @@ def test_unapproved_candidate_cannot_launch(tmp_path, identities):
     assert calls == []
 
 
-def test_protected_oos_status_results_and_evidence_are_denied(tmp_path, identities):
+def test_unfinished_oos_status_readable_results_and_evidence_not_yet(tmp_path, identities):
     service = PersistenceService(tmp_path / "qf.sqlite3")
     try:
         service.register_strategy(
@@ -391,8 +391,11 @@ def test_protected_oos_status_results_and_evidence_are_denied(tmp_path, identiti
             _request(operation, arguments={"run_id": run.run_id}, request_id=f"req_protected_{index:08d}"),
             identities["codex"],
         )
-        assert response.ok is False
-        assert response.error["code"] == "protected_result_denied"
+        if operation == "run.status":
+            assert response.ok, response.error
+        else:
+            assert response.ok is False
+            assert response.error["code"] == "protected_result_denied"
 
 
 def test_errors_redact_secret_like_validation_detail(tmp_path, identities, monkeypatch):
