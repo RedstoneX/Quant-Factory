@@ -135,3 +135,41 @@ def test_force_env_deploys_despite_a_running_test(switched: list[str], monkeypat
     monkeypatch.setenv("QF_DEPLOY_FORCE", "1")
     assert _deploy() == 0
     assert switched == [SHA_B]
+
+
+def test_licensed_lane_runs_in_a_networkless_throwaway_container_of_the_new_image(tmp_path: Path) -> None:
+    command = qf_deploy.licensed_lane_command(tmp_path, SHA_A)
+
+    assert command[:4] == ["docker", "run", "--rm", "--network"]
+    assert command[command.index("--network") + 1] == "none"
+    assert f"{qf_deploy.IMAGE}:{SHA_A}" in command
+    assert f"{tmp_path / qf_deploy.TEST_DEPS}:/opt/qf-pytest:ro" in command
+    assert command[-2:] == ["-c", qf_deploy.LICENSED_LANE]
+    assert "licensed_vectorbt" in qf_deploy.LICENSED_LANE
+
+
+@pytest.mark.parametrize(
+    ("output", "failing"),
+    [
+        ("....\n2 failed, 166 passed, 13 warnings in 264.21s (0:04:24)\n", 2),
+        ("E\n1 failed, 80 passed, 3 errors in 9.00s\n", 4),
+        ("...\n87 passed in 120.00s\n", 0),
+        ("", 0),
+    ],
+)
+def test_failing_count_reads_pytest_summary_line(output: str, failing: int) -> None:
+    assert qf_deploy.failing_count(output) == failing
+
+
+def test_a_failed_licensed_lane_refuses_the_revision(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(qf_deploy, "run", lambda *args, **_: calls.append(args) or "")
+    monkeypatch.setattr(
+        qf_deploy.subprocess,
+        "run",
+        lambda *_, **__: qf_deploy.subprocess.CompletedProcess([], 1, stdout="F\n1 failed, 5 passed in 1.00s\n"),
+    )
+
+    with pytest.raises(qf_deploy.DeployError, match=rf"licensed tests failed on {SHA_A[:12]}: 1 failing"):
+        qf_deploy.verify_image(tmp_path, SHA_A, tmp_path / "venv")
+    assert "--target" in calls[0] and "pytest" in calls[0]
