@@ -1,6 +1,6 @@
 """Plain-English warning when stored Alpaca 1-minute price sets have gone stale.
 
-Reads the same manifests the data-health page reads (read-only) and compares each
+Reads the manifests the nightly top-up writes (read-only; one-off downloads elsewhere are not topped up) and compares each
 set's latest bar with the most recent completed NYSE session (pandas_market_calendars,
 as used by the stock campaign code).
 """
@@ -56,6 +56,6 @@ def stale_price_banner_text(manifest_dirs: list[Path], now: pd.Timestamp | None 
 def load_stale_price_banner(config_path: Path = DEFAULT_CONFIG_PATH) -> str | None:
     try:
         locations = load_data_locations(config_path)
-        return stale_price_banner_text([locations.manifests, locations.downloaded_manifest_dir])
+        return stale_price_banner_text([locations.downloaded_manifest_dir])  # the folder the nightly top-up writes
     except (OSError, ValueError) as exc:  # unreadable config must show, not hide, the warning
         return f"Could not check whether price data is up to date: {exc}"
