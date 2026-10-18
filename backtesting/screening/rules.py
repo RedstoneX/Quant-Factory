@@ -23,11 +23,12 @@ def _rule(
     condition: str,
     *,
     details: dict[str, Any] | None = None,
+    failure_message: str | None = None,
 ) -> ScreeningRuleResult:
     message = (
         f"{metric} passed: {condition}."
         if passed
-        else f"{metric} failed: expected {condition}; observed {observed!r}."
+        else failure_message or f"{metric} failed: expected {condition}; observed {observed!r}."
     )
     return ScreeningRuleResult(
         rule_id=rule_id,
@@ -40,6 +41,14 @@ def _rule(
     )
 
 
+NO_TRADES_MESSAGE = "no trades: the entry rule never fired in this period"
+
+
+def _has_no_trades(metrics: dict[str, Any]) -> bool:
+    trades = metrics.get("number_of_trades")
+    return isinstance(trades, (int, float)) and not isinstance(trades, bool) and trades == 0
+
+
 def _numeric_rule(
     metrics: dict[str, Any],
     *,
@@ -48,12 +57,15 @@ def _numeric_rule(
     threshold: float | int,
     comparison: Callable[[float, float], bool],
     condition: str,
+    failure_message: str | None = None,
 ) -> ScreeningRuleResult:
     observed = metrics.get(metric)
     valid = isinstance(observed, (int, float)) and not isinstance(observed, bool)
     valid = valid and math.isfinite(float(observed))
     passed = bool(valid and comparison(float(observed), float(threshold)))
-    return _rule(rule_id, metric, observed, threshold, passed, condition)
+    return _rule(
+        rule_id, metric, observed, threshold, passed, condition, failure_message=failure_message
+    )
 
 
 def evaluate_rules(
@@ -74,6 +86,7 @@ def evaluate_rules(
             or not math.isfinite(float(metrics[metric]))
         )
     )
+    no_trades = NO_TRADES_MESSAGE if _has_no_trades(metrics) else None
     results = [
         _rule(
             "metrics.available",
@@ -92,6 +105,7 @@ def evaluate_rules(
             not non_finite,
             "all available required metrics are finite",
             details={"non_finite": non_finite},
+            failure_message=no_trades,
         ),
         _numeric_rule(
             metrics,
@@ -100,6 +114,7 @@ def evaluate_rules(
             threshold=config.minimum_trades,
             comparison=lambda observed, threshold: observed >= threshold,
             condition=f">= {config.minimum_trades} (inclusive)",
+            failure_message=no_trades,
         ),
         _numeric_rule(
             metrics,
