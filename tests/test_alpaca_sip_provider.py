@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -276,3 +277,42 @@ def test_prefix_guard_rejects_a_changed_bar_two_sessions_back(tmp_path):
     notes: list[str] = []
     assert validate_bars(previous, end=pd.Timestamp("2026-10-16T12:00:00Z"), previous=previous.iloc[:3], notes=notes) == []
     assert "regular-session minutes missing" in notes[0]  # day two's gaps reported, not fatal
+
+
+def _minute_bars(day: str, count: int, spike_at: int | None = None) -> list[dict[str, Any]]:
+    start = pd.Timestamp(f"{day}T13:30:00Z")
+    bars = [bar((start + pd.Timedelta(minutes=i)).isoformat(), 100 + (i % 7) * 0.01) for i in range(count)]
+    if spike_at is not None:
+        bars[spike_at].update(h=160.0, c=159.0)
+    return bars
+
+
+def _manifest_digest(tmp_path: Path) -> str:
+    manifest = json.loads(manifest_file(tmp_path).read_text())
+    for key in ("acquisition_timestamp", "imported_at_utc"):
+        manifest.pop(key)
+    manifest["last_top_up"].pop("at_utc")
+    return hashlib.sha256(json.dumps(manifest, sort_keys=True).encode()).hexdigest()
+
+
+# Recorded from the pre-fix code (main 92bb970, pandas 2.3.3, pyarrow 24.0.0) on this exact input:
+# the memory fixes must leave every written byte and manifest field unchanged.
+PRE_FIX_OUTPUT = [
+    ("full", "efa1519a8e97e8073c7eb77bdf8010d3bb82c282d211a1b203d47c5f0b9d0c63", "73edb01ddc57281c4ff5ff364b5e2616ab7bd80d8e7524c012c5a2f7ff6db21c"),
+    ("incremental", "aaf5744cb6480ddf6337986070e6937c68959428f03b859edb7d8aa8046d306a", "e803f6cc6da601df789d1ce4c48659f98d6548d2fd448838a949eee7b6675812"),
+    ("current", "aaf5744cb6480ddf6337986070e6937c68959428f03b859edb7d8aa8046d306a", "e803f6cc6da601df789d1ce4c48659f98d6548d2fd448838a949eee7b6675812"),
+]
+
+
+def test_written_parquet_and_manifest_identical_to_pre_fix_code(tmp_path):
+    day_one, day_two = _minute_bars("2026-10-12", 120, spike_at=60), _minute_bars("2026-10-13", 90, spike_at=30)
+    server = BarServer(day_one[:100])
+    runs = [("2026-10-12T23:00:00Z", day_one[:100]), ("2026-10-14T12:00:00Z", day_one + day_two),
+            ("2026-10-14T12:00:00Z", day_one + day_two)]
+    seen = []
+    for now, bars in runs:
+        server.bars = bars
+        result = provider(tmp_path, server, now=now).top_up("SPY")
+        seen.append((result.status, calculate_sha256(stored_path(tmp_path)), _manifest_digest(tmp_path)))
+    assert json.loads(manifest_file(tmp_path).read_text())["suspect_bar_count"] == 2
+    assert seen == PRE_FIX_OUTPUT

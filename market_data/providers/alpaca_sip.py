@@ -31,6 +31,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from market_data.alpaca_sip_universe import (
     HISTORY_START,
@@ -228,6 +230,19 @@ def regular_session_gaps(frame: pd.DataFrame, *, end: pd.Timestamp) -> list[str]
     return [f"{len(missing)} regular-session minutes missing in the newly stored bars", *notes]
 
 
+def read_bars(path: Path) -> pd.DataFrame:
+    """``pd.read_parquet`` without holding the Arrow table and the frame at full size together.
+
+    pyarrow's documented low-memory conversion: ``self_destruct`` frees each Arrow column once
+    converted and ``split_blocks`` avoids consolidating them into one more copy. Same values
+    and dtypes as ``pd.read_parquet``. The decode buffers Arrow's allocator keeps cached
+    afterwards (about 140 MB for SPY) are handed back with ``release_unused``.
+    """
+    frame = pq.read_table(path).to_pandas(self_destruct=True, split_blocks=True)
+    pa.default_memory_pool().release_unused()
+    return frame
+
+
 def last_session_start(timestamps: pd.Series) -> pd.Timestamp:
     """Start (market-time midnight, in UTC) of the exchange day holding the last stored bar."""
     return timestamps.iloc[-1].tz_convert(MARKET_TIMEZONE).normalize().tz_convert("UTC")
@@ -240,16 +255,26 @@ def ends_at_or_after(frame: pd.DataFrame, existing: pd.DataFrame) -> bool:
 
 def same_bars(frame: pd.DataFrame, other: pd.DataFrame) -> bool:
     """True when both hold the same timestamps, prices and volumes."""
+    # Column by column on the native arrays: ``frame[keys].to_numpy()`` builds an object
+    # array of one Python object per cell (about 2 GB for SPY's 2.2M bars).
     keys = ["timestamp", *PRICE_COLUMNS, "volume"]
-    return len(frame) == len(other) and bool(
-        (frame[keys].to_numpy() == other[keys].to_numpy()).all()
+    return len(frame) == len(other) and all(
+        np.array_equal(frame[key].to_numpy(_native_dtype(frame[key])), other[key].to_numpy(_native_dtype(other[key])))
+        for key in keys
     )
 
 
+def _native_dtype(column: pd.Series) -> Any:
+    """numpy dtype holding ``column`` without boxing (tz-aware timestamps as UTC datetime64)."""
+    return "datetime64[ns]" if isinstance(column.dtype, pd.DatetimeTZDtype) else None
+
+
 def _prefix_problems(frame: pd.DataFrame, previous: pd.DataFrame) -> list[str]:
+    # Column by column with ``ExtensionArray.equals`` (same dtype, values, NaN == NaN, as
+    # ``DataFrame.equals``) on the existing arrays; the frame-level compare copied the history.
     keys = ["timestamp", *PRICE_COLUMNS, "volume"]
-    head = frame.iloc[: len(previous)][keys].reset_index(drop=True)
-    if len(head) != len(previous) or not head.equals(previous[keys].reset_index(drop=True)):
+    head = frame.iloc[: len(previous)]
+    if len(head) != len(previous) or not all(head[key].array.equals(previous[key].array) for key in keys):
         return ["previously stored bars changed during an incremental top-up"]
     return []
 
@@ -316,7 +341,9 @@ class AlpacaSipProvider:
         # whole session is re-fetched and replaces the stored one; every earlier bar is kept
         # and the prefix check proves it unchanged.
         start = existing["timestamp"].iloc[0]
-        kept = existing.loc[existing["timestamp"] < last_session_start(existing["timestamp"])]
+        # Stored bars are validated increasing, so the rows before the session are a slice
+        # (a view, not a boolean-mask copy of the whole history).
+        kept = existing.iloc[: existing["timestamp"].searchsorted(last_session_start(existing["timestamp"]))]
         if kept.empty:  # the store holds only that session: re-fetch all of it
             combined, previous = self.fetch(symbol, start, end), None
         else:
@@ -350,7 +377,7 @@ class AlpacaSipProvider:
                 f"{dataset.symbol}: committed data does not match its manifest ({exc}); "
                 "nothing written - inspect before re-running"
             ) from exc
-        return path, pd.read_parquet(path)
+        return path, read_bars(path)
 
     def _store(
         self,
@@ -374,8 +401,10 @@ class AlpacaSipProvider:
         target = self.locations.root / dataset.slot_relative_path(slot)
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = target.with_name(target.name + ".tmp")
-        frame.loc[:, list(COLUMNS)].to_parquet(tmp_path, index=False)
-        on_disk = pd.read_parquet(tmp_path)
+        columns_in_order = list(frame.columns) == list(COLUMNS)
+        (frame if columns_in_order else frame.loc[:, list(COLUMNS)]).to_parquet(tmp_path, index=False)
+        pa.default_memory_pool().release_unused()  # the write's cached Arrow buffers
+        on_disk = read_bars(tmp_path)
         notes: list[str] = []
         problems = validate_bars(on_disk, end=end, previous=previous, notes=notes)
         if problems:
