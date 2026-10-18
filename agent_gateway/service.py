@@ -332,7 +332,7 @@ class AgentResearchGateway:
         run_id = _identifier(request.arguments.get("run_id"), "run")
         service = PersistenceService(self.database)
         try:
-            run = _permitted_run(service, run_id, finished_ok=True)
+            run = _permitted_run(service, run_id)
             return {"run": _run_summary(run), **results.trade_list(service, run, self.artifact_root)}
         finally:
             service.close()
@@ -354,7 +354,7 @@ class AgentResearchGateway:
         run_id = _identifier(request.arguments.get("run_id"), "run")
         service = PersistenceService(self.database)
         try:
-            run = _permitted_run(service, run_id, finished_ok=True)
+            run = _permitted_run(service, run_id)
             finished = results.finished_stage_results(service, run, self.artifact_root)
             if finished is not None:
                 return {"run": _run_summary(run), **finished}
@@ -384,7 +384,7 @@ class AgentResearchGateway:
         run_id = _identifier(request.arguments.get("run_id"), "run")
         service = PersistenceService(self.database)
         try:
-            run = _permitted_run(service, run_id, finished_ok=True)
+            run = _permitted_run(service, run_id)
             if run.stage == RunStage.OOS:
                 return {"run": _run_summary(run), **results.oos_results(service, run, self.artifact_root)}
             retrieval = service.retrieve_run_artifacts(run_id, artifact_root=self.artifact_root)
@@ -449,12 +449,10 @@ def _run_summary(run: Any) -> dict[str, Any]:
     }
 
 
-def _permitted_run(service: PersistenceService, run_id: str, *, finished_ok: bool = False) -> Any:
+def _permitted_run(service: PersistenceService, run_id: str) -> Any:
     run = service.runs.get(run_id)
     if run is None:
         raise GatewayError("not_found", "run was not found")
-    if run.stage == RunStage.OOS and not (finished_ok and results.is_finished(run)):
-        raise GatewayError("protected_result_denied", "protected-stage records are unavailable through this gateway")
     return run
 
 
