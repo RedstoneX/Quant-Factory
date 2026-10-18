@@ -13,7 +13,7 @@ from pathlib import Path
 import pandas as pd
 import pandas_market_calendars as mcal
 
-from market_data.catalog import load_data_locations
+from market_data.catalog import DEFAULT_CONFIG_PATH, load_data_locations
 
 
 def _last_completed_session(now: pd.Timestamp) -> pd.Timestamp:
@@ -53,9 +53,9 @@ def stale_price_banner_text(manifest_dirs: list[Path], now: pd.Timestamp | None 
     )
 
 
-def load_stale_price_banner() -> str | None:
+def load_stale_price_banner(config_path: Path = DEFAULT_CONFIG_PATH) -> str | None:
     try:
-        locations = load_data_locations()
+        locations = load_data_locations(config_path)
         return stale_price_banner_text([locations.manifests, locations.downloaded_manifest_dir])
-    except Exception:  # a warning banner must never break the page
-        return None
+    except (OSError, ValueError) as exc:  # unreadable config must show, not hide, the warning
+        return f"Could not check whether price data is up to date: {exc}"

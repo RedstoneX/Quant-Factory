@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from dashboard.data_freshness import stale_price_banner_text
+from dashboard.data_freshness import load_stale_price_banner, stale_price_banner_text
 
 
 def _write(folder, symbol, latest, provider="alpaca", timeframe="1m"):
@@ -37,3 +37,8 @@ def test_holiday_uses_prior_session(tmp_path):
     _write(tmp_path, "A", "2026-11-25T20:59:00Z")
     now = pd.Timestamp("2026-11-26 15:00", tz="UTC")
     assert stale_price_banner_text([tmp_path], now=now) is None
+
+
+def test_unreadable_data_config_shows_a_warning_instead_of_hiding_it(tmp_path):
+    text = load_stale_price_banner(tmp_path / "missing.toml")
+    assert text.startswith("Could not check whether price data is up to date")
