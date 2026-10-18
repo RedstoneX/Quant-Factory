@@ -58,7 +58,7 @@ LICENSED_LANE = (
     "import sys, pytest\n"
     "from tests.conftest import LICENSED_VECTORBT_NODE_IDS as ids\n"
     "files = sorted({node.split('::')[0] for node in ids})\n"
-    "sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', '-m', 'licensed_vectorbt', *files]))\n"
+    "sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', '-m', 'licensed_vectorbt and not controlled_market_data', *files]))\n"
 )
 PYTEST_SUMMARY = re.compile(r"\b(\d+) (?:failed|errors?)\b")
 # Tracked privileged files and where they are installed; only --install-infra copies them.
