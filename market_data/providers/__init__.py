@@ -1,11 +1,9 @@
 """Market-data provider implementations."""
 
 from market_data.providers.alpaca import (
-    AlpacaAcquisitionResult,
     AlpacaBarsRequest,
     AlpacaCredentials,
     AlpacaDataError,
-    AlpacaHistoricalBarsProvider,
 )
 from market_data.providers.databento import (
     DatabentoAcquisitionResult,
@@ -16,11 +14,9 @@ from market_data.providers.databento import (
 from market_data.equity_contract import spym_databento_request
 
 __all__ = [
-    "AlpacaAcquisitionResult",
     "AlpacaBarsRequest",
     "AlpacaCredentials",
     "AlpacaDataError",
-    "AlpacaHistoricalBarsProvider",
     "DatabentoAcquisitionResult",
     "DatabentoDataError",
     "DatabentoOhlcvProvider",
