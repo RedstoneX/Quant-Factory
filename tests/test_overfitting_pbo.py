@@ -46,7 +46,9 @@ def test_experiment_records_pbo_next_to_deflated_sharpe_and_never_screens() -> N
     assert result.deflated_sharpe is not None
     pbo = result.overfitting_pbo
     assert pbo is not None and pbo.trials == result.deflated_sharpe.trials
-    assert pbo.observations == len(data) and 0.0 <= pbo.probability <= 1.0
+    # PBO scores daily Sharpe (the vendor recipe), so it sees one row per trading day.
+    days = len(set(pd.DatetimeIndex(data.index).date))
+    assert pbo.observations == days and 0.0 <= pbo.probability <= 1.0
     assert not any(
         "pbo" in rule.metric or "overfit" in rule.metric
         for screening in result.screening_results

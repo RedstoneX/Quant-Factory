@@ -29,9 +29,9 @@ from backtesting.validation.gates import (
 )
 from backtesting.validation.models import ValidationResult, raise_for_blocking_failures
 from backtesting.screening import ScreeningResult, screen_metrics
-from backtesting.screening.deflated_sharpe import DeflatedSharpeResult, deflated_sharpe, grid_returns
+from backtesting.screening.deflated_sharpe import DeflatedSharpeResult, deflated_sharpe
 from backtesting.screening.overfitting_pbo import (
-    PBO_FOLDS, OverfittingPBOResult, probability_of_backtest_overfitting,
+    PBO_FOLDS, OverfittingPBOResult, daily_grid_returns, probability_of_backtest_overfitting,
 )
 from backtesting.vectorbt_runtime import require_vectorbtpro
 
@@ -395,7 +395,7 @@ def _record_luck(
         return None, None
     values = np.column_stack(value_columns)
     luck = deflated_sharpe(values, initial_cash)
-    returns = grid_returns(values, initial_cash, index)
+    returns = daily_grid_returns(values, initial_cash, index)
     enough = returns.shape[1] >= 2 and returns.shape[0] >= 2 * PBO_FOLDS
     return luck, probability_of_backtest_overfitting(returns) if enough else None
 
