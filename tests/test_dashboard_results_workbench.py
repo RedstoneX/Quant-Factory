@@ -70,10 +70,10 @@ def test_panel_shows_chip_name_cards_and_report_button() -> None:
     ui = pytest.importorskip("dashboard.ui.results_workbench")
     row = {"candidate_id": "qfc_1", "title": "T", "result": "Failed at Survives costs"}
     assert ui.panel_body(None, None) == []
-    assert len(ui.panel_body(row, None)) == 3  # chip, name, link button: nothing else invented
+    assert len(ui.panel_body(row, None)) == 4  # chip, name, stat strip, link button: nothing else invented
     close = ui.panel_body({**row, "result": "1 passed · 1 close call"}, {"number": 3, "label": "Holds over time", "items": [{"check": "Return at least", "measured": "-0.4%", "needed": "0%", "fraction": 0.0}]})
-    assert len(close) == 4 and "Open full report" in str(close[-1])
-    assert "Holds over time" in str(close[2]) and "Close call" not in str(close[2]).replace("Close call", "", 0) or True
+    assert len(close) == 5 and "Open full report" in str(close[-1])
+    assert "Holds over time" in str(close[3]) and "Close call" not in str(close[2]).replace("Close call", "", 0) or True
 
 
 def test_zero_trade_idea_gets_grey_no_trades_chip() -> None:
@@ -88,3 +88,31 @@ def test_workbench_metrics_clear_for_zero_trades_and_carry_the_stored_pass_line(
     frame = pd.DataFrame({"trades": [0, 10], "sharpe": [0.0, 1.0], "total_return": [0.0, 2.0], "worst_drop": [0.0, -1.0]})
     cleaned = workbench._without_empty_metrics(frame)
     assert pd.isna(cleaned.loc[0, "sharpe"]) and cleaned.loc[1, "sharpe"] == 1.0
+
+
+@pytest.mark.parametrize(("statuses", "trades", "text", "tone"), [
+    (["Passed"] * 5, 100, "Passed", "green"),
+    (["Passed", "Passed", "Close call", "Can't test", "Can't test"], 100, "Close call", "amber"),
+    (["Failed"] + ["Can't test"] * 4, 100, "Failed: costs", "red"),
+    (["Passed", "Failed", "Can't test", "Can't test", "Can't test"], 100, "Failed: unseen", "red"),
+    (["Passed", "Passed", "Failed", "Can't test", "Can't test"], 100, "Failed: over time", "red"),
+    (["Passed", "Passed", "Passed", "Failed", "Can't test"], 100, "Failed: stress", "red"),
+    (["Passed"] * 4 + ["Failed"], 100, "Failed: luck", "red"),
+    (["Passed"] + ["Can't test"] * 4, 100, "Can't test", "grey"),
+    (["Passed", "Crashed", "Can't test", "Can't test", "Can't test"], 100, "Crashed", "red"),
+    (["Failed"] + ["Can't test"] * 4, 0, "No trades", "grey"),
+])
+def test_one_overall_status_per_idea_with_no_counts(statuses: list[str], trades: int, text: str, tone: str) -> None:
+    assert workbench.overall_status(statuses, trades) == text
+    assert workbench.chip_tone(text) == tone
+
+
+def test_no_trade_row_has_five_grey_dots_and_dashes_in_panel_strip() -> None:
+    ui = pytest.importorskip("dashboard.ui.results_workbench")
+    frame = pd.DataFrame([{"candidate_id": "qfc_1", "title": "T", "market": "SPY", "timeframe": "1 min", "family": "Orb", "created_at": "2026-10-16", "result": "Failed: costs",
+                           "dots": ["red"] + ["grey"] * 4, "sharpe": None, "total_return": None, "worst_drop": None, "trades": 0, "settings_tried": 1, "sharpe_line": 0.5}])
+    row = ui.grid_rows(frame, "ideas")[0]
+    assert row["dots_html"].count("<span") == 5 and row["dots_html"].count(ui.TONE["grey"]) == 5 and ui.TONE["red"] not in row["dots_html"]
+    assert str(ui.stat_strip(row)).count("—") == 3  # a real zero trades stays 0
+    full = str(ui.stat_strip({"total_return": 5.0, "worst_drop": -3.0, "sharpe": 1.25, "trades": 1234}))
+    assert "+5.0%" in full and "-3.0%" in full and "1.25" in full and "1,234" in full

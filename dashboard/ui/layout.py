@@ -15,8 +15,7 @@ NAV_ITEMS = (
     ("/submit", "Submit ideas", "tabler:upload"),
     ("/factory", "Factory runs", "tabler:building-factory-2"),
     ("/candidates", "Ideas", "tabler:list-details"),
-    ("/results", "Results", "tabler:chart-candle"),
-    ("/workbench", "Results workbench", "tabler:table"),
+    ("/workbench", "Results", "tabler:chart-candle"),
     ("/paper-trading", "Paper trading", "tabler:currency-dollar"),
 )
 

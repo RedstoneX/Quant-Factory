@@ -72,13 +72,26 @@ def _statuses(database: Path, connection: sqlite3.Connection, configuration_id: 
     return out, runs
 
 
-def _overall(statuses: list[str]) -> str:
-    gate = next((TEST_LABELS[stage] for stage, status in zip(STAGE_NAMES, statuses) if stage in TRADE_STAGES and status == "Failed"), None)
-    if gate:
-        return f"Failed at {gate}"
-    if all(status == "Passed" for status in statuses):
-        return "Passed"
-    return " · ".join(f"{statuses.count(word)} {word.lower()}" for word in ("Passed", "Close call", "Crashed", "Can't test") if statuses.count(word))
+SHORT_STAGE = {"screening": "costs", "oos": "unseen", "walk_forward": "over time", "robustness": "stress", "monte_carlo": "luck"}
+
+
+def overall_status(statuses: list[str], trades: Any = None) -> str:
+    """The one word the grid chip shows: Passed, Close call, Failed: <test>, Can't test, Crashed or No trades (no counts; the report keeps its long form)."""
+    if trades is not None and not pd.isna(trades) and trades == 0:
+        return "No trades"
+    failed = next((SHORT_STAGE[stage] for stage, status in zip(STAGE_NAMES, statuses) if status == "Failed"), None)
+    if failed:
+        return f"Failed: {failed}"
+    if "Crashed" in statuses:
+        return "Crashed"
+    if "Close call" in statuses:
+        return "Close call"
+    return "Passed" if all(status == "Passed" for status in statuses) else "Can't test"
+
+
+def chip_tone(text: str) -> str:
+    """green passed, amber close call, red failed or crashed, grey can't test or no trades."""
+    return "green" if text == "Passed" else "amber" if text == "Close call" else "red" if text.startswith("Failed") or text == "Crashed" else "grey"
 
 
 def _build(database: Path) -> dict[str, pd.DataFrame]:
@@ -107,7 +120,7 @@ def _build(database: Path) -> dict[str, pd.DataFrame]:
             statuses, _ = _statuses(database, connection, head["configuration_id"], screening)
             best = _metrics(rows[0]["metrics_json"]) if rows else {}
             common = {"candidate_id": head["candidate_id"], "title": head["title"], "market": head["market"], "timeframe": INTERVALS.get(head["interval"], head["interval"] or ""),
-                      "family": str(head["family"]).replace("_", " ").capitalize(), "sharpe_line": head["sharpe_line"], "created_at": head["created_at"], "result": _overall(statuses), "dots": five_dots(statuses)}
+                      "family": str(head["family"]).replace("_", " ").capitalize(), "sharpe_line": head["sharpe_line"], "created_at": head["created_at"], "result": overall_status(statuses), "dots": five_dots(statuses)}
             ideas.append({**common, "sharpe": best.get("sharpe_ratio"), "total_return": _pct(best.get("total_return")), "worst_drop": _pct(best.get("max_drawdown")),
                           "trades": best.get("number_of_trades"), "settings_tried": len(rows)})
             for row in rows:
@@ -211,4 +224,4 @@ def page_of_settings(frame: pd.DataFrame, request: dict[str, Any]) -> dict[str, 
     return {"rowData": frame.iloc[start:end].to_dict("records"), "rowCount": len(frame)}
 
 
-__all__ = ["CANT_TEST", "CLOSE_CALL", "five_dots", "is_real_idea", "load_shortfall", "load_workbench", "newest_real_idea", "page_of_settings", "setting_text", "shortfall_items"]
+__all__ = ["CANT_TEST", "CLOSE_CALL", "chip_tone", "five_dots", "overall_status", "is_real_idea", "load_shortfall", "load_workbench", "newest_real_idea", "page_of_settings", "setting_text", "shortfall_items"]

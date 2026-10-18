@@ -12,14 +12,14 @@ import pandas as pd
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, State, ctx, dcc, html
 
-from dashboard.results_workbench_projection import load_shortfall, load_workbench, newest_real_idea, page_of_settings
-from dashboard.ui.idea_report import AMBER, BG, FAINT, GREEN, GRID_THEME, INDIGO, LINE, MUTED, PANEL, RED, REPORT_THEME, SANS, TEXT, TONE, test_card
+from dashboard.results_workbench_projection import chip_tone, load_shortfall, load_workbench, newest_real_idea, page_of_settings
+from dashboard.ui.idea_report import AMBER, BG, FAINT, GREEN, GRID_THEME, INDIGO, INNER, LINE, MUTED, PANEL, RED, REPORT_THEME, SANS, TEXT, TONE, test_card
 
 GRIDS = (("ideas", False), ("ideas", True), ("settings", False), ("settings", True))  # (mode, phone layout)
 BRUSHES = (("sharpe", "Sharpe"), ("worst_drop", "Worst drop (%)"), ("total_return", "Return (%)"), ("trades", "Trades"))
 DOT = '<span style="display:inline-block;width:16px;height:6px;border-radius:2px;margin-right:3px;background:{}"></span>'
-CHIP = ('<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:0;text-transform:uppercase;'
-        'white-space:nowrap;background:{bg};color:{fg}">{text}</span>')
+CHIP = ('<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:600;line-height:1;text-transform:uppercase;'
+        'white-space:nowrap;background:{bg};color:{fg};border:{border}">{text}</span>')
 TONE_BG = {"green": "rgba(94,234,176,0.14)", "amber": "rgba(245,184,65,0.14)", "red": "rgba(242,84,91,0.14)", "grey": "rgba(155,161,171,0.14)"}
 TYPE_ALL = "All strategy types"
 SHELL_HEADER = "48px"
@@ -38,14 +38,22 @@ def _markdown_safe(text: str) -> str:
     return out
 
 
-def result_tone(result: str) -> str:
-    """Same tone rule as the idea report's header chip: red for a failed gate or a crash, green when all passed, otherwise grey."""
-    return "green" if result == "Passed" else "red" if result.startswith("Failed") or "crashed" in result else "grey"
+def chip_html(text: str) -> str:
+    """The single overall status as a 20px chip like the idea report's header chip (Mantine light badge); Crashed is a red outline. A grid cell cannot host a Mantine component."""
+    tone = chip_tone(text)
+    outline = text == "Crashed"
+    return CHIP.format(bg="transparent" if outline else TONE_BG[tone], fg=TONE[tone], border=f"1px solid {TONE[tone]}" if outline else "0", text=escape(text))
 
 
-def chip_html(text: str, tone: str) -> str:
-    """The header chip of the idea report (Mantine light badge) as cell markup; the grid cell cannot host a Mantine component."""
-    return CHIP.format(bg=TONE_BG[tone], fg=TONE[tone], text=escape(text))
+def _stat(label: str, value: str) -> dmc.Box:
+    return dmc.Box([dmc.Text(label, size="xs", c=FAINT), dmc.Text(value, size="md", ff="monospace")], p="sm", bg=INNER, style={"borderRadius": 10, "minWidth": 0})
+
+
+def stat_strip(row: dict[str, Any]) -> dmc.SimpleGrid:
+    """Return, worst drop, Sharpe and trades from the row's own numbers; a dash where there is none."""
+    number = lambda key, fmt: "—" if row.get(key) is None else fmt.format(row[key])  # noqa: E731
+    return dmc.SimpleGrid([_stat("Return", number("total_return", "{:+.1f}%")), _stat("Worst drop", number("worst_drop", "{:.1f}%")),
+                           _stat("Sharpe", number("sharpe", "{:.2f}")), _stat("Trades", number("trades", "{:,.0f}"))], cols=2, spacing="xs")
 
 
 def grid_rows(frame: pd.DataFrame, mode: str) -> list[dict[str, Any]]:
@@ -56,10 +64,10 @@ def grid_rows(frame: pd.DataFrame, mode: str) -> list[dict[str, Any]]:
     link = out["candidate_id"].map(lambda value: f"/report?candidate_id={quote(str(value), safe='')}")
     sub = out["market"].astype(str) + " · " + out["timeframe"].astype(str) + " · " + out["family"].astype(str) + (" · " + out["setting"].astype(str) if mode == "settings" else "")
     out["idea_md"] = ["[" + _markdown_safe(title) + "](" + url + ")  \n" + _markdown_safe(text) for title, url, text in zip(out["title"], link, sub)]
-    out["dots_html"] = out["dots"].map(lambda tones: "".join(DOT.format(TONE[tone]) for tone in tones))
     no_trades = out["trades"].fillna(0) == 0
     out["result"] = ["No trades" if empty else text for empty, text in zip(no_trades, out["result"])]
-    out["result_html"] = [chip_html(text, "grey" if empty else result_tone(text)) for empty, text in zip(no_trades, out["result"])]
+    out["dots_html"] = [("".join(DOT.format(TONE["grey"]) for _ in tones) if empty else "".join(DOT.format(TONE[tone]) for tone in tones)) for empty, tones in zip(no_trades, out["dots"])]  # no trades: five grey dots
+    out["result_html"] = [chip_html(text) for text in out["result"]]
     out = out.drop(columns=["dots"]).astype(object).where(out.notna(), None)
     return out.to_dict("records")
 
@@ -99,9 +107,10 @@ def columns(phone: bool, bounds: dict[str, tuple[float, float]]) -> list[dict[st
     mono = {"fontFamily": MONO}
     scale_return = max(abs(bounds["total_return"][0]), abs(bounds["total_return"][1])) or 1.0
     scale_drop = max(abs(bounds["worst_drop"][0]), abs(bounds["worst_drop"][1])) or 1.0
-    idea = {"field": "idea_md", "headerName": "Idea", "cellRenderer": "markdown", "minWidth": 110 if phone else 200, "flex": 1, "filter": "agTextColumnFilter", "cellStyle": {"lineHeight": "1.35", "paddingTop": "6px"}}
+    idea = {"field": "idea_md", "headerName": "Idea", "cellRenderer": "markdown", "minWidth": 110 if phone else 200, "flex": 1, "filter": "agTextColumnFilter", "tooltipField": "title",
+            "cellStyle": {"lineHeight": "1.35", "paddingTop": "6px"}, **({"wrapText": True, "autoHeight": True} if phone else {})}
     sharpe = {"field": "sharpe", "headerName": "Sharpe", "width": 80 if phone else 92, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".2f"), "cellStyle": SHARPE_STYLE}
-    chip = {"field": "result_html", "headerName": "Result", "width": 170, "cellRenderer": "markdown", "filter": "agTextColumnFilter", "filterValueGetter": _expression("params.data.result")}
+    chip = {"field": "result_html", "headerName": "Result", "width": 110 if phone else 120, "cellStyle": {"display": "flex", "alignItems": "center"}, "cellRenderer": "markdown", "filter": "agTextColumnFilter", "filterValueGetter": _expression("params.data.result")}
     hidden = [{"field": "family", "hide": True, "filter": "agTextColumnFilter"}, {"field": "created_at", "headerName": "Submitted", "hide": True, "sort": "desc"}]  # newest first
     if phone:  # phone: Idea, Sharpe and the Result chip only
         return [idea, sharpe, chip, *hidden]
@@ -118,7 +127,7 @@ def _bounds(frame: pd.DataFrame) -> dict[str, tuple[float, float]]:
 
 def _grid(mode: str, phone: bool, frame: pd.DataFrame, first: str | None) -> dag.AgGrid:
     options: dict[str, Any] = {"theme": GRID_THEME, "rowHeight": 54, "animateRows": False, "rowSelection": {"mode": "singleRow", "checkboxes": False, "enableClickSelection": True},
-                               "pagination": True, "paginationPageSize": 50, "paginationPageSizeSelector": False}
+                               "tooltipShowDelay": 300, "pagination": True, "paginationPageSize": 50, "paginationPageSizeSelector": False}
     props: dict[str, Any] = {}
     if mode == "ideas":
         rows = grid_rows(frame, mode)
@@ -166,10 +175,10 @@ def panel_body(row: dict[str, Any] | None, item: dict[str, Any] | None) -> list[
     """Side panel for the selected row: the chip, the name, for a close call how far it fell short (the idea report's bar card, bar only), and the full-width link."""
     if not row:
         return []
-    chip = dmc.Badge("Close call", color="yellow", variant="light") if item else dmc.Badge(row["result"], color=TONE[result_tone(row["result"])], variant="light")
+    chip = dmc.Badge(row["result"], color=TONE[chip_tone(row["result"])], variant="outline" if row["result"] == "Crashed" else "light", h=20, size="sm")
     cards = [test_card(item["number"], {"stage": "shortfall", "label": item["label"], "status": "Close call", "run_id": None, "value": f"{entry['measured']}, needed {entry['needed']}",
                                         "fraction": entry["fraction"], "pass_line": 1.0, "line": entry["check"], "detail": {"periods": [1]}}) for entry in (item or {}).get("items", [])]
-    return [chip, dmc.Text(row["title"], fw=600, size="md"), *cards,
+    return [chip, dmc.Text(row["title"], fw=600, size="md"), stat_strip(row), *cards,
             html.A(dmc.Button("Open full report →", fullWidth=True, color="indigo", size="md"), href=f"/report?candidate_id={quote(row['candidate_id'], safe='')}", style={"display": "block", "textDecoration": "none"})]
 
 
@@ -194,7 +203,7 @@ def results_workbench_layout(search: str | None = None) -> html.Div:
                             dmc.Box(_grid(mode, True, ideas if mode == "ideas" else settings, first), hiddenFrom="sm")], id=f"wb-wrap-{mode}", style={"display": "block" if mode == "ideas" else "none"})
         table = dmc.Paper([wrap("ideas"), wrap("settings")], radius="lg", bg=PANEL, style={"border": f"1px solid {LINE}", "minWidth": 0, "overflow": "hidden", "flex": "1 1 0"})
         side = dmc.Box(dmc.Paper(id="wb-panel", p="lg", radius="lg", bg=PANEL, style={"border": "1px solid #2A2E36", "display": "none"}), visibleFrom="sm", style={"flex": "0 0 300px", "minWidth": 0})
-        drawer = dmc.Drawer(dmc.Stack(id="wb-drawer-body", gap="sm"), id="wb-drawer", position="bottom", size="70%", opened=False, withCloseButton=True, hiddenFrom="sm")
+        drawer = dmc.Drawer(dmc.Stack(id="wb-drawer-body", gap="sm"), id="wb-drawer", position="bottom", size="auto", styles={"content": {"flex": "0 0 auto", "height": "auto", "maxHeight": "70vh"}}, opened=False, withCloseButton=True, hiddenFrom="sm")
         body = [head, controls, *([filters] if filters else []), html.Div([table, side], style={"display": "flex", "gap": 14, "alignItems": "flex-start"}), drawer]
     return html.Div(dmc.MantineProvider(dmc.Stack(body, gap="md", p={"base": "sm", "sm": "lg"}, maw=1600, mx="auto", style={"minWidth": 0}), theme=REPORT_THEME, forceColorScheme="dark"),
                     style={"background": BG, "minHeight": "100vh", "fontFamily": SANS, "color": TEXT})
