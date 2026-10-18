@@ -106,6 +106,7 @@ If a bar opens beyond a stop, the exit fills at that open, not at the stop.
 Example "exit":
 """ + json.dumps(STOPS_EXAMPLE_EXIT, separators=(",", ":")) + "\n" + """\
 stop_loss {"level": S}: a price read at the signal bar, e.g. {"range_low": {"from": "09:30", "to": "10:00"}}; entry skipped if its fill is through it.
+stop_loss {"signal_bar": true}: stop at the signal bar's low (long) / high (short). Flat at a time: "flat_at" or exit "at_time": "HH:MM" (NY) closes trades then; only flat_at blocks later entries.
 take_profit {"r_multiple": R}: R x the stop-loss distance. trail_after (a distance or R): gain that switches trailing_stop on;
   breakeven then trail = same distance in both, e.g. {"trailing_stop": {"points": 4}, "trail_after": {"points": 4}}.
 exit_when {"long": C, "short": C}: exit at the next open when condition C is true; a later signal may re-enter.
