@@ -48,6 +48,9 @@ MAD_CONSTANT = 1.4826  # R's mad() default scale
 MIN_MAD = 0.01  # one cent: the minimum quote increment at $1 or more (Reg NMS Rule 612)
 SUSPECT_COLUMNS = ("high", "low", "close")
 MARKET_TIMEZONE = "America/New_York"
+# Edge rows gathered per batch: each batch holds about eight (rows x 100) float/int arrays,
+# so 10,000 rows stay near 60 MB (50,000 rows reached about 300 MB on SPY's 2.2M bars).
+EDGE_BATCH_ROWS = 10_000
 METHOD = (
     "highfrequency::rmOutliersTrades type=advanced window=50 maxi=10 (Barndorff-Nielsen et al. 2009), "
     "MAD floored at one cent, per New York date, on high/low/close"
@@ -60,8 +63,8 @@ def _edge_medians(values: np.ndarray, rows: np.ndarray, offsets: np.ndarray, fir
     Rows are gathered for all dates at once; positions outside [first, stop) become NaN and
     the sorted window then gives the plain median of what remains (no values gives NaN)."""
     result = np.full(len(rows), np.nan)
-    for lo in range(0, len(rows), 50_000):  # bounded memory
-        part = rows[lo : lo + 50_000]
+    for lo in range(0, len(rows), EDGE_BATCH_ROWS):  # bounded memory
+        part = rows[lo : lo + EDGE_BATCH_ROWS]
         index = part[:, None] + offsets[None, :]
         inside = (index >= first[part, None]) & (index < stop[part, None])
         picked = np.where(inside, values[np.clip(index, 0, len(values) - 1)], np.nan)
@@ -70,7 +73,7 @@ def _edge_medians(values: np.ndarray, rows: np.ndarray, offsets: np.ndarray, fir
         row = np.arange(len(part))
         middle = (ordered[row, np.maximum((valid - 1) // 2, 0)] + ordered[row, np.maximum(valid // 2, 0)]) / 2
         middle[valid == 0] = np.nan
-        result[lo : lo + 50_000] = middle
+        result[lo : lo + EDGE_BATCH_ROWS] = middle
     return result
 
 
@@ -89,6 +92,7 @@ def _criterion(values: np.ndarray, first: np.ndarray, stop: np.ndarray, window: 
     low = rank_filter(values, half - 1, size=window + 1, mode="nearest")
     high = rank_filter(values, half, size=window + 1, mode="nearest")
     centre = np.where(values <= low, high, low)
+    del low, high  # full-length temporaries: free before the next ones are built
     edge = ~((position - half >= first) & (position + half < stop))
     rows = position[edge]
     offsets = np.delete(np.arange(-half, half + 1), half)
@@ -109,10 +113,12 @@ def _criterion(values: np.ndarray, first: np.ndarray, stop: np.ndarray, window: 
     quirk = (position >= np.maximum(stop - window, first)) & (position < stop - 1)
     follow[quirk] = _edge_medians(values, position[quirk], np.arange(-window, window), first, stop)
     follow[position == stop - 1] = np.nan
+    del lower, quirk, edge, rows, position
 
-    distances = np.abs(values[None, :] - np.vstack([centre, trail, follow]))
+    # Pairwise fmin equals np.fmin.reduce over the stacked distances, without the 3 x n stack.
     with np.errstate(all="ignore"):
-        return np.fmin.reduce(distances, axis=0)  # NaN only when every median is NaN
+        nearest = np.fmin(np.abs(values - centre), np.abs(values - trail))
+        return np.fmin(nearest, np.abs(values - follow), out=nearest)  # NaN only when every median is NaN
 
 
 def _flag_column(values: np.ndarray, bounds: np.ndarray, window: int, maxi: float) -> np.ndarray:
@@ -123,6 +129,7 @@ def _flag_column(values: np.ndarray, bounds: np.ndarray, window: int, maxi: floa
     by_date = pd.Series(values).groupby(date)
     deviation = (pd.Series(values) - by_date.transform("median")).abs()
     mad = (MAD_CONSTANT * deviation.groupby(date).transform("median")).clip(lower=MIN_MAD).to_numpy()
+    del date, by_date, deviation, sizes
     with np.errstate(invalid="ignore"):
         return _criterion(values, first, stop, window) >= maxi * mad
 
