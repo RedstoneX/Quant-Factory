@@ -570,14 +570,14 @@ def schedule_complete_metrics(
     annualized_return = (final_equity / INITIAL_CASH) ** (
         SESSIONS_PER_YEAR / len(equity)
     ) - 1.0
-    sharpe = math.sqrt(SESSIONS_PER_YEAR) * float(daily_returns.mean()) / volatility
-    equity_with_baseline = pd.concat(
-        [pd.Series([INITIAL_CASH], dtype=float), equity.reset_index(drop=True)],
-        ignore_index=True,
+    import vectorbtpro as vbt  # noqa: F401  (registers the .vbt accessor)
+    session_returns = daily_returns.reset_index(drop=True).vbt.returns(
+        freq="1D",
+        year_freq=pd.Timedelta(days=SESSIONS_PER_YEAR),
+        defaults=dict(risk_free=RISK_FREE_RATE, ddof=1),
     )
-    max_drawdown = float(
-        (equity_with_baseline / equity_with_baseline.cummax() - 1.0).min()
-    )
+    sharpe = float(session_returns.sharpe_ratio())
+    max_drawdown = float(session_returns.max_drawdown())
     win_rate = sum(item.net_pnl > 0 for item in bundle.completed_trades) / completed
     metrics: dict[str, float | int] = {
         "total_return": total_return,

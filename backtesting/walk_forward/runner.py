@@ -6,6 +6,7 @@ from dataclasses import asdict, replace
 import json
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from backtesting.experiments import execute_experiment
@@ -174,14 +175,16 @@ def _aggregate(folds: tuple[WalkForwardFoldResult, ...]) -> WalkForwardResult:
     )
     equity = (1.0 + returns).cumprod().rename("endpoint_equity")
     compounded = float(equity.iloc[-1] - 1.0) if not equity.empty else None
-    if equity.empty:
-        max_drawdown = None
-    else:
-        drawdown = equity / equity.cummax().clip(lower=1.0) - 1.0
-        max_drawdown = float(drawdown.min())
-    if len(returns) > 1 and returns.std(ddof=1) > 0:
-        fold_sharpe = float(returns.mean() / returns.std(ddof=1))
-    else:
+    import vectorbtpro as vbt  # noqa: F401  (registers the .vbt accessor)
+
+    fold_returns = returns.vbt.returns(
+        freq="1D",
+        year_freq=pd.Timedelta(days=1),
+        defaults=dict(risk_free=0.0, ddof=1),
+    )
+    max_drawdown = None if equity.empty else float(fold_returns.max_drawdown())
+    fold_sharpe = float(fold_returns.sharpe_ratio()) if len(returns) > 1 else None
+    if fold_sharpe is not None and not np.isfinite(fold_sharpe):
         fold_sharpe = None
     frequencies, change_percentage, persistence = _parameter_stability(successful)
     failed = tuple(fold for fold in folds if fold.status == "failed")

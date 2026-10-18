@@ -7,25 +7,32 @@ def equity_path(returns):
 
 def cumulative_return(returns): return float(equity_path(returns)[-1] - 1.0)
 
+def returns_accessor(returns, annualization_factor=None):
+    """VectorBT PRO returns accessor (columns = paths); one period per row, no risk-free."""
+    import pandas as pd
+    import vectorbtpro as vbt  # noqa: F401  (registers the .vbt accessor)
+
+    periods = float(annualization_factor) if annualization_factor else 1.0
+    return pd.DataFrame(returns).vbt.returns(
+        freq="1D",
+        year_freq=pd.Timedelta(days=periods),
+        defaults=dict(risk_free=0.0, ddof=1),
+    )
+
 def maximum_drawdown(returns):
-    equity = equity_path(returns)
-    peaks = np.maximum.accumulate(np.concatenate(([1.0], equity)))[1:]
-    return float(np.min(equity / peaks - 1.0))
+    values = np.asarray(returns, dtype=float)
+    return float(returns_accessor(values).max_drawdown().iloc[0])
 
 def path_sharpe(returns, annualization_factor=None):
     values = np.asarray(returns, dtype=float)
-    std = values.std(ddof=1)
-    if std == 0: return float("nan")
-    scale = np.sqrt(annualization_factor) if annualization_factor else 1.0
-    return float(values.mean() / std * scale)
+    return float(returns_accessor(values, annualization_factor).sharpe_ratio().iloc[0])
 
 def path_metrics(paths, annualization_factor=None):
     """Column-wise terminal return, max drawdown and Sharpe for a (paths, bars) array."""
     values = np.asarray(paths, dtype=float)
-    equity = np.cumprod(1.0 + values, axis=1)
-    peaks = np.maximum.accumulate(np.concatenate((np.ones((equity.shape[0], 1)), equity), axis=1), axis=1)[:, 1:]
-    std = values.std(axis=1, ddof=1)
-    scale = np.sqrt(annualization_factor) if annualization_factor else 1.0
-    with np.errstate(divide="ignore", invalid="ignore"):
-        sharpe = np.where(std == 0, np.nan, values.mean(axis=1) / std * scale)
-    return equity[:, -1] - 1.0, (equity / peaks - 1.0).min(axis=1), sharpe
+    accessor = returns_accessor(values.T, annualization_factor)
+    return (
+        np.cumprod(1.0 + values, axis=1)[:, -1] - 1.0,
+        accessor.max_drawdown().to_numpy(dtype=float),
+        accessor.sharpe_ratio().to_numpy(dtype=float),
+    )

@@ -8,7 +8,7 @@ from typing import Mapping
 import numpy as np
 import pandas as pd
 
-from backtesting.monte_carlo.metrics import cumulative_return, maximum_drawdown
+from backtesting.monte_carlo.metrics import cumulative_return, maximum_drawdown, path_sharpe
 from backtesting.robustness.models import (
     RegimeConfig,
     RegimeEvaluationResult,
@@ -113,10 +113,8 @@ def attribute_returns_to_regimes(
 def _sharpe(values: np.ndarray, annualization_factor: float) -> float | None:
     if len(values) < 2:
         return None
-    standard_deviation = float(values.std(ddof=1))
-    if standard_deviation == 0 or not math.isfinite(standard_deviation):
-        return None
-    return float(values.mean() / standard_deviation * math.sqrt(annualization_factor))
+    result = path_sharpe(values, annualization_factor)
+    return result if math.isfinite(result) else None
 
 
 def evaluate_regimes(

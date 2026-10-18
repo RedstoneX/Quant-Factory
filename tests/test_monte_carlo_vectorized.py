@@ -49,5 +49,7 @@ def test_metrics_identical(ann):
     paths = np.vstack([np.random.default_rng(9).choice(SRC, (60, 253)), np.zeros((1, 253))])
     t, d, s = path_metrics(paths, ann)
     old = np.array([_old_metrics(p, ann) for p in paths])
-    assert np.array_equal(t, old[:, 0]) and np.array_equal(d, old[:, 1])
-    assert np.array_equal(s, old[:, 2], equal_nan=True)
+    assert np.array_equal(t, old[:, 0])
+    # drawdown and Sharpe come from VectorBT PRO: equal to the hand formulas to 1e-12 relative
+    assert np.allclose(d, old[:, 1], rtol=1e-12, atol=0)
+    assert np.allclose(s, old[:, 2], rtol=1e-12, atol=0, equal_nan=True)
