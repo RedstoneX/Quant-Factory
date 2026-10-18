@@ -99,9 +99,10 @@ def test_unseen_run_that_succeeded_with_a_saved_failed_verdict_shows_failed(monk
     from dashboard import idea_results_projection as results
 
     monkeypatch.setattr(results, "oos_report_metrics", lambda **_: None)  # the saved report holds no metrics, only the verdict
-    monkeypatch.setattr(results, "_artifact_document", lambda **_: {"artifact_kind": "out_of_sample", "test_status": "failed"})
-    card = results._test_card(tmp_path / "db.sqlite3", "oos", "Unseen data", {"run_id": "run_x", "status": "succeeded"}, {})
-    assert report.report_status("oos", card["status"], "succeeded") == "Failed"
+    for saved, word in (("failed", "Failed"), ("screened_out", "Failed"), ("passed", "Passed"), ("not_run", "Can't test")):
+        monkeypatch.setattr(results, "_artifact_document", lambda saved=saved, **_: {"artifact_kind": "out_of_sample", "test_status": saved})
+        card = results._test_card(tmp_path / "db.sqlite3", "oos", "Unseen data", {"run_id": "run_x", "status": "succeeded"}, {})
+        assert report.report_status("oos", card["status"], "succeeded") == word
     monkeypatch.setattr(results, "_artifact_document", lambda **_: {})
     card = results._test_card(tmp_path / "db.sqlite3", "oos", "Unseen data", {"run_id": "run_x", "status": "succeeded"}, {})
     assert report.report_status("oos", card["status"], "succeeded") == "Can't test"  # no saved verdict: still unknown, never guessed
