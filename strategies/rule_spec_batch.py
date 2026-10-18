@@ -131,7 +131,11 @@ def _plan(spec: Mapping[str, Any], prepared: PreparedSessions, parameters: Mappi
     exit_rules = spec["exit"]
     evaluator = RuleEvaluator(replace(prepared.bars, parameters=dict(parameters)), cache)
     present = [key for key in STOP_KEYS if key in exit_rules]
-    fractions = {key: evaluator.distance_fraction(exit_rules[key]) for key in present}
+    fractions = {key: evaluator.distance_fraction(exit_rules[key]) for key in present if "signal_bar" not in exit_rules[key]}
+    if "signal_bar" in exit_rules.get("stop_loss", {}):
+        # The level follows the side the signal points: the signal bar's low (long) or high (short).
+        sides = evaluator.cached("sides", spec["signals"], lambda: bar_sides(spec, evaluator))
+        fractions["stop_loss"] = evaluator.signal_bar_fraction(sides)
     return _Setting(dict(parameters), evaluator, fractions)
 
 
