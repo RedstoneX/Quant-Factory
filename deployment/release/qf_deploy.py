@@ -101,6 +101,8 @@ def licensed_lane_command(release: Path, revision: str) -> list[str]:
     """The throwaway, network-less container run of the licensed lane in ``revision``'s image."""
     return ["docker", "run", "--rm", "--network", "none", "--cpus", "2", "--entrypoint", "python",
             "--workdir", "/app", "--volume", f"{release / TEST_DEPS}:/opt/qf-pytest:ro",
+            # The image is runtime-only (.dockerignore leaves tests out); the release export has them.
+            "--volume", f"{release / 'tests'}:/app/tests:ro",
             # The same read-only price store and data config the research services mount (compose.yaml).
             "--volume", f"{RESEARCH / 'market-data'}:/var/lib/quant-factory/market-data:ro",
             "--volume", f"{RESEARCH / 'config' / 'data_locations.local.toml'}:/app/config/data_locations.local.toml:ro",
