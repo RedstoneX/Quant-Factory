@@ -97,8 +97,8 @@ def _drop_bar(scale: float) -> dict[str, Any]:
 
 # Sharpe in mono: green at or above the pass line stored with the idea's screening rules, amber within 0.2 below it, grey otherwise.
 SHARPE_STYLE = _expression(
-    f"(params.value == null || !params.data || params.data.sharpe_line == null || params.data.trades === 0) ? {{fontFamily: \"{MONO}\"}} : "
-    f"{{fontFamily: \"{MONO}\", color: params.value >= params.data.sharpe_line ? '{GREEN}' : params.value >= params.data.sharpe_line - 0.2 ? '{AMBER}' : '{MUTED}'}}")
+    f"(params.value == null || !params.data || params.data.sharpe_line == null || params.data.trades === 0) ? {{fontFamily: \"{MONO}\", display: 'flex', alignItems: 'center'}} : "
+    f"{{fontFamily: \"{MONO}\", display: 'flex', alignItems: 'center', color: params.value >= params.data.sharpe_line ? '{GREEN}' : params.value >= params.data.sharpe_line - 0.2 ? '{AMBER}' : '{MUTED}'}}")
 
 
 def columns(phone: bool, bounds: dict[str, tuple[float, float]]) -> list[dict[str, Any]]:
@@ -108,9 +108,9 @@ def columns(phone: bool, bounds: dict[str, tuple[float, float]]) -> list[dict[st
     scale_return = max(abs(bounds["total_return"][0]), abs(bounds["total_return"][1])) or 1.0
     scale_drop = max(abs(bounds["worst_drop"][0]), abs(bounds["worst_drop"][1])) or 1.0
     idea = {"field": "idea_md", "headerName": "Idea", "cellRenderer": "markdown", "minWidth": 110 if phone else 200, "flex": 1, "filter": "agTextColumnFilter", "tooltipField": "title",
-            "cellStyle": {"lineHeight": "1.35", "paddingTop": "6px"}, **({"wrapText": True, "autoHeight": True} if phone else {})}
-    sharpe = {"field": "sharpe", "headerName": "Sharpe", "width": 80 if phone else 92, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".2f"), "cellStyle": SHARPE_STYLE}
-    chip = {"field": "result_html", "headerName": "Result", "width": 110 if phone else 120, "cellStyle": {"display": "flex", "alignItems": "center"}, "cellRenderer": "markdown", "filter": "agTextColumnFilter", "filterValueGetter": _expression("params.data.result")}
+            "cellStyle": {"lineHeight": "1.35", "paddingTop": "6px", **({"display": "flex", "alignItems": "center"} if phone else {})}, **({"wrapText": True, "autoHeight": True} if phone else {})}
+    sharpe = {"field": "sharpe", "headerName": "Sharpe", "width": 84 if phone else 92, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".2f"), "cellStyle": SHARPE_STYLE}
+    chip = {"field": "result_html", "headerName": "Result", "width": 134 if phone else 120, "cellStyle": {"display": "flex", "alignItems": "center", **({"paddingRight": "14px"} if phone else {})}, "cellRenderer": "markdown", "filter": "agTextColumnFilter", "filterValueGetter": _expression("params.data.result")}
     hidden = [{"field": "family", "hide": True, "filter": "agTextColumnFilter"}, {"field": "created_at", "headerName": "Submitted", "hide": True, "sort": "desc"}]  # newest first
     if phone:  # phone: Idea, Sharpe and the Result chip only
         return [idea, sharpe, chip, *hidden]
@@ -189,7 +189,7 @@ def results_workbench_layout(search: str | None = None) -> html.Div:
         body: list[Any] = [dmc.Paper(dmc.Text("No ideas have saved results yet.", size="sm", c=MUTED), p="lg", radius="lg", bg=PANEL, style={"border": f"1px solid {LINE}"})]
     else:
         first = newest_real_idea(ideas)
-        head = dmc.Stack([dmc.Text("Results", size="xs", c=FAINT), dmc.Title("Results workbench", order=1, size=26, fw=600)], gap=4)
+        head = dmc.Stack([dmc.Text("Results", size="xs", c=FAINT), dmc.Title("Results", order=1, size=26, fw=600)], gap=4)
         controls = dmc.Group([
             dmc.SegmentedControl(id="wb-mode", value="ideas", data=[{"value": "ideas", "label": f"Ideas · {len(ideas):,}"}, {"value": "settings", "label": f"Every setting tried · {len(settings):,}"}]),
             dmc.Select(id="wb-type", value=TYPE_ALL, data=[TYPE_ALL, *sorted(ideas["family"].unique())], allowDeselect=False, w=260),
