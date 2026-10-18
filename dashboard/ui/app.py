@@ -25,6 +25,7 @@ from dashboard.results_projection import oos_report_metrics
 from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
 from dashboard.ui.compare import compare_layout, register_compare_callbacks
 from dashboard.ui.idea_report import FONT_URL as REPORT_FONT_URL, idea_report_layout
+from dashboard.ui.results_workbench import register_workbench_callbacks, results_workbench_layout
 from dashboard.ui.factory import factory_layout, register_factory_callbacks
 from dashboard.ui.layout import app_shell, copy_id, page_content, page_header, stat_card
 from dashboard.ui.paper import paper_layout
@@ -399,6 +400,7 @@ def create_app() -> Dash:
             response.set_cookie("qf_revision", revision, secure=True, httponly=False, samesite="Strict")
         return response
 
+    register_workbench_callbacks(application)
     application.layout = app_shell(dcc.Location(id="router-location", refresh=False), html.Div(id="route-page"))
 
     @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
@@ -406,6 +408,7 @@ def create_app() -> Dash:
         if pathname == "/candidates": return page_content(candidates_layout(search))
         if pathname == "/results": return page_content(results_layout(search))
         if pathname == "/report": return page_content(idea_report_layout(search))
+        if pathname == "/workbench": return page_content(results_workbench_layout(search))
         if pathname == "/factory": return page_content(factory_layout())
         if pathname == "/submit": return page_content(submit_layout())
         if pathname == "/compare": return page_content(compare_layout(search))
