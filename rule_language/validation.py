@@ -97,8 +97,9 @@ _TOP_LEVEL_KEYS = (
 )
 SKIP_DAY_CALENDARS = ("cpi", "fomc")
 _EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_profit", "trailing_stop", "trail_after", "exit_when")
-# Distance kinds valid for some stops only: a price level fixed at entry (stop_loss) and R-multiples of that stop.
-_STOP_ONLY_KINDS = {"level": ("stop_loss",), "r_multiple": ("take_profit", "trail_after")}
+# Distance kinds valid for some stops only: a price level fixed at entry (stop_loss), the signal bar's low (long) or
+# high (short) as that level, and R-multiples of that stop.
+_STOP_ONLY_KINDS = {"level": ("stop_loss",), "signal_bar": ("stop_loss",), "r_multiple": ("take_profit", "trail_after")}
 # Engine-side stops, each optional and independent; their distances are fixed at entry.
 STOP_KEYS = ("stop_loss", "take_profit", "trailing_stop", "trail_after")
 _CLOCK = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])")
@@ -355,6 +356,10 @@ class _Validator:
         if kind in _STOP_ONLY_KINDS:
             if stop not in _STOP_ONLY_KINDS[kind]:
                 raise RuleSpecError(where, f"is allowed only in {' or '.join(_STOP_ONLY_KINDS[kind])}")
+            if kind == "signal_bar":
+                if node[kind] is not True:
+                    raise RuleSpecError(where, "must be true: the stop sits at the signal bar's low (long) or high (short)")
+                return {kind: True}
             return {kind: self.series(node[kind], where) if kind == "level" else self.amount(node[kind], where)}
         if kind == "atr":
             atr = _object(node[kind], where, required=("length", "multiple"))

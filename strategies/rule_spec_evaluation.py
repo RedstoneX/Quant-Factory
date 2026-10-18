@@ -317,6 +317,14 @@ class RuleEvaluator:
         entry_open[:-1] = self.bars.open[1:]  # next bar of the same session; the session's last bar has none
         return _divide(entry_open - self.series(node), entry_open)
 
+    def signal_bar_fraction(self, sides: np.ndarray) -> np.ndarray:
+        """``stop_loss: {"signal_bar": true}``: a ``level`` stop at the signal bar's low (long) or high (short).
+
+        Same engine translation as ``level_fraction``: positive when the level is on the stop side of the entry
+        open; not positive where the open is already through it (the entry is skipped), NaN where no signal points.
+        """
+        return np.where(sides > 0, self.level_fraction("low"), np.where(sides < 0, -self.level_fraction("high"), np.nan))
+
     def _distance_fraction(self, node: Mapping[str, Any]) -> np.ndarray:
         kind, value = next(iter(node.items()))
         if kind == "level":
