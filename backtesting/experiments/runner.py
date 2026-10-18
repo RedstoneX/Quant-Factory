@@ -395,7 +395,10 @@ def _record_luck(
         return None, None
     values = np.column_stack(value_columns)
     luck = deflated_sharpe(values, initial_cash)
-    returns = grid_returns(values, initial_cash, index)
+    # The vendor PBO recipe scores daily Sharpe (freq="1D"): feed it each day's closing
+    # value, not every bar, which also keeps its 70 splits small on minute data.
+    daily = pd.DataFrame(values, index=index).groupby(pd.DatetimeIndex(index).date).last()
+    returns = grid_returns(daily.to_numpy(), initial_cash, pd.DatetimeIndex(daily.index))
     enough = returns.shape[1] >= 2 and returns.shape[0] >= 2 * PBO_FOLDS
     return luck, probability_of_backtest_overfitting(returns) if enough else None
 
