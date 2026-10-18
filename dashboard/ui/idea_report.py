@@ -10,7 +10,7 @@ import dash_ag_grid as dag
 import dash_mantine_components as dmc
 import pandas as pd
 import plotly.graph_objects as go
-from dash import Input, Output, clientside_callback, dcc, html
+from dash import dcc, html
 from plotly.subplots import make_subplots
 
 from dashboard.idea_report_projection import NOT_SAVED, STATUS_TONE, load_report
@@ -202,11 +202,6 @@ def header(report: dict[str, Any]) -> dmc.Stack:
     return dmc.Stack([dmc.Text("Results / Idea report", size="xs", c=FAINT), dmc.Title(report["title"], order=1, size=26, fw=600), dmc.Group(chips, gap=6)], gap=8)
 
 
-clientside_callback(  # Plotly sizes itself once at first paint; one resize after the layout settles makes every figure fit its card
-    "(ticks) => { window.dispatchEvent(new Event('resize')); return true; }",
-    Output("idea-report-settle", "disabled"), Input("idea-report-settle", "n_intervals"), prevent_initial_call=True,
-)
-
 
 def _message(text: str) -> dmc.Paper:
     return dmc.Paper(dmc.Text(text, size="sm", c=MUTED), p="lg", radius="lg", bg=PANEL, style={"border": f"1px solid {LINE}"})
@@ -225,6 +220,5 @@ def idea_report_layout(search: str | None = None) -> html.Div:
         if lower:
             body.append(dmc.SimpleGrid(lower, cols={"base": 1, "md": min(2, len(lower)), "xl": len(lower)}, spacing="md", style={"minWidth": 0}))
         body = [item for item in [*body, trades_panel(report)] if item is not None]
-    body.append(dcc.Interval(id="idea-report-settle", interval=500, max_intervals=1))
     return html.Div(dmc.MantineProvider(dmc.Stack(body, gap="md", p={"base": "sm", "sm": "lg"}, maw=1440, mx="auto", style={"minWidth": 0}), theme=REPORT_THEME, forceColorScheme="dark"),
                     style={"background": BG, "minHeight": "100vh", "fontFamily": SANS, "color": TEXT})
