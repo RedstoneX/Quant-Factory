@@ -24,7 +24,7 @@
   "oversized_source_files": {
     "backtesting/run_mes_overnight_gap_reversal.py": 662,
     "backtesting/run_mes_overnight_gap_reversal_durable.py": 809,
-    "backtesting/validation/evidence_service.py": 834,
+    "backtesting/validation/evidence_service.py": 833,
     "dashboard/run_adapter.py": 823,
     "dashboard/run_detail_adapter.py": 1304,
     "orchestration/candidate_pipeline_runtime.py": 1109,
