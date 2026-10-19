@@ -83,7 +83,7 @@ def _tests(statuses: list[str], ran: int) -> list[dict]:
 
 def test_header_chip() -> None:
     assert report.overall_chip(_tests(["Passed"] * 5, 5)) == ("Passed", "green")
-    assert report.overall_chip(_tests(["Passed", "Can't test", "Can't test", "Can't test", "Can't test"], 1)) == ("1 passed · 4 can't test", "grey")
+    assert report.overall_chip(_tests(["Passed", "Can't test", "Can't test", "Can't test", "Can't test"], 1)) == ("1 passed · 4 not run", "grey")
     assert report.overall_chip(_tests(["Failed", "Can't test", "Can't test", "Can't test", "Can't test"], 1)) == ("Failed at Survives costs", "red")
     assert report.overall_chip(_tests(["Can't test"] * 5, 0)) == ("Not tested yet", "grey")
 
@@ -160,5 +160,13 @@ def test_unseen_card_states_the_19_oct_rule_and_both_sharpes(monkeypatch, tmp_pa
     saved = {"total_return": 0.04, "sharpe_ratio": -0.2, "_training_metrics": {"total_return": 0.12, "sharpe_ratio": 0.477}}
     monkeypatch.setattr(report, "oos_report_metrics", lambda **_: saved)
     out = report._test_measure("oos", {"run_id": "run_x"}, {}, {}, tmp_path / "db.sqlite3", 0.1)
-    assert out["rule"] == "Unseen data: made money on years it never saw (after costs)"
-    assert out["scores"] == ["Built-on years: made money ✓ (Sharpe 0.48)", "Unseen years: made money ✓ (Sharpe -0.20)"]
+    assert out["rule"] == "Passes if it made money on years it never saw, after costs"
+    assert out["scores"] == [("Built-on years", "0.48"), ("Unseen years", "-0.20")]
+    saved["_training_metrics"] = {}
+    out = report._test_measure("oos", {"run_id": "run_x"}, {}, {}, tmp_path / "db.sqlite3", 0.1)
+    assert out["scores"][0] == ("Built-on years", None)
+
+
+def test_chip_counts_never_ran_as_not_run_and_recorded_stops_as_cant_test() -> None:
+    tests = _tests(["Passed", "Passed", "Can't test", "Can't test", "Can't test"], 3)
+    assert report.overall_chip(tests) == ("2 passed · 1 can't test · 2 not run", "grey")
