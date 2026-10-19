@@ -107,7 +107,8 @@ def test_card(index: int, test: dict[str, Any]) -> dmc.Paper:
         saved_note = [dmc.Text("Per-window numbers: " + NOT_SAVED.lower(), size="xs", c=FAINT)]
     return dmc.Paper([
         dmc.Group([dmc.Text(f"{index} · {test['label']}", fw=500, size="sm"), *([dmc.Badge(test["status"], color=tone, variant="light", size="sm")] if test["run_id"] else [])], justify="space-between", gap="xs"),
-        dmc.Text(test["value"], size="lg", ff=MONO), *bar, *([dmc.Text(test["line"], size="xs", c=MUTED)] if test["line"] else []), *saved_note,
+        *([dmc.Text(test["rule"], size="xs", c=MUTED)] if test.get("rule") else []),
+        dmc.Text(test["value"], size="lg", ff=MONO), *bar, *[dmc.Text(score, size="xs", ff=MONO) for score in test.get("scores") or []], *([dmc.Text(test["line"], size="xs", c=MUTED)] if test["line"] else []), *saved_note,
     ], p="md", radius="md", bg=INNER, style={"border": f"1px solid {LINE}"}, className="idea-report-test")
 
 

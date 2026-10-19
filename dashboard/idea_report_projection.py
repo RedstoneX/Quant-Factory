@@ -19,6 +19,16 @@ from dashboard.idea_results_projection import (
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_projection import oos_report_metrics
 
+UNSEEN_RULE = "Unseen data: made money on years it never saw (after costs)"  # owner ruling 19 Oct 2026
+
+
+def _slice_score(name: str, metrics: dict[str, Any]) -> str:
+    """One recorded-score line for a slice: made money after costs, plus its Sharpe (a score, not a gate)."""
+    value, sharpe = metrics.get("total_return"), metrics.get("sharpe_ratio")
+    made = "not saved" if value is None else ("made money ✓" if float(value) > 0 else "made money ✗")
+    return f"{name}: {made} (Sharpe {'not saved' if sharpe is None else f'{float(sharpe):.2f}'})"
+
+
 TEST_LABELS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time", "robustness": "Stress test", "monte_carlo": "Luck test"}
 PASSED, CLOSE_CALL, FAILED, CANT_TEST, CRASHED = "Passed", "Close call", "Failed", "Can't test", "Crashed"
 NOT_SCORED = "Not scored"  # a score stage of a gateway survivor with no usable result; shown in the grey Can't test style
@@ -232,7 +242,7 @@ def settings_grid(rows: list[dict[str, Any]], chosen_row_id: str | None) -> dict
 
 def _test_measure(stage: str, test: dict[str, Any], idea: dict[str, Any], detail: dict[str, Any], database: Path, built_return: float | None) -> dict[str, Any]:
     """The value shown on a test's bar, the bar's length and its pass line (None when no line was saved)."""
-    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None}
+    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None, "rule": UNSEEN_RULE if stage == "oos" else None, "scores": []}
     if not test["run_id"]:
         return out
     if stage == "screening":
@@ -240,7 +250,10 @@ def _test_measure(stage: str, test: dict[str, Any], idea: dict[str, Any], detail
         if total:
             out.update(value=f"{survivors:,} of {total:,} settings", fraction=survivors / total, pass_line=1 / total)
     elif stage == "oos":
-        value = (oos_report_metrics(database=database, run_id=test["run_id"]) or {}).get("total_return")
+        metrics = oos_report_metrics(database=database, run_id=test["run_id"]) or {}
+        value = metrics.get("total_return")
+        if metrics:
+            out["scores"] = [_slice_score("Built-on years", metrics.get("_training_metrics") or {}), _slice_score("Unseen years", metrics)]
         if value is not None:
             scale = max(abs(float(value)), abs(built_return or 0.0)) or 1.0  # both stored: unseen return and built-on return share one scale
             out.update(value=f"{float(value) * 100:+.1f}%", fraction=0.5 + float(value) / (2 * scale), pass_line=0.5)

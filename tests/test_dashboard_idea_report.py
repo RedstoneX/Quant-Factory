@@ -154,3 +154,11 @@ def test_survivor_with_failed_scores_keeps_gates_chip_and_stays_in_review() -> N
 
 def test_close_call_score_reads_close_call_in_the_chip() -> None:
     assert report.gates_chip(["Passed", "Passed", "Passed", "Close call", "Passed"]) == "Passed the gates · Stress test: close call"
+
+
+def test_unseen_card_states_the_19_oct_rule_and_both_sharpes(monkeypatch, tmp_path) -> None:
+    saved = {"total_return": 0.04, "sharpe_ratio": -0.2, "_training_metrics": {"total_return": 0.12, "sharpe_ratio": 0.477}}
+    monkeypatch.setattr(report, "oos_report_metrics", lambda **_: saved)
+    out = report._test_measure("oos", {"run_id": "run_x"}, {}, {}, tmp_path / "db.sqlite3", 0.1)
+    assert out["rule"] == "Unseen data: made money on years it never saw (after costs)"
+    assert out["scores"] == ["Built-on years: made money ✓ (Sharpe 0.48)", "Unseen years: made money ✓ (Sharpe -0.20)"]

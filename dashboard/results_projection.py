@@ -194,7 +194,8 @@ def oos_report_metrics(*, database: Path, run_id: str | None) -> dict[str, Any] 
     metrics = (report or {}).get("metrics")
     if not report or report.get("artifact_kind") != "out_of_sample" or not isinstance(metrics, dict) or not metrics:
         return None
-    return {**metrics, "_test_status": report.get("test_status")}
+    training = report.get("training_metrics")
+    return {**metrics, "_test_status": report.get("test_status"), "_training_metrics": training if isinstance(training, dict) else {}}
 
 
 def _shared_price_rows(
