@@ -9,7 +9,7 @@ from pathlib import Path
 
 from dashboard.factory_history import event_sentence, is_close_call, parse_measured_needed, short_reason, is_restart, crash_label, submitter_label, timeline_rows, clock
 from dashboard.factory_overview import (
-    crash_alerts, drain_state, group_abandoned, header_pill, median_minutes, memory_health, price_data_rows, run_outcome,
+    crash_alerts, drain_state, group_abandoned, header_pill, headline_for, latest_not_after, median_minutes, not_after, memory_health, price_data_rows, run_outcome,
 )
 
 NOW = datetime(2026, 10, 19, 15, 0, tzinfo=timezone.utc)
@@ -82,7 +82,7 @@ def test_run_outcome_and_memory_and_prices(tmp_path: Path) -> None:
     assert run_outcome({**_run("c", "succeeded", "completed", "x"), "survivor_count": 1}, set()) == "passed"
     meminfo = tmp_path / "meminfo"
     meminfo.write_text("MemTotal:  1000 kB\nMemAvailable:  500 kB\n")
-    assert memory_health(1, meminfo) == {"tone": "amber", "value": "50% free · 1 crash today"}
+    assert memory_health(meminfo) == {"tone": "green", "value": "50% free"}
     (tmp_path / "spy.json").write_text('{"symbol": "SPY", "latest_timestamp": "2026-10-16T20:00:00Z"}')
     assert price_data_rows([tmp_path]) == [{"market": "SPY", "last": "Fri 16 Oct"}]
 
@@ -127,3 +127,26 @@ def test_restart_stops_are_history_and_crash_tile_names_main_reason() -> None:
     sentence, tone = event_sentence({"state": "failed", "reason_code": "run_error", "reason_detail": "Stopped by a server restart"}, "SPY ORB", "Grok")
     assert sentence == "“SPY ORB” stopped by a server restart, safe to re-run." and tone == "grey"
     assert crash_label("stopped by a server restart") == "server restarts"
+
+
+def test_headline_says_all_clear_only_when_nothing_needs_a_look_and_every_check_is_green() -> None:
+    assert headline_for(running=0, waiting=0, looks=0, warnings=0) == ("All clear", "green")
+    assert headline_for(running=0, waiting=0, looks=0, warnings=2) == ("Idle. 2 health warnings.", "amber")
+    assert headline_for(running=0, waiting=0, looks=1, warnings=1) == ("Idle. 1 thing needs a look. 1 health warning.", "amber")
+    assert headline_for(running=1, waiting=2, looks=0, warnings=0) == ("1 test running, 2 waiting. All clear.", "text")
+    assert headline_for(running=1, waiting=0, looks=0, warnings=1)[1] == "amber"
+
+
+def test_nothing_is_shown_after_the_as_of_time() -> None:
+    rows = [{"created_at": "2026-10-19T14:59:00Z"}, {"created_at": "2026-10-19T15:00:00+00:00"}, {"created_at": "2026-10-19T15:00:01Z"}, {"created_at": None}]
+    assert [r["created_at"] for r in not_after(rows, "created_at", NOW)] == ["2026-10-19T14:59:00Z", "2026-10-19T15:00:00+00:00", None]
+    assert latest_not_after(["2026-10-19T14:00:00Z", "2026-10-19T16:30:00Z", None], NOW) == "2026-10-19T14:00:00Z"  # a Grok request after the as-of time is ignored
+    assert latest_not_after(["2026-10-19T16:30:00Z"], NOW) is None
+
+
+def test_timeline_has_one_now_marker_and_failed_is_slate() -> None:
+    from dashboard.ui.factory_oversight import OUTCOME_COLOR, timeline_figure
+    figure = timeline_figure([], NOW.replace(tzinfo=None))
+    assert [a.text for a in figure.layout.annotations if a.text == "now"] == ["now"]
+    assert len([s for s in figure.layout.shapes if s.line.dash == "dash"]) == 1
+    assert OUTCOME_COLOR["failed"] == "#4B5160"
