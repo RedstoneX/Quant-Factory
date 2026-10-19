@@ -117,7 +117,7 @@ def test_factory_verdict_overrides_research_statuses_and_falls_back_without_one(
     assert report.apply_campaign_verdict(stored, ("screened_out", "screening"))[0] == "Failed"
     assert report.apply_campaign_verdict(stored, ("screened_out", "walk_forward")) == ["Passed", "Passed", "Failed", "Can't test", "Can't test"]
     assert report.apply_campaign_verdict(stored, ("survivor", "passed_all")) == ["Passed", "Passed", "Not scored", "Not scored", "Not scored"]  # a survivor passed the two gates only
-        assert report.apply_campaign_verdict(stored, ("failed", "run_error")) == stored  # the campaign crash never paints a card; each card crashes from its own stage run
+    assert report.apply_campaign_verdict(stored, ("failed", "run_error")) == stored  # the campaign crash never paints a card; each card crashes from its own stage run
     assert report.apply_campaign_verdict(stored, None) == stored  # no event: the research-DB statuses stand
     assert report.apply_campaign_verdict(stored, ("queued", "waiting")) == stored  # waiting or running is no verdict yet
 
