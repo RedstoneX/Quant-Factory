@@ -29,7 +29,7 @@ def test_status_mapping(stage: str, stored: str | None, run: str | None, expecte
 
 
 def test_every_status_has_a_tone() -> None:
-    assert set(report.STATUS_TONE) == {"Passed", "Close call", "Failed", "Can't test", "Crashed"}
+    assert set(report.STATUS_TONE) == {"Passed", "Close call", "Failed", "Can't test", "Crashed", "Not scored"}
 
 
 @pytest.mark.parametrize(("states", "reason_part"), [
@@ -116,7 +116,41 @@ def test_factory_verdict_overrides_research_statuses_and_falls_back_without_one(
     assert failed_unseen == ["Passed", "Failed", "Can't test", "Can't test", "Can't test"] and workbench.overall_status(failed_unseen) == "Failed: unseen"
     assert report.apply_campaign_verdict(stored, ("screened_out", "screening"))[0] == "Failed"
     assert report.apply_campaign_verdict(stored, ("screened_out", "walk_forward")) == ["Passed", "Passed", "Failed", "Can't test", "Can't test"]
-    assert report.apply_campaign_verdict(stored, ("survivor", "passed_all")) == ["Passed"] * 5
+    assert report.apply_campaign_verdict(stored, ("survivor", "passed_all")) == ["Passed", "Passed", "Not scored", "Not scored", "Not scored"]  # a survivor passed the two gates only
     assert report.apply_campaign_verdict(stored, ("failed", "run_error"))[1] == "Crashed"
     assert report.apply_campaign_verdict(stored, None) == stored  # no event: the research-DB statuses stand
     assert report.apply_campaign_verdict(stored, ("queued", "waiting")) == stored  # waiting or running is no verdict yet
+
+
+def test_survivor_keeps_its_own_score_statuses() -> None:
+    from dashboard import results_workbench_projection as workbench
+
+    stored = ["Passed", "Passed", "Failed", "Close call", "Can't test"]
+    statuses = report.apply_campaign_verdict(stored, ("survivor", "awaiting_owner_review"))
+    assert statuses == ["Passed", "Passed", "Failed", "Close call", "Not scored"]  # Holds over time = Failed, not overwritten with Passed
+    assert report.STATUS_TONE["Not scored"] == report.STATUS_TONE["Can't test"]
+    assert workbench.overall_status(report.apply_campaign_verdict(["Passed", "Can't test", "Can't test", "Can't test", "Can't test"], ("survivor", "x")), survivor=True) == "Passed"
+
+
+def test_survivor_never_overwrites_a_recorded_gate_result() -> None:
+    from dashboard import results_workbench_projection as workbench
+
+    # the research DB recorded a failed unseen-data result: the recorded result stands, the survivor verdict does not paper over it
+    statuses = report.apply_campaign_verdict(["Passed", "Failed", "Can't test", "Can't test", "Can't test"], ("survivor", "awaiting_owner_review"))
+    assert statuses[:2] == ["Passed", "Failed"]
+    assert report.gates_chip(statuses) is None
+    # no recorded result for a gate: the survivor verdict fills it with Passed
+    assert report.apply_campaign_verdict(["Can't test"] * 5, ("survivor", "x"))[:2] == ["Passed", "Passed"]
+
+
+def test_survivor_with_failed_scores_keeps_gates_chip_and_stays_in_review() -> None:
+    from dashboard import results_workbench_projection as workbench
+
+    statuses = report.apply_campaign_verdict(["Passed", "Passed", "Failed", "Passed", "Can't test"], ("survivor", "awaiting_owner_review"))
+    assert report.gates_chip(statuses) == "Passed the gates · Holds over time: failed"
+    result = workbench.overall_status(statuses, survivor=True)
+    assert result == "Passed the gates · Holds over time: failed" and workbench.chip_tone(result) == "amber"
+
+
+def test_close_call_score_reads_close_call_in_the_chip() -> None:
+    assert report.gates_chip(["Passed", "Passed", "Passed", "Close call", "Passed"]) == "Passed the gates · Stress test: close call"

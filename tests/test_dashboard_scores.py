@@ -59,5 +59,5 @@ def test_shortlist_idea_name_wraps_instead_of_truncating():
 def test_waiting_banner_text():
     assert score_projection.waiting_banner_text({"review": 0, "decision": 0}) is None
     assert score_projection.waiting_banner_text({"review": 2, "decision": 1}) == (
-        "Waiting for you: 2 ideas passed every test and need your review; 1 idea on hold for your decision")
-    assert "1 idea passed every test and needs your review" in score_projection.waiting_banner_text({"review": 1})
+        "Waiting for you: 2 ideas passed the gates and need your review; 1 idea on hold for your decision")
+    assert "1 idea passed the gates and needs your review" in score_projection.waiting_banner_text({"review": 1})

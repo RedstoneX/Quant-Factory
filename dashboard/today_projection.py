@@ -22,13 +22,17 @@ CLOSE_CALL_LIMIT = 5
 
 
 def funnel(ideas: pd.DataFrame) -> list[dict[str, Any]]:
-    """How many ideas are still standing after each test, in test order: an idea counts at a step only if it passed every test up to it."""
+    """How many ideas are still standing after each test, in test order. The two gates are cumulative (an idea counts only if it passed every gate up to it);
+    the three scores after them count ideas that cleared both gates and whose own score Passed, so they are counts of scores, not of survivors."""
     total = len(ideas)
     standing = pd.Series(True, index=ideas.index)
     steps = [{"label": FUNNEL_LABELS[0], "count": total, "share": 1.0 if total else 0.0}]
     for index, label in enumerate(FUNNEL_LABELS[1:]):
-        standing = standing & ideas["dots"].map(lambda tones, i=index: tones[i] == "green")
-        steps.append({"label": label, "count": int(standing.sum()), "share": float(standing.sum()) / total if total else 0.0})
+        passed = ideas["dots"].map(lambda tones, i=index: tones[i] == "green")
+        if index < 2:
+            standing = standing & passed
+        count = int(standing.sum()) if index < 2 else int((standing & passed).sum())
+        steps.append({"label": label, "count": count, "share": count / total if total else 0.0})
     return steps
 
 
@@ -46,7 +50,7 @@ def needs_owner(ideas: pd.DataFrame) -> dict[str, pd.DataFrame]:
     if ideas.empty:
         return {"passed": ideas, "close": ideas}
     ranked = ideas.sort_values("sharpe", ascending=False, na_position="last", kind="stable")
-    return {"passed": ranked[ranked["result"] == PASSED], "close": ranked[ranked["result"] == CLOSE_CALL]}
+    return {"passed": ranked[ranked["result"].str.startswith(PASSED)], "close": ranked[ranked["result"] == CLOSE_CALL]}
 
 
 def best_idea(ideas: pd.DataFrame) -> str | None:

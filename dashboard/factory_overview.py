@@ -18,6 +18,7 @@ from typing import Any
 from dashboard.factory_history import (
     OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, tests_from_events, hour_floor, is_close_call, is_restart, log_rows, short_reason, submitter_label, timeline_rows, utc,
 )
+from dashboard.idea_report_projection import score_statuses
 from dashboard.factory_projection import _duration_minutes, _params, _row, _runs_source, plain_error
 from dashboard.overview_projection import GATEWAY_DATABASE_ENVIRONMENT_VARIABLE, _open_read_only, _validated_connection, configured_database_path
 from dashboard.time_display import EASTERN, eastern_label
@@ -378,7 +379,8 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         health.append({"label": "Grok connected", "tone": "green" if minutes <= 1440 else "amber", "value": "last request " + eastern_label(grok_last, "%a %-d %b, %H:%M") + " ET"})
     else:
         health.append({"label": "Grok connected", "tone": "amber", "value": "no requests recorded"})
-    log = log_rows(events, titles, submitters, [], now, control)
+    survivors = {e["candidate_id"] for e in events[:60] if e["state"] == "survivor"}
+    log = log_rows(events, titles, submitters, [], now, control, {cid: score_statuses(cid, database_path) for cid in survivors})
     timeline = timeline_rows(tests, now, typical)
     looks = len(alerts) + (1 if old_runs else 0)
     warnings = sum(item["tone"] != "green" for item in health)

@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-from dashboard.idea_report_projection import CANT_TEST, CLOSE_CALL, STATUS_TONE, TEST_LABELS, apply_campaign_verdict, campaign_row, report_status
+from dashboard.idea_report_projection import CANT_TEST, gates_chip, CLOSE_CALL, STATUS_TONE, TEST_LABELS, apply_campaign_verdict, campaign_row, report_status
 from dashboard.idea_results_projection import STAGES, TRADE_STAGES, _check_name, _check_value, _evidence, _stage_runs, _test_card
 from dashboard.overview_projection import TEST_TITLE_PATTERNS, _validated_connection, configured_database_path
 
@@ -76,10 +76,12 @@ def _statuses(database: Path, connection: sqlite3.Connection, configuration_id: 
 SHORT_STAGE = {"screening": "costs", "oos": "unseen", "walk_forward": "over time", "robustness": "stress", "monte_carlo": "luck"}
 
 
-def overall_status(statuses: list[str], trades: Any = None) -> str:
+def overall_status(statuses: list[str], trades: Any = None, survivor: bool = False) -> str:
     """The one word the grid chip shows: Passed, Close call, Failed: <test>, Can't test, Crashed or No trades (no counts; the report keeps its long form)."""
     if trades is not None and not pd.isna(trades) and trades == 0:
         return "No trades"
+    if survivor and gates_chip(statuses):  # scores are not gates: a survivor stays Passed the gates whatever its scores
+        return "Passed" if all(status in ("Passed", "Not scored") for status in statuses) else gates_chip(statuses)
     failed = next((SHORT_STAGE[stage] for stage, status in zip(STAGE_NAMES, statuses) if status == "Failed"), None)
     if failed:
         return f"Failed: {failed}"
@@ -92,7 +94,7 @@ def overall_status(statuses: list[str], trades: Any = None) -> str:
 
 def chip_tone(text: str) -> str:
     """green passed, amber close call, red failed or crashed, grey can't test or no trades."""
-    return "green" if text == "Passed" else "amber" if text == "Close call" else "red" if text.startswith("Failed") or text == "Crashed" else "grey"
+    return "green" if text == "Passed" else "amber" if text == "Close call" or text.startswith("Passed the gates") else "red" if text.startswith("Failed") or text == "Crashed" else "grey"
 
 
 def _build(database: Path) -> dict[str, pd.DataFrame]:
@@ -119,9 +121,11 @@ def _build(database: Path) -> dict[str, pd.DataFrame]:
                                           [runs["screening"]["run_id"]]).fetchall()
             screening = {"screening_count": len(rows), "screened_out_count": sum(1 for row in rows if row["screening_status"] == "screened_out")}
             statuses, _ = _statuses(database, connection, head["configuration_id"], screening, head["candidate_id"])
+            row = connection.execute("SELECT state FROM qf_campaign_admissions WHERE candidate_id=?", [head["candidate_id"]]).fetchone()
+            survivor = bool(row and row[0] == "survivor")
             best = _metrics(rows[0]["metrics_json"]) if rows else {}
             common = {"candidate_id": head["candidate_id"], "title": head["title"], "market": head["market"], "timeframe": INTERVALS.get(head["interval"], head["interval"] or ""),
-                      "family": str(head["family"]).replace("_", " ").capitalize(), "sharpe_line": head["sharpe_line"], "created_at": head["created_at"], "result": overall_status(statuses), "dots": five_dots(statuses)}
+                      "family": str(head["family"]).replace("_", " ").capitalize(), "sharpe_line": head["sharpe_line"], "created_at": head["created_at"], "result": overall_status(statuses, survivor=survivor), "dots": five_dots(statuses)}
             ideas.append({**common, "sharpe": best.get("sharpe_ratio"), "total_return": _pct(best.get("total_return")), "worst_drop": _pct(best.get("max_drawdown")),
                           "trades": best.get("number_of_trades"), "settings_tried": len(rows)})
             for row in rows:
