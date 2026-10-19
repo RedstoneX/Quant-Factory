@@ -38,7 +38,7 @@ ABANDONED_AFTER = timedelta(days=1)
 CRASH_FIXES = (("memory", "Fix: split the grid into smaller parts, or re-queue it after the memory is raised."), ("restart", "Nothing to do: it was stopped by a restart and is safe to run again."))
 
 
-_EMPTY = {"last_test": None, "tiles": [], "running": [], "alerts": [], "old_runs": None, "queue": {"total": 0, "next": [], "next_start": None}, "timeline": [], "hourly": [], "health": [], "log": []}
+_EMPTY = {"paused": None, "pause_bands": [], "last_test": None, "tiles": [], "running": [], "alerts": [], "old_runs": None, "queue": {"total": 0, "next": [], "next_start": None}, "timeline": [], "hourly": [], "health": [], "log": []}
 
 
 def median_minutes(pairs: list[tuple[Any, Any]], last: int = 50) -> float | None:
@@ -56,9 +56,9 @@ def drain_state(marker: Path | None = None, now: float | None = None) -> bool:
     return age <= DRAIN_STALE_SECONDS
 
 
-def header_pill(*, running: int, draining: bool, last_finished_crashed: bool) -> dict[str, str]:
-    """The one status pill. Order: crash (until the next test finishes), paused for update, running, idle."""
-    label, tone = (("Last test crashed", "red") if last_finished_crashed and not running else ("Paused for update", "amber") if draining else ("Running", "green") if running else ("Idle", "grey"))
+def header_pill(*, running: int, draining: bool, last_finished_crashed: bool, paused: bool = False) -> dict[str, str]:
+    """The one status pill. Order: paused from dashboard, crash (until the next test finishes), paused for update, running, idle."""
+    label, tone = (("Paused", "amber") if paused else ("Last test crashed", "red") if last_finished_crashed and not running else ("Paused for update", "amber") if draining else ("Running", "green") if running else ("Idle", "grey"))
     return {"label": label, "tone": tone}
 
 
@@ -174,8 +174,11 @@ def latest_not_after(values: list[Any], now: datetime) -> Any:
     return max((v for v in values if v and utc(v) <= now), key=utc, default=None)
 
 
-def headline_for(*, running: int, waiting: int, looks: int, warnings: int) -> tuple[str, str]:
-    """(text, tone). 'All clear' only when nothing needs a look AND every health check is green."""
+def headline_for(*, running: int, waiting: int, looks: int, warnings: int, paused_since: str | None = None) -> tuple[str, str]:
+    """(text, tone). 'All clear' only when nothing needs a look AND every health check is green. Paused from dashboard wins over everything."""
+    if paused_since:
+        extra = ([f"{looks} thing{'s' if looks != 1 else ''} need{'s' if looks == 1 else ''} a look"] if looks else []) + ([f"{warnings} health warning{'s' if warnings != 1 else ''}"] if warnings else [])
+        return " ".join([f"Paused from dashboard since {paused_since}. {waiting} waiting."] + [f"{part}." for part in extra]), "amber"
     if not (looks or warnings or running or waiting):
         return "All clear", "green"
     state = f"{running} test{'s' if running != 1 else ''} running, {waiting} waiting" if running or waiting else "Idle"
@@ -187,6 +190,27 @@ def headline_for(*, running: int, waiting: int, looks: int, warnings: int) -> tu
     if not (looks or warnings):
         parts.append("All clear")
     return ". ".join(parts) + ".", "amber" if looks or warnings else "text"
+
+
+def read_campaign_control(gate: sqlite3.Connection, now: datetime, tables: set[str]) -> list[dict[str, Any]]:
+    """Pause/resume presses up to the as-of time, newest first. A gateway DB without the table (older) means never paused."""
+    if "campaign_control" not in tables:
+        return []
+    return [dict(r) for r in gate.execute("SELECT event_id,paused,actor,reason,created_at FROM campaign_control WHERE julianday(created_at)<=julianday(?) ORDER BY event_id DESC LIMIT 20", [now.isoformat()])]
+
+
+def pause_bands(control: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
+    """Pause spans (Eastern wall time) from press to resume, or to now while still paused, clipped to the last 12 hours."""
+    floor, bands, start = now - timedelta(hours=12), [], None
+    for row in sorted(control, key=lambda r: r["event_id"]):
+        if row["paused"] and start is None:
+            start = utc(row["created_at"])
+        elif not row["paused"] and start is not None:
+            bands.append((start, utc(row["created_at"])))
+            start = None
+    if start is not None:
+        bands.append((start, now))
+    return [{"start": max(a, floor).astimezone(EASTERN).replace(tzinfo=None), "end": b.astimezone(EASTERN).replace(tzinfo=None)} for a, b in bands if b > floor]
 
 
 def _gateway(path: str | None):
@@ -241,8 +265,10 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         queued_events: list[dict[str, Any]] = []
         submitters: dict[str, str] = {}
         grok_last = last_event = None
+        control: list[dict[str, Any]] = []
         if gate is not None:
             tables = {str(r[0]) for r in gate.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            control = read_campaign_control(gate, now, tables)
             if "campaign_events" in tables:
                 events = [dict(r) for r in gate.execute("SELECT event_id,candidate_id,state,reason_code,reason_detail,run_id,created_at FROM campaign_events WHERE julianday(created_at)<=julianday(?) AND julianday(created_at)>=julianday(?)-7 ORDER BY event_id DESC", [now.isoformat(), now.isoformat()])]
                 last_event = (gate.execute("SELECT created_at FROM campaign_events WHERE julianday(created_at)<=julianday(?) ORDER BY event_id DESC LIMIT 1", [now.isoformat()]).fetchone() or [None])[0]
@@ -276,7 +302,9 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     crashed_today = [r for r in today if r["outcome"] == "crashed"]
     passed_today = sum(r["outcome"] == "passed" for r in today)
     latest_finished = max(finished, key=lambda r: utc(r["completed_at"]), default=None)
-    pill = header_pill(running=len(live), draining=draining, last_finished_crashed=bool(latest_finished and latest_finished["outcome"] == "crashed"))
+    paused = bool(control and control[0]["paused"])
+    paused_since = clock(control[0]["created_at"], now) if paused else None
+    pill = header_pill(running=len(live), draining=draining, last_finished_crashed=bool(latest_finished and latest_finished["outcome"] == "crashed"), paused=paused)
     queue_rows = [{"n": position, "name": titles.get(item["candidate_id"], item["candidate_id"]), "who": submitter_label(submitters.get(item["candidate_id"])),
                    "when": clock(item["created_at"], now), "candidate_id": item["candidate_id"]} for position, item in enumerate(queued_events, 1)]
     longest = max((((now - utc(i["created_at"])).total_seconds() / 60) for i in queued_events), default=None)
@@ -303,6 +331,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     crash_reason = crash_reason if len(crash_reason) <= 44 else "see What happened"
     last_test = {"name": latest_finished["title"], "outcome": OUTCOME_WORDS[latest_finished["outcome"]].lower(), "when": clock(latest_finished["completed_at"], now), "candidate_id": latest_finished["candidate_id"]} if latest_finished else None
     tiles = [
+        {"label": "Running now", "value": "Paused", "sub": f"since {paused_since}", "color": "amber"} if paused else
         {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle"},
         {"label": "Waiting", "value": f"{len(queue_rows)}", "sub": f"longest wait {_human_minutes(longest)}" if longest is not None else "nothing in line", "color": "text", "spark": queued_per_hour},
         {"label": "Runs today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {len(today) - passed_today - len(crashed_today)} failed · {len(crashed_today)} crashed", "color": "text",
@@ -319,7 +348,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         step = STEP_NAME.get(run["stage"], "starting")
         running_cards.append({"name": run["title"], "elapsed": _human_minutes(elapsed), "slow": slow, "candidate_id": run["candidate_id"],
                               "steps": ["done" if i < current else ("slow" if slow else "current") if i == current else "todo" for i in range(5)],
-                              "where": f"Step {current + 1} of 5 · {step}", "note": f"typical {typical:.0f} min" if typical else "typical time not yet known"})
+                              "where": f"Step {current + 1} of 5 · {step}", "note": "finishing; nothing new will start" if paused else f"typical {typical:.0f} min" if typical else "typical time not yet known"})
         if slow:
             alerts.append({"tone": "amber", "title": f"Slow: one test is taking {elapsed / typical:.1f}× longer than usual", "when": clock(now.isoformat()), "sort": now.isoformat(),
                            "body": f"“{run['title']}” has been on “{step}” for {_human_minutes(elapsed)}.", "next": "Nothing to do yet.", "candidate_id": run["candidate_id"]})
@@ -349,12 +378,12 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         health.append({"label": "Grok connected", "tone": "green" if minutes <= 1440 else "amber", "value": "last request " + eastern_label(grok_last, "%a %-d %b, %H:%M") + " ET"})
     else:
         health.append({"label": "Grok connected", "tone": "amber", "value": "no requests recorded"})
-    log = log_rows(events, titles, submitters, [], now)
+    log = log_rows(events, titles, submitters, [], now, control)
     timeline = timeline_rows(tests, now, typical)
     looks = len(alerts) + (1 if old_runs else 0)
     warnings = sum(item["tone"] != "green" for item in health)
-    headline, headline_tone = headline_for(running=len(live), waiting=len(queue_rows), looks=looks, warnings=warnings)
-    return {**base, "available": True, "message": "", "pill": pill, "headline": headline, "headline_tone": headline_tone, "typical_minutes": typical, "tiles": tiles, "running": running_cards, "last_test": last_test, "alerts": alerts, "old_runs": old_runs,
+    headline, headline_tone = headline_for(running=len(live), waiting=len(queue_rows), looks=looks, warnings=warnings, paused_since=paused_since)
+    return {**base, "available": True, "message": "", "pill": pill, "paused": {"since": paused_since} if paused else None, "pause_bands": pause_bands(control, now), "headline": headline, "headline_tone": headline_tone, "typical_minutes": typical, "tiles": tiles, "running": running_cards, "last_test": last_test, "alerts": alerts, "old_runs": old_runs,
             "queue": {"total": len(queue_rows), "next": queue_rows[:4], "next_start": f"~{typical:.0f} min (estimate)" if queue_rows and typical else None},
             "timeline": timeline, "hourly": hourly, "health": health, "log": log}
 

@@ -145,8 +145,14 @@ def group_requeues(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: dict[str, str], crashed_today: list[dict[str, Any]], now: datetime | None = None) -> list[dict[str, Any]]:
-    log: list[dict[str, Any]] = []
+def control_log_rows(control: list[dict[str, Any]], now: datetime | None = None) -> list[dict[str, Any]]:
+    """Pause/resume presses from the gateway campaign_control table. The wording is always 'from dashboard', never who pressed."""
+    return [{"t": clock(row["created_at"], now), "when": utc(row["created_at"]), "tone": "grey",
+             "text": "Testing paused from dashboard" if row["paused"] else "Testing resumed from dashboard"} for row in control]
+
+
+def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: dict[str, str], crashed_today: list[dict[str, Any]], now: datetime | None = None, control: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    log: list[dict[str, Any]] = control_log_rows(control or [], now)
     for event in group_requeues(events[:60])[:20]:
         sentence, tone = event_sentence(event, titles.get(event["candidate_id"], event["candidate_id"]), submitter_label(submitters.get(event["candidate_id"])))
         if event["count"] > 1:
