@@ -210,7 +210,8 @@ def test_a_crash_with_no_research_run_is_counted_the_same_by_every_panel(tmp_pat
     data = overview.load_factory_overview(database=tmp_path / "x", gateway=str(gateway), now=now, drain_marker=tmp_path / "none")
     assert data["available"], data["message"]
     tile = {t["label"]: t["value"] for t in data["tiles"]}
-    assert (tile["Runs finished today"], tile["Runs crashed today"]) == ("3", "1")
+    assert (tile["Runs today"], tile["Runs crashed today"]) == ("3", "1")
+    assert [t["sub"] for t in data["tiles"] if t["label"] == "Runs today"] == ["1 passed · 1 failed · 1 crashed"]
     assert sorted(row["outcome"] for row in data["timeline"]) == ["crashed", "failed", "passed"]
     assert sum(row[k] for row in data["hourly"] for k in ("failed", "close", "passed", "crashed")) == 3 and sum(row["crashed"] for row in data["hourly"]) == 1
     texts = [row["text"] for row in data["log"]]

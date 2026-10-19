@@ -25,6 +25,9 @@ TONE_COLOR = {"green": GREEN, "amber": AMBER, "red": RED, "grey": HOLD, "indigo"
 ICON = {"green": "✓", "amber": "!", "red": "×"}
 STEP_CLASS = {"done": "done", "current": "current", "slow": "slow", "todo": "todo"}
 NEUTRAL_FIGURE = dict(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(family=MONO, color=FAINT, size=11))
+CARD = "#0F1114"
+GAP_PX = 2
+MIN_BLOCK = pd.Timedelta(minutes=6)
 GRAPH_CONFIG = {"displayModeBar": False}
 OUTPUTS = ("fo-pill", "fo-date", "fo-headline", "fo-tiles", "fo-running", "fo-alerts", "fo-old-title", "fo-old-items", "fo-old-wrap", "fo-needs",
            "fo-queue-head", "fo-queue", "fo-timeline", "fo-timeline-empty", "fo-hourly", "fo-hourly-phone", "fo-health", "fo-health-checked", "fo-log", "fo-log-more")
@@ -100,13 +103,14 @@ def timeline_figure(rows: list[dict[str, Any]], now: Any) -> go.Figure:
     now = pd.Timestamp(now)
     frame = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["name", "start", "end", "minutes", "outcome", "candidate_id"])
     if rows:
+        frame["end"] = frame[["end", "start"]].apply(lambda r: max(r["end"], r["start"] + MIN_BLOCK), axis=1)  # a short run still shows; hover keeps the true time
         frame["Lane"] = "Factory"
         frame["Outcome"] = frame["outcome"].map(OUTCOME_WORDS)
         frame["Took"] = [("ended time unknown" if cap else f"{int(m)} min {int(round((m - int(m)) * 60)):02d} s" if m >= 1 else f"{int(round(m * 60))} s") for m, cap in zip(frame["minutes"], frame["capped"])]
         figure = px.timeline(frame, x_start="start", x_end="end", y="Lane", color="Outcome", color_discrete_map={OUTCOME_WORDS[k]: v for k, v in OUTCOME_COLOR.items()}, custom_data=["name", "Took", "Outcome", "candidate_id"])
         figure.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]} · %{customdata[2]}<extra></extra>", width=0.9)
         for trace in figure.data:
-            trace.marker.line = dict(width=1, color=trace.marker.color)  # a one-second test still shows as a hairline
+            trace.marker.line = dict(width=GAP_PX, color=CARD)  # the card colour outlines each block, leaving a visible gap between neighbours
     else:
         figure = go.Figure()
     window = [now - pd.Timedelta(hours=12), now]
@@ -222,7 +226,7 @@ def layout() -> html.Div:
             html.Span("Each block is one test run, coloured by how it ended. Hover for the idea, how long it took and the outcome; click to open its report. A gap means the factory sat idle.", className="fo-muted")],
             className="fo-card")),
         html.Section([
-            _card("Tests finished per hour", "Last 48 hours", html.Div(dcc.Graph(id="fo-hourly", figure=part["fo-hourly"], config=GRAPH_CONFIG, style={"height": 190}), className="fo-desktop-only"),
+            _card("Runs per hour", "Last 48 hours", html.Div(dcc.Graph(id="fo-hourly", figure=part["fo-hourly"], config=GRAPH_CONFIG, style={"height": 190}), className="fo-desktop-only"),
                   html.Div(dcc.Graph(id="fo-hourly-phone", figure=part["fo-hourly-phone"], config={**GRAPH_CONFIG, "responsive": True}, responsive=True, style={"height": 190, "width": "100%"}), className="fo-phone-only"),
                   html.Span("Flat stretches are nights and weekends with nothing queued, not faults.", className="fo-muted")),
             _card("Health checks", None, html.Div([html.Span("Health checks", className="fo-h"), html.Span(part["fo-health-checked"], id="fo-health-checked", className="fo-muted")], className="fo-between"),

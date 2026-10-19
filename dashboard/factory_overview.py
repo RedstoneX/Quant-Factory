@@ -274,7 +274,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     day_start = et_day_start(now)
     today = [r for r in finished if utc(r["completed_at"]) >= day_start]
     crashed_today = [r for r in today if r["outcome"] == "crashed"]
-    passed_today, close_today = sum(r["outcome"] == "passed" for r in today), sum(r["outcome"] == "close" for r in today)
+    passed_today = sum(r["outcome"] == "passed" for r in today)
     latest_finished = max(finished, key=lambda r: utc(r["completed_at"]), default=None)
     pill = header_pill(running=len(live), draining=draining, last_finished_crashed=bool(latest_finished and latest_finished["outcome"] == "crashed"))
     queue_rows = [{"n": position, "name": titles.get(item["candidate_id"], item["candidate_id"]), "who": submitter_label(submitters.get(item["candidate_id"])),
@@ -305,7 +305,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     tiles = [
         {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle"},
         {"label": "Waiting", "value": f"{len(queue_rows)}", "sub": f"longest wait {_human_minutes(longest)}" if longest is not None else "nothing in line", "color": "text", "spark": queued_per_hour},
-        {"label": "Runs finished today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {close_today} close call{'s' if close_today != 1 else ''}", "color": "text",
+        {"label": "Runs today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {len(today) - passed_today - len(crashed_today)} failed · {len(crashed_today)} crashed", "color": "text",
          "spark": [sum(row[o] for o in ("failed", "close", "passed", "crashed")) for row in last24]},
         {"label": "Runs crashed today", "value": f"{len(crashed_today)}", "sub": crash_reason, "color": "red" if crashed_today else "text", "spark": [row["crashed"] for row in last24]},
         {"label": "Typical test time", "value": _human_minutes(typical), "sub": "median of the last 50", "color": "text", "spark": typical_per_hour},
