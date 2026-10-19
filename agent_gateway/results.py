@@ -165,3 +165,14 @@ def requeue_interrupted(store: GatewayStore, candidate_id: str) -> dict[str, Any
         packet_sha256=latest["packet_sha256"],
     )
     return {"candidate_id": candidate_id, "latest_event": store.latest_campaign_event(candidate_id)}
+
+
+def campaign_status(store: GatewayStore, candidate_id: str) -> dict[str, Any]:
+    return {"candidate_id": candidate_id, "policy_id": CAMPAIGN_POLICY_ID, "latest_event": store.latest_campaign_event(candidate_id)}
+
+
+def set_campaign_paused(store: GatewayStore, paused: bool, actor: str, reason: Any) -> dict[str, Any]:
+    """Pause or resume starting new tests. Idempotent: no change appends nothing."""
+    if store.campaign_control_state()["paused"] != paused:
+        store.append_campaign_control(paused, actor, str(reason).strip()[:500] if reason else None)
+    return store.campaign_control_state()

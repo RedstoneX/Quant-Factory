@@ -13,7 +13,7 @@ from typing import Any, Iterator
 REQUEUED_AFTER_FIX = "requeued_after_fix"
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 _CAMPAIGN_FIELDS = ("event_id", "candidate_id", "policy_id", "state", "reason_code", "reason_detail", "packet_sha256", "run_id", "created_at")
 
 
@@ -118,12 +118,27 @@ class GatewayStore:
             BEFORE DELETE ON campaign_events BEGIN
                 SELECT RAISE(ABORT, 'campaign events are append-only');
             END;
+            CREATE TABLE IF NOT EXISTS campaign_control (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                paused INTEGER NOT NULL,
+                actor TEXT NOT NULL,
+                reason TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE TRIGGER IF NOT EXISTS campaign_control_no_update
+            BEFORE UPDATE ON campaign_control BEGIN
+                SELECT RAISE(ABORT, 'campaign control events are append-only');
+            END;
+            CREATE TRIGGER IF NOT EXISTS campaign_control_no_delete
+            BEFORE DELETE ON campaign_control BEGIN
+                SELECT RAISE(ABORT, 'campaign control events are append-only');
+            END;
             """
         )
         row = self.connection.execute("SELECT version FROM gateway_schema").fetchone()
         if row is None:
             self.connection.execute("INSERT INTO gateway_schema(version) VALUES (?)", (SCHEMA_VERSION,))
-        elif row["version"] in (1, 2):
+        elif row["version"] in (1, 2, 3):
             self.connection.execute("UPDATE gateway_schema SET version=?", (SCHEMA_VERSION,))
         elif row["version"] != SCHEMA_VERSION:
             raise RuntimeError("unsupported agent gateway state schema")
@@ -322,6 +337,23 @@ class GatewayStore:
                 (candidate_id, policy_id, state, reason_code, reason_detail, packet_sha256, run_id, created_at),
             )
             return int(cursor.lastrowid)
+
+    def append_campaign_control(self, paused: bool, actor: str, reason: str | None = None) -> int:
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self.immediate() as connection:
+            cursor = connection.execute(
+                "INSERT INTO campaign_control(paused, actor, reason, created_at) VALUES (?, ?, ?, ?)",
+                (1 if paused else 0, actor, reason, created_at),
+            )
+            return int(cursor.lastrowid)
+
+    def campaign_control_state(self) -> dict[str, Any]:
+        row = self.connection.execute(
+            "SELECT paused, actor, reason, created_at FROM campaign_control ORDER BY event_id DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return {"paused": False, "actor": None, "reason": None, "created_at": None}
+        return {"paused": bool(row["paused"]), "actor": row["actor"], "reason": row["reason"], "created_at": row["created_at"]}
 
     def latest_campaign_events(self) -> dict[str, dict[str, Any]]:
         rows = self.connection.execute(

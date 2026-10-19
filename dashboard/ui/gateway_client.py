@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import time
 from typing import Any
 
 GATEWAY_PROTOCOL = "qf_agent_gateway_v1"
@@ -26,7 +27,9 @@ def submit_candidate(payload: str) -> dict[str, Any]:
     return _request("candidate.submit", payload=canonical, request_id=f"qfui_{digest[:48]}")
 
 
-def _request(operation: str, *, request_id: str, payload: str | None = None) -> dict[str, Any]:
+def _request(
+    operation: str, *, request_id: str, payload: str | None = None, arguments: dict[str, Any] | None = None
+) -> dict[str, Any]:
     credential_path = os.environ.get(CREDENTIAL_ENVIRONMENT_VARIABLE)
     if not credential_path:
         return _unavailable("Dashboard gateway credential path is not configured.")
@@ -39,13 +42,28 @@ def _request(operation: str, *, request_id: str, payload: str | None = None) -> 
     document: dict[str, Any] = {
         "protocol": GATEWAY_PROTOCOL, "request_id": request_id,
         "credential": credential, "operation": operation,
-        "arguments": {}, "payload": payload,
+        "arguments": arguments or {}, "payload": payload,
     }
     try:
         response = _send(document, os.environ.get(SOCKET_ENVIRONMENT_VARIABLE, DEFAULT_SOCKET))
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError):
         return _unavailable("Authenticated Candidate intake is temporarily unavailable.")
     return response if isinstance(response, dict) else _unavailable("Authenticated Candidate intake returned an invalid response.")
+
+
+def pause_campaign(reason: str) -> dict[str, Any]:
+    text = str(reason).strip()
+    digest = hashlib.sha256(f"pause:{text}:{time.time_ns()}".encode("utf-8")).hexdigest()
+    return _request("campaign.pause", request_id=f"qfui_{digest[:48]}", arguments={"reason": text})
+
+
+def resume_campaign() -> dict[str, Any]:
+    digest = hashlib.sha256(f"resume:{time.time_ns()}".encode("utf-8")).hexdigest()
+    return _request("campaign.resume", request_id=f"qfui_{digest[:48]}")
+
+
+def campaign_control_status() -> dict[str, Any]:
+    return _request("campaign.control_status", request_id="qfui_campaign_control_status_0001")
 
 
 def _send(document: dict[str, Any], socket_path: str) -> dict[str, Any]:
@@ -72,4 +90,4 @@ def _unavailable(message: str) -> dict[str, Any]:
     return {"protocol": GATEWAY_PROTOCOL, "ok": False, "error": {"code": "gateway_unavailable", "message": message}}
 
 
-__all__ = ["gateway_status", "submit_candidate"]
+__all__ = ["campaign_control_status", "gateway_status", "pause_campaign", "resume_campaign", "submit_candidate"]

@@ -128,6 +128,8 @@ class AutoTestCampaign:
                         break
                     if drain_requested():
                         break  # a deploy is waiting: no new test starts; running ones finished above
+                    if store.campaign_control_state()["paused"]:
+                        break  # owner paused testing: no new test starts; queued ideas stay queued
                     try:
                         self._process(store, draft, packet, invalid, digest)
                     except (OSError, sqlite3.Error, KeyError, ValueError, RuntimeError) as exc:
