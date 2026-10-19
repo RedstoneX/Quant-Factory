@@ -74,6 +74,13 @@ class ParameterDefinition:
         """Expose the governance term while preserving the existing API."""
         return self.optimizable
 
+    def normalize(self, value: Any) -> Any:
+        """Return the stored form of ``value`` (whole-number int -> float for float settings), validated."""
+        if self.value_type is float and isinstance(value, int) and not isinstance(value, bool):
+            value = float(value)
+        self.validate(value)
+        return value
+
     def validate(self, value: Any) -> None:
         if not isinstance(value, self.value_type) or (
             self.value_type is int and isinstance(value, bool)
