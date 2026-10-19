@@ -10,8 +10,8 @@ import json
 from typing import Any
 
 from dashboard.factory_history import STEPS
+from rule_language.validation import MAX_VARIABLE_GRID
 
-BUDGET = 250_000  # combinations allowed in one batch; the same budget the old Submit page showed
 SHOWN_WAITING = 3  # waiting tests listed by name; the rest are counted
 STEP_WORDS = {
     "screening": "every combination, with trading costs",
@@ -167,8 +167,8 @@ def review_batch(batch: dict[str, Any] | None) -> dict[str, Any]:
     ready_rows = [card for card, row in zip(cards, rows) if card["ready"]]
     combinations = sum(combos(row) for card, row in zip(cards, rows) if card["ready"])
     return {"cards": cards, "total": len(cards), "ready": len(ready_rows), "left_out": len(cards) - len(ready_rows), "combinations": combinations,
-            "budget": BUDGET, "budget_text": f"{combinations:,} of {BUDGET:,} allowed", "budget_percent": min(100.0, 100 * combinations / BUDGET),
-            "over_budget": combinations > BUDGET,
+            "budget": MAX_VARIABLE_GRID, "budget_text": f"{combinations:,} of {MAX_VARIABLE_GRID:,} allowed", "budget_percent": min(100.0, 100 * combinations / MAX_VARIABLE_GRID),
+            "over_budget": combinations > MAX_VARIABLE_GRID,
             "submit_rows": [row for row in rows if row.get("review_ready") and row.get("canonical_json")]}
 
 
@@ -250,4 +250,4 @@ def submitted_state(responses: list[dict[str, Any]], overview_before: dict[str, 
     return {"text": text, "queued": len(new), "notes": notes, "candidate_ids": new}
 
 
-__all__ = ["BUDGET", "NEXT_STEPS", "bar_text", "button", "line_ahead", "minutes_label", "review_batch", "rule_tokens", "source_label", "start_minutes", "submitted_state", "typical_text", "where_they_go"]
+__all__ = ["NEXT_STEPS", "bar_text", "button", "line_ahead", "minutes_label", "review_batch", "rule_tokens", "source_label", "start_minutes", "submitted_state", "typical_text", "where_they_go"]
