@@ -30,6 +30,24 @@ class OutOfSampleProgressionError(ValueError):
     """Raised when screening leaves no candidate for the next OOS stage."""
 
 
+LOST_MONEY_ON_BUILD_YEARS = "lost money on the years it was built on"
+
+
+def unseen_data_screening(experiment: ExperimentConfig) -> ExperimentConfig:
+    """The Unseen data stage's gate: no Sharpe minimum on any slice.
+
+    Owner ruling, Rex, 19 Oct 2026: "relaxing is better. Paper trading will
+    eliminate since we've gotten nothing so far, relaxing seems obvious."
+    Training and selection still rank by the experiment's own ranking and need
+    net return after costs > 0; the locked setting passes on the test slice when
+    its net return after costs is > 0. Sharpe stays a recorded score. The cost
+    screen on full history keeps its own Sharpe minimum.
+    """
+    return replace(
+        experiment, screening=replace(experiment.screening, minimum_sharpe_ratio=None)
+    )
+
+
 def _partition_audit(audit: DataAudit, partition: DataPartition) -> DataAudit:
     """Retain provider provenance while recording the exact evaluated slice."""
     return replace(
@@ -106,6 +124,16 @@ def _passing_parameters(
             for item in result.screening_results
             for reason in getattr(item, "rejection_reasons", ())
         ]
+        returns = (
+            result.ranked_results["total_return"]
+            if "total_return" in result.ranked_results
+            else pd.Series(dtype=float)
+        )
+        if not returns.empty and bool((returns.fillna(0.0) <= 0).all()):
+            raise OutOfSampleProgressionError(
+                f"{LOST_MONEY_ON_BUILD_YEARS} ({stage} slice: no setting made "
+                f"money after costs); {suffix}"
+            )
         # Lead with the screen's own first rejection so the real cause is not buried.
         lead = f"{stage}: {causes[0]}; " if causes else ""
         raise OutOfSampleProgressionError(
@@ -287,6 +315,7 @@ def _oos_report(
         "training_candidate_count": len(training.ranked_results),
         "training_pass_count": len(training.passing_results),
         "shortlist_parameters": shortlist,
+        "training_metrics": _training_metrics(training, parameter_lock),
         "selection_status": str(selection_row["screening_status"]),
         "selection_metrics": _row_metrics(selection_row),
         "test_status": str(test_row["screening_status"]),
@@ -296,6 +325,21 @@ def _oos_report(
         | {"normalized_parameters": dict(parameter_lock.normalized_parameters)},
         "selected_parameters": dict(parameter_lock.normalized_parameters),
     }
+
+
+def _training_metrics(
+    training: ExperimentResult, parameter_lock: ParameterLock
+) -> dict[str, object]:
+    """Training-slice scores of the locked setting (recorded, not gated)."""
+    locked = dict(parameter_lock.normalized_parameters)
+    for item in training.screening_results:
+        if dict(item.normalized_parameters) == locked:
+            rows = training.ranked_results[
+                training.ranked_results["parameter_row_id"] == item.parameter_row_id
+            ]
+            if len(rows) == 1:
+                return _row_metrics(rows.iloc[0])
+    return {}
 
 
 def _write_report(path, report: dict[str, object]) -> None:
@@ -372,6 +416,7 @@ def execute_out_of_sample(
     test_portfolio_observer: Callable[[str, object], object] | None = None,
 ) -> OutOfSampleResult:
     """Select without test data, lock parameters, then evaluate held-out test."""
+    config = replace(config, experiment=unseen_data_screening(config.experiment))
     split = split_chronologically(data, config.split)
     history = {"history": data, "signal_cache": {}}
     candidates = tuple(dict(item) for item in config.experiment.parameter_combinations)

@@ -11,6 +11,17 @@ compiles it into a strategy and backtests it automatically. It does not trade.
 3. Ideas without rules are recorded as can't test yet.
 4. Ideas with rules are backtested under the owner's standing policy of
    2026-10-13. Paper trading always needs separate owner approval.
+5. Two gates decide: **Survives costs** (full history, Sharpe after costs
+   >= 0.5) and **Unseen data** (the selected setting made money after all costs
+   on the test years it never saw). Inside Unseen data no Sharpe minimum applies:
+   the setting is chosen by the experiment's ranking among settings that made
+   money after costs on the built-on years, or fails with "lost money on the
+   years it was built on". Both slices' Sharpes are recorded as scores. Owner
+   ruling, Rex, 2026-10-19: "relaxing is better. Paper trading will eliminate
+   since we've gotten nothing so far, relaxing seems obvious." Holds over time,
+   Stress test and Luck test are recorded scores, not gates.
+   Inside Unseen data the pick keeps the plan's own ranking, and the trade-count
+   and drawdown rules still apply; the ruling dropped only the Sharpe minimum.
 
 ## Data
 

@@ -1,6 +1,7 @@
 """Deterministic tests for chronological held-out evaluation."""
 
 from dataclasses import replace
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -344,3 +345,138 @@ def test_report_records_split_lock_and_test_only_metrics(tmp_path):
     assert result.parameter_lock.lock_id in text
     assert '"train"' in text and '"selection"' in text and '"test"' in text
     assert '"test_metrics"' in text
+
+
+# --- Unseen data gate, owner ruling 19 Oct 2026: no Sharpe minimum, net return > 0.
+
+
+def _rule_evaluator(metrics_by_partition: dict[str, dict[int, dict[str, float]]]):
+    """Fake evaluator that applies the real screening rules of the config it is given."""
+    from backtesting.screening import evaluate_rules
+
+    def evaluate(config, data, audit, *, write_output):
+        partition = config.experiment_id.rsplit(":", 1)[-1]
+        results, screening = [], []
+        for parameters in config.parameter_combinations:
+            normalized = dict(parameters)
+            row_id = parameter_row_identity(
+                config.experiment_id, config.strategy_id, normalized
+            )
+            metrics = metrics_by_partition[partition][normalized["window"]]
+            rules = evaluate_rules(metrics, config.screening)
+            passed = all(rule.passed for rule in rules)
+            results.append(
+                {
+                    "parameter_row_id": row_id,
+                    "window": normalized["window"],
+                    **metrics,
+                    "screening_status": "passed" if passed else "screened_out",
+                }
+            )
+            screening.append(
+                SimpleNamespace(
+                    parameter_row_id=row_id,
+                    normalized_parameters=normalized,
+                    passed=passed,
+                    rejection_reasons=tuple(r.message for r in rules if not r.passed),
+                )
+            )
+        ranked = pd.DataFrame(results).sort_values(
+            "sharpe_ratio", ascending=False, kind="mergesort"
+        ).reset_index(drop=True)
+        passing = ranked.loc[ranked["screening_status"] == "passed"]
+        return SimpleNamespace(
+            ranked_results=ranked,
+            passing_results=passing.reset_index(drop=True),
+            screening_results=tuple(screening),
+            strategy_id=config.strategy_id,
+            strategy_version="1.0.0",
+        )
+
+    return evaluate
+
+
+def _metrics(total_return: float, sharpe: float) -> dict[str, float]:
+    return {
+        "number_of_trades": 500,
+        "total_return": total_return,
+        "annualized_return": total_return / 3,
+        "sharpe_ratio": sharpe,
+        "max_drawdown": -0.10,
+    }
+
+
+def _run_unseen(tmp_path, train, selection, test):
+    data = _frame()
+    windows = (7, 14)
+    by_partition = {
+        "train": dict(zip(windows, train)),
+        "selection": dict(zip(windows, selection)),
+        "test": {7: test, 14: test},
+    }
+    return execute_out_of_sample(
+        _config(tmp_path),
+        data,
+        _audit(data),
+        evaluator=_rule_evaluator(by_partition),
+        write_output=True,
+    )
+
+
+def test_unseen_gate_still_passes_a_case_that_passed_before(tmp_path):
+    result = _run_unseen(
+        tmp_path,
+        train=(_metrics(0.30, 1.2), _metrics(0.10, 0.6)),
+        selection=(_metrics(0.08, 0.9), _metrics(0.02, 0.5)),
+        test=_metrics(0.05, 0.8),
+    )
+    assert result.selected_parameters["window"] == 7
+    assert result.test_result.ranked_results.iloc[0]["screening_status"] == "passed"
+
+
+def test_unseen_gate_passes_mes_like_low_training_sharpe(tmp_path):
+    result = _run_unseen(
+        tmp_path,
+        train=(_metrics(0.12, 0.477), _metrics(-0.02, -0.1)),
+        selection=(_metrics(0.03, 0.30), _metrics(-0.01, -0.2)),
+        test=_metrics(0.04, 0.35),
+    )
+    assert result.selected_parameters["window"] == 7
+    assert result.test_result.ranked_results.iloc[0]["screening_status"] == "passed"
+    report = json.loads((tmp_path / "oos.json").read_text())
+    assert report["test_status"] == "passed"
+    assert report["training_metrics"]["sharpe_ratio"] == 0.477
+    assert report["metrics"]["sharpe_ratio"] == 0.35
+
+
+@pytest.mark.parametrize("test_return", [0.0, -0.03])
+def test_unseen_gate_fails_when_test_net_return_is_not_positive(tmp_path, test_return):
+    result = _run_unseen(
+        tmp_path,
+        train=(_metrics(0.12, 0.477), _metrics(0.01, 0.2)),
+        selection=(_metrics(0.03, 0.30), _metrics(0.01, 0.1)),
+        test=_metrics(test_return, 1.5),
+    )
+    status = result.test_result.ranked_results.iloc[0]["screening_status"]
+    assert status == "screened_out"
+
+
+def test_unseen_gate_fails_when_every_setting_lost_money_on_training(tmp_path):
+    with pytest.raises(
+        OutOfSampleProgressionError, match="^lost money on the years it was built on"
+    ):
+        _run_unseen(
+            tmp_path,
+            train=(_metrics(-0.05, 0.9), _metrics(0.0, 0.7)),
+            selection=(_metrics(0.03, 0.30), _metrics(0.01, 0.1)),
+            test=_metrics(0.04, 0.35),
+        )
+
+
+def test_cost_screen_keeps_its_sharpe_minimum():
+    from backtesting.out_of_sample.runner import unseen_data_screening
+
+    assert EXPERIMENT_CONFIG.screening.minimum_sharpe_ratio == 0.5
+    relaxed = unseen_data_screening(EXPERIMENT_CONFIG)
+    assert relaxed.screening.minimum_sharpe_ratio is None
+    assert EXPERIMENT_CONFIG.screening.minimum_sharpe_ratio == 0.5

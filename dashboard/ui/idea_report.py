@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 from dash import dcc, html
 from plotly.subplots import make_subplots
 
-from dashboard.idea_report_projection import NOT_SAVED, STATUS_TONE, load_report
+from dashboard.idea_report_projection import NOT_SAVED, STATUS_TONE, UNSAVED_UNSEEN_NOTE, load_report
 from dashboard.ui.results import TRADE_COLUMNS
 
 FONT_URL = "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
@@ -82,7 +82,7 @@ def hero(report: dict[str, Any]) -> dmc.Paper:
     figure.add_trace(go.Scatter(x=drop.index, y=drop, mode="lines", line=dict(color=RED, width=1.2), fill="tozeroy", fillcolor="rgba(242,84,91,0.25)", name="Below peak %"), row=2, col=1)
     figure.update_yaxes(tickprefix="$", row=1, col=1)
     figure.update_yaxes(ticksuffix="%", row=2, col=1)
-    note = [dmc.Text(f"Unseen period: {data['unseen_label_note']}", size="xs", c=FAINT)] if data["unseen_label_note"] else []
+    note = [dmc.Text(UNSAVED_UNSEEN_NOTE, size="xs", c=FAINT)] if data["unseen_label_note"] else []
     return dmc.Paper([dmc.Group([dmc.Text("Account value", fw=600, size="md"), _legend(data)], justify="space-between", gap="xs"), _figure(figure, 400), *note],
                      p="lg", radius="lg", bg=PANEL, style=CARD, className="idea-report-hero")
 
@@ -107,7 +107,9 @@ def test_card(index: int, test: dict[str, Any]) -> dmc.Paper:
         saved_note = [dmc.Text("Per-window numbers: " + NOT_SAVED.lower(), size="xs", c=FAINT)]
     return dmc.Paper([
         dmc.Group([dmc.Text(f"{index} · {test['label']}", fw=500, size="sm"), *([dmc.Badge(test["status"], color=tone, variant="light", size="sm")] if test["run_id"] else [])], justify="space-between", gap="xs"),
-        dmc.Text(test["value"], size="lg", ff=MONO), *bar, *([dmc.Text(test["line"], size="xs", c=MUTED)] if test["line"] else []), *saved_note,
+        *([dmc.Text(test["rule"], size="xs", c=MUTED)] if test.get("rule") else []),
+        dmc.Text(test["value"], size="lg", ff=MONO), *bar,
+        *[dmc.Text([f"{name} · not saved"] if value is None else [f"{name} · Sharpe ", html.Span(value, style={"fontFamily": MONO})], size="xs") for name, value in test.get("scores") or []], *([dmc.Text(test["line"], size="xs", c=MUTED)] if test["line"] else []), *saved_note,
     ], p="md", radius="md", bg=INNER, style={"border": f"1px solid {LINE}"}, className="idea-report-test")
 
 
@@ -203,7 +205,7 @@ def trades_panel(report: dict[str, Any]) -> dmc.Paper | None:
     if not report["trades"]:
         return None
     rows = [{**trade, "entry_short": _short_entry(trade["entry_timestamp"])} for trade in report["trades"]]
-    note = [] if report["unseen_trades_saved"] else [dmc.Text("Trades from the unseen period: " + NOT_SAVED.lower(), size="xs", c=FAINT)]
+    note = [] if report["unseen_trades_saved"] else [dmc.Text(UNSAVED_UNSEEN_NOTE, size="xs", c=FAINT)]
 
     def grid(grid_id: str, phone: bool) -> dag.AgGrid:
         return dag.AgGrid(id=grid_id, columnDefs=_columns(phone), rowData=rows, defaultColDef={"sortable": True, "filter": True, "resizable": True},

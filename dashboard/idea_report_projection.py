@@ -19,6 +19,18 @@ from dashboard.idea_results_projection import (
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_projection import oos_report_metrics
 
+UNSEEN_RULE = "Passes if it made money on years it never saw, after costs"  # owner ruling 19 Oct 2026
+
+
+UNSAVED_UNSEEN_NOTE = "The unseen-period chart and trades weren't saved for this run; its result is in test 2 below."
+
+
+def _slice_score(name: str, metrics: dict[str, Any]) -> tuple[str, str | None]:
+    """One recorded-score line for a slice: its name, and its Sharpe after costs as text (a score, not a gate), or None when not saved."""
+    sharpe = metrics.get("sharpe_ratio")
+    return name, None if sharpe is None else f"{float(sharpe):.2f}"
+
+
 TEST_LABELS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time", "robustness": "Stress test", "monte_carlo": "Luck test"}
 PASSED, CLOSE_CALL, FAILED, CANT_TEST, CRASHED = "Passed", "Close call", "Failed", "Can't test", "Crashed"
 NOT_SCORED = "Not scored"  # a score stage of a gateway survivor with no usable result; shown in the grey Can't test style
@@ -113,7 +125,9 @@ def overall_chip(tests: list[dict[str, Any]]) -> tuple[str, str]:
         return f"Failed at {gate['label']}", "red"
     if all(test["status"] == PASSED for test in tests):
         return PASSED, "green"
-    counts = [(word, sum(1 for test in tests if test["status"] == word)) for word in (PASSED, CLOSE_CALL, CRASHED, CANT_TEST)]
+    counts = [(word, sum(1 for test in tests if test["status"] == word)) for word in (PASSED, CLOSE_CALL, CRASHED)]
+    counts += [(CANT_TEST, sum(1 for test in tests if test["status"] == CANT_TEST and test["run_id"])),  # something recorded stopped it
+               ("Not run", sum(1 for test in tests if test["status"] == CANT_TEST and not test["run_id"]))]
     return " · ".join(f"{count} {word.lower()}" for word, count in counts if count), "red" if any(t["status"] == CRASHED for t in tests) else "grey"
 
 
@@ -232,7 +246,7 @@ def settings_grid(rows: list[dict[str, Any]], chosen_row_id: str | None) -> dict
 
 def _test_measure(stage: str, test: dict[str, Any], idea: dict[str, Any], detail: dict[str, Any], database: Path, built_return: float | None) -> dict[str, Any]:
     """The value shown on a test's bar, the bar's length and its pass line (None when no line was saved)."""
-    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None}
+    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None, "rule": UNSEEN_RULE if stage == "oos" else None, "scores": []}
     if not test["run_id"]:
         return out
     if stage == "screening":
@@ -240,7 +254,10 @@ def _test_measure(stage: str, test: dict[str, Any], idea: dict[str, Any], detail
         if total:
             out.update(value=f"{survivors:,} of {total:,} settings", fraction=survivors / total, pass_line=1 / total)
     elif stage == "oos":
-        value = (oos_report_metrics(database=database, run_id=test["run_id"]) or {}).get("total_return")
+        metrics = oos_report_metrics(database=database, run_id=test["run_id"]) or {}
+        value = metrics.get("total_return")
+        if metrics:
+            out["scores"] = [_slice_score("Built-on years", metrics.get("_training_metrics") or {}), _slice_score("Unseen years", metrics)]
         if value is not None:
             scale = max(abs(float(value)), abs(built_return or 0.0)) or 1.0  # both stored: unseen return and built-on return share one scale
             out.update(value=f"{float(value) * 100:+.1f}%", fraction=0.5 + float(value) / (2 * scale), pass_line=0.5)
@@ -274,7 +291,7 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
         detail = load_stage_detail(idea, stage, database=path) if stage in ("walk_forward", "robustness", "monte_carlo") and run else {"periods": [], "checks": []}
         stored_status = stored.get("status") if stored.get("status") in ("passed", "failed") else None
         tests.append({"stage": stage, "label": TEST_LABELS[stage], "run_id": run.get("run_id"), "run_status": run.get("status"),
-                      "status": report_status(stage, stored_status, run.get("status")), "line": (stored.get("line") or "") if run.get("run_id") else "", "detail": detail})
+                      "status": report_status(stage, stored_status, run.get("status")), "line": (stored.get("line") or "") if run.get("run_id") and stage != "oos" else "", "detail": detail})
     campaign = campaign_row(path, idea.get("candidate_id") or candidate_id)
     verdict = apply_campaign_verdict([test["status"] for test in tests], campaign)
     for test, status in zip(tests, verdict):

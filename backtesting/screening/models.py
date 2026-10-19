@@ -14,7 +14,9 @@ class ScreeningConfig:
     minimum_trades: int
     minimum_total_return: float
     minimum_annualized_return: float
-    minimum_sharpe_ratio: float
+    # None means no Sharpe minimum is applied (the Unseen data stage, owner
+    # ruling 19 Oct 2026); Sharpe is still computed and recorded as a score.
+    minimum_sharpe_ratio: float | None
     maximum_drawdown: float
     minimum_win_rate: float | None = None
 
@@ -28,9 +30,10 @@ class ScreeningConfig:
         numeric = {
             "minimum_total_return": self.minimum_total_return,
             "minimum_annualized_return": self.minimum_annualized_return,
-            "minimum_sharpe_ratio": self.minimum_sharpe_ratio,
             "maximum_drawdown": self.maximum_drawdown,
         }
+        if self.minimum_sharpe_ratio is not None:
+            numeric["minimum_sharpe_ratio"] = self.minimum_sharpe_ratio
         if any(not math.isfinite(float(value)) for value in numeric.values()):
             raise ValueError("screening thresholds must be finite")
         if self.maximum_drawdown < 0:
