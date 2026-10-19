@@ -41,15 +41,16 @@ def idea_card(card: dict[str, Any]) -> html.Div:
         body.append(html.Div([html.Span(["Combinations ", html.B(card["combinations"], className="ni-mono")]), html.Span(["Data ", html.B(card["data"])])], className="ni-foot"))
     if card["problem"]:
         body.append(html.Div(card["problem"], className="ni-problem"))
-    return html.Div(body, className="ni-card" + ("" if card["ready"] else " bad"))
+    return html.Div(body, className="ni-card" + ("" if card["ready"] and not card["over_limit"] else " bad"))
 
 
 def check_panel(review: dict[str, Any], overview: dict[str, Any]) -> list[Any]:
     counts = html.Div([html.Div([html.Div("Ready", className="ni-stat-label"), html.Div(str(review["ready"]), className="ni-stat-value", style={"color": "#5EEAB0"})], className="ni-stat"),
                        html.Div([html.Div("Need fixing", className="ni-stat-label"), html.Div(str(review["left_out"]), className="ni-stat-value", style={"color": "#F2545B" if review["left_out"] else "#9BA1AB"})], className="ni-stat")], className="ni-stats")
-    bar = html.Div([html.Div([html.Span("Combinations in this batch"), html.Span(review["budget_text"], className="ni-mono ni-text")], className="ni-between ni-small"),
+    bar = html.Div([html.Div([html.Span(review["budget_text"], className="ni-mono ni-text")], className="ni-between ni-small"),
                     dmc.Progress(value=max(review["budget_percent"], 1 if review["combinations"] else 0), size="sm", color="red" if review["over_budget"] else "indigo")], className="ni-col")
-    return [html.H2("Check", className="ni-h"), counts, bar,
+    total = html.Div(review["total_text"], className="ni-small ni-muted")
+    return [html.H2("Check", className="ni-h"), counts, bar, total,
             html.Div(["Typical test time ", html.B(typical_text(overview.get("typical_minutes")), className="ni-mono ni-text"), " (median of recent tests)" if overview.get("typical_minutes") else ""], className="ni-small ni-muted"),
             html.Div("Ideas that need fixing are left out.", className="ni-muted")]
 

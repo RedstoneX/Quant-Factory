@@ -40,6 +40,11 @@ def minutes_label(minutes: float | None) -> str:
     return f"~{whole} min" if whole < 60 else f"~{whole // 60} h {whole % 60:02d} min"
 
 
+def card_has_grid(row: dict[str, Any]) -> bool:
+    """An idea that was read well enough to count its settings (including one rejected for being over the limit)."""
+    return bool(row.get("variations")) or bool(row.get("review_ready") and row.get("canonical_json"))
+
+
 def combos(row: dict[str, Any]) -> int:
     """Settings combinations an idea tests; the validator reports 0 for an idea with nothing varied, which is one test."""
     return int(row.get("variations") or 0) or 1
@@ -161,14 +166,17 @@ def review_batch(batch: dict[str, Any] | None) -> dict[str, Any]:
             "index": index, "name": row.get("title") or row.get("filename") or "Untitled idea", "meta": meta, "ready": ready,
             "tokens": rule_tokens(document) if ready else [],
             "combinations": f"{combos(row):,}" if ready else "—",
+            "over_limit": combos(row) > MAX_VARIABLE_GRID,
             "data": data_label(document) if document else "—",
             "problem": "" if ready else _problem(row),
         })
     ready_rows = [card for card, row in zip(cards, rows) if card["ready"]]
     combinations = sum(combos(row) for card, row in zip(cards, rows) if card["ready"])
+    largest = max((combos(row) for row in rows if card_has_grid(row)), default=0)
     return {"cards": cards, "total": len(cards), "ready": len(ready_rows), "left_out": len(cards) - len(ready_rows), "combinations": combinations,
-            "budget": MAX_VARIABLE_GRID, "budget_text": f"{combinations:,} of {MAX_VARIABLE_GRID:,} allowed", "budget_percent": min(100.0, 100 * combinations / MAX_VARIABLE_GRID),
-            "over_budget": combinations > MAX_VARIABLE_GRID,
+            "largest": largest, "budget": MAX_VARIABLE_GRID, "budget_text": f"Largest idea: {largest:,} of {MAX_VARIABLE_GRID:,} settings allowed",
+            "total_text": f"{combinations:,} settings to test in total", "budget_percent": min(100.0, 100 * largest / MAX_VARIABLE_GRID),
+            "over_budget": largest > MAX_VARIABLE_GRID,
             "submit_rows": [row for row in rows if row.get("review_ready") and row.get("canonical_json")]}
 
 
