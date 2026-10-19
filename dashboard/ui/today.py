@@ -123,11 +123,11 @@ def scatter_panel(data: dict[str, Any]) -> dmc.Paper | None:
     if not best.empty:  # the closest or best idea: bigger, indigo, labelled
         title = str(best.iloc[0]["title"])
         side = "middle right" if float(best.iloc[0]["worst_drop"]) < float(points["worst_drop"].median()) else "middle left"  # the label runs towards the middle of the plot, never off its edge
-        figure.add_trace(go.Scatter(x=best["worst_drop"], y=best["total_return"], mode="markers+text", name=best_title(data), text=[title if len(title) <= 22 else title[:21] + "…"], textposition=side, cliponaxis=False,
+        figure.add_trace(go.Scatter(x=best["worst_drop"], y=best["total_return"], mode="markers+text", name=best_title(data), text=[title if len(title) <= 22 else title[:21] + "…"], textposition=side,
                                     textfont=dict(color=TEXT, size=11), customdata=best[["candidate_id", "title"]].to_numpy(), hovertemplate="%{customdata[1]}<br>Return %{y:.1f}%, worst drop %{x:.1f}%<extra></extra>",
                                     marker=dict(color=INDIGO, size=15, line=dict(color=TEXT, width=1.5))))
     figure.add_hline(y=0, line=dict(color="#3A3F48", width=1))
-    figure.update_layout(margin=dict(l=44, r=8, t=24, b=92), hovermode="closest", xaxis_title="Worst drop (%)", yaxis_title="Return (%)", showlegend=True, legend=dict(orientation="h", yanchor="top", y=-0.2, x=0, font=dict(color=MUTED)))
+    figure.update_layout(margin=dict(l=44, r=8, t=24, b=92), hovermode="closest", xaxis_title="Worst drop (%)", yaxis_title="Return (%)", showlegend=True, legend=dict(orientation="h", xanchor="left", x=0, yanchor="top", y=-0.2, font=dict(color=MUTED)), yaxis=dict(automargin=False))
     return _panel("Every idea: profit vs worst drop", "Click a dot to open its report", _graph(figure, 370, id="today-scatter"))
 
 
