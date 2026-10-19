@@ -16,9 +16,11 @@ from pathlib import Path
 from typing import Any
 
 from dashboard.factory_history import (
-    OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, tests_from_events, hour_floor, is_close_call, is_restart, log_rows, short_reason, submitter_label, timeline_rows, utc,
+    OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, tests_from_events, hour_floor, is_close_call, is_restart, log_rows, unclosed_starts, short_reason, submitter_label, timeline_rows, utc,
 )
 from dashboard.idea_report_projection import score_statuses
+from dashboard.idea_results_projection import load_idea
+from dashboard.results_projection import oos_report_metrics
 from dashboard.factory_projection import _duration_minutes, _params, _row, _runs_source, plain_error
 from dashboard.overview_projection import GATEWAY_DATABASE_ENVIRONMENT_VARIABLE, _open_read_only, _validated_connection, configured_database_path
 from dashboard.time_display import EASTERN, eastern_label
@@ -69,15 +71,16 @@ def run_outcome(run: dict[str, Any], close_runs: set[str]) -> str:
     return "passed" if run["survivor_count"] > 0 else "close" if run["run_id"] in close_runs else "failed"
 
 
-def group_abandoned(runs: list[dict[str, Any]], now: datetime) -> dict[str, Any] | None:
-    """Every 'running' record older than a day that the factory no longer owns becomes ONE alert, never one per run."""
-    old = [r for r in runs if r["status"] == "running" and r["cohort"] == "failed" and r["started_at"] and now - utc(r["started_at"]) > ABANDONED_AFTER]
-    old.sort(key=lambda r: r["started_at"])
+def group_abandoned(starts: list[dict[str, Any]], titles: dict[str, str], now: datetime, typical: float | None = None) -> dict[str, Any] | None:
+    """Every start with no later event at all (factory_history.unclosed_starts), older than 3x the typical test time (a day when there is none), becomes ONE alert, never one per run.
+    A start followed by a re-queue or a fresh start already says how it ended (interrupted), so it never reaches here."""
+    limit = timedelta(minutes=3 * typical) if typical else ABANDONED_AFTER
+    old = sorted((s for s in starts if s["created_at"] and now - utc(s["created_at"]) > limit), key=lambda s: utc(s["created_at"]))
     if not old:
         return None
-    oldest = eastern_label(old[0]["started_at"], "%b %-d")
+    oldest = eastern_label(old[0]["created_at"], "%b %-d")
     return {"count": len(old), "oldest": oldest, "title": f"{len(old)} old runs were never closed (oldest {oldest})",
-            "items": [{"name": r["title"], "when": eastern_label(r["started_at"], "%b %-d, %-I:%M %p ET"), "candidate_id": r["candidate_id"]} for r in old]}
+            "items": [{"name": titles.get(s["candidate_id"], s["candidate_id"]), "when": eastern_label(s["created_at"], "%b %-d, %-I:%M %p ET"), "candidate_id": s["candidate_id"]} for s in old]}
 
 
 def _human_minutes(minutes: float | None) -> str:
@@ -148,7 +151,7 @@ def disk_health(root: Path) -> dict[str, Any]:
     pace = _bytes_written_last_day(root)
     gb = free / 1e9
     days = free / pace if pace > 0 else None
-    tone = "green" if (days is None and gb > 10) or (days is not None and days > 14) else "red" if gb < 2 or (days is not None and days < 3) else "amber"
+    tone = "green" if (days is None and gb > 10) or (days is not None and days >= 30) else "red" if gb < 2 or (days is not None and days < 3) else "amber"
     runway = "" if days is None else " · more than a year at today’s pace (estimate)" if days > 365 else f" · about {days / 7:.0f} weeks at today’s pace (estimate)" if days >= 14 else f" · about {days:.0f} days at today’s pace (estimate)"
     return {"tone": tone, "value": f"{gb:.0f} GB free{runway}"}
 
@@ -296,12 +299,13 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     for test in tests:
         test["stage"] = stages.get(test["candidate_id"], "")
     live = [t for t in tests if t["status"] == "running"]
-    finished = [t for t in tests if t["completed_at"]]
+    finished = [t for t in tests if t["completed_at"] and t["outcome"] != "interrupted"]  # an interrupted start was re-queued: drawn on the timeline, never counted
     typical = median_minutes([(t["started_at"], t["completed_at"]) for t in sorted(finished, key=lambda t: utc(t["completed_at"]), reverse=True)])
     day_start = et_day_start(now)
     today = [r for r in finished if utc(r["completed_at"]) >= day_start]
     crashed_today = [r for r in today if r["outcome"] == "crashed"]
     passed_today = sum(r["outcome"] == "passed" for r in today)
+    unchecked_today = sum(r["outcome"] == "unchecked" for r in today)  # our own settings mismatch: not the idea's failure
     latest_finished = max(finished, key=lambda r: utc(r["completed_at"]), default=None)
     paused = bool(control and control[0]["paused"])
     paused_since = clock(control[0]["created_at"], now) if paused else None
@@ -335,7 +339,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         {"label": "Running now", "value": "Paused", "sub": f"since {paused_since}", "color": "amber"} if paused else
         {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle"},
         {"label": "Waiting", "value": f"{len(queue_rows)}", "sub": f"longest wait {_human_minutes(longest)}" if longest is not None else "nothing in line", "color": "text", "spark": queued_per_hour},
-        {"label": "Runs today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {len(today) - passed_today - len(crashed_today)} failed · {len(crashed_today)} crashed", "color": "text",
+        {"label": "Runs today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {sum(r['outcome'] in ('failed', 'close') for r in today)} failed · {len(crashed_today)} crashed" + (f" · {unchecked_today} couldn't be checked" if unchecked_today else ""), "color": "text",
          "spark": [sum(row[o] for o in ("failed", "close", "passed", "crashed")) for row in last24]},
         {"label": "Runs crashed today", "value": f"{len(crashed_today)}", "sub": crash_reason, "color": "red" if crashed_today else "text", "spark": [row["crashed"] for row in last24]},
         {"label": "Typical test time", "value": _human_minutes(typical), "sub": "median of the last 50", "color": "text", "spark": typical_per_hour},
@@ -359,7 +363,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         alerts.append({"tone": "amber", "title": "Price data is out of date", "when": clock(now.isoformat()), "sort": now.isoformat(), "body": price["banner"],
                        "next": "Fix: the nightly price update needs to run.", "candidate_id": None})
     alerts.sort(key=lambda a: a["sort"], reverse=True)
-    old_runs = group_abandoned(runs, now)
+    old_runs = group_abandoned(unclosed_starts(events), titles, now, typical)
     health: list[dict[str, Any]] = []
     if price["rows"]:
         health.append({"label": "Price data up to date", "tone": "amber" if price["banner"] else "green", "value": " · ".join(f"{r['market']} to {r['last']}" for r in price["rows"][:6])})
@@ -379,8 +383,9 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         health.append({"label": "Grok connected", "tone": "green" if minutes <= 1440 else "amber", "value": "last request " + eastern_label(grok_last, "%a %-d %b, %H:%M") + " ET"})
     else:
         health.append({"label": "Grok connected", "tone": "amber", "value": "no requests recorded"})
-    survivors = {e["candidate_id"] for e in events[:60] if e["state"] == "survivor"}
-    log = log_rows(events, titles, submitters, [], now, control, {cid: score_statuses(cid, database_path) for cid in survivors})
+    survivors = {e["candidate_id"]: e["run_id"] for e in reversed(events[:60]) if e["state"] == "survivor"}  # each idea's latest survivor event and its screening run
+    log = log_rows(events, titles, submitters, [], now, control, {cid: score_statuses(cid, database_path, run_id=run) for cid, run in survivors.items()},
+                   {e["candidate_id"]: oos_report_metrics(database=database_path, run_id=((load_idea(e["candidate_id"], database=database_path).get("runs") or {}).get("oos") or {}).get("run_id")) for e in events[:60] if e["state"] == "screened_out" and "test did not pass" in str(e["reason_detail"] or "")})
     timeline = timeline_rows(tests, now, typical)
     looks = len(alerts) + (1 if old_runs else 0)
     warnings = sum(item["tone"] != "green" for item in health)

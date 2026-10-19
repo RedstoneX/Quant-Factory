@@ -69,8 +69,8 @@ def _statuses(database: Path, connection: sqlite3.Connection, configuration_id: 
         card = _test_card(database, stage, label, runs.get(stage), screening)
         stored = card["status"] if card["status"] in ("passed", "failed") else None
         out.append(report_status(stage, stored, (runs.get(stage) or {}).get("status")))
-    row = connection.execute("SELECT state, reason_code FROM qf_campaign_admissions WHERE candidate_id=?", [candidate_id]).fetchone() if candidate_id else None
-    return apply_campaign_verdict(out, (str(row[0]), str(row[1])) if row else None), runs
+    row = connection.execute("SELECT state, reason_code, reason_detail FROM qf_campaign_admissions WHERE candidate_id=?", [candidate_id]).fetchone() if candidate_id else None
+    return apply_campaign_verdict(out, (str(row[0]), str(row[1]), str(row[2] or "")) if row else None), runs
 
 
 SHORT_STAGE = {"screening": "costs", "oos": "unseen", "walk_forward": "over time", "robustness": "stress", "monte_carlo": "luck"}

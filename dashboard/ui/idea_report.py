@@ -38,9 +38,11 @@ def _panel(title: str, note: str, *children: Any) -> dmc.Paper:
         *children], p="lg", radius="lg", bg=PANEL, style=CARD, className="idea-report-panel")
 
 
-def _figure(figure: go.Figure, height: int, right: int = 8) -> dcc.Graph:
-    figure.update_layout(autosize=True, height=height, margin=dict(l=44, r=right, t=8, b=24), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                         font=dict(family=SANS, color=MUTED, size=11), showlegend=False, hovermode="x unified")
+def _figure(figure: go.Figure, height: int, right: int = 8, legend: bool = False) -> dcc.Graph:
+    """`legend`: show Plotly's own legend for the traces that opt in (showlegend=True), as a click-to-toggle control."""
+    figure.update_layout(autosize=True, height=height, margin=dict(l=44, r=right, t=28 if legend else 8, b=24), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                         font=dict(family=SANS, color=MUTED, size=11), showlegend=legend, hovermode="x unified",
+                         legend=dict(orientation="h", x=1, xanchor="right", y=1.02, yanchor="bottom", bgcolor="rgba(0,0,0,0)", font=dict(color=MUTED, size=11)))
     figure.update_xaxes(gridcolor="#16181C", zeroline=False, showline=False)
     figure.update_yaxes(gridcolor="#16181C", zeroline=False, showline=False)
     return dcc.Graph(figure=figure, config={"displayModeBar": False, "responsive": True}, responsive=True, style={"width": "100%", "height": f"{height}px"})
@@ -49,7 +51,7 @@ def _figure(figure: go.Figure, height: int, right: int = 8) -> dcc.Graph:
 def _legend(data: dict[str, Any]) -> dmc.Group:
     def key(color: str, text: str) -> dmc.Group:
         return dmc.Group([html.Span(style={"width": 12, "height": 2, "background": color}), dmc.Text(text, size="xs", c=MUTED)], gap=6)
-    drawn = [(INDIGO, "Built on", len(data["built"])), (GREEN, "Unseen data", len(data["unseen"])), (HOLD, "Buy and hold", len(data["hold"]))]
+    drawn = [(INDIGO, "Built on", len(data["built"])), (GREEN, "Unseen data", len(data["unseen"]))]  # buy and hold is the chart's own legend toggle
     return dmc.Group([key(color, text) for color, text, count in drawn if count], gap="md")
 
 
@@ -66,24 +68,26 @@ def hero(report: dict[str, Any]) -> dmc.Paper:
             dmc.Text(f"What to fix: {data['fix']}", size="sm", c=MUTED),
         ], p="lg", radius="lg", bg=INNER, style={"border": f"1px solid {LINE}"}, className="idea-report-never-ran")
     figure = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.76, 0.24], vertical_spacing=0.12)
-    floor = min(float(data[key].min()) for key in ("built", "unseen", "hold") if len(data[key]))
-    if len(data["hold"]):
-        figure.add_trace(go.Scatter(x=data["hold"].index, y=data["hold"], mode="lines", line=dict(color=HOLD, width=1.4), name="Buy and hold"), row=1, col=1)
+    start = float((data["built"] if len(data["built"]) else data["unseen"]).iloc[0])  # every line is % growth from the same starting money, on one axis
+    growth = {key: (data[key] / start - 1) * 100 for key in ("built", "unseen", "hold")}
+    floor = min(float(growth[key].min()) for key in ("built", "unseen") if len(growth[key]))  # hidden buy and hold never sets the scale
     for key, color, name in (("built", INDIGO, "Built on"), ("unseen", GREEN, "Unseen data")):
-        if len(data[key]):  # an invisible floor line gives the soft fill something to fill down to
-            figure.add_trace(go.Scatter(x=data[key].index, y=[floor] * len(data[key]), mode="lines", line=dict(width=0), hoverinfo="skip"), row=1, col=1)
-            figure.add_trace(go.Scatter(x=data[key].index, y=data[key], mode="lines", line=dict(color=color, width=2), name=name, fill="tonexty", fillcolor=_fill(color)), row=1, col=1)
+        if len(growth[key]):  # an invisible floor line gives the soft fill something to fill down to
+            figure.add_trace(go.Scatter(x=growth[key].index, y=[floor] * len(growth[key]), mode="lines", line=dict(width=0), hoverinfo="skip", showlegend=False), row=1, col=1)
+            figure.add_trace(go.Scatter(x=growth[key].index, y=growth[key], mode="lines", line=dict(color=color, width=2), name=name, fill="tonexty", fillcolor=_fill(color), showlegend=False), row=1, col=1)
+    if len(growth["hold"]):  # off by default; Plotly's legend click turns it on ("legendonly" is Plotly's standard hidden state)
+        figure.add_trace(go.Scatter(x=growth["hold"].index, y=growth["hold"], mode="lines", line=dict(color=HOLD, width=1.4), name="Compare: buy and hold", visible="legendonly", showlegend=True), row=1, col=1)
     if len(data["unseen"]) and len(data["built"]):
         split = data["unseen"].index[0].isoformat()
         for domain in ("y domain", "y2 domain"):
             figure.add_shape(type="line", x0=split, x1=split, y0=0, y1=1, xref="x", yref=domain, line=dict(color=MUTED, width=1, dash="dot"))
         figure.add_annotation(x=split, y=1, xref="x", yref="y domain", text="Unseen data →", showarrow=False, xanchor="left", yanchor="top", font=dict(color=GREEN, size=11))
     drop = data["drawdown"]
-    figure.add_trace(go.Scatter(x=drop.index, y=drop, mode="lines", line=dict(color=RED, width=1.2), fill="tozeroy", fillcolor="rgba(242,84,91,0.25)", name="Below peak %"), row=2, col=1)
-    figure.update_yaxes(tickprefix="$", row=1, col=1)
+    figure.add_trace(go.Scatter(x=drop.index, y=drop, mode="lines", line=dict(color=RED, width=1.2), fill="tozeroy", fillcolor="rgba(242,84,91,0.25)", name="Below peak %", showlegend=False), row=2, col=1)
+    figure.update_yaxes(ticksuffix="%", row=1, col=1)
     figure.update_yaxes(ticksuffix="%", row=2, col=1)
     note = [dmc.Text(UNSAVED_UNSEEN_NOTE, size="xs", c=FAINT)] if data["unseen_label_note"] else []
-    return dmc.Paper([dmc.Group([dmc.Text("Account value", fw=600, size="md"), _legend(data)], justify="space-between", gap="xs"), _figure(figure, 400), *note],
+    return dmc.Paper([dmc.Group([dmc.Text("Account value", fw=600, size="md"), _legend(data)], justify="space-between", gap="xs"), _figure(figure, 400, legend=bool(len(data["hold"]))), *note],
                      p="lg", radius="lg", bg=PANEL, style=CARD, className="idea-report-hero")
 
 
@@ -108,7 +112,7 @@ def test_card(index: int, test: dict[str, Any]) -> dmc.Paper:
     return dmc.Paper([
         dmc.Group([dmc.Text(f"{index} · {test['label']}", fw=500, size="sm"), *([dmc.Badge(test["status"], color=tone, variant="light", size="sm")] if test["run_id"] else [])], justify="space-between", gap="xs"),
         *([dmc.Text(test["rule"], size="xs", c=MUTED)] if test.get("rule") else []),
-        dmc.Text(test["value"], size="lg", ff=MONO), *bar,
+        dmc.Text(test["value"], size="sm", c=MUTED) if str(test["value"]).startswith("Not scored") else dmc.Text(test["value"], size="lg", ff=MONO), *bar,
         *[dmc.Text([f"{name} · not saved"] if value is None else [f"{name} · Sharpe ", html.Span(value, style={"fontFamily": MONO})], size="xs") for name, value in test.get("scores") or []], *([dmc.Text(test["line"], size="xs", c=MUTED)] if test["line"] else []), *saved_note,
     ], p="md", radius="md", bg=INNER, style={"border": f"1px solid {LINE}"}, className="idea-report-test")
 
@@ -146,7 +150,9 @@ def luck_panel(report: dict[str, Any]) -> dmc.Paper | None:
     if not test["run_id"]:
         return None
     rows = [dmc.Group([dmc.Text(c["check"], size="sm"), dmc.Text(f"{c['measured']} · needs {c['needed']}", size="sm", ff=MONO, c=MUTED)], justify="space-between") for c in test["detail"]["checks"]]
-    body = rows or [dmc.Text(f"{test['value']} The shuffled histories themselves are not saved, so there is no chart.", size="sm", c=FAINT)]
+    if not rows:  # no chart and no numbers: the Luck card already says why
+        return None
+    body = rows
     return _panel("Is it luck?", "Luck test number and pass line", dmc.Stack(body, gap="xs", mt="sm"))
 
 
@@ -216,9 +222,11 @@ def trades_panel(report: dict[str, Any]) -> dmc.Paper | None:
 
 
 def header(report: dict[str, Any]) -> dmc.Stack:
-    chips = [dmc.Badge(report["verdict"], color=TONE[report["verdict_tone"]], variant="light")]
+    parts = report.get("verdict_line")
+    chips = [] if parts else [dmc.Badge(report["verdict"], color=TONE[report["verdict_tone"]], variant="light")]
     chips += [dmc.Badge(text, color="gray", variant="light") for text in (report["symbol"], report["tested"]) if text]
-    return dmc.Stack([dmc.Text("Results / Idea report", size="xs", c=FAINT), dmc.Title(report["title"], order=1, size=26, fw=600), dmc.Group(chips, gap=6)], gap=8)
+    line = [dmc.Text([html.Span(text, style={"color": {"green": GREEN, "red": RED}.get(tone, MUTED)}) for text, tone in parts], size="sm")] if parts else []  # sentence case, wraps on phone
+    return dmc.Stack([dmc.Text("Results / Idea report", size="xs", c=FAINT), dmc.Title(report["title"], order=1, size=26, fw=600), *line, dmc.Group(chips, gap=6)], gap=8)
 
 
 
