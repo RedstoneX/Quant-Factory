@@ -7,9 +7,9 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from dashboard.factory_projection import (
-    drain_state, event_sentence, group_abandoned, header_pill, is_close_call, median_minutes, memory_health,
-    parse_measured_needed, price_data_rows, run_outcome, submitter_label,
+from dashboard.factory_history import event_sentence, is_close_call, parse_measured_needed, short_reason, submitter_label, timeline_rows
+from dashboard.factory_overview import (
+    crash_alerts, drain_state, group_abandoned, header_pill, median_minutes, memory_health, price_data_rows, run_outcome,
 )
 
 NOW = datetime(2026, 10, 19, 15, 0, tzinfo=timezone.utc)
@@ -85,3 +85,28 @@ def test_run_outcome_and_memory_and_prices(tmp_path: Path) -> None:
     assert memory_health(1, meminfo) == {"tone": "amber", "value": "50% free · 1 crash today"}
     (tmp_path / "spy.json").write_text('{"symbol": "SPY", "latest_timestamp": "2026-10-16T20:00:00Z"}')
     assert price_data_rows([tmp_path]) == [{"market": "SPY", "last": "Fri 16 Oct"}]
+
+
+def test_timeline_block_is_capped_at_three_times_typical_and_marked() -> None:
+    crashed = {**_run("a", "failed", "failed", "2026-10-19T08:00:00Z"), "completed_at": "2026-10-19T14:00:00Z", "outcome": "crashed"}
+    quick = {**_run("b", "succeeded", "completed", "2026-10-19T14:10:00Z"), "completed_at": "2026-10-19T14:12:00Z", "outcome": "failed"}
+    rows = timeline_rows([crashed, quick], NOW, 5.0)
+    assert rows[0]["capped"] is True and rows[0]["minutes"] == 15
+    assert rows[1]["capped"] is False and rows[1]["minutes"] == 2
+
+
+def _crash(run_id: str, cid: str, when: str, error: str = "Test process lost in a deploy restart") -> dict:
+    return {**_run(run_id, "failed", "failed", "2026-10-19T08:00:00Z"), "candidate_id": cid, "completed_at": when, "error_summary": error, "stage": "screening", "outcome": "crashed"}
+
+
+def test_crash_alerts_collapse_duplicates_and_skip_handled_ideas() -> None:
+    crashes = [_crash("r1", "c1", "2026-10-19T10:00:00Z"), _crash("r2", "c1", "2026-10-19T11:00:00Z"), _crash("r3", "c2", "2026-10-19T09:00:00Z")]
+    later = [{"candidate_id": "c2", "state": "queued", "created_at": "2026-10-19T09:30:00+00:00"},
+             {"candidate_id": "c1", "state": "failed", "created_at": "2026-10-19T11:00:05+00:00"}]  # a crash event itself does not count as handling
+    alerts = crash_alerts(crashes, later)
+    assert [a["title"] for a in alerts] == ["Crashed: stopped by a server restart ×2"]
+
+
+def test_short_reason_is_sentence_case_plain_words() -> None:
+    assert short_reason("Test process lost in a deploy restart on 14 Oct") == "stopped by a server restart"
+    assert short_reason("Ran out of memory") == "ran out of computer memory and was stopped"
