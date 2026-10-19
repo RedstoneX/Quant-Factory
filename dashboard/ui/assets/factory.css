@@ -18,7 +18,8 @@
 .fo-tile{padding:16px;border-radius:14px;background:#0F1114;border:1px solid #1F2228;display:flex;flex-direction:column;gap:6px;min-width:0}
 .fo-tile-label{color:#9BA1AB;font-size:13px}
 .fo-tile-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
-.fo-tile-value{font-family:'Geist Mono',ui-monospace,monospace;font-size:26px;line-height:1.1}
+.fo-phone-only{display:none}
+.fo-tile-value{white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:26px;line-height:1.1}
 .fo-tile-sub{color:#6B7280;font-size:12px}
 .fo-spark{flex:none;overflow:hidden}
 .fo-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px;align-items:start}
@@ -57,7 +58,10 @@
 .fo-log-row{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid #1A1C21;font-size:13px}
 .fo-time{flex:none}
 @media (max-width:1100px){.fo-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:420px){.fo-tile-value{font-size:22px}.fo-tile{padding:14px 12px}}
 @media (max-width:640px){
+  .fo-phone-only{display:block}.fo-desktop-only{display:none}
+  .fo-scroll{direction:rtl}.fo-scroll>*{direction:ltr}
   .fo-page{padding:16px}
   .fo-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
   .fo-title{font-size:22px}

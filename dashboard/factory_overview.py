@@ -6,6 +6,7 @@ The gateway database is read raw and read-only, like overview_projection does (a
 from __future__ import annotations
 
 import json
+from collections import Counter
 import os
 import shutil
 import sqlite3
@@ -15,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from dashboard.factory_history import (
-    OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, hour_floor, is_close_call, log_rows, short_reason, submitter_label, timeline_rows, utc,
+    OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, hour_floor, is_close_call, is_restart, log_rows, short_reason, submitter_label, timeline_rows, utc,
 )
 from dashboard.factory_projection import _duration_minutes, _params, _row, _runs_source, plain_error
 from dashboard.overview_projection import GATEWAY_DATABASE_ENVIRONMENT_VARIABLE, _open_read_only, _validated_connection, configured_database_path
@@ -37,7 +38,7 @@ ABANDONED_AFTER = timedelta(days=1)
 CRASH_FIXES = (("memory", "Fix: split the grid into smaller parts, or re-queue it after the memory is raised."), ("restart", "Nothing to do: it was stopped by a restart and is safe to run again."))
 
 
-_EMPTY = {"tiles": [], "running": [], "alerts": [], "old_runs": None, "queue": {"total": 0, "next": [], "next_start": None}, "timeline": [], "hourly": [], "health": [], "log": []}
+_EMPTY = {"last_test": None, "tiles": [], "running": [], "alerts": [], "old_runs": None, "queue": {"total": 0, "next": [], "next_start": None}, "timeline": [], "hourly": [], "health": [], "log": []}
 
 
 def median_minutes(pairs: list[tuple[Any, Any]], last: int = 50) -> float | None:
@@ -178,6 +179,8 @@ def crash_alerts(crashed: list[dict[str, Any]], events: list[dict[str, Any]]) ->
     groups: dict[tuple[str | None, str], dict[str, Any]] = {}
     for run in sorted(crashed, key=lambda r: r["completed_at"], reverse=True):
         cid, done = run["candidate_id"], utc(run["completed_at"])
+        if is_restart(run["error_summary"]):
+            continue  # a restart stop is handled by itself: it shows in What happened only
         if any(e["candidate_id"] == cid and e["state"] != "failed" and utc(e["created_at"]) > done for e in events):
             continue
         reason = plain_error(run["error_summary"])
@@ -233,6 +236,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         connection.close()
         if gate is not None:
             gate.close()
+    events = [e for e in events if utc(e["created_at"]) <= now]  # nothing from after the snapshot time
     close_runs = {e["run_id"] for e in events if e["state"] == "screened_out" and e["run_id"] and is_close_call(e["reason_detail"])}
     for run in runs:
         run["outcome"] = "abandoned" if run["status"] == "running" and run["cohort"] == "failed" else run_outcome(run, close_runs)
@@ -265,10 +269,13 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
                 queued_per_hour[23 - k] += 1
     busy = [sum(1 for r in runs if r["started_at"] and r["outcome"] != "abandoned" and utc(r["started_at"]) < h + timedelta(hours=1) and (not r["completed_at"] or utc(r["completed_at"]) >= h)) for h in hours24]
     typical_per_hour = [median_minutes([(r["started_at"], r["completed_at"]) for r in finished if hour_floor(utc(r["completed_at"])) == h]) or 0 for h in hours24]
-    crash_reason = short_reason(crashed_today[-1]["error_summary"]) if crashed_today else "none"
+    reasons = Counter(short_reason(r["error_summary"]) for r in crashed_today)
+    top, top_n = reasons.most_common(1)[0] if reasons else ("none", 0)
+    crash_reason = "none" if not reasons else f"mostly {crash_label(top)} ({top_n})" if top_n > 1 else crash_label(top)
     crash_reason = crash_reason if len(crash_reason) <= 44 else "see What happened"
+    last_test = {"name": latest_finished["title"], "outcome": OUTCOME_WORDS[latest_finished["outcome"]].lower(), "when": clock(latest_finished["completed_at"]), "candidate_id": latest_finished["candidate_id"]} if latest_finished else None
     tiles = [
-        {"label": "Running now", "value": f"{len(live)}" if live else "idle", "sub": "one test at a time", "color": "indigo", "spark": busy},
+        {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle", "spark": busy},
         {"label": "Waiting", "value": f"{len(queue_rows)}", "sub": f"longest wait {_human_minutes(longest)}" if longest is not None else "nothing in line", "color": "text", "spark": queued_per_hour},
         {"label": "Finished today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {close_today} close call{'s' if close_today != 1 else ''}", "color": "text",
          "spark": [sum(row[o] for o in ("failed", "close", "passed", "crashed")) for row in last24]},
@@ -321,7 +328,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         headline = "All clear"
     else:
         headline = f"{len(live)} test{'s' if len(live) != 1 else ''} running, {len(queue_rows)} waiting. " + (f"{looks} thing{'s' if looks != 1 else ''} need{'s' if looks == 1 else ''} a look." if looks else "All clear.")
-    return {**base, "available": True, "message": "", "pill": pill, "headline": headline, "typical_minutes": typical, "tiles": tiles, "running": running_cards, "alerts": alerts, "old_runs": old_runs,
+    return {**base, "available": True, "message": "", "pill": pill, "headline": headline, "typical_minutes": typical, "tiles": tiles, "running": running_cards, "last_test": last_test, "alerts": alerts, "old_runs": old_runs,
             "queue": {"total": len(queue_rows), "next": queue_rows[:4], "next_start": f"~{typical:.0f} min (estimate)" if queue_rows and typical else None},
             "timeline": timeline, "hourly": hourly, "health": health, "log": log}
 

@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from dashboard.factory_history import event_sentence, is_close_call, parse_measured_needed, short_reason, submitter_label, timeline_rows
+from dashboard.factory_history import event_sentence, is_close_call, parse_measured_needed, short_reason, is_restart, crash_label, submitter_label, timeline_rows, clock
 from dashboard.factory_overview import (
     crash_alerts, drain_state, group_abandoned, header_pill, median_minutes, memory_health, price_data_rows, run_outcome,
 )
@@ -100,13 +100,30 @@ def _crash(run_id: str, cid: str, when: str, error: str = "Test process lost in 
 
 
 def test_crash_alerts_collapse_duplicates_and_skip_handled_ideas() -> None:
-    crashes = [_crash("r1", "c1", "2026-10-19T10:00:00Z"), _crash("r2", "c1", "2026-10-19T11:00:00Z"), _crash("r3", "c2", "2026-10-19T09:00:00Z")]
+    oom = "Ran out of memory"
+    crashes = [_crash("r1", "c1", "2026-10-19T10:00:00Z", oom), _crash("r2", "c1", "2026-10-19T11:00:00Z", oom), _crash("r3", "c2", "2026-10-19T09:00:00Z", oom),
+               _crash("r4", "c3", "2026-10-19T09:00:00Z")]  # c3: a server-restart stop is history, never an alert
     later = [{"candidate_id": "c2", "state": "queued", "created_at": "2026-10-19T09:30:00+00:00"},
              {"candidate_id": "c1", "state": "failed", "created_at": "2026-10-19T11:00:05+00:00"}]  # a crash event itself does not count as handling
     alerts = crash_alerts(crashes, later)
-    assert [a["title"] for a in alerts] == ["Crashed: stopped by a server restart ×2"]
+    assert [a["title"] for a in alerts] == ["Crashed: ran out of computer memory and was stopped ×2"]
 
 
 def test_short_reason_is_sentence_case_plain_words() -> None:
     assert short_reason("Test process lost in a deploy restart on 14 Oct") == "stopped by a server restart"
     assert short_reason("Ran out of memory") == "ran out of computer memory and was stopped"
+
+
+def test_utc_event_time_renders_in_eastern() -> None:
+    assert clock("2026-10-18T23:18:48.806955+00:00") == "19:18"  # EDT is UTC-4
+    assert clock("2026-12-18T23:18:00Z") == "18:18"  # EST is UTC-5
+    rows = timeline_rows([{**_run("a", "succeeded", "completed", "2026-10-19T14:00:00Z"), "completed_at": "2026-10-19T14:02:00Z", "outcome": "failed"}], NOW)
+    assert rows[0]["start"].hour == 10  # timeline hours are Eastern wall time
+
+
+def test_restart_stops_are_history_and_crash_tile_names_main_reason() -> None:
+    assert is_restart("Test process lost in a deploy restart")
+    assert not is_restart("Ran out of memory")
+    sentence, tone = event_sentence({"state": "failed", "reason_code": "run_error", "reason_detail": "Stopped by a server restart"}, "SPY ORB", "Grok")
+    assert sentence == "“SPY ORB” stopped by a server restart, safe to re-run." and tone == "grey"
+    assert crash_label("stopped by a server restart") == "server restarts"

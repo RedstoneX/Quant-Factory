@@ -84,6 +84,8 @@ def event_sentence(event: dict[str, Any], name: str, who: str) -> tuple[str, str
         measured = parse_measured_needed(detail)
         text = f" ({measured['text']})" if measured else ""
         return (f"{quoted} was a close call on {step}{text}.", "amber") if is_close_call(detail) else (f"{quoted} failed {step}{text}.", "grey")
+    if state == "failed" and is_restart(detail):
+        return f"{quoted} stopped by a server restart, safe to re-run.", "grey"
     if state == "failed":
         return f"{quoted} crashed: {plain_error(detail).rstrip('.').lower()}.", "red"
     if state == "implementation_blocked":
@@ -115,9 +117,20 @@ def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: d
             sentence, tone = f"{event['count']} ideas were put back in line after {'a software update' if event['reason_code'] == 'requeued_after_fix' else 'a restart'}.", "indigo"
         log.append({"t": clock(event["created_at"]), "when": utc(event["created_at"]), "tone": tone, "text": sentence})
     for run in crashed_today:  # run events: a crashed run is recorded on the run, not always as a campaign event
-        log.append({"t": clock(run["completed_at"]), "when": utc(run["completed_at"]), "tone": "red", "text": f"“{run['title']}” crashed: {plain_error(run['error_summary']).rstrip('.').lower()}."})
+        restart = is_restart(run["error_summary"])
+        text = f"“{run['title']}” stopped by a server restart, safe to re-run." if restart else f"“{run['title']}” crashed: {plain_error(run['error_summary']).rstrip('.').lower()}."
+        log.append({"t": clock(run["completed_at"]), "when": utc(run["completed_at"]), "tone": "grey" if restart else "red", "text": text})
     log = [{k: v for k, v in item.items() if k != "when"} for item in sorted(log, key=lambda r: r["when"], reverse=True)[:20]]
     return log
+
+
+def is_restart(error: Any) -> bool:
+    """A test stopped only because the server restarted: handled by itself, so it is history, not something to look at."""
+    return "restart" in plain_error(error).lower()
+
+
+def crash_label(reason: str) -> str:
+    return "server restarts" if "restart" in reason else "running out of memory" if "memory" in reason else reason
 
 
 def short_reason(error: Any) -> str:
