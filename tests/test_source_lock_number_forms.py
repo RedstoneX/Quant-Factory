@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-import strategies
+import backtesting.validation.evidence_service as evidence_service
 from backtesting.validation.evidence_service import ValidationEvidenceArtifactService as Svc
 from strategies.rule_spec_strategy import RuleSpecStrategy, rule_strategy_definition
 from tests.test_rule_spec_strategy import _spec
@@ -18,7 +18,7 @@ def strategy_id(monkeypatch):
         candidate_id="c1", title="T", rule_spec=spec, variables={"trail": {"values": [1, 1.5, 2]}}
     )
     strategy = RuleSpecStrategy(definition)
-    monkeypatch.setattr(strategies, "get_strategy", lambda _id: strategy)
+    monkeypatch.setattr(evidence_service, "get_strategy", lambda _id: strategy)
     return definition["strategy_id"]
 
 
