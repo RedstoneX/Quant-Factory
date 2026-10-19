@@ -96,7 +96,15 @@ def score_text(scores: dict[str, str] | None) -> str:
     return ", ".join(marks)
 
 
-def event_sentence(event: dict[str, Any], name: str, who: str, scores: dict[str, str] | None = None, unseen: dict[str, Any] | None = None) -> tuple[str, str]:
+def crash_sentence(name: str, code: str, detail: Any, stage: Any = None, requeued: bool = False) -> str:
+    """'“X” crashed in the Stress test — our side; re-run blocked until checked.' The class comes from the recorded reason code (data_unavailable is the existing market-data code, everything else is our side); the follow-up comes from the record only."""
+    where = f" in the {STEP_NAME[stage]}" if stage in STEP_NAME else ""
+    cause = "data problem" if code == "data_unavailable" else "our side"
+    follow = "re-running" if requeued else "re-run blocked until checked" if "rerun is blocked" in str(detail or "").lower() else ""
+    return f"“{name}” crashed{where} — {cause}" + (f"; {follow}." if follow else ".")
+
+
+def event_sentence(event: dict[str, Any], name: str, who: str, scores: dict[str, str] | None = None, unseen: dict[str, Any] | None = None, requeued: bool = False) -> tuple[str, str]:
     """(plain sentence, tone) for one campaign event. Tone: indigo info, amber close call, red crash, green pass, grey failed a test or could not be checked.
     `unseen` is the idea's stored out-of-sample metrics (results_projection.oos_report_metrics), used to word an unseen-data loss."""
     state, code, detail = event["state"], event["reason_code"] or "", event["reason_detail"] or ""
@@ -119,7 +127,7 @@ def event_sentence(event: dict[str, Any], name: str, who: str, scores: dict[str,
     if state == "failed" and is_restart(detail):
         return f"{quoted} stopped by a server restart, safe to re-run.", "grey"
     if state == "failed":
-        return f"{quoted} crashed: {plain_error(detail).rstrip('.').lower()}.", "red"
+        return crash_sentence(name, code, detail, None, requeued), "red"
     if state == "implementation_blocked":
         return (f"{quoted} could not be tested: its rules are missing." if code == "rules_missing" else f"{quoted} could not be tested."), "amber"
     if state == "duplicate_closed":
@@ -194,13 +202,15 @@ def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: d
              unseen: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     log: list[dict[str, Any]] = control_log_rows(control or [], now)
     for event in group_requeues(events[:60])[:20]:
-        sentence, tone = event_sentence(event, titles.get(event["candidate_id"], event["candidate_id"]), submitter_label(submitters.get(event["candidate_id"])), (scores or {}).get(event["candidate_id"]), (unseen or {}).get(event["candidate_id"]))
+        requeued = event["state"] == "failed" and any(e["candidate_id"] == event["candidate_id"] and e["state"] == "queued" and utc(e["created_at"]) > utc(event["created_at"]) for e in events)
+        sentence, tone = event_sentence(event, titles.get(event["candidate_id"], event["candidate_id"]), submitter_label(submitters.get(event["candidate_id"])), (scores or {}).get(event["candidate_id"]), (unseen or {}).get(event["candidate_id"]), requeued)
         if event["count"] > 1:
             sentence, tone = f"{event['count']} ideas were put back in line after {'a software update' if event['reason_code'] == 'requeued_after_fix' else 'a restart'}.", "indigo"
         log.append({"t": clock(event["created_at"], now), "when": utc(event["created_at"]), "tone": tone, "text": sentence})
     for run in crashed_today:  # run events: a crashed run is recorded on the run, not always as a campaign event
         restart = is_restart(run["error_summary"])
-        text = f"“{run['title']}” stopped by a server restart, safe to re-run." if restart else f"“{run['title']}” crashed: {plain_error(run['error_summary']).rstrip('.').lower()}."
+        requeued = any(e["candidate_id"] == run["candidate_id"] and e["state"] == "queued" and utc(e["created_at"]) > utc(run["completed_at"]) for e in events)
+        text = f"“{run['title']}” stopped by a server restart, safe to re-run." if restart else crash_sentence(run["title"], "", run["error_summary"], run.get("stage"), requeued)
         log.append({"t": clock(run["completed_at"], now), "when": utc(run["completed_at"]), "tone": "grey" if restart else "red", "text": text})
     log = [{k: v for k, v in item.items() if k != "when"} for item in sorted(log, key=lambda r: r["when"], reverse=True)[:20]]
     return log

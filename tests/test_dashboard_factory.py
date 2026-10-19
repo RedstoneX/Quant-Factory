@@ -242,5 +242,5 @@ def test_a_crash_with_no_research_run_is_counted_the_same_by_every_panel(tmp_pat
     assert sorted(row["outcome"] for row in data["timeline"]) == ["crashed", "failed", "passed"]
     assert sum(row[k] for row in data["hourly"] for k in ("failed", "close", "passed", "crashed")) == 3 and sum(row["crashed"] for row in data["hourly"]) == 1
     texts = [row["text"] for row in data["log"]]
-    assert sum("code -9" in t for t in texts) == 1 and sum("Idea" in t and "failed" in t for t in texts) >= 2
+    assert sum("crashed" in t and "our side" in t for t in texts) == 1 and sum("Idea" in t and "failed" in t for t in texts) >= 2
     assert any(row["t"].startswith("Fri") for row in data["log"])  # the earlier day is labelled
