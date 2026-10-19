@@ -93,3 +93,30 @@ def test_summary_strip_leaves_out_what_cannot_be_computed() -> None:
     items = dict(report.summary_strip(values, [{"pnl": 5.0}, {"pnl": -1.0}, {"pnl": 2.0}], 0.456))
     assert items == {"Return": "-1.0%", "Worst drop": "-10.0%", "Sharpe after costs": "0.46", "Trades": "3", "Win rate": "67%"}
     assert report.summary_strip(pd.Series(dtype=float), [], None) == []
+
+
+def test_unseen_run_that_succeeded_with_a_saved_failed_verdict_shows_failed(monkeypatch, tmp_path) -> None:
+    from dashboard import idea_results_projection as results
+
+    monkeypatch.setattr(results, "oos_report_metrics", lambda **_: None)  # the saved report holds no metrics, only the verdict
+    for saved, word in (("failed", "Failed"), ("screened_out", "Failed"), ("passed", "Passed"), ("not_run", "Can't test")):
+        monkeypatch.setattr(results, "_artifact_document", lambda saved=saved, **_: {"artifact_kind": "out_of_sample", "test_status": saved})
+        card = results._test_card(tmp_path / "db.sqlite3", "oos", "Unseen data", {"run_id": "run_x", "status": "succeeded"}, {})
+        assert report.report_status("oos", card["status"], "succeeded") == word
+    monkeypatch.setattr(results, "_artifact_document", lambda **_: {})
+    card = results._test_card(tmp_path / "db.sqlite3", "oos", "Unseen data", {"run_id": "run_x", "status": "succeeded"}, {})
+    assert report.report_status("oos", card["status"], "succeeded") == "Can't test"  # no saved verdict: still unknown, never guessed
+
+
+def test_factory_verdict_overrides_research_statuses_and_falls_back_without_one() -> None:
+    from dashboard import results_workbench_projection as workbench
+
+    stored = ["Passed", "Can't test", "Can't test", "Can't test", "Can't test"]  # the research DB has no unseen-data run for this idea
+    failed_unseen = report.apply_campaign_verdict(stored, ("screened_out", "oos"))
+    assert failed_unseen == ["Passed", "Failed", "Can't test", "Can't test", "Can't test"] and workbench.overall_status(failed_unseen) == "Failed: unseen"
+    assert report.apply_campaign_verdict(stored, ("screened_out", "screening"))[0] == "Failed"
+    assert report.apply_campaign_verdict(stored, ("screened_out", "walk_forward")) == ["Passed", "Passed", "Failed", "Can't test", "Can't test"]
+    assert report.apply_campaign_verdict(stored, ("survivor", "passed_all")) == ["Passed"] * 5
+    assert report.apply_campaign_verdict(stored, ("failed", "run_error"))[1] == "Crashed"
+    assert report.apply_campaign_verdict(stored, None) == stored  # no event: the research-DB statuses stand
+    assert report.apply_campaign_verdict(stored, ("queued", "waiting")) == stored  # waiting or running is no verdict yet

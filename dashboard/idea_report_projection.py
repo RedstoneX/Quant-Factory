@@ -40,6 +40,41 @@ def report_status(stage: str, stored_status: str | None, run_status: str | None)
     return CANT_TEST
 
 
+def campaign_row(database: Path, candidate_id: str | None) -> tuple[str, str] | None:
+    """The factory's latest verdict for an idea: (state, reason_code) from the campaign events (the read-only qf_campaign_admissions table); None when it has none."""
+    connection, _error = _validated_connection(database)
+    if connection is None or not candidate_id:
+        return None
+    try:
+        row = connection.execute("SELECT state, reason_code FROM qf_campaign_admissions WHERE candidate_id=?", [candidate_id]).fetchone()
+        return (str(row[0]), str(row[1])) if row else None
+    except sqlite3.Error:
+        return None
+    finally:
+        connection.close()
+
+
+def apply_campaign_verdict(statuses: list[str], row: tuple[str, str] | None) -> list[str]:
+    """Five test statuses, overridden by the factory's own verdict when it has one.
+
+    screened_out at a test: the tests before it Passed, that test Failed, the rest Can't test. survivor: all Passed.
+    failed (run_error): the first test not already Passed is Crashed. Any other state (queued, running, duplicate, blocked) is no verdict, and the research-DB statuses stand.
+    """
+    if row is None:
+        return statuses
+    state, reason = row
+    stages = [stage for stage, _label in STAGES]
+    if state == "survivor":
+        return [PASSED] * len(stages)
+    if state == "screened_out" and reason in stages:
+        at = stages.index(reason)
+        return [PASSED] * at + [FAILED] + [CANT_TEST] * (len(stages) - at - 1)
+    if state == "failed":
+        at = next((i for i, status in enumerate(statuses) if status != PASSED), len(statuses) - 1)
+        return [*statuses[:at], CRASHED, *statuses[at + 1:]]
+    return statuses
+
+
 def overall_chip(tests: list[dict[str, Any]]) -> tuple[str, str]:
     """Header chip text and tone: the overall status from the five-status set, plus a count when mixed."""
     if not any(test["run_id"] for test in tests):
@@ -211,6 +246,9 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
         stored_status = stored.get("status") if stored.get("status") in ("passed", "failed") else None
         tests.append({"stage": stage, "label": TEST_LABELS[stage], "run_id": run.get("run_id"), "run_status": run.get("status"),
                       "status": report_status(stage, stored_status, run.get("status")), "line": (stored.get("line") or "") if run.get("run_id") else "", "detail": detail})
+    verdict = apply_campaign_verdict([test["status"] for test in tests], campaign_row(path, idea.get("candidate_id") or candidate_id))
+    for test, status in zip(tests, verdict):
+        test["status"] = status
     screening_view = load_trade_view(idea, "screening", database=path) if "screening" in runs else {"available": False}
     unseen_view = load_trade_view(idea, "oos", database=path) if "oos" in runs else {"available": False}
     screening_equity = screening_view.get("equity") or [] if screening_view.get("available") else []
@@ -245,5 +283,5 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     }
 
 
-__all__ = ["CANT_TEST", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
+__all__ = ["apply_campaign_verdict", "campaign_row", "CANT_TEST", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
            "monthly_returns", "never_ran_card", "overall_chip", "report_status", "summary_strip", "settings_grid"]

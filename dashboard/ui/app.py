@@ -25,6 +25,7 @@ from dashboard.results_projection import oos_report_metrics
 from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
 from dashboard.ui.compare import compare_layout, register_compare_callbacks
 from dashboard.ui.idea_report import FONT_URL as REPORT_FONT_URL, idea_report_layout
+from dashboard.ui.today import register_today_callbacks, today_layout
 from dashboard.ui.results_workbench import register_workbench_callbacks, results_workbench_layout
 from dashboard.ui.factory import factory_layout, register_factory_callbacks
 from dashboard.ui.layout import app_shell, copy_id, page_content, page_header, stat_card
@@ -401,6 +402,7 @@ def create_app() -> Dash:
         return response
 
     register_workbench_callbacks(application)
+    register_today_callbacks(application)
     application.layout = app_shell(dcc.Location(id="router-location", refresh=False), html.Div(id="route-page"))
 
     @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
@@ -413,7 +415,8 @@ def create_app() -> Dash:
         if pathname == "/submit": return page_content(submit_layout())
         if pathname == "/compare": return page_content(compare_layout(search))
         if pathname == "/paper-trading": return page_content(paper_layout())
-        return page_content(dashboard_layout())
+        if pathname == "/dashboard": return page_content(dashboard_layout())
+        return page_content(today_layout())
 
     nav_triggers = (
         "open-results", "open-candidate", "candidate-open-results", "candidate-submit", "factory-open-candidates", "factory-open-results",

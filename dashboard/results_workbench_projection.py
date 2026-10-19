@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-from dashboard.idea_report_projection import CANT_TEST, CLOSE_CALL, STATUS_TONE, TEST_LABELS, report_status
+from dashboard.idea_report_projection import CANT_TEST, CLOSE_CALL, STATUS_TONE, TEST_LABELS, apply_campaign_verdict, campaign_row, report_status
 from dashboard.idea_results_projection import STAGES, TRADE_STAGES, _check_name, _check_value, _evidence, _stage_runs, _test_card
 from dashboard.overview_projection import TEST_TITLE_PATTERNS, _validated_connection, configured_database_path
 
@@ -62,14 +62,15 @@ def _pct(value: Any) -> float | None:
     return None if value is None else round(float(value) * 100, 2)
 
 
-def _statuses(database: Path, connection: sqlite3.Connection, configuration_id: str, screening: dict[str, int]) -> tuple[list[str], dict[str, Any]]:
+def _statuses(database: Path, connection: sqlite3.Connection, configuration_id: str, screening: dict[str, int], candidate_id: str | None = None) -> tuple[list[str], dict[str, Any]]:
     runs = _stage_runs(connection, configuration_id)
     out: list[str] = []
     for stage, label in STAGES:
         card = _test_card(database, stage, label, runs.get(stage), screening)
         stored = card["status"] if card["status"] in ("passed", "failed") else None
         out.append(report_status(stage, stored, (runs.get(stage) or {}).get("status")))
-    return out, runs
+    row = connection.execute("SELECT state, reason_code FROM qf_campaign_admissions WHERE candidate_id=?", [candidate_id]).fetchone() if candidate_id else None
+    return apply_campaign_verdict(out, (str(row[0]), str(row[1])) if row else None), runs
 
 
 SHORT_STAGE = {"screening": "costs", "oos": "unseen", "walk_forward": "over time", "robustness": "stress", "monte_carlo": "luck"}
@@ -117,7 +118,7 @@ def _build(database: Path) -> dict[str, pd.DataFrame]:
                 rows = connection.execute("SELECT row_id, normalized_parameters_json, metrics_json, ranking_position, screening_status FROM parameter_results WHERE run_id=? ORDER BY ranking_position, row_id",
                                           [runs["screening"]["run_id"]]).fetchall()
             screening = {"screening_count": len(rows), "screened_out_count": sum(1 for row in rows if row["screening_status"] == "screened_out")}
-            statuses, _ = _statuses(database, connection, head["configuration_id"], screening)
+            statuses, _ = _statuses(database, connection, head["configuration_id"], screening, head["candidate_id"])
             best = _metrics(rows[0]["metrics_json"]) if rows else {}
             common = {"candidate_id": head["candidate_id"], "title": head["title"], "market": head["market"], "timeframe": INTERVALS.get(head["interval"], head["interval"] or ""),
                       "family": str(head["family"]).replace("_", " ").capitalize(), "sharpe_line": head["sharpe_line"], "created_at": head["created_at"], "result": overall_status(statuses), "dots": five_dots(statuses)}
