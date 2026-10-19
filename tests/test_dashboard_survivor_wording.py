@@ -22,3 +22,8 @@ def test_missing_scores_say_not_scored_and_no_line_says_every_test() -> None:
 
 def test_survivor_status_label() -> None:
     assert REASON_WORDS[("survivor", "awaiting_owner_review")] == "Passed the gates; waiting for you"
+
+
+def test_recorded_failed_scores_read_failed_never_close_call() -> None:
+    text, _tone = event_sentence(SURVIVOR, "SPY ORB", "Codex", {"walk_forward": "Failed", "robustness": "Failed", "monte_carlo": "Too few windows"})
+    assert text.endswith("scores: Holds over time: failed, Stress test: failed, Luck test: not enough data.")

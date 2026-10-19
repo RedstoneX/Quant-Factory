@@ -22,7 +22,7 @@ from dashboard.ui.idea_report import AMBER, BG, FAINT, GREEN, HOLD, INDIGO, LINE
 
 
 REFRESH_MS = 10_000
-OUTCOME_COLOR = {"failed": "#4B5160", "close": AMBER, "passed": GREEN, "crashed": RED, "running": INDIGO}
+OUTCOME_COLOR = {"failed": "#4B5160", "close": AMBER, "passed": GREEN, "crashed": RED, "running": INDIGO, "unchecked": MUTED, "interrupted": MUTED}  # neither is a failure: neutral grey
 TONE_COLOR = {"green": GREEN, "amber": AMBER, "red": RED, "grey": HOLD, "indigo": INDIGO, "text": TEXT, "idle": MUTED}
 ICON = {"green": "✓", "amber": "!", "red": "×"}
 STEP_CLASS = {"done": "done", "current": "current", "slow": "slow", "todo": "todo"}

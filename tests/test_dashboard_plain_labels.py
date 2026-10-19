@@ -82,3 +82,18 @@ def test_projection_sql_sends_each_state_to_its_own_group():
     rejected_line = next(line for line in sql.splitlines() if "THEN 'rejected'" in line and "campaign_state IN" in line)
     assert "duplicate_closed" not in rejected_line and "'failed'" not in rejected_line
     assert {"duplicate", "crashed", "blocked"} <= set(COUNT_KEYS)
+
+
+def test_unseen_data_reasons_never_show_source_lock_text() -> None:
+    from dashboard.plain_labels import plain_reason_detail, plain_unseen_reason, unseen_loss_text
+
+    saved = {"total_return": -0.019, "sharpe_ratio": -0.18, "_training_metrics": {"total_return": 0.32}}
+    assert unseen_loss_text(saved) == "lost money on years it never saw (−1.9%, Sharpe −0.18); built-on years +32%"
+    assert unseen_loss_text(None) == "lost money on years it never saw"
+    raw = ("out-of-sample run has no single valid source-lock artifact: source-lock evidence is invalid: test did not pass",
+           "out-of-sample run has no single valid source-lock artifact: source-lock evidence is invalid: training screening produced no passing candidates; ",
+           "out-of-sample run must contain exactly one valid source-lock artifact",
+           "source-lock parameters do not match the run configuration")
+    for text in raw:
+        assert "source-lock" not in plain_reason_detail(text) and plain_unseen_reason(text)
+    assert plain_reason_detail(raw[3]) == "Couldn't be checked — a settings mismatch on our side"

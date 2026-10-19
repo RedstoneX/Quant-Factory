@@ -134,12 +134,50 @@ def plain_rejection_reasons(text: Any) -> list[str]:
     return sentences
 
 
+OUR_SIDE_MISMATCH = "source-lock parameters do not match the run configuration"  # our own defect, not the idea's
+OUR_SIDE_WORDS = "Couldn't be checked — a settings mismatch on our side"
+UNSEEN_LOSS_WORDS = "lost money on years it never saw"
+
+
+def is_our_side_mismatch(text: Any) -> bool:
+    """The gateway could not check the idea because our settings did not match: neither a pass nor a failure."""
+    return OUR_SIDE_MISMATCH in str(text or "")
+
+
+def _minus(text: str) -> str:
+    return text.replace("-", "−")
+
+
+def unseen_loss_text(metrics: dict[str, Any] | None) -> str:
+    """'lost money on years it never saw (−1.9%, Sharpe −0.18); built-on years +32%' from the stored out-of-sample evidence; the bare phrase when the numbers were not saved."""
+    metrics = metrics or {}
+    unseen, sharpe, built = metrics.get("total_return"), metrics.get("sharpe_ratio"), (metrics.get("_training_metrics") or {}).get("total_return")
+    if unseen is None or sharpe is None:
+        return UNSEEN_LOSS_WORDS
+    text = _minus(f"{UNSEEN_LOSS_WORDS} ({float(unseen) * 100:.1f}%, Sharpe {float(sharpe):.2f})")
+    return text + (f"; built-on years {_minus(f'{float(built) * 100:+.0f}')}%" if built is not None else "")
+
+
+def plain_unseen_reason(text: Any, metrics: dict[str, Any] | None = None) -> str | None:
+    """Owner-facing words for a stored unseen-data (source-lock) reason; None when the text is not one. No 'source-lock' wording ever reaches a page."""
+    value = str(text or "")
+    if is_our_side_mismatch(value):
+        return OUR_SIDE_WORDS
+    if "source-lock" not in value:
+        return None
+    if "test did not pass" in value:
+        return UNSEEN_LOSS_WORDS[0].upper() + unseen_loss_text(metrics)[1:]
+    if "training screening produced no passing candidates" in value:
+        return "No settings passed on the built-on years, so the unseen years were not tested"
+    return "The unseen-data result could not be read"
+
+
 def plain_reason_detail(text: Any) -> str:
     """Owner-facing wording for stored campaign notes that name internal locks."""
     value = str(text or "")
     if "Protected test remains locked" in value:
         return "Passed the gates. Paper trading is parked, so nothing is traded."
-    return value
+    return plain_unseen_reason(value) or value
 
 
 def stage_verdict(status: Any, passed: int | None, results: int | None, *, idea_passed: bool = False) -> tuple[str, str]:
@@ -155,7 +193,7 @@ def stage_verdict(status: Any, passed: int | None, results: int | None, *, idea_
 
 
 __all__ = [
-    "plain_reason_detail", "plain_rejection_reasons", "stage_verdict",
+    "OUR_SIDE_WORDS", "is_our_side_mismatch", "plain_reason_detail", "plain_rejection_reasons", "plain_unseen_reason", "unseen_loss_text", "stage_verdict",
     "LIFECYCLE_LABELS", "LIFECYCLE_ORDER", "STATE_LABELS", "REASON_WORDS",
     "lifecycle_label", "plain_status", "reason_words", "state_label",
 ]

@@ -17,9 +17,9 @@ def test_labels_are_the_agreed_plain_words() -> None:
     ("screening", "passed", "succeeded", "Passed"),
     ("oos", "failed", "succeeded", "Failed"),
     ("screening", "failed", "succeeded", "Failed"),
-    ("walk_forward", "failed", "succeeded", "Close call"),
-    ("robustness", "failed", "succeeded", "Close call"),
-    ("monte_carlo", "failed", "succeeded", "Close call"),
+    ("walk_forward", "failed", "succeeded", "Failed"),  # the recorded status wins: never upgraded to a close call
+    ("robustness", "failed", "succeeded", "Failed"),
+    ("monte_carlo", "failed", "succeeded", "Failed"),
     ("oos", None, None, "Can't test"),
     ("robustness", None, "succeeded", "Can't test"),
     ("walk_forward", None, "failed", "Crashed"),
@@ -170,3 +170,26 @@ def test_unseen_card_states_the_19_oct_rule_and_both_sharpes(monkeypatch, tmp_pa
 def test_chip_counts_never_ran_as_not_run_and_recorded_stops_as_cant_test() -> None:
     tests = _tests(["Passed", "Passed", "Can't test", "Can't test", "Can't test"], 3)
     assert report.overall_chip(tests) == ("2 passed · 1 can't test · 2 not run", "grey")
+
+
+def test_recorded_failed_walk_forward_with_3_of_18_windows_reads_failed_everywhere() -> None:
+    from dashboard import results_workbench_projection as workbench
+    from dashboard.factory_history import score_text
+
+    stored = [report.report_status(stage, status, "succeeded") for stage, status in
+              (("screening", "passed"), ("oos", "passed"), ("walk_forward", "failed"), ("robustness", "failed"), ("monte_carlo", None))]
+    statuses = report.apply_campaign_verdict(stored, ("survivor", "awaiting_owner_review", ""))
+    assert statuses[2:4] == ["Failed", "Failed"]
+    chip = report.gates_chip(statuses, {"walk_forward": "3 of 18 windows"})  # Report header
+    assert chip == "Passed the gates · Holds over time: failed (3 of 18 windows made money) · Stress test: failed"
+    assert "close call" not in chip.lower()
+    assert score_text(dict(zip(report.SCORE_STAGES, statuses[2:]))).startswith("Holds over time: failed, Stress test: failed")  # Factory log line
+    today_chip = workbench.overall_status(statuses, survivor=True)  # the Today / grid chip
+    assert today_chip == "Passed the gates · Holds over time: failed · Stress test: failed"
+
+
+def test_our_side_settings_mismatch_is_cant_test_never_failed() -> None:
+    row = ("screened_out", "oos", "source-lock parameters do not match the run configuration")
+    statuses = report.apply_campaign_verdict(["Passed", "Failed", "Can't test", "Can't test", "Can't test"], row)
+    assert statuses == ["Passed", "Can't test", "Can't test", "Can't test", "Can't test"]
+    assert report.apply_campaign_verdict(["Passed"] * 5, ("screened_out", "oos", "test did not pass"))[1] == "Failed"

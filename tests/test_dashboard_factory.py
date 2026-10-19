@@ -37,14 +37,41 @@ def _run(run_id: str, status: str, cohort: str, started: str, title: str = "Idea
     return {"run_id": run_id, "status": status, "cohort": cohort, "started_at": started, "title": title, "candidate_id": "c-" + run_id, "survivor_count": 0}
 
 
+def _event(event_id: int, cid: str, state: str, at: str, code: str = "", detail: str = "") -> dict:
+    return {"event_id": event_id, "candidate_id": cid, "state": state, "reason_code": code, "reason_detail": detail, "run_id": None, "created_at": at}
+
+
 def test_old_unclosed_runs_become_one_grouped_alert() -> None:
-    runs = [_run(f"r{i}", "running", "failed", f"2026-10-1{i}T10:00:00Z") for i in range(1, 5)]
-    runs.append(_run("fresh", "running", "failed", "2026-10-19T14:00:00Z"))  # under a day: not grouped
-    runs.append(_run("live", "running", "open", "2026-10-10T10:00:00Z"))  # the factory still owns it
-    group = group_abandoned(runs, NOW)
+    from dashboard.factory_history import unclosed_starts
+
+    events = [_event(i, f"c{i}", "running", f"2026-10-1{i}T10:00:00Z") for i in range(1, 5)]
+    events.append(_event(10, "fresh", "running", "2026-10-19T14:50:00Z"))  # under 3x the typical time: not grouped
+    events += [_event(11, "requeued", "running", "2026-10-14T10:00:00Z"), _event(12, "requeued", "queued", "2026-10-14T11:00:00Z", "requeued_after_restart")]  # the record says how it ended
+    events += [_event(13, "again", "running", "2026-10-15T10:00:00Z"), _event(14, "again", "running", "2026-10-15T12:00:00Z"), _event(15, "again", "survivor", "2026-10-15T12:30:00Z")]
+    group = group_abandoned(unclosed_starts(events), {}, NOW, typical=20)
     assert group["count"] == 4 and group["title"] == "4 old runs were never closed (oldest Oct 11)"
     assert len(group["items"]) == 4
-    assert group_abandoned(runs[4:], NOW) is None
+    assert group_abandoned(unclosed_starts(events[4:]), {}, NOW, typical=20) is None
+
+
+def test_a_start_followed_by_a_requeue_or_a_new_start_is_interrupted_not_failed() -> None:
+    from dashboard.factory_history import OUTCOME_WORDS, tests_from_events
+
+    events = [_event(1, "a", "running", "2026-10-19T10:00:00Z"), _event(2, "a", "queued", "2026-10-19T10:30:00Z", "requeued_after_restart"),
+              _event(3, "b", "running", "2026-10-19T11:00:00Z"), _event(4, "b", "running", "2026-10-19T11:20:00Z"), _event(5, "b", "screened_out", "2026-10-19T11:40:00Z", "oos", "x"),
+              _event(6, "c", "running", "2026-10-19T12:00:00Z"), _event(7, "c", "screened_out", "2026-10-19T12:10:00Z", "oos", "source-lock parameters do not match the run configuration")]
+    tests = tests_from_events(events, {}, NOW)
+    assert [(t["candidate_id"], t["outcome"]) for t in tests] == [("a", "interrupted"), ("b", "interrupted"), ("b", "failed"), ("c", "unchecked")]
+    assert tests[0]["completed_at"] == "2026-10-19T10:30:00Z" and OUTCOME_WORDS["interrupted"] == "Interrupted — re-queued"
+
+
+def test_unseen_loss_and_our_side_mismatch_log_lines() -> None:
+    loss = _event(1, "a", "screened_out", "2026-10-19T10:00:00Z", "oos", "out-of-sample run has no single valid source-lock artifact: source-lock evidence is invalid: test did not pass")
+    saved = {"total_return": -0.019, "sharpe_ratio": -0.18, "_training_metrics": {"total_return": 0.32}}
+    assert event_sentence(loss, "SPY ORB", "Codex", None, saved) == ("“SPY ORB” lost money on years it never saw (−1.9%, Sharpe −0.18); built-on years +32%.", "grey")
+    assert event_sentence(loss, "SPY ORB", "Codex")[0] == "“SPY ORB” lost money on years it never saw."
+    mismatch = _event(2, "b", "screened_out", "2026-10-19T10:00:00Z", "oos", "source-lock parameters do not match the run configuration")
+    assert event_sentence(mismatch, "QQQ", "Codex") == ("“QQQ”: couldn't be checked — a settings mismatch on our side.", "grey")
 
 
 def test_submitter_is_exactly_as_recorded() -> None:

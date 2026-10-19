@@ -17,6 +17,7 @@ from dashboard.idea_results_projection import (
     STAGES, TRADE_STAGES, load_idea, load_period_price, load_stage_detail, load_trade_view,
 )
 from dashboard.overview_projection import _validated_connection, configured_database_path
+from dashboard.plain_labels import OUR_SIDE_WORDS, is_our_side_mismatch, plain_unseen_reason, unseen_loss_text
 from dashboard.results_projection import oos_report_metrics
 
 UNSEEN_RULE = "Passes if it made money on years it never saw, after costs"  # owner ruling 19 Oct 2026
@@ -44,13 +45,13 @@ SCORE_STAGES = ("walk_forward", "robustness", "monte_carlo")
 def report_status(stage: str, stored_status: str | None, run_status: str | None) -> str:
     """One of the five agreed words for a test.
 
-    Only the costs and unseen-data tests are pass marks; a weak score on the other three is a close call.
+    The recorded normalized status wins: a recorded "failed" is Failed on every test, never upgraded to a close call.
     A run that ended in failure without saving a verdict crashed; no run, or too little evidence, cannot be tested.
     """
     if stored_status == "passed":
         return PASSED
     if stored_status == "failed":
-        return FAILED if stage in TRADE_STAGES else CLOSE_CALL
+        return FAILED
     if run_status == "failed":
         return CRASHED
     return CANT_TEST
@@ -72,35 +73,38 @@ def score_statuses(candidate_id: str | None, database: str | Path | None = None)
     return out
 
 
-def campaign_row(database: Path, candidate_id: str | None) -> tuple[str, str] | None:
-    """The factory's latest verdict for an idea: (state, reason_code) from the campaign events (the read-only qf_campaign_admissions table); None when it has none."""
+def campaign_row(database: Path, candidate_id: str | None) -> tuple[str, str, str] | None:
+    """The factory's latest verdict for an idea: (state, reason_code, reason_detail) from the campaign events (the read-only qf_campaign_admissions table); None when it has none."""
     connection, _error = _validated_connection(database)
     if connection is None or not candidate_id:
         return None
     try:
-        row = connection.execute("SELECT state, reason_code FROM qf_campaign_admissions WHERE candidate_id=?", [candidate_id]).fetchone()
-        return (str(row[0]), str(row[1])) if row else None
+        row = connection.execute("SELECT state, reason_code, reason_detail FROM qf_campaign_admissions WHERE candidate_id=?", [candidate_id]).fetchone()
+        return (str(row[0]), str(row[1]), str(row[2] or "")) if row else None
     except sqlite3.Error:
         return None
     finally:
         connection.close()
 
 
-def apply_campaign_verdict(statuses: list[str], row: tuple[str, str] | None) -> list[str]:
+def apply_campaign_verdict(statuses: list[str], row: tuple[str, ...] | None) -> list[str]:
     """Five test statuses, overridden by the factory's own verdict when it has one.
 
     screened_out at a test: the tests before it Passed, that test Failed, the rest Can't test. survivor: each gate Passed unless a result is recorded for it (the recorded result stands), the three scores keep their own status (Not scored when none).
+    screened_out because our own settings did not match (plain_labels.is_our_side_mismatch): that test and the rest Can't test, never Failed.
     failed (run_error): the first test not already Passed is Crashed. Any other state (queued, running, duplicate, blocked) is no verdict, and the research-DB statuses stand.
     """
     if row is None:
         return statuses
-    state, reason = row
+    state, reason, detail = (*row, "")[:3]
     stages = [stage for stage, _label in STAGES]
     if state == "survivor":  # the two gates passed; the three scores keep their own recorded status (owner ruling 15 Oct)
         gates = [PASSED if status == CANT_TEST else status for status in statuses[:len(TRADE_STAGES)]]  # a recorded result is never overwritten; Passed only where none is recorded
         return gates + [NOT_SCORED if status == CANT_TEST else status for status in statuses[len(gates):]]
     if state == "screened_out" and reason in stages:
         at = stages.index(reason)
+        if is_our_side_mismatch(detail):
+            return [PASSED] * at + [CANT_TEST] * (len(stages) - at)
         return [PASSED] * at + [FAILED] + [CANT_TEST] * (len(stages) - at - 1)
     if state == "failed":
         at = next((i for i, status in enumerate(statuses) if status != PASSED), len(statuses) - 1)
@@ -108,11 +112,17 @@ def apply_campaign_verdict(statuses: list[str], row: tuple[str, str] | None) -> 
     return statuses
 
 
-def gates_chip(statuses: list[str]) -> str | None:
-    """'Passed the gates' plus a mark for each failed score ('Passed the gates · Holds over time: failed'); None unless both gates Passed. Scores never remove a survivor from review."""
+SCORE_DETAIL_WORDS = {"walk_forward": "made money", "robustness": "passed", "monte_carlo": "passed"}
+
+
+def gates_chip(statuses: list[str], values: dict[str, str] | None = None) -> str | None:
+    """'Passed the gates' plus a mark in words for each failed score ('Passed the gates · Holds over time: failed (3 of 18 windows made money) · Stress test: failed'); None unless both gates Passed.
+    `values` maps stage to its stored measure ('3 of 18 windows'), added when saved. Scores never remove a survivor from review."""
     if list(statuses[:len(TRADE_STAGES)]) != [PASSED] * len(TRADE_STAGES):
         return None
-    marks = [f" · {TEST_LABELS[stage]}: {'close call' if status == CLOSE_CALL else 'failed'}" for stage, status in zip(SCORE_STAGES, statuses[len(TRADE_STAGES):]) if status in (FAILED, CLOSE_CALL)]
+    values = values or {}
+    marks = [f" · {TEST_LABELS[stage]}: {'close call' if status == CLOSE_CALL else 'failed'}" + (f" ({values[stage]} {SCORE_DETAIL_WORDS[stage]})" if values.get(stage) else "")
+             for stage, status in zip(SCORE_STAGES, statuses[len(TRADE_STAGES):]) if status in (FAILED, CLOSE_CALL)]
     return GATES_CHIP[0] + "".join(marks)
 
 
@@ -296,7 +306,6 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     verdict = apply_campaign_verdict([test["status"] for test in tests], campaign)
     for test, status in zip(tests, verdict):
         test["status"] = status
-    survivor_chip = gates_chip(verdict) if campaign and campaign[0] == "survivor" else None  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
     screening_view = load_trade_view(idea, "screening", database=path) if "screening" in runs else {"available": False}
     unseen_view = load_trade_view(idea, "oos", database=path) if "oos" in runs else {"available": False}
     screening_equity = screening_view.get("equity") or [] if screening_view.get("available") else []
@@ -306,6 +315,15 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     built_return = float(series["built"].iloc[-1] / series["built"].iloc[0] - 1) if len(series["built"]) > 1 else None
     for test in tests:
         test.update(_test_measure(test["stage"], test, idea, test["detail"], path, built_return))
+    survivor_chip = gates_chip(verdict, {test["stage"]: test.get("value") for test in tests}) if campaign and campaign[0] == "survivor" else None  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
+    if campaign and campaign[0] == "screened_out" and campaign[1] == "oos":  # the unseen-data reason in words, never the stored source-lock text
+        unseen_test = next(test for test in tests if test["stage"] == "oos")
+        if is_our_side_mismatch(campaign[2]):
+            unseen_test["line"] = OUR_SIDE_WORDS + "."
+        elif "test did not pass" in campaign[2]:
+            unseen_test["line"] = f"{idea['title']} {unseen_loss_text(oos_report_metrics(database=path, run_id=(runs.get('oos') or {}).get('run_id')))}."
+        elif plain_unseen_reason(campaign[2]):
+            unseen_test["line"] = plain_unseen_reason(campaign[2]) + "."
     hold = pd.Series(dtype=float)
     if not whole.empty and "screening" in runs:  # buy and hold from the saved price bars, started with the same money
         bars = pd.DataFrame(load_period_price(runs["screening"]["run_id"], None, database=path)["price"])

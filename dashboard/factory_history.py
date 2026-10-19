@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 
 from dashboard.factory_projection import plain_error
+from dashboard.plain_labels import OUR_SIDE_WORDS, is_our_side_mismatch, plain_unseen_reason, unseen_loss_text
 from dashboard.time_display import EASTERN, eastern_label
 
 
@@ -24,10 +25,10 @@ SUBMITTERS = {"grok-remote": "Grok", "codex-local": "Codex"}
 CLOSE_CALL_RATIO = 0.8  # measured at least 80% of the needed number counts as a close call
 
 
-OUTCOMES = ("failed", "close", "passed", "crashed", "running")
+OUTCOMES = ("failed", "close", "passed", "crashed", "running", "unchecked", "interrupted")  # unchecked and interrupted are never failures
 
 
-OUTCOME_WORDS = {"failed": "Failed a test", "close": "Close call", "passed": "Passed", "crashed": "Crashed", "running": "Running"}
+OUTCOME_WORDS = {"failed": "Failed a test", "close": "Close call", "passed": "Passed", "crashed": "Crashed", "running": "Running", "unchecked": "Couldn't be checked", "interrupted": "Interrupted — re-queued"}
 
 
 METRIC_WORDS = {"sharpe_ratio": "Sharpe", "sharpe": "Sharpe", "total_return": "Return", "max_drawdown": "Worst drop", "trade_count": "Trades", "trades": "Trades"}
@@ -94,10 +95,17 @@ def score_text(scores: dict[str, str] | None) -> str:
     return ", ".join(marks)
 
 
-def event_sentence(event: dict[str, Any], name: str, who: str, scores: dict[str, str] | None = None) -> tuple[str, str]:
-    """(plain sentence, tone) for one campaign event. Tone: indigo info, amber close call, red crash, green pass, grey failed a test."""
+def event_sentence(event: dict[str, Any], name: str, who: str, scores: dict[str, str] | None = None, unseen: dict[str, Any] | None = None) -> tuple[str, str]:
+    """(plain sentence, tone) for one campaign event. Tone: indigo info, amber close call, red crash, green pass, grey failed a test or could not be checked.
+    `unseen` is the idea's stored out-of-sample metrics (results_projection.oos_report_metrics), used to word an unseen-data loss."""
     state, code, detail = event["state"], event["reason_code"] or "", event["reason_detail"] or ""
     quoted = f"“{name}”"
+    if state in ("screened_out", "failed") and is_our_side_mismatch(detail):
+        return f"{quoted}: {OUR_SIDE_WORDS[0].lower()}{OUR_SIDE_WORDS[1:]}.", "grey"
+    if state == "screened_out" and "test did not pass" in detail and "source-lock" in detail:
+        return f"{quoted} {unseen_loss_text(unseen)}.", "grey"
+    if state == "screened_out" and plain_unseen_reason(detail):
+        return f"{quoted} failed {STEP_NAME.get(code, 'Unseen data')}: {plain_unseen_reason(detail).lower()}.", "grey"
     step = STEP_NAME.get(code, code.replace("_", " "))
     if state == "queued":
         return (f"{who} queued {quoted}.", "indigo") if code == "waiting" else (f"{quoted} was put back in line after {'a software update' if code == 'requeued_after_fix' else 'a restart'}.", "indigo")
@@ -130,11 +138,13 @@ def tests_from_events(events: list[dict[str, Any]], titles: dict[str, str], now:
     tests: list[dict[str, Any]] = []
     for event in sorted(events, key=lambda e: e["event_id"]):
         cid, state = event["candidate_id"], event["state"]
+        if cid in open_ and (state == "running" or (state == "queued" and str(event["reason_code"] or "").startswith("requeued"))):
+            tests.append(_interrupted(open_.pop(cid), event, titles))  # the record says how it ended: re-queued, or started again
         if state == "running":
             open_[cid] = event
         elif cid in open_ and state in TERMINAL_STATES:
             start = open_.pop(cid)
-            outcome = "passed" if state == "survivor" else "crashed" if state == "failed" else "close" if is_close_call(event["reason_detail"]) else "failed"
+            outcome = "unchecked" if is_our_side_mismatch(event["reason_detail"]) else "passed" if state == "survivor" else "crashed" if state == "failed" else "close" if is_close_call(event["reason_detail"]) else "failed"
             tests.append({"run_id": event["run_id"] or start["run_id"], "candidate_id": cid, "title": titles.get(cid, cid), "status": "failed" if state == "failed" else "succeeded", "cohort": "open",
                           "started_at": start["created_at"], "completed_at": event["created_at"], "outcome": outcome, "error_summary": event["reason_detail"] if state == "failed" else "",
                           "stage": "", "survivor_count": int(state == "survivor")})
@@ -145,6 +155,20 @@ def tests_from_events(events: list[dict[str, Any]], titles: dict[str, str], now:
             tests.append({"run_id": None, "candidate_id": cid, "title": titles.get(cid, cid), "status": "running", "cohort": "open", "started_at": start["created_at"], "completed_at": "",
                           "outcome": "running", "error_summary": "", "stage": "", "survivor_count": 0})
     return tests
+
+
+def _interrupted(start: dict[str, Any], end: dict[str, Any], titles: dict[str, str]) -> dict[str, Any]:
+    """A start ended by a re-queue or a fresh start of the same idea: interrupted, never a failure."""
+    return {"run_id": start["run_id"], "candidate_id": start["candidate_id"], "title": titles.get(start["candidate_id"], start["candidate_id"]), "status": "interrupted", "cohort": "open",
+            "started_at": start["created_at"], "completed_at": end["created_at"], "outcome": "interrupted", "error_summary": "", "stage": "", "survivor_count": 0}
+
+
+def unclosed_starts(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each idea whose latest recorded event is a start: nothing after it says how it ended."""
+    latest: dict[str, dict[str, Any]] = {}
+    for event in sorted(events, key=lambda e: e["event_id"]):
+        latest[event["candidate_id"]] = event
+    return [event for event in latest.values() if event["state"] == "running"]
 
 
 def group_requeues(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -165,10 +189,11 @@ def control_log_rows(control: list[dict[str, Any]], now: datetime | None = None)
              "text": "Testing paused from dashboard" if row["paused"] else "Testing resumed from dashboard"} for row in control]
 
 
-def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: dict[str, str], crashed_today: list[dict[str, Any]], now: datetime | None = None, control: list[dict[str, Any]] | None = None, scores: dict[str, dict[str, str]] | None = None) -> list[dict[str, Any]]:
+def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: dict[str, str], crashed_today: list[dict[str, Any]], now: datetime | None = None, control: list[dict[str, Any]] | None = None, scores: dict[str, dict[str, str]] | None = None,
+             unseen: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     log: list[dict[str, Any]] = control_log_rows(control or [], now)
     for event in group_requeues(events[:60])[:20]:
-        sentence, tone = event_sentence(event, titles.get(event["candidate_id"], event["candidate_id"]), submitter_label(submitters.get(event["candidate_id"])), (scores or {}).get(event["candidate_id"]))
+        sentence, tone = event_sentence(event, titles.get(event["candidate_id"], event["candidate_id"]), submitter_label(submitters.get(event["candidate_id"])), (scores or {}).get(event["candidate_id"]), (unseen or {}).get(event["candidate_id"]))
         if event["count"] > 1:
             sentence, tone = f"{event['count']} ideas were put back in line after {'a software update' if event['reason_code'] == 'requeued_after_fix' else 'a restart'}.", "indigo"
         log.append({"t": clock(event["created_at"], now), "when": utc(event["created_at"]), "tone": tone, "text": sentence})
