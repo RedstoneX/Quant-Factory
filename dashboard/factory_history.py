@@ -80,7 +80,21 @@ def hour_floor(moment: datetime) -> datetime:
     return moment.replace(minute=0, second=0, microsecond=0)
 
 
-def event_sentence(event: dict[str, Any], name: str, who: str) -> tuple[str, str]:
+SCORE_STEPS = (("walk_forward", "Holds over time"), ("robustness", "Stress test"), ("monte_carlo", "Luck test"))
+
+
+def score_text(scores: dict[str, str] | None) -> str:
+    """The three recorded scores (not gates) as 'Holds over time ✓, Stress test ✗, Luck test — not enough data'; a score that is not available is '—'.
+    `scores` maps stage to the Report page's status word (Passed, Close call, Failed, Can't test, Crashed)."""
+    marks = []
+    for stage, label in SCORE_STEPS:
+        status = (scores or {}).get(stage)
+        mark = "✓" if status == "Passed" else "✗" if status in ("Failed", "Close call") else "—"
+        marks.append(f"{label} {mark}" + (" not enough data" if mark == "—" and stage == "monte_carlo" else ""))
+    return ", ".join(marks)
+
+
+def event_sentence(event: dict[str, Any], name: str, who: str, scores: dict[str, str] | None = None) -> tuple[str, str]:
     """(plain sentence, tone) for one campaign event. Tone: indigo info, amber close call, red crash, green pass, grey failed a test."""
     state, code, detail = event["state"], event["reason_code"] or "", event["reason_detail"] or ""
     quoted = f"“{name}”"
@@ -102,7 +116,7 @@ def event_sentence(event: dict[str, Any], name: str, who: str) -> tuple[str, str
     if state == "duplicate_closed":
         return f"{quoted} was closed as a duplicate of an earlier idea.", "grey"
     if state == "survivor":
-        return f"{quoted} passed every test and is waiting for review.", "green"
+        return f"{quoted} passed the gates (costs, unseen data); scores: {score_text(scores)}.", "green"
     return f"{quoted}: {state.replace('_', ' ')}.", "grey"
 
 
@@ -151,10 +165,10 @@ def control_log_rows(control: list[dict[str, Any]], now: datetime | None = None)
              "text": "Testing paused from dashboard" if row["paused"] else "Testing resumed from dashboard"} for row in control]
 
 
-def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: dict[str, str], crashed_today: list[dict[str, Any]], now: datetime | None = None, control: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: dict[str, str], crashed_today: list[dict[str, Any]], now: datetime | None = None, control: list[dict[str, Any]] | None = None, scores: dict[str, dict[str, str]] | None = None) -> list[dict[str, Any]]:
     log: list[dict[str, Any]] = control_log_rows(control or [], now)
     for event in group_requeues(events[:60])[:20]:
-        sentence, tone = event_sentence(event, titles.get(event["candidate_id"], event["candidate_id"]), submitter_label(submitters.get(event["candidate_id"])))
+        sentence, tone = event_sentence(event, titles.get(event["candidate_id"], event["candidate_id"]), submitter_label(submitters.get(event["candidate_id"])), (scores or {}).get(event["candidate_id"]))
         if event["count"] > 1:
             sentence, tone = f"{event['count']} ideas were put back in line after {'a software update' if event['reason_code'] == 'requeued_after_fix' else 'a restart'}.", "indigo"
         log.append({"t": clock(event["created_at"], now), "when": utc(event["created_at"]), "tone": tone, "text": sentence})

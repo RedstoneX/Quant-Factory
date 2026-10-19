@@ -55,7 +55,7 @@ def headline(data: dict[str, Any]) -> dmc.Stack:
 
 
 def best_title(data: dict[str, Any]) -> str:
-    """"Best idea" once any idea has passed all five tests, otherwise "Closest so far"."""
+    """"Best idea" once any idea has passed the gates, otherwise "Closest so far"."""
     return "Best idea" if len(data["waiting"]["passed"]) else "Closest so far"
 
 
@@ -152,7 +152,7 @@ def owner_panel(data: dict[str, Any]) -> dmc.Paper | None:
     rows = [dmc.Group([dmc.Stack([dmc.Text(row["title"], fw=500, size="sm", truncate="end"), dmc.Text(f"{row['market']} · {row['timeframe']} · {row['family']}", size="xs", c=FAINT, truncate="end")], gap=0, style={"minWidth": 0, "flex": 1}),
                        _chip("Passed", "green"), html.A(dmc.Text("Open report →", size="sm", c=INDIGO), href=_link(row["candidate_id"]), style={"textDecoration": "none"})],
                       wrap="nowrap", gap="sm", py=10, style={"borderTop": "1px solid #16181C"}) for row in passed.to_dict("records")]
-    return _panel("Waiting for your call", f"{len(passed)} passed all five tests", dmc.Stack(rows, gap=0, mt="sm"))
+    return _panel("Waiting for your call", f"{len(passed)} passed the gates", dmc.Stack(rows, gap=0, mt="sm"))
 
 
 def heat_text(value: Any) -> str:

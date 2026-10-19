@@ -146,7 +146,7 @@ def waiting_banner_text(counts: dict[str, int]) -> str | None:
     parts = []
     if counts.get("review"):
         n = counts["review"]
-        parts.append(f"{n:,} idea{'s' if n != 1 else ''} passed every test and need{'s' if n == 1 else ''} your review")
+        parts.append(f"{n:,} idea{'s' if n != 1 else ''} passed the gates and need{'s' if n == 1 else ''} your review")
     if counts.get("decision"):
         n = counts["decision"]
         parts.append(f"{n:,} idea{'s' if n != 1 else ''} on hold for your decision")

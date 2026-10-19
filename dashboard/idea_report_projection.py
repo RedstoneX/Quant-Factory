@@ -23,6 +23,7 @@ TEST_LABELS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forwar
 PASSED, CLOSE_CALL, FAILED, CANT_TEST, CRASHED = "Passed", "Close call", "Failed", "Can't test", "Crashed"
 STATUS_TONE = {PASSED: "green", CLOSE_CALL: "amber", FAILED: "red", CANT_TEST: "grey", CRASHED: "red"}
 NOT_SAVED = "Not saved for this run."
+GATES_CHIP = ("Passed the gates", "green")
 
 
 def report_status(stage: str, stored_status: str | None, run_status: str | None) -> str:
@@ -38,6 +39,20 @@ def report_status(stage: str, stored_status: str | None, run_status: str | None)
     if run_status == "failed":
         return CRASHED
     return CANT_TEST
+
+
+def score_statuses(candidate_id: str | None, database: str | Path | None = None) -> dict[str, str]:
+    """The Report page's status word for the three recorded scores (Holds over time, Stress test, Luck test), from the idea's stored stage results; {} when none are available."""
+    idea = load_idea(candidate_id, database=_database(database))
+    if not idea.get("available"):
+        return {}
+    runs = idea.get("runs") or {}
+    out = {}
+    for stage in ("walk_forward", "robustness", "monte_carlo"):
+        stored = next((test for test in idea.get("tests") or [] if test["stage"] == stage), {})
+        stored_status = stored.get("status") if stored.get("status") in ("passed", "failed") else None
+        out[stage] = report_status(stage, stored_status, (runs.get(stage) or {}).get("status"))
+    return out
 
 
 def campaign_row(database: Path, candidate_id: str | None) -> tuple[str, str] | None:
@@ -246,7 +261,9 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
         stored_status = stored.get("status") if stored.get("status") in ("passed", "failed") else None
         tests.append({"stage": stage, "label": TEST_LABELS[stage], "run_id": run.get("run_id"), "run_status": run.get("status"),
                       "status": report_status(stage, stored_status, run.get("status")), "line": (stored.get("line") or "") if run.get("run_id") else "", "detail": detail})
-    verdict = apply_campaign_verdict([test["status"] for test in tests], campaign_row(path, idea.get("candidate_id") or candidate_id))
+    campaign = campaign_row(path, idea.get("candidate_id") or candidate_id)
+    gates_cleared = bool(campaign and campaign[0] == "survivor")  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
+    verdict = apply_campaign_verdict([test["status"] for test in tests], campaign)
     for test, status in zip(tests, verdict):
         test["status"] = status
     screening_view = load_trade_view(idea, "screening", database=path) if "screening" in runs else {"available": False}
@@ -271,7 +288,7 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     rows = idea.get("screening_rows") or []
     return {
         "available": True, "title": idea["title"], "symbol": idea.get("symbol") or "", "candidate_id": idea.get("candidate_id") or candidate_id,
-        "verdict": overall_chip(tests)[0], "verdict_tone": overall_chip(tests)[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
+        "verdict": GATES_CHIP[0] if gates_cleared else overall_chip(tests)[0], "verdict_tone": GATES_CHIP[1] if gates_cleared else overall_chip(tests)[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
         "tested": _tested_label(path, (runs.get("screening") or {}).get("run_id")), "tests": tests,
         "hero": {"kind": "chart" if has_chart else "never_ran", **({} if has_chart else never_ran_card(idea, tests)),
                  "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if unseen_equity else NOT_SAVED},
@@ -283,5 +300,5 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     }
 
 
-__all__ = ["apply_campaign_verdict", "campaign_row", "CANT_TEST", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
+__all__ = ["apply_campaign_verdict", "campaign_row", "score_statuses", "CANT_TEST", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
            "monthly_returns", "never_ran_card", "overall_chip", "report_status", "summary_strip", "settings_grid"]

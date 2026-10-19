@@ -339,7 +339,7 @@ def register_callbacks(application: Dash) -> None:
             key = trigger.removeprefix("summary-")
             lookup = {
                 "running": ("running", "Running now", counts.get("running", 0), "Tests running right now."),
-                "survivors": ("survivors", "Passed ideas", counts.get("survivors", 0), "Ideas that passed every test."),
+                "survivors": ("survivors", "Passed ideas", counts.get("survivors", 0), "Ideas that passed the gates."),
                 "advancing": ("advancing", "Testing", counts.get("advancing", 0), "Tests waiting or running."),
                 "needs": ("needs", "Needs you", None, "Nothing is tracked here yet."),
             }
