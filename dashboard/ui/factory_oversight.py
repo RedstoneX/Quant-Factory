@@ -117,7 +117,7 @@ def timeline_figure(rows: list[dict[str, Any]], now: Any, bands: list[dict[str, 
         figure = go.Figure()
     window = [now - pd.Timedelta(hours=12), now]
     for band in bands or []:  # a faint amber band, below the blocks, for each pause
-        figure.add_vrect(x0=band["start"], x1=band["end"], fillcolor=AMBER, opacity=0.12, line_width=0, layer="below", annotation_text="Paused", annotation_position="top left", annotation_font=dict(color=AMBER, size=11))
+        figure.add_vrect(x0=band["start"], x1=band["end"], fillcolor="rgba(0,0,0,0)", line=dict(color=AMBER, width=1.5, dash="dot"), layer="below", annotation_text="Paused", annotation_position="top left", annotation_font=dict(color=AMBER, size=11))
     figure.add_vline(x=now.to_pydatetime(), line=dict(color="rgba(236,237,238,0.55)", width=1, dash="dash"), annotation_text="now", annotation_position="top left", annotation_font=dict(color=MUTED, size=11))
     figure.update_layout(height=76, margin=dict(l=0, r=32, t=14, b=26), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
                          xaxis=dict(type="date", range=window, gridcolor="#1A1C21", tickformat="%H:%M", dtick=7200000, showline=False, zeroline=False), yaxis=dict(visible=False), bargap=0, **NEUTRAL_FIGURE)
@@ -176,7 +176,7 @@ def headline_children(data: dict[str, Any]) -> Any:
 
 def legend_items(data: dict[str, Any]) -> list[Any]:
     keys = [(OUTCOME_COLOR[key], OUTCOME_WORDS[key]) for key in ("failed", "close", "passed", "crashed", "running")] + ([(AMBER, "Paused")] if data.get("pause_bands") else [])
-    return [html.Span([html.Span(className="fo-swatch", style={"background": color}), word]) for color, word in keys]
+    return [html.Span([html.Span(className="fo-swatch", style={"background": "transparent", "border": f"1.5px dotted {color}"} if word == "Paused" else {"background": color}), word]) for color, word in keys]
 
 
 def render(data: dict[str, Any]) -> dict[str, Any]:

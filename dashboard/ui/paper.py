@@ -30,7 +30,7 @@ def paper_layout() -> html.Div:
     if destination:
         notice=dmc.Alert(dmc.Group([dmc.Text("Passed ideas are handed to the paper-trading system.",size="sm"),dmc.Anchor(dmc.Button("Open paper trading",leftSection=DashIconify(icon="tabler:external-link",width=14)),href=destination,target="_blank",rel="noopener noreferrer")],justify="space-between"),variant="light",color="blue")
     else:
-        notice=dmc.Alert("Paper trading isn't connected yet, so there is nothing to open here. Passed ideas will be handed to it once its address is set.",title="Not connected",variant="light",color="gray")
+        notice=dmc.Alert("Paper trading isn't connected.",title="Not connected",variant="light",color="gray")
     return html.Div([header,html.Div(notice,className="body")],className="paper-app")
 
 
