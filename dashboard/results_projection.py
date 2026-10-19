@@ -15,6 +15,7 @@ from dashboard.overview_projection import _validated_connection, configured_data
 from dashboard.results_model import group_trade_rows, prepare_interval
 from dashboard.formatting import format_metric, profit_factor
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter, _candidate_trade_rows
+from dashboard import price_series_reference
 from dashboard.time_display import eastern_label, eastern_plot_timestamp, eastern_session
 
 
@@ -198,48 +199,13 @@ def oos_report_metrics(*, database: Path, run_id: str | None) -> dict[str, Any] 
     return {**metrics, "_test_status": report.get("test_status"), "_training_metrics": training if isinstance(training, dict) else {}}
 
 
-def _shared_price_rows(
+def _price_source(
     *, database: Path, run_id: str, session: str | None, period: tuple[str, str] | None = None,
-) -> list[dict[str, Any]] | None:
-    """Saved bars for one Eastern session, or for a whole Eastern date range (start and end days inclusive)."""
-    reference = _artifact_reference(
-        database=database, run_id=run_id, logical_name="screening_price_series"
+) -> tuple[list[dict[str, Any]] | None, str | None]:
+    return price_series_reference.shared_price_source(
+        database=database, run_id=run_id, session=session, period=period,
+        artifact_reference=_artifact_reference, artifact_document=_artifact_document,
     )
-    if reference is None:
-        return None
-    path, artifact = reference
-    if str(artifact["format"]) != "sqlite3":
-        return None
-    try:
-        content = path.read_bytes()
-        if len(content) != int(artifact["size_bytes"]):
-            return None
-        if hashlib.sha256(content).hexdigest() != str(artifact["checksum"]):
-            return None
-        query = "SELECT timestamp, open, high, low, close FROM price_bars"
-        parameters: list[str] = []
-        if session or period:
-            first, last = period or (session, session)
-            start = pd.Timestamp(first, tz="America/New_York")
-            end = pd.Timestamp(last, tz="America/New_York") + pd.Timedelta(days=1)
-            query += " WHERE timestamp>=? AND timestamp<?"
-            parameters = [start.tz_convert("UTC").isoformat(), end.tz_convert("UTC").isoformat()]
-        query += " ORDER BY timestamp"
-        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-        try:
-            rows = connection.execute(query, parameters).fetchall()
-        finally:
-            connection.close()
-        return [
-            {
-                "timestamp": str(row[0]),
-                "open": float(row[1]), "high": float(row[2]),
-                "low": float(row[3]), "close": float(row[4]),
-            }
-            for row in rows
-        ]
-    except (OSError, ValueError, TypeError, KeyError, sqlite3.Error):
-        return None
 
 
 def load_session_price(
@@ -253,9 +219,9 @@ def load_session_price(
     if not run_id or not session:
         return {"price": [], "reason": "No price bars were saved for this run."}
     database_path = Path(database) if database is not None else configured_database_path()
-    rows = _shared_price_rows(database=database_path, run_id=run_id, session=session)
+    rows, problem = _price_source(database=database_path, run_id=run_id, session=session)
     if not rows:
-        return {"price": [], "reason": f"No price bars were saved for {session}."}
+        return {"price": [], "reason": problem or f"No price bars were saved for {session}."}
     prepared = prepare_interval(rows, interval, source_interval="5m")
     return {
         "price": [
@@ -308,9 +274,11 @@ def load_screening_configuration_evidence(
         run_id, parameter_row_id, database=database_path,
     )
     selected_session = session if session in sessions else (sessions[-1] if sessions else None)
-    shared_price = _shared_price_rows(
+    shared_price, price_problem = _price_source(
         database=database_path, run_id=run_id, session=selected_session,
     )
+    if price_problem:
+        return {"available": False, "message": price_problem, "run_id": run_id, "parameter_row_id": parameter_row_id}
     price_document = (
         {"source_interval": equity_document.get("source_interval", "5m"), "price_series": shared_price}
         if shared_price is not None and equity_document

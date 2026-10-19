@@ -53,6 +53,7 @@ def persist_captured_screening_evidence(
         artifact_root=artifact_root,
         run_id=run_id,
         data=data,
+        market_data=config.market_data,
     )
     for row_id, portfolio in captured_portfolios.items():
         persist_screening_artifacts(
