@@ -152,17 +152,41 @@ def disk_health(root: Path) -> dict[str, Any]:
     return {"tone": tone, "value": f"{gb:.0f} GB free{runway}"}
 
 
-def memory_health(crashes_today: int, meminfo: Path = Path("/proc/meminfo")) -> dict[str, Any]:
+def memory_health(meminfo: Path = Path("/proc/meminfo")) -> dict[str, Any]:
     free_pct = None
     try:
         values = {line.split(":")[0]: int(line.split()[1]) for line in meminfo.read_text().splitlines() if ":" in line}
         free_pct = 100 * values["MemAvailable"] / values["MemTotal"]
     except (OSError, KeyError, ValueError, IndexError):
         pass
-    crash = f"{crashes_today} crash{'es' if crashes_today != 1 else ''} today" if crashes_today else "no crashes today"
-    word = "" if free_pct is None else f"{free_pct:.0f}% free · "
-    tone = "red" if free_pct is not None and free_pct < 5 else "amber" if crashes_today or (free_pct is not None and free_pct < 15) else "green"
-    return {"tone": tone, "value": word + crash}
+    value = "could not be read here" if free_pct is None else f"{free_pct:.0f}% free"
+    tone = "amber" if free_pct is None else "red" if free_pct < 5 else "amber" if free_pct < 15 else "green"
+    return {"tone": tone, "value": value}
+
+
+def not_after(rows: list[dict[str, Any]], key: str, now: datetime) -> list[dict[str, Any]]:
+    """Rows whose `key` time is not after the page's as-of time (a missing time is kept)."""
+    return [r for r in rows if not r.get(key) or utc(r[key]) <= now]
+
+
+def latest_not_after(values: list[Any], now: datetime) -> Any:
+    """The newest time that is not after the as-of time, or None."""
+    return max((v for v in values if v and utc(v) <= now), key=utc, default=None)
+
+
+def headline_for(*, running: int, waiting: int, looks: int, warnings: int) -> tuple[str, str]:
+    """(text, tone). 'All clear' only when nothing needs a look AND every health check is green."""
+    if not (looks or warnings or running or waiting):
+        return "All clear", "green"
+    state = f"{running} test{'s' if running != 1 else ''} running, {waiting} waiting" if running or waiting else "Idle"
+    parts = [state]
+    if looks:
+        parts.append(f"{looks} thing{'s' if looks != 1 else ''} need{'s' if looks == 1 else ''} a look")
+    if warnings:
+        parts.append(f"{warnings} health warning{'s' if warnings != 1 else ''}")
+    if not (looks or warnings):
+        parts.append("All clear")
+    return ". ".join(parts) + ".", "amber" if looks or warnings else "text"
 
 
 def _gateway(path: str | None):
@@ -222,21 +246,22 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         if gate is not None:
             tables = {str(r[0]) for r in gate.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if "campaign_events" in tables:
-                events = [dict(r) for r in gate.execute("SELECT event_id,candidate_id,state,reason_code,reason_detail,run_id,created_at FROM campaign_events ORDER BY event_id DESC LIMIT 400")]
-                last_event = (gate.execute("SELECT MAX(created_at) FROM campaign_events").fetchone() or [None])[0]
+                events = [dict(r) for r in gate.execute("SELECT event_id,candidate_id,state,reason_code,reason_detail,run_id,created_at FROM campaign_events WHERE julianday(created_at)<=julianday(?) ORDER BY event_id DESC LIMIT 400", [now.isoformat()])]
+                last_event = latest_not_after([e["created_at"] for e in events], now)
                 queued_events = [dict(r) for r in gate.execute(
-                    "SELECT e.candidate_id,e.created_at FROM campaign_events e WHERE e.event_id=(SELECT MAX(event_id) FROM campaign_events WHERE candidate_id=e.candidate_id) AND e.state='queued' ORDER BY e.event_id")]
+                    "SELECT e.candidate_id,e.created_at FROM campaign_events e WHERE e.event_id=(SELECT MAX(event_id) FROM campaign_events WHERE candidate_id=e.candidate_id AND julianday(created_at)<=julianday(?)) AND e.state='queued' ORDER BY e.event_id", [now.isoformat()])]
             if "candidate_identities" in tables:
                 submitters = {str(r[0]): str(r[1]) for r in gate.execute("SELECT candidate_id,created_by FROM candidate_identities")}
             if "gateway_audit" in tables:
-                grok_last = (gate.execute("SELECT MAX(occurred_at) FROM gateway_audit WHERE agent_id='grok-remote'").fetchone() or [None])[0]
+                grok_last = (gate.execute("SELECT MAX(occurred_at) FROM gateway_audit WHERE agent_id='grok-remote' AND julianday(occurred_at)<=julianday(?)", [now.isoformat()]).fetchone() or [None])[0]
     except (sqlite3.Error, ValueError, TypeError) as exc:
         return _unavailable(base, f"Factory state is unavailable: {exc}", draining)
     finally:
         connection.close()
         if gate is not None:
             gate.close()
-    events = [e for e in events if utc(e["created_at"]) <= now]  # nothing from after the snapshot time
+    events = not_after(events, "created_at", now)  # nothing from after the as-of time, whatever the source
+    runs = not_after(not_after(runs, "started_at", now), "completed_at", now)
     close_runs = {e["run_id"] for e in events if e["state"] == "screened_out" and e["run_id"] and is_close_call(e["reason_detail"])}
     for run in runs:
         run["outcome"] = "abandoned" if run["status"] == "running" and run["cohort"] == "failed" else run_outcome(run, close_runs)
@@ -275,7 +300,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     crash_reason = crash_reason if len(crash_reason) <= 44 else "see What happened"
     last_test = {"name": latest_finished["title"], "outcome": OUTCOME_WORDS[latest_finished["outcome"]].lower(), "when": clock(latest_finished["completed_at"]), "candidate_id": latest_finished["candidate_id"]} if latest_finished else None
     tiles = [
-        {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle", "spark": busy},
+        {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle"},
         {"label": "Waiting", "value": f"{len(queue_rows)}", "sub": f"longest wait {_human_minutes(longest)}" if longest is not None else "nothing in line", "color": "text", "spark": queued_per_hour},
         {"label": "Finished today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {close_today} close call{'s' if close_today != 1 else ''}", "color": "text",
          "spark": [sum(row[o] for o in ("failed", "close", "passed", "crashed")) for row in last24]},
@@ -315,7 +340,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     else:
         health.append({"label": "Factory responding", "tone": "amber", "value": "no events recorded"})
     health.append({"label": "Disk space", **disk_health(runtime_dir or database_path.parent)})
-    health.append({"label": "Memory", **memory_health(len(crashed_today))})
+    health.append({"label": "Memory", **memory_health()})
     if grok_last:
         minutes = (now - utc(grok_last)).total_seconds() / 60
         health.append({"label": "Grok connected", "tone": "green" if minutes <= 1440 else "amber", "value": "last request " + eastern_label(grok_last, "%a %-d %b, %H:%M") + " ET"})
@@ -324,11 +349,9 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     log = log_rows(events, titles, submitters, crashed_today)
     timeline = timeline_rows(runs, now, typical)
     looks = len(alerts) + (1 if old_runs else 0)
-    if not looks and not live and not queue_rows:
-        headline = "All clear"
-    else:
-        headline = f"{len(live)} test{'s' if len(live) != 1 else ''} running, {len(queue_rows)} waiting. " + (f"{looks} thing{'s' if looks != 1 else ''} need{'s' if looks == 1 else ''} a look." if looks else "All clear.")
-    return {**base, "available": True, "message": "", "pill": pill, "headline": headline, "typical_minutes": typical, "tiles": tiles, "running": running_cards, "last_test": last_test, "alerts": alerts, "old_runs": old_runs,
+    warnings = sum(item["tone"] != "green" for item in health)
+    headline, headline_tone = headline_for(running=len(live), waiting=len(queue_rows), looks=looks, warnings=warnings)
+    return {**base, "available": True, "message": "", "pill": pill, "headline": headline, "headline_tone": headline_tone, "typical_minutes": typical, "tiles": tiles, "running": running_cards, "last_test": last_test, "alerts": alerts, "old_runs": old_runs,
             "queue": {"total": len(queue_rows), "next": queue_rows[:4], "next_start": f"~{typical:.0f} min (estimate)" if queue_rows and typical else None},
             "timeline": timeline, "hourly": hourly, "health": health, "log": log}
 

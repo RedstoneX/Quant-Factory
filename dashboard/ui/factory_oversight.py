@@ -20,7 +20,7 @@ from dashboard.ui.idea_report import AMBER, BG, FAINT, GREEN, HOLD, INDIGO, LINE
 
 
 REFRESH_MS = 10_000
-OUTCOME_COLOR = {"failed": "#2E3340", "close": AMBER, "passed": GREEN, "crashed": RED, "running": INDIGO}
+OUTCOME_COLOR = {"failed": "#4B5160", "close": AMBER, "passed": GREEN, "crashed": RED, "running": INDIGO}
 TONE_COLOR = {"green": GREEN, "amber": AMBER, "red": RED, "grey": HOLD, "indigo": INDIGO, "text": TEXT, "idle": MUTED}
 ICON = {"green": "✓", "amber": "!", "red": "×"}
 STEP_CLASS = {"done": "done", "current": "current", "slow": "slow", "todo": "todo"}
@@ -48,9 +48,10 @@ def sparkline(values: list[float], color: str) -> dcc.Graph:
 def tiles(data: dict[str, Any]) -> list[Any]:
     out = []
     for tile in data["tiles"]:
-        title = "Each tile's line shows the last 24 hours"
+        title = "Each tile's line shows the last 24 hours" if tile.get("spark") is not None else None
+        value = html.Span(tile["value"], className="fo-tile-value", style={"color": TONE_COLOR[tile["color"]]})
         out.append(html.Div([html.Span(tile["label"], className="fo-tile-label"),
-                             html.Div([html.Span(tile["value"], className="fo-tile-value", style={"color": TONE_COLOR[tile["color"]]}), sparkline(tile["spark"], tile["color"])], className="fo-tile-row"),
+                             html.Div([value, sparkline(tile["spark"], tile["color"])] if tile.get("spark") is not None else [value], className="fo-tile-row"),
                              html.Span(tile["sub"], className="fo-tile-sub")], className="fo-tile", title=title))
     return out
 
@@ -110,9 +111,9 @@ def timeline_figure(rows: list[dict[str, Any]], now: Any) -> go.Figure:
         figure = go.Figure()
         figure.add_annotation(text="No tests in the last 12 hours", showarrow=False, font=dict(color=FAINT, size=12), xref="paper", yref="paper", x=0.5, y=0.5)
     window = [now - pd.Timedelta(hours=12), now]
-    figure.add_shape(type="line", x0=now, x1=now, y0=-0.25, y1=1.25, yref="paper", line=dict(color="rgba(236,237,238,0.55)", width=1, dash="dash"))
-    figure.update_layout(height=76, margin=dict(l=0, r=0, t=6, b=26), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
-                         xaxis=dict(range=window, gridcolor="#1A1C21", tickformat="%H:%M", dtick=7200000, showline=False), yaxis=dict(visible=False), bargap=0, **NEUTRAL_FIGURE)
+    figure.add_vline(x=now.to_pydatetime(), line=dict(color="rgba(236,237,238,0.55)", width=1, dash="dash"), annotation_text="now", annotation_position="top left", annotation_font=dict(color=MUTED, size=11))
+    figure.update_layout(height=76, margin=dict(l=0, r=0, t=14, b=26), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
+                         xaxis=dict(type="date", range=window, gridcolor="#1A1C21", tickformat="%H:%M", dtick=7200000, showline=False, zeroline=False), yaxis=dict(visible=False), bargap=0, **NEUTRAL_FIGURE)
     return figure
 
 
@@ -128,7 +129,7 @@ def hourly_figure(rows: list[dict[str, Any]], phone: bool = False) -> go.Figure:
     hours = [row["hour"] for row in rows]
     for key in ("failed", "close", "passed", "crashed"):
         figure.add_trace(go.Bar(x=hours, y=[row[key] for row in rows], name=OUTCOME_WORDS[key], marker_color=OUTCOME_COLOR[key], hovertemplate="%{x|%a %H:%M}: %{y} " + OUTCOME_WORDS[key].lower() + "<extra></extra>"))
-    figure.update_layout(barmode="stack", bargap=0.15, height=190, margin=dict(l=8, r=8, t=6, b=8), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
+    figure.update_layout(barmode="stack", bargap=0.15, height=190, margin=dict(l=8, r=28 if phone else 8, t=6, b=8), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
                          xaxis=dict(gridcolor="#1A1C21", tickformat="%a %H:%M", showline=False, nticks=4, automargin=True, **_phone_ticks(rows) if phone else {}), yaxis=dict(gridcolor="#1A1C21", zeroline=False, rangemode="tozero", side="left", automargin=True), **NEUTRAL_FIGURE)
     return figure
 
@@ -147,6 +148,11 @@ def log_rows(data: dict[str, Any], rest: bool = False) -> list[Any]:
         or ([] if rest else [html.Div("Nothing has happened yet.", className="fo-empty")])
 
 
+def headline_children(data: dict[str, Any]) -> Any:
+    text = data["headline"] if data["available"] else f"{data['headline']}. {data.get('message') or ''}".strip()
+    return html.Span(text, style={"color": AMBER}) if data.get("headline_tone") == "amber" else text
+
+
 def render(data: dict[str, Any]) -> dict[str, Any]:
     """Every refreshable piece, keyed by component id, in OUTPUTS order (the layout and the 10 s callback both use it)."""
     pill = data["pill"]
@@ -155,7 +161,7 @@ def render(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "fo-pill": [html.Span(className="fo-pill-dot"), pill["label"]],
         "fo-date": data["now_label"],
-        "fo-headline": data["headline"] if data["available"] else f"{data['headline']}. {data.get('message') or ''}".strip(),
+        "fo-headline": headline_children(data),
         "fo-tiles": tiles(data), "fo-running": running_cards(data), "fo-alerts": alert_cards(data),
         "fo-old-title": old["title"] if old else "", "fo-old-items": old_run_items(data), "fo-old-wrap": {"display": "block" if old else "none"},
         "fo-needs": {"display": "flex" if show_needs else "none"},
@@ -180,7 +186,7 @@ def layout() -> html.Div:
     legend = html.Div([html.Span([html.Span(className="fo-swatch", style={"background": OUTCOME_COLOR[key]}), OUTCOME_WORDS[key]]) for key in ("failed", "close", "passed", "crashed", "running")], className="fo-legend")
     body = html.Div([
         html.Section([html.Div([html.Div(part["fo-date"], id="fo-date", className="fo-muted"), html.H1(part["fo-headline"], id="fo-headline", className="fo-title")]),
-                      html.Div([html.Span(part["fo-pill"], id="fo-pill", className=_pill_class(data)), html.Span("Refreshes every 10 s", className="fo-muted")], className="fo-top-right")], className="fo-top"),
+                      html.Div([html.Span(part["fo-pill"], id="fo-pill", className=_pill_class(data)), html.A("All runs →", href="/factory/runs", className="fo-all-runs"), html.Span("Refreshes every 10 s", className="fo-muted")], className="fo-top-right")], className="fo-top"),
         html.Section(part["fo-tiles"], id="fo-tiles", className="fo-tiles"),
         html.Section([
             _card("Running now", "One test at a time", html.Div(part["fo-running"], id="fo-running", className="fo-col")),
