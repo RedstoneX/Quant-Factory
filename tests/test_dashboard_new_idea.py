@@ -43,7 +43,7 @@ def test_counts_and_budget_bar():
 def test_needs_fixing_card_says_what_is_wrong_with_that_idea():
     card = review_batch(_batch())["cards"][2]
     assert (card["ready"], card["tokens"]) == (False, [])
-    assert card["problem"] == "variable must define a non-empty bounded values list"
+    assert card["problem"] == "range minutes: variable must define a non-empty bounded values list"
     assert "file" not in card["problem"]
 
 
@@ -95,3 +95,9 @@ def test_after_submit_lists_each_idea():
     assert [n["text"] for n in state["notes"]] == ["A — queued", "B — already tested — not queued again", "C — failed to submit: nope"]
     assert state["queued"] == 1
     assert submitted_state([{"ok": True, "result": {"duplicate": True}}], _overview())["text"] == "Nothing new was queued"
+
+
+def test_fixed_settings_are_separated():
+    document = json.loads(_row("mes_sma_10_30_candidate.json")["canonical_json"])
+    words = [t["text"] for t in rule_tokens(document)]
+    assert words.count("·") == 2 and "fee per contract per side" in words

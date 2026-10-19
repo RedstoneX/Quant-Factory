@@ -113,8 +113,10 @@ def rule_tokens(document: dict[str, Any]) -> list[dict[str, str]]:
     shown = [(key, value) for key, value in fixed.items() if _text(value) and len(_text(value)) <= FIXED_MAX_CHARS and _text(value) != timeframe and key not in variables][:FIXED_SHOWN]
     if shown:
         add("word", "Fixed:")
-        for key, value in shown:
-            add("word", key.replace("_", " "))
+        for position, (key, value) in enumerate(shown):
+            if position:
+                add("word", "·")
+            add("word", key.replace("_", " ").removeprefix("fixed "))
             add("fixed", _text(value))
     return tokens
 
@@ -135,7 +137,14 @@ def _problem(row: dict[str, Any]) -> str:
     issues = [i for i in row.get("issues") or [] if i.get("severity") == "error"] or [i for i in row.get("issues") or [] if i.get("severity") == "warning"]
     if not issues:
         return "This idea is not ready to submit yet."
-    return "; ".join(str(issue.get("message")) for issue in issues[:2])
+    return "; ".join(_named(issue) for issue in issues[:2])
+
+
+def _named(issue: dict[str, Any]) -> str:
+    """The validator's message verbatim, prefixed with the failing variable's name when its path names one (variables.<name>...)."""
+    parts = str(issue.get("path") or "").split(".")
+    message = str(issue.get("message"))
+    return f"{parts[1].replace('_', ' ')}: {message}" if len(parts) > 1 and parts[0] == "variables" and parts[1] else message
 
 
 def review_batch(batch: dict[str, Any] | None) -> dict[str, Any]:

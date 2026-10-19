@@ -37,7 +37,8 @@ def idea_card(card: dict[str, Any]) -> html.Div:
     body = [html.Div([html.Div([html.Span(card["name"], className="ni-name"), html.Span(card["meta"], className="ni-muted") if card["meta"] else None], className="ni-col"), chip], className="ni-between")]
     if card["tokens"]:
         body.append(token_sentence(card["tokens"]))
-    body.append(html.Div([html.Span(["Combinations ", html.B(card["combinations"], className="ni-mono")]), html.Span(["Data ", html.B(card["data"])])], className="ni-foot"))
+    if card["ready"]:
+        body.append(html.Div([html.Span(["Combinations ", html.B(card["combinations"], className="ni-mono")]), html.Span(["Data ", html.B(card["data"])])], className="ni-foot"))
     if card["problem"]:
         body.append(html.Div(card["problem"], className="ni-problem"))
     return html.Div(body, className="ni-card" + ("" if card["ready"] else " bad"))
