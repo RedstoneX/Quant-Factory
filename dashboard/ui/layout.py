@@ -13,8 +13,9 @@ from dashboard.ui.theme import BORDER, MANTINE_THEME
 NAV_ITEMS = (
     ("/", "Today", "tabler:layout-dashboard"),
     ("/workbench", "Results", "tabler:chart-candle"),
+    ("/factory", "Factory", "tabler:building-factory-2"),
     ("/submit", "Submit ideas", "tabler:upload"),
-    ("/factory", "Factory runs", "tabler:building-factory-2"),
+    ("/factory/runs", "Factory runs", "tabler:list-check"),
     ("/candidates", "Ideas", "tabler:list-details"),
     ("/paper-trading", "Paper trading", "tabler:currency-dollar"),
 )
