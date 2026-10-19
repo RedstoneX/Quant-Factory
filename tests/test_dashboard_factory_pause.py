@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from dashboard.factory_history import control_log_rows, log_rows
-from dashboard.factory_overview import header_pill, headline_for, read_campaign_control
+from dashboard.factory_overview import header_pill, headline_for, pause_bands, read_campaign_control
 from dashboard.ui import factory_oversight as page
 
 NOW = datetime(2026, 10, 19, 20, 0, tzinfo=timezone.utc)
@@ -32,7 +32,7 @@ def test_pill_and_headline_when_paused_from_dashboard() -> None:
     assert header_pill(running=0, draining=False, last_finished_crashed=False, paused=True) == {"label": "Paused", "tone": "amber"}
     assert header_pill(running=1, draining=True, last_finished_crashed=False, paused=True)["label"] == "Paused"  # both: dashboard wins
     assert header_pill(running=1, draining=True, last_finished_crashed=False)["label"] == "Paused for update"  # drain stays distinct
-    assert headline_for(running=1, waiting=3, looks=2, warnings=1, paused_since="14:05") == ("Paused from dashboard since 14:05. 3 waiting.", "amber")
+    assert headline_for(running=1, waiting=3, looks=0, warnings=0, paused_since="14:05") == ("Paused from dashboard since 14:05. 3 waiting.", "amber")
 
 
 def test_running_card_text_when_idle_and_paused_and_when_a_test_is_finishing() -> None:
@@ -46,7 +46,7 @@ def test_running_card_text_when_idle_and_paused_and_when_a_test_is_finishing() -
 
 def test_button_is_outlined_pause_until_paused_then_filled_resume() -> None:
     assert page.pause_button_props(_data()) == ("Pause testing", "outline", "gray")
-    assert page.pause_button_props(_data(paused={"since": "14:05"})) == ("Resume testing", "filled", "indigo")
+    assert page.pause_button_props(_data(paused={"since": "14:05"})) == ("Resume testing", "filled", "gray")
 
 
 def test_log_rows_come_from_campaign_control_with_grey_dots(tmp_path: Path) -> None:
@@ -89,3 +89,19 @@ def test_gateway_failure_shows_plain_words_and_changes_nothing(monkeypatch: pyte
         opened, stamp, notice = page.handle_pause_action(trigger, paused)
         assert opened is False and stamp is page.no_update
         assert "nothing was changed" in str(notice)
+
+
+def test_paused_headline_keeps_warnings_and_drops_zero_parts() -> None:
+    assert headline_for(running=0, waiting=2, looks=1, warnings=2, paused_since="14:05")[0] == "Paused from dashboard since 14:05. 2 waiting. 1 thing needs a look. 2 health warnings."
+    assert headline_for(running=0, waiting=0, looks=0, warnings=1, paused_since="14:05")[0] == "Paused from dashboard since 14:05. 0 waiting. 1 health warning."
+    assert headline_for(running=0, waiting=0, looks=0, warnings=0, paused_since="14:05")[0] == "Paused from dashboard since 14:05. 0 waiting."
+
+
+def test_pause_bands_run_from_pause_to_resume_or_now_and_the_legend_shows_them_only_then() -> None:
+    rows = [{"event_id": 1, "paused": 1, "created_at": "2026-10-19T16:00:00+00:00"}, {"event_id": 2, "paused": 0, "created_at": "2026-10-19T17:00:00+00:00"}, {"event_id": 3, "paused": 1, "created_at": "2026-10-19T19:00:00+00:00"}]
+    bands = pause_bands(rows, NOW)
+    assert [(b["start"].hour, b["end"].hour) for b in bands] == [(12, 13), (15, 16)]  # Eastern; the open one ends at now
+    assert pause_bands([], NOW) == []
+    figure = page.timeline_figure([], NOW.replace(tzinfo=None), bands)
+    assert [sh.layer for sh in figure.layout.shapes].count("below") == 2
+    assert "Paused" in str(page.legend_items(_data(pause_bands=bands))) and "Paused" not in str(page.legend_items(_data()))

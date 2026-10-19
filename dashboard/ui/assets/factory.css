@@ -74,3 +74,4 @@
 }
 .fo-modal-buttons{display:flex;justify-content:flex-end;gap:8px}
 .fo-top-right{flex-wrap:wrap}
+#fo-pause-btn[data-variant="filled"],#fo-pause-confirm{background:#ECEDEE;color:#08090B;font-weight:600}

@@ -32,7 +32,7 @@ GAP_PX = 2
 MIN_BLOCK = pd.Timedelta(minutes=6)
 GRAPH_CONFIG = {"displayModeBar": False}
 OUTPUTS = ("fo-pill", "fo-date", "fo-headline", "fo-tiles", "fo-running", "fo-alerts", "fo-old-title", "fo-old-items", "fo-old-wrap", "fo-needs",
-           "fo-queue-head", "fo-queue", "fo-timeline", "fo-timeline-empty", "fo-hourly", "fo-hourly-phone", "fo-health", "fo-health-checked", "fo-log", "fo-log-more")
+           "fo-queue-head", "fo-queue", "fo-timeline", "fo-timeline-empty", "fo-legend", "fo-hourly", "fo-hourly-phone", "fo-health", "fo-health-checked", "fo-log", "fo-log-more")
 
 
 def _report_href(candidate_id: str | None) -> str | None:
@@ -101,7 +101,7 @@ def queue_head(data: dict[str, Any]) -> list[Any]:
     return [html.Span("Waiting in line", className="fo-h"), html.Span([f"{queue['total']}", " · " if start else "", start] if start else [f"{queue['total']}"], className="fo-muted")]
 
 
-def timeline_figure(rows: list[dict[str, Any]], now: Any) -> go.Figure:
+def timeline_figure(rows: list[dict[str, Any]], now: Any, bands: list[dict[str, Any]] | None = None) -> go.Figure:
     now = pd.Timestamp(now)
     frame = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["name", "start", "end", "minutes", "outcome", "candidate_id"])
     if rows:
@@ -116,6 +116,8 @@ def timeline_figure(rows: list[dict[str, Any]], now: Any) -> go.Figure:
     else:
         figure = go.Figure()
     window = [now - pd.Timedelta(hours=12), now]
+    for band in bands or []:  # a faint amber band, below the blocks, for each pause
+        figure.add_vrect(x0=band["start"], x1=band["end"], fillcolor=AMBER, opacity=0.12, line_width=0, layer="below", annotation_text="Paused", annotation_position="top left", annotation_font=dict(color=AMBER, size=11))
     figure.add_vline(x=now.to_pydatetime(), line=dict(color="rgba(236,237,238,0.55)", width=1, dash="dash"), annotation_text="now", annotation_position="top left", annotation_font=dict(color=MUTED, size=11))
     figure.update_layout(height=76, margin=dict(l=0, r=32, t=14, b=26), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
                          xaxis=dict(type="date", range=window, gridcolor="#1A1C21", tickformat="%H:%M", dtick=7200000, showline=False, zeroline=False), yaxis=dict(visible=False), bargap=0, **NEUTRAL_FIGURE)
@@ -172,6 +174,11 @@ def headline_children(data: dict[str, Any]) -> Any:
     return html.Span(text, style={"color": AMBER}) if data.get("headline_tone") == "amber" else text
 
 
+def legend_items(data: dict[str, Any]) -> list[Any]:
+    keys = [(OUTCOME_COLOR[key], OUTCOME_WORDS[key]) for key in ("failed", "close", "passed", "crashed", "running")] + ([(AMBER, "Paused")] if data.get("pause_bands") else [])
+    return [html.Span([html.Span(className="fo-swatch", style={"background": color}), word]) for color, word in keys]
+
+
 def render(data: dict[str, Any]) -> dict[str, Any]:
     """Every refreshable piece, keyed by component id, in OUTPUTS order (the layout and the 10 s callback both use it)."""
     pill = data["pill"]
@@ -185,7 +192,8 @@ def render(data: dict[str, Any]) -> dict[str, Any]:
         "fo-old-title": old["title"] if old else "", "fo-old-items": old_run_items(data), "fo-old-wrap": {"display": "block" if old else "none"},
         "fo-needs": {"display": "flex" if show_needs else "none"},
         "fo-queue-head": queue_head(data), "fo-queue": queue_rows(data),
-        "fo-timeline": timeline_figure(data["timeline"], data["now_et"]), "fo-timeline-empty": timeline_empty(data["timeline"]), "fo-hourly-phone": hourly_figure(data["hourly"], True), "fo-hourly": hourly_figure(data["hourly"]),
+        "fo-legend": legend_items(data),
+        "fo-timeline": timeline_figure(data["timeline"], data["now_et"], data.get("pause_bands")), "fo-timeline-empty": timeline_empty(data["timeline"]), "fo-hourly-phone": hourly_figure(data["hourly"], True), "fo-hourly": hourly_figure(data["hourly"]),
         "fo-health": health_rows(data), "fo-health-checked": f"Checked {data['checked']}", "fo-log": log_rows(data), "fo-log-more": log_rows(data, rest=True),
     }
 
@@ -195,7 +203,7 @@ PAUSE_FAILED = "Could not reach the factory control, so nothing was changed. Try
 
 def pause_button_props(data: dict[str, Any]) -> tuple[str, str, str]:
     """(label, variant, colour): outlined grey 'Pause testing' while testing runs, filled primary 'Resume testing' while paused."""
-    return ("Resume testing", "filled", "indigo") if data.get("paused") else ("Pause testing", "outline", "gray")
+    return ("Resume testing", "filled", "gray") if data.get("paused") else ("Pause testing", "outline", "gray")
 
 
 def handle_pause_action(trigger: str | None, paused: bool) -> tuple[Any, Any, Any]:
@@ -222,7 +230,7 @@ def layout() -> html.Div:
     data = load_factory_overview()
     part = render(data)
     button = pause_button_props(data)
-    legend = html.Div([html.Span([html.Span(className="fo-swatch", style={"background": OUTCOME_COLOR[key]}), OUTCOME_WORDS[key]]) for key in ("failed", "close", "passed", "crashed", "running")], className="fo-legend")
+    legend = html.Div(part["fo-legend"], id="fo-legend", className="fo-legend")
     body = html.Div([
         html.Section([html.Div([html.Div(part["fo-date"], id="fo-date", className="fo-muted"), html.H1(part["fo-headline"], id="fo-headline", className="fo-title")]),
                       html.Div([html.Span(part["fo-pill"], id="fo-pill", className=_pill_class(data)), dmc.Button(button[0], id="fo-pause-btn", variant=button[1], color=button[2], size="sm"), html.A("All runs →", href="/factory/runs", className="fo-all-runs"), html.Span("Refreshes every 10 s", className="fo-muted")], className="fo-top-right")], className="fo-top"),
@@ -258,7 +266,7 @@ def layout() -> html.Div:
                   dmc.Button("Show more", id="fo-log-toggle", variant="subtle", color="gray", size="compact-xs", style={"alignSelf": "flex-start", "display": "block" if len(data["log"]) > LOG_SHOWN else "none"})),
         ], className="fo-three"),
         dmc.Modal(html.Div([html.Span("The current test finishes; nothing new starts until you resume.", className="fo-body"),
-                            html.Div([dmc.Button("Cancel", id="fo-pause-cancel", variant="default"), dmc.Button("Pause", id="fo-pause-confirm", color="indigo")], className="fo-modal-buttons")], className="fo-col"),
+                            html.Div([dmc.Button("Cancel", id="fo-pause-cancel", variant="default"), dmc.Button("Pause", id="fo-pause-confirm", color="gray")], className="fo-modal-buttons")], className="fo-col"),
                   id="fo-pause-modal", title="Pause testing?", opened=False, centered=True),
         html.Div(id="fo-notice"),
     ], className="fo-page")
@@ -269,7 +277,7 @@ def layout() -> html.Div:
 def register_callbacks(application: Any) -> None:
     """Standard Dash callbacks only: the 10 s refresh, the old-runs toggle, and click-to-open-report."""
     properties = {"fo-date": "children", "fo-headline": "children", "fo-pill": "children", "fo-tiles": "children", "fo-running": "children", "fo-alerts": "children", "fo-old-title": "children",
-                  "fo-old-items": "children", "fo-old-wrap": "style", "fo-needs": "style", "fo-queue-head": "children", "fo-queue": "children", "fo-timeline": "figure", "fo-timeline-empty": "children", "fo-hourly": "figure", "fo-hourly-phone": "figure",
+                  "fo-old-items": "children", "fo-old-wrap": "style", "fo-needs": "style", "fo-queue-head": "children", "fo-queue": "children", "fo-timeline": "figure", "fo-legend": "children", "fo-timeline-empty": "children", "fo-hourly": "figure", "fo-hourly-phone": "figure",
                   "fo-health": "children", "fo-health-checked": "children", "fo-log": "children", "fo-log-more": "children"}
 
     @application.callback([Output(key, properties[key]) for key in OUTPUTS] + [Output("fo-pill", "className"), Output("fo-pause-btn", "children"), Output("fo-pause-btn", "variant"), Output("fo-pause-btn", "color"), Output("fo-paused", "data")],
