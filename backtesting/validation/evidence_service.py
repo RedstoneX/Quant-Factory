@@ -297,7 +297,9 @@ class ValidationEvidenceArtifactService:
             raise ValueError("out-of-sample run has no single valid source-lock artifact: " + " | ".join(rejected))
         source_lock = source_locks[0]
         if not self._configuration_allows_locked_parameters(
-            document.get("parameters"), source_lock.locked_parameters
+            document.get("parameters"),
+            source_lock.locked_parameters,
+            strategy_id=document.get("strategy_id"),
         ):
             raise ValueError("source-lock parameters do not match the run configuration")
         return source_lock
@@ -489,8 +491,25 @@ class ValidationEvidenceArtifactService:
         cls,
         parameters: object,
         locked_parameters: object,
+        strategy_id: object = None,
     ) -> bool:
-        """Require a lock to be one immutable configured parameter choice."""
+        """Require a lock to be one immutable configured parameter choice.
+
+        The lock stores parameters after the strategy's validate_parameters
+        (whole numbers become floats for float grids), so configured items
+        are passed through the same method before comparison.
+        """
+
+        def normalise(item: Mapping[str, Any]) -> dict[str, Any]:
+            if not isinstance(strategy_id, str):
+                return dict(item)
+            from strategies import get_strategy
+
+            try:
+                return dict(get_strategy(strategy_id).validate_parameters(dict(item)))
+            except (KeyError, ValueError):
+                return dict(item)
+
         if not isinstance(locked_parameters, Mapping) or not locked_parameters:
             return False
         if isinstance(parameters, (list, tuple)):
@@ -499,11 +518,11 @@ class ValidationEvidenceArtifactService:
                     "target configuration parameter combinations are malformed"
                 )
             return any(
-                canonical_json(dict(item)) == canonical_json(dict(locked_parameters))
+                canonical_json(normalise(item)) == canonical_json(dict(locked_parameters))
                 for item in parameters
             )
         effective = cls._effective_strategy_parameters(parameters)
-        return canonical_json(effective) == canonical_json(dict(locked_parameters))
+        return canonical_json(normalise(effective)) == canonical_json(dict(locked_parameters))
 
     def _retrieve_validated_source_lock(
         self,
@@ -558,7 +577,9 @@ class ValidationEvidenceArtifactService:
         target_source: dict[str, Any],
     ) -> None:
         if not self._configuration_allows_locked_parameters(
-            target_configuration.get("parameters"), source_lock.locked_parameters
+            target_configuration.get("parameters"),
+            source_lock.locked_parameters,
+            strategy_id=target_configuration.get("strategy_id"),
         ):
             raise ValueError("target parameter lock mismatch")
         if source_lock.strategy_id != target_source.get("strategy_id"):
