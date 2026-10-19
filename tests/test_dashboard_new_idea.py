@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from dashboard.new_idea_projection import BUDGET, bar_text, button, review_batch, rule_tokens, source_label, submitted_state, where_they_go
+from dashboard.new_idea_projection import bar_text, button, review_batch, rule_tokens, source_label, submitted_state, where_they_go
 from dashboard.submit_projection import validate_candidate_text
 
 INTAKE = Path(__file__).resolve().parents[1] / "research_intake"
@@ -35,8 +35,8 @@ def test_counts_and_budget_bar():
     review = review_batch(_batch())
     assert (review["total"], review["ready"], review["left_out"]) == (3, 2, 1)
     assert review["combinations"] == 1 + 42  # an idea with nothing varied is one test; the grid is 7 x 3 x 2
-    assert review["budget_text"] == f"43 of {BUDGET:,} allowed"
-    assert 0 < review["budget_percent"] < 1 and not review["over_budget"]
+    assert review["budget_text"] == "Largest idea: 42 of 100 settings allowed"
+    assert review["budget_percent"] == 42.0 and not review["over_budget"]
     assert len(review["submit_rows"]) == 2
 
 
@@ -101,3 +101,20 @@ def test_fixed_settings_are_separated():
     document = json.loads(_row("mes_sma_10_30_candidate.json")["canonical_json"])
     words = [t["text"] for t in rule_tokens(document)]
     assert words.count("·") == 2 and "fee per contract per side" in words
+
+
+def _grid(count: int) -> dict:
+    return {**_row("mes_sma_10_30_candidate.json"), "variations": count}
+
+
+def test_limit_is_per_idea_not_summed():
+    review = review_batch({"rows": [_grid(60), _grid(60)]})
+    assert review["budget_text"] == "Largest idea: 60 of 100 settings allowed"
+    assert review["total_text"] == "120 settings to test in total"
+    assert not review["over_budget"] and not any(card["over_limit"] for card in review["cards"])
+
+
+def test_one_idea_over_the_limit_is_red_on_that_idea():
+    review = review_batch({"rows": [_grid(100), _grid(101)]})
+    assert [card["over_limit"] for card in review["cards"]] == [False, True]
+    assert review["over_budget"] and review["budget_text"] == "Largest idea: 101 of 100 settings allowed"
