@@ -21,7 +21,8 @@ from dashboard.results_projection import oos_report_metrics
 
 TEST_LABELS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time", "robustness": "Stress test", "monte_carlo": "Luck test"}
 PASSED, CLOSE_CALL, FAILED, CANT_TEST, CRASHED = "Passed", "Close call", "Failed", "Can't test", "Crashed"
-STATUS_TONE = {PASSED: "green", CLOSE_CALL: "amber", FAILED: "red", CANT_TEST: "grey", CRASHED: "red"}
+NOT_SCORED = "Not scored"  # a score stage of a gateway survivor with no usable result; shown in the grey Can't test style
+STATUS_TONE = {PASSED: "green", CLOSE_CALL: "amber", FAILED: "red", CANT_TEST: "grey", CRASHED: "red", NOT_SCORED: "grey"}
 NOT_SAVED = "Not saved for this run."
 GATES_CHIP = ("Passed the gates", "green")
 
@@ -72,15 +73,16 @@ def campaign_row(database: Path, candidate_id: str | None) -> tuple[str, str] | 
 def apply_campaign_verdict(statuses: list[str], row: tuple[str, str] | None) -> list[str]:
     """Five test statuses, overridden by the factory's own verdict when it has one.
 
-    screened_out at a test: the tests before it Passed, that test Failed, the rest Can't test. survivor: all Passed.
+    screened_out at a test: the tests before it Passed, that test Failed, the rest Can't test. survivor: the two gates Passed, the three scores keep their own status (Not scored when none).
     failed (run_error): the first test not already Passed is Crashed. Any other state (queued, running, duplicate, blocked) is no verdict, and the research-DB statuses stand.
     """
     if row is None:
         return statuses
     state, reason = row
     stages = [stage for stage, _label in STAGES]
-    if state == "survivor":
-        return [PASSED] * len(stages)
+    if state == "survivor":  # the two gates passed; the three scores keep their own recorded status (owner ruling 15 Oct)
+        gates = [PASSED] * len(TRADE_STAGES)
+        return gates + [NOT_SCORED if status == CANT_TEST else status for status in statuses[len(gates):]]
     if state == "screened_out" and reason in stages:
         at = stages.index(reason)
         return [PASSED] * at + [FAILED] + [CANT_TEST] * (len(stages) - at - 1)
@@ -300,5 +302,5 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     }
 
 
-__all__ = ["apply_campaign_verdict", "campaign_row", "score_statuses", "CANT_TEST", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
+__all__ = ["apply_campaign_verdict", "campaign_row", "score_statuses", "CANT_TEST", "NOT_SCORED", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
            "monthly_returns", "never_ran_card", "overall_chip", "report_status", "summary_strip", "settings_grid"]

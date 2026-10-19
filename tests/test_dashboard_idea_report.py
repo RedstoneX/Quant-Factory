@@ -29,7 +29,7 @@ def test_status_mapping(stage: str, stored: str | None, run: str | None, expecte
 
 
 def test_every_status_has_a_tone() -> None:
-    assert set(report.STATUS_TONE) == {"Passed", "Close call", "Failed", "Can't test", "Crashed"}
+    assert set(report.STATUS_TONE) == {"Passed", "Close call", "Failed", "Can't test", "Crashed", "Not scored"}
 
 
 @pytest.mark.parametrize(("states", "reason_part"), [
@@ -116,7 +116,17 @@ def test_factory_verdict_overrides_research_statuses_and_falls_back_without_one(
     assert failed_unseen == ["Passed", "Failed", "Can't test", "Can't test", "Can't test"] and workbench.overall_status(failed_unseen) == "Failed: unseen"
     assert report.apply_campaign_verdict(stored, ("screened_out", "screening"))[0] == "Failed"
     assert report.apply_campaign_verdict(stored, ("screened_out", "walk_forward")) == ["Passed", "Passed", "Failed", "Can't test", "Can't test"]
-    assert report.apply_campaign_verdict(stored, ("survivor", "passed_all")) == ["Passed"] * 5
+    assert report.apply_campaign_verdict(stored, ("survivor", "passed_all")) == ["Passed", "Passed", "Not scored", "Not scored", "Not scored"]  # a survivor passed the two gates only
     assert report.apply_campaign_verdict(stored, ("failed", "run_error"))[1] == "Crashed"
     assert report.apply_campaign_verdict(stored, None) == stored  # no event: the research-DB statuses stand
     assert report.apply_campaign_verdict(stored, ("queued", "waiting")) == stored  # waiting or running is no verdict yet
+
+
+def test_survivor_keeps_its_own_score_statuses() -> None:
+    from dashboard import results_workbench_projection as workbench
+
+    stored = ["Passed", "Passed", "Failed", "Close call", "Can't test"]
+    statuses = report.apply_campaign_verdict(stored, ("survivor", "awaiting_owner_review"))
+    assert statuses == ["Passed", "Passed", "Failed", "Close call", "Not scored"]  # Holds over time = Failed, not overwritten with Passed
+    assert report.STATUS_TONE["Not scored"] == report.STATUS_TONE["Can't test"]
+    assert workbench.overall_status(report.apply_campaign_verdict(["Passed", "Can't test", "Can't test", "Can't test", "Can't test"], ("survivor", "x"))) == "Passed"

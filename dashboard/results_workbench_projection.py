@@ -87,7 +87,8 @@ def overall_status(statuses: list[str], trades: Any = None) -> str:
         return "Crashed"
     if "Close call" in statuses:
         return "Close call"
-    return "Passed" if all(status == "Passed" for status in statuses) else "Can't test"
+    gates_passed = list(statuses[:2]) == ["Passed", "Passed"] and all(status in ("Passed", "Not scored") for status in statuses[2:])  # a survivor: scores not yet recorded do not hold it back
+    return "Passed" if all(status == "Passed" for status in statuses) or gates_passed else "Can't test"
 
 
 def chip_tone(text: str) -> str:

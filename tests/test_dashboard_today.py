@@ -26,7 +26,7 @@ def _ideas() -> pd.DataFrame:
 
 def test_funnel_counts_ideas_standing_after_each_test() -> None:
     steps = today.funnel(_ideas())
-    assert [(step["label"], step["count"]) for step in steps] == [("Submitted", 7), ("Survives costs", 4), ("Unseen data", 3), ("Holds over time", 3), ("Stress test", 2), ("Luck test", 2)]
+    assert [(step["label"], step["count"]) for step in steps] == [("Submitted", 7), ("Survives costs", 4), ("Unseen data", 3), ("Holds over time", 3), ("Stress test", 2), ("Luck test", 3)]
     assert steps[1]["share"] == pytest.approx(4 / 7)  # bars are drawn to true scale from this share
 
 
@@ -79,3 +79,9 @@ def test_section_title_is_closest_so_far_until_an_idea_passes() -> None:
     ideas = _ideas()
     assert ui.best_title({"waiting": today.needs_owner(ideas)}) == "Best idea"
     assert ui.best_title({"waiting": today.needs_owner(ideas.iloc[2:])}) == "Closest so far"
+
+
+def test_funnel_scores_after_the_gates_count_scores_not_survivors() -> None:
+    G, R, N = "green", "red", "grey"
+    ideas = pd.DataFrame([{"dots": d} for d in ([G, G, R, G, N], [G, G, G, N, N], [G, R, N, N, N])])
+    assert [step["count"] for step in today.funnel(ideas)] == [3, 3, 2, 1, 1, 0]
