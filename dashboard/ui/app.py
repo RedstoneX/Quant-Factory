@@ -28,6 +28,7 @@ from dashboard.ui.idea_report import FONT_URL as REPORT_FONT_URL, idea_report_la
 from dashboard.ui.today import register_today_callbacks, today_layout
 from dashboard.ui.results_workbench import register_workbench_callbacks, results_workbench_layout
 from dashboard.ui.factory import factory_layout, register_factory_callbacks
+from dashboard.ui.factory_oversight import layout as oversight_layout, register_callbacks as register_oversight_callbacks
 from dashboard.ui.layout import app_shell, copy_id, page_content, page_header, stat_card
 from dashboard.ui.paper import paper_layout
 from dashboard.ui.results import register_results_callbacks, results_layout
@@ -411,7 +412,8 @@ def create_app() -> Dash:
         if pathname == "/results": return page_content(results_layout(search))
         if pathname == "/report": return page_content(idea_report_layout(search))
         if pathname == "/workbench": return page_content(results_workbench_layout(search))
-        if pathname == "/factory": return page_content(factory_layout())
+        if pathname == "/factory": return page_content(oversight_layout())
+        if pathname == "/factory/runs": return page_content(factory_layout())
         if pathname == "/submit": return page_content(submit_layout())
         if pathname == "/compare": return page_content(compare_layout(search))
         if pathname == "/paper-trading": return page_content(paper_layout())
@@ -465,6 +467,7 @@ def create_app() -> Dash:
     register_candidate_callbacks(application)
     register_results_callbacks(application)
     register_factory_callbacks(application)
+    register_oversight_callbacks(application)
     register_submit_callbacks(application)
     register_compare_callbacks(application)
     return application
