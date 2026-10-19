@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
+from dashboard import price_series_reference as reference
 from dashboard import results_projection as projection
 from market_data import MarketDataConfig
 from orchestration.candidate_screening_artifacts import persist_screening_price_series
@@ -48,7 +49,7 @@ def _serve(monkeypatch, frame: pd.DataFrame, calls: list | None = None) -> None:
         if calls is not None:
             calls.append((config, allow_download))
         return SimpleNamespace(data=frame)
-    monkeypatch.setattr(projection, "load_market_data", loader)
+    monkeypatch.setattr(reference, "load_market_data", loader)
 
 
 def _old_copy(tmp_path: Path) -> tuple[Path, dict]:
@@ -78,12 +79,12 @@ def test_bars_loaded_by_reference_equal_the_old_copy(tmp_path: Path, monkeypatch
     database = _persist(tmp_path)
     calls: list = []
     _serve(monkeypatch, _bars(), calls)
-    by_reference, problem = projection._shared_price_source(database=database, run_id=RUN, session=None)
+    by_reference, problem = projection._price_source(database=database, run_id=RUN, session=None)
     assert problem is None and calls == [(REQUEST, False)]
     path, row = _old_copy(tmp_path)
     monkeypatch.setattr(projection, "_artifact_reference",
                         lambda **kw: (path, row) if kw["logical_name"] == "screening_price_series" else None)
-    from_copy, _ = projection._shared_price_source(database=database, run_id=RUN, session=None)
+    from_copy, _ = projection._price_source(database=database, run_id=RUN, session=None)
     assert_frame_equal(_frame(by_reference), _frame(from_copy))
 
 
@@ -100,12 +101,12 @@ def test_changed_market_data_says_so_instead_of_drawing_other_bars(tmp_path: Pat
     changed.iloc[5, changed.columns.get_loc("Close")] += 0.25
     _serve(monkeypatch, changed)
     bars = projection.load_session_price(RUN, "2025-01-02", database=database)
-    assert bars == {"price": [], "reason": projection.PRICE_DATA_CHANGED}
+    assert bars == {"price": [], "reason": reference.PRICE_DATA_CHANGED}
 
 
 def test_reference_records_the_loader_request(tmp_path: Path, monkeypatch) -> None:
     database = _persist(tmp_path)
     calls: list = []
     _serve(monkeypatch, _bars(), calls)
-    projection._shared_price_source(database=database, run_id=RUN, session="2025-01-02")
+    projection._price_source(database=database, run_id=RUN, session="2025-01-02")
     assert calls[0][0] == REQUEST and calls[0][0] != replace(REQUEST, symbol="SPY")

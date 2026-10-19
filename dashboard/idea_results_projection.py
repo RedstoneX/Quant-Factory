@@ -20,7 +20,7 @@ from dashboard.formatting import format_metric, format_percent
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.results_model import group_trade_rows, prepare_interval
 from dashboard.results_projection import (
-    EQUITY_LIMIT, OOS_REPORT_LOGICAL_NAME, PRICE_LIMIT, _artifact_document, _shared_price_source, _trade_row,
+    EQUITY_LIMIT, OOS_REPORT_LOGICAL_NAME, PRICE_LIMIT, _artifact_document, _price_source, _trade_row,
     load_results_record, oos_report_metrics,
 )
 from dashboard.run_detail_adapter import _candidate_trade_rows
@@ -328,7 +328,7 @@ def _coarsen(bars: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
 
 @lru_cache(maxsize=8)
 def _period_price(database: str, run_id: str, start: str | None, end: str | None) -> tuple[str, tuple[dict[str, Any], ...], str | None]:
-    rows, problem = _shared_price_source(database=Path(database), run_id=run_id, session=None, period=(start, end) if start and end else None)
+    rows, problem = _price_source(database=Path(database), run_id=run_id, session=None, period=(start, end) if start and end else None)
     if not rows:
         return "", (), problem or "No price bars were saved for this period."
     interval = _auto_interval(len(rows))
