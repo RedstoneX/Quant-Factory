@@ -176,3 +176,43 @@ def test_timeline_has_one_now_marker_and_failed_is_slate() -> None:
     assert [a.text for a in figure.layout.annotations if a.text == "now"] == ["now"]
     assert len([s for s in figure.layout.shapes if s.line.dash == "dash"]) == 1
     assert OUTCOME_COLOR["failed"] == "#4B5160"
+
+
+def test_a_crash_with_no_research_run_is_counted_the_same_by_every_panel(tmp_path: Path, monkeypatch) -> None:
+    """campaign_events are the only record of tests: tiles, timeline, per-hour chart and log must all agree, even for a crash that never wrote a research run."""
+    import sqlite3
+    from dashboard import factory_overview as overview
+
+    research = sqlite3.connect(":memory:")
+    research.row_factory = sqlite3.Row
+    research.executescript("""
+        CREATE TABLE experiment_runs (run_id, configuration_id, stage, status, started_at, completed_at, created_at, error_summary);
+        CREATE TABLE experiment_configurations (configuration_id, experiment_id, strategy_id, canonical_config_json);
+        CREATE TABLE idea_drafts (draft_id, title, candidate_json, configuration_id);
+        CREATE TABLE parameter_results (run_id, screening_status);
+        CREATE TABLE run_operator_events (run_id, source, message);
+        CREATE TEMP TABLE qf_campaign_admissions (candidate_id, policy_id, state, reason_code, reason_detail);
+        INSERT INTO idea_drafts VALUES ('a', 'Idea A', '{}', NULL), ('b', 'Idea B', '{}', NULL), ('c', 'Idea C', '{}', NULL), ('d', 'Idea D', '{}', NULL);""")
+    monkeypatch.setattr(overview, "_validated_connection", lambda _path: (research, None))
+    gateway = tmp_path / "gateway.sqlite3"
+    db = sqlite3.connect(gateway)
+    db.execute("CREATE TABLE campaign_events (event_id INTEGER PRIMARY KEY AUTOINCREMENT, candidate_id TEXT, policy_id TEXT, state TEXT, reason_code TEXT, reason_detail TEXT, packet_sha256 TEXT, run_id TEXT, created_at TEXT)")
+    miss = "sharpe_ratio failed: expected >= 0.5 (inclusive); observed 0.10."
+    events = [("d", "running", "started", None, "2026-10-16T17:00:00Z"), ("d", "screened_out", "screening", miss, "2026-10-16T17:05:00Z"),
+              ("a", "running", "started", None, "2026-10-18T21:00:00Z"), ("a", "screened_out", "screening", miss, "2026-10-18T21:10:00Z"),
+              ("b", "running", "started", None, "2026-10-18T21:20:00+00:00"), ("b", "failed", "run_error", "the test process exited with code -9 before reporting", "2026-10-18T21:25:00+00:00"),
+              ("c", "running", "started", None, "2026-10-18T22:00:00"), ("c", "survivor", "awaiting_owner_review", None, "2026-10-18T22:10:00")]
+    for cid, state, code, detail, at in events:
+        db.execute("INSERT INTO campaign_events (candidate_id,policy_id,state,reason_code,reason_detail,created_at) VALUES (?,?,?,?,?,?)", (cid, "p", state, code, detail, at))
+    db.commit()
+    db.close()
+    now = datetime(2026, 10, 19, 2, 6, tzinfo=timezone.utc)  # Sunday 22:06 Eastern: three tests today, one on Friday
+    data = overview.load_factory_overview(database=tmp_path / "x", gateway=str(gateway), now=now, drain_marker=tmp_path / "none")
+    assert data["available"], data["message"]
+    tile = {t["label"]: t["value"] for t in data["tiles"]}
+    assert (tile["Runs finished today"], tile["Runs crashed today"]) == ("3", "1")
+    assert sorted(row["outcome"] for row in data["timeline"]) == ["crashed", "failed", "passed"]
+    assert sum(row[k] for row in data["hourly"] for k in ("failed", "close", "passed", "crashed")) == 3 and sum(row["crashed"] for row in data["hourly"]) == 1
+    texts = [row["text"] for row in data["log"]]
+    assert sum("code -9" in t for t in texts) == 1 and sum("Idea" in t and "failed" in t for t in texts) >= 2
+    assert any(row["t"].startswith("Fri") for row in data["log"])  # the earlier day is labelled

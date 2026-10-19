@@ -106,6 +106,33 @@ def event_sentence(event: dict[str, Any], name: str, who: str) -> tuple[str, str
     return f"{quoted}: {state.replace('_', ' ')}.", "grey"
 
 
+TERMINAL_STATES = ("screened_out", "survivor", "failed")
+
+
+def tests_from_events(events: list[dict[str, Any]], titles: dict[str, str], now: datetime, max_age: timedelta = timedelta(days=1)) -> list[dict[str, Any]]:
+    """The factory's record of tests: a 'running' event plus that idea's next terminal event. A start followed by a re-queue was cut short and is not a test.
+    A start with nothing after it counts as running only while younger than `max_age`. Rows carry the same keys the page reads from run records."""
+    open_: dict[str, dict[str, Any]] = {}
+    tests: list[dict[str, Any]] = []
+    for event in sorted(events, key=lambda e: e["event_id"]):
+        cid, state = event["candidate_id"], event["state"]
+        if state == "running":
+            open_[cid] = event
+        elif cid in open_ and state in TERMINAL_STATES:
+            start = open_.pop(cid)
+            outcome = "passed" if state == "survivor" else "crashed" if state == "failed" else "close" if is_close_call(event["reason_detail"]) else "failed"
+            tests.append({"run_id": event["run_id"] or start["run_id"], "candidate_id": cid, "title": titles.get(cid, cid), "status": "failed" if state == "failed" else "succeeded", "cohort": "open",
+                          "started_at": start["created_at"], "completed_at": event["created_at"], "outcome": outcome, "error_summary": event["reason_detail"] if state == "failed" else "",
+                          "stage": "", "survivor_count": int(state == "survivor")})
+        elif cid in open_:
+            open_.pop(cid)
+    for cid, start in open_.items():
+        if now - utc(start["created_at"]) <= max_age:
+            tests.append({"run_id": None, "candidate_id": cid, "title": titles.get(cid, cid), "status": "running", "cohort": "open", "started_at": start["created_at"], "completed_at": "",
+                          "outcome": "running", "error_summary": "", "stage": "", "survivor_count": 0})
+    return tests
+
+
 def group_requeues(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Hundreds of 'put back in line' events at one restart become one line."""
     out: list[dict[str, Any]] = []

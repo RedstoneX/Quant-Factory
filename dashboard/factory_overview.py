@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from dashboard.factory_history import (
-    OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, hour_floor, is_close_call, is_restart, log_rows, short_reason, submitter_label, timeline_rows, utc,
+    OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, tests_from_events, hour_floor, is_close_call, is_restart, log_rows, short_reason, submitter_label, timeline_rows, utc,
 )
 from dashboard.factory_projection import _duration_minutes, _params, _row, _runs_source, plain_error
 from dashboard.overview_projection import GATEWAY_DATABASE_ENVIRONMENT_VARIABLE, _open_read_only, _validated_connection, configured_database_path
@@ -213,7 +213,7 @@ def crash_alerts(crashed: list[dict[str, Any]], events: list[dict[str, Any]]) ->
             groups[key]["count"] += 1
             continue
         groups[key] = {"tone": "red", "title": f"Crashed: {short_reason(reason)}", "when": clock(run["completed_at"]), "sort": done.isoformat(), "count": 1,
-                       "body": f"“{run['title']}” stopped on “{STEP_NAME.get(run['stage'], run['stage'])}”.", "next": crash_fix(reason), "candidate_id": cid}
+                       "body": f"“{run['title']}” stopped on “{STEP_NAME[run['stage']]}”." if run.get("stage") in STEP_NAME else f"“{run['title']}” crashed.", "next": crash_fix(reason), "candidate_id": cid}
     for alert in groups.values():
         alert["title"] += f" ×{alert['count']}" if alert["count"] > 1 else ""
     return list(groups.values())[:3]
@@ -236,8 +236,6 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         since48 = (now - timedelta(hours=48)).isoformat()
         runs = [_row(r) for r in connection.execute(
             _runs_source() + " SELECT * FROM run_records WHERE hidden=0 AND (status IN ('running','created') OR COALESCE(completed_at,started_at,created_at)>=?) ORDER BY COALESCE(started_at,created_at)", _params() + [since48])]
-        durations = [(r[0], r[1]) for r in connection.execute("SELECT started_at,completed_at FROM experiment_runs WHERE completed_at IS NOT NULL AND started_at IS NOT NULL ORDER BY completed_at DESC LIMIT 50")]
-        typical = median_minutes(durations)
         titles = {str(r[0]): str(r[1]) for r in connection.execute("SELECT draft_id, COALESCE(NULLIF(json_extract(candidate_json,'$.candidate.title'),''), title) FROM idea_drafts")}
         events: list[dict[str, Any]] = []
         queued_events: list[dict[str, Any]] = []
@@ -246,8 +244,8 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         if gate is not None:
             tables = {str(r[0]) for r in gate.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if "campaign_events" in tables:
-                events = [dict(r) for r in gate.execute("SELECT event_id,candidate_id,state,reason_code,reason_detail,run_id,created_at FROM campaign_events WHERE julianday(created_at)<=julianday(?) ORDER BY event_id DESC LIMIT 400", [now.isoformat()])]
-                last_event = latest_not_after([e["created_at"] for e in events], now)
+                events = [dict(r) for r in gate.execute("SELECT event_id,candidate_id,state,reason_code,reason_detail,run_id,created_at FROM campaign_events WHERE julianday(created_at)<=julianday(?) AND julianday(created_at)>=julianday(?)-7 ORDER BY event_id DESC", [now.isoformat(), now.isoformat()])]
+                last_event = (gate.execute("SELECT created_at FROM campaign_events WHERE julianday(created_at)<=julianday(?) ORDER BY event_id DESC LIMIT 1", [now.isoformat()]).fetchone() or [None])[0]
                 queued_events = [dict(r) for r in gate.execute(
                     "SELECT e.candidate_id,e.created_at FROM campaign_events e WHERE e.event_id=(SELECT MAX(event_id) FROM campaign_events WHERE candidate_id=e.candidate_id AND julianday(created_at)<=julianday(?)) AND e.state='queued' ORDER BY e.event_id", [now.isoformat()])]
             if "candidate_identities" in tables:
@@ -265,8 +263,14 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     close_runs = {e["run_id"] for e in events if e["state"] == "screened_out" and e["run_id"] and is_close_call(e["reason_detail"])}
     for run in runs:
         run["outcome"] = "abandoned" if run["status"] == "running" and run["cohort"] == "failed" else run_outcome(run, close_runs)
-    live = [r for r in runs if r["status"] == "running" and r["cohort"] == "open"]
-    finished = [r for r in runs if r["completed_at"] and r["status"] in ("succeeded", "failed")]
+    # campaign_events are the only record of tests; the research DB adds only the current step and the old never-closed runs
+    tests = tests_from_events(events, titles, now)
+    stages = {r["candidate_id"]: r["stage"] for r in runs if r["status"] == "running" and r["cohort"] == "open"}
+    for test in tests:
+        test["stage"] = stages.get(test["candidate_id"], "")
+    live = [t for t in tests if t["status"] == "running"]
+    finished = [t for t in tests if t["completed_at"]]
+    typical = median_minutes([(t["started_at"], t["completed_at"]) for t in sorted(finished, key=lambda t: utc(t["completed_at"]), reverse=True)])
     day_start = et_day_start(now)
     today = [r for r in finished if utc(r["completed_at"]) >= day_start]
     crashed_today = [r for r in today if r["outcome"] == "crashed"]
@@ -292,7 +296,6 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
             k = int((now - utc(e["created_at"])).total_seconds() // 3600)
             if 0 <= k < 24:
                 queued_per_hour[23 - k] += 1
-    busy = [sum(1 for r in runs if r["started_at"] and r["outcome"] != "abandoned" and utc(r["started_at"]) < h + timedelta(hours=1) and (not r["completed_at"] or utc(r["completed_at"]) >= h)) for h in hours24]
     typical_per_hour = [median_minutes([(r["started_at"], r["completed_at"]) for r in finished if hour_floor(utc(r["completed_at"])) == h]) or 0 for h in hours24]
     reasons = Counter(short_reason(r["error_summary"]) for r in crashed_today)
     top, top_n = reasons.most_common(1)[0] if reasons else ("none", 0)
@@ -302,9 +305,9 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     tiles = [
         {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle"},
         {"label": "Waiting", "value": f"{len(queue_rows)}", "sub": f"longest wait {_human_minutes(longest)}" if longest is not None else "nothing in line", "color": "text", "spark": queued_per_hour},
-        {"label": "Finished today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {close_today} close call{'s' if close_today != 1 else ''}", "color": "text",
+        {"label": "Runs finished today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {close_today} close call{'s' if close_today != 1 else ''}", "color": "text",
          "spark": [sum(row[o] for o in ("failed", "close", "passed", "crashed")) for row in last24]},
-        {"label": "Crashed today", "value": f"{len(crashed_today)}", "sub": crash_reason, "color": "red" if crashed_today else "text", "spark": [row["crashed"] for row in last24]},
+        {"label": "Runs crashed today", "value": f"{len(crashed_today)}", "sub": crash_reason, "color": "red" if crashed_today else "text", "spark": [row["crashed"] for row in last24]},
         {"label": "Typical test time", "value": _human_minutes(typical), "sub": "median of the last 50", "color": "text", "spark": typical_per_hour},
     ]
     running_cards, alerts = [], []
@@ -313,7 +316,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         elapsed = (now - utc(run["started_at"])).total_seconds() / 60 if run["started_at"] else 0.0
         slow = bool(typical and elapsed > SLOW_FACTOR * typical)
         current = stage_keys.index(run["stage"]) if run["stage"] in stage_keys else 0
-        step = STEP_NAME.get(run["stage"], run["stage"])
+        step = STEP_NAME.get(run["stage"], "starting")
         running_cards.append({"name": run["title"], "elapsed": _human_minutes(elapsed), "slow": slow, "candidate_id": run["candidate_id"],
                               "steps": ["done" if i < current else ("slow" if slow else "current") if i == current else "todo" for i in range(5)],
                               "where": f"Step {current + 1} of 5 · {step}", "note": f"typical {typical:.0f} min" if typical else "typical time not yet known"})
@@ -346,8 +349,8 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         health.append({"label": "Grok connected", "tone": "green" if minutes <= 1440 else "amber", "value": "last request " + eastern_label(grok_last, "%a %-d %b, %H:%M") + " ET"})
     else:
         health.append({"label": "Grok connected", "tone": "amber", "value": "no requests recorded"})
-    log = log_rows(events, titles, submitters, crashed_today, now)
-    timeline = timeline_rows(runs, now, typical)
+    log = log_rows(events, titles, submitters, [], now)
+    timeline = timeline_rows(tests, now, typical)
     looks = len(alerts) + (1 if old_runs else 0)
     warnings = sum(item["tone"] != "green" for item in health)
     headline, headline_tone = headline_for(running=len(live), waiting=len(queue_rows), looks=looks, warnings=warnings)

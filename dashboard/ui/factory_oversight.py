@@ -223,7 +223,7 @@ def layout() -> html.Div:
             className="fo-card")),
         html.Section([
             _card("Tests finished per hour", "Last 48 hours", html.Div(dcc.Graph(id="fo-hourly", figure=part["fo-hourly"], config=GRAPH_CONFIG, style={"height": 190}), className="fo-desktop-only"),
-                  html.Div(dcc.Graph(id="fo-hourly-phone", figure=part["fo-hourly-phone"], config=GRAPH_CONFIG, style={"height": 190}), className="fo-phone-only"),
+                  html.Div(dcc.Graph(id="fo-hourly-phone", figure=part["fo-hourly-phone"], config={**GRAPH_CONFIG, "responsive": True}, responsive=True, style={"height": 190, "width": "100%"}), className="fo-phone-only"),
                   html.Span("Flat stretches are nights and weekends with nothing queued, not faults.", className="fo-muted")),
             _card("Health checks", None, html.Div([html.Span("Health checks", className="fo-h"), html.Span(part["fo-health-checked"], id="fo-health-checked", className="fo-muted")], className="fo-between"),
                   html.Div(part["fo-health"], id="fo-health")),
