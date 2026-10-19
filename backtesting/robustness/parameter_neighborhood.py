@@ -54,7 +54,7 @@ def _derive_values(
                 raise ValueError(
                     f"{definition.parameter_name} candidate must be finite"
                 )
-            parameter_definition.validate(raw_value)
+            normalized_value = parameter_definition.normalize(raw_value)  # e.g. grid 1 -> 1.0
         except (TypeError, ValueError) as exc:
             derivation = CandidateDerivation(
                 parameter_name=definition.parameter_name,
@@ -73,10 +73,10 @@ def _derive_values(
                 method=definition.method,
                 source_value=source,
                 raw_value=raw_value,
-                normalized_value=raw_value,
+                normalized_value=normalized_value,
                 status="accepted",
             )
-        derived.append((raw_value, derivation))
+        derived.append((normalized_value if derivation.status == "accepted" else raw_value, derivation))
     return tuple(derived)
 
 

@@ -238,11 +238,7 @@ class RuleSpecStrategy:
             raise ValueError(f"Missing parameter(s) for {strategy_id}: {', '.join(missing)}")
         normalized: dict[str, Any] = {}
         for name, definition in definitions.items():
-            value = parameters[name]
-            if definition.value_type is float and isinstance(value, int) and not isinstance(value, bool):
-                value = float(value)
-            definition.validate(value)
-            normalized[name] = value
+            normalized[name] = definition.normalize(parameters[name])
         return normalized
 
     def generate_signals(self, data: pd.DataFrame | pd.Series, parameters: Mapping[str, Any]) -> SignalResult:
