@@ -150,3 +150,7 @@ def test_survivor_with_failed_scores_keeps_gates_chip_and_stays_in_review() -> N
     assert report.gates_chip(statuses) == "Passed the gates · Holds over time: failed"
     result = workbench.overall_status(statuses, survivor=True)
     assert result == "Passed the gates · Holds over time: failed" and workbench.chip_tone(result) == "amber"
+
+
+def test_close_call_score_reads_close_call_in_the_chip() -> None:
+    assert report.gates_chip(["Passed", "Passed", "Passed", "Close call", "Passed"]) == "Passed the gates · Stress test: close call"

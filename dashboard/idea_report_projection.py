@@ -25,6 +25,7 @@ NOT_SCORED = "Not scored"  # a score stage of a gateway survivor with no usable 
 STATUS_TONE = {PASSED: "green", CLOSE_CALL: "amber", FAILED: "red", CANT_TEST: "grey", CRASHED: "red", NOT_SCORED: "grey"}
 NOT_SAVED = "Not saved for this run."
 GATES_CHIP = ("Passed the gates", "green")
+TOO_FEW_WINDOWS = "Too few windows"  # log wording only; never a stage status on the Report
 SCORE_STAGES = ("walk_forward", "robustness", "monte_carlo")
 
 
@@ -54,6 +55,8 @@ def score_statuses(candidate_id: str | None, database: str | Path | None = None)
         stored = next((test for test in idea.get("tests") or [] if test["stage"] == stage), {})
         stored_status = stored.get("status") if stored.get("status") in ("passed", "failed") else None
         out[stage] = report_status(stage, stored_status, (runs.get(stage) or {}).get("status"))
+        if stage == "monte_carlo" and stored.get("status") == "insufficient_evidence" and str(stored.get("line") or "").startswith("Needs at least"):
+            out[stage] = TOO_FEW_WINDOWS  # the recorded Monte Carlo reason: too few observations to shuffle (PR 287)
     return out
 
 
@@ -97,7 +100,7 @@ def gates_chip(statuses: list[str]) -> str | None:
     """'Passed the gates' plus a mark for each failed score ('Passed the gates · Holds over time: failed'); None unless both gates Passed. Scores never remove a survivor from review."""
     if list(statuses[:len(TRADE_STAGES)]) != [PASSED] * len(TRADE_STAGES):
         return None
-    marks = [f" · {TEST_LABELS[stage]}: failed" for stage, status in zip(SCORE_STAGES, statuses[len(TRADE_STAGES):]) if status in (FAILED, CLOSE_CALL)]
+    marks = [f" · {TEST_LABELS[stage]}: {'close call' if status == CLOSE_CALL else 'failed'}" for stage, status in zip(SCORE_STAGES, statuses[len(TRADE_STAGES):]) if status in (FAILED, CLOSE_CALL)]
     return GATES_CHIP[0] + "".join(marks)
 
 
