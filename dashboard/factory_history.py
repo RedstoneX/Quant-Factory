@@ -84,13 +84,13 @@ SCORE_STEPS = (("walk_forward", "Holds over time"), ("robustness", "Stress test"
 
 
 def score_text(scores: dict[str, str] | None) -> str:
-    """The three recorded scores (not gates) as 'Holds over time ✓, Stress test ✗, Luck test — not enough data'; a score that is not available is '—'.
+    """The three recorded scores (not gates) as 'Holds over time: passed, Stress test: failed, Luck test: not enough data'; a score that is not available is 'not scored'.
     `scores` maps stage to the Report page's status word (Passed, Close call, Failed, Can't test, Crashed)."""
     marks = []
     for stage, label in SCORE_STEPS:
         status = (scores or {}).get(stage)
-        mark = "✓" if status == "Passed" else "✗" if status in ("Failed", "Close call") else "—"
-        marks.append(f"{label} {mark}" + (" not enough data" if mark == "—" and stage == "monte_carlo" else ""))
+        word = "passed" if status == "Passed" else "failed" if status in ("Failed", "Close call") else "not enough data" if stage == "monte_carlo" else "not scored"
+        marks.append(f"{label}: {word}")
     return ", ".join(marks)
 
 

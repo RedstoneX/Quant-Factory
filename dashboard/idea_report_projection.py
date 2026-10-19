@@ -93,14 +93,11 @@ def apply_campaign_verdict(statuses: list[str], row: tuple[str, str] | None) -> 
     return statuses
 
 
-SCORE_SHORT = {"walk_forward": "over time", "robustness": "stress", "monte_carlo": "luck"}
-
-
 def gates_chip(statuses: list[str]) -> str | None:
-    """'Passed the gates' plus a mark for each failed score ('Passed the gates · over time ✗'); None unless both gates Passed. Scores never remove a survivor from review."""
+    """'Passed the gates' plus a mark for each failed score ('Passed the gates · Holds over time: failed'); None unless both gates Passed. Scores never remove a survivor from review."""
     if list(statuses[:len(TRADE_STAGES)]) != [PASSED] * len(TRADE_STAGES):
         return None
-    marks = [f" · {SCORE_SHORT[stage]} ✗" for stage, status in zip(SCORE_STAGES, statuses[len(TRADE_STAGES):]) if status in (FAILED, CLOSE_CALL)]
+    marks = [f" · {TEST_LABELS[stage]}: failed" for stage, status in zip(SCORE_STAGES, statuses[len(TRADE_STAGES):]) if status in (FAILED, CLOSE_CALL)]
     return GATES_CHIP[0] + "".join(marks)
 
 

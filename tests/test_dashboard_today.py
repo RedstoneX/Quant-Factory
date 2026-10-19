@@ -89,5 +89,5 @@ def test_funnel_scores_after_the_gates_count_scores_not_survivors() -> None:
 
 def test_survivor_with_failed_scores_stays_in_waiting_for_your_call() -> None:
     ideas = _ideas().iloc[:1].copy()
-    ideas["result"] = "Passed the gates · over time ✗"
+    ideas["result"] = "Passed the gates · Holds over time: failed"
     assert list(today.needs_owner(ideas)["passed"]["candidate_id"]) == ["a"]

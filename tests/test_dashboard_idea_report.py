@@ -147,6 +147,6 @@ def test_survivor_with_failed_scores_keeps_gates_chip_and_stays_in_review() -> N
     from dashboard import results_workbench_projection as workbench
 
     statuses = report.apply_campaign_verdict(["Passed", "Passed", "Failed", "Passed", "Can't test"], ("survivor", "awaiting_owner_review"))
-    assert report.gates_chip(statuses) == "Passed the gates · over time ✗"
+    assert report.gates_chip(statuses) == "Passed the gates · Holds over time: failed"
     result = workbench.overall_status(statuses, survivor=True)
-    assert result == "Passed the gates · over time ✗" and workbench.chip_tone(result) == "amber"
+    assert result == "Passed the gates · Holds over time: failed" and workbench.chip_tone(result) == "amber"
