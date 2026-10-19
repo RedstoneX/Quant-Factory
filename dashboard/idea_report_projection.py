@@ -18,6 +18,7 @@ from dashboard.idea_results_projection import (
 )
 from dashboard.overview_projection import _validated_connection, configured_database_path
 from dashboard.plain_labels import OUR_SIDE_WORDS, is_our_side_mismatch, plain_unseen_reason, unseen_loss_text
+from dashboard.results_model import ResultsDataError
 from dashboard.results_projection import oos_report_metrics
 
 UNSEEN_RULE = "Passes if it made money on years it never saw, after costs"  # owner ruling 19 Oct 2026
@@ -326,7 +327,10 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
             unseen_test["line"] = plain_unseen_reason(campaign[2]) + "."
     hold = pd.Series(dtype=float)
     if not whole.empty and "screening" in runs:  # buy and hold from the saved price bars, started with the same money
-        bars = pd.DataFrame(load_period_price(runs["screening"]["run_id"], None, database=path)["price"])
+        try:
+            bars = pd.DataFrame(load_period_price(runs["screening"]["run_id"], None, database=path)["price"])
+        except ResultsDataError:  # saved bars that fail validation: the optional buy-and-hold comparison is left out, the report still draws
+            bars = pd.DataFrame()
         if not bars.empty:
             close = pd.Series(bars["close"].astype(float).to_numpy(), index=pd.to_datetime(bars["timestamp"]))
             close = close[(close.index >= whole.index[0]) & (close.index <= whole.index[-1])]

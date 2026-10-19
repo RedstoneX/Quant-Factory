@@ -19,6 +19,7 @@ from dashboard.factory_history import (
     OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, tests_from_events, hour_floor, is_close_call, is_restart, log_rows, unclosed_starts, short_reason, submitter_label, timeline_rows, utc,
 )
 from dashboard.idea_report_projection import score_statuses
+from dashboard.idea_results_projection import load_idea
 from dashboard.results_projection import oos_report_metrics
 from dashboard.factory_projection import _duration_minutes, _params, _row, _runs_source, plain_error
 from dashboard.overview_projection import GATEWAY_DATABASE_ENVIRONMENT_VARIABLE, _open_read_only, _validated_connection, configured_database_path
@@ -384,7 +385,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         health.append({"label": "Grok connected", "tone": "amber", "value": "no requests recorded"})
     survivors = {e["candidate_id"] for e in events[:60] if e["state"] == "survivor"}
     log = log_rows(events, titles, submitters, [], now, control, {cid: score_statuses(cid, database_path) for cid in survivors},
-                   {e["candidate_id"]: oos_report_metrics(database=database_path, run_id=e["run_id"]) for e in events[:60] if e["state"] == "screened_out" and "test did not pass" in str(e["reason_detail"] or "")})
+                   {e["candidate_id"]: oos_report_metrics(database=database_path, run_id=((load_idea(e["candidate_id"], database=database_path).get("runs") or {}).get("oos") or {}).get("run_id")) for e in events[:60] if e["state"] == "screened_out" and "test did not pass" in str(e["reason_detail"] or "")})
     timeline = timeline_rows(tests, now, typical)
     looks = len(alerts) + (1 if old_runs else 0)
     warnings = sum(item["tone"] != "green" for item in health)
