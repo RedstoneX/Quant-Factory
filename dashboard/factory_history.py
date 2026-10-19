@@ -6,6 +6,8 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import pandas as pd
+
 from dashboard.factory_projection import plain_error
 from dashboard.time_display import EASTERN, eastern_label
 
@@ -56,13 +58,20 @@ def is_close_call(detail: Any) -> bool:
 
 
 def utc(value: Any) -> datetime:
-    parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    return (parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    """The ONE timestamp parser for every panel: 'Z', '+00:00', offsets, microseconds or naive (read as UTC) all become aware UTC."""
+    return pd.to_datetime(value, utc=True).to_pydatetime()
 
 
-def clock(value: Any) -> str:
+def et_day_start(now: datetime) -> datetime:
+    """The ONE 'today' boundary: midnight Eastern, as UTC."""
+    return now.astimezone(EASTERN).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+
+
+def clock(value: Any, now: datetime | None = None) -> str:
+    """Eastern time; with `now`, an earlier day shows its weekday ("Sat 19:18")."""
     try:
-        return eastern_label(str(value), "%H:%M")
+        earlier = now is not None and utc(value) < et_day_start(now)
+        return eastern_label(str(value), "%a %H:%M" if earlier else "%H:%M")
     except (ValueError, TypeError):
         return "—"
 
@@ -97,6 +106,33 @@ def event_sentence(event: dict[str, Any], name: str, who: str) -> tuple[str, str
     return f"{quoted}: {state.replace('_', ' ')}.", "grey"
 
 
+TERMINAL_STATES = ("screened_out", "survivor", "failed")
+
+
+def tests_from_events(events: list[dict[str, Any]], titles: dict[str, str], now: datetime, max_age: timedelta = timedelta(days=1)) -> list[dict[str, Any]]:
+    """The factory's record of tests: a 'running' event plus that idea's next terminal event. A start followed by a re-queue was cut short and is not a test.
+    A start with nothing after it counts as running only while younger than `max_age`. Rows carry the same keys the page reads from run records."""
+    open_: dict[str, dict[str, Any]] = {}
+    tests: list[dict[str, Any]] = []
+    for event in sorted(events, key=lambda e: e["event_id"]):
+        cid, state = event["candidate_id"], event["state"]
+        if state == "running":
+            open_[cid] = event
+        elif cid in open_ and state in TERMINAL_STATES:
+            start = open_.pop(cid)
+            outcome = "passed" if state == "survivor" else "crashed" if state == "failed" else "close" if is_close_call(event["reason_detail"]) else "failed"
+            tests.append({"run_id": event["run_id"] or start["run_id"], "candidate_id": cid, "title": titles.get(cid, cid), "status": "failed" if state == "failed" else "succeeded", "cohort": "open",
+                          "started_at": start["created_at"], "completed_at": event["created_at"], "outcome": outcome, "error_summary": event["reason_detail"] if state == "failed" else "",
+                          "stage": "", "survivor_count": int(state == "survivor")})
+        elif cid in open_:
+            open_.pop(cid)
+    for cid, start in open_.items():
+        if now - utc(start["created_at"]) <= max_age:
+            tests.append({"run_id": None, "candidate_id": cid, "title": titles.get(cid, cid), "status": "running", "cohort": "open", "started_at": start["created_at"], "completed_at": "",
+                          "outcome": "running", "error_summary": "", "stage": "", "survivor_count": 0})
+    return tests
+
+
 def group_requeues(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Hundreds of 'put back in line' events at one restart become one line."""
     out: list[dict[str, Any]] = []
@@ -109,17 +145,17 @@ def group_requeues(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: dict[str, str], crashed_today: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def log_rows(events: list[dict[str, Any]], titles: dict[str, str], submitters: dict[str, str], crashed_today: list[dict[str, Any]], now: datetime | None = None) -> list[dict[str, Any]]:
     log: list[dict[str, Any]] = []
     for event in group_requeues(events[:60])[:20]:
         sentence, tone = event_sentence(event, titles.get(event["candidate_id"], event["candidate_id"]), submitter_label(submitters.get(event["candidate_id"])))
         if event["count"] > 1:
             sentence, tone = f"{event['count']} ideas were put back in line after {'a software update' if event['reason_code'] == 'requeued_after_fix' else 'a restart'}.", "indigo"
-        log.append({"t": clock(event["created_at"]), "when": utc(event["created_at"]), "tone": tone, "text": sentence})
+        log.append({"t": clock(event["created_at"], now), "when": utc(event["created_at"]), "tone": tone, "text": sentence})
     for run in crashed_today:  # run events: a crashed run is recorded on the run, not always as a campaign event
         restart = is_restart(run["error_summary"])
         text = f"“{run['title']}” stopped by a server restart, safe to re-run." if restart else f"“{run['title']}” crashed: {plain_error(run['error_summary']).rstrip('.').lower()}."
-        log.append({"t": clock(run["completed_at"]), "when": utc(run["completed_at"]), "tone": "grey" if restart else "red", "text": text})
+        log.append({"t": clock(run["completed_at"], now), "when": utc(run["completed_at"]), "tone": "grey" if restart else "red", "text": text})
     log = [{k: v for k, v in item.items() if k != "when"} for item in sorted(log, key=lambda r: r["when"], reverse=True)[:20]]
     return log
 
