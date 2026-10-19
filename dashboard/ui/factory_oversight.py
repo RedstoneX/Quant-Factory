@@ -27,9 +27,12 @@ TONE_COLOR = {"green": GREEN, "amber": AMBER, "red": RED, "grey": HOLD, "indigo"
 ICON = {"green": "✓", "amber": "!", "red": "×"}
 STEP_CLASS = {"done": "done", "current": "current", "slow": "slow", "todo": "todo"}
 NEUTRAL_FIGURE = dict(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(family=MONO, color=FAINT, size=11))
+CARD = "#0F1114"
+GAP_PX = 2
+MIN_BLOCK = pd.Timedelta(minutes=6)
 GRAPH_CONFIG = {"displayModeBar": False}
 OUTPUTS = ("fo-pill", "fo-date", "fo-headline", "fo-tiles", "fo-running", "fo-alerts", "fo-old-title", "fo-old-items", "fo-old-wrap", "fo-needs",
-           "fo-queue-head", "fo-queue", "fo-timeline", "fo-hourly", "fo-hourly-phone", "fo-health", "fo-health-checked", "fo-log", "fo-log-more")
+           "fo-queue-head", "fo-queue", "fo-timeline", "fo-timeline-empty", "fo-hourly", "fo-hourly-phone", "fo-health", "fo-health-checked", "fo-log", "fo-log-more")
 
 
 def _report_href(candidate_id: str | None) -> str | None:
@@ -102,20 +105,31 @@ def timeline_figure(rows: list[dict[str, Any]], now: Any) -> go.Figure:
     now = pd.Timestamp(now)
     frame = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["name", "start", "end", "minutes", "outcome", "candidate_id"])
     if rows:
+        frame["end"] = frame[["end", "start"]].apply(lambda r: max(r["end"], r["start"] + MIN_BLOCK), axis=1)  # a short run still shows; hover keeps the true time
         frame["Lane"] = "Factory"
         frame["Outcome"] = frame["outcome"].map(OUTCOME_WORDS)
         frame["Took"] = [("ended time unknown" if cap else f"{int(m)} min {int(round((m - int(m)) * 60)):02d} s" if m >= 1 else f"{int(round(m * 60))} s") for m, cap in zip(frame["minutes"], frame["capped"])]
         figure = px.timeline(frame, x_start="start", x_end="end", y="Lane", color="Outcome", color_discrete_map={OUTCOME_WORDS[k]: v for k, v in OUTCOME_COLOR.items()}, custom_data=["name", "Took", "Outcome", "candidate_id"])
         figure.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]} · %{customdata[2]}<extra></extra>", width=0.9)
         for trace in figure.data:
-            trace.marker.line = dict(width=1, color=trace.marker.color)  # a one-second test still shows as a hairline
+            trace.marker.line = dict(width=GAP_PX, color=CARD)  # the card colour outlines each block, leaving a visible gap between neighbours
     else:
         figure = go.Figure()
-        figure.add_annotation(text="No tests in the last 12 hours", showarrow=False, font=dict(color=FAINT, size=12), xref="paper", yref="paper", x=0.5, y=0.5)
     window = [now - pd.Timedelta(hours=12), now]
     figure.add_vline(x=now.to_pydatetime(), line=dict(color="rgba(236,237,238,0.55)", width=1, dash="dash"), annotation_text="now", annotation_position="top left", annotation_font=dict(color=MUTED, size=11))
-    figure.update_layout(height=76, margin=dict(l=0, r=0, t=14, b=26), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
+    figure.update_layout(height=76, margin=dict(l=0, r=32, t=14, b=26), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
                          xaxis=dict(type="date", range=window, gridcolor="#1A1C21", tickformat="%H:%M", dtick=7200000, showline=False, zeroline=False), yaxis=dict(visible=False), bargap=0, **NEUTRAL_FIGURE)
+    return figure
+
+
+def timeline_empty(rows: list[dict[str, Any]]) -> str:
+    return "" if rows else "No tests in the last 12 hours"
+
+
+def hourly_empty_figure() -> go.Figure:
+    figure = go.Figure()
+    figure.add_annotation(text="No tests finished in the last 48 hours", showarrow=False, font=dict(color=FAINT, size=12), xref="paper", yref="paper", x=0.5, y=0.5)
+    figure.update_layout(height=190, margin=dict(l=8, r=8, t=6, b=8), xaxis=dict(visible=False), yaxis=dict(visible=False), **NEUTRAL_FIGURE)
     return figure
 
 
@@ -127,12 +141,15 @@ def _phone_ticks(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def hourly_figure(rows: list[dict[str, Any]], phone: bool = False) -> go.Figure:
+    if not any(row[key] for row in rows for key in ("failed", "close", "passed", "crashed")):
+        return hourly_empty_figure()
     figure = go.Figure()
     hours = [row["hour"] for row in rows]
+    peak = max(sum(row[key] for key in ("failed", "close", "passed", "crashed")) for row in rows)
     for key in ("failed", "close", "passed", "crashed"):
         figure.add_trace(go.Bar(x=hours, y=[row[key] for row in rows], name=OUTCOME_WORDS[key], marker_color=OUTCOME_COLOR[key], hovertemplate="%{x|%a %H:%M}: %{y} " + OUTCOME_WORDS[key].lower() + "<extra></extra>"))
     figure.update_layout(barmode="stack", bargap=0.15, height=190, margin=dict(l=8, r=28 if phone else 8, t=6, b=8), showlegend=False, hoverlabel=dict(font_family=SANS, bgcolor="#131519", bordercolor=LINE),
-                         xaxis=dict(gridcolor="#1A1C21", tickformat="%a %H:%M", showline=False, nticks=4, automargin=True, **_phone_ticks(rows) if phone else {}), yaxis=dict(gridcolor="#1A1C21", zeroline=False, rangemode="tozero", side="left", automargin=True), **NEUTRAL_FIGURE)
+                         xaxis=dict(gridcolor="#1A1C21", tickformat="%a %H:%M", showline=False, nticks=4, automargin=True, ticklabelstandoff=8, **_phone_ticks(rows) if phone else {}), yaxis=dict(gridcolor="#1A1C21", zeroline=False, rangemode="tozero", side="left", automargin=True, tickformat="d", **({"dtick": 1} if peak <= 6 else {})), **NEUTRAL_FIGURE)
     return figure
 
 
@@ -168,7 +185,7 @@ def render(data: dict[str, Any]) -> dict[str, Any]:
         "fo-old-title": old["title"] if old else "", "fo-old-items": old_run_items(data), "fo-old-wrap": {"display": "block" if old else "none"},
         "fo-needs": {"display": "flex" if show_needs else "none"},
         "fo-queue-head": queue_head(data), "fo-queue": queue_rows(data),
-        "fo-timeline": timeline_figure(data["timeline"], data["now_et"]), "fo-hourly-phone": hourly_figure(data["hourly"], True) if data["hourly"] else go.Figure().update_layout(height=190, **NEUTRAL_FIGURE), "fo-hourly": hourly_figure(data["hourly"]) if data["hourly"] else go.Figure().update_layout(height=190, **NEUTRAL_FIGURE),
+        "fo-timeline": timeline_figure(data["timeline"], data["now_et"]), "fo-timeline-empty": timeline_empty(data["timeline"]), "fo-hourly-phone": hourly_figure(data["hourly"], True), "fo-hourly": hourly_figure(data["hourly"]),
         "fo-health": health_rows(data), "fo-health-checked": f"Checked {data['checked']}", "fo-log": log_rows(data), "fo-log-more": log_rows(data, rest=True),
     }
 
@@ -226,12 +243,13 @@ def layout() -> html.Div:
         html.Section(html.Div([
             html.Div([html.Span("Last 12 hours", className="fo-h"), legend], className="fo-between fo-wrap"),
             html.Span("← earlier", className="fo-muted fo-phone-only"),
+            html.Span(part["fo-timeline-empty"], id="fo-timeline-empty", className="fo-muted fo-empty-note"),
             html.Div(dcc.Graph(id="fo-timeline", figure=part["fo-timeline"], config=GRAPH_CONFIG, style={"height": 76}), className="fo-scroll"),
             html.Span("Each block is one test run, coloured by how it ended. Hover for the idea, how long it took and the outcome; click to open its report. A gap means the factory sat idle.", className="fo-muted")],
             className="fo-card")),
         html.Section([
-            _card("Tests finished per hour", "Last 48 hours", html.Div(dcc.Graph(id="fo-hourly", figure=part["fo-hourly"], config=GRAPH_CONFIG, style={"height": 190}), className="fo-desktop-only"),
-                  html.Div(dcc.Graph(id="fo-hourly-phone", figure=part["fo-hourly-phone"], config=GRAPH_CONFIG, style={"height": 190}), className="fo-phone-only"),
+            _card("Runs per hour", "Last 48 hours", html.Div(dcc.Graph(id="fo-hourly", figure=part["fo-hourly"], config=GRAPH_CONFIG, style={"height": 190}), className="fo-desktop-only"),
+                  html.Div(dcc.Graph(id="fo-hourly-phone", figure=part["fo-hourly-phone"], config={**GRAPH_CONFIG, "responsive": True}, responsive=True, style={"height": 190, "width": "100%"}), className="fo-phone-only"),
                   html.Span("Flat stretches are nights and weekends with nothing queued, not faults.", className="fo-muted")),
             _card("Health checks", None, html.Div([html.Span("Health checks", className="fo-h"), html.Span(part["fo-health-checked"], id="fo-health-checked", className="fo-muted")], className="fo-between"),
                   html.Div(part["fo-health"], id="fo-health")),
@@ -251,7 +269,7 @@ def layout() -> html.Div:
 def register_callbacks(application: Any) -> None:
     """Standard Dash callbacks only: the 10 s refresh, the old-runs toggle, and click-to-open-report."""
     properties = {"fo-date": "children", "fo-headline": "children", "fo-pill": "children", "fo-tiles": "children", "fo-running": "children", "fo-alerts": "children", "fo-old-title": "children",
-                  "fo-old-items": "children", "fo-old-wrap": "style", "fo-needs": "style", "fo-queue-head": "children", "fo-queue": "children", "fo-timeline": "figure", "fo-hourly": "figure", "fo-hourly-phone": "figure",
+                  "fo-old-items": "children", "fo-old-wrap": "style", "fo-needs": "style", "fo-queue-head": "children", "fo-queue": "children", "fo-timeline": "figure", "fo-timeline-empty": "children", "fo-hourly": "figure", "fo-hourly-phone": "figure",
                   "fo-health": "children", "fo-health-checked": "children", "fo-log": "children", "fo-log-more": "children"}
 
     @application.callback([Output(key, properties[key]) for key in OUTPUTS] + [Output("fo-pill", "className"), Output("fo-pause-btn", "children"), Output("fo-pause-btn", "variant"), Output("fo-pause-btn", "color"), Output("fo-paused", "data")],

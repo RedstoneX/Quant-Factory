@@ -53,7 +53,7 @@ def test_log_rows_come_from_campaign_control_with_grey_dots(tmp_path: Path) -> N
     con = _control_db(tmp_path / "g.sqlite3", [(1, "2026-10-19T18:05:00+00:00"), (0, "2026-10-19T19:00:00+00:00")])
     rows = read_campaign_control(con, NOW, {"campaign_control"})
     assert [r["paused"] for r in rows] == [0, 1]  # newest first
-    log = log_rows([], {}, {}, [], rows)
+    log = log_rows([], {}, {}, [], NOW, rows)
     assert [(r["text"], r["tone"]) for r in log] == [("Testing resumed from dashboard", "grey"), ("Testing paused from dashboard", "grey")]
     assert log[1]["t"] == "14:05"  # Eastern
     assert control_log_rows([]) == []
