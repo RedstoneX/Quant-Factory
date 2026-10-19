@@ -20,6 +20,8 @@ compiles it into a strategy and backtests it automatically. It does not trade.
    ruling, Rex, 2026-10-19: "relaxing is better. Paper trading will eliminate
    since we've gotten nothing so far, relaxing seems obvious." Holds over time,
    Stress test and Luck test are recorded scores, not gates.
+   Inside Unseen data the pick keeps the plan's own ranking, and the trade-count
+   and drawdown rules still apply; the ruling dropped only the Sharpe minimum.
 
 ## Data
 
