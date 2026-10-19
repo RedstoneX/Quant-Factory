@@ -105,7 +105,7 @@ def apply_campaign_verdict(statuses: list[str], row: tuple[str, ...] | None) -> 
 
     screened_out at a test: the tests before it Passed, that test Failed, the rest Can't test. survivor: each gate Passed unless a result is recorded for it (the recorded result stands), the three scores keep their own status (Not scored when none).
     screened_out because our own settings did not match (plain_labels.is_our_side_mismatch): that test and the rest Can't test, never Failed.
-    failed (run_error): the first test not already Passed is Crashed. Any other state (queued, running, duplicate, blocked) is no verdict, and the research-DB statuses stand.
+    failed (run_error): no card is painted Crashed (each card crashes only from its own stage run; the header chip says Crashed when none did). Any other state (queued, running, duplicate, blocked) is no verdict, and the research-DB statuses stand.
     """
     if row is None:
         return statuses
@@ -119,9 +119,6 @@ def apply_campaign_verdict(statuses: list[str], row: tuple[str, ...] | None) -> 
         if is_our_side_mismatch(detail):
             return [PASSED] * at + [CANT_TEST] * (len(stages) - at)
         return [PASSED] * at + [FAILED] + [CANT_TEST] * (len(stages) - at - 1)
-    if state == "failed":
-        at = next((i for i, status in enumerate(statuses) if status != PASSED), len(statuses) - 1)
-        return [*statuses[:at], CRASHED, *statuses[at + 1:]]
     return statuses
 
 
@@ -346,6 +343,7 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
         stored = next((t for t in idea.get("tests") or [] if t["stage"] == test["stage"]), {})
         if test["stage"] == "monte_carlo" and stored.get("status") == "insufficient_evidence" and str(stored.get("line") or "").startswith("Needs at least"):
             test.update(value=too_few_phrase(stored.get("line")), line="")  # one phrase, from the recorded numbers
+    crash_chip = ("Crashed", "red") if campaign and campaign[0] == "failed" and not any(t["status"] == CRASHED for t in tests) else overall_chip(tests)  # a crash no stage run carries shows in the header only
     survivor_chip = gates_chip(verdict, {test["stage"]: test.get("value") for test in tests}) if campaign and campaign[0] == "survivor" else None  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
     if campaign and campaign[0] == "screened_out" and campaign[1] == "oos":  # the unseen-data reason in words, never the stored source-lock text
         unseen_test = next(test for test in tests if test["stage"] == "oos")
@@ -371,7 +369,7 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     rows = idea.get("screening_rows") or []
     return {
         "available": True, "title": idea["title"], "symbol": idea.get("symbol") or "", "candidate_id": idea.get("candidate_id") or candidate_id,
-        "verdict": survivor_chip or overall_chip(tests)[0], "verdict_line": gates_line(tests) if survivor_chip else None, "verdict_tone": GATES_CHIP[1] if survivor_chip else overall_chip(tests)[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
+        "verdict": survivor_chip or crash_chip[0], "verdict_line": gates_line(tests) if survivor_chip else None, "verdict_tone": GATES_CHIP[1] if survivor_chip else crash_chip[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
         "tested": _tested_label(path, (runs.get("screening") or {}).get("run_id")), "tests": tests,
         "hero": {"kind": "chart" if has_chart else "never_ran", **({} if has_chart else never_ran_card(idea, tests)),
                  "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if unseen_equity else NOT_SAVED},

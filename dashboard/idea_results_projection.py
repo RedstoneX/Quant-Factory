@@ -32,8 +32,8 @@ STAGES = (
 )
 TRADE_STAGES = ("screening", "oos")
 OOS_VERDICTS = {"passed": "passed", "failed": "failed", "screened_out": "failed"}  # the unseen-data report's saved test_status; not_run (or none) is no verdict
-STATUS_WORDS = {"passed": "Passed", "failed": "Failed", "insufficient_evidence": "Too few trades", None: "Not run yet", "not_reached": "Not reached"}
-STATUS_COLORS = {"passed": "teal", "failed": "red", "insufficient_evidence": "yellow", None: "gray", "not_reached": "gray"}
+STATUS_WORDS = {"passed": "Passed", "failed": "Failed", "insufficient_evidence": "Too few trades", None: "Not run yet", "not_reached": "Not reached", "crashed": "Crashed"}
+STATUS_COLORS = {"passed": "teal", "failed": "red", "insufficient_evidence": "yellow", None: "gray", "not_reached": "gray", "crashed": "red"}
 REJECTION = re.compile(r"(\w+) failed: expected ([<>]=?) ?(-?\d+(?:\.\d+)?(?:e-?\d+)?).*?observed (-?\d+(?:\.\d+)?(?:e-?\d+)?)")
 MARKET_WORDS = {"bearish": "Falling market", "bullish": "Rising market", "neutral": "Flat market",
                 "high_volatility": "big swings", "low_volatility": "small swings"}
@@ -180,7 +180,7 @@ def _test_card(database: Path, stage: str, label: str, run: dict[str, Any] | Non
             reasons = normalized.get("reasons") or []
             line = plain_reason(reasons[0]) if reasons else "Shuffled trades still made money." if status == "passed" else "No detail was saved."
         if not evidence:
-            status, line = (run or {}).get("status") if (run or {}).get("status") == "failed" else None, "No result was saved for this test."
+            status, line = "crashed" if (run or {}).get("status") == "failed" else None, "No result was saved for this test."
     score = stage not in TRADE_STAGES and status == "failed"  # a weak score is amber, never red
     return {"stage": stage, "label": label, "run_id": run_id, "status": status,
             "status_text": "Weak" if score else STATUS_WORDS.get(status, str(status).replace("_", " ").capitalize()),
