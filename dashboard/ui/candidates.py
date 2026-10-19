@@ -52,7 +52,7 @@ CANDIDATE_COLUMNS = [
     {"field": "paper", "headerName": "Paper", "flex": .8, "filter": "agTextColumnFilter"},
 ]
 MARKETS = [{"value": "all", "label": "All markets"}, {"value": "futures", "label": "Futures"}, {"value": "equities", "label": "Equities"}, {"value": "crypto", "label": "Crypto"}, {"value": "unclassified", "label": "Unclassified"}]
-EVIDENCE = [{"value": "any", "label": "Any test result"}, {"value": "all_gates", "label": "Passed every test"}, {"value": "failed_oos", "label": "Failed on unseen data"}, {"value": "semantic_exception", "label": "Rules unclear"}]
+EVIDENCE = [{"value": "any", "label": "Any test result"}, {"value": "all_gates", "label": "Passed the gates"}, {"value": "failed_oos", "label": "Failed on unseen data"}, {"value": "semantic_exception", "label": "Rules unclear"}]
 STATE_COLORS = {"survivor": "teal", "rejected": "gray", "crashed": "red", "blocked": "yellow", "needs_review": "yellow", "advancing": "blue"}
 
 

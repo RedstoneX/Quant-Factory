@@ -11,12 +11,10 @@ from dash_iconify import DashIconify
 from dashboard.ui.theme import BORDER, MANTINE_THEME
 
 NAV_ITEMS = (
-    ("/", "Dashboard", "tabler:layout-dashboard"),
-    ("/submit", "Submit ideas", "tabler:upload"),
-    ("/factory", "Factory runs", "tabler:building-factory-2"),
-    ("/candidates", "Ideas", "tabler:list-details"),
-    ("/results", "Results", "tabler:chart-candle"),
-    ("/paper-trading", "Paper trading", "tabler:currency-dollar"),
+    ("/", "Today", "tabler:layout-dashboard"),
+    ("/workbench", "Results", "tabler:chart-candle"),
+    ("/factory", "Factory", "tabler:building-factory-2"),
+    ("/new", "New idea", "tabler:upload"),
 )
 
 

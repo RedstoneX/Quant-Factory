@@ -133,14 +133,6 @@ def evaluate_rules(
             condition=f"> {config.minimum_annualized_return} (exclusive)",
         ),
         _numeric_rule(
-            metrics,
-            rule_id="risk.sharpe_minimum",
-            metric="sharpe_ratio",
-            threshold=config.minimum_sharpe_ratio,
-            comparison=lambda observed, threshold: observed >= threshold,
-            condition=f">= {config.minimum_sharpe_ratio} (inclusive)",
-        ),
-        _numeric_rule(
             {"drawdown_magnitude": abs(metrics["max_drawdown"])}
             if isinstance(metrics.get("max_drawdown"), (int, float))
             and not isinstance(metrics.get("max_drawdown"), bool)
@@ -152,6 +144,18 @@ def evaluate_rules(
             condition=f"<= {config.maximum_drawdown} (inclusive)",
         ),
     ]
+    if config.minimum_sharpe_ratio is not None:
+        results.insert(
+            -1,
+            _numeric_rule(
+                metrics,
+                rule_id="risk.sharpe_minimum",
+                metric="sharpe_ratio",
+                threshold=config.minimum_sharpe_ratio,
+                comparison=lambda observed, threshold: observed >= threshold,
+                condition=f">= {config.minimum_sharpe_ratio} (inclusive)",
+            ),
+        )
     if config.minimum_win_rate is not None:
         results.append(
             _numeric_rule(

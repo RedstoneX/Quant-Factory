@@ -34,7 +34,8 @@ from research_intake import (
 )
 RunLauncher = Callable[[str, str, str], str]
 _AUTOMATIC_RUNS_MESSAGE = "Runs start automatically for every valid idea that has a rule_spec; submit or update the idea instead."
-_STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request", "campaign.requeue"}
+_STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request", "campaign.requeue",
+                  "campaign.pause", "campaign.resume"}
 _WORD = re.compile(r"[a-z0-9]+")
 _SECRET_KEY = re.compile(
     r"(?i)(api[_-]?key|access[_-]?token|auth(?:orization)?|credential|password|private[_-]?key|secret|token)"
@@ -168,8 +169,11 @@ class AgentResearchGateway:
             "run.status": self._run_status,
             "run.results": self._run_results,
             "run.evidence": self._run_evidence,
-            "campaign.status": self._campaign_status,
-            "campaign.requeue": self._campaign_requeue,
+            "campaign.status": lambda r, _i, s: results.campaign_status(s, _identifier(r.arguments.get("candidate_id"), "candidate")),
+            "campaign.requeue": lambda r, _i, s: results.requeue_interrupted(s, _identifier(r.arguments.get("candidate_id"), "candidate")),
+            "campaign.pause": lambda r, i, s: results.set_campaign_paused(s, True, i.agent_id, r.arguments.get("reason")),
+            "campaign.resume": lambda r, i, s: results.set_campaign_paused(s, False, i.agent_id, r.arguments.get("reason")),
+            "campaign.control_status": lambda _r, _i, s: s.campaign_control_state(),
             "run.trades": self._run_trades,
             "data.files": lambda *_: data_files.list_datasets(self.data_locations or data_files.load_data_locations()),
             "data.download": self._data_download,
@@ -326,18 +330,6 @@ class AgentResearchGateway:
             raise GatewayError("run_unavailable", _AUTOMATIC_RUNS_MESSAGE)
         _identifier(request.arguments.get("candidate_id"), "candidate")
         raise GatewayError("campaign_inactive", _AUTOMATIC_RUNS_MESSAGE)
-
-    def _campaign_status(
-        self, request: GatewayRequest, _identity: GatewayIdentity, store: GatewayStore
-    ) -> dict[str, Any]:
-        candidate_id = _identifier(request.arguments.get("candidate_id"), "candidate")
-        latest = store.latest_campaign_event(candidate_id)
-        return {"candidate_id": candidate_id, "policy_id": CAMPAIGN_POLICY_ID, "latest_event": latest}
-
-    def _campaign_requeue(
-        self, request: GatewayRequest, _identity: GatewayIdentity, store: GatewayStore
-    ) -> dict[str, Any]:
-        return results.requeue_interrupted(store, _identifier(request.arguments.get("candidate_id"), "candidate"))
 
     def _run_trades(
         self, request: GatewayRequest, _identity: GatewayIdentity, _store: GatewayStore

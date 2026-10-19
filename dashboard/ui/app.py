@@ -24,10 +24,15 @@ from dashboard.overview_projection import load_dashboard_snapshot, load_drilldow
 from dashboard.results_projection import oos_report_metrics
 from dashboard.ui.candidates import candidates_layout, register_candidate_callbacks
 from dashboard.ui.compare import compare_layout, register_compare_callbacks
+from dashboard.ui.idea_report import FONT_URL as REPORT_FONT_URL, idea_report_layout
+from dashboard.ui.today import register_today_callbacks, today_layout
+from dashboard.ui.results_workbench import register_workbench_callbacks, results_workbench_layout
 from dashboard.ui.factory import factory_layout, register_factory_callbacks
+from dashboard.ui.factory_oversight import layout as oversight_layout, register_callbacks as register_oversight_callbacks
 from dashboard.ui.layout import app_shell, copy_id, page_content, page_header, stat_card
 from dashboard.ui.paper import paper_layout
 from dashboard.ui.results import register_results_callbacks, results_layout
+from dashboard.ui.new_idea import layout as new_idea_layout, register_callbacks as register_new_idea_callbacks
 from dashboard.ui.submit import register_submit_callbacks, submit_layout
 from dashboard.plain_labels import FAILED_TESTING
 from dashboard.data_freshness import load_stale_price_banner
@@ -334,7 +339,7 @@ def register_callbacks(application: Dash) -> None:
             key = trigger.removeprefix("summary-")
             lookup = {
                 "running": ("running", "Running now", counts.get("running", 0), "Tests running right now."),
-                "survivors": ("survivors", "Passed ideas", counts.get("survivors", 0), "Ideas that passed every test."),
+                "survivors": ("survivors", "Passed ideas", counts.get("survivors", 0), "Ideas that passed the gates."),
                 "advancing": ("advancing", "Testing", counts.get("advancing", 0), "Tests waiting or running."),
                 "needs": ("needs", "Needs you", None, "Nothing is tracked here yet."),
             }
@@ -363,7 +368,7 @@ def register_callbacks(application: Dash) -> None:
 
 
 def create_app() -> Dash:
-    application = Dash(__name__, title="Quant Factory", suppress_callback_exceptions=True, external_stylesheets=[FONT_URL])
+    application = Dash(__name__, title="Quant Factory", suppress_callback_exceptions=True, external_stylesheets=[FONT_URL, REPORT_FONT_URL])
     revision = _application_revision()
     server = application.server
 
@@ -398,17 +403,24 @@ def create_app() -> Dash:
             response.set_cookie("qf_revision", revision, secure=True, httponly=False, samesite="Strict")
         return response
 
+    register_workbench_callbacks(application)
+    register_today_callbacks(application)
     application.layout = app_shell(dcc.Location(id="router-location", refresh=False), html.Div(id="route-page"))
 
     @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
     def route(pathname: str | None, search: str | None):
         if pathname == "/candidates": return page_content(candidates_layout(search))
         if pathname == "/results": return page_content(results_layout(search))
-        if pathname == "/factory": return page_content(factory_layout())
+        if pathname == "/report": return page_content(idea_report_layout(search))
+        if pathname == "/workbench": return page_content(results_workbench_layout(search))
+        if pathname == "/factory": return page_content(oversight_layout())
+        if pathname == "/factory/runs": return page_content(factory_layout())
+        if pathname == "/new": return page_content(new_idea_layout())
         if pathname == "/submit": return page_content(submit_layout())
         if pathname == "/compare": return page_content(compare_layout(search))
         if pathname == "/paper-trading": return page_content(paper_layout())
-        return page_content(dashboard_layout())
+        if pathname == "/dashboard": return page_content(dashboard_layout())
+        return page_content(today_layout())
 
     nav_triggers = (
         "open-results", "open-candidate", "candidate-open-results", "candidate-submit", "factory-open-candidates", "factory-open-results",
@@ -449,7 +461,7 @@ def create_app() -> Dash:
             run_ids = [str(row.get("run_id")) for row in (values[-1] or []) if row.get("run_id")]
             return "/compare", "?" + "&".join(f"run_id={quote(run_id, safe='')}" for run_id in run_ids)
         if trigger == "results-nav-factory": return "/factory", ""
-        if trigger in {"candidate-submit", "results-nav-submit"}: return "/submit", ""
+        if trigger in {"candidate-submit", "results-nav-submit"}: return "/new", ""
         if trigger == "results-nav-paper": return "/paper-trading", ""
         return "/", ""
 
@@ -457,7 +469,9 @@ def create_app() -> Dash:
     register_candidate_callbacks(application)
     register_results_callbacks(application)
     register_factory_callbacks(application)
+    register_oversight_callbacks(application)
     register_submit_callbacks(application)
+    register_new_idea_callbacks(application)
     register_compare_callbacks(application)
     return application
 

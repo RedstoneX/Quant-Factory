@@ -35,6 +35,11 @@ credential access are never available through the gateway.
 - Paper trading always needs separate owner approval.
 - Follow a run with `qf-agent run status`, `run results` and `run evidence`.
   The gateway operation `campaign.status` reports the auto-test queue.
+- The owner can pause and resume automatic testing: `campaign.pause`,
+  `campaign.resume` (audited, idempotent, level 1) and `campaign.control_status`
+  (read). While paused no new test starts; a running test finishes and queued
+  ideas stay queued. State is the append-only `campaign_control` table
+  (gateway schema version 4).
 
 ## Data you can test on today
 

@@ -36,7 +36,7 @@ REASON_WORDS: dict[tuple[str, str], str] = {
     ("implementation_blocked", "data_unavailable"): "No data for this market",
     ("duplicate_closed", "same_rules"): "Same rules as an idea already tested",
     ("screened_out", "stage"): "Did not pass a testing stage",
-    ("survivor", "awaiting_owner_review"): "Passed every test; waiting for you",
+    ("survivor", "awaiting_owner_review"): "Passed the gates; waiting for you",
     ("failed", "run_error"): "The test hit an error",
     ("failed", "run_timeout"): "The test ran out of time",
 }
@@ -138,7 +138,7 @@ def plain_reason_detail(text: Any) -> str:
     """Owner-facing wording for stored campaign notes that name internal locks."""
     value = str(text or "")
     if "Protected test remains locked" in value:
-        return "Passed every test. Paper trading is parked, so nothing is traded."
+        return "Passed the gates. Paper trading is parked, so nothing is traded."
     return value
 
 
