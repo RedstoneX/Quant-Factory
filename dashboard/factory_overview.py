@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from dashboard.factory_history import (
-    OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, hour_floor, is_close_call, is_restart, log_rows, short_reason, submitter_label, timeline_rows, utc,
+    OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, hour_floor, is_close_call, is_restart, log_rows, short_reason, submitter_label, timeline_rows, utc,
 )
 from dashboard.factory_projection import _duration_minutes, _params, _row, _runs_source, plain_error
 from dashboard.overview_projection import GATEWAY_DATABASE_ENVIRONMENT_VARIABLE, _open_read_only, _validated_connection, configured_database_path
@@ -267,14 +267,14 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         run["outcome"] = "abandoned" if run["status"] == "running" and run["cohort"] == "failed" else run_outcome(run, close_runs)
     live = [r for r in runs if r["status"] == "running" and r["cohort"] == "open"]
     finished = [r for r in runs if r["completed_at"] and r["status"] in ("succeeded", "failed")]
-    day_start = local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    day_start = et_day_start(now)
     today = [r for r in finished if utc(r["completed_at"]) >= day_start]
     crashed_today = [r for r in today if r["outcome"] == "crashed"]
     passed_today, close_today = sum(r["outcome"] == "passed" for r in today), sum(r["outcome"] == "close" for r in today)
     latest_finished = max(finished, key=lambda r: utc(r["completed_at"]), default=None)
     pill = header_pill(running=len(live), draining=draining, last_finished_crashed=bool(latest_finished and latest_finished["outcome"] == "crashed"))
     queue_rows = [{"n": position, "name": titles.get(item["candidate_id"], item["candidate_id"]), "who": submitter_label(submitters.get(item["candidate_id"])),
-                   "when": clock(item["created_at"]), "candidate_id": item["candidate_id"]} for position, item in enumerate(queued_events, 1)]
+                   "when": clock(item["created_at"], now), "candidate_id": item["candidate_id"]} for position, item in enumerate(queued_events, 1)]
     longest = max((((now - utc(i["created_at"])).total_seconds() / 60) for i in queued_events), default=None)
     # Hourly series, Eastern wall time, oldest first.
     top = hour_floor(now)
@@ -298,7 +298,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     top, top_n = reasons.most_common(1)[0] if reasons else ("none", 0)
     crash_reason = "none" if not reasons else f"mostly {crash_label(top)} ({top_n})" if top_n > 1 else crash_label(top)
     crash_reason = crash_reason if len(crash_reason) <= 44 else "see What happened"
-    last_test = {"name": latest_finished["title"], "outcome": OUTCOME_WORDS[latest_finished["outcome"]].lower(), "when": clock(latest_finished["completed_at"]), "candidate_id": latest_finished["candidate_id"]} if latest_finished else None
+    last_test = {"name": latest_finished["title"], "outcome": OUTCOME_WORDS[latest_finished["outcome"]].lower(), "when": clock(latest_finished["completed_at"], now), "candidate_id": latest_finished["candidate_id"]} if latest_finished else None
     tiles = [
         {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle"},
         {"label": "Waiting", "value": f"{len(queue_rows)}", "sub": f"longest wait {_human_minutes(longest)}" if longest is not None else "nothing in line", "color": "text", "spark": queued_per_hour},
@@ -346,7 +346,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         health.append({"label": "Grok connected", "tone": "green" if minutes <= 1440 else "amber", "value": "last request " + eastern_label(grok_last, "%a %-d %b, %H:%M") + " ET"})
     else:
         health.append({"label": "Grok connected", "tone": "amber", "value": "no requests recorded"})
-    log = log_rows(events, titles, submitters, crashed_today)
+    log = log_rows(events, titles, submitters, crashed_today, now)
     timeline = timeline_rows(runs, now, typical)
     looks = len(alerts) + (1 if old_runs else 0)
     warnings = sum(item["tone"] != "green" for item in health)

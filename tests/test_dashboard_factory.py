@@ -144,6 +144,32 @@ def test_nothing_is_shown_after_the_as_of_time() -> None:
     assert latest_not_after(["2026-10-19T16:30:00Z"], NOW) is None
 
 
+def test_every_timestamp_format_parses_to_the_same_utc_moment() -> None:
+    from dashboard.factory_history import et_day_start, utc
+    same = {utc(v) for v in ("2026-10-18T23:18:45Z", "2026-10-18T23:18:45+00:00", "2026-10-18T23:18:45", "2026-10-18 19:18:45-04:00", "2026-10-18T23:18:45.000000Z")}
+    assert same == {datetime(2026, 10, 18, 23, 18, 45, tzinfo=timezone.utc)}
+    late = datetime(2026, 10, 19, 2, 6, tzinfo=timezone.utc)  # 22:06 Sunday in New York
+    assert et_day_start(late) == datetime(2026, 10, 18, 4, 0, tzinfo=timezone.utc)
+    assert utc("2026-10-18T23:18:45Z") >= et_day_start(late)  # 19:18 ET is today, so it counts as finished today
+
+
+def test_log_times_show_the_weekday_when_from_an_earlier_day() -> None:
+    late = datetime(2026, 10, 19, 2, 6, tzinfo=timezone.utc)
+    assert clock("2026-10-18T23:18:45Z", late) == "19:18"
+    assert clock("2026-10-16T21:51:00Z", late) == "Fri 17:51"
+
+
+def test_hourly_chart_empty_message_and_whole_number_ticks() -> None:
+    from dashboard.ui.factory_oversight import hourly_figure
+    base = datetime(2026, 10, 18, 12)
+    rows = [{"hour": base + timedelta(hours=i), "failed": 0, "close": 0, "passed": 0, "crashed": 0, "running": 0} for i in range(48)]
+    empty = hourly_figure(rows)
+    assert [a.text for a in empty.layout.annotations] == ["No tests finished in the last 48 hours"] and empty.layout.yaxis.visible is False
+    rows[5]["passed"] = 2
+    full = hourly_figure(rows)
+    assert full.layout.yaxis.tickformat == "d" and full.layout.yaxis.dtick == 1
+
+
 def test_timeline_has_one_now_marker_and_failed_is_slate() -> None:
     from dashboard.ui.factory_oversight import OUTCOME_COLOR, timeline_figure
     figure = timeline_figure([], NOW.replace(tzinfo=None))
