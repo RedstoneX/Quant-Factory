@@ -54,3 +54,27 @@ def test_experiment_records_pbo_next_to_deflated_sharpe_and_never_screens() -> N
         for screening in result.screening_results
         for rule in screening.rule_results
     )
+
+
+def test_executor_memory_options_do_not_change_the_result() -> None:
+    # clear_cache/collect_garbage only free memory between splits; the recipe without them must agree.
+    import vectorbtpro as vbt
+
+    returns = _grid(edge=0.002, rows=1_000, columns=12)
+    splitter = vbt.Splitter.from_purged_kfold(returns.index, n_folds=8, n_test_folds=4)
+    sharpe = splitter.apply(
+        lambda r: r.vbt.returns(freq="1D").sharpe_ratio(),
+        vbt.Takeable(returns),
+        merge_func="concat",
+        execute_kwargs=dict(show_progress=False),
+    )
+    train = sharpe.xs("train", level="set").unstack("split").T
+    test = sharpe.xs("test", level="set").unstack("split").T
+    train = train.loc[train.notna().any(axis=1)]
+    best = train.idxmax(axis=1)
+    rank = test.rank(axis=1) / (test.shape[1] + 1)
+    omega = np.array([rank.loc[split, best[split]] for split in train.index])
+    omega = omega[np.isfinite(omega)]
+    expected = float(np.mean(np.log(omega / (1 - omega)) <= 0))
+    result = probability_of_backtest_overfitting(returns)
+    assert (result.probability, result.splits) == (expected, int(omega.size))

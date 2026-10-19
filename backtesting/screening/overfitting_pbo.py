@@ -58,7 +58,7 @@ def probability_of_backtest_overfitting(
         lambda r: r.vbt.returns(freq="1D").sharpe_ratio(),
         vbt.Takeable(returns),
         merge_func="concat",
-        execute_kwargs=dict(show_progress=False),
+        execute_kwargs=dict(show_progress=False, clear_cache=True, collect_garbage=True),
     )
     train = sharpe.xs("train", level="set").unstack("split").T
     test = sharpe.xs("test", level="set").unstack("split").T
