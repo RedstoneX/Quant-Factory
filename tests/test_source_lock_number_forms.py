@@ -13,7 +13,7 @@ GRID = [{"trail": 1}, {"trail": 1.5}, {"trail": 2}]
 
 @pytest.fixture()
 def strategy_id(monkeypatch):
-    spec = _spec([{"when": {"gt": ["close", {"sma": "close", "length": {"param": "trail"}}]}, "side": "long"}])
+    spec = _spec([{"when": {"gt": ["close", {"mul": [{"param": "trail"}, 40]}]}, "side": "long"}])
     definition = rule_strategy_definition(
         candidate_id="c1", title="T", rule_spec=spec, variables={"trail": {"values": [1, 1.5, 2]}}
     )
