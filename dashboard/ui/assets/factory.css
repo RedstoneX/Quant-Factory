@@ -70,3 +70,5 @@
   .fo-scroll .js-plotly-plot,.fo-scroll .dash-graph{min-width:760px}
   .fo-health-row{flex-wrap:wrap}.fo-health-row .fo-right{flex-basis:100%;text-align:left;padding-left:34px}
 }
+.fo-modal-buttons{display:flex;justify-content:flex-end;gap:8px}
+.fo-top-right{flex-wrap:wrap}
