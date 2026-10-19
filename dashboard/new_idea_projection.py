@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from dashboard.factory_history import STEPS
-from rule_language.validation import MAX_VARIABLE_GRID
+from strategies.parameter_governance import PROVISIONAL_GRID_WARNING_THRESHOLD as MAX_VARIABLE_GRID
 
 SHOWN_WAITING = 3  # waiting tests listed by name; the rest are counted
 STEP_WORDS = {
