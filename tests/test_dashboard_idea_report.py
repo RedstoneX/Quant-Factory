@@ -193,3 +193,29 @@ def test_our_side_settings_mismatch_is_cant_test_never_failed() -> None:
     statuses = report.apply_campaign_verdict(["Passed", "Failed", "Can't test", "Can't test", "Can't test"], row)
     assert statuses == ["Passed", "Can't test", "Can't test", "Can't test", "Can't test"]
     assert report.apply_campaign_verdict(["Passed"] * 5, ("screened_out", "oos", "test did not pass"))[1] == "Failed"
+
+
+def test_survivor_log_line_reads_the_same_recorded_stages_as_the_report(monkeypatch) -> None:
+    from dashboard.factory_history import event_sentence
+
+    seen = {}
+
+    def fake_idea(candidate_id, *, run_id=None, database=None):
+        seen["run_id"] = run_id
+        tests = [{"stage": "walk_forward", "status": "failed"}, {"stage": "robustness", "status": "failed"}, {"stage": "monte_carlo", "status": "passed"}]
+        return {"available": True, "tests": tests, "runs": {stage: {"run_id": f"run_{stage}", "status": "succeeded"} for stage in report.SCORE_STAGES}}
+
+    monkeypatch.setattr(report, "load_idea", fake_idea)
+    scores = report.score_statuses("qfc_a", "unused.sqlite3", run_id="run_screening")
+    assert seen["run_id"] == "run_screening"  # that test's own stage runs
+    event = {"state": "survivor", "reason_code": "awaiting_owner_review", "reason_detail": ""}
+    assert event_sentence(event, "SPY inside-bar", "Codex", scores)[0].endswith("scores: Holds over time: failed, Stress test: failed, Luck test: passed.")
+
+
+def test_unscored_luck_test_has_one_phrase_from_the_recorded_numbers() -> None:
+    assert report.too_few_phrase("Needs at least 10 results to shuffle; it had 5.") == "Not scored — not enough data (5 of 10 needed)"
+    tests = [{"stage": "walk_forward", "label": "Holds over time", "status": "Failed", "value": "3 of 18 windows", "fraction": 3 / 18},
+             {"stage": "robustness", "label": "Stress test", "status": "Failed", "value": "19 of 29 checks", "fraction": 19 / 29},
+             {"stage": "monte_carlo", "label": "Luck test", "status": "Not scored", "value": "Not scored — not enough data (5 of 10 needed)", "fraction": None}]
+    assert report.gates_line(tests) == [("Passed the gates", "green"), (" · Holds over time: failed (3 of 18 windows made money)", "red"),
+                                        (" · Stress test: failed (19 of 29 checks passed)", "red"), (" · Luck test: not scored — not enough data (5 of 10 needed)", "grey")]

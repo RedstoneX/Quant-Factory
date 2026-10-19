@@ -8,6 +8,7 @@ a number the run did not save is reported as "not saved for this run", never as 
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import sqlite3
 from typing import Any
 
@@ -40,6 +41,7 @@ STATUS_TONE = {PASSED: "green", CLOSE_CALL: "amber", FAILED: "red", CANT_TEST: "
 NOT_SAVED = "Not saved for this run."
 GATES_CHIP = ("Passed the gates", "green")
 TOO_FEW_WINDOWS = "Too few windows"  # log wording only; never a stage status on the Report
+NOT_ENOUGH = "Not scored — not enough data"  # the one phrase for an unscored Luck test, everywhere
 SCORE_STAGES = ("walk_forward", "robustness", "monte_carlo")
 
 
@@ -58,9 +60,19 @@ def report_status(stage: str, stored_status: str | None, run_status: str | None)
     return CANT_TEST
 
 
-def score_statuses(candidate_id: str | None, database: str | Path | None = None) -> dict[str, str]:
-    """The Report page's status word for the three recorded scores (Holds over time, Stress test, Luck test), from the idea's stored stage results; {} when none are available."""
-    idea = load_idea(candidate_id, database=_database(database))
+_NEEDS = re.compile(r"Needs at least (?P<needed>\d+)\D.*?had (?P<had>\d+)", re.S)
+
+
+def too_few_phrase(line: Any) -> str:
+    """The one phrase for an unscored Luck test, from the recorded numbers: 'Not scored — not enough data (5 of 10 needed)'."""
+    found = _NEEDS.search(str(line or ""))
+    return NOT_ENOUGH + (f" ({found['had']} of {found['needed']} needed)" if found else "")
+
+
+def score_statuses(candidate_id: str | None, database: str | Path | None = None, run_id: str | None = None) -> dict[str, str]:
+    """The Report page's status word for the three recorded scores (Holds over time, Stress test, Luck test), from the same stored stage results the Report reads; {} when none are available.
+    `run_id` (a screening run) scopes it to that test's stage runs, as the Report does; a Luck test with too few results gets the too_few_phrase."""
+    idea = load_idea(candidate_id, run_id=run_id, database=_database(database))
     if not idea.get("available"):
         return {}
     runs = idea.get("runs") or {}
@@ -70,7 +82,7 @@ def score_statuses(candidate_id: str | None, database: str | Path | None = None)
         stored_status = stored.get("status") if stored.get("status") in ("passed", "failed") else None
         out[stage] = report_status(stage, stored_status, (runs.get(stage) or {}).get("status"))
         if stage == "monte_carlo" and stored.get("status") == "insufficient_evidence" and str(stored.get("line") or "").startswith("Needs at least"):
-            out[stage] = TOO_FEW_WINDOWS  # the recorded Monte Carlo reason: too few observations to shuffle (PR 287)
+            out[stage] = too_few_phrase(stored.get("line"))  # the recorded Monte Carlo reason: too few observations to shuffle (PR 287)
     return out
 
 
@@ -125,6 +137,21 @@ def gates_chip(statuses: list[str], values: dict[str, str] | None = None) -> str
     marks = [f" · {TEST_LABELS[stage]}: {'close call' if status == CLOSE_CALL else 'failed'}" + (f" ({values[stage]} {SCORE_DETAIL_WORDS[stage]})" if values.get(stage) else "")
              for stage, status in zip(SCORE_STAGES, statuses[len(TRADE_STAGES):]) if status in (FAILED, CLOSE_CALL)]
     return GATES_CHIP[0] + "".join(marks)
+
+
+def gates_line(tests: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    """The survivor's header line as (text, tone) parts: 'Passed the gates' green, each failed score red with its stored measure, each unscored score grey."""
+    parts = [(GATES_CHIP[0], "green")]
+    for test in tests:
+        if test["stage"] not in SCORE_STAGES:
+            continue
+        if test["status"] in (FAILED, CLOSE_CALL):
+            measure = f" ({test['value']} {SCORE_DETAIL_WORDS[test['stage']]})" if test.get("fraction") is not None else ""
+            parts.append((f" · {test['label']}: {'close call' if test['status'] == CLOSE_CALL else 'failed'}{measure}", "red"))
+        elif test["status"] in (NOT_SCORED, CANT_TEST):
+            phrase = str(test.get("value")) if str(test.get("value")).startswith(NOT_ENOUGH) else "Not scored"
+            parts.append((f" · {test['label']}: {phrase[0].lower()}{phrase[1:]}", "grey"))
+    return parts
 
 
 def overall_chip(tests: list[dict[str, Any]]) -> tuple[str, str]:
@@ -316,6 +343,9 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     built_return = float(series["built"].iloc[-1] / series["built"].iloc[0] - 1) if len(series["built"]) > 1 else None
     for test in tests:
         test.update(_test_measure(test["stage"], test, idea, test["detail"], path, built_return))
+        stored = next((t for t in idea.get("tests") or [] if t["stage"] == test["stage"]), {})
+        if test["stage"] == "monte_carlo" and stored.get("status") == "insufficient_evidence" and str(stored.get("line") or "").startswith("Needs at least"):
+            test.update(value=too_few_phrase(stored.get("line")), line="")  # one phrase, from the recorded numbers
     survivor_chip = gates_chip(verdict, {test["stage"]: test.get("value") for test in tests}) if campaign and campaign[0] == "survivor" else None  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
     if campaign and campaign[0] == "screened_out" and campaign[1] == "oos":  # the unseen-data reason in words, never the stored source-lock text
         unseen_test = next(test for test in tests if test["stage"] == "oos")
@@ -341,7 +371,7 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     rows = idea.get("screening_rows") or []
     return {
         "available": True, "title": idea["title"], "symbol": idea.get("symbol") or "", "candidate_id": idea.get("candidate_id") or candidate_id,
-        "verdict": survivor_chip or overall_chip(tests)[0], "verdict_tone": GATES_CHIP[1] if survivor_chip else overall_chip(tests)[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
+        "verdict": survivor_chip or overall_chip(tests)[0], "verdict_line": gates_line(tests) if survivor_chip else None, "verdict_tone": GATES_CHIP[1] if survivor_chip else overall_chip(tests)[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
         "tested": _tested_label(path, (runs.get("screening") or {}).get("run_id")), "tests": tests,
         "hero": {"kind": "chart" if has_chart else "never_ran", **({} if has_chart else never_ran_card(idea, tests)),
                  "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if unseen_equity else NOT_SAVED},

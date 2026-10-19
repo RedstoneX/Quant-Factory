@@ -112,7 +112,7 @@ def test_card(index: int, test: dict[str, Any]) -> dmc.Paper:
     return dmc.Paper([
         dmc.Group([dmc.Text(f"{index} · {test['label']}", fw=500, size="sm"), *([dmc.Badge(test["status"], color=tone, variant="light", size="sm")] if test["run_id"] else [])], justify="space-between", gap="xs"),
         *([dmc.Text(test["rule"], size="xs", c=MUTED)] if test.get("rule") else []),
-        dmc.Text(test["value"], size="lg", ff=MONO), *bar,
+        dmc.Text(test["value"], size="sm", c=MUTED) if str(test["value"]).startswith("Not scored") else dmc.Text(test["value"], size="lg", ff=MONO), *bar,
         *[dmc.Text([f"{name} · not saved"] if value is None else [f"{name} · Sharpe ", html.Span(value, style={"fontFamily": MONO})], size="xs") for name, value in test.get("scores") or []], *([dmc.Text(test["line"], size="xs", c=MUTED)] if test["line"] else []), *saved_note,
     ], p="md", radius="md", bg=INNER, style={"border": f"1px solid {LINE}"}, className="idea-report-test")
 
@@ -150,7 +150,9 @@ def luck_panel(report: dict[str, Any]) -> dmc.Paper | None:
     if not test["run_id"]:
         return None
     rows = [dmc.Group([dmc.Text(c["check"], size="sm"), dmc.Text(f"{c['measured']} · needs {c['needed']}", size="sm", ff=MONO, c=MUTED)], justify="space-between") for c in test["detail"]["checks"]]
-    body = rows or [dmc.Text(f"{test['value']} The shuffled histories themselves are not saved, so there is no chart.", size="sm", c=FAINT)]
+    if not rows:  # no chart and no numbers: the Luck card already says why
+        return None
+    body = rows
     return _panel("Is it luck?", "Luck test number and pass line", dmc.Stack(body, gap="xs", mt="sm"))
 
 
@@ -220,9 +222,11 @@ def trades_panel(report: dict[str, Any]) -> dmc.Paper | None:
 
 
 def header(report: dict[str, Any]) -> dmc.Stack:
-    chips = [dmc.Badge(report["verdict"], color=TONE[report["verdict_tone"]], variant="light")]
+    parts = report.get("verdict_line")
+    chips = [] if parts else [dmc.Badge(report["verdict"], color=TONE[report["verdict_tone"]], variant="light")]
     chips += [dmc.Badge(text, color="gray", variant="light") for text in (report["symbol"], report["tested"]) if text]
-    return dmc.Stack([dmc.Text("Results / Idea report", size="xs", c=FAINT), dmc.Title(report["title"], order=1, size=26, fw=600), dmc.Group(chips, gap=6)], gap=8)
+    line = [dmc.Text([html.Span(text, style={"color": {"green": GREEN, "red": RED}.get(tone, MUTED)}) for text, tone in parts], size="sm")] if parts else []  # sentence case, wraps on phone
+    return dmc.Stack([dmc.Text("Results / Idea report", size="xs", c=FAINT), dmc.Title(report["title"], order=1, size=26, fw=600), *line, dmc.Group(chips, gap=6)], gap=8)
 
 
 

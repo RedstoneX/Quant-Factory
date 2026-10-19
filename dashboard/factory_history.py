@@ -90,7 +90,8 @@ def score_text(scores: dict[str, str] | None) -> str:
     marks = []
     for stage, label in SCORE_STEPS:
         status = (scores or {}).get(stage)
-        word = "passed" if status == "Passed" else "failed" if status == "Failed" else "close call" if status == "Close call" else "not enough data" if status == "Too few windows" else "not scored"
+        word = ("passed" if status == "Passed" else "failed" if status == "Failed" else "close call" if status == "Close call" else "not scored — not enough data" if status == "Too few windows"
+                else status[0].lower() + status[1:] if str(status or "").startswith("Not scored — ") else "not scored")
         marks.append(f"{label}: {word}")
     return ", ".join(marks)
 

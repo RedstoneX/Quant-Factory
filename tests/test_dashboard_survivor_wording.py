@@ -9,7 +9,7 @@ SURVIVOR = {"state": "survivor", "reason_code": "awaiting_owner_review", "reason
 
 def test_log_line_with_mixed_scores() -> None:
     text, tone = event_sentence(SURVIVOR, "SPY ORB", "Codex", {"walk_forward": "Passed", "robustness": "Close call", "monte_carlo": "Too few windows"})
-    assert text == "“SPY ORB” passed the gates (costs, unseen data); scores: Holds over time: passed, Stress test: close call, Luck test: not enough data."
+    assert text == "“SPY ORB” passed the gates (costs, unseen data); scores: Holds over time: passed, Stress test: close call, Luck test: not scored — not enough data."
     assert tone == "green"
 
 
@@ -26,4 +26,4 @@ def test_survivor_status_label() -> None:
 
 def test_recorded_failed_scores_read_failed_never_close_call() -> None:
     text, _tone = event_sentence(SURVIVOR, "SPY ORB", "Codex", {"walk_forward": "Failed", "robustness": "Failed", "monte_carlo": "Too few windows"})
-    assert text.endswith("scores: Holds over time: failed, Stress test: failed, Luck test: not enough data.")
+    assert text.endswith("scores: Holds over time: failed, Stress test: failed, Luck test: not scored — not enough data.")

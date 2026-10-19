@@ -151,7 +151,7 @@ def disk_health(root: Path) -> dict[str, Any]:
     pace = _bytes_written_last_day(root)
     gb = free / 1e9
     days = free / pace if pace > 0 else None
-    tone = "green" if (days is None and gb > 10) or (days is not None and days > 14) else "red" if gb < 2 or (days is not None and days < 3) else "amber"
+    tone = "green" if (days is None and gb > 10) or (days is not None and days >= 30) else "red" if gb < 2 or (days is not None and days < 3) else "amber"
     runway = "" if days is None else " · more than a year at today’s pace (estimate)" if days > 365 else f" · about {days / 7:.0f} weeks at today’s pace (estimate)" if days >= 14 else f" · about {days:.0f} days at today’s pace (estimate)"
     return {"tone": tone, "value": f"{gb:.0f} GB free{runway}"}
 
@@ -383,8 +383,8 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         health.append({"label": "Grok connected", "tone": "green" if minutes <= 1440 else "amber", "value": "last request " + eastern_label(grok_last, "%a %-d %b, %H:%M") + " ET"})
     else:
         health.append({"label": "Grok connected", "tone": "amber", "value": "no requests recorded"})
-    survivors = {e["candidate_id"] for e in events[:60] if e["state"] == "survivor"}
-    log = log_rows(events, titles, submitters, [], now, control, {cid: score_statuses(cid, database_path) for cid in survivors},
+    survivors = {e["candidate_id"]: e["run_id"] for e in reversed(events[:60]) if e["state"] == "survivor"}  # each idea's latest survivor event and its screening run
+    log = log_rows(events, titles, submitters, [], now, control, {cid: score_statuses(cid, database_path, run_id=run) for cid, run in survivors.items()},
                    {e["candidate_id"]: oos_report_metrics(database=database_path, run_id=((load_idea(e["candidate_id"], database=database_path).get("runs") or {}).get("oos") or {}).get("run_id")) for e in events[:60] if e["state"] == "screened_out" and "test did not pass" in str(e["reason_detail"] or "")})
     timeline = timeline_rows(tests, now, typical)
     looks = len(alerts) + (1 if old_runs else 0)
