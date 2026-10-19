@@ -32,6 +32,7 @@ from dashboard.ui.factory_oversight import layout as oversight_layout, register_
 from dashboard.ui.layout import app_shell, copy_id, page_content, page_header, stat_card
 from dashboard.ui.paper import paper_layout
 from dashboard.ui.results import register_results_callbacks, results_layout
+from dashboard.ui.new_idea import layout as new_idea_layout, register_callbacks as register_new_idea_callbacks
 from dashboard.ui.submit import register_submit_callbacks, submit_layout
 from dashboard.plain_labels import FAILED_TESTING
 from dashboard.data_freshness import load_stale_price_banner
@@ -414,6 +415,7 @@ def create_app() -> Dash:
         if pathname == "/workbench": return page_content(results_workbench_layout(search))
         if pathname == "/factory": return page_content(oversight_layout())
         if pathname == "/factory/runs": return page_content(factory_layout())
+        if pathname == "/new": return page_content(new_idea_layout())
         if pathname == "/submit": return page_content(submit_layout())
         if pathname == "/compare": return page_content(compare_layout(search))
         if pathname == "/paper-trading": return page_content(paper_layout())
@@ -459,7 +461,7 @@ def create_app() -> Dash:
             run_ids = [str(row.get("run_id")) for row in (values[-1] or []) if row.get("run_id")]
             return "/compare", "?" + "&".join(f"run_id={quote(run_id, safe='')}" for run_id in run_ids)
         if trigger == "results-nav-factory": return "/factory", ""
-        if trigger in {"candidate-submit", "results-nav-submit"}: return "/submit", ""
+        if trigger in {"candidate-submit", "results-nav-submit"}: return "/new", ""
         if trigger == "results-nav-paper": return "/paper-trading", ""
         return "/", ""
 
@@ -469,6 +471,7 @@ def create_app() -> Dash:
     register_factory_callbacks(application)
     register_oversight_callbacks(application)
     register_submit_callbacks(application)
+    register_new_idea_callbacks(application)
     register_compare_callbacks(application)
     return application
 

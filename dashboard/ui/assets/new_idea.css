@@ -52,7 +52,7 @@
 .ni-submit{min-height:42px;padding:0 20px;border-radius:10px;background:#ECEDEE;color:#08090B;font-weight:600}
 .ni-submit[data-disabled]{background:#1A1C21;color:#6B7280}
 .ni-notes{padding:0 16px 16px;display:flex;flex-direction:column;gap:6px;max-width:1440px;margin:0 auto}
-.ni-note{color:#F5B841;font-size:13px}
+.ni-note{font-size:13px;color:#9BA1AB}.ni-note.ok{color:#5EEAB0}.ni-note.warn{color:#F5B841}.ni-note.bad{color:#F2545B}
 @media (max-width:760px){
   .ni-grid{grid-template-columns:minmax(0,1fr);grid-template-rows:none}
   .ni-left,.ni-check,.ni-line,.ni-steps{grid-column:1;grid-row:auto}

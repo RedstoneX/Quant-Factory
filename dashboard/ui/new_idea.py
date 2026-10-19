@@ -17,7 +17,7 @@ from dashboard.new_idea_projection import NEXT_STEPS, bar_text, button, review_b
 from dashboard.submit_projection import candidate_example, validate_candidate_text, validate_upload
 from dashboard.ui.gateway_client import gateway_status, submit_candidate
 from dashboard.ui.idea_report import BG, MONO, REPORT_THEME, SANS, TEXT
-from dashboard.ui.submit import not_submittable_reason, starter_kit_json
+from dashboard.ui.submit import starter_kit_json
 
 REFRESH_MS = 30_000
 MODES = [{"value": "upload", "label": "Upload a file"}, {"value": "paste", "label": "Paste one"}, {"value": "program", "label": "From a program"}]
@@ -131,23 +131,23 @@ def register_callbacks(app: Any) -> None:
     def submit(clicks, batch, result):
         if not clicks or result:
             return no_update
-        review = review_batch(batch, reason=not_submittable_reason)
+        review = review_batch(batch)
         if not review["ready"]:
             return no_update
         before = _overview()  # place in line is measured before our ideas join it
         responses = [submit_candidate(str(row["canonical_json"])) for row in review["submit_rows"]]
-        return submitted_state(responses, before)
+        return submitted_state(responses, before, [str(row.get("title") or row.get("filename")) for row in review["submit_rows"]])
 
     @app.callback(Output("ni-cards", "children"), Output("ni-check", "children"), Output("ni-line", "children"), Output("ni-bar-text", "children"),
                   Output("ni-submit", "children"), Output("ni-submit", "disabled"), Output("ni-watch", "style"), Output("ni-notes", "children"),
                   Output("ni-file-line", "children"), Output("ni-file-sub", "children"),
                   Input("ni-batch", "data"), Input("ni-result", "data"), Input("ni-tick", "n_intervals"), Input("ni-gateway-ready", "data"), State("ni-upload", "filename"))
     def render(batch, result, _tick, gateway_ready, filename):
-        review = review_batch(batch, reason=not_submittable_reason)
+        review = review_batch(batch)
         overview = _overview()
         if result:
             text, disabled, label = result["text"], True, ("Queued" if result.get("queued") else "Nothing queued")
-            watch, notes = {}, [html.Div(note, className="ni-note") for note in result.get("notes") or []]
+            watch, notes = {}, [html.Div(note["text"], className="ni-note " + note["tone"]) for note in result.get("notes") or []]
             rows = where_they_go(overview, 0)
         else:
             label, disabled = button(review, bool(gateway_ready))

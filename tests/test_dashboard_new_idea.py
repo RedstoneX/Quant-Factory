@@ -40,10 +40,16 @@ def test_counts_and_budget_bar():
     assert len(review["submit_rows"]) == 2
 
 
-def test_needs_fixing_card_says_what_is_wrong():
-    card = review_batch(_batch(), reason=lambda row: "Plain words.")["cards"][2]
-    assert (card["ready"], card["tokens"], card["problem"]) == (False, [], "Plain words.")
-    assert "bounded values list" in review_batch(_batch())["cards"][2]["problem"]
+def test_needs_fixing_card_says_what_is_wrong_with_that_idea():
+    card = review_batch(_batch())["cards"][2]
+    assert (card["ready"], card["tokens"]) == (False, [])
+    assert card["problem"] == "variable must define a non-empty bounded values list"
+    assert "file" not in card["problem"]
+
+
+def test_one_bad_idea_does_not_block_the_others():
+    review = review_batch(_batch())
+    assert [row["title"] for row in review["submit_rows"]] == ["MES intraday 10/30 SMA crossover", "MES opening-range breakout parameter grid"]
 
 
 def test_source_only_when_the_file_records_it():
@@ -82,9 +88,10 @@ def test_bar_text_and_button():
     assert button(one, True)[0] == "Submit and test 1 idea"
 
 
-def test_after_submit():
+def test_after_submit_lists_each_idea():
     responses = [{"ok": True, "result": {"candidate_id": "a"}}, {"ok": True, "result": {"candidate_id": "b", "duplicate": True}}, {"ok": False, "error": {"message": "nope"}}]
-    state = submitted_state(responses, _overview())
+    state = submitted_state(responses, _overview(), ["A", "B", "C"])
     assert state["text"] == "Queued · #4 in line · starts in ~21 min"
-    assert state["queued"] == 1 and state["notes"] == ["1 idea already tested — not queued again", "nope"]
+    assert [n["text"] for n in state["notes"]] == ["A — queued", "B — already tested — not queued again", "C — failed to submit: nope"]
+    assert state["queued"] == 1
     assert submitted_state([{"ok": True, "result": {"duplicate": True}}], _overview())["text"] == "Nothing new was queued"

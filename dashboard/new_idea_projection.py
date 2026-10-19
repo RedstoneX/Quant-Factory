@@ -7,7 +7,7 @@ factory_overview (the same numbers the Factory page shows). This module only sha
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from typing import Any
 
 from dashboard.factory_history import STEPS
 
@@ -130,16 +130,15 @@ def data_label(document: dict[str, Any]) -> str:
     return " ".join(part for part in (head, resolution, when) if part) or "—"
 
 
-def _problem(row: dict[str, Any], reason: Callable[[dict[str, Any]], str] | None) -> str:
-    issues = [issue for issue in row.get("issues") or [] if issue.get("severity") == "error"] or [issue for issue in row.get("issues") or [] if issue.get("severity") == "warning"]
-    if reason is not None:
-        text = reason(row)
-        if text:
-            return text
-    return "; ".join(f"{issue.get('path')}: {issue.get('message')}" if issue.get("path") not in (None, "$") else str(issue.get("message")) for issue in issues[:2]) or "This idea could not be read."
+def _problem(row: dict[str, Any]) -> str:
+    """This idea's own problem in the validator's words (errors first, then warnings); never a sentence about the whole file."""
+    issues = [i for i in row.get("issues") or [] if i.get("severity") == "error"] or [i for i in row.get("issues") or [] if i.get("severity") == "warning"]
+    if not issues:
+        return "This idea is not ready to submit yet."
+    return "; ".join(str(issue.get("message")) for issue in issues[:2])
 
 
-def review_batch(batch: dict[str, Any] | None, *, reason: Callable[[dict[str, Any]], str] | None = None) -> dict[str, Any]:
+def review_batch(batch: dict[str, Any] | None) -> dict[str, Any]:
     """Cards, counts and the combinations bar for a checked batch (the dict submit_projection.validate_upload returns)."""
     rows = list((batch or {}).get("rows") or [])
     cards: list[dict[str, Any]] = []
@@ -154,7 +153,7 @@ def review_batch(batch: dict[str, Any] | None, *, reason: Callable[[dict[str, An
             "tokens": rule_tokens(document) if ready else [],
             "combinations": f"{combos(row):,}" if ready else "—",
             "data": data_label(document) if document else "—",
-            "problem": "" if ready else _problem(row, reason),
+            "problem": "" if ready else _problem(row),
         })
     ready_rows = [card for card, row in zip(cards, rows) if card["ready"]]
     combinations = sum(combos(row) for card, row in zip(cards, rows) if card["ready"])
@@ -218,21 +217,28 @@ def button(review: dict[str, Any], gateway_ready: bool) -> tuple[str, bool]:
     return (f"Submit and test {plural(ready)}" if ready else "Submit and test ideas"), (not ready or not gateway_ready)
 
 
-def submitted_state(responses: list[dict[str, Any]], overview_before: dict[str, Any]) -> dict[str, Any]:
-    """After submit: the bar text (place in line, start estimate) and a line for each idea the gateway refused or recognised."""
-    accepted = [item.get("result") or {} for item in responses if item.get("ok")]
-    new = [result for result in accepted if not result.get("duplicate")]
-    repeats = [result for result in accepted if result.get("duplicate")]
-    failures = [str((item.get("error") or {}).get("message") or "Submission failed") for item in responses if not item.get("ok")]
+def submitted_state(responses: list[dict[str, Any]], overview_before: dict[str, Any], names: list[str] | None = None) -> dict[str, Any]:
+    """After submit: the bar text (place in line, start estimate) and one line per idea: queued, already tested, or failed."""
+    names = names or [f"Idea {index}" for index in range(1, len(responses) + 1)]
+    notes: list[dict[str, str]] = []
+    new: list[str] = []
+    for name, item in zip(names, responses):
+        result = item.get("result") or {}
+        if not item.get("ok"):
+            notes.append({"tone": "bad", "text": f"{name} — failed to submit: {(item.get('error') or {}).get('message') or 'Submission failed'}"})
+        elif result.get("duplicate"):
+            notes.append({"tone": "warn", "text": f"{name} — already tested — not queued again"})
+        else:
+            new.append(str(result.get("candidate_id")))
+            notes.append({"tone": "ok", "text": f"{name} — queued"})
     ahead = line_ahead(overview_before)
     typical = overview_before.get("typical_minutes")
-    notes = [f"{plural(len(repeats))} already tested — not queued again" ] if repeats else []
     if new:
         start = "right away" if not ahead else f"in ~{ahead * typical:.0f} min" if typical else "after the tests in line"
         text = f"Queued · #{ahead + 1} in line · starts {start}"
     else:
         text = "Nothing new was queued"
-    return {"text": text, "queued": len(new), "notes": notes + failures, "candidate_ids": [str(result.get("candidate_id")) for result in new]}
+    return {"text": text, "queued": len(new), "notes": notes, "candidate_ids": new}
 
 
 __all__ = ["BUDGET", "NEXT_STEPS", "bar_text", "button", "line_ahead", "minutes_label", "review_batch", "rule_tokens", "source_label", "start_minutes", "submitted_state", "typical_text", "where_they_go"]
