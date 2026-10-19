@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import hashlib
 import math
 from numbers import Real
 from pathlib import Path
-import sqlite3
 from typing import Any
 
 import pandas as pd
 
 from backtesting.experiments import ExperimentConfig
+from market_data import MarketDataConfig
 from persistence import ArtifactType, PersistenceService, canonical_json
 
 
@@ -225,53 +226,61 @@ def persist_screening_artifacts(*, persistence: PersistenceService, artifact_roo
         )
 
 
+SCREENING_PRICE_REFERENCE = "screening_price_series_reference"
+_PRICE_COLUMNS = ["Open", "High", "Low", "Close"]
+
+
+def screening_bars_hash(data: pd.DataFrame) -> str:
+    """SHA-256 of pandas' own row hashes of the exact OHLC bars, timestamps in UTC."""
+    frame = data.loc[:, _PRICE_COLUMNS].astype("float64")
+    frame.index = pd.DatetimeIndex(frame.index).tz_convert("UTC")
+    return hashlib.sha256(
+        pd.util.hash_pandas_object(frame, index=True).to_numpy().tobytes()
+    ).hexdigest()
+
+
 def persist_screening_price_series(
     *,
     persistence: PersistenceService,
     artifact_root: Path,
     run_id: str,
     data: pd.DataFrame,
+    market_data: MarketDataConfig,
 ) -> None:
-    """Persist one shared immutable OHLC history for every configuration in a run."""
-    required = ["Open", "High", "Low", "Close"]
+    """Record which shared market-data bars a run used, instead of copying them.
+
+    The reference holds the loader request, the first and last bar and a hash of
+    the exact bars; readers reload them through ``load_market_data`` and refuse
+    to draw them if the hash no longer matches.
+    """
     if not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
         raise ValueError("screening price history requires a timezone-aware DatetimeIndex")
-    if any(column not in data for column in required):
+    if any(column not in data for column in _PRICE_COLUMNS):
         raise ValueError("screening price history is missing required OHLC columns")
-    relative_path = f"state/artifacts/{run_id}/screening_price_series.sqlite3"
+    if data.empty:
+        raise ValueError("screening price history is empty")
+    document = {
+        "market_data": asdict(market_data),
+        "symbol": market_data.symbol,
+        "timeframe": market_data.interval,
+        "start": data.index[0].tz_convert("UTC").isoformat(),
+        "end": data.index[-1].tz_convert("UTC").isoformat(),
+        "row_count": int(len(data)),
+        "bars_sha256": screening_bars_hash(data),
+    }
+    relative_path = f"state/artifacts/{run_id}/{SCREENING_PRICE_REFERENCE}.json"
     destination = artifact_root / relative_path
     destination.parent.mkdir(parents=True, exist_ok=True)
-    staging = destination.with_suffix(".sqlite3.tmp")
-    frame = data.loc[:, required].rename(columns=str.lower).copy()
-    if staging.exists():
-        staging.unlink()
-    connection = sqlite3.connect(staging)
-    try:
-        connection.execute(
-            "CREATE TABLE price_bars (timestamp TEXT PRIMARY KEY, open REAL NOT NULL, "
-            "high REAL NOT NULL, low REAL NOT NULL, close REAL NOT NULL) WITHOUT ROWID"
-        )
-        connection.executemany(
-            "INSERT INTO price_bars VALUES (?, ?, ?, ?, ?)",
-            (
-                (index.tz_convert("UTC").isoformat(), float(open_), float(high_),
-                 float(low_), float(close_))
-                for index, open_, high_, low_, close_ in frame.itertuples(
-                    index=True, name=None
-                )
-            ),
-        )
-        connection.commit()
-    finally:
-        connection.close()
-    content = staging.read_bytes()
+    content = (canonical_json(document) + "\n").encode("utf-8")
+    staging = destination.with_suffix(".json.tmp")
+    staging.write_bytes(content)
     staging.replace(destination)
     persistence.register_artifact(
         run_id=run_id,
         artifact_type=ArtifactType.DATASET_MANIFEST,
-        logical_name="screening_price_series",
-        media_type="application/vnd.sqlite3",
-        format="sqlite3",
+        logical_name=SCREENING_PRICE_REFERENCE,
+        media_type="application/json",
+        format="json",
         location=relative_path,
         content=content,
     )

@@ -1,5 +1,6 @@
 """Focused evidence checks for Candidate screening artifacts."""
 
+import json
 from pathlib import Path
 import sqlite3
 from types import SimpleNamespace
@@ -11,6 +12,7 @@ from market_data import MarketDataConfig
 from orchestration.candidate_screening_artifacts import (
     _screening_artifacts,
     persist_screening_price_series,
+    screening_bars_hash,
 )
 from tests.test_artifact_contracts import _service_with_run
 
@@ -110,7 +112,7 @@ def test_metrics_artifact_persists_candidate_annualization() -> None:
     assert equity["price_series"] == []
 
 
-def test_shared_screening_price_series_is_registered_once_as_indexed_artifact(tmp_path: Path) -> None:
+def test_shared_screening_price_series_is_registered_once_as_a_reference(tmp_path: Path) -> None:
     service = _service_with_run(tmp_path)
     index = pd.date_range("2026-01-02 14:30", periods=3, freq="5min", tz="UTC")
     data = pd.DataFrame(
@@ -123,16 +125,26 @@ def test_shared_screening_price_series_is_registered_once_as_indexed_artifact(tm
     try:
         persist_screening_price_series(
             persistence=service, artifact_root=tmp_path, run_id="artifact-run", data=data,
+            market_data=MarketDataConfig(
+                symbol="MES", provider="Databento", provider_implementation="verified_local_catalog:test",
+                interval="5m", requested_start="2026-01-02", end_date_policy="fixed", adjusted=False,
+                exchange_calendar="NYSE", market_timezone="America/New_York",
+                cache_path=Path("unused.parquet"),
+            ),
         )
-        row = service.connection.execute(
-            "SELECT format, location FROM artifact_references WHERE run_id=? AND logical_name=?",
-            ("artifact-run", "screening_price_series"),
-        ).fetchone()
-        assert row["format"] == "sqlite3"
-        connection = sqlite3.connect(tmp_path / row["location"])
-        try:
-            assert connection.execute("SELECT COUNT(*) FROM price_bars").fetchone()[0] == 3
-        finally:
-            connection.close()
+        rows = service.connection.execute(
+            "SELECT logical_name, format, location FROM artifact_references "
+            "WHERE run_id=? AND logical_name LIKE 'screening_price_series%'",
+            ("artifact-run",),
+        ).fetchall()
+        assert [(row["logical_name"], row["format"]) for row in rows] == [
+            ("screening_price_series_reference", "json")
+        ]
+        document = json.loads((tmp_path / rows[0]["location"]).read_text())
+        assert (document["symbol"], document["timeframe"], document["row_count"]) == ("MES", "5m", 3)
+        assert document["start"] == "2026-01-02T14:30:00+00:00"
+        assert document["end"] == "2026-01-02T14:40:00+00:00"
+        assert document["bars_sha256"] == screening_bars_hash(data)
+        assert not list(tmp_path.rglob("*.sqlite3.tmp"))
     finally:
         service.close()

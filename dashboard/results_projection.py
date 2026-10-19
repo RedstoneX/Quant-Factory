@@ -16,6 +16,8 @@ from dashboard.results_model import group_trade_rows, prepare_interval
 from dashboard.formatting import format_metric, profit_factor
 from dashboard.run_detail_adapter import RunDetailDashboardAdapter, _candidate_trade_rows
 from dashboard.time_display import eastern_label, eastern_plot_timestamp, eastern_session
+from market_data import DatasetUnavailableError, MarketDataConfig, load_market_data
+from orchestration.candidate_screening_artifacts import SCREENING_PRICE_REFERENCE, screening_bars_hash
 
 
 PRICE_LIMIT = 2_000
@@ -198,10 +200,69 @@ def oos_report_metrics(*, database: Path, run_id: str | None) -> dict[str, Any] 
     return {**metrics, "_test_status": report.get("test_status"), "_training_metrics": training if isinstance(training, dict) else {}}
 
 
-def _shared_price_rows(
+PRICE_DATA_CHANGED = (
+    "The market data this test used has changed since it ran, so its price chart is not shown."
+)
+PRICE_DATA_MISSING = "The market data this test used is no longer available, so its price chart is not shown."
+
+
+def _utc_window(session: str | None, period: tuple[str, str] | None) -> tuple[pd.Timestamp, pd.Timestamp] | None:
+    if not (session or period):
+        return None
+    first, last = period or (session, session)
+    start = pd.Timestamp(first, tz="America/New_York")
+    end = pd.Timestamp(last, tz="America/New_York") + pd.Timedelta(days=1)
+    return start.tz_convert("UTC"), end.tz_convert("UTC")
+
+
+def _referenced_price_rows(
+    *, database: Path, run_id: str, session: str | None, period: tuple[str, str] | None,
+) -> tuple[list[dict[str, Any]] | None, str | None]:
+    """Reload a run's bars from the shared market-data store and prove they are the bars it used."""
+    document = _artifact_document(database=database, run_id=run_id, logical_name=SCREENING_PRICE_REFERENCE)
+    if document is None:
+        return None, None
+    try:
+        request = dict(document["market_data"])
+        request["cache_path"] = Path(request["cache_path"])
+        request["legacy_cache_paths"] = tuple(Path(item) for item in request.get("legacy_cache_paths") or ())
+        loaded = load_market_data(MarketDataConfig(**request), allow_download=False).data
+        bars = loaded.loc[pd.Timestamp(document["start"]):pd.Timestamp(document["end"])]
+        if len(bars) != int(document["row_count"]) or screening_bars_hash(bars) != str(document["bars_sha256"]):
+            return None, PRICE_DATA_CHANGED
+    except (DatasetUnavailableError, OSError):
+        return None, PRICE_DATA_MISSING
+    except (ValueError, TypeError, KeyError):
+        return None, PRICE_DATA_CHANGED
+    window = _utc_window(session, period)
+    utc = bars.tz_convert("UTC") if bars.index.tz is not None else bars
+    if window is not None:
+        utc = utc[(utc.index >= window[0]) & (utc.index < window[1])]
+    return [
+        {"timestamp": index.isoformat(), "open": float(row.Open), "high": float(row.High),
+         "low": float(row.Low), "close": float(row.Close)}
+        for index, row in utc.loc[:, ["Open", "High", "Low", "Close"]].iterrows()
+    ], None
+
+
+def _shared_price_source(
+    *, database: Path, run_id: str, session: str | None, period: tuple[str, str] | None = None,
+) -> tuple[list[dict[str, Any]] | None, str | None]:
+    """A run's bars and, when they cannot be shown faithfully, the plain reason why.
+
+    Older runs keep their own copy and are read from it; newer runs record a
+    reference to the shared market-data store instead.
+    """
+    rows = _copied_price_rows(database=database, run_id=run_id, session=session, period=period)
+    if rows is not None:
+        return rows, None
+    return _referenced_price_rows(database=database, run_id=run_id, session=session, period=period)
+
+
+def _copied_price_rows(
     *, database: Path, run_id: str, session: str | None, period: tuple[str, str] | None = None,
 ) -> list[dict[str, Any]] | None:
-    """Saved bars for one Eastern session, or for a whole Eastern date range (start and end days inclusive)."""
+    """Bars from a run's own price copy (runs saved before references replaced copies)."""
     reference = _artifact_reference(
         database=database, run_id=run_id, logical_name="screening_price_series"
     )
@@ -218,12 +279,10 @@ def _shared_price_rows(
             return None
         query = "SELECT timestamp, open, high, low, close FROM price_bars"
         parameters: list[str] = []
-        if session or period:
-            first, last = period or (session, session)
-            start = pd.Timestamp(first, tz="America/New_York")
-            end = pd.Timestamp(last, tz="America/New_York") + pd.Timedelta(days=1)
+        window = _utc_window(session, period)
+        if window is not None:
             query += " WHERE timestamp>=? AND timestamp<?"
-            parameters = [start.tz_convert("UTC").isoformat(), end.tz_convert("UTC").isoformat()]
+            parameters = [window[0].isoformat(), window[1].isoformat()]
         query += " ORDER BY timestamp"
         connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
         try:
@@ -253,9 +312,9 @@ def load_session_price(
     if not run_id or not session:
         return {"price": [], "reason": "No price bars were saved for this run."}
     database_path = Path(database) if database is not None else configured_database_path()
-    rows = _shared_price_rows(database=database_path, run_id=run_id, session=session)
+    rows, problem = _shared_price_source(database=database_path, run_id=run_id, session=session)
     if not rows:
-        return {"price": [], "reason": f"No price bars were saved for {session}."}
+        return {"price": [], "reason": problem or f"No price bars were saved for {session}."}
     prepared = prepare_interval(rows, interval, source_interval="5m")
     return {
         "price": [
@@ -308,9 +367,11 @@ def load_screening_configuration_evidence(
         run_id, parameter_row_id, database=database_path,
     )
     selected_session = session if session in sessions else (sessions[-1] if sessions else None)
-    shared_price = _shared_price_rows(
+    shared_price, price_problem = _shared_price_source(
         database=database_path, run_id=run_id, session=selected_session,
     )
+    if price_problem:
+        return {"available": False, "message": price_problem, "run_id": run_id, "parameter_row_id": parameter_row_id}
     price_document = (
         {"source_interval": equity_document.get("source_interval", "5m"), "price_series": shared_price}
         if shared_price is not None and equity_document
