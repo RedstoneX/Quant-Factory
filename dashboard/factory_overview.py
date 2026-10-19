@@ -6,6 +6,7 @@ The gateway database is read raw and read-only, like overview_projection does (a
 from __future__ import annotations
 
 import json
+import math
 from collections import Counter
 import os
 import shutil
@@ -15,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from backtesting.experiments.chunking import SWEEP_CHUNK_SETTINGS
 from dashboard.factory_history import (
     OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, tests_from_events, hour_floor, is_close_call, is_restart, log_rows, unclosed_starts, short_reason, submitter_label, timeline_rows, utc,
 )
@@ -57,6 +59,26 @@ def drain_state(marker: Path | None = None, now: float | None = None) -> bool:
     except OSError:
         return False
     return age <= DRAIN_STALE_SECONDS
+
+
+ONE_AT_A_TIME = "One idea at a time · settings tested in bulk, up to 50 per pass"
+
+
+def settings_count(raw: Any) -> int | None:
+    """Grid size of an idea: the product of each variable's value count; None when the idea data doesn't carry it."""
+    try:
+        spec = json.loads(raw) if isinstance(raw, str) else raw
+        counts = [len(v["values"]) for v in spec.values()]
+    except (TypeError, ValueError, KeyError, AttributeError):
+        return None
+    return math.prod(counts) if counts and all(counts) else None
+
+
+def passes_line(settings: int | None) -> str | None:
+    if not settings:
+        return None
+    passes = math.ceil(settings / SWEEP_CHUNK_SETTINGS)
+    return f"Testing {settings} settings in {passes} pass{'es' if passes != 1 else ''}"
 
 
 def header_pill(*, running: int, draining: bool, last_finished_crashed: bool, paused: bool = False) -> dict[str, str]:
@@ -265,6 +287,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         runs = [_row(r) for r in connection.execute(
             _runs_source() + " SELECT * FROM run_records WHERE hidden=0 AND (status IN ('running','created') OR COALESCE(completed_at,started_at,created_at)>=?) ORDER BY COALESCE(started_at,created_at)", _params() + [since48])]
         titles = {str(r[0]): str(r[1]) for r in connection.execute("SELECT draft_id, COALESCE(NULLIF(json_extract(candidate_json,'$.candidate.title'),''), title) FROM idea_drafts")}
+        variables = {str(r[0]): r[1] for r in connection.execute("SELECT draft_id, json_extract(candidate_json,'$.variables') FROM idea_drafts")}
         events: list[dict[str, Any]] = []
         queued_events: list[dict[str, Any]] = []
         submitters: dict[str, str] = {}
@@ -337,7 +360,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     last_test = {"name": latest_finished["title"], "outcome": OUTCOME_WORDS[latest_finished["outcome"]].lower(), "when": clock(latest_finished["completed_at"], now), "candidate_id": latest_finished["candidate_id"]} if latest_finished else None
     tiles = [
         {"label": "Running now", "value": "Paused", "sub": f"since {paused_since}", "color": "amber"} if paused else
-        {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": "one test at a time", "color": "indigo" if live else "idle"},
+        {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": ONE_AT_A_TIME, "color": "indigo" if live else "idle"},
         {"label": "Waiting", "value": f"{len(queue_rows)}", "sub": f"longest wait {_human_minutes(longest)}" if longest is not None else "nothing in line", "color": "text", "spark": queued_per_hour},
         {"label": "Runs today", "value": f"{len(today)}", "sub": f"{passed_today} passed · {sum(r['outcome'] in ('failed', 'close') for r in today)} failed · {len(crashed_today)} crashed" + (f" · {unchecked_today} couldn't be checked" if unchecked_today else ""), "color": "text",
          "spark": [sum(row[o] for o in ("failed", "close", "passed", "crashed")) for row in last24]},
@@ -353,7 +376,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
         step = STEP_NAME.get(run["stage"], "starting")
         running_cards.append({"name": run["title"], "elapsed": _human_minutes(elapsed), "slow": slow, "candidate_id": run["candidate_id"],
                               "steps": ["done" if i < current else ("slow" if slow else "current") if i == current else "todo" for i in range(5)],
-                              "where": f"Step {current + 1} of 5 · {step}", "note": "finishing; nothing new will start" if paused else f"typical {typical:.0f} min" if typical else "typical time not yet known"})
+                              "where": f"Step {current + 1} of 5 · {step}", "passes": passes_line(settings_count(variables.get(run["candidate_id"]))), "note": "finishing; nothing new will start" if paused else f"typical {typical:.0f} min" if typical else "typical time not yet known"})
         if slow:
             alerts.append({"tone": "amber", "title": f"Slow: one test is taking {elapsed / typical:.1f}× longer than usual", "when": clock(now.isoformat()), "sort": now.isoformat(),
                            "body": f"“{run['title']}” has been on “{step}” for {_human_minutes(elapsed)}.", "next": "Nothing to do yet.", "candidate_id": run["candidate_id"]})
