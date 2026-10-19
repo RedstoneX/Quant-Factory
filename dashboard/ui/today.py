@@ -103,7 +103,7 @@ def per_day_panel(data: dict[str, Any]) -> dmc.Paper | None:
 
 def status_group(result: str) -> str:
     """Scatter group of a result word: Failed and Crashed share the failed colour, No trades never reaches the scatter."""
-    return "Passed" if result == "Passed" else "Close call" if result == "Close call" else "Can't test" if result == "Can't test" else "Failed"
+    return "Passed" if result.startswith("Passed") else "Close call" if result == "Close call" else "Can't test" if result == "Can't test" else "Failed"
 
 
 def scatter_panel(data: dict[str, Any]) -> dmc.Paper | None:

@@ -85,3 +85,9 @@ def test_funnel_scores_after_the_gates_count_scores_not_survivors() -> None:
     G, R, N = "green", "red", "grey"
     ideas = pd.DataFrame([{"dots": d} for d in ([G, G, R, G, N], [G, G, G, N, N], [G, R, N, N, N])])
     assert [step["count"] for step in today.funnel(ideas)] == [3, 3, 2, 1, 1, 0]
+
+
+def test_survivor_with_failed_scores_stays_in_waiting_for_your_call() -> None:
+    ideas = _ideas().iloc[:1].copy()
+    ideas["result"] = "Passed the gates · over time ✗"
+    assert list(today.needs_owner(ideas)["passed"]["candidate_id"]) == ["a"]

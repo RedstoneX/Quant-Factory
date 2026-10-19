@@ -129,4 +129,24 @@ def test_survivor_keeps_its_own_score_statuses() -> None:
     statuses = report.apply_campaign_verdict(stored, ("survivor", "awaiting_owner_review"))
     assert statuses == ["Passed", "Passed", "Failed", "Close call", "Not scored"]  # Holds over time = Failed, not overwritten with Passed
     assert report.STATUS_TONE["Not scored"] == report.STATUS_TONE["Can't test"]
-    assert workbench.overall_status(report.apply_campaign_verdict(["Passed", "Can't test", "Can't test", "Can't test", "Can't test"], ("survivor", "x"))) == "Passed"
+    assert workbench.overall_status(report.apply_campaign_verdict(["Passed", "Can't test", "Can't test", "Can't test", "Can't test"], ("survivor", "x")), survivor=True) == "Passed"
+
+
+def test_survivor_never_overwrites_a_recorded_gate_result() -> None:
+    from dashboard import results_workbench_projection as workbench
+
+    # the research DB recorded a failed unseen-data result: the recorded result stands, the survivor verdict does not paper over it
+    statuses = report.apply_campaign_verdict(["Passed", "Failed", "Can't test", "Can't test", "Can't test"], ("survivor", "awaiting_owner_review"))
+    assert statuses[:2] == ["Passed", "Failed"]
+    assert report.gates_chip(statuses) is None
+    # no recorded result for a gate: the survivor verdict fills it with Passed
+    assert report.apply_campaign_verdict(["Can't test"] * 5, ("survivor", "x"))[:2] == ["Passed", "Passed"]
+
+
+def test_survivor_with_failed_scores_keeps_gates_chip_and_stays_in_review() -> None:
+    from dashboard import results_workbench_projection as workbench
+
+    statuses = report.apply_campaign_verdict(["Passed", "Passed", "Failed", "Passed", "Can't test"], ("survivor", "awaiting_owner_review"))
+    assert report.gates_chip(statuses) == "Passed the gates · over time ✗"
+    result = workbench.overall_status(statuses, survivor=True)
+    assert result == "Passed the gates · over time ✗" and workbench.chip_tone(result) == "amber"

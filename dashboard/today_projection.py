@@ -50,7 +50,7 @@ def needs_owner(ideas: pd.DataFrame) -> dict[str, pd.DataFrame]:
     if ideas.empty:
         return {"passed": ideas, "close": ideas}
     ranked = ideas.sort_values("sharpe", ascending=False, na_position="last", kind="stable")
-    return {"passed": ranked[ranked["result"] == PASSED], "close": ranked[ranked["result"] == CLOSE_CALL]}
+    return {"passed": ranked[ranked["result"].str.startswith(PASSED)], "close": ranked[ranked["result"] == CLOSE_CALL]}
 
 
 def best_idea(ideas: pd.DataFrame) -> str | None:

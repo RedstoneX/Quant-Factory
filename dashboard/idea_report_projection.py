@@ -25,6 +25,7 @@ NOT_SCORED = "Not scored"  # a score stage of a gateway survivor with no usable 
 STATUS_TONE = {PASSED: "green", CLOSE_CALL: "amber", FAILED: "red", CANT_TEST: "grey", CRASHED: "red", NOT_SCORED: "grey"}
 NOT_SAVED = "Not saved for this run."
 GATES_CHIP = ("Passed the gates", "green")
+SCORE_STAGES = ("walk_forward", "robustness", "monte_carlo")
 
 
 def report_status(stage: str, stored_status: str | None, run_status: str | None) -> str:
@@ -73,7 +74,7 @@ def campaign_row(database: Path, candidate_id: str | None) -> tuple[str, str] | 
 def apply_campaign_verdict(statuses: list[str], row: tuple[str, str] | None) -> list[str]:
     """Five test statuses, overridden by the factory's own verdict when it has one.
 
-    screened_out at a test: the tests before it Passed, that test Failed, the rest Can't test. survivor: the two gates Passed, the three scores keep their own status (Not scored when none).
+    screened_out at a test: the tests before it Passed, that test Failed, the rest Can't test. survivor: each gate Passed unless a result is recorded for it (the recorded result stands), the three scores keep their own status (Not scored when none).
     failed (run_error): the first test not already Passed is Crashed. Any other state (queued, running, duplicate, blocked) is no verdict, and the research-DB statuses stand.
     """
     if row is None:
@@ -81,7 +82,7 @@ def apply_campaign_verdict(statuses: list[str], row: tuple[str, str] | None) -> 
     state, reason = row
     stages = [stage for stage, _label in STAGES]
     if state == "survivor":  # the two gates passed; the three scores keep their own recorded status (owner ruling 15 Oct)
-        gates = [PASSED] * len(TRADE_STAGES)
+        gates = [PASSED if status == CANT_TEST else status for status in statuses[:len(TRADE_STAGES)]]  # a recorded result is never overwritten; Passed only where none is recorded
         return gates + [NOT_SCORED if status == CANT_TEST else status for status in statuses[len(gates):]]
     if state == "screened_out" and reason in stages:
         at = stages.index(reason)
@@ -90,6 +91,17 @@ def apply_campaign_verdict(statuses: list[str], row: tuple[str, str] | None) -> 
         at = next((i for i, status in enumerate(statuses) if status != PASSED), len(statuses) - 1)
         return [*statuses[:at], CRASHED, *statuses[at + 1:]]
     return statuses
+
+
+SCORE_SHORT = {"walk_forward": "over time", "robustness": "stress", "monte_carlo": "luck"}
+
+
+def gates_chip(statuses: list[str]) -> str | None:
+    """'Passed the gates' plus a mark for each failed score ('Passed the gates · over time ✗'); None unless both gates Passed. Scores never remove a survivor from review."""
+    if list(statuses[:len(TRADE_STAGES)]) != [PASSED] * len(TRADE_STAGES):
+        return None
+    marks = [f" · {SCORE_SHORT[stage]} ✗" for stage, status in zip(SCORE_STAGES, statuses[len(TRADE_STAGES):]) if status in (FAILED, CLOSE_CALL)]
+    return GATES_CHIP[0] + "".join(marks)
 
 
 def overall_chip(tests: list[dict[str, Any]]) -> tuple[str, str]:
@@ -264,10 +276,10 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
         tests.append({"stage": stage, "label": TEST_LABELS[stage], "run_id": run.get("run_id"), "run_status": run.get("status"),
                       "status": report_status(stage, stored_status, run.get("status")), "line": (stored.get("line") or "") if run.get("run_id") else "", "detail": detail})
     campaign = campaign_row(path, idea.get("candidate_id") or candidate_id)
-    gates_cleared = bool(campaign and campaign[0] == "survivor")  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
     verdict = apply_campaign_verdict([test["status"] for test in tests], campaign)
     for test, status in zip(tests, verdict):
         test["status"] = status
+    survivor_chip = gates_chip(verdict) if campaign and campaign[0] == "survivor" else None  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
     screening_view = load_trade_view(idea, "screening", database=path) if "screening" in runs else {"available": False}
     unseen_view = load_trade_view(idea, "oos", database=path) if "oos" in runs else {"available": False}
     screening_equity = screening_view.get("equity") or [] if screening_view.get("available") else []
@@ -290,7 +302,7 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     rows = idea.get("screening_rows") or []
     return {
         "available": True, "title": idea["title"], "symbol": idea.get("symbol") or "", "candidate_id": idea.get("candidate_id") or candidate_id,
-        "verdict": GATES_CHIP[0] if gates_cleared else overall_chip(tests)[0], "verdict_tone": GATES_CHIP[1] if gates_cleared else overall_chip(tests)[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
+        "verdict": survivor_chip or overall_chip(tests)[0], "verdict_tone": GATES_CHIP[1] if survivor_chip else overall_chip(tests)[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
         "tested": _tested_label(path, (runs.get("screening") or {}).get("run_id")), "tests": tests,
         "hero": {"kind": "chart" if has_chart else "never_ran", **({} if has_chart else never_ran_card(idea, tests)),
                  "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if unseen_equity else NOT_SAVED},
@@ -302,5 +314,5 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     }
 
 
-__all__ = ["apply_campaign_verdict", "campaign_row", "score_statuses", "CANT_TEST", "NOT_SCORED", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
+__all__ = ["apply_campaign_verdict", "campaign_row", "score_statuses", "CANT_TEST", "NOT_SCORED", "gates_chip", "CLOSE_CALL", "CRASHED", "FAILED", "NOT_SAVED", "PASSED", "STATUS_TONE", "TEST_LABELS", "drawdown", "hero_series", "load_report",
            "monthly_returns", "never_ran_card", "overall_chip", "report_status", "summary_strip", "settings_grid"]
