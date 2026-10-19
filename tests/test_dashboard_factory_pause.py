@@ -104,4 +104,7 @@ def test_pause_bands_run_from_pause_to_resume_or_now_and_the_legend_shows_them_o
     assert pause_bands([], NOW) == []
     figure = page.timeline_figure([], NOW.replace(tzinfo=None), bands)
     assert [sh.layer for sh in figure.layout.shapes].count("below") == 2
+    band = figure.layout.shapes[0]
+    assert (band.fillcolor, band.line.color, band.line.dash) == ("rgba(0,0,0,0)", "#F5B841", "dot")  # outline only, never the Close-call fill
+    assert "dotted" in str(page.legend_items(_data(pause_bands=bands)))
     assert "Paused" in str(page.legend_items(_data(pause_bands=bands))) and "Paused" not in str(page.legend_items(_data()))
