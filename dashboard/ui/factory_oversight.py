@@ -16,7 +16,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dash import Input, Output, State, ctx, dcc, html, no_update
 
-from dashboard.factory_overview import ONE_AT_A_TIME, OUTCOME_WORDS, load_factory_overview
+from dashboard.factory_overview import OUTCOME_WORDS, load_factory_overview
 from dashboard.ui import gateway_client
 from dashboard.ui.idea_report import AMBER, BG, FAINT, GREEN, HOLD, INDIGO, LINE, MONO, MUTED, REPORT_THEME, RED, SANS, TEXT
 
@@ -237,7 +237,7 @@ def layout() -> html.Div:
                       html.Div([html.Span(part["fo-pill"], id="fo-pill", className=_pill_class(data)), dmc.Button(button[0], id="fo-pause-btn", variant=button[1], color=button[2], size="sm"), html.A("All runs →", href="/factory/runs", className="fo-all-runs"), html.Span("Refreshes every 10 s", className="fo-muted")], className="fo-top-right")], className="fo-top"),
         html.Section(part["fo-tiles"], id="fo-tiles", className="fo-tiles"),
         html.Section([
-            _card("Running now", ONE_AT_A_TIME, html.Div(part["fo-running"], id="fo-running", className="fo-col")),
+            _card("Running now", "", html.Div(part["fo-running"], id="fo-running", className="fo-col")),
             html.Div([
                 html.Div([html.Div([html.Span("Needs a look", className="fo-h"), html.Span("Newest first", className="fo-muted")], className="fo-between"),
                           html.Div(part["fo-alerts"], id="fo-alerts", className="fo-col"),
