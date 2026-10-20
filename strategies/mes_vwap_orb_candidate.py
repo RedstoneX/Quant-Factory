@@ -113,7 +113,6 @@ def generate_candidate_signals(
     frame = _validate_data(data)
     index = frame.index
     schedule = _schedule(index) if schedule is None else schedule
-    index_set = set(index)
     entries = pd.Series(False, index=index, dtype=bool)
     exits = pd.Series(False, index=index, dtype=bool)
     short_entries = pd.Series(False, index=index, dtype=bool)
@@ -165,37 +164,32 @@ def generate_candidate_signals(
         exit_signal_time = session_close - pd.Timedelta(minutes=10)
         candidates = day.loc[(day.index >= range_end) & (day.index < exit_signal_time)]
 
-        selected: tuple[pd.Timestamp, str, float, float] | None = None
-        for timestamp, candle in candidates.iterrows():
-            next_timestamp = timestamp + FIVE_MINUTES
-            if next_timestamp not in index_set:
-                continue
-            height = float(candle["High"] - candle["Low"])
-            body_ratio = abs(float(candle["Close"] - candle["Open"])) / height if height > 0 else 0.0
-            if body_ratio < MINIMUM_BODY_RATIO:
-                continue
-            long_signal = (
-                float(candle["Close"]) >= range_high + breakout_points
-                and float(candle["Close"]) > float(vwap.at[timestamp])
-            )
-            short_signal = (
-                float(candle["Close"]) <= range_low - breakout_points
-                and float(candle["Close"]) < float(vwap.at[timestamp])
-            )
-            if not long_signal and not short_signal:
-                continue
-            direction = "long" if long_signal else "short"
-            entry_price = float(frame.at[next_timestamp, "Open"])
-            stop_price = range_low if direction == "long" else range_high
-            risk = entry_price - stop_price if direction == "long" else stop_price - entry_price
-            if risk <= 0 or entry_price <= 0:
-                issues.append(CandidateSessionIssue(session_date, "next-bar entry invalidates the opening-range stop"))
-                continue
-            selected = (timestamp, direction, entry_price, risk)
-            break
-
-        if selected is not None:
-            timestamp, direction, entry_price, risk = selected
+        # Signal bars: a contiguous next bar, body at least the minimum share of the bar's range, and a close
+        # beyond the range plus buffer on the VWAP side.  The first one whose next-bar entry keeps a positive
+        # opening-range risk is traded; earlier signal bars failing that check are recorded as session issues.
+        next_timestamps = candidates.index + FIVE_MINUTES
+        height = candidates["High"] - candidates["Low"]
+        body_ratio = ((candidates["Close"] - candidates["Open"]).abs() / height).where(height > 0, 0.0)
+        close = candidates["Close"]
+        session_vwap = vwap.loc[candidates.index]
+        long_signal = (close >= range_high + breakout_points) & (close > session_vwap)
+        short_signal = (close <= range_low - breakout_points) & (close < session_vwap)
+        signalled = (next_timestamps.isin(index) & (body_ratio >= MINIMUM_BODY_RATIO) & (long_signal | short_signal)).to_numpy()
+        is_long = long_signal[signalled].to_numpy()
+        entry_prices = frame["Open"].reindex(next_timestamps[signalled]).to_numpy(dtype=float)
+        risks = np.where(is_long, entry_prices - range_low, range_high - entry_prices)
+        invalid = (risks <= 0) | (entry_prices <= 0)
+        first_valid = int(np.argmin(invalid)) if not invalid.all() else len(invalid)
+        issues.extend(
+            CandidateSessionIssue(session_date, "next-bar entry invalidates the opening-range stop")
+            for _ in range(first_valid)
+        )
+        selected: tuple[pd.Timestamp, str] | None = None
+        if first_valid < len(invalid):
+            timestamp = candidates.index[signalled][first_valid]
+            direction = "long" if is_long[first_valid] else "short"
+            selected = (timestamp, direction)
+            entry_price, risk = float(entry_prices[first_valid]), float(risks[first_valid])
             risk_fraction = risk / entry_price
             if direction == "long":
                 entries.at[timestamp] = True
