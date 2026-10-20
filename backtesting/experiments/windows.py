@@ -11,6 +11,7 @@ from dataclasses import replace
 from typing import Any, Sequence
 
 import pandas as pd
+from cachetools import LRUCache
 
 from strategies.models import SignalResult
 
@@ -18,6 +19,11 @@ SIGNAL_SERIES = (
     "entries", "exits", "short_entries", "short_exits", "stop_loss", "take_profit", "trailing_stop",
     "trailing_threshold", "td_stop", "session_id",
 )
+
+# Signal-cache budget [measured, QQQ 1-minute, 1.05M bars, 2.5 GB cap, 2 settings per chunk]:
+# 2,500 MB cap - 1,400 MB base (data + imports) - 230 MB chunk transient (~116 MB/setting x 2)
+# - 840 MB Luck-test value lines (8.4 MB/setting x 100) = 30 MB.
+SIGNAL_CACHE_BYTES = (2_500 - 1_400 - 230 - 840) * 1_000_000
 
 
 def _signal_key(normalized: dict[str, Any]) -> str:
@@ -30,16 +36,38 @@ def generate_signals_once(
     accepted: Sequence[dict[str, Any]],
     signal_cache: dict[str, SignalResult] | None,
 ) -> list[SignalResult]:
-    """Signals for every setting, reusing those already in ``signal_cache`` for this history."""
+    """Signals for every setting, reusing those still in ``signal_cache`` for this history.
+
+    A bounded cache may evict entries at any time, so fresh signals are returned directly and
+    the cache is only read for hits.
+    """
     cache = {} if signal_cache is None else signal_cache
-    missing = [normalized for normalized in accepted if _signal_key(normalized) not in cache]
+    keys = [_signal_key(normalized) for normalized in accepted]
+    hits = {key: cache[key] for key in keys if key in cache}
+    missing = [normalized for normalized, key in zip(accepted, keys) if key not in hits]
     batch = getattr(type(strategy), "iter_signals_batch", None)
     if batch is None or not missing:
-        fresh = (strategy.generate_signals(data, normalized) for normalized in missing)
+        fresh = [strategy.generate_signals(data, normalized) for normalized in missing]
     else:
-        fresh = batch(strategy, data, missing)
-    cache.update(zip((_signal_key(normalized) for normalized in missing), fresh))
-    return [cache[_signal_key(normalized)] for normalized in accepted]
+        fresh = list(batch(strategy, data, missing))
+    generated = dict(zip((_signal_key(normalized) for normalized in missing), fresh))
+    for key, signals in generated.items():
+        try:
+            cache[key] = signals
+        except ValueError:  # cachetools: one setting is larger than the whole budget; not cached
+            pass
+    return [hits[key] if key in hits else generated[key] for key in keys]
+
+
+def _signal_bytes(signals: SignalResult) -> int:
+    return sum(
+        int(getattr(signals, name).nbytes) for name in SIGNAL_SERIES if getattr(signals, name) is not None
+    )
+
+
+def new_signal_cache(maxsize: int | None = None) -> LRUCache:
+    """Full-history signals shared by every window of one run, bounded by bytes (cachetools LRU)."""
+    return LRUCache(maxsize=SIGNAL_CACHE_BYTES if maxsize is None else maxsize, getsizeof=_signal_bytes)
 
 
 def signals_in_window(aligned: SignalResult, index: pd.Index) -> SignalResult:

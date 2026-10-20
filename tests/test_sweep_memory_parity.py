@@ -8,6 +8,8 @@ luck statistic or the chosen setting, on the whole history and inside a walk-for
 
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 import pytest
 
@@ -70,3 +72,69 @@ def test_signals_are_generated_one_chunk_at_a_time(monkeypatch) -> None:
     _sweep(monkeypatch, 2)
     count = len(DONCHIAN.parameter_combinations)
     assert sizes == [2] * (count // 2) + ([count % 2] if count % 2 else [])
+
+
+def _staged_run(_monkeypatch, budget: int, stage: str):
+    """Every chunk's metrics, trades and value line across all windows, plus the final outcome."""
+    with pytest.MonkeyPatch.context() as monkeypatch:  # undone before the next run is compared
+        return _staged_run_patched(monkeypatch, budget, stage)
+
+
+def _staged_run_patched(monkeypatch, budget: int, stage: str):
+    import backtesting.experiments.windows as windows
+    from dataclasses import replace
+
+    from backtesting.out_of_sample.runner import execute_out_of_sample
+    from backtesting.run_spy_donchian_oos import OOS_CONFIG
+    from backtesting.walk_forward.runner import execute_walk_forward
+    from tests.test_walk_forward_splitter_vbt import _wf_config
+
+    monkeypatch.setattr(windows, "SIGNAL_CACHE_BYTES", budget)
+    seen: list = []
+    extract = chunking.extract_sweep_metrics
+
+    def spy(sweep, count, **kwargs):
+        metrics = extract(sweep, count, **kwargs)
+        seen.append((metrics, sweep.trades.records_readable, sweep.value))
+        return metrics
+
+    monkeypatch.setattr(chunking, "extract_sweep_metrics", spy)
+    data = _market()
+    try:
+        if stage == "walk_forward":
+            config = _wf_config(300, 100, 100, 100, "rolling", "drop", 30, experiment=DONCHIAN)
+            outcome = execute_walk_forward(config, data, _audit(data), write_output=False)
+        else:
+            config = replace(OOS_CONFIG, experiment=replace(OOS_CONFIG.experiment, parameter_combinations=DONCHIAN.parameter_combinations))
+            outcome = execute_out_of_sample(config, data, _audit(data), write_output=False)
+        outcome = re.sub(r"\d{4}-\d{2}-\d{2}T[\d:.]+\+00:00", "<run time>", repr(outcome))
+    except Exception as exc:  # the same failure, at the same point, is part of parity
+        outcome = f"{type(exc).__name__}: {exc}"
+    return seen, outcome
+
+
+def _same_seen(left, right) -> None:
+    assert len(left) == len(right) > 0
+    for (metrics, trades, value), (other_metrics, other_trades, other_value) in zip(left, right):
+        assert metrics == other_metrics
+        pd.testing.assert_frame_equal(trades, other_trades, check_exact=True)
+        pd.testing.assert_frame_equal(value, other_value, check_exact=True)
+
+
+def _one_setting_bytes() -> int:
+    import backtesting.experiments.windows as windows
+    from strategies import get_strategy
+
+    strategy = get_strategy(DONCHIAN.strategy_id)
+    first = strategy.validate_parameters(dict(DONCHIAN.parameter_combinations[0]))
+    return windows._signal_bytes(strategy.generate_signals(_market(), first))
+
+
+@pytest.mark.parametrize("stage", ["walk_forward", "out_of_sample"])
+def test_evicting_signal_cache_changes_nothing(monkeypatch, stage: str) -> None:
+    unlimited, unlimited_outcome = _staged_run(monkeypatch, 10**12, stage)
+    # 1 byte: nothing is ever cached. One setting's bytes: every new setting evicts the last.
+    for budget in (1, _one_setting_bytes()):
+        evicting, evicting_outcome = _staged_run(monkeypatch, budget, stage)
+        _same_seen(unlimited, evicting)
+        assert evicting_outcome == unlimited_outcome

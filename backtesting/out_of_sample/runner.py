@@ -12,6 +12,7 @@ from typing import Callable
 import pandas as pd
 
 from backtesting.experiments import execute_experiment
+from backtesting.experiments.windows import new_signal_cache
 from backtesting.experiments.runner import METRIC_COLUMNS
 from backtesting.experiments.models import ExperimentConfig, ExperimentResult
 from backtesting.out_of_sample.models import (
@@ -418,7 +419,7 @@ def execute_out_of_sample(
     """Select without test data, lock parameters, then evaluate held-out test."""
     config = replace(config, experiment=unseen_data_screening(config.experiment))
     split = split_chronologically(data, config.split)
-    history = {"history": data, "signal_cache": {}}
+    history = {"history": data, "signal_cache": new_signal_cache()}
     candidates = tuple(dict(item) for item in config.experiment.parameter_combinations)
     training = _run_partition(
         config.experiment, split.train, audit, candidates, evaluator, **history

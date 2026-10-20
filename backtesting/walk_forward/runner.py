@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 
 from backtesting.experiments import execute_experiment
+from backtesting.experiments.windows import new_signal_cache
 from backtesting.out_of_sample.runner import (
     ExperimentEvaluator,
     OutOfSampleProgressionError,
@@ -231,7 +232,7 @@ def execute_walk_forward(
         raise ValueError("walk-forward configuration produced no complete folds")
     # Signals are computed once per parameter set on the full history (warm-up kept at every
     # fold start); each fold then simulates and scores only its own train/selection/test bars.
-    full_history = {"history": data, "signal_cache": {}}
+    full_history = {"history": data, "signal_cache": new_signal_cache()}
     folds: list[WalkForwardFoldResult] = []
     for window in windows:
         folds.append(_fold_result(config, window, audit, evaluator, full_history))

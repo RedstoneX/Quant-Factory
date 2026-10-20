@@ -4,6 +4,7 @@
 dash==4.3.0
 dash-ag-grid==35.2.0
 blosc2==4.7.0
+cachetools==7.2.1
 databento==0.80.0
 dill==0.4.1
 exchange-calendars==4.13.2
