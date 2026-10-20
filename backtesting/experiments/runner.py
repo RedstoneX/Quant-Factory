@@ -1,5 +1,6 @@
 """Generic execution, metrics, ranking, and persistence for experiments."""
 
+import sys
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Sequence
@@ -415,7 +416,10 @@ def _release_engine_memory() -> None:
     chunk's cyclic garbage (3.99 GB by setting 54 without it; 2.44 GB for all 100 with it).
     get_func_signature is an unbounded functools.cache keyed by bound methods that pins each
     chunk's returns; flush() does not reach it (97.6 MB -> 0.3 MB only after its cache_clear).
-    Both drop caches only; results are unchanged (tests/test_sweep_memory_parity.py)."""
+    Both drop caches only; results are unchanged (tests/test_sweep_memory_parity.py).
+    Nothing to release when the engine was never loaded (a chunk built without VBT)."""
+    if "vectorbtpro" not in sys.modules:
+        return
     vbt = require_vectorbtpro()
     from vectorbtpro.utils.parsing import get_func_signature
 
