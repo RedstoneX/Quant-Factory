@@ -1,21 +1,22 @@
 """Simulate a parameter sweep in column chunks so only one chunk is alive at a time.
 
 Each chunk prepares its own inputs (signals, validation, window cut), simulates them in one
-engine call, and keeps only what callers read back: metrics, the value series and, when
-observed, the portfolio. Peak memory therefore follows the chunk size, not the settings count
-(apart from the value series the Luck test reads). This module never imports the engine.
+engine call, and keeps only what callers read back: metrics, one closing value per trading day for the Luck test
+and, when observed, the portfolio. Nothing bar-level per setting outlives its chunk, so peak
+memory follows the chunk size, not the settings count. This module never imports the engine.
 """
 
 from typing import Any, Callable, Sequence
 
-import numpy as np
 import pandas as pd
 
 from backtesting.experiments.metrics import extract_sweep_metrics
 
 # Settings per chunk, derived per run [measured, QQQ 1-minute, 1.05M bars, 100 settings]:
 # a chunk costs ~115 MB per setting while it runs (~110 B per bar per setting); the run's base
-# (data, imports) is ~1,400 MB; each setting keeps an 8 B/bar value line for the Luck test.
+# (data, imports) is ~1,400 MB. The 8 B/bar per-setting reserve below was the Luck test's value
+# line; since 20 Oct 2026 only daily values are kept, so it is now spare headroom, kept until the
+# sizing is re-measured (tests/test_sweep_memory_parity.py pins these chunk sizes).
 # chunk budget = 2,500 MB target - 1,400 MB base - bars x 8 B x settings
 # settings per chunk = max(1, floor(chunk budget / (bars x 110 B)))
 # 1-minute (1.05M bars, 100 settings): (2,500 - 1,400 - 840) MB / 115.5 MB = 2.25 -> 2.
@@ -40,13 +41,19 @@ def setting_portfolio(portfolio: Any, position: int) -> Any:
     return portfolio if indexer is None else indexer[:, position]
 
 
-def value_columns(portfolio: Any, count: int) -> list[np.ndarray | None]:
-    """Each setting's value from one read of the sweep's value; None if the engine has none."""
+def daily_values(portfolio: Any, count: int) -> list[pd.Series | None]:
+    """Each setting's closing value per trading day; None if the engine has no value.
+
+    pandas ``resample("1D").last()`` bins by calendar day in the index's own timezone and
+    ``dropna(how="all")`` drops days without bars, so daily data comes back unchanged. The Luck
+    test (deflated Sharpe, PBO) reads daily returns, its published input (Bailey & Lopez de Prado).
+    """
     value = getattr(portfolio, "value", None)
     value = value() if callable(value) else value
     if not isinstance(value, pd.DataFrame) or value.shape[1] != count:
         return [None] * count
-    return [value.iloc[:, position].to_numpy(dtype=float) for position in range(count)]
+    daily = value.astype(float).resample("1D").last().dropna(how="all")
+    return [daily.iloc[:, position] for position in range(count)]
 
 
 def _as_is(data: pd.DataFrame, chunk: Sequence[Any]) -> tuple[pd.DataFrame, list[Any], list[Any]]:
@@ -67,26 +74,26 @@ def simulate_in_chunks(
     chunk_settings: int | None = None,
     prepare: Callable[..., tuple[pd.DataFrame, list[Any], list[Any]]] = _as_is,
     release: Callable[[], None] = _no_release,
-) -> tuple[list[dict[str, float | int]], list[np.ndarray | None], list[Any], list[Any]]:
-    """Simulate settings in column chunks; keep only each setting's metrics and value.
+) -> tuple[list[dict[str, float | int]], list[pd.Series | None], list[Any], list[Any]]:
+    """Simulate settings in column chunks; keep only each setting's metrics and daily value.
 
     ``prepare(data, chunk) -> (data, aligned signals, extras)`` turns a chunk of settings into
     simulation inputs (by default the settings already are aligned signals), so signals live for
     one chunk only. ``construct`` simulates the chunk in one engine call; ``release()`` then drops
     what the engine keeps after it. Settings are independent columns (no cash sharing), so a
-    chunk's metrics equal the same columns of one all-settings call. Returns metrics, values,
-    observed portfolios and ``prepare``'s extras, each in settings order.
+    chunk's metrics equal the same columns of one all-settings call. Returns metrics, daily values,
+    daily values, observed portfolios and ``prepare``'s extras, each in settings order.
     """
     size = chunk_settings or chunk_settings_for(len(data), len(settings))
     metrics: list[dict[str, float | int]] = []
-    values: list[np.ndarray | None] = []
+    values: list[pd.Series | None] = []
     observed: list[Any] = []
     extras: list[Any] = []
     for start in range(0, len(settings), size):
         chunk_data, aligned, chunk_extras = prepare(data, settings[start : start + size])
         sweep = construct(chunk_data, tuple(aligned), config)
         metrics += extract_sweep_metrics(sweep, len(aligned), data=chunk_data, config=config)
-        values += value_columns(sweep, len(aligned))
+        values += daily_values(sweep, len(aligned))
         if keep_portfolios:
             observed += [setting_portfolio(sweep, position) for position in range(len(aligned))]
         extras += chunk_extras

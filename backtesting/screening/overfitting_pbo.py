@@ -31,16 +31,16 @@ class OverfittingPBOResult:
     splits: int  # splits with a defined train best and test rank (70 when none are missing)
     trials: int
     observations: int
+    returns_basis: str | None = None  # "daily" since 20 Oct 2026; None = not labelled
 
 
-def daily_grid_returns(values: np.ndarray, initial_cash: float, index: pd.Index) -> pd.DataFrame:
-    """Daily returns of a (bars x settings) value grid, from each day's closing value.
+def daily_grid_returns(daily: pd.DataFrame, initial_cash: float) -> pd.DataFrame:
+    """Daily returns of a (days x settings) grid of each day's closing value.
 
     The recipe scores daily Sharpe (freq="1D"), so PBO gets one row per day, not every bar;
     on minute data this also keeps its 70 splits small.
     """
-    daily = pd.DataFrame(values, index=index).groupby(pd.DatetimeIndex(index).date).last()
-    return grid_returns(daily.to_numpy(), initial_cash, pd.DatetimeIndex(daily.index))
+    return grid_returns(daily.to_numpy(dtype=float), initial_cash, daily.index)
 
 
 def probability_of_backtest_overfitting(
@@ -58,7 +58,9 @@ def probability_of_backtest_overfitting(
         lambda r: r.vbt.returns(freq="1D").sharpe_ratio(),
         vbt.Takeable(returns),
         merge_func="concat",
-        execute_kwargs=dict(show_progress=False, clear_cache=True, collect_garbage=True),
+        # No per-split clear_cache/collect_garbage: on daily returns (~2.7k rows per setting) the
+        # arrays are tiny, and 71 gc.collect calls cost 18.7 of 20.7 s per run [measured, cProfile].
+        execute_kwargs=dict(show_progress=False),
     )
     train = sharpe.xs("train", level="set").unstack("split").T
     test = sharpe.xs("test", level="set").unstack("split").T

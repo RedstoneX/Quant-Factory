@@ -20,7 +20,13 @@ STRESS_STAGE_WORDS = {"robustness": "the worse-costs check", "monte_carlo": "the
 EMPTY_SCORES: dict[str, Any] = {
     "folds_total": None, "folds_profitable": None, "folds_share": None, "fold_sharpe": None,
     "rolling_status": None, "stress_status": None, "stress_failed": [], "luck": None, "overfitting": None,
+    "luck_basis": None,
 }
+# The Luck score's method, from the label stored in the walk-forward evidence record itself (never
+# inferred from dates): "daily" returns since 20 Oct 2026; an unlabelled score is the older
+# bar-level (1-minute values) method and is never ranked with daily ones.
+LUCK_DAILY, LUCK_OLDER = "daily", "older"
+OLDER_LUCK_LINE = "Older method (1-minute values), not comparable with newer scores."
 
 
 def _number(value: Any) -> float | None:
@@ -60,6 +66,7 @@ def _scores(database: Path, connection: sqlite3.Connection, configuration_id: st
             )
             overfit = rolling.get("idea_overfitting") or {}
             scores["luck"] = _number(overfit.get("deflated_sharpe_probability"))
+            scores["luck_basis"] = luck_basis(overfit)
             scores["overfitting"] = _number(overfit.get("pbo"))
         statuses = [s for s in (_status(_evidence(database, connection, configuration_id, stage)) for stage in STRESS_STAGES) if s]
         scores["stress_failed"] = [
@@ -70,6 +77,19 @@ def _scores(database: Path, connection: sqlite3.Connection, configuration_id: st
     except (sqlite3.Error, ValueError, TypeError, KeyError, AttributeError):
         return dict(EMPTY_SCORES)
     return scores
+
+
+def luck_basis(idea_overfitting: dict[str, Any]) -> str | None:
+    """The stored Luck score's method: "daily", "older" (no label), or None when there is no score."""
+    if _number(idea_overfitting.get("deflated_sharpe_probability")) is None:
+        return None
+    return LUCK_DAILY if idea_overfitting.get("returns_basis") == LUCK_DAILY else LUCK_OLDER
+
+
+def _grid_scores(scores: dict[str, Any]) -> dict[str, Any]:
+    """Grid rows sort and filter the Luck score within the daily method only: an older-method
+    score is blanked (the grid shows "older method" and sorts it last)."""
+    return scores | {"luck": None} if scores.get("luck_basis") == LUCK_OLDER else scores
 
 
 def load_run_scores(run_id: str | None, *, database: str | Path | None = None) -> dict[str, Any]:
@@ -115,7 +135,7 @@ def load_shortlist(*, database: str | Path | None = None) -> list[dict[str, Any]
         return [
             {"candidate_id": str(r["candidate_id"]), "title": str(r["title"] or "Untitled idea"), "symbol": str(r["symbol"] or ""),
              "run_id": r["run_id"], "rank": index + 1, "sharpe": sharpe,
-             **_scores(database_path, connection, str(r["configuration_id"]))}
+             **_grid_scores(_scores(database_path, connection, str(r["configuration_id"])))}
             for index, (sharpe, r) in enumerate(found)
         ]
     except sqlite3.Error:
@@ -153,4 +173,4 @@ def waiting_banner_text(counts: dict[str, int]) -> str | None:
     return "Waiting for you: " + "; ".join(parts) if parts else None
 
 
-__all__ = ["load_run_scores", "load_shortlist", "load_waiting_for_you", "waiting_banner_text"]
+__all__ = ["LUCK_DAILY", "LUCK_OLDER", "OLDER_LUCK_LINE", "luck_basis", "load_run_scores", "load_shortlist", "load_waiting_for_you", "waiting_banner_text"]

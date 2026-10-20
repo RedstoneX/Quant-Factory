@@ -62,7 +62,7 @@ def _database(tmp_path: Path, *, test_status: str = "passed") -> Path:
     })
     _write_artifact(connection, tmp_path, "run-wf", "walk_forward_evidence", {"evidence": {
         "folds": [{"test_metrics": {"total_return": 0.01, "sharpe_ratio": 1.0}}],
-        "idea_overfitting": {"deflated_sharpe_probability": 0.83, "trial_count": 6, "pbo": 0.4, "pbo_split_count": 70},
+        "idea_overfitting": {"deflated_sharpe_probability": 0.83, "trial_count": 6, "pbo": 0.4, "pbo_split_count": 70, "returns_basis": "daily"},
     }})
     connection.commit()
     connection.close()

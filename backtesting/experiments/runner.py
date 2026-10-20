@@ -36,6 +36,8 @@ from backtesting.screening.overfitting_pbo import (
 )
 from backtesting.vectorbt_runtime import require_vectorbtpro
 
+RETURNS_BASIS = "daily"  # Luck test input since 20 Oct 2026; older records are bar-level (1-minute values)
+
 METRIC_COLUMNS = (
     "total_return",
     "annualized_return",
@@ -389,16 +391,16 @@ def _result_columns(config: ExperimentConfig, parameter_names: tuple[str, ...]) 
 
 
 def _record_luck(
-    value_columns: list[np.ndarray | None], initial_cash: float, index: pd.Index
+    daily_values: list[pd.Series | None], initial_cash: float
 ) -> tuple[DeflatedSharpeResult | None, OverfittingPBOResult | None]:
-    """Record-only Deflated Sharpe and PBO over the whole simulated grid (never screens)."""
-    if not value_columns or any(column is None for column in value_columns):
+    """Record-only Deflated Sharpe and PBO over the grid's daily returns (never screens)."""
+    if not daily_values or any(column is None for column in daily_values):
         return None, None
-    values = np.column_stack(value_columns)
-    luck = deflated_sharpe(values, initial_cash)
-    returns = daily_grid_returns(values, initial_cash, index)
+    daily = pd.concat(daily_values, axis=1, ignore_index=True)
+    luck = replace(deflated_sharpe(daily.to_numpy(dtype=float), initial_cash), returns_basis=RETURNS_BASIS)
+    returns = daily_grid_returns(daily, initial_cash)
     enough = returns.shape[1] >= 2 and returns.shape[0] >= 2 * PBO_FOLDS
-    return luck, probability_of_backtest_overfitting(returns) if enough else None
+    return luck, replace(probability_of_backtest_overfitting(returns), returns_basis=RETURNS_BASIS) if enough else None
 
 
 def _with_luck(
@@ -464,7 +466,7 @@ def execute_experiment(
     prepare = chunk_preparer(
         config, strategy, validation_by_gate, signal_cache, evaluation_range, validate_for_simulation
     )
-    sweep_metrics, value_columns, observed, settings = simulate_in_chunks(
+    sweep_metrics, daily_values, observed, settings = simulate_in_chunks(
         data, accepted, config, _construct_portfolio,
         keep_portfolios=portfolio_observer is not None, prepare=prepare, chunk_settings=chunk_settings,
         release=_release_engine_memory,
@@ -507,7 +509,7 @@ def execute_experiment(
         )
         normalized_parameters.append(dict(normalized))
 
-    luck, pbo = _record_luck(value_columns, config.execution.initial_cash, data.index)
+    luck, pbo = _record_luck(daily_values, config.execution.initial_cash)
     if luck is not None:
         screening_results = _with_luck(screening_results, luck)
     columns = _result_columns(config, parameter_names)
