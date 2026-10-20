@@ -59,17 +59,18 @@ def _simulate_chunk(
     metrics = extract_sweep_metrics(sweep, len(aligned), data=chunk_data, config=config)
     values = value_columns(sweep, len(aligned))
     observed = [setting_portfolio(sweep, position) for position in range(len(aligned))] if keep_portfolios else []
-    # Release what VectorBT PRO keeps after the chunk is done. vbt.clear_cache() is the documented
-    # call for its global cache registry, whose run results hold each chunk's wrappers and its
-    # 1M-bar index (~18 MB per 1-minute setting, measured). It does not reach get_func_signature,
-    # an unbounded functools.cache keyed by bound methods (e.g. the returns accessor's
-    # sharpe_ratio) that pins each chunk's returns (measured: 97.6 MB -> 0.3 MB only after its
-    # own cache_clear). Both drop caches only; no result changes (tests/test_sweep_memory_parity.py).
+    # Release what VectorBT PRO keeps after the chunk is done [measured, QQQ 1-minute, 100
+    # settings]. vbt.flush() is the documented call: it clears VBT's cache registry, whose run
+    # results hold each chunk's wrappers and 1M-bar index, and collects the cyclic garbage the
+    # chunk leaves behind (without it, 3.99 GB by setting 54; with it, 2.44 GB for all 100).
+    # flush() does not reach get_func_signature, an unbounded functools.cache keyed by bound
+    # methods that pins each chunk's returns (97.6 MB -> 0.3 MB only after its own cache_clear).
+    # Both drop caches only; no result changes (tests/test_sweep_memory_parity.py).
     vbt = require_vectorbtpro()
     from vectorbtpro.utils.parsing import get_func_signature
 
-    vbt.clear_cache()
     get_func_signature.cache_clear()
+    vbt.flush()
     return metrics, values, observed, extras
 
 
