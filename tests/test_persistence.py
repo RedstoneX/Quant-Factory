@@ -10,8 +10,9 @@ import sqlite3
 import pandas as pd
 import pytest
 
-from backtesting.experiments.models import ExecutionConfig, ExperimentConfig
+from backtesting.experiments.models import ExecutionConfig, ExperimentConfig, ExperimentResult
 from backtesting.screening import ScreeningConfig
+from backtesting.screening.models import ScreeningResult, ScreeningRuleResult
 from market_data.models import DataAudit, MarketDataConfig
 from persistence import (
     LATEST_SCHEMA_VERSION,
@@ -35,6 +36,7 @@ from persistence.models import (
     normalized_configuration_document,
 )
 from persistence.service import configuration_document_from_experiment_config
+from strategies import ParameterPlanSummary
 
 
 def _db_path(tmp_path: Path) -> Path:
@@ -167,30 +169,43 @@ def _fixture_result():
             },
         ]
     )
-    screening = (
-        SimpleNamespace(
-            parameter_row_id="row_a",
-            normalized_parameters={"window": 10},
-            passed=True,
-        ),
-        SimpleNamespace(
-            parameter_row_id="row_b",
-            normalized_parameters={"window": 20},
-            passed=False,
-        ),
+    screening = tuple(
+        ScreeningResult(
+            parameter_row_id=row_id, passed=passed,
+            rule_results=(ScreeningRuleResult(rule_id="minimum_trades", metric="number_of_trades", observed_value=trades,
+                                              threshold=10, status="passed" if passed else "failed", message=""),),
+            passed_rule_count=int(passed), failed_rule_count=int(not passed), strategy_id="fixture_strategy",
+            strategy_version="1.0.0", normalized_parameters={"window": window}, execution_assumptions={},
+            rejection_reasons=() if passed else ("too few trades",),
+        )
+        for row_id, window, trades, passed in (("row_a", 10, 22, True), ("row_b", 20, 5, False))
     )
-    return SimpleNamespace(
+    return ExperimentResult(
         ranked_results=ranked,
+        passing_results=ranked[ranked["screening_status"] == "passed"],
+        screened_out_results=ranked[ranked["screening_status"] != "passed"],
+        experiment_id="fixture_experiment",
         strategy_id="fixture_strategy",
-        strategy_version="1.0.0",
         strategy_name="Fixture Strategy",
-        screening_results=screening,
+        strategy_version="1.0.0",
+        normalized_parameters=({"window": 10}, {"window": 20}),
         market_data_audit=_audit(),
         execution_assumptions={
             "mode": "next_bar_open",
             "fees": 0.0005,
             "direction": "longonly",
         },
+        run_timestamp="2026-07-09T00:00:00Z",
+        evaluated_combinations=2,
+        rejected_combinations=0,
+        rejections=(),
+        validation_results=(),
+        screening_config=ScreeningConfig.provisional_defaults(),
+        screening_results=screening,
+        parameter_plan_summary=ParameterPlanSummary(
+            optimized_parameters=(), total_combinations=2, fixed_parameters=(), fixed_parameter_count=0,
+            structural_choice_parameters=(), warning_threshold=1, warnings=(),
+        ),
     )
 
 

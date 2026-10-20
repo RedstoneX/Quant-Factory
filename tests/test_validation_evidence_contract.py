@@ -1,7 +1,6 @@
 """Deterministic tests for the Milestone 22A normalized evidence contract."""
 
 from dataclasses import replace
-from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -43,6 +42,7 @@ from backtesting.walk_forward.models import (
     WalkForwardWindow,
 )
 from backtesting.walk_forward.splitter import build_walk_forward_windows
+from tests.test_persistence import _fixture_result
 
 
 def _monte_carlo(status: str, reasons: tuple[str, ...] = ()) -> MonteCarloResult:
@@ -101,10 +101,18 @@ def _out_of_sample(passed: bool) -> OutOfSampleResult:
         split=None,  # The adapter needs only locked test evidence.
         training_result=None,
         selection_result=None,
-        test_result=SimpleNamespace(screening_results=(screening,)),
-        parameter_lock=SimpleNamespace(lock_id="lock-1"),
+        test_result=replace(_fixture_result(), screening_results=(screening,)),
+        parameter_lock=_lock(),
         shortlist_parameters=(),
         selected_parameters={"window": 14},
+    )
+
+
+def _lock() -> ParameterLock:
+    return ParameterLock(
+        lock_id="lock-1", experiment_id="fixture_experiment", strategy_id="fixture", strategy_version="1",
+        normalized_parameters=(("window", 14),), selection_parameter_row_id="row-1", selection_start="2020-01-02",
+        selection_end="2020-01-10", ranking_columns=("total_return",), ranking_ascending=(False,),
     )
 
 
@@ -699,8 +707,8 @@ def test_malformed_and_unsupported_input_are_invalid_and_fail_closed():
         split=None,
         training_result=None,
         selection_result=None,
-        test_result=SimpleNamespace(screening_results=()),
-        parameter_lock=SimpleNamespace(lock_id="lock-1"),
+        test_result=replace(_fixture_result(), screening_results=()),
+        parameter_lock=_lock(),
         shortlist_parameters=(),
         selected_parameters={"window": 14},
     )

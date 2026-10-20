@@ -3,23 +3,22 @@ from __future__ import annotations
 
 import pytest
 
-import backtesting.validation.evidence_service as evidence_service
 from backtesting.validation.evidence_service import ValidationEvidenceArtifactService as Svc
-from strategies.rule_spec_strategy import RuleSpecStrategy, rule_strategy_definition
+from strategies.rule_spec_strategy import RULE_STRATEGY_ROOT_ENV, install_rule_strategy, rule_strategy_definition
 from tests.test_rule_spec_strategy import _spec
 
 GRID = [{"trail": 1}, {"trail": 1.5}, {"trail": 2}]
 
 
 @pytest.fixture()
-def strategy_id(monkeypatch):
+def strategy_id(monkeypatch, tmp_path):
+    """A rule strategy installed for real; the registry loads it from its definition file."""
     spec = _spec([{"when": {"gt": ["close", {"mul": [{"param": "trail"}, 40]}]}, "side": "long"}])
     definition = rule_strategy_definition(
         candidate_id="c1", title="T", rule_spec=spec, variables={"trail": {"values": [1, 1.5, 2]}}
     )
-    strategy = RuleSpecStrategy(definition)
-    monkeypatch.setattr(evidence_service, "get_strategy", lambda _id: strategy)
-    return definition["strategy_id"]
+    monkeypatch.setenv(RULE_STRATEGY_ROOT_ENV, str(tmp_path))
+    return install_rule_strategy(dict(definition), root=tmp_path).spec.identity.strategy_id
 
 
 @pytest.mark.parametrize("winner", [1.0, 1.5, 2.0])

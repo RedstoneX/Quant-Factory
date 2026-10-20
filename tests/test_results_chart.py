@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -10,9 +9,20 @@ import pandas as pd
 
 from dashboard import results_projection as projection
 from dashboard.ui import results as page
+from persistence import ArtifactType, PersistenceService
+from tests.test_artifact_contracts import _service_with_run
 
 
-def _price_artifact(tmp_path: Path, monkeypatch) -> None:
+def register_price_copy(service: PersistenceService, run_id: str, path: Path, root: Path) -> None:
+    """Register a per-run price copy the way older runs saved it (a checksummed sqlite3 artifact)."""
+    service.register_artifact(
+        run_id=run_id, artifact_type=ArtifactType.GENERIC_FIXTURE_EVIDENCE, logical_name="screening_price_series",
+        media_type="application/vnd.sqlite3", format="sqlite3", location=str(path.relative_to(root)),
+        content=path.read_bytes(),
+    )
+
+
+def _price_artifact(tmp_path: Path) -> Path:
     path = tmp_path / "bars.sqlite3"
     connection = sqlite3.connect(path)
     connection.execute("CREATE TABLE price_bars (timestamp TEXT, open REAL, high REAL, low REAL, close REAL)")
@@ -20,16 +30,19 @@ def _price_artifact(tmp_path: Path, monkeypatch) -> None:
         pd.date_range("2025-01-03 14:30", periods=78, freq="5min", tz="UTC"))
     connection.executemany("INSERT INTO price_bars VALUES (?, 100, 101, 99, 100.5)", [[stamp.isoformat()] for stamp in stamps])
     connection.commit(); connection.close()
-    content = path.read_bytes()
-    row = {"format": "sqlite3", "size_bytes": len(content), "checksum": hashlib.sha256(content).hexdigest()}
-    monkeypatch.setattr(projection, "_artifact_reference", lambda **_: (path, row))
+    service = _service_with_run(tmp_path, "scr")
+    try:
+        register_price_copy(service, "scr", path, tmp_path)
+    finally:
+        service.close()
+    return tmp_path / "state" / "artifacts.sqlite3"
 
 
-def test_session_price_reads_one_eastern_day_of_saved_bars(tmp_path: Path, monkeypatch) -> None:
-    _price_artifact(tmp_path, monkeypatch)
-    bars = projection.load_session_price("scr", "2025-01-03", interval="15m", database=tmp_path / "x.sqlite3")
+def test_session_price_reads_one_eastern_day_of_saved_bars(tmp_path: Path) -> None:
+    database = _price_artifact(tmp_path)
+    bars = projection.load_session_price("scr", "2025-01-03", interval="15m", database=database)
     assert len(bars["price"]) == 26 and all(row["timestamp"].startswith("2025-01-03") for row in bars["price"])
-    assert projection.load_session_price("scr", None, database=tmp_path / "x.sqlite3")["price"] == []
+    assert projection.load_session_price("scr", None, database=database)["price"] == []
 
 
 TRADES = [
