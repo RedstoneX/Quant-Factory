@@ -140,7 +140,8 @@ def test_force_env_deploys_despite_a_running_test(switched: list[str], monkeypat
 def test_licensed_lane_runs_in_a_networkless_throwaway_container_of_the_new_image(tmp_path: Path) -> None:
     command = qf_deploy.licensed_lane_command(tmp_path, SHA_A)
 
-    assert command[:4] == ["docker", "run", "--rm", "--network"]
+    assert command[:3] == ["docker", "run", "--rm"]
+    assert command[command.index("--name") + 1] == qf_deploy.licensed_container_name(SHA_A) == f"qf-licensed-{SHA_A[:12]}"
     assert command[command.index("--network") + 1] == "none"
     assert f"{qf_deploy.IMAGE}:{SHA_A}" in command
     assert f"{tmp_path / qf_deploy.TEST_DEPS}:/opt/qf-pytest:ro" in command
@@ -148,6 +149,18 @@ def test_licensed_lane_runs_in_a_networkless_throwaway_container_of_the_new_imag
     assert f"{tmp_path / 'tests'}:/app/tests:ro" in command
     assert command[-2:] == ["-c", qf_deploy.LICENSED_LANE]
     assert "licensed_vectorbt" in qf_deploy.LICENSED_LANE
+    assert "'-rfE'" in qf_deploy.LICENSED_LANE  # the short summary names the failing node ids
+
+
+def test_failed_node_ids_reads_the_short_summary_capped_at_twenty() -> None:
+    summary = "\n".join(f"FAILED tests/test_x.py::test_{i} - AssertionError" for i in range(25))
+    output = f"F.\n=== short test summary info ===\n{summary}\nERROR tests/test_y.py::test_e\n1 failed in 1.0s\n"
+
+    found = qf_deploy.failed_node_ids(output)
+
+    assert len(found) == 20 and found[0] == "FAILED tests/test_x.py::test_0 - AssertionError"
+    assert qf_deploy.failed_node_ids(output, limit=30)[-1] == "ERROR tests/test_y.py::test_e"
+    assert qf_deploy.failed_node_ids("...\n3 passed in 1.0s\n") == []
 
 
 @pytest.mark.parametrize(
@@ -165,13 +178,21 @@ def test_failing_count_reads_pytest_summary_line(output: str, failing: int) -> N
 
 def test_a_failed_licensed_lane_refuses_the_revision(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, ...]] = []
+    subprocess_calls: list[list[str]] = []
+    logged: list[str] = []
     monkeypatch.setattr(qf_deploy, "run", lambda *args, **_: calls.append(args) or "")
+    monkeypatch.setattr(qf_deploy, "log", logged.append)
     monkeypatch.setattr(
         qf_deploy.subprocess,
         "run",
-        lambda *_, **__: qf_deploy.subprocess.CompletedProcess([], 1, stdout="F\n1 failed, 5 passed in 1.00s\n"),
+        lambda args, **__: subprocess_calls.append(list(args)) or qf_deploy.subprocess.CompletedProcess(
+            args, 1, stdout="F\nFAILED tests/test_x.py::test_a - AssertionError\n1 failed, 5 passed in 1.00s\n"),
     )
 
     with pytest.raises(qf_deploy.DeployError, match=rf"licensed tests failed on {SHA_A[:12]}: 1 failing"):
         qf_deploy.verify_image(tmp_path, SHA_A, tmp_path / "venv")
     assert "--target" in calls[0] and "pytest" in calls[0]
+    # A leftover container from a timed-out run is removed before the lane starts.
+    assert subprocess_calls[0] == ["docker", "rm", "-f", f"qf-licensed-{SHA_A[:12]}"]
+    assert subprocess_calls[1][:2] == ["docker", "run"]
+    assert "FAILED tests/test_x.py::test_a - AssertionError" in logged
