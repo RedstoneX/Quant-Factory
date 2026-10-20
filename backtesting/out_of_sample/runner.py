@@ -414,12 +414,13 @@ def execute_out_of_sample(
     *,
     evaluator: ExperimentEvaluator = execute_experiment,
     write_output: bool = True,
+    signal_cache_bytes: int | None = None,  # None = SIGNAL_CACHE_BYTES (experiments.windows)
     test_portfolio_observer: Callable[[str, object], object] | None = None,
 ) -> OutOfSampleResult:
     """Select without test data, lock parameters, then evaluate held-out test."""
     config = replace(config, experiment=unseen_data_screening(config.experiment))
     split = split_chronologically(data, config.split)
-    history = {"history": data, "signal_cache": new_signal_cache()}
+    history = {"history": data, "signal_cache": new_signal_cache(signal_cache_bytes)}
     candidates = tuple(dict(item) for item in config.experiment.parameter_combinations)
     training = _run_partition(
         config.experiment, split.train, audit, candidates, evaluator, **history

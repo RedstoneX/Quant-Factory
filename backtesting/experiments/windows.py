@@ -8,12 +8,14 @@ their warm-up at every window start; only the window's bars are then simulated a
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 import pandas as pd
 from cachetools import LRUCache
 
 from strategies.models import SignalResult
+
+from backtesting.experiments.models import RejectedParameters
 
 SIGNAL_SERIES = (
     "entries", "exits", "short_entries", "short_exits", "stop_loss", "take_profit", "trailing_stop",
@@ -95,3 +97,43 @@ def cut_to_window(
         (normalized, signals_in_window(aligned, window.index), results)
         for normalized, aligned, results in settings
     ]
+
+
+def accepted_parameters(
+    config: Any, strategy: Any, rejections: list[Any]
+) -> list[dict[str, Any]]:
+    """Every supplied setting the strategy accepts; the rest are recorded as rejections."""
+    accepted: list[dict[str, Any]] = []
+    for supplied in config.parameter_combinations:
+        candidate = dict(supplied)
+        try:
+            accepted.append(strategy.validate_parameters(candidate))
+        except (TypeError, ValueError) as exc:
+            rejections.append(RejectedParameters(parameters=candidate, error=str(exc)))
+    return accepted
+
+
+def chunk_preparer(
+    config: Any,
+    strategy: Any,
+    validation_by_gate: dict[str, Any],
+    signal_cache: dict | None,
+    evaluation_range: tuple | None,
+    validate: Callable[..., tuple[SignalResult, tuple]],
+) -> Callable[..., tuple[pd.DataFrame, list[SignalResult], list[tuple]]]:
+    """Signals, validation and window cut for one chunk of settings (in one pass if the
+    strategy class has ``iter_signals_batch``); run inside each VectorBT PRO mono-chunk."""
+
+    def prepare(data: pd.DataFrame, chunk: Sequence[dict[str, Any]]):
+        generated = generate_signals_once(strategy, data, chunk, signal_cache)
+        settings = []
+        for normalized, signals in zip(chunk, generated):
+            aligned, validation_results = validate(
+                data, signals, config, required_fields=strategy.spec.data.required_fields
+            )
+            validation_by_gate.update({result.gate_id: result for result in validation_results})
+            settings.append((normalized, aligned, validation_results))
+        window, settings = cut_to_window(data, settings, evaluation_range)
+        return window, [aligned for _, aligned, _ in settings], [(n, v) for n, _, v in settings]
+
+    return prepare

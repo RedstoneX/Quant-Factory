@@ -20,7 +20,7 @@ from backtesting.experiments.models import (
 )
 from backtesting.experiments.chunking import setting_portfolio as _setting_portfolio, simulate_in_chunks
 from backtesting.experiments.metrics import extract_metrics
-from backtesting.experiments.windows import cut_to_window, generate_signals_once
+from backtesting.experiments.windows import accepted_parameters, chunk_preparer, cut_to_window
 from backtesting.validation.gates import (
     normalize_signals,
     validate_execution,
@@ -409,45 +409,6 @@ def _with_luck(
     ]
 
 
-def _accepted_parameters(
-    config: ExperimentConfig, strategy: Any, rejections: list[RejectedParameters]
-) -> list[dict[str, Any]]:
-    """Every supplied setting the strategy accepts; the rest are recorded as rejections."""
-    accepted: list[dict[str, Any]] = []
-    for supplied in config.parameter_combinations:
-        candidate = dict(supplied)
-        try:
-            accepted.append(strategy.validate_parameters(candidate))
-        except (TypeError, ValueError) as exc:
-            rejections.append(RejectedParameters(parameters=candidate, error=str(exc)))
-    return accepted
-
-
-def _chunk_preparer(
-    config: ExperimentConfig,
-    strategy: Any,
-    validation_by_gate: dict[str, ValidationResult],
-    signal_cache: dict | None,
-    evaluation_range: tuple | None,
-) -> Callable[..., tuple[pd.DataFrame, list[SignalResult], list[tuple]]]:
-    """Signals, validation and window cut for one chunk of settings (in one pass if the
-    strategy class has ``iter_signals_batch``); run inside each VectorBT PRO mono-chunk."""
-
-    def prepare(data: pd.DataFrame, chunk: Sequence[dict[str, Any]]):
-        generated = generate_signals_once(strategy, data, chunk, signal_cache)
-        settings = []
-        for normalized, signals in zip(chunk, generated):
-            aligned, validation_results = validate_for_simulation(
-                data, signals, config, required_fields=strategy.spec.data.required_fields
-            )
-            validation_by_gate.update({result.gate_id: result for result in validation_results})
-            settings.append((normalized, aligned, validation_results))
-        window, settings = cut_to_window(data, settings, evaluation_range)
-        return window, [aligned for _, aligned, _ in settings], [(n, v) for n, _, v in settings]
-
-    return prepare
-
-
 def execute_experiment(
     config: ExperimentConfig,
     data: pd.DataFrame,
@@ -457,6 +418,7 @@ def execute_experiment(
     write_output: bool = True,
     portfolio_observer: Callable[[str, Any], None] | None = None,
     evaluation_range: tuple | None = None, signal_cache: dict | None = None,  # see experiments.windows
+    chunk_settings: int | None = None,  # settings per VectorBT mono-chunk; None = SWEEP_CHUNK_SETTINGS
 ) -> ExperimentResult:
     """Validate, simulate, rank, and optionally persist one experiment."""
     strategy = get_strategy(config.strategy_id)
@@ -480,11 +442,13 @@ def execute_experiment(
     parameter_names = tuple(strategy.spec.parameter_map)
 
     # Each chunk of settings is one VectorBT simulation; signals live only for their chunk.
-    accepted = _accepted_parameters(config, strategy, rejections)
-    prepare = _chunk_preparer(config, strategy, validation_by_gate, signal_cache, evaluation_range)
+    accepted = accepted_parameters(config, strategy, rejections)
+    prepare = chunk_preparer(
+        config, strategy, validation_by_gate, signal_cache, evaluation_range, validate_for_simulation
+    )
     sweep_metrics, value_columns, observed, settings = simulate_in_chunks(
         data, accepted, config, _construct_portfolio,
-        keep_portfolios=portfolio_observer is not None, prepare=prepare,
+        keep_portfolios=portfolio_observer is not None, prepare=prepare, chunk_settings=chunk_settings,
     )
     data, _ = cut_to_window(data, [], evaluation_range)
     for position, (normalized, validation_results) in enumerate(settings):

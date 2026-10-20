@@ -92,7 +92,7 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_runner_memory.py::test_locked_column_equals_resimulating_the_locked_setting",
         "tests/test_sweep_memory_parity.py::test_chunked_sweep_equals_one_all_settings_simulation",
         "tests/test_sweep_memory_parity.py::test_chunked_window_equals_one_all_settings_simulation",
-        "tests/test_sweep_memory_parity.py::test_signals_are_generated_one_chunk_at_a_time",
+        "tests/test_sweep_memory_parity.py::test_many_chunks_merge_in_settings_order",
         "tests/test_sweep_memory_parity.py::test_evicting_signal_cache_changes_nothing",
         "tests/test_milestone21c_spym_fixture.py::test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades",
         "tests/test_milestone21c_spym_fixture.py::test_spym_saved_configuration_launches_vectorbt_and_persists_lineage",

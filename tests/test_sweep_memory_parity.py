@@ -1,34 +1,37 @@
-"""The VectorBT PRO mono-chunk sweep gives the same results at every chunk size, with signals
-alive for one chunk only.
+"""The VectorBT PRO mono-chunk sweep gives the same results at every chunk size and cache budget.
 
 Chunk size equal to the grid is one all-settings simulation with every signal generated up
 front (the pre-chunking behaviour); smaller chunks must not change a single metric, trade,
 luck statistic or the chosen setting, on the whole history and inside a walk-forward window.
+A signal cache that evicts (or caches nothing) must not change walk-forward or out-of-sample.
 """
 
 from __future__ import annotations
 
 import re
+from functools import partial
 
+import numpy as np
 import pandas as pd
 import pytest
 
 import backtesting.experiments.chunking as chunking
 import backtesting.experiments.runner as runner
-from backtesting.experiments import execute_experiment
+import backtesting.experiments.windows as windows
+from backtesting.experiments import SignalResult, execute_experiment
+from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
 from tests.test_spy_donchian_oos import _audit
 from tests.test_walk_forward_splitter_vbt import DONCHIAN, _market
 
 pytestmark = pytest.mark.licensed_vectorbt
 
 
-def _sweep(monkeypatch, chunk: int, evaluation_range=None, signal_cache=None):
-    monkeypatch.setattr(chunking, "SWEEP_CHUNK_SETTINGS", chunk)
+def _sweep(chunk: int, evaluation_range=None, signal_cache=None):
     data = _market()
     trades: dict[str, pd.DataFrame] = {}
     result = execute_experiment(
         DONCHIAN, data, _audit(data), write_output=False, evaluation_range=evaluation_range,
-        signal_cache=signal_cache,
+        signal_cache=signal_cache, chunk_settings=chunk,
         portfolio_observer=lambda row_id, pf: trades.__setitem__(row_id, pf.trades.records_readable),
     )
     return result, trades
@@ -47,41 +50,43 @@ def _assert_same(left, right) -> None:
 
 
 @pytest.mark.parametrize("chunk", [1, 2])
-def test_chunked_sweep_equals_one_all_settings_simulation(monkeypatch, chunk: int) -> None:
-    whole = _sweep(monkeypatch, len(DONCHIAN.parameter_combinations))
+def test_chunked_sweep_equals_one_all_settings_simulation(chunk: int) -> None:
+    whole = _sweep(len(DONCHIAN.parameter_combinations))
     assert len(whole[1]) == len(DONCHIAN.parameter_combinations) > chunk
-    _assert_same(_sweep(monkeypatch, chunk), whole)
+    _assert_same(_sweep(chunk), whole)
 
 
-def test_chunked_window_equals_one_all_settings_simulation(monkeypatch) -> None:
+def test_chunked_window_equals_one_all_settings_simulation() -> None:
     data = _market()
     window = (data.index[300], data.index[599])
-    whole = _sweep(monkeypatch, len(DONCHIAN.parameter_combinations), window, {})
-    _assert_same(_sweep(monkeypatch, 2, window, {}), whole)
+    whole = _sweep(len(DONCHIAN.parameter_combinations), window, {})
+    _assert_same(_sweep(2, window, {}), whole)
 
 
-def test_signals_are_generated_one_chunk_at_a_time(monkeypatch) -> None:
-    sizes: list[int] = []
-    generate = runner.generate_signals_once
+def test_many_chunks_merge_in_settings_order() -> None:
+    """More chunks than settings-per-chunk x 3: 61 settings in 31 chunks of 2 (last one short)."""
+    data = _market()
+    settings = []
+    for seed in range(61):
+        rng = np.random.default_rng(seed)
+        entries = pd.Series(rng.random(len(data)) < 0.1, index=data.index, name="Close")
+        exits = pd.Series(rng.random(len(data)) < 0.1, index=data.index, name="Close")
+        settings.append(SignalResult(entries=entries, exits=exits, parameters={"seed": seed}))
 
-    def spy(strategy, data, accepted, cache):
-        sizes.append(len(accepted))
-        return generate(strategy, data, accepted, cache)
+    def sweep(chunk: int):
+        return chunking.simulate_in_chunks(
+            data, settings, EXPERIMENT_CONFIG, runner._construct_portfolio, keep_portfolios=False, chunk_settings=chunk
+        )
 
-    monkeypatch.setattr(runner, "generate_signals_once", spy)
-    _sweep(monkeypatch, 2)
-    count = len(DONCHIAN.parameter_combinations)
-    assert sizes == [2] * (count // 2) + ([count % 2] if count % 2 else [])
-
-
-def _staged_run(_monkeypatch, budget: int, stage: str):
-    """Every chunk's metrics, trades and value line across all windows, plus the final outcome."""
-    with pytest.MonkeyPatch.context() as monkeypatch:  # undone before the next run is compared
-        return _staged_run_patched(monkeypatch, budget, stage)
+    chunked, whole = sweep(2), sweep(61)
+    assert [len(part) for part in chunked] == [61, 61, 0, 61]
+    assert chunked[0] == whole[0]
+    for left, right in zip(chunked[1], whole[1]):
+        np.testing.assert_array_equal(left, right)
 
 
-def _staged_run_patched(monkeypatch, budget: int, stage: str):
-    import backtesting.experiments.windows as windows
+def _staged_run(budget: int, stage: str) -> str:
+    """The whole walk-forward or out-of-sample outcome (run times masked), 2 settings per chunk."""
     from dataclasses import replace
 
     from backtesting.out_of_sample.runner import execute_out_of_sample
@@ -89,40 +94,27 @@ def _staged_run_patched(monkeypatch, budget: int, stage: str):
     from backtesting.walk_forward.runner import execute_walk_forward
     from tests.test_walk_forward_splitter_vbt import _wf_config
 
-    monkeypatch.setattr(windows, "SIGNAL_CACHE_BYTES", budget)
-    seen: list = []
-    extract = chunking.extract_sweep_metrics
-
-    def spy(sweep, count, **kwargs):
-        metrics = extract(sweep, count, **kwargs)
-        seen.append((metrics, sweep.trades.records_readable, sweep.value))
-        return metrics
-
-    monkeypatch.setattr(chunking, "extract_sweep_metrics", spy)
     data = _market()
+    evaluator = partial(execute_experiment, chunk_settings=2)
     try:
         if stage == "walk_forward":
             config = _wf_config(300, 100, 100, 100, "rolling", "drop", 30, experiment=DONCHIAN)
-            outcome = execute_walk_forward(config, data, _audit(data), write_output=False)
+            outcome = execute_walk_forward(
+                config, data, _audit(data), evaluator=evaluator, write_output=False, signal_cache_bytes=budget
+            )
         else:
-            config = replace(OOS_CONFIG, experiment=replace(OOS_CONFIG.experiment, parameter_combinations=DONCHIAN.parameter_combinations))
-            outcome = execute_out_of_sample(config, data, _audit(data), write_output=False)
-        outcome = re.sub(r"\d{4}-\d{2}-\d{2}T[\d:.]+\+00:00", "<run time>", repr(outcome))
+            experiment = replace(OOS_CONFIG.experiment, parameter_combinations=DONCHIAN.parameter_combinations)
+            outcome = execute_out_of_sample(
+                replace(OOS_CONFIG, experiment=experiment), data, _audit(data),
+                evaluator=evaluator, write_output=False, signal_cache_bytes=budget,
+            )
+        text = repr(outcome)
     except Exception as exc:  # the same failure, at the same point, is part of parity
-        outcome = f"{type(exc).__name__}: {exc}"
-    return seen, outcome
-
-
-def _same_seen(left, right) -> None:
-    assert len(left) == len(right) > 0
-    for (metrics, trades, value), (other_metrics, other_trades, other_value) in zip(left, right):
-        assert metrics == other_metrics
-        pd.testing.assert_frame_equal(trades, other_trades, check_exact=True)
-        pd.testing.assert_frame_equal(value, other_value, check_exact=True)
+        text = f"{type(exc).__name__}: {exc}"
+    return re.sub(r"\d{4}-\d{2}-\d{2}T[\d:.]+\+00:00", "<run time>", text)
 
 
 def _one_setting_bytes() -> int:
-    import backtesting.experiments.windows as windows
     from strategies import get_strategy
 
     strategy = get_strategy(DONCHIAN.strategy_id)
@@ -131,10 +123,8 @@ def _one_setting_bytes() -> int:
 
 
 @pytest.mark.parametrize("stage", ["walk_forward", "out_of_sample"])
-def test_evicting_signal_cache_changes_nothing(monkeypatch, stage: str) -> None:
-    unlimited, unlimited_outcome = _staged_run(monkeypatch, 10**12, stage)
+def test_evicting_signal_cache_changes_nothing(stage: str) -> None:
+    unlimited = _staged_run(10**12, stage)
     # 1 byte: nothing is ever cached. One setting's bytes: every new setting evicts the last.
     for budget in (1, _one_setting_bytes()):
-        evicting, evicting_outcome = _staged_run(monkeypatch, budget, stage)
-        _same_seen(unlimited, evicting)
-        assert evicting_outcome == unlimited_outcome
+        assert _staged_run(budget, stage) == unlimited
