@@ -30,6 +30,7 @@ def config(**kwargs) -> RegimeConfig:
     return RegimeConfig(**values)
 
 
+@pytest.mark.licensed_vectorbt
 def test_labels_are_trailing_deterministic_and_record_warmup():
     close = prices()
     result = label_regimes(close, config())
@@ -43,6 +44,7 @@ def test_labels_are_trailing_deterministic_and_record_warmup():
     assert result.metadata.annualization_factor == 252.0
 
 
+@pytest.mark.licensed_vectorbt
 def test_future_price_mutation_does_not_change_earlier_labels():
     close = prices()
     original = label_regimes(close, config()).labels
@@ -74,6 +76,7 @@ def test_start_of_period_attribution_uses_previous_label():
     assert attributed["regime"].tolist() == ["unknown|unknown", "a", "b", "c"]
 
 
+@pytest.mark.licensed_vectorbt
 def test_attribution_requires_exact_index_alignment():
     close = prices()
     labels = label_regimes(close, config()).labels
@@ -100,6 +103,7 @@ def manual_labels(index: pd.Index) -> RegimeLabels:
     return RegimeLabels(labels, trend, volatility, pd.Series(np.nan, index=index), metadata)
 
 
+@pytest.mark.licensed_vectorbt
 def test_regime_evaluation_passes_with_adequate_evidence():
     index = pd.date_range("2020-01-01", periods=5, freq="D", tz="UTC")
     returns = pd.Series([0.0, 0.01, 0.02, 0.01, 0.02], index=index)
@@ -116,6 +120,7 @@ def test_regime_evaluation_passes_with_adequate_evidence():
     assert all(result.first_timestamp and result.last_timestamp for result in results)
 
 
+@pytest.mark.licensed_vectorbt
 def test_regime_evidence_minimums_and_undefined_sharpe():
     index = pd.date_range("2020-01-01", periods=5, freq="D", tz="UTC")
     returns = pd.Series([0.0, 0.01, 0.01, 0.01, 0.01], index=index)
@@ -141,6 +146,7 @@ def test_regime_evidence_minimums_and_undefined_sharpe():
     assert any("Sharpe is undefined" in result.warnings for result in undefined)
 
 
+@pytest.mark.licensed_vectorbt
 def test_failing_regime_is_failed_not_insufficient():
     index = pd.date_range("2020-01-01", periods=5, freq="D", tz="UTC")
     returns = pd.Series([0.0, -0.2, -0.1, 0.01, 0.02], index=index)

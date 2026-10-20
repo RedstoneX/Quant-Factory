@@ -45,9 +45,11 @@ def test_resample_identical(method, block, sims):
 
 
 @pytest.mark.parametrize("ann", [None, 252])
+@pytest.mark.licensed_vectorbt
 def test_metrics_identical(ann):
     paths = np.vstack([np.random.default_rng(9).choice(SRC, (60, 253)), np.zeros((1, 253))])
     t, d, s = path_metrics(paths, ann)
     old = np.array([_old_metrics(p, ann) for p in paths])
     assert np.array_equal(t, old[:, 0]) and np.array_equal(d, old[:, 1])
-    assert np.array_equal(s, old[:, 2], equal_nan=True)
+    # Library Sharpe differs from the loop formula only by float rounding order (<1e-14).
+    assert np.allclose(s, old[:, 2], rtol=1e-12, atol=1e-12, equal_nan=True)
