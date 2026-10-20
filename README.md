@@ -12,12 +12,14 @@ compiles it into a strategy and backtests it automatically. It does not trade.
 4. Ideas with rules are backtested under the owner's standing policy of
    2026-10-13. Paper trading always needs separate owner approval.
    Every setting in the idea's grid is tested in chunks sized to fit memory for the data's bar count (2 settings on 1-minute bars, about 40 on 5-minute): a chunk builds its own
-   signals, runs one simulation and keeps only scores and the account-value
-   line the Luck test needs, so signals never pile up for the whole grid.
-   Known limit [measured, QQQ 1-minute, 1.05M bars]: the simulation itself
-   stays flat apart from the Luck test's account-value line (8.4 MB per
-   setting); stacking those lines for the Luck test copies them once more, so
-   a 100-setting 1-minute idea still needs more than 3 GB at that step.
+   signals, runs one simulation and keeps only scores and each setting's
+   closing account value per trading day, so nothing bar-level piles up for the whole grid.
+   Luck test change, 20 Oct 2026: deflated Sharpe and overfitting (PBO) now read
+   each setting's daily returns, the published input for these methods (Bailey &
+   López de Prado), instead of 1-minute account-value lines that cost 8.4 MB per
+   setting and ran a 100-setting 1-minute idea out of memory [measured]; each
+   record says `returns_basis: daily`, and older unlabelled scores show as
+   "older method" and are never ranked with newer ones.
 5. Two gates decide: **Survives costs** (full history, Sharpe after costs
    >= 0.5) and **Unseen data** (the selected setting made money after all costs
    on the test years it never saw). Inside Unseen data no Sharpe minimum applies:

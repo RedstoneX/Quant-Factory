@@ -33,6 +33,7 @@ class DeflatedSharpeResult:
     probability: float
     trial_probabilities: tuple[float, ...]
     confidence: float = DSR_CONFIDENCE
+    returns_basis: str | None = None  # "daily" since 20 Oct 2026; None = not labelled
 
     @property
     def meets_conventional_confidence(self) -> bool:

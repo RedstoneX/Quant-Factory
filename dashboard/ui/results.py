@@ -25,7 +25,7 @@ from dashboard.idea_results_projection import (
 )
 from dashboard.plain_labels import FAILED_TESTING
 from dashboard.results_projection import list_results_runs, load_results_record, load_session_price
-from dashboard.score_projection import load_run_scores
+from dashboard.score_projection import LUCK_OLDER, load_run_scores
 from dashboard.ui.layout import page_header, stat_card
 from dashboard.ui.results_settings import display_settings_rows, register_settings_callbacks, settings_columns, settings_heatmap_layout
 from dashboard.ui.scores import score_cards
@@ -69,7 +69,7 @@ def settings_tried_line(total: int, screened_out: int) -> str:
 def _weak_scores(scores: dict[str, Any]) -> bool:
     return (
         scores.get("rolling_status") == "failed" or scores.get("stress_status") == "failed"
-        or (scores.get("luck") is not None and scores["luck"] < 0.5)
+        or (scores.get("luck") is not None and scores.get("luck_basis") != LUCK_OLDER and scores["luck"] < 0.5)
         or (scores.get("overfitting") is not None and scores["overfitting"] > 0.5)
     )
 

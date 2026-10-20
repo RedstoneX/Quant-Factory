@@ -63,11 +63,14 @@ def _idea_overfitting_document(overfitting: object | None) -> dict[str, Any]:
     """Record-only luck checks; never read by status, reasons or validation."""
     dsr = getattr(overfitting, "deflated_sharpe", None)
     pbo = getattr(overfitting, "overfitting_pbo", None)
+    basis = getattr(dsr, "returns_basis", None) or getattr(pbo, "returns_basis", None)
     return {
         "deflated_sharpe_probability": dsr.probability if dsr is not None else None,
         "trial_count": getattr(overfitting, "trials", None),
         "pbo": pbo.probability if pbo is not None else None,
         "pbo_split_count": pbo.splits if pbo is not None else None,
+        # Method label: "daily" returns since 20 Oct 2026; records without it are bar-level (1-minute values).
+        **({"returns_basis": basis} if basis else {}),
     }
 
 

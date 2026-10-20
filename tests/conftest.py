@@ -36,6 +36,8 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_deflated_sharpe.py::test_selected_column_alone_is_undefined",
         "tests/test_deflated_sharpe.py::test_walk_forward_counts_every_setting_tried_not_per_fold",
         "tests/test_overfitting_pbo.py::test_noise_grid_is_near_one_half",
+        "tests/test_luck_daily_returns.py::test_daily_bars_score_bit_identically_to_the_bar_level_method",
+        "tests/test_luck_daily_returns.py::test_minute_bars_score_on_each_days_closing_value",
         "tests/test_rule_language_exits.py::test_level_stop_and_target_fill_in_vectorbt",
         "tests/test_rule_signal_bar_stop.py::test_signal_bar_stop_fills_at_the_signal_bar_extreme_in_vectorbt",
         "tests/test_rule_signal_bar_stop.py::test_signal_bar_stop_sets_r_for_the_target_in_vectorbt",
