@@ -124,6 +124,37 @@ def test_prohibited_constructor_bypass_and_licensed_test_double_are_detected(
     assert any("licensed VectorBT test double" in error for error in errors)
 
 
+def test_licensed_test_double_hidden_in_a_fixture_chain_is_detected(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_fixture_double.py").write_text(
+        "import pytest\n"
+        "from types import SimpleNamespace\n"
+        "class Value: pass\n"
+        "@pytest.fixture\n"
+        "def engine(monkeypatch):\n"
+        "    monkeypatch.setattr(Value, 'answer', SimpleNamespace())\n"
+        "    return Value\n"
+        "@pytest.fixture\n"
+        "def runner(engine):\n"
+        "    return engine\n"
+        "@pytest.mark.licensed_vectorbt\n"
+        "def test_licensed(runner):\n"
+        "    assert runner is Value\n",
+        encoding="utf-8",
+    )
+
+    measurement = measure_repository(tmp_path, ["tests/test_fixture_double.py"])
+
+    owners = {item.owner for item in measurement.licensed_test_doubles}
+    assert owners == {"test_licensed (fixture engine)"}
+    details = {item.detail for item in measurement.licensed_test_doubles}
+    assert "licensed test requests monkeypatch" in details
+    assert "licensed test calls test double SimpleNamespace" in details
+    errors = compare_measurement(measurement, _baseline(measurement))
+    assert any("licensed VectorBT test double" in error for error in errors)
+
+
 def test_real_licensed_test_without_double_is_allowed(tmp_path: Path) -> None:
     tests = tmp_path / "tests"
     tests.mkdir()
