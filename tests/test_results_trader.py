@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from pathlib import Path
 
 from dashboard import results_projection as projection
 from dashboard.formatting import format_money, profit_factor
 from dashboard.ui import results as page
+from persistence import ArtifactType, RunStage
+from persistence.database import transaction
+from tests.test_artifact_contracts import _service_with_run
 
 
 def test_money_has_two_decimals_and_sign() -> None:
@@ -60,27 +62,41 @@ def test_unavailable_chart_message_has_no_developer_text() -> None:
     assert "/" not in page.CHART_UNAVAILABLE and "toml" not in page.CHART_UNAVAILABLE.lower()
 
 
-def _database() -> sqlite3.Connection:
-    connection = sqlite3.connect(":memory:")
-    connection.row_factory = sqlite3.Row
-    connection.execute("CREATE TABLE experiment_runs (run_id TEXT, environment_json TEXT)")
-    connection.execute("CREATE TABLE parameter_results (run_id TEXT, row_id TEXT, normalized_parameters_json TEXT)")
-    connection.execute("INSERT INTO experiment_runs VALUES ('oos', ?)", [json.dumps({"filter_handoff": {"source_run_id": "scr"}})])
-    connection.executemany("INSERT INTO parameter_results VALUES ('scr', ?, ?)", [("a", '{"trail":15}'), ("b", '{"trail":20}')])
-    return connection
+def _database(tmp_path: Path, report: dict | None) -> Path:
+    """A first-check run with two settings and an unseen-data run handed off from it, saved for real."""
+    service = _service_with_run(tmp_path, "scr")
+    try:
+        with transaction(service.connection):
+            for position, (row_id, trail) in enumerate((("a", 15), ("b", 20)), start=1):
+                service.results.add_parameter_result(
+                    run_id="scr", row_id=row_id, normalized_parameters={"trail": trail}, metrics={"total_return": 0.1},
+                    ranking_position=position, screening_status="passed",
+                )
+        source = service.runs.get("scr")
+        service.create_run(
+            configuration_id=source.configuration_id, strategy_id=source.strategy_id, strategy_version=source.strategy_version,
+            stage=RunStage.OOS, run_id="oos", environment={"filter_handoff": {"source_run_id": "scr"}},
+        )
+        if report is not None:
+            content = json.dumps(report).encode()
+            (tmp_path / "report.json").write_bytes(content)
+            service.register_artifact(
+                run_id="oos", artifact_type=ArtifactType.VALIDATION_EVIDENCE, logical_name=projection.OOS_REPORT_LOGICAL_NAME,
+                media_type="application/json", format="json", location="report.json", content=content,
+            )
+    finally:
+        service.close()
+    return tmp_path / "state" / "artifacts.sqlite3"
 
 
-def test_unseen_data_run_maps_to_the_first_check_setting_and_test_dates(tmp_path: Path, monkeypatch) -> None:
+def test_unseen_data_run_maps_to_the_first_check_setting_and_test_dates(tmp_path: Path) -> None:
     report = {"shortlist_parameters": [{"trail": 20}], "split": {"test": {"start": "2024-10-08", "end": "2026-02-13"}}}
-    monkeypatch.setattr(projection, "_artifact_document", lambda **_: report)
-    monkeypatch.setattr(projection, "_validated_connection", lambda _db: (_database(), None))
-    target = projection.oos_chart_target(database=tmp_path / "x.sqlite3", run_id="oos")
+    target = projection.oos_chart_target(database=_database(tmp_path, report), run_id="oos")
     assert target == {"source_run_id": "scr", "row_id": "b", "start": "2024-10-08", "end": "2026-02-13"}
 
 
-def test_unseen_data_run_without_report_has_no_target(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(projection, "_artifact_document", lambda **_: None)
-    assert projection.oos_chart_target(database=tmp_path / "x.sqlite3", run_id="oos") is None
+def test_unseen_data_run_without_report_has_no_target(tmp_path: Path) -> None:
+    assert projection.oos_chart_target(database=_database(tmp_path, None), run_id="oos") is None
 
 
 def test_settings_line_never_says_all_screened_out_for_a_passed_run() -> None:

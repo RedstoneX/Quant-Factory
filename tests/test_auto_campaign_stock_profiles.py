@@ -20,6 +20,7 @@ from orchestration.auto_campaign import (
 from backtesting.robustness.models import FractionalCostStressPlan
 from orchestration.candidate_pipeline_parsing import parse_robustness_contract
 from orchestration.candidate_pipeline_runtime import VALIDATION_RUNTIME_KEY
+from strategies.models import SignalResult
 
 VARIABLES = {"lookback": {"values": [10, 20]}}
 
@@ -147,28 +148,23 @@ def test_parameter_free_stock_rule_gets_fractional_stress_that_round_trips(tmp_p
     assert parsed == stress
 
 
-def test_whole_share_sizing_passes_size_granularity(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    calls: list[dict] = []
-
-    class Portfolio:
-        @staticmethod
-        def from_signals(**kwargs):
-            calls.append(kwargs)
-            return kwargs
-
-    monkeypatch.setattr(runner, "require_vectorbtpro", lambda: SimpleNamespace(Portfolio=Portfolio))
-    monkeypatch.setattr(runner, "build_execution_price", lambda data, aligned, execution: data["Open"])
+@pytest.mark.licensed_vectorbt
+def test_whole_share_sizing_orders_whole_shares_with_all_cash(tmp_path: Path) -> None:
     profile = _stock_profile(tmp_path)
     experiment = auto_test_definition(
         candidate_id="c1", strategy_id="s1", strategy_version="1", variables=VARIABLES, profile=profile,
     ).experiment
-    data = pd.DataFrame({"Open": [1.0, 2.0], "Close": [1.0, 2.0]})
-    flags = pd.Series([False, False])
-    aligned = SimpleNamespace(entries=flags, exits=flags, short_entries=flags, short_exits=flags,
-                              stop_loss=None, take_profit=None, trailing_stop=None, trailing_threshold=None,
-                              td_stop=None, upon_opposite_entry=None, session_entry_cap=None, session_id=None)
-    runner._construct_portfolio(data, aligned, experiment)
-    assert calls[0]["size_granularity"] == 1.0 and math.isinf(calls[0]["size"])
+    index = pd.date_range("2026-01-05 14:30", periods=3, freq="1min", tz="UTC")
+    data = pd.DataFrame({"Open": 7.0, "High": 7.1, "Low": 6.9, "Close": 7.0, "Volume": 1.0}, index=index)
+    flags = pd.Series([True, False, False], index=index)
+    quiet = pd.Series(False, index=index)
+    aligned = SignalResult(entries=flags, exits=quiet, parameters={}, short_entries=quiet, short_exits=quiet)
+    portfolio = runner._construct_portfolio(data, aligned, experiment)
+    sizes = portfolio.orders.records_readable["Size"]
+    cash = experiment.execution.initial_cash
+    size = float(sizes.iloc[0])
+    assert len(sizes) == 1 and size.is_integer() and size > 0
+    assert not (cash / 7.0).is_integer() and 0 < cash / 7.0 - size < 1.5  # all cash, floored to whole shares after costs
     with pytest.raises(ValueError, match="requires order_size 1.0"):
         ExecutionConfig.next_bar_open(initial_cash=1.0, fees=0.0, slippage=0.0, direction="both", leverage=1.0,
                                       accumulate=False, position_sizing="all_cash_whole_shares", order_size=5.0)
