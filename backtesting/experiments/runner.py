@@ -420,9 +420,9 @@ def _release_engine_memory() -> None:
     chunk's returns; flush() does not reach it (97.6 MB -> 0.3 MB only after its cache_clear).
     Both drop caches only; results are unchanged (tests/test_sweep_memory_parity.py).
     Nothing to release when the engine was never loaded (a chunk built without VBT)."""
-    if "vectorbtpro" not in sys.modules:
+    vbt = sys.modules.get("vectorbtpro")  # the engine actually loaded, not a substituted one
+    if vbt is None:
         return
-    vbt = require_vectorbtpro()
     from vectorbtpro.utils.parsing import get_func_signature
 
     get_func_signature.cache_clear()
