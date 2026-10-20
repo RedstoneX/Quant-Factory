@@ -1,5 +1,6 @@
 """Generic execution, metrics, ranking, and persistence for experiments."""
 
+import sys
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Sequence
@@ -20,7 +21,7 @@ from backtesting.experiments.models import (
 )
 from backtesting.experiments.chunking import setting_portfolio as _setting_portfolio, simulate_in_chunks
 from backtesting.experiments.metrics import extract_metrics
-from backtesting.experiments.windows import cut_to_window, generate_signals_once
+from backtesting.experiments.windows import accepted_parameters, chunk_preparer, cut_to_window
 from backtesting.validation.gates import (
     normalize_signals,
     validate_execution,
@@ -409,30 +410,21 @@ def _with_luck(
     ]
 
 
-def _validated_settings(
-    config: ExperimentConfig,
-    strategy: Any,
-    data: pd.DataFrame,
-    rejections: list[RejectedParameters],
-    validation_by_gate: dict[str, ValidationResult], signal_cache: dict | None = None,
-) -> list[tuple[dict[str, Any], SignalResult, tuple[ValidationResult, ...]]]:
-    """Validate and align every setting (in one pass if the strategy class has ``iter_signals_batch``)."""
-    accepted: list[dict[str, Any]] = []
-    for supplied in config.parameter_combinations:
-        candidate = dict(supplied)
-        try:
-            accepted.append(strategy.validate_parameters(candidate))
-        except (TypeError, ValueError) as exc:
-            rejections.append(RejectedParameters(parameters=candidate, error=str(exc)))
-    generated = generate_signals_once(strategy, data, accepted, signal_cache)
-    settings = []
-    for normalized, signals in zip(accepted, generated):
-        aligned, validation_results = validate_for_simulation(
-            data, signals, config, required_fields=strategy.spec.data.required_fields
-        )
-        validation_by_gate.update({result.gate_id: result for result in validation_results})
-        settings.append((normalized, aligned, validation_results))
-    return settings
+def _release_engine_memory() -> None:
+    """After each chunk [measured, QQQ 1-minute, 100 settings]: vbt.flush() clears VBT's cache
+    registry (run results holding each chunk's wrappers and 1M-bar index) and collects the
+    chunk's cyclic garbage (3.99 GB by setting 54 without it; 2.44 GB for all 100 with it).
+    get_func_signature is an unbounded functools.cache keyed by bound methods that pins each
+    chunk's returns; flush() does not reach it (97.6 MB -> 0.3 MB only after its cache_clear).
+    Both drop caches only; results are unchanged (tests/test_sweep_memory_parity.py).
+    Nothing to release when the engine was never loaded (a chunk built without VBT)."""
+    if "vectorbtpro" not in sys.modules:
+        return
+    vbt = require_vectorbtpro()
+    from vectorbtpro.utils.parsing import get_func_signature
+
+    get_func_signature.cache_clear()
+    vbt.flush()
 
 
 def execute_experiment(
@@ -444,6 +436,7 @@ def execute_experiment(
     write_output: bool = True,
     portfolio_observer: Callable[[str, Any], None] | None = None,
     evaluation_range: tuple | None = None, signal_cache: dict | None = None,  # see experiments.windows
+    chunk_settings: int | None = None,  # settings per chunk; None = chunking.chunk_settings_for
 ) -> ExperimentResult:
     """Validate, simulate, rank, and optionally persist one experiment."""
     strategy = get_strategy(config.strategy_id)
@@ -466,15 +459,18 @@ def execute_experiment(
     execution_assumptions = _execution_assumptions(config, strategy)
     parameter_names = tuple(strategy.spec.parameter_map)
 
-    settings = _validated_settings(config, strategy, data, rejections, validation_by_gate, signal_cache)
-    data, settings = cut_to_window(data, settings, evaluation_range)
-
-    # Every validated setting is one column of a single VectorBT simulation.
-    aligned_settings = tuple(aligned for _, aligned, _ in settings)
-    sweep_metrics, value_columns, observed = simulate_in_chunks(
-        data, aligned_settings, config, _construct_portfolio, keep_portfolios=portfolio_observer is not None
+    # Each chunk of settings is one VectorBT simulation; signals live only for their chunk.
+    accepted = accepted_parameters(config, strategy, rejections)
+    prepare = chunk_preparer(
+        config, strategy, validation_by_gate, signal_cache, evaluation_range, validate_for_simulation
     )
-    for position, (normalized, _, validation_results) in enumerate(settings):
+    sweep_metrics, value_columns, observed, settings = simulate_in_chunks(
+        data, accepted, config, _construct_portfolio,
+        keep_portfolios=portfolio_observer is not None, prepare=prepare, chunk_settings=chunk_settings,
+        release=_release_engine_memory,
+    )
+    data, _ = cut_to_window(data, [], evaluation_range)
+    for position, (normalized, validation_results) in enumerate(settings):
         metrics = sweep_metrics[position]
         screening = screen_metrics(
             experiment_id=config.experiment_id,

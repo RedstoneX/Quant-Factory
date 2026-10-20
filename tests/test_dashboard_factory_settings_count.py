@@ -4,8 +4,8 @@ from dashboard.factory_overview import ONE_AT_A_TIME, passes_line, settings_coun
 
 
 def test_passes_line_wording() -> None:
-    assert passes_line(72) == "Testing 72 settings in 2 passes"
-    assert passes_line(24) == "Testing 24 settings in 1 pass"
+    assert passes_line(72) == "Testing 72 settings"
+    assert passes_line(24) == "Testing 24 settings"
     assert passes_line(None) is None
 
 
@@ -17,4 +17,4 @@ def test_settings_count_is_product_of_value_counts() -> None:
 
 
 def test_wording_replaces_one_test_at_a_time() -> None:
-    assert ONE_AT_A_TIME == "One idea at a time · settings tested in bulk, up to 50 per pass"
+    assert ONE_AT_A_TIME == "One idea at a time · every setting tested"

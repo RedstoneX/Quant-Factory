@@ -11,6 +11,13 @@ compiles it into a strategy and backtests it automatically. It does not trade.
 3. Ideas without rules are recorded as can't test yet.
 4. Ideas with rules are backtested under the owner's standing policy of
    2026-10-13. Paper trading always needs separate owner approval.
+   Every setting in the idea's grid is tested in chunks sized to fit memory for the data's bar count (2 settings on 1-minute bars, about 40 on 5-minute): a chunk builds its own
+   signals, runs one simulation and keeps only scores and the account-value
+   line the Luck test needs, so signals never pile up for the whole grid.
+   Known limit [measured, QQQ 1-minute, 1.05M bars]: the simulation itself
+   stays flat apart from the Luck test's account-value line (8.4 MB per
+   setting); stacking those lines for the Luck test copies them once more, so
+   a 100-setting 1-minute idea still needs more than 3 GB at that step.
 5. Two gates decide: **Survives costs** (full history, Sharpe after costs
    >= 0.5) and **Unseen data** (the selected setting made money after all costs
    on the test years it never saw). Inside Unseen data no Sharpe minimum applies:
