@@ -16,7 +16,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from backtesting.experiments.chunking import SWEEP_CHUNK_SETTINGS
 from dashboard.factory_history import (
     OUTCOME_WORDS, OUTCOMES, STEP_NAME, STEPS, clock, crash_label, et_day_start, tests_from_events, hour_floor, is_close_call, is_restart, log_rows, unclosed_starts, short_reason, submitter_label, timeline_rows, utc,
 )
@@ -61,7 +60,7 @@ def drain_state(marker: Path | None = None, now: float | None = None) -> bool:
     return age <= DRAIN_STALE_SECONDS
 
 
-ONE_AT_A_TIME = "One idea at a time · settings tested in bulk, up to 50 per pass"
+ONE_AT_A_TIME = "One idea at a time · every setting tested"
 
 
 def settings_count(raw: Any) -> int | None:
@@ -77,8 +76,7 @@ def settings_count(raw: Any) -> int | None:
 def passes_line(settings: int | None) -> str | None:
     if not settings:
         return None
-    passes = math.ceil(settings / SWEEP_CHUNK_SETTINGS)
-    return f"Testing {settings} settings in {passes} pass{'es' if passes != 1 else ''}"
+    return f"Testing {settings} settings"
 
 
 def header_pill(*, running: int, draining: bool, last_finished_crashed: bool, paused: bool = False) -> dict[str, str]:

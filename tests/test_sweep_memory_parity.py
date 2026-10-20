@@ -128,3 +128,11 @@ def test_evicting_signal_cache_changes_nothing(stage: str) -> None:
     # 1 byte: nothing is ever cached. One setting's bytes: every new setting evicts the last.
     for budget in (1, _one_setting_bytes()):
         assert _staged_run(budget, stage) == unlimited
+
+
+def test_chunk_size_follows_bar_count() -> None:
+    # 1-minute QQQ, 100 settings: (2,500 - 1,400 - 840) MB / 115.5 MB per setting -> 2.
+    assert chunking.chunk_settings_for(1_050_000, 100) == 2
+    # 5-minute (5x fewer bars): (2,500 - 1,400 - 168) MB / 23.1 MB -> 40; never below 1.
+    assert chunking.chunk_settings_for(210_000, 100) == 40
+    assert chunking.chunk_settings_for(1_050_000, 1_000) == 1

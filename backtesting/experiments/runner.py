@@ -409,6 +409,20 @@ def _with_luck(
     ]
 
 
+def _release_engine_memory() -> None:
+    """After each chunk [measured, QQQ 1-minute, 100 settings]: vbt.flush() clears VBT's cache
+    registry (run results holding each chunk's wrappers and 1M-bar index) and collects the
+    chunk's cyclic garbage (3.99 GB by setting 54 without it; 2.44 GB for all 100 with it).
+    get_func_signature is an unbounded functools.cache keyed by bound methods that pins each
+    chunk's returns; flush() does not reach it (97.6 MB -> 0.3 MB only after its cache_clear).
+    Both drop caches only; results are unchanged (tests/test_sweep_memory_parity.py)."""
+    vbt = require_vectorbtpro()
+    from vectorbtpro.utils.parsing import get_func_signature
+
+    get_func_signature.cache_clear()
+    vbt.flush()
+
+
 def execute_experiment(
     config: ExperimentConfig,
     data: pd.DataFrame,
@@ -418,7 +432,7 @@ def execute_experiment(
     write_output: bool = True,
     portfolio_observer: Callable[[str, Any], None] | None = None,
     evaluation_range: tuple | None = None, signal_cache: dict | None = None,  # see experiments.windows
-    chunk_settings: int | None = None,  # settings per VectorBT mono-chunk; None = SWEEP_CHUNK_SETTINGS
+    chunk_settings: int | None = None,  # settings per chunk; None = chunking.chunk_settings_for
 ) -> ExperimentResult:
     """Validate, simulate, rank, and optionally persist one experiment."""
     strategy = get_strategy(config.strategy_id)
@@ -449,6 +463,7 @@ def execute_experiment(
     sweep_metrics, value_columns, observed, settings = simulate_in_chunks(
         data, accepted, config, _construct_portfolio,
         keep_portfolios=portfolio_observer is not None, prepare=prepare, chunk_settings=chunk_settings,
+        release=_release_engine_memory,
     )
     data, _ = cut_to_window(data, [], evaluation_range)
     for position, (normalized, validation_results) in enumerate(settings):

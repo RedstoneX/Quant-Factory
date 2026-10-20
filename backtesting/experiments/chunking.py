@@ -1,25 +1,34 @@
-"""Simulate a parameter sweep in VectorBT PRO mono-chunks so only one chunk is alive at a time.
+"""Simulate a parameter sweep in column chunks so only one chunk is alive at a time.
 
-``vbt.parameterized(mono_chunk_len=...)`` splits the settings into chunks and calls the chunk
-function once per chunk with that chunk's settings as a list. Each chunk prepares its own
-inputs (signals, validation, window cut), simulates them in one ``Portfolio.from_signals``
-call, and keeps only what callers read back: metrics, the value series and, when observed,
-the portfolio. Peak memory therefore follows the chunk size, not the number of settings.
+Each chunk prepares its own inputs (signals, validation, window cut), simulates them in one
+engine call, and keeps only what callers read back: metrics, the value series and, when
+observed, the portfolio. Peak memory therefore follows the chunk size, not the settings count
+(apart from the value series the Luck test reads). This module never imports the engine.
 """
 
-from itertools import chain
 from typing import Any, Callable, Sequence
 
 import numpy as np
 import pandas as pd
 
 from backtesting.experiments.metrics import extract_sweep_metrics
-from backtesting.vectorbt_runtime import require_vectorbtpro
 
-# Settings per chunk [measured, QQQ 1-minute, 1.05M bars]: a chunk costs ~115 MB per setting
-# while it runs. 2,500 MB target - 1,400 MB base - 840 MB value lines at 100 settings
-# (8.4 MB each) = 260 MB, which fits 2 settings (230 MB).
-SWEEP_CHUNK_SETTINGS = 2
+# Settings per chunk, derived per run [measured, QQQ 1-minute, 1.05M bars, 100 settings]:
+# a chunk costs ~115 MB per setting while it runs (~110 B per bar per setting); the run's base
+# (data, imports) is ~1,400 MB; each setting keeps an 8 B/bar value line for the Luck test.
+# chunk budget = 2,500 MB target - 1,400 MB base - bars x 8 B x settings
+# settings per chunk = max(1, floor(chunk budget / (bars x 110 B)))
+# 1-minute (1.05M bars, 100 settings): (2,500 - 1,400 - 840) MB / 115.5 MB = 2.25 -> 2.
+MEMORY_TARGET_BYTES = 2_500_000_000
+BASE_BYTES = 1_400_000_000
+TRANSIENT_BYTES_PER_BAR = 110
+VALUE_BYTES_PER_BAR = 8
+
+
+def chunk_settings_for(bars: int, settings: int) -> int:
+    """Settings per chunk so a run of ``settings`` over ``bars`` bars peaks near the target."""
+    budget = MEMORY_TARGET_BYTES - BASE_BYTES - bars * VALUE_BYTES_PER_BAR * settings
+    return max(1, budget // max(1, bars * TRANSIENT_BYTES_PER_BAR))
 
 
 def setting_portfolio(portfolio: Any, position: int) -> Any:
@@ -44,34 +53,8 @@ def _as_is(data: pd.DataFrame, chunk: Sequence[Any]) -> tuple[pd.DataFrame, list
     return data, list(chunk), [None] * len(chunk)
 
 
-def _simulate_chunk(
-    positions: list[int],
-    settings: Sequence[Any],
-    data: pd.DataFrame,
-    config: Any,
-    construct: Callable[..., Any],
-    prepare: Callable[..., tuple[pd.DataFrame, list[Any], list[Any]]],
-    keep_portfolios: bool,
-) -> tuple[list, list, list, list]:
-    """One mono-chunk: prepare -> one from_signals call -> metrics, values, portfolios."""
-    chunk_data, aligned, extras = prepare(data, [settings[position] for position in positions])
-    sweep = construct(chunk_data, tuple(aligned), config)
-    metrics = extract_sweep_metrics(sweep, len(aligned), data=chunk_data, config=config)
-    values = value_columns(sweep, len(aligned))
-    observed = [setting_portfolio(sweep, position) for position in range(len(aligned))] if keep_portfolios else []
-    # Release what VectorBT PRO keeps after the chunk is done [measured, QQQ 1-minute, 100
-    # settings]. vbt.flush() is the documented call: it clears VBT's cache registry, whose run
-    # results hold each chunk's wrappers and 1M-bar index, and collects the cyclic garbage the
-    # chunk leaves behind (without it, 3.99 GB by setting 54; with it, 2.44 GB for all 100).
-    # flush() does not reach get_func_signature, an unbounded functools.cache keyed by bound
-    # methods that pins each chunk's returns (97.6 MB -> 0.3 MB only after its own cache_clear).
-    # Both drop caches only; no result changes (tests/test_sweep_memory_parity.py).
-    vbt = require_vectorbtpro()
-    from vectorbtpro.utils.parsing import get_func_signature
-
-    get_func_signature.cache_clear()
-    vbt.flush()
-    return metrics, values, observed, extras
+def _no_release() -> None:
+    return None
 
 
 def simulate_in_chunks(
@@ -83,23 +66,30 @@ def simulate_in_chunks(
     keep_portfolios: bool,
     chunk_settings: int | None = None,
     prepare: Callable[..., tuple[pd.DataFrame, list[Any], list[Any]]] = _as_is,
+    release: Callable[[], None] = _no_release,
 ) -> tuple[list[dict[str, float | int]], list[np.ndarray | None], list[Any], list[Any]]:
-    """Simulate settings in VectorBT PRO mono-chunks; keep only each setting's metrics and value.
+    """Simulate settings in column chunks; keep only each setting's metrics and value.
 
     ``prepare(data, chunk) -> (data, aligned signals, extras)`` turns a chunk of settings into
-    simulation inputs; by default the settings already are aligned signals. Settings are
-    independent columns (no cash sharing), so a chunk's metrics equal the same columns of one
-    all-settings call. Returns metrics, values, observed portfolios and ``prepare``'s extras,
-    each in settings order.
+    simulation inputs (by default the settings already are aligned signals), so signals live for
+    one chunk only. ``construct`` simulates the chunk in one engine call; ``release()`` then drops
+    what the engine keeps after it. Settings are independent columns (no cash sharing), so a
+    chunk's metrics equal the same columns of one all-settings call. Returns metrics, values,
+    observed portfolios and ``prepare``'s extras, each in settings order.
     """
-    if not settings:
-        return [], [], [], []
-    vbt = require_vectorbtpro()
-    run = vbt.parameterized(
-        _simulate_chunk,
-        mono_chunk_len=chunk_settings or SWEEP_CHUNK_SETTINGS,
-        merge_func=None,
-        execute_kwargs=dict(show_progress=False),
-    )
-    chunks = run(vbt.Param(list(range(len(settings)))), settings, data, config, construct, prepare, keep_portfolios)
-    return tuple(list(chain.from_iterable(part)) for part in zip(*chunks))  # type: ignore[return-value]
+    size = chunk_settings or chunk_settings_for(len(data), len(settings))
+    metrics: list[dict[str, float | int]] = []
+    values: list[np.ndarray | None] = []
+    observed: list[Any] = []
+    extras: list[Any] = []
+    for start in range(0, len(settings), size):
+        chunk_data, aligned, chunk_extras = prepare(data, settings[start : start + size])
+        sweep = construct(chunk_data, tuple(aligned), config)
+        metrics += extract_sweep_metrics(sweep, len(aligned), data=chunk_data, config=config)
+        values += value_columns(sweep, len(aligned))
+        if keep_portfolios:
+            observed += [setting_portfolio(sweep, position) for position in range(len(aligned))]
+        extras += chunk_extras
+        del sweep, aligned
+        release()
+    return metrics, values, observed, extras
