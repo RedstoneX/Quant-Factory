@@ -118,9 +118,16 @@ def _looks_like_double(name: str) -> bool:
 
 
 class _PythonInventory(ast.NodeVisitor):
-    def __init__(self, path: str, *, module_licensed: bool) -> None:
+    def __init__(
+        self,
+        path: str,
+        *,
+        module_licensed: bool,
+        fixtures: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef] | None = None,
+    ) -> None:
         self.path = path
         self.module_licensed = module_licensed
+        self.fixtures = dict(fixtures or {})
         self.stack: list[str] = []
         self.class_licensed: list[bool] = []
         self.functions: list[tuple[str, str, int, int]] = []
@@ -189,8 +196,23 @@ class _PythonInventory(ast.NodeVisitor):
     def _inspect_licensed_test(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef, owner: str
     ) -> None:
-        arguments = [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
-        for argument in arguments:
+        # A licensed test owns every fixture it depends on (same module, followed by name,
+        # transitively): a double built in a fixture is still a double under the test.
+        seen: set[str] = set()
+        pending: list[tuple[ast.FunctionDef | ast.AsyncFunctionDef, str]] = [(node, owner)]
+        while pending:
+            current, label = pending.pop()
+            self._inspect_double_usage(current, label)
+            for argument in _function_arguments(current):
+                fixture = self.fixtures.get(argument.arg)
+                if fixture is not None and fixture.name not in seen:
+                    seen.add(fixture.name)
+                    pending.append((fixture, f"{owner} (fixture {fixture.name})"))
+
+    def _inspect_double_usage(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, owner: str
+    ) -> None:
+        for argument in _function_arguments(node):
             if argument.arg in TEST_DOUBLE_ARGUMENTS:
                 self.licensed_doubles.append(
                     Location(self.path, argument.lineno, owner, f"licensed test requests {argument.arg}")
@@ -219,6 +241,24 @@ class _PythonInventory(ast.NodeVisitor):
                     self.licensed_doubles.append(
                         Location(self.path, descendant.lineno, owner, f"licensed test references test double {name}")
                     )
+
+
+def _function_arguments(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.arg]:
+    return [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+
+
+def _is_fixture_decorator(node: ast.expr) -> bool:
+    target = node.func if isinstance(node, ast.Call) else node
+    return _call_name(target) == "fixture"
+
+
+def _module_fixtures(tree: ast.Module) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    return {
+        node.name: node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and any(_is_fixture_decorator(item) for item in node.decorator_list)
+    }
 
 
 def _module_is_licensed(tree: ast.Module) -> bool:
@@ -251,7 +291,9 @@ def measure_repository(root: Path, paths: Iterable[str] | None = None) -> Measur
         if not relative.endswith(".py"):
             continue
         tree = ast.parse(text, filename=relative)
-        inventory = _PythonInventory(relative, module_licensed=_module_is_licensed(tree))
+        inventory = _PythonInventory(
+            relative, module_licensed=_module_is_licensed(tree), fixtures=_module_fixtures(tree)
+        )
         inventory.visit(tree)
         function_rows.extend(
             (relative, owner, node_type, start, end)
