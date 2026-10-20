@@ -123,7 +123,12 @@ def _cached_market_data(tmp_path: Path) -> MarketDataConfig:
     return config
 
 
-def _definition(tmp_path: Path, *, robustness_minimum_return: float = -1.0):
+def _definition(
+    tmp_path: Path,
+    *,
+    robustness_minimum_return: float = -1.0,
+    walk_forward_window_size: int = 50,
+):
     experiment = ExperimentConfig(
         experiment_id="backend-completion-deterministic-fixture",
         strategy_id=RSI_MEAN_REVERSION_SPEC.identity.strategy_id,
@@ -180,10 +185,10 @@ def _definition(tmp_path: Path, *, robustness_minimum_return: float = -1.0):
         ),
         out_of_sample_shortlist_size=1,
         walk_forward_rules=WalkForwardWindowRules(
-            training_window_size=50,
-            selection_window_size=50,
-            test_window_size=50,
-            step_size=50,
+            training_window_size=walk_forward_window_size,
+            selection_window_size=walk_forward_window_size,
+            test_window_size=walk_forward_window_size,
+            step_size=walk_forward_window_size,
             training_mode="rolling",
             minimum_rows_per_window=5,
             incomplete_final_window="drop",
@@ -219,11 +224,13 @@ def _runtime(
     tmp_path: Path,
     *,
     robustness_minimum_return: float = -1.0,
+    walk_forward_window_size: int = 50,
 ) -> CandidatePipelineRuntime:
     database = tmp_path / "state" / "factory.sqlite3"
     definition = _definition(
         tmp_path,
         robustness_minimum_return=robustness_minimum_return,
+        walk_forward_window_size=walk_forward_window_size,
     )
     persistence = PersistenceService(database)
     try:
@@ -562,23 +569,9 @@ def test_post_ack_cache_failure_marks_screening_run_failed(
 
 
 @pytest.mark.licensed_vectorbt
-def test_post_ack_stage_failure_is_terminal_and_never_reinvoked(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    runtime = _runtime(tmp_path)
-    calls = 0
-
-    def fail_walk_forward(*_args, **_kwargs):
-        nonlocal calls
-        calls += 1
-        raise RuntimeError("controlled walk-forward failure")
-
-    monkeypatch.setattr(
-        candidate_runtime_module,
-        "execute_walk_forward",
-        fail_walk_forward,
-    )
+def test_post_ack_stage_failure_is_terminal_and_never_reinvoked(tmp_path: Path) -> None:
+    # Walk-forward windows wider than the fixture history make the real engine fail that stage.
+    runtime = _runtime(tmp_path, walk_forward_window_size=100_000)
     key = "backend_completion_stage_fail_closed"
 
     with pytest.raises(ResearchLaunchInvocationError):
@@ -589,10 +582,10 @@ def test_post_ack_stage_failure_is_terminal_and_never_reinvoked(
     ):
         runtime.launch(idempotency_key=key)
 
-    assert calls == 1
     persistence = PersistenceService(runtime.database)
     try:
         runs = persistence.runs.list()
+        assert [run.stage for run in runs].count(RunStage.WALK_FORWARD) == 1
         assert {run.stage for run in runs} == {
             RunStage.SCREENING,
             RunStage.OOS,

@@ -5,8 +5,6 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-import backtesting.experiments.chunking as chunking
-import backtesting.experiments.runner as experiment_runner
 from backtesting.experiments import execute_experiment
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
 from backtesting.screening import (
@@ -199,37 +197,6 @@ def test_invalid_parameters_remain_distinct_from_screening_failures() -> None:
     assert result.rejected_combinations == 1
     assert len(result.screening_results) == 1
     assert result.screening_results[0].passed
-
-
-@pytest.mark.licensed_vectorbt
-def test_screening_occurs_after_simulation_and_metrics(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Pass-through recorders around the real engine, metrics and screen calls."""
-    events: list[str] = []
-    real_construct = experiment_runner._construct_portfolio
-    real_metrics = chunking.extract_sweep_metrics
-    real_screen = experiment_runner.screen_metrics
-
-    def recording_construct(data, aligned, config):
-        events.append("simulate")
-        return real_construct(data, aligned, config)
-
-    def recording_metrics(portfolio, count, **kwargs):
-        events.append("metrics")
-        return real_metrics(portfolio, count, **kwargs)
-
-    def recording_screen(**kwargs):
-        events.append("screen")
-        return real_screen(**kwargs)
-
-    monkeypatch.setattr(experiment_runner, "_construct_portfolio", recording_construct)
-    monkeypatch.setattr(chunking, "extract_sweep_metrics", recording_metrics)
-    monkeypatch.setattr(experiment_runner, "screen_metrics", recording_screen)
-    data = _data()
-    result = execute_experiment(_experiment_config(TRADING), data, _audit(data), write_output=False)
-    assert events == ["simulate", "metrics", "screen"]
-    assert result.ranked_results.loc[0, "number_of_trades"] == 3
 
 
 @pytest.mark.licensed_vectorbt

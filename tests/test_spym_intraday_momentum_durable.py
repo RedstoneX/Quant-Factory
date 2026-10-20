@@ -176,16 +176,11 @@ def test_durable_run_fails_before_artifacts_when_ranked_trade_metric_disagrees_w
 
 
 @pytest.mark.licensed_vectorbt
-def test_artifact_write_failure_rolls_back_success_evidence(tmp_path: Path, monkeypatch) -> None:
+def test_artifact_write_failure_rolls_back_success_evidence(tmp_path: Path) -> None:
     database = tmp_path / "state" / "atomic.sqlite3"
-    original = Path.write_bytes
-
-    def fail_metrics(path: Path, content: bytes):
-        if path.name == "metrics.json":
-            raise OSError("injected artifact write failure")
-        return original(path, content)
-
-    monkeypatch.setattr(Path, "write_bytes", fail_metrics)
+    # A plain file where the artifact directory must be created makes the real staging write fail.
+    database.parent.mkdir(parents=True)
+    (tmp_path / "state" / "artifacts").write_bytes(b"not a directory")
     outcome = run_durable_screening(database=database, artifact_root=tmp_path, run_id="spym-atomic", loader=_fixture)
     assert outcome.exit_code == 1
     service = PersistenceService(database)
