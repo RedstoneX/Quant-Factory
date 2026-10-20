@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from backtesting.experiments import ExperimentConfig
 from backtesting.run_spy_donchian import DATA_CONFIG, _config as baseline_config
 import backtesting.run_spy_donchian_low_frequency_walk_forward as donchian_lf
+from backtesting.screening import ScreeningConfig
 from backtesting.walk_forward import WalkForwardConfig
 from backtesting.walk_forward.low_frequency import (
     LowFrequencyEvidenceConfig,
@@ -24,19 +25,41 @@ from market_data.models import DataAudit
 FIXED = {"entry_lookback": 20, "exit_lookback": 10}
 
 
-def _frame(rows: int = 22, start: str = "2020-01-02") -> pd.DataFrame:
+def _frame(rows: int = 288, start: str = "2020-01-02", flat=(), slide=()) -> pd.DataFrame:
+    """36-bar staircase (24 bars of +1, 12 of -0.75): one Donchian breakout per cycle.
+
+    Flattening a region removes every trade in it; sliding one turns it into a
+    steady -0.5 per bar decline from its first bar.
+    """
     index = pd.date_range(start, periods=rows, freq="B", tz="America/New_York")
-    values = pd.Series(range(rows), index=index, dtype=float) + 100
+    steps = np.tile(np.array([1.0] * 24 + [-0.75] * 12), rows // 36 + 1)[:rows]
+    close = pd.Series(100 + np.cumsum(steps), index=index)
+    for begin, end in flat:
+        close.iloc[begin:end] = close.iloc[begin]
+    for begin, end in slide:
+        close.iloc[begin:end] = close.iloc[begin] - 0.5 * np.arange(end - begin)
     return pd.DataFrame(
         {
-            "Open": values,
-            "High": values + 1,
-            "Low": values - 1,
-            "Close": values,
-            "Volume": 1_000,
+            "Open": close,
+            "High": close + 0.5,
+            "Low": close - 0.5,
+            "Close": close,
+            "Volume": 1_000.0,
         },
         index=index,
     )
+
+
+licensed = pytest.mark.licensed_vectorbt
+SCREENING = ScreeningConfig(
+    minimum_trades=1,
+    minimum_total_return=0.0,
+    minimum_annualized_return=0.0,
+    minimum_sharpe_ratio=None,
+    maximum_drawdown=0.35,
+)
+# Expanding folds: train 0-72, then validation windows of one 36-bar cycle each.
+FIRST_VALIDATION = (72, 108)
 
 
 def _audit(data: pd.DataFrame) -> DataAudit:
@@ -81,22 +104,22 @@ def _experiment(tmp_path: Path, parameters=(FIXED,)) -> ExperimentConfig:
         ranking_columns=("total_return", "sharpe_ratio"),
         ranking_ascending=(False, False),
         output_path=tmp_path / "fixture.csv",
-        screening=baseline_config("longonly").screening,
+        screening=SCREENING,
     )
 
 
 def _config(
     tmp_path: Path,
     *,
-    minimum_validation_trades: int = 8,
+    minimum_validation_trades: int = 1,
     parameters=(FIXED,),
 ) -> LowFrequencyEvidenceConfig:
     walk_forward = WalkForwardConfig(
         experiment=_experiment(tmp_path, parameters),
-        training_window_size=6,
+        training_window_size=72,
         selection_window_size=None,
-        test_window_size=4,
-        step_size=4,
+        test_window_size=36,
+        step_size=36,
         training_mode="expanding",
         minimum_rows_per_window=2,
         shortlist_size=1,
@@ -112,52 +135,20 @@ def _config(
     )
 
 
-def _fake_evaluator(calls: list[dict[str, object]], rows_by_fold=None):
-    rows_by_fold = rows_by_fold or {}
-
-    def evaluate(config, data, audit, *, write_output):
-        assert write_output is False
-        fold_id = config.experiment_id.split(":")[-2]
-        calls.append(
-            {
-                "fold_id": fold_id,
-                "parameters": tuple(dict(item) for item in config.parameter_combinations),
-                "start": str(data.index[0].date()),
-                "end": str(data.index[-1].date()),
-            }
-        )
-        values = {
-            "entry_lookback": 20,
-            "exit_lookback": 10,
-            "total_return": 0.02,
-            "annualized_return": 0.04,
-            "sharpe_ratio": 0.8,
-            "max_drawdown": -0.05,
-            "number_of_trades": 8,
-            "win_rate": 0.6,
-        } | rows_by_fold.get(fold_id, {})
-        ranked = pd.DataFrame([values])
-        return SimpleNamespace(ranked_results=ranked)
-
-    return evaluate
-
-
+@licensed
 def test_fold_chronology_non_overlap_and_fixed_parameters(tmp_path):
-    calls: list[dict[str, object]] = []
     data = _frame()
     result = execute_low_frequency_evidence(
-        _config(tmp_path),
-        data,
-        _audit(data),
-        evaluator=_fake_evaluator(calls),
-        write_output=False,
+        _config(tmp_path), data, _audit(data), write_output=False
     )
-    assert len(result.folds) == 4
+    assert len(result.folds) == 6
     assert result.fixed_parameters == FIXED
     for fold in result.folds:
         assert fold.train_end < fold.validation_start
+        assert fold.parameters == FIXED
+        assert fold.trade_count >= 1
+        assert fold.combined_status == "passed"
     assert result.folds[0].validation_end < result.folds[1].validation_start
-    assert all(call["parameters"] == (FIXED,) for call in calls)
 
 
 def test_configuration_requires_exactly_the_fixed_parameter_set(tmp_path):
@@ -176,46 +167,31 @@ def test_low_frequency_classification_is_locked_before_validation(tmp_path):
         replace(_config(tmp_path), strategy_frequency="daily")
 
 
-def test_eight_trade_floor_marks_insufficient_not_passed(tmp_path):
-    calls: list[dict[str, object]] = []
-    data = _frame()
+@licensed
+def test_trade_floor_marks_insufficient_not_passed(tmp_path):
+    # A flat first validation window has no breakout, so it sits below the floor.
+    data = _frame(flat=(FIRST_VALIDATION,))
     result = execute_low_frequency_evidence(
-        _config(tmp_path),
-        data,
-        _audit(data),
-        evaluator=_fake_evaluator(
-            calls,
-            rows_by_fold={"fold_001": {"number_of_trades": 7}},
-        ),
-        write_output=False,
+        _config(tmp_path), data, _audit(data), write_output=False
     )
     first = result.folds[0]
+    assert first.trade_count == 0
+    assert result.folds[1].combined_status == "passed"
     assert first.evidence_status == "insufficient_evidence"
     assert first.performance_status == "insufficient_evidence"
     assert first.combined_status == "insufficient_evidence"
 
 
+@licensed
 def test_failed_performance_is_distinct_from_insufficient_evidence(tmp_path):
-    calls: list[dict[str, object]] = []
-    data = _frame()
+    # The first validation window breaks out, then slides down: one trade that loses money.
+    data = _frame(slide=((FIRST_VALIDATION[0] + 12, FIRST_VALIDATION[1]),))
     result = execute_low_frequency_evidence(
-        _config(tmp_path),
-        data,
-        _audit(data),
-        evaluator=_fake_evaluator(
-            calls,
-            rows_by_fold={
-                "fold_001": {
-                    "number_of_trades": 8,
-                    "total_return": -0.01,
-                    "annualized_return": -0.02,
-                    "sharpe_ratio": -0.2,
-                }
-            },
-        ),
-        write_output=False,
+        _config(tmp_path), data, _audit(data), write_output=False
     )
     first = result.folds[0]
+    assert first.trade_count >= 1
+    assert first.total_return < 0
     assert first.evidence_status == "passed"
     assert first.performance_status == "failed"
     assert first.combined_status == "failed"
@@ -283,17 +259,11 @@ def test_aggregate_threshold_calculation(tmp_path):
 
 
 def test_rejects_any_input_on_or_after_forbidden_start_date(tmp_path):
-    calls: list[dict[str, object]] = []
     data = _frame(start="2024-05-23")
     with pytest.raises(ValueError, match="on or after 2024-05-28"):
         execute_low_frequency_evidence(
-            _config(tmp_path),
-            data,
-            _audit(data),
-            evaluator=_fake_evaluator(calls),
-            write_output=False,
+            _config(tmp_path), data, _audit(data), write_output=False
         )
-    assert calls == []
 
 
 def test_donchian_entrypoint_uses_one_fixed_candidate_and_pre_cutoff_boundary():
