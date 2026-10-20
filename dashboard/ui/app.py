@@ -441,22 +441,22 @@ def create_app() -> Dash:
         if trigger == "factory-open-candidates":
             selected = values[-2] or {}
             candidate_id = selected.get("candidate_id")
-            return "/candidates", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
+            return "/report", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
         if trigger == "results-back-candidates":
             candidate_id = (values[-5] or {}).get("candidate_id")
-            return "/candidates", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
+            return "/report", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
         if trigger == "open-candidate":
             candidate_id = (values[-4] or {}).get("candidate_id")
-            return "/candidates", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
+            return "/report", f"?candidate_id={quote(str(candidate_id), safe='')}" if candidate_id else ""
         if trigger in {"results-nav-candidates", "compare-back"}: return "/candidates", ""
         if trigger == "compare-clear": return "/candidates", "?clear_compare=1"
         if trigger in {"open-results", "candidate-open-results", "factory-open-results"}:
             selected = values[-4] if trigger == "open-results" else values[-3] if trigger == "candidate-open-results" else values[-2]
             candidate_id = (selected or {}).get("candidate_id")  # Results is one page per idea
             if candidate_id:
-                return "/results", f"?candidate_id={quote(str(candidate_id), safe='')}"
+                return "/report", f"?candidate_id={quote(str(candidate_id), safe='')}"
             run_id = (selected or {}).get("results_run_id") or (selected or {}).get("run_id")
-            return "/results", f"?run_id={quote(str(run_id), safe='')}" if run_id else ""
+            return "/report", f"?run_id={quote(str(run_id), safe='')}" if run_id else ""
         if trigger == "compare-selected":
             run_ids = [str(row.get("run_id")) for row in (values[-1] or []) if row.get("run_id")]
             return "/compare", "?" + "&".join(f"run_id={quote(run_id, safe='')}" for run_id in run_ids)

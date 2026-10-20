@@ -27,7 +27,7 @@ from dashboard.run_detail_adapter import _candidate_trade_rows
 from dashboard.time_display import eastern_plot_timestamp
 
 STAGES = (
-    ("screening", "Costs test"), ("oos", "Unseen data"), ("walk_forward", "Rolling test"),
+    ("screening", "Survives costs"), ("oos", "Unseen data"), ("walk_forward", "Holds over time"),
     ("robustness", "Stress test"), ("monte_carlo", "Shuffle test"),
 )
 TRADE_STAGES = ("screening", "oos")
@@ -283,7 +283,7 @@ def load_trade_view(idea: dict[str, Any] | None, stage: str, row_id: str | None 
             "available": True, "stage": stage, "run_id": run_id, "trades": _with_cumulative(trades), "trade_count": int(record.get("trade_count") or 0),
             "equity": _thin(record.get("equity") or []), "equity_from_trades": bool(record.get("equity_from_trades")),
             "price_run_id": target.get("source_run_id"), "period": [target["start"], target["end"]] if target else None,
-            "performance": _performance(database_path, run_id), "label": "Unseen-data test",
+            "performance": _performance(database_path, run_id), "label": "Unseen data",
         }
     rows = (idea or {}).get("screening_rows") or []
     row = next((item for item in rows if item.get("row_id") == row_id), rows[0] if rows else None)
@@ -300,7 +300,7 @@ def load_trade_view(idea: dict[str, Any] | None, stage: str, row_id: str | None 
     return {
         "available": True, "stage": stage, "run_id": run_id, "row_id": row["row_id"], "trades": _with_cumulative(trades), "trade_count": len(trades),
         "equity": _thin(equity), "equity_from_trades": False, "price_run_id": run_id, "period": None,
-        "performance": _performance(database_path, run_id, namespace) or _performance(database_path, run_id), "label": f"Costs test · setting {row.get('rank')}",
+        "performance": _performance(database_path, run_id, namespace) or _performance(database_path, run_id), "label": f"Survives costs · setting {row.get('rank')}",
     }
 
 

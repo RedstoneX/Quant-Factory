@@ -153,7 +153,7 @@ def luck_panel(report: dict[str, Any]) -> dmc.Paper | None:
     if not rows:  # no chart and no numbers: the Luck card already says why
         return None
     body = rows
-    return _panel("Is it luck?", "Luck test number and pass line", dmc.Stack(body, gap="xs", mt="sm"))
+    return _panel("Is it luck?", "Shuffle test number and pass line", dmc.Stack(body, gap="xs", mt="sm"))
 
 
 def _bin(pnl: pd.Series) -> float:

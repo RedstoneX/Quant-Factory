@@ -23,6 +23,7 @@ from dashboard.results_model import ResultsDataError
 from dashboard.results_projection import oos_report_metrics
 
 UNSEEN_RULE = "Passes if it made money on years it never saw, after costs"  # owner ruling 19 Oct 2026
+SHUFFLE_RULE = "Shuffled trades still made money"  # the Shuffle test (stage 5) pass line
 
 
 UNSAVED_UNSEEN_NOTE = "The unseen-period chart and trades weren't saved for this run; its result is in test 2 below."
@@ -34,14 +35,14 @@ def _slice_score(name: str, metrics: dict[str, Any]) -> tuple[str, str | None]:
     return name, None if sharpe is None else f"{float(sharpe):.2f}"
 
 
-TEST_LABELS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time", "robustness": "Stress test", "monte_carlo": "Luck test"}
+TEST_LABELS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time", "robustness": "Stress test", "monte_carlo": "Shuffle test"}
 PASSED, CLOSE_CALL, FAILED, CANT_TEST, CRASHED = "Passed", "Close call", "Failed", "Can't test", "Crashed"
 NOT_SCORED = "Not scored"  # a score stage of a gateway survivor with no usable result; shown in the grey Can't test style
 STATUS_TONE = {PASSED: "green", CLOSE_CALL: "amber", FAILED: "red", CANT_TEST: "grey", CRASHED: "red", NOT_SCORED: "grey"}
 NOT_SAVED = "Not saved for this run."
 GATES_CHIP = ("Passed the gates", "green")
 TOO_FEW_WINDOWS = "Too few windows"  # log wording only; never a stage status on the Report
-NOT_ENOUGH = "Not scored — not enough data"  # the one phrase for an unscored Luck test, everywhere
+NOT_ENOUGH = "Not scored — not enough data"  # the one phrase for an unscored Shuffle test, everywhere
 SCORE_STAGES = ("walk_forward", "robustness", "monte_carlo")
 
 
@@ -64,14 +65,14 @@ _NEEDS = re.compile(r"Needs at least (?P<needed>\d+)\D.*?had (?P<had>\d+)", re.S
 
 
 def too_few_phrase(line: Any) -> str:
-    """The one phrase for an unscored Luck test, from the recorded numbers: 'Not scored — not enough data (5 of 10 needed)'."""
+    """The one phrase for an unscored Shuffle test, from the recorded numbers: 'Not scored — not enough data (5 of 10 needed)'."""
     found = _NEEDS.search(str(line or ""))
     return NOT_ENOUGH + (f" ({found['had']} of {found['needed']} needed)" if found else "")
 
 
 def score_statuses(candidate_id: str | None, database: str | Path | None = None, run_id: str | None = None) -> dict[str, str]:
-    """The Report page's status word for the three recorded scores (Holds over time, Stress test, Luck test), from the same stored stage results the Report reads; {} when none are available.
-    `run_id` (a screening run) scopes it to that test's stage runs, as the Report does; a Luck test with too few results gets the too_few_phrase."""
+    """The Report page's status word for the three recorded scores (Holds over time, Stress test, Shuffle test), from the same stored stage results the Report reads; {} when none are available.
+    `run_id` (a screening run) scopes it to that test's stage runs, as the Report does; a Shuffle test with too few results gets the too_few_phrase."""
     idea = load_idea(candidate_id, run_id=run_id, database=_database(database))
     if not idea.get("available"):
         return {}
@@ -281,7 +282,7 @@ def settings_grid(rows: list[dict[str, Any]], chosen_row_id: str | None) -> dict
 
 def _test_measure(stage: str, test: dict[str, Any], idea: dict[str, Any], detail: dict[str, Any], database: Path, built_return: float | None) -> dict[str, Any]:
     """The value shown on a test's bar, the bar's length and its pass line (None when no line was saved)."""
-    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None, "rule": UNSEEN_RULE if stage == "oos" else None, "scores": []}
+    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None, "rule": UNSEEN_RULE if stage == "oos" else SHUFFLE_RULE if stage == "monte_carlo" else None, "scores": []}
     if not test["run_id"]:
         return out
     if stage == "screening":

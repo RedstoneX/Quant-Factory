@@ -10,7 +10,7 @@ from dashboard import idea_report_projection as report
 
 def test_labels_are_the_agreed_plain_words() -> None:
     assert report.TEST_LABELS == {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time",
-                                  "robustness": "Stress test", "monte_carlo": "Luck test"}
+                                  "robustness": "Stress test", "monte_carlo": "Shuffle test"}
 
 
 @pytest.mark.parametrize(("stage", "stored", "run", "expected"), [
@@ -209,13 +209,13 @@ def test_survivor_log_line_reads_the_same_recorded_stages_as_the_report(monkeypa
     scores = report.score_statuses("qfc_a", "unused.sqlite3", run_id="run_screening")
     assert seen["run_id"] == "run_screening"  # that test's own stage runs
     event = {"state": "survivor", "reason_code": "awaiting_owner_review", "reason_detail": ""}
-    assert event_sentence(event, "SPY inside-bar", "Codex", scores)[0].endswith("scores: Holds over time: failed, Stress test: failed, Luck test: passed.")
+    assert event_sentence(event, "SPY inside-bar", "Codex", scores)[0].endswith("scores: Holds over time: failed, Stress test: failed, Shuffle test: passed.")
 
 
 def test_unscored_luck_test_has_one_phrase_from_the_recorded_numbers() -> None:
     assert report.too_few_phrase("Needs at least 10 results to shuffle; it had 5.") == "Not scored — not enough data (5 of 10 needed)"
     tests = [{"stage": "walk_forward", "label": "Holds over time", "status": "Failed", "value": "3 of 18 windows", "fraction": 3 / 18},
              {"stage": "robustness", "label": "Stress test", "status": "Failed", "value": "19 of 29 checks", "fraction": 19 / 29},
-             {"stage": "monte_carlo", "label": "Luck test", "status": "Not scored", "value": "Not scored — not enough data (5 of 10 needed)", "fraction": None}]
+             {"stage": "monte_carlo", "label": "Shuffle test", "status": "Not scored", "value": "Not scored — not enough data (5 of 10 needed)", "fraction": None}]
     assert report.gates_line(tests) == [("Passed the gates", "green"), (" · Holds over time: failed (3 of 18 windows made money)", "red"),
-                                        (" · Stress test: failed (19 of 29 checks passed)", "red"), (" · Luck test: not scored — not enough data (5 of 10 needed)", "grey")]
+                                        (" · Stress test: failed (19 of 29 checks passed)", "red"), (" · Shuffle test: not scored — not enough data (5 of 10 needed)", "grey")]

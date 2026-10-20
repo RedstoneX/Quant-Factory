@@ -128,7 +128,7 @@ def candidates_layout(search: str | None = None) -> html.Div:
         dcc.Store(id="candidate-detail-record"),
         dcc.Store(id="candidate-cache-reset"),
     ]
-    view_switch = dmc.SegmentedControl(id="candidate-view", value="all", data=[{"value": "all", "label": "All ideas"}, {"value": "shortlist", "label": "Paper-trading shortlist"}], size="xs", mb="sm")
+    view_switch = dmc.SegmentedControl(id="candidate-view", value="all", data=[{"value": "all", "label": "All ideas"}, {"value": "shortlist", "label": "Passed the gates"}], size="xs", mb="sm")
     shortlist = html.Div([
         dmc.Text("Ideas that cleared the costs screen and the unseen-data test, best unseen-data Sharpe first. Amber means it would have failed the old pass mark; it is a score now, not a stop.", size="xs", c="dimmed", mb="sm"),
         shortlist_grid(),
@@ -202,10 +202,10 @@ def _detail_body(record: dict[str, Any] | None, tab: str) -> list[Any]:
         screening = record.get("stage") == "screening"
         return [
             dmc.Title("Test results", order=5),
-            _item("First-check Sharpe" if screening else "Out-of-sample Sharpe", _fmt(record.get("screening_sharpe") if screening else record.get("sharpe")), "Best setting" if screening else ""),
+            _item("Survives-costs Sharpe" if screening else "Out-of-sample Sharpe", _fmt(record.get("screening_sharpe") if screening else record.get("sharpe")), "Best setting" if screening else ""),
             _item("Maximum drawdown", _fmt(record.get("screening_max_drawdown") if screening else record.get("max_drawdown"), percent=True), "Best setting" if screening else ""),
             _item("Net return", _fmt(record.get("screening_return") if screening else record.get("net_return"), percent=True), "After trading costs"),
-            _item("Settings", f"{int(record.get('screened_out_count') or 0):,} / {int(record.get('screening_count') or 0):,} failed" if screening else "—", "First check" if screening else ""),
+            _item("Settings", f"{int(record.get('screened_out_count') or 0):,} / {int(record.get('screening_count') or 0):,} failed" if screening else "—", "Survives costs" if screening else ""),
             _item("Kept out-of-sample", _fmt(record.get("retained"), percent=True)),
             _item("Robustness", str(record.get("robustness"))),
         ]

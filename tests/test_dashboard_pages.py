@@ -21,6 +21,6 @@ def test_stat_card_colour_is_never_null(monkeypatch) -> None:
 
 
 def test_stage_names_use_plain_words() -> None:
-    assert _stage_word("oos") == "Unseen-data test"
-    assert _stage_word("walk_forward") == "Rolling test"
+    assert _stage_word("oos") == "Unseen data"
+    assert _stage_word("walk_forward") == "Holds over time"
     assert _stage_word("custom_stage") == "Custom Stage"

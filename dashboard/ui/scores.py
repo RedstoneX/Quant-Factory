@@ -38,10 +38,10 @@ SHORTLIST_COLUMNS = [
     {"field": "sharpe", "headerName": "Unseen-data Sharpe", "type": "numericColumn", "flex": 1, "sort": "desc",
      "headerTooltip": "Return per unit of risk on data the idea never saw while being built. Higher is better.",
      "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}},
-    {"field": "folds_share", "headerName": "Rolling test: periods profitable", "type": "numericColumn", "flex": 1.1,
+    {"field": "folds_share", "headerName": "Holds over time: periods profitable", "type": "numericColumn", "flex": 1.1,
      "headerTooltip": "Share of the rolling test periods that made money. Higher is steadier.",
      "valueFormatter": {"function": _PERCENT}, "cellStyle": _AMBER_ROLLING},
-    {"field": "fold_sharpe", "headerName": "Rolling test: average Sharpe", "type": "numericColumn", "flex": 1.1,
+    {"field": "fold_sharpe", "headerName": "Holds over time: average Sharpe", "type": "numericColumn", "flex": 1.1,
      "headerTooltip": "Average Sharpe across the rolling test periods.",
      "valueFormatter": {"function": "params.value == null ? '—' : params.value.toFixed(2)"}, "cellStyle": _AMBER_ROLLING},
     {"field": "stress_status", "headerName": "Stress test", "flex": 1,
@@ -94,8 +94,8 @@ def score_cards(scores: dict[str, Any] | None) -> list[dmc.Paper]:
     stress_color = AMBER if s.get("stress_status") == "failed" else None
     folds = "—" if s.get("folds_profitable") is None else f"{s['folds_profitable']} of {s['folds_total']}"
     return [
-        stat_card("Rolling test: periods profitable", folds, _pct(s.get("folds_share")) if s.get("folds_profitable") is not None else "", color=rolling_color),
-        stat_card("Rolling test: average Sharpe", "—" if s.get("fold_sharpe") is None else f"{s['fold_sharpe']:.2f}", color=rolling_color),
+        stat_card("Holds over time: periods profitable", folds, _pct(s.get("folds_share")) if s.get("folds_profitable") is not None else "", color=rolling_color),
+        stat_card("Holds over time: average Sharpe", "—" if s.get("fold_sharpe") is None else f"{s['fold_sharpe']:.2f}", color=rolling_color),
         stat_card("Stress test", STRESS_WORDS.get(str(s.get("stress_status")), "—"), _stress_note(s), color=stress_color),
         _luck_card(s),
         stat_card("Overfitting score", _pct(s.get("overfitting")), "lower is better" if s.get("overfitting") is not None else ""),
