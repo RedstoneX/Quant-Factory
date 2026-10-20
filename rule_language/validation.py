@@ -102,6 +102,7 @@ _EXIT_KEYS = ("after_bars", "at_time", "on_opposite_signal", "stop_loss", "take_
 _STOP_ONLY_KINDS = {"level": ("stop_loss",), "signal_bar": ("stop_loss",), "r_multiple": ("take_profit", "trail_after")}
 # Engine-side stops, each optional and independent; their distances are fixed at entry.
 STOP_KEYS = ("stop_loss", "take_profit", "trailing_stop", "trail_after")
+_EXAMPLES = {"condition": '; e.g. {"gt": ["close", "open"]}', "series": '; e.g. {"sma": "close", "length": 20}', "distance": '; e.g. {"ticks": 4}'}
 _CLOCK = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])")
 
 
@@ -228,10 +229,10 @@ def _operator(node: Any, path: str, allowed: tuple[str, ...], kind: str) -> str:
     heads = [key for key in node if key in allowed]
     if len(heads) > 1:
         raise RuleSpecError(path, f"combines {heads[0]!r} and {heads[1]!r}; use exactly one {kind} operator")
+    if not node:
+        raise RuleSpecError(path, f"an empty object is not a {kind}")
     if not heads:
-        if not node:
-            raise RuleSpecError(path, f"an empty object is not a {kind}")
-        raise RuleSpecError(path, f"unknown {kind} {next(iter(node))!r} (allowed: {', '.join(allowed)})")
+        raise RuleSpecError(path, f"unknown {kind} {next(iter(node))!r} (allowed: {', '.join(sorted(allowed))}){_EXAMPLES[kind]}")
     return heads[0]
 
 
@@ -266,8 +267,7 @@ class _Validator:
             raise RuleSpecError(f"{path}.language", f"must be {RULE_LANGUAGE!r}")
         bar = spec["bar"]
         if not isinstance(bar, str) or bar not in BAR_MINUTES:
-            allowed = " or ".join(f'"{name}"' for name in SUPPORTED_BARS)
-            raise RuleSpecError(f"{path}.bar", f"must be {allowed} in {RULE_LANGUAGE}; got {bar!r}")
+            raise RuleSpecError(f"{path}.bar", f"must be {' or '.join(map(json.dumps, SUPPORTED_BARS))} in {RULE_LANGUAGE}; got {bar!r}")
         self.set_bar(bar)
         if not _is_amount(spec["tick_size"], None):
             raise RuleSpecError(f"{path}.tick_size", "must be a number greater than zero")
@@ -416,7 +416,7 @@ class _Validator:
             return node
         if isinstance(node, str):
             if node not in PRICE_FIELDS:
-                raise RuleSpecError(path, f"unknown price field {node!r} (allowed: {', '.join(PRICE_FIELDS)})")
+                raise RuleSpecError(path, f"unknown price field {node!r} (allowed: {', '.join(sorted(PRICE_FIELDS))})")
             return node
         operator = _operator(node, path, SERIES_OPERATORS, "series")
         value = node[operator]
