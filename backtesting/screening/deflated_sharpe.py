@@ -46,7 +46,7 @@ def grid_returns(
 ) -> pd.DataFrame:
     """Per-bar simple returns of a (bars x trials) value matrix via ``vbt.to_returns``."""
     values = np.asarray(values, dtype=float)
-    if values.ndim != 2 or values.shape[1] < 1 or values.shape[0] < 2:
+    if values.ndim != 2 or values.shape[1] < 1:
         raise ValueError("deflated Sharpe needs a (bars x trials) value matrix")
     import vectorbtpro  # noqa: F401  (registers the .vbt accessors)
 
@@ -65,9 +65,23 @@ def deflated_sharpe(
     ``values`` is a (bars x trials) portfolio-value matrix; per-bar simple
     returns use ``initial_cash`` as the value before the first bar.  Sharpe
     ratios are per bar (not annualized), as the paper requires; a trial with
-    zero return variance has an undefined (failing) probability.
+    zero return variance has an undefined (failing) probability.  Fewer than
+    two values per trial (one session) leave every statistic undefined (NaN);
+    the record carries null rather than a failure, as the check never gates.
     """
     values = np.asarray(values, dtype=float)
+    if values.ndim == 2 and values.shape[1] >= 1 and values.shape[0] < 2:
+        trials = values.shape[1]
+        return DeflatedSharpeResult(
+            trials=trials,
+            effective_trials=float(trials),
+            best_trial_index=0,
+            best_sharpe=float("nan"),
+            observations=values.shape[0],
+            probability=float("nan"),
+            trial_probabilities=(float("nan"),) * trials,
+            confidence=confidence,
+        )
     returns = grid_returns(values, initial_cash)
     accessor = returns.vbt.returns()
     sharpe = accessor.sharpe_ratio(annualized=False).to_numpy(dtype=float)
