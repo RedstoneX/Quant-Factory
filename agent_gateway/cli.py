@@ -44,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
         if action == "submit":
             _lineage_options(command)
     candidate_actions.add_parser("list")
+    candidate_actions.add_parser("status").add_argument("--finished-since", dest="finished_since")
     candidate_get = candidate_actions.add_parser("get")
     candidate_get.add_argument("candidate_id")
 
@@ -132,6 +133,8 @@ def _operation(args: argparse.Namespace) -> tuple[str, dict[str, object], str | 
             return f"candidate.{args.action}", arguments, payload
         if args.action == "get":
             arguments["candidate_id"] = args.candidate_id
+        if args.action == "status" and args.finished_since:
+            arguments["finished_since"] = args.finished_since
         return f"candidate.{args.action}", arguments, payload
     if args.group == "run":
         arguments[f"{'candidate' if args.action == 'request' else 'run'}_id"] = (

@@ -20,7 +20,9 @@ def allowed_arguments(command: str) -> list[str]:
     if not words or words[0] != "qf-agent":
         raise ValueError("only qf-agent commands are allowed")
     args = words[1:]
-    if args in (["bootstrap"], ["context", "get"], ["candidate", "list"], ["data", "files"]):
+    if args in (["bootstrap"], ["context", "get"], ["candidate", "list"], ["candidate", "status"], ["data", "files"]):
+        return args
+    if len(args) == 4 and args[:3] == ["candidate", "status", "--finished-since"]:
         return args
     if len(args) == 4 and args[:2] == ["prior", "search"] and args[2] == "--query":
         return args
