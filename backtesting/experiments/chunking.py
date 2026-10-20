@@ -16,8 +16,10 @@ import pandas as pd
 from backtesting.experiments.metrics import extract_sweep_metrics
 from backtesting.vectorbt_runtime import require_vectorbtpro
 
-# Settings per chunk. Measured on QQQ 1-minute (1.05M bars): see README "How settings are tested".
-SWEEP_CHUNK_SETTINGS = 10
+# Settings per chunk [measured, QQQ 1-minute, 1.05M bars]: a chunk costs ~115 MB per setting
+# while it runs. 2,500 MB target - 1,400 MB base - 840 MB value lines at 100 settings
+# (8.4 MB each) = 260 MB, which fits 2 settings (230 MB).
+SWEEP_CHUNK_SETTINGS = 2
 
 
 def setting_portfolio(portfolio: Any, position: int) -> Any:
@@ -57,12 +59,16 @@ def _simulate_chunk(
     metrics = extract_sweep_metrics(sweep, len(aligned), data=chunk_data, config=config)
     values = value_columns(sweep, len(aligned))
     observed = [setting_portfolio(sweep, position) for position in range(len(aligned))] if keep_portfolios else []
-    # VectorBT PRO 2026.10.5 memoises get_func_signature with an unbounded functools.cache keyed
-    # by bound methods (e.g. the returns accessor's sharpe_ratio), which pins each chunk's returns
-    # and benchmark returns for the whole run (~17 MB per 1-minute setting, measured). Clearing
-    # that memo only drops signatures; it never changes a result. Remove once VBT bounds it.
+    # Release what VectorBT PRO keeps after the chunk is done. vbt.clear_cache() is the documented
+    # call for its global cache registry, whose run results hold each chunk's wrappers and its
+    # 1M-bar index (~18 MB per 1-minute setting, measured). It does not reach get_func_signature,
+    # an unbounded functools.cache keyed by bound methods (e.g. the returns accessor's
+    # sharpe_ratio) that pins each chunk's returns (measured: 97.6 MB -> 0.3 MB only after its
+    # own cache_clear). Both drop caches only; no result changes (tests/test_sweep_memory_parity.py).
+    vbt = require_vectorbtpro()
     from vectorbtpro.utils.parsing import get_func_signature
 
+    vbt.clear_cache()
     get_func_signature.cache_clear()
     return metrics, values, observed, extras
 
