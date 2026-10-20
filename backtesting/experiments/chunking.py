@@ -57,6 +57,13 @@ def _simulate_chunk(
     metrics = extract_sweep_metrics(sweep, len(aligned), data=chunk_data, config=config)
     values = value_columns(sweep, len(aligned))
     observed = [setting_portfolio(sweep, position) for position in range(len(aligned))] if keep_portfolios else []
+    # VectorBT PRO 2026.10.5 memoises get_func_signature with an unbounded functools.cache keyed
+    # by bound methods (e.g. the returns accessor's sharpe_ratio), which pins each chunk's returns
+    # and benchmark returns for the whole run (~17 MB per 1-minute setting, measured). Clearing
+    # that memo only drops signatures; it never changes a result. Remove once VBT bounds it.
+    from vectorbtpro.utils.parsing import get_func_signature
+
+    get_func_signature.cache_clear()
     return metrics, values, observed, extras
 
 
