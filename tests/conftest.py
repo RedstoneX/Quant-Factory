@@ -188,7 +188,6 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_rsi_mean_reversion.py::test_signal_arrays_align_with_price_index",
         "tests/test_screening.py::test_experiment_preserves_passing_and_screened_rows",
         "tests/test_screening.py::test_invalid_parameters_remain_distinct_from_screening_failures",
-        "tests/test_screening.py::test_screening_occurs_after_simulation_and_metrics",
         "tests/test_screening.py::test_complete_output_contains_screening_columns",
         "tests/test_spy_donchian_oos.py::test_training_failure_stops_before_selection_and_test",
         "tests/test_spy_donchian_oos.py::test_selection_failure_stops_before_lock_and_test",

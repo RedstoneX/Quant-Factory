@@ -45,7 +45,11 @@ DATA_CONFIG = MarketDataConfig(
 PARAMETER_COMBINATIONS = build_parameter_grid()
 
 
-def _config(direction: str, output_path: Path = RESULT_PATH) -> ExperimentConfig:
+def _config(
+    direction: str,
+    output_path: Path = RESULT_PATH,
+    market_data: MarketDataConfig = DATA_CONFIG,
+) -> ExperimentConfig:
     if direction not in {"longonly", "shortonly"}:
         raise ValueError(f"Unsupported Donchian direction: {direction}")
     strategy_direction = "long" if direction == "longonly" else "short"
@@ -53,7 +57,7 @@ def _config(direction: str, output_path: Path = RESULT_PATH) -> ExperimentConfig
         experiment_id=f"spy_donchian_daily_{strategy_direction}_baseline",
         strategy_id=f"spy_donchian_trend_breakout_{strategy_direction}",
         parameter_combinations=PARAMETER_COMBINATIONS,
-        market_data=DATA_CONFIG,
+        market_data=market_data,
         execution=ExecutionConfig.next_bar_open(
             initial_cash=INITIAL_CASH,
             fees=FEES,
@@ -69,14 +73,16 @@ def _config(direction: str, output_path: Path = RESULT_PATH) -> ExperimentConfig
     )
 
 
-def run_baseline_screen(*, write_output: bool = True) -> pd.DataFrame:
+def run_baseline_screen(
+    *, write_output: bool = True, data_config: MarketDataConfig = DATA_CONFIG
+) -> pd.DataFrame:
     """Evaluate exactly three long and three short approved Donchian variants."""
-    market_data = load_market_data(DATA_CONFIG)
+    market_data = load_market_data(data_config)
     timestamp = datetime.now(timezone.utc).isoformat()
     frames: list[pd.DataFrame] = []
     for direction in ("longonly", "shortonly"):
         result = execute_experiment(
-            _config(direction),
+            _config(direction, market_data=data_config),
             market_data.data,
             market_data.audit,
             run_timestamp=timestamp,

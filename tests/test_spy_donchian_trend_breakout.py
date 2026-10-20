@@ -176,8 +176,8 @@ def test_strategy_specification_matches_approved_boundaries() -> None:
 
 
 @pytest.mark.licensed_vectorbt
-def test_baseline_runner_produces_exact_six_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # Point the runner's fixed data configuration at a temporary cache the real loader reads.
+def test_baseline_runner_produces_exact_six_rows(tmp_path: Path) -> None:
+    # Give the runner a data configuration pointing at a temporary cache the real loader reads.
     last = latest_completed_session(runner.DATA_CONFIG)
     calendar = get_exchange_calendar(runner.DATA_CONFIG)
     sessions = calendar.schedule(start_date=pd.Timestamp(last) - pd.Timedelta(days=200), end_date=last).index[-90:]
@@ -198,9 +198,8 @@ def test_baseline_runner_produces_exact_six_rows(tmp_path: Path, monkeypatch: py
         download_time=pd.Timestamp.now(tz="UTC").isoformat(),
     )
     write_cache(frame, audit, config)
-    monkeypatch.setattr(runner, "DATA_CONFIG", config)
 
-    result = runner.run_baseline_screen(write_output=False)
+    result = runner.run_baseline_screen(write_output=False, data_config=config)
     assert len(result) == 6
     assert result["direction_variant"].value_counts().to_dict() == {
         "longonly": 3,

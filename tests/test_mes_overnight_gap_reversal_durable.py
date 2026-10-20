@@ -251,7 +251,6 @@ def test_preflight_saves_exact_configuration_without_persisting_secret(
 
 @pytest.mark.licensed_vectorbt
 def test_screened_out_launch_persists_one_successful_screen_and_replay_is_noop(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     database = tmp_path / "state" / "screen.sqlite3"
@@ -274,15 +273,7 @@ def test_screened_out_launch_persists_one_successful_screen_and_replay_is_noop(
         executor=executor,
         dispatcher_instance_id="d9f7d4e8-588b-44ef-8366-eb4ea46d79c6",
     )
-    flow_id = "7a08f11d-1cc1-445c-a82e-d8a51893456f"
-    monkeypatch.setattr(
-        runtime,
-        "_prefect_adapter",
-        lambda submission, _claims: runtime.execute_flow(
-            submission=submission,
-            prefect_flow_run_id=flow_id,
-        ),
-    )
+    # The real Prefect flow runs in-process and binds its own flow-run id.
     first = runtime.launch()
     second = runtime.launch()
 
@@ -294,7 +285,7 @@ def test_screened_out_launch_persists_one_successful_screen_and_replay_is_noop(
     assert second.claim.created is False
     assert second.dispatch.invoked is False
     assert calls == ["load", "execute"]
-    assert UUID(first.dispatch.submission.prefect_flow_run_id or "") == UUID(flow_id)
+    assert UUID(first.dispatch.submission.prefect_flow_run_id or "")  # a real flow-run id was bound
     assert runtime.reopen_completed_outcome(first.claim.run.run_id) == (
         durable.MESDurableScreenOutcome(
             run_id=first.claim.run.run_id,
