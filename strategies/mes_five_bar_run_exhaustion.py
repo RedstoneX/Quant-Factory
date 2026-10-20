@@ -143,29 +143,20 @@ def generate_signals(
             continue
 
         bodies = day["Close"].astype(float) - day["Open"].astype(float)
-        completion_times = day.index + FIVE_MINUTES
-        selected: tuple[pd.Timestamp, str] | None = None
-        for position in range(run_length - 1, len(day)):
-            completed_at = completion_times[position]
-            local_completed_at = completed_at.tz_convert("America/New_York")
-            if local_completed_at.time() < pd.Timestamp("10:00").time():
-                continue
-            if local_completed_at.time() > pd.Timestamp("14:00").time():
-                break
-            run = bodies.iloc[position - run_length + 1 : position + 1]
-            if (run.abs() < minimum_points).any() or (run == 0).any():
-                continue
-            if (run > 0).all():
-                selected = (day.index[position], "short")
-            elif (run < 0).all():
-                selected = (day.index[position], "long")
-            if selected is not None:
-                break
-
-        if selected is None:
+        # A bar counts when its body is at least the minimum size; a run is ``run_length`` consecutive counting
+        # bars of one sign, completed (bar end) between 10:00 and 14:00 New York time inclusive.
+        counting = (bodies.abs() >= minimum_points) & (bodies != 0)
+        in_window = pd.Series(False, index=day.index)
+        completed_at = (day.index + FIVE_MINUTES).tz_convert("America/New_York")
+        in_window.iloc[completed_at.indexer_between_time("10:00", "14:00")] = True
+        rising = ((bodies > 0) & counting).rolling(run_length).sum() == run_length
+        falling = ((bodies < 0) & counting).rolling(run_length).sum() == run_length
+        exhausted = (rising | falling) & in_window
+        if not exhausted.any():
             eligible_sessions += 1
             continue
-        signal_time, direction = selected
+        signal_time = exhausted.idxmax()
+        direction = "short" if rising.at[signal_time] else "long"
         entry_time = signal_time + FIVE_MINUTES
         # The generic next-bar-open adapter shifts this raw exit signal once,
         # producing an exit after exactly two completed bars.
