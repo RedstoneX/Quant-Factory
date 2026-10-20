@@ -62,6 +62,9 @@ many settings were tried, and probability of backtest overfitting over the grid.
 
 ## What you can read back
 
+`candidate status`: every idea you submitted with its latest run (id, status, stage,
+finish time). Add `--finished-since <ISO time>` to see only ideas whose latest run
+finished after that time; use it instead of polling each run.
 `run status`: stage and state. `run results`: costs screen, every setting's
 parameters, metrics, rank, screening status and rejection reasons; unseen data, test
 status and locked parameters; walk-forward, each fold's status, Sharpe and return.
