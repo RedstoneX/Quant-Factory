@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+from dataclasses import replace
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 import backtesting.run_spy_donchian as runner
 from backtesting.experiments.runner import align_signals_for_execution
-from market_data import DataAudit, MarketDataResult
+from market_data import DataAudit, get_exchange_calendar, latest_completed_session, write_cache
 from strategies import get_strategy
 from strategies.spy_donchian_trend_breakout import (
     ENTRY_LOOKBACKS,
@@ -174,30 +175,31 @@ def test_strategy_specification_matches_approved_boundaries() -> None:
     assert spec.parameter_map["exit_lookback"].allowed_values == EXIT_LOOKBACKS
 
 
-def test_baseline_runner_produces_exact_six_rows(monkeypatch: pytest.MonkeyPatch) -> None:
-    frame = _ohlc([100 + (i % 12) for i in range(90)])
-    monkeypatch.setattr(
-        runner,
-        "load_market_data",
-        lambda config: MarketDataResult(data=frame, audit=_audit(frame)),
+@pytest.mark.licensed_vectorbt
+def test_baseline_runner_produces_exact_six_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Point the runner's fixed data configuration at a temporary cache the real loader reads.
+    last = latest_completed_session(runner.DATA_CONFIG)
+    calendar = get_exchange_calendar(runner.DATA_CONFIG)
+    sessions = calendar.schedule(start_date=pd.Timestamp(last) - pd.Timedelta(days=200), end_date=last).index[-90:]
+    config = replace(
+        runner.DATA_CONFIG,
+        requested_start=sessions[0].date().isoformat(),
+        cache_path=tmp_path / "spy.csv",
+        legacy_cache_paths=(),
     )
+    frame = _ohlc([100 + (i % 12) for i in range(90)])
+    frame.index = pd.DatetimeIndex(sessions)
+    audit = replace(
+        _audit(frame),
+        provider_implementation=config.provider_implementation,
+        requested_start=config.requested_start,
+        requested_dynamic_end_policy=config.end_date_policy,
+        latest_completed_exchange_session=pd.Timestamp(last).date().isoformat(),
+        download_time=pd.Timestamp.now(tz="UTC").isoformat(),
+    )
+    write_cache(frame, audit, config)
+    monkeypatch.setattr(runner, "DATA_CONFIG", config)
 
-    def execute_fixture(config, *_args, **_kwargs):
-        rows = []
-        for index, parameters in enumerate(config.parameter_combinations):
-            rows.append(
-                {
-                    **parameters,
-                    "total_return": 0.03 - index * 0.01,
-                    "sharpe_ratio": 0.6 - index * 0.1,
-                    "screening_status": (
-                        "passed" if index == 0 else "screened_out"
-                    ),
-                }
-            )
-        return SimpleNamespace(ranked_results=pd.DataFrame(rows))
-
-    monkeypatch.setattr(runner, "execute_experiment", execute_fixture)
     result = runner.run_baseline_screen(write_output=False)
     assert len(result) == 6
     assert result["direction_variant"].value_counts().to_dict() == {
@@ -207,4 +209,5 @@ def test_baseline_runner_produces_exact_six_rows(monkeypatch: pytest.MonkeyPatch
     assert set(result["entry_lookback"]) == {20, 55}
     assert set(result["exit_lookback"]) == {10, 20}
     assert set(result["screening_status"]).issubset({"passed", "screened_out"})
+    assert result["number_of_trades"].sum() > 0
     assert runner.RESULT_PATH.name == "spy_donchian_baseline.csv"

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
-from types import SimpleNamespace
+import json
 
 import pandas as pd
 import pytest
@@ -12,7 +13,6 @@ import pytest
 import backtesting.run_mes_overnight_gap_reversal as runner
 from backtesting.screening import screen_metrics
 from market_data import DataAudit
-from market_data.catalog import DataLocations, DatasetManifest
 from strategies import get_strategy
 from strategies.mes_overnight_gap_reversal import (
     DEVELOPMENT_SESSION_END,
@@ -119,49 +119,55 @@ def _mapping_response(*, partial=None, not_found=None, message="OK"):
     }
 
 
-def _portfolio(bundle, *, pnl_offset: float = 0.0):
-    trade_rows = []
-    order_rows = []
-    for trade in bundle.completed_trades:
-        trade_rows.append(
-            {
-                "Size": 1.0,
-                "Avg Entry Price": trade.entry_fill * 5.0,
-                "Avg Exit Price": trade.exit_fill * 5.0,
-                "Entry Index": trade.entry_timestamp,
-                "Exit Index": trade.exit_timestamp,
-                "PnL": trade.net_pnl + pnl_offset,
-                "Entry Fees": FEE_PER_SIDE,
-                "Exit Fees": FEE_PER_SIDE,
-                "Status": "Closed",
-                "Direction": trade.direction.title(),
-            }
-        )
-        order_rows.extend(
-            [
-                {
-                    "Fill Index": trade.entry_timestamp,
-                    "Size": 1.0,
-                    "Price": trade.entry_fill * 5.0,
-                    "Fees": FEE_PER_SIDE,
-                    "Side": "Buy" if trade.direction == "long" else "Sell",
-                },
-                {
-                    "Fill Index": trade.exit_timestamp,
-                    "Size": 1.0,
-                    "Price": trade.exit_fill * 5.0,
-                    "Fees": FEE_PER_SIDE,
-                    "Side": "Sell" if trade.direction == "long" else "Buy",
-                },
-            ]
-        )
-    return SimpleNamespace(
-        trades=SimpleNamespace(records_readable=pd.DataFrame(trade_rows)),
-        orders=SimpleNamespace(records_readable=pd.DataFrame(order_rows)),
-        value=pd.Series(
-            [100_000.0, 100_000.0 + sum(item.net_pnl for item in bundle.completed_trades)]
-        ),
+def databento_frame(data: pd.DataFrame) -> pd.DataFrame:
+    """Rewrite a test frame in the vendor parquet schema the real loader reads."""
+    frame = data.rename(columns=str.lower).astype({"volume": "int64"})
+    frame.index = pd.DatetimeIndex(frame.index.tz_convert("UTC"), name="ts_event")
+    return frame
+
+
+def write_mes_catalog(tmp_path: Path, frame: pd.DataFrame) -> dict[str, Path]:
+    """A temporary real data catalog: parquet file, manifest JSON and machine locations TOML.
+
+    The owned-dataset identity (SHA-256, row count) is pinned by the manifest; the local
+    policy turns byte verification off so a small test file can stand in for the real one.
+    """
+    relative = Path("futures/MES/5m/MES.parquet")
+    dataset = tmp_path / "data" / relative
+    dataset.parent.mkdir(parents=True, exist_ok=True)
+    frame.to_parquet(dataset, engine="pyarrow")
+    manifests = tmp_path / "manifests"
+    manifests.mkdir(exist_ok=True)
+    metadata = {
+        "dataset_id": runner.DATASET_ID,
+        "status": "validated",
+        "sha256": runner.EXPECTED_DATASET_SHA256,
+        "row_count": runner.EXPECTED_DATASET_ROWS,
+        "earliest_timestamp": runner.EXPECTED_FIRST_TIMESTAMP,
+        "latest_timestamp": runner.EXPECTED_LAST_TIMESTAMP,
+        "continuous_symbol": "MES.c.0",
+        "roll_rule": "calendar/front-expiry rank zero",
+        "price_adjustment": "none; original unadjusted contract prices",
+        "imported_at_utc": "2026-07-07T00:00:00Z",
+    }
+    (manifests / f"{runner.DATASET_ID}.json").write_text(json.dumps(metadata | {
+        "asset_class": "futures", "symbol": "MES", "provider": "Databento", "timeframe": "5m",
+        "format": "parquet", "canonical_relative_path": str(relative),
+        "size_bytes": dataset.stat().st_size,
+    }), encoding="utf-8")
+    locations = tmp_path / "data_locations.toml"
+    locations.write_text(
+        "[data]\n"
+        f'root = "{tmp_path / "data"}"\n'
+        f'manifests = "{manifests}"\n'
+        f'quarantine = "{tmp_path / "quarantine"}"\n'
+        "[policy]\n"
+        "preserve_originals = true\n"
+        "verify_sha256_before_use = false\n"
+        "allow_raw_data_in_repository = false\n",
+        encoding="utf-8",
     )
+    return {"manifest_dir": manifests, "locations_path": locations, "dataset_path": dataset}
 
 
 def test_strategy_is_registered_as_fixed_owner_approved_candidate() -> None:
@@ -287,44 +293,8 @@ def test_session_after_nyse_early_close_is_explicitly_excluded() -> None:
     }
 
 
-def test_predicate_loader_materializes_only_fixed_pre_2024_slice(monkeypatch, tmp_path: Path) -> None:
-    metadata = {
-        "dataset_id": runner.DATASET_ID,
-        "status": "validated",
-        "sha256": runner.EXPECTED_DATASET_SHA256,
-        "row_count": runner.EXPECTED_DATASET_ROWS,
-        "earliest_timestamp": runner.EXPECTED_FIRST_TIMESTAMP,
-        "latest_timestamp": runner.EXPECTED_LAST_TIMESTAMP,
-        "continuous_symbol": "MES.c.0",
-        "roll_rule": "calendar/front-expiry rank zero",
-        "price_adjustment": "none; original unadjusted contract prices",
-        "imported_at_utc": "2026-07-07T00:00:00Z",
-    }
-    manifest = DatasetManifest(
-        dataset_id=runner.DATASET_ID,
-        status="validated",
-        asset_class="futures",
-        symbol="MES",
-        provider="Databento",
-        timeframe="5m",
-        format="parquet",
-        canonical_relative_path=Path("futures/MES/5m/MES.parquet"),
-        sha256=runner.EXPECTED_DATASET_SHA256,
-        size_bytes=1,
-        row_count=runner.EXPECTED_DATASET_ROWS,
-        metadata=metadata,
-    )
-    locations = DataLocations(
-        root=tmp_path,
-        manifests=tmp_path,
-        quarantine=tmp_path,
-        backup_archive=None,
-        extracted_root=None,
-        verify_sha256_before_use=True,
-    )
-    captured = {}
-    dataset_path = tmp_path / "MES.parquet"
-    pd.DataFrame(
+def test_predicate_loader_materializes_only_fixed_pre_2024_slice(tmp_path: Path) -> None:
+    frame = pd.DataFrame(
         {
             "open": [99.0, 100.0, 101.0, 102.0],
             "high": [100.0, 101.0, 102.0, 103.0],
@@ -341,56 +311,25 @@ def test_predicate_loader_materializes_only_fixed_pre_2024_slice(monkeypatch, tm
             ],
             name="ts_event",
         ),
-    ).to_parquet(dataset_path, engine="pyarrow")
-    real_read_parquet = pd.read_parquet
+    )
+    catalog = write_mes_catalog(tmp_path, frame)
+    loaded = runner.load_mes_gap_inputs(
+        mapping_response=_mapping_response(),
+        manifest_dir=catalog["manifest_dir"],
+        locations_path=catalog["locations_path"],
+    )
 
-    def read_parquet(path, *, engine, columns, filters):
-        captured.update(path=path, engine=engine, columns=columns, filters=filters)
-        return real_read_parquet(
-            path,
-            engine=engine,
-            columns=columns,
-            filters=filters,
-        )
-
-    monkeypatch.setattr(runner, "load_dataset_manifest", lambda *args, **kwargs: manifest)
-    monkeypatch.setattr(runner, "load_data_locations", lambda *args, **kwargs: locations)
-    monkeypatch.setattr(runner, "verify_dataset_file", lambda *args, **kwargs: dataset_path)
-    monkeypatch.setattr(pd, "read_parquet", read_parquet)
-    loaded = runner.load_mes_gap_inputs(mapping_response=_mapping_response())
-
+    # Only the two rows inside [DEVELOPMENT_START, DEVELOPMENT_END) are materialized.
+    assert len(loaded.data) == 2
     assert loaded.data.index.min() == runner.DEVELOPMENT_START
     assert loaded.data.index.max() < runner.DEVELOPMENT_END
     assert tuple(loaded.data.columns) == ("Open", "High", "Low", "Close", "Volume")
     assert loaded.data.index.name == "Timestamp"
-    assert captured["engine"] == "pyarrow"
-    assert captured["columns"][-1] == "ts_event"
-    assert captured["filters"] == [
-        ("ts_event", ">=", runner.DEVELOPMENT_START.to_pydatetime()),
-        ("ts_event", "<", runner.DEVELOPMENT_END.to_pydatetime()),
-    ]
+    assert loaded.dataset_path == catalog["dataset_path"]
+    assert loaded.manifest.sha256 == runner.EXPECTED_DATASET_SHA256
 
 
-def test_loader_rejects_any_materialized_row_at_the_prospective_cutoff(monkeypatch, tmp_path: Path) -> None:
-    manifest = SimpleNamespace(
-        metadata={
-            "dataset_id": runner.DATASET_ID,
-            "status": "validated",
-            "sha256": runner.EXPECTED_DATASET_SHA256,
-            "row_count": runner.EXPECTED_DATASET_ROWS,
-            "earliest_timestamp": runner.EXPECTED_FIRST_TIMESTAMP,
-            "latest_timestamp": runner.EXPECTED_LAST_TIMESTAMP,
-            "continuous_symbol": "MES.c.0",
-            "roll_rule": "calendar/front-expiry rank zero",
-            "price_adjustment": "none; original unadjusted contract prices",
-            "imported_at_utc": "2026-07-07T00:00:00Z",
-        },
-        canonical_relative_path=Path("MES.parquet"),
-        sha256=runner.EXPECTED_DATASET_SHA256,
-    )
-    monkeypatch.setattr(runner, "load_dataset_manifest", lambda *args, **kwargs: manifest)
-    monkeypatch.setattr(runner, "load_data_locations", lambda *args, **kwargs: object())
-    monkeypatch.setattr(runner, "verify_dataset_file", lambda *args, **kwargs: tmp_path / "MES.parquet")
+def test_loader_rejects_any_materialized_row_at_the_prospective_cutoff(tmp_path: Path) -> None:
     frame = pd.DataFrame(
         {
             "open": [100.0], "high": [101.0], "low": [99.0], "close": [100.5],
@@ -398,9 +337,13 @@ def test_loader_rejects_any_materialized_row_at_the_prospective_cutoff(monkeypat
         },
         index=pd.DatetimeIndex([runner.DEVELOPMENT_END], name="ts_event"),
     )
-    monkeypatch.setattr(pd, "read_parquet", lambda *args, **kwargs: frame)
-    with pytest.raises(RuntimeError, match="fixed timestamp boundary"):
-        runner.load_mes_gap_inputs(mapping_response=_mapping_response())
+    catalog = write_mes_catalog(tmp_path, frame)
+    with pytest.raises(RuntimeError, match="MES predicate slice"):
+        runner.load_mes_gap_inputs(
+            mapping_response=_mapping_response(),
+            manifest_dir=catalog["manifest_dir"],
+            locations_path=catalog["locations_path"],
+        )
 
 
 def test_schedule_complete_metrics_include_flat_sessions_and_exact_formulas() -> None:
@@ -461,6 +404,7 @@ def test_exact_screening_boundaries_are_conjunctive() -> None:
     assert failed.failed_rule_count == 5
 
 
+@pytest.mark.licensed_vectorbt
 def test_vectorbt_call_and_manual_cross_check_are_exact_and_fail_closed() -> None:
     data = _data()
     bundle = generate_mes_overnight_gap_reversal_bundle(
@@ -468,49 +412,30 @@ def test_vectorbt_call_and_manual_cross_check_are_exact_and_fail_closed() -> Non
         mapping_intervals=_mapping(),
         schedule=_schedule("2023-12-20", "2023-12-21", "2023-12-22", "2023-12-26"),
     )
-    captured = {}
-    portfolio = _portfolio(bundle)
-
-    class Portfolio:
-        @staticmethod
-        def from_signals(**kwargs):
-            captured.update(kwargs)
-            return portfolio
-
-    built = runner.build_vectorbt_portfolio(
-        data, bundle, vbt=SimpleNamespace(Portfolio=Portfolio)
-    )
-    assert built is portfolio
-    assert captured["size"] == 1.0
-    assert captured["fixed_fees"] == FEE_PER_SIDE
-    assert captured["fees"] == captured["slippage"] == 0.0
-    assert captured["price"].at[_time("2023-12-21", "09:35")] == 100.75 * 5.0
+    portfolio = runner.build_vectorbt_portfolio(data, bundle)
+    orders = portfolio.orders.records_readable
+    assert orders["Size"].tolist() == [1.0] * 4
+    assert orders["Fees"].tolist() == pytest.approx([FEE_PER_SIDE] * 4)
+    assert orders.set_index("Fill Index")["Price"].at[_time("2023-12-21", "09:35")] == 100.75 * 5.0
+    trades = portfolio.trades.records_readable
+    assert trades["PnL"].tolist() == pytest.approx([item.net_pnl for item in bundle.completed_trades])
     validation = runner.validate_vectorbt_against_manual(portfolio, bundle)
     assert validation[0]["completed_trade_count"] == 2
 
+    first, second = bundle.completed_trades
+    shifted = replace(bundle, completed_trades=(replace(first, net_pnl=first.net_pnl + 0.01), second))
     with pytest.raises(RuntimeError, match="VectorBT/manual MES trade mismatch"):
-        runner.validate_vectorbt_against_manual(_portfolio(bundle, pnl_offset=0.01), bundle)
+        runner.validate_vectorbt_against_manual(portfolio, shifted)
 
 
+@pytest.mark.licensed_vectorbt
 def test_execute_produces_one_screened_row_from_authoritative_daily_metrics() -> None:
     data = _data()
     schedule = _schedule("2023-12-20", "2023-12-21", "2023-12-22", "2023-12-26")
-    expected_bundle = generate_mes_overnight_gap_reversal_bundle(
-        data, mapping_intervals=_mapping(), schedule=schedule
-    )
-    portfolio = _portfolio(expected_bundle)
-
-    class Portfolio:
-        @staticmethod
-        def from_signals(**kwargs):
-            del kwargs
-            return portfolio
-
     execution = runner.execute_mes_overnight_gap_reversal(
         data,
         _audit(),
         _mapping(),
-        vbt=SimpleNamespace(Portfolio=Portfolio),
         schedule=schedule,
     )
     row = execution.result.ranked_results.iloc[0]
