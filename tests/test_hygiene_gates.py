@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import backtesting.experiments.chunking as chunking_module
 import backtesting.experiments.runner as runner_module
 from backtesting.experiments import SignalResult, execute_experiment, validate_for_simulation
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
@@ -16,7 +15,6 @@ from backtesting.validation import (
     validate_market_data,
 )
 from market_data import DataAudit
-from strategies import get_strategy
 
 
 def _data(periods: int = 40) -> pd.DataFrame:
@@ -79,41 +77,6 @@ def _one_combination_config():
         parameter_combinations=(
             {"window": 7, "entry_threshold": 25, "exit_threshold": 60},
         ),
-    )
-
-
-def _install_portable_runner_boundaries(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    strategy = get_strategy("rsi_mean_reversion")
-
-    def deterministic_signals(
-        data: pd.DataFrame | pd.Series, parameters: dict[str, int]
-    ) -> SignalResult:
-        normalized = strategy.validate_parameters(parameters)
-        entries = pd.Series(False, index=data.index, dtype=bool)
-        exits = pd.Series(False, index=data.index, dtype=bool)
-        entries.iloc[5] = True
-        exits.iloc[10] = True
-        return SignalResult(entries=entries, exits=exits, parameters=normalized)
-
-    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
-    monkeypatch.setattr(
-        runner_module,
-        "_construct_portfolio",
-        lambda data, aligned, config: object(),
-    )
-    monkeypatch.setattr(
-        chunking_module,
-        "extract_sweep_metrics",
-        lambda portfolio, count, **kwargs: count * [{
-            "total_return": 0.10,
-            "annualized_return": 0.10,
-            "sharpe_ratio": 1.0,
-            "max_drawdown": -0.10,
-            "number_of_trades": 20,
-            "win_rate": 0.50,
-        }],
     )
 
 
@@ -213,10 +176,8 @@ def test_whole_share_sizing_passes_the_consistency_gate() -> None:
     assert not consistency.is_blocking_failure
 
 
-def test_valid_inputs_pass_and_results_record_gate_status(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
+@pytest.mark.licensed_vectorbt
+def test_valid_inputs_pass_and_results_record_gate_status() -> None:
     data = _data(80)
     result = execute_experiment(
         _one_combination_config(), data, _audit(data), write_output=False

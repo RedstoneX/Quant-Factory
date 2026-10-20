@@ -6,7 +6,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import backtesting.experiments.chunking as chunking_module
 import backtesting.experiments.runner as runner_module
 from backtesting.execution_comparison import build_execution_comparison
 from backtesting.experiments import (
@@ -109,41 +108,6 @@ def _audit(row_count: int) -> DataAudit:
         missing_close_count=0,
         missing_volume_count=0,
         expected_session_gap_count=0,
-    )
-
-
-def _install_portable_runner_boundaries(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    strategy = get_strategy("rsi_mean_reversion")
-
-    def deterministic_signals(
-        data: pd.DataFrame | pd.Series, parameters: dict[str, int]
-    ) -> SignalResult:
-        normalized = strategy.validate_parameters(parameters)
-        entries = pd.Series(False, index=data.index, dtype=bool)
-        exits = pd.Series(False, index=data.index, dtype=bool)
-        entries.iloc[5::12] = True
-        exits.iloc[8::12] = True
-        return SignalResult(entries=entries, exits=exits, parameters=normalized)
-
-    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
-    monkeypatch.setattr(
-        runner_module,
-        "_construct_portfolio",
-        lambda data, aligned, config: object(),
-    )
-    monkeypatch.setattr(
-        chunking_module,
-        "extract_sweep_metrics",
-        lambda portfolio, count, **kwargs: count * [{
-            "total_return": 0.10,
-            "annualized_return": 0.10,
-            "sharpe_ratio": 1.0,
-            "max_drawdown": -0.10,
-            "number_of_trades": 20,
-            "win_rate": 0.50,
-        }],
     )
 
 
@@ -329,10 +293,8 @@ def test_typed_execution_rejects_unsupported_combinations() -> None:
         )
 
 
-def test_result_records_actual_execution_assumptions(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
+@pytest.mark.licensed_vectorbt
+def test_result_records_actual_execution_assumptions(tmp_path: Path) -> None:
     index = pd.date_range("2024-01-01", periods=80, freq="D")
     data = pd.DataFrame(
         {

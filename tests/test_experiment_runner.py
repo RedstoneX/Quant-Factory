@@ -3,13 +3,10 @@
 from dataclasses import replace
 import math
 from pathlib import Path
-from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
-import backtesting.experiments.chunking as chunking_module
-import backtesting.experiments.runner as runner_module
 import backtesting.experiments.metrics as metrics_module
 import backtesting.run_rsi_demo as demo
 from backtesting.experiments import (
@@ -17,28 +14,30 @@ from backtesting.experiments import (
     ExperimentConfig,
     METRIC_COLUMNS,
     MetricPolicy,
-    SignalResult,
     build_portfolio,
     execute_experiment,
     extract_metrics,
 )
 from backtesting.experiments.metrics import session_close_metrics_frame
 from backtesting.screening import screen_metrics
+from backtesting.vectorbt_runtime import require_vectorbtpro
 from market_data import DataAudit, MarketDataConfig
 from strategies import get_strategy
-from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
+from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC, RSIMeanReversionStrategy
 
 
 def _data() -> pd.DataFrame:
+    """Ten-bar declines and recoveries so RSI(7) crosses the entry and exit bands."""
     index = pd.date_range("2024-01-01", periods=80, freq="D")
-    return pd.DataFrame(
-        {
-            "Open": [99 + ((i % 12) - 6) * 2 for i in range(len(index))],
-            "Close": [100 + ((i % 12) - 6) * 2 for i in range(len(index))],
-        },
-        index=index,
-        dtype=float,
-    )
+    phase = pd.Series(range(len(index)), index=index) % 20
+    close = 100.0 - 3.0 * phase.where(phase < 10, 20 - phase)
+    return pd.DataFrame({"Open": close - 1.0, "Close": close})
+
+
+def _holding_portfolio(index: pd.DatetimeIndex):
+    """A real engine portfolio that holds one unit through every bar."""
+    close = pd.Series(100.0, index=index)
+    return require_vectorbtpro().Portfolio.from_holding(close, init_cash=100_000.0)
 
 
 def _audit(data: pd.DataFrame) -> DataAudit:
@@ -108,42 +107,6 @@ def _config(
         ranking_ascending=(False, False),
         output_path=tmp_path / "results.csv",
         parameter_output_names=(("window", "rsi_window"),),
-    )
-
-
-def _install_portable_runner_boundaries(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    strategy = get_strategy("rsi_mean_reversion")
-
-    def deterministic_signals(
-        data: pd.DataFrame | pd.Series, parameters: dict[str, int]
-    ) -> SignalResult:
-        normalized = strategy.validate_parameters(parameters)
-        index = data.index
-        entries = pd.Series(False, index=index, dtype=bool)
-        exits = pd.Series(False, index=index, dtype=bool)
-        entries.iloc[5::12] = True
-        exits.iloc[8::12] = True
-        return SignalResult(entries=entries, exits=exits, parameters=normalized)
-
-    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
-    monkeypatch.setattr(
-        runner_module,
-        "_construct_portfolio",
-        lambda data, aligned, config: object(),
-    )
-    monkeypatch.setattr(
-        chunking_module,
-        "extract_sweep_metrics",
-        lambda portfolio, count, **kwargs: count * [{
-            "total_return": 0.10,
-            "annualized_return": 0.10,
-            "sharpe_ratio": 1.0,
-            "max_drawdown": -0.10,
-            "number_of_trades": 20,
-            "win_rate": 0.50,
-        }],
     )
 
 
@@ -218,6 +181,7 @@ def test_session_metrics_use_completed_exchange_sessions_not_overnight_bars(
     assert sharpe == pytest.approx(excess.mean() / excess.std(ddof=1) * 252**0.5)
 
 
+@pytest.mark.licensed_vectorbt
 def test_session_metrics_fail_closed_without_exact_closing_bar(tmp_path: Path) -> None:
     index = pd.DatetimeIndex(
         [
@@ -228,7 +192,7 @@ def test_session_metrics_fail_closed_without_exact_closing_bar(tmp_path: Path) -
             "2024-01-03T22:00:00Z",
         ]
     )
-    portfolio = SimpleNamespace(value=pd.Series(100_000.0, index=index))
+    portfolio = _holding_portfolio(index)
     config = replace(
         _config(tmp_path),
         market_data=replace(_market_config(tmp_path), interval="5m"),
@@ -340,6 +304,7 @@ def test_session_metrics_count_a_final_bar_ending_at_the_close_as_complete(tmp_p
     assert len(result) == 3  # computed, not refused as a partial session
 
 
+@pytest.mark.licensed_vectorbt
 def test_session_metrics_fail_closed_on_partial_final_session(tmp_path: Path) -> None:
     index = pd.DatetimeIndex(
         [
@@ -348,7 +313,7 @@ def test_session_metrics_fail_closed_on_partial_final_session(tmp_path: Path) ->
             "2024-01-04T18:00:00Z",
         ]
     )
-    portfolio = SimpleNamespace(value=pd.Series(100_000.0, index=index))
+    portfolio = _holding_portfolio(index)
     config = replace(
         _config(tmp_path),
         market_data=replace(_market_config(tmp_path), interval="5m"),
@@ -418,25 +383,16 @@ def test_flat_session_metrics_are_truthfully_screened_out(tmp_path: Path) -> Non
     assert "sharpe_ratio" in screening.rule_results[1].details["non_finite"]
 
 
-def test_strategy_lookup_and_grid_execution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
-    requested: list[str] = []
-    real_get_strategy = get_strategy
-
-    def tracking_get_strategy(strategy_id: str):
-        requested.append(strategy_id)
-        return real_get_strategy(strategy_id)
-
-    monkeypatch.setattr(runner_module, "get_strategy", tracking_get_strategy)
+@pytest.mark.licensed_vectorbt
+def test_strategy_lookup_and_grid_execution(tmp_path: Path) -> None:
     result = execute_experiment(
         _config(tmp_path),
         _data(),
         _audit(_data()),
         run_timestamp="2024-03-20T21:00:00+00:00",
     )
-    assert requested == ["rsi_mean_reversion"]
+    assert result.strategy_id == "rsi_mean_reversion"
+    assert result.strategy_version == get_strategy("rsi_mean_reversion").spec.identity.version
     assert result.evaluated_combinations == 2
     assert result.rejected_combinations == 0
     assert len(result.ranked_results) == 2
@@ -484,10 +440,8 @@ def config_columns(frame: pd.DataFrame) -> list[str]:
     return list(frame.columns)
 
 
-def test_invalid_parameters_are_recorded(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
+@pytest.mark.licensed_vectorbt
+def test_invalid_parameters_are_recorded(tmp_path: Path) -> None:
     config = _config(
         tmp_path,
         (
@@ -506,53 +460,31 @@ def test_invalid_parameters_are_recorded(
 def test_unapproved_parameter_plan_fails_before_simulation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    draft_strategy = SimpleNamespace(
-        spec=replace(RSI_MEAN_REVERSION_SPEC, approval_state="draft")
-    )
-    market_validation_called = False
-
-    def unexpected_market_validation(*args: object, **kwargs: object) -> None:
-        nonlocal market_validation_called
-        market_validation_called = True
-
-    monkeypatch.setattr(runner_module, "get_strategy", lambda _: draft_strategy)
-    monkeypatch.setattr(
-        runner_module, "validate_market_data", unexpected_market_validation
-    )
-    data = _data()
+    draft_spec = replace(RSI_MEAN_REVERSION_SPEC, approval_state="draft")
+    monkeypatch.setattr(RSIMeanReversionStrategy, "spec", draft_spec)
+    # Missing Open would fail the market gates: the approval error must come first.
+    data = _data().drop(columns="Open")
     with pytest.raises(ValueError, match="not approved for execution"):
         execute_experiment(_config(tmp_path), data, _audit(data), write_output=False)
-    assert market_validation_called is False
 
 
-def test_ranking_is_deterministic_on_ties(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
+@pytest.mark.licensed_vectorbt
+def test_ranking_is_deterministic_on_ties(tmp_path: Path) -> None:
+    # On this data RSI(7) crosses 50 and 55 on the same bars, so both settings tie.
     config = _config(
         tmp_path,
         (
-            {"window": 14, "entry_threshold": 30, "exit_threshold": 50},
-            {"window": 7, "entry_threshold": 25, "exit_threshold": 60},
+            {"window": 7, "entry_threshold": 20, "exit_threshold": 55},
+            {"window": 7, "entry_threshold": 20, "exit_threshold": 50},
         ),
-    )
-    monkeypatch.setattr(
-        chunking_module,
-        "extract_sweep_metrics",
-        lambda portfolio, count, **kwargs: count * [{
-            "total_return": 1.0,
-            "annualized_return": 1.0,
-            "sharpe_ratio": 1.0,
-            "max_drawdown": -0.1,
-            "number_of_trades": 1,
-            "win_rate": 1.0,
-        }],
     )
     data = _data()
     first = execute_experiment(config, data, _audit(data), write_output=False)
     second = execute_experiment(config, data, _audit(data), write_output=False)
     pd.testing.assert_frame_equal(first.ranked_results, second.ranked_results)
-    assert first.ranked_results["rsi_window"].tolist() == [7, 14]
+    assert first.ranked_results["total_return"].nunique() == 1
+    assert first.ranked_results["sharpe_ratio"].nunique() == 1
+    assert first.ranked_results["exit_threshold"].tolist() == [50, 55]
 
 
 @pytest.mark.licensed_vectorbt
