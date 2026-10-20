@@ -11,6 +11,13 @@ compiles it into a strategy and backtests it automatically. It does not trade.
 3. Ideas without rules are recorded as can't test yet.
 4. Ideas with rules are backtested under the owner's standing policy of
    2026-10-13. Paper trading always needs separate owner approval.
+   Every setting in the idea's grid is tested in chunks (VectorBT PRO
+   `vbt.parameterized` mono-chunks, 10 settings each): a chunk builds its own
+   signals, runs one simulation and keeps only scores and the account-value
+   line the Luck test needs, so signals never pile up for the whole grid.
+   Known limit [measured, QQQ 1-minute]: about 30 MB per setting still stays in
+   memory for the whole run (value line plus VectorBT internals), so a
+   100-setting 1-minute idea does not yet fit in 2.5 GB.
 5. Two gates decide: **Survives costs** (full history, Sharpe after costs
    >= 0.5) and **Unseen data** (the selected setting made money after all costs
    on the test years it never saw). Inside Unseen data no Sharpe minimum applies:
