@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pandas as pd
 import pytest
 
-from backtesting.experiments import ExecutionConfig
+from backtesting.experiments import ExecutionConfig, ExperimentConfig
+from backtesting.screening import ScreeningConfig
+from market_data import MarketDataConfig
 from backtesting.experiments.runner import (
     _construct_portfolio,
     align_signals_for_execution,
@@ -129,30 +129,38 @@ def test_weak_body_and_unusable_volume_do_not_create_a_trade() -> None:
     assert bad_volume.issues[0].reason == "missing or unusable volume"
 
 
-def test_stop_orders_use_ohlc_and_conservative_stop_fill(monkeypatch) -> None:
-    import backtesting.experiments.runner as runner
-
+@pytest.mark.licensed_vectorbt
+def test_stop_orders_use_ohlc_and_conservative_stop_fill(tmp_path) -> None:
     data = _session()
     signal_time = pd.Timestamp("2025-01-15 10:00", tz="America/New_York").tz_convert("UTC")
     data.loc[signal_time, ["Open", "High", "Low", "Close"]] = [100.5, 101.6, 100.3, 101.5]
     data.loc[signal_time + pd.Timedelta(minutes=5), "Open"] = 101.5
     signals = generate_candidate_signals(data, schedule=_schedule()).signals
     aligned = align_signals_for_execution(signals, _execution())
-    captured: dict[str, object] = {}
+    config = ExperimentConfig(
+        experiment_id="orb-stop", strategy_id=STRATEGY_ID, parameter_combinations=({},),
+        market_data=MarketDataConfig(
+            symbol="MES", provider="Databento", provider_implementation="fixture", interval="5m",
+            requested_start="2025-01-15", end_date_policy="fixed", adjusted=False,
+            exchange_calendar="NYSE", market_timezone="America/New_York", cache_path=tmp_path / "MES.parquet",
+        ),
+        execution=_execution(), ranking_columns=("total_return",), ranking_ascending=(False,),
+        output_path=tmp_path / "unused.csv", screening=ScreeningConfig.provisional_defaults(),
+    )
+    portfolio = _construct_portfolio(data, aligned, config)
 
-    class Portfolio:
-        @staticmethod
-        def from_signals(**kwargs):
-            captured.update(kwargs)
-            return "portfolio"
-
-    monkeypatch.setattr(runner, "require_vectorbtpro", lambda: SimpleNamespace(Portfolio=Portfolio))
-    result = _construct_portfolio(data, aligned, SimpleNamespace(execution=_execution()))
-
-    assert result == "portfolio"
-    assert captured["stop_exit_price"] == "Stop"
-    assert captured["stop_entry_price"] == "Open"
-    assert captured["sl_stop"] is aligned.stop_loss
-    assert captured["tp_stop"] is aligned.take_profit
-    assert captured["high"].equals(data["High"] * 5)
-    assert captured["low"].equals(data["Low"] * 5)
+    entry_bar = signal_time + pd.Timedelta(minutes=5)
+    stop_fraction = float(aligned.stop_loss.at[entry_bar])
+    trades = portfolio.trades.records_readable
+    orders = portfolio.orders.records_readable
+    assert len(trades) == 1 and trades.at[0, "Direction"] == "Long"
+    # Entry fills at the next bar's open in dollar-per-contract units.
+    assert trades.at[0, "Entry Index"] == entry_bar
+    assert trades.at[0, "Avg Entry Price"] == pytest.approx(101.5 * 5)
+    # The stop is hit on the first bar whose low reaches the opening-range boundary, and it
+    # fills at the stop level (not the close), so the loss is exactly the signalled risk.
+    assert orders["Stop Type"].tolist() == [None, "SL"]
+    assert trades.at[0, "Avg Exit Price"] == pytest.approx(101.5 * 5 * (1 - stop_fraction))
+    assert trades.at[0, "Avg Exit Price"] == pytest.approx(99.5 * 5)
+    assert trades.at[0, "Exit Index"] == entry_bar + pd.Timedelta(minutes=5)
+    assert trades.at[0, "Return"] == pytest.approx(-stop_fraction)
