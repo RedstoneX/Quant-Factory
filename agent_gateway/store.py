@@ -187,6 +187,13 @@ class GatewayStore:
         ).fetchone()
         return dict(row) if row is not None else None
 
+    def candidate_ids_created_by(self, agent_id: str) -> list[str]:
+        rows = self.connection.execute(
+            "SELECT candidate_id FROM candidate_identities WHERE created_by=? ORDER BY created_at, candidate_id",
+            (agent_id,),
+        ).fetchall()
+        return [str(row["candidate_id"]) for row in rows]
+
     def record_candidate(
         self,
         *,

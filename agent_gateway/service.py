@@ -163,6 +163,7 @@ class AgentResearchGateway:
             "candidate.submit": self._candidate_submit,
             "candidate.get": self._candidate_get,
             "candidate.list": self._candidate_list,
+            "candidate.status": self._candidate_status,
             "research.note.add": self._note_add,
             "lineage.get": self._lineage_get,
             "run.request": self._run_request,
@@ -277,6 +278,33 @@ class AgentResearchGateway:
         service = PersistenceService(self.database)
         try:
             return {"candidates": [_candidate_summary(row) for row in service.idea_drafts.list()]}
+        finally:
+            service.close()
+
+    def _candidate_status(
+        self, request: GatewayRequest, identity: GatewayIdentity, store: GatewayStore
+    ) -> dict[str, Any]:
+        """Every idea this agent submitted, its status and latest run, so it need not poll each run."""
+        finished_since = request.arguments.get("finished_since")
+        if finished_since is not None:
+            finished_since = _bounded_text(finished_since, "finished_since", 40)
+        candidate_ids = store.candidate_ids_created_by(identity.agent_id)
+        service = PersistenceService(self.database)
+        try:
+            runs = service.runs.list()
+            candidates = []
+            for candidate_id in candidate_ids:
+                draft = service.idea_drafts.get(candidate_id)
+                if draft is None:
+                    continue
+                own = [row for row in runs if draft.configuration_id and row.configuration_id == draft.configuration_id]
+                latest = max(own, key=lambda row: (row.created_at, row.run_id), default=None)
+                if finished_since is not None and (latest is None or not latest.completed_at or latest.completed_at <= finished_since):
+                    continue
+                summary = _candidate_summary(draft)
+                summary["latest_run"] = _run_summary(latest) if latest is not None else None
+                candidates.append(summary)
+            return _redact_value({"candidates": candidates, "finished_since": finished_since})
         finally:
             service.close()
 

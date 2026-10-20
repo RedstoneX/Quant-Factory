@@ -5,6 +5,7 @@ OPERATION_LEVELS = {
     "context.get": 0,
     "prior.search": 0,
     "candidate.list": 0,
+    "candidate.status": 0,
     "candidate.get": 0,
     "run.status": 0,
     "run.results": 0,
