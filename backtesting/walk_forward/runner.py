@@ -6,9 +6,11 @@ from dataclasses import asdict, replace
 import json
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from backtesting.experiments import execute_experiment
+from backtesting.monte_carlo.metrics import returns_accessor
 from backtesting.experiments.windows import new_signal_cache
 from backtesting.out_of_sample.runner import (
     ExperimentEvaluator,
@@ -173,17 +175,21 @@ def _aggregate(folds: tuple[WalkForwardFoldResult, ...]) -> WalkForwardResult:
         dtype=float,
         name="fold_total_return",
     )
-    equity = (1.0 + returns).cumprod().rename("endpoint_equity")
-    compounded = float(equity.iloc[-1] - 1.0) if not equity.empty else None
-    if equity.empty:
-        max_drawdown = None
+    if returns.empty:
+        equity = pd.Series(dtype=float, name="endpoint_equity")
+        compounded = max_drawdown = fold_sharpe = None
     else:
-        drawdown = equity / equity.cummax().clip(lower=1.0) - 1.0
-        max_drawdown = float(drawdown.min())
-    if len(returns) > 1 and returns.std(ddof=1) > 0:
-        fold_sharpe = float(returns.mean() / returns.std(ddof=1))
-    else:
-        fold_sharpe = None
+        # Fold returns are not calendar-spaced, so the Sharpe is per fold (no annualisation).
+        accessor = returns_accessor(returns.to_numpy(dtype=float))
+        equity = pd.Series(
+            accessor.cumulative(start_value=1.0).to_numpy(dtype=float),
+            index=returns.index,
+            name="endpoint_equity",
+        )
+        compounded = float(accessor.total())
+        max_drawdown = float(accessor.max_drawdown())
+        sharpe = float(accessor.sharpe_ratio()) if len(returns) > 1 else float("nan")
+        fold_sharpe = sharpe if np.isfinite(sharpe) else None
     frequencies, change_percentage, persistence = _parameter_stability(successful)
     failed = tuple(fold for fold in folds if fold.status == "failed")
     return WalkForwardResult(

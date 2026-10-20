@@ -219,6 +219,7 @@ def test_invalid_configuration(tmp_path, field, value, message):
         replace(_config(tmp_path), **{field: value})
 
 
+@pytest.mark.licensed_vectorbt
 def test_training_shortlist_and_locked_test_parameters(tmp_path):
     calls = []
     result = execute_walk_forward(
@@ -236,6 +237,7 @@ def test_training_shortlist_and_locked_test_parameters(tmp_path):
     assert result.folds[0].parameter_lock is not None
 
 
+@pytest.mark.licensed_vectorbt
 def test_failed_training_fold_continues_without_selection_or_test(tmp_path):
     calls = []
     result = execute_walk_forward(
@@ -251,6 +253,7 @@ def test_failed_training_fold_continues_without_selection_or_test(tmp_path):
     assert result.successful_fold_count == 4
 
 
+@pytest.mark.licensed_vectorbt
 def test_failed_selection_fold_never_evaluates_test(tmp_path):
     calls = []
     result = execute_walk_forward(
@@ -266,6 +269,7 @@ def test_failed_selection_fold_never_evaluates_test(tmp_path):
     assert "selection screening" in result.folds[2].failure_reason
 
 
+@pytest.mark.licensed_vectorbt
 def test_test_and_future_mutations_do_not_change_first_fold_selection(tmp_path):
     data = _frame()
     first = execute_walk_forward(
@@ -289,6 +293,7 @@ def test_test_and_future_mutations_do_not_change_first_fold_selection(tmp_path):
     assert first.folds[0].parameter_lock.lock_id == second.folds[0].parameter_lock.lock_id
 
 
+@pytest.mark.licensed_vectorbt
 def test_optional_selection_locks_best_passing_training_row(tmp_path):
     calls = []
     result = execute_walk_forward(
@@ -303,6 +308,7 @@ def test_optional_selection_locks_best_passing_training_row(tmp_path):
     assert [call["stage"] for call in calls[:2]] == ["train", "test"]
 
 
+@pytest.mark.licensed_vectorbt
 def test_stability_and_aggregate_calculations_are_deterministic(tmp_path):
     choices = {
         "fold_001": 14,
@@ -337,6 +343,7 @@ def test_stability_and_aggregate_calculations_are_deterministic(tmp_path):
     assert first.median_fold_metrics["total_return"] == pytest.approx(0.14)
 
 
+@pytest.mark.licensed_vectorbt
 def test_report_contains_fold_provenance_and_failures(tmp_path):
     config = _config(tmp_path)
     result = execute_walk_forward(
