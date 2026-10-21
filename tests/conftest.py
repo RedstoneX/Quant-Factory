@@ -180,6 +180,7 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_candidate_setting_rebuild.py::test_rebuilt_setting_equals_the_saved_run_exactly",
         "tests/test_auto_campaign_stock_profiles.py::test_whole_share_sizing_orders_whole_shares_with_all_cash",
         "tests/test_candidate_pipeline_runtime.py::test_real_runtime_path_reaches_protected_ready_and_replays_without_work",
+        "tests/test_candidate_pipeline_in_sample.py::test_persisted_screening_evidence_ends_before_unseen_test_start",
         "tests/test_candidate_pipeline_runtime.py::test_persisted_robustness_merit_failure_is_scored_and_continues",
         "tests/test_candidate_pipeline_runtime.py::test_post_ack_stage_failure_is_terminal_and_never_reinvoked",
         "tests/test_candidate_screening_artifacts.py::test_metrics_artifact_persists_candidate_annualization",

@@ -44,12 +44,12 @@ from orchestration.candidate_run_service import (
     CandidateScreeningAdapter,
     CandidateScreeningLaunchResult,
 )
+from orchestration.candidate_pipeline_definition import CandidateValidationPlan
 from orchestration.candidate_pipeline_runtime import (
     CandidatePipelineDefinition,
     CandidatePipelineLaunchResult,
     CandidatePipelineReplayIncompleteError,
     CandidatePipelineRuntime,
-    CandidateValidationPlan,
     VALIDATION_RUNTIME_KEY,
 )
 from orchestration.candidate_pipeline_contracts import (

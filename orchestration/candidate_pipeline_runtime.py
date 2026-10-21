@@ -8,13 +8,12 @@ This module only supplies the missing production adapters between them.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 
 from backtesting.experiments import ExecutionConfig, ExperimentConfig, execute_experiment
 from backtesting.experiments.metrics import configure_candidate_metric_policy
@@ -22,17 +21,7 @@ from backtesting.monte_carlo import MonteCarloConfig, SourceSeries, run_monte_ca
 from backtesting.monte_carlo.models import ExecutionCostScenario
 from backtesting.out_of_sample import (
     ChronologicalSplitConfig, OutOfSampleConfig, OutOfSampleProgressionError,
-    execute_out_of_sample,
-)
-from backtesting.robustness import (
-    FixedRuleCostStressPlan,
-    NeighborhoodConfig,
-    ParameterNeighborhoodDefinition,
-    RegimeConfig,
-    RobustnessConfig,
-    build_neighborhood,
-    run_fixed_rule_robustness,
-    run_robustness_pipeline,
+    in_sample_slice,
 )
 from backtesting.screening import ScreeningConfig
 from backtesting.validation import WalkForwardWindowRules
@@ -77,64 +66,12 @@ from persistence.service import (
     configuration_document_from_experiment_config,
 )
 from strategies import get_strategy
+from orchestration.candidate_pipeline_definition import (
+    CandidateValidationPlan as CandidateValidationPlan,
+)
 
 
 VALIDATION_RUNTIME_KEY = "candidate_validation_runtime"
-
-
-@dataclass(frozen=True)
-class CandidateValidationPlan:
-    """Fixed, serializable boundaries for the existing validation engines."""
-
-    out_of_sample_split: ChronologicalSplitConfig
-    out_of_sample_shortlist_size: int
-    walk_forward_rules: WalkForwardWindowRules
-    walk_forward_shortlist_size: int
-    robustness_neighborhood: NeighborhoodConfig | None
-    robustness_regimes: RegimeConfig
-    robustness_maximum_drawdown: float
-    robustness_minimum_return: float
-    robustness_minimum_sharpe: float | None
-    monte_carlo: MonteCarloConfig
-    data_as_of: str | None = None
-    fixed_rule_cost_stress: FixedRuleCostStressPlan | None = None
-
-    def __post_init__(self) -> None:
-        for name, value in (
-            ("out_of_sample_shortlist_size", self.out_of_sample_shortlist_size),
-            ("walk_forward_shortlist_size", self.walk_forward_shortlist_size),
-        ):
-            if not isinstance(value, int) or isinstance(value, bool) or value < 1:
-                raise ValueError(f"{name} must be a positive integer")
-        if self.data_as_of is not None:
-            timestamp = pd.Timestamp(self.data_as_of)
-            if timestamp.tzinfo is None:
-                raise ValueError("data_as_of must include a timezone")
-        if (self.robustness_neighborhood is None) != (self.fixed_rule_cost_stress is not None):
-            raise ValueError("fixed-rule cost stress must replace, not accompany, parameter variation")
-
-    def document(self) -> dict[str, Any]:
-        return {
-            "out_of_sample": {
-                "split": asdict(self.out_of_sample_split),
-                "shortlist_size": self.out_of_sample_shortlist_size,
-            },
-            "walk_forward": {
-                "rules": asdict(self.walk_forward_rules),
-                "shortlist_size": self.walk_forward_shortlist_size,
-            },
-            "robustness": {
-                "neighborhood": asdict(self.robustness_neighborhood) if self.robustness_neighborhood is not None else None,
-                "regimes": asdict(self.robustness_regimes),
-                "maximum_drawdown": self.robustness_maximum_drawdown,
-                "minimum_return": self.robustness_minimum_return,
-                "minimum_sharpe": self.robustness_minimum_sharpe,
-                **({"fixed_rule_cost_stress": asdict(self.fixed_rule_cost_stress)} if self.fixed_rule_cost_stress is not None else {}),
-            },
-            "monte_carlo": asdict(self.monte_carlo),
-            "data_as_of": self.data_as_of,
-            "protected_data_state": "gated",
-        }
 
 
 @dataclass(frozen=True)
@@ -819,12 +756,13 @@ class CandidatePipelineRuntime:
                     ),
                     allow_download=not self.cache_only,
                 )
+                in_sample = in_sample_slice(market.data, self.definition.validation.out_of_sample_split)
                 combination_count = len(self.definition.experiment.parameter_combinations)
                 evidence_capture_limit = 64
                 captured_portfolios: dict[str, Any] = {}
                 screening_result = execute_experiment(
                     self.definition.experiment,
-                    market.data,
+                    in_sample,
                     market.audit,
                     write_output=False,
                     portfolio_observer=(
@@ -842,7 +780,7 @@ class CandidatePipelineRuntime:
                 )
                 persist_captured_screening_evidence(
                     persistence=persistence, artifact_root=self.artifact_root, run_id=submission.run_id,
-                    result=screening_result, config=self.definition.experiment, data=market.data,
+                    result=screening_result, config=self.definition.experiment, data=in_sample,
                     captured_portfolios=captured_portfolios,
                 )
                 persistence.persist_run_manifest(
