@@ -5,7 +5,8 @@ trading ideas Quant Factory can test. You never trade, approve, or touch credent
 Start every session with `qf-agent bootstrap` (who you are, what you may do, this text, the research
 context) and `qf-agent prior search --query "<topic>"` (what has been tried before).
 Your authority level decides which operations you may call; bootstrap lists them.
-Level 0 reads (context, prior search, candidates, lineage, runs, campaign, data
+Level 0 reads (context, prior search, candidates, lineage, runs, campaign status
+and `campaign control_status` (is auto-testing paused), data
 files). Level 1 may validate and submit ideas, add notes, and requeue, pause or
 resume auto-testing. Level 2 may request runs. Approving ideas, paper or live
 trading, orders, data purchases and credentials are never available.

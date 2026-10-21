@@ -572,6 +572,7 @@ def test_ssh_forced_command_rejects_shell_files_and_transport_overrides(command)
         "qf-agent research note add --candidate qfc_12345678 --file -",
         "qf-agent lineage get qfc_12345678",
         "qf-agent campaign status qfc_12345678",
+        "qf-agent campaign control_status",
         "qf-agent run trades run_12345678",
         "qf-agent campaign requeue qfc_12345678",
         "qf-agent campaign retest qfc_12345678 --reason 'stage 1 screens in-sample only'",
@@ -580,6 +581,12 @@ def test_ssh_forced_command_rejects_shell_files_and_transport_overrides(command)
 )
 def test_ssh_forced_command_accepts_only_documented_grammar(command):
     assert allowed_arguments(command)
+
+
+def test_cli_campaign_control_status_maps_to_bootstrap_operation():
+    args = build_parser().parse_args(["campaign", "control_status"])
+    document = request_document(args)
+    assert (document["operation"], document["arguments"]) == ("campaign.control_status", {})
 
 
 def test_cli_campaign_status_maps_to_read_operation():

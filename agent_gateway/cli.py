@@ -72,6 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     campaign_actions = campaign.add_subparsers(dest="action", required=True)
     for action in ("status", "requeue"):
         campaign_actions.add_parser(action).add_argument("candidate_id")
+    campaign_actions.add_parser("control_status")
     retest = campaign_actions.add_parser("retest")
     retest.add_argument("candidate_id", nargs="?")
     retest.add_argument("--all-settled", action="store_true")
@@ -150,6 +151,8 @@ def _operation(args: argparse.Namespace) -> tuple[str, dict[str, object], str | 
     if args.group == "lineage":
         return "lineage.get", {"candidate_id": args.candidate_id}, payload
     if args.group == "campaign":
+        if args.action == "control_status":
+            return "campaign.control_status", {}, payload
         arguments = {"candidate_id": args.candidate_id}
         if args.action == "retest":
             arguments.update(reason=args.reason, all_settled=args.all_settled)
