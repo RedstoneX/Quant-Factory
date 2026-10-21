@@ -72,6 +72,10 @@ def build_parser() -> argparse.ArgumentParser:
     campaign_actions = campaign.add_subparsers(dest="action", required=True)
     for action in ("status", "requeue"):
         campaign_actions.add_parser(action).add_argument("candidate_id")
+    retest = campaign_actions.add_parser("retest")
+    retest.add_argument("candidate_id", nargs="?")
+    retest.add_argument("--all-settled", action="store_true")
+    retest.add_argument("--reason", required=True)
 
     data = commands.add_parser("data")
     data_actions = data.add_subparsers(dest="action", required=True)
@@ -146,7 +150,10 @@ def _operation(args: argparse.Namespace) -> tuple[str, dict[str, object], str | 
     if args.group == "lineage":
         return "lineage.get", {"candidate_id": args.candidate_id}, payload
     if args.group == "campaign":
-        return f"campaign.{args.action}", {"candidate_id": args.candidate_id}, payload
+        arguments = {"candidate_id": args.candidate_id}
+        if args.action == "retest":
+            arguments.update(reason=args.reason, all_settled=args.all_settled)
+        return f"campaign.{args.action}", arguments, payload
     if args.group == "data":
         return f"data.{args.action}", ({"dataset_id": args.dataset_id} if args.action == "download" else {}), payload
     raise ValueError("unsupported command")

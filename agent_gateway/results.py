@@ -9,7 +9,8 @@ from typing import Any, Mapping
 import pandas as pd
 
 from agent_gateway.contracts import GatewayError
-from agent_gateway.store import GatewayStore
+from agent_gateway.auto_campaign import OPEN_STATES
+from agent_gateway.store import REQUEUED_AFTER_FIX, GatewayStore
 from orchestration.auto_campaign import POLICY_ID as CAMPAIGN_POLICY_ID
 from persistence import ArtifactType, PersistenceService, RunStage, RunStatus
 
@@ -165,6 +166,27 @@ def requeue_interrupted(store: GatewayStore, candidate_id: str) -> dict[str, Any
         packet_sha256=latest["packet_sha256"],
     )
     return {"candidate_id": candidate_id, "latest_event": store.latest_campaign_event(candidate_id)}
+
+
+def retest_settled(store: GatewayStore, candidate_id: str | None, reason: Any, all_settled: bool = False) -> dict[str, Any]:
+    """Queue settled ideas again after the testing method changed. The interruption budget is reset (a fix)."""
+    detail = str(reason or "").strip()[:500]
+    if not detail:
+        raise GatewayError("retest_reason_required", "a retest needs a --reason saying what changed")
+    if all_settled:
+        targets = [row for row in store.latest_campaign_events().values() if row["state"] not in OPEN_STATES]
+    else:
+        latest = store.latest_campaign_event(str(candidate_id))
+        if not latest or latest["state"] in OPEN_STATES:
+            raise GatewayError("retest_not_allowed", "only a settled idea can be retested; this one is queued, running or unknown")
+        targets = [latest]
+    for row in sorted(targets, key=lambda item: item["event_id"]):
+        store.append_campaign_event(
+            candidate_id=row["candidate_id"], policy_id=CAMPAIGN_POLICY_ID, state="queued",
+            reason_code=REQUEUED_AFTER_FIX, reason_detail=detail, packet_sha256=row["packet_sha256"],
+        )
+    queued = [row["candidate_id"] for row in targets]
+    return {"count": len(queued), "queued": queued, "latest_event": store.latest_campaign_event(queued[0]) if queued else None}
 
 
 def campaign_status(store: GatewayStore, candidate_id: str) -> dict[str, Any]:

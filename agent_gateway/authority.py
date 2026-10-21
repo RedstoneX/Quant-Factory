@@ -17,6 +17,7 @@ OPERATION_LEVELS = {
     "data.files": 0,
     "data.download": 0,
     "campaign.requeue": 1,
+    "campaign.retest": 1,
     "campaign.pause": 1,
     "campaign.resume": 1,
     "candidate.validate": 1,

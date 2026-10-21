@@ -46,7 +46,7 @@ from research_intake import (
 RunLauncher = Callable[[str, str, str], str]
 _AUTOMATIC_RUNS_MESSAGE = "Runs start automatically for every valid idea that has a rule_spec; submit or update the idea instead."
 _STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request", "campaign.requeue",
-                  "campaign.pause", "campaign.resume"}
+                  "campaign.retest", "campaign.pause", "campaign.resume"}
 _WORD = re.compile(r"[a-z0-9]+")
 
 
@@ -177,6 +177,10 @@ class AgentResearchGateway:
             "run.evidence": self._run_evidence,
             "campaign.status": lambda r, _i, s: results.campaign_status(s, _identifier(r.arguments.get("candidate_id"), "candidate")),
             "campaign.requeue": lambda r, _i, s: results.requeue_interrupted(s, _identifier(r.arguments.get("candidate_id"), "candidate")),
+            "campaign.retest": lambda r, _i, s: results.retest_settled(
+                s, None if r.arguments.get("all_settled") else _identifier(r.arguments.get("candidate_id"), "candidate"),
+                r.arguments.get("reason"), bool(r.arguments.get("all_settled")),
+            ),
             "campaign.pause": lambda r, i, s: results.set_campaign_paused(s, True, i.agent_id, r.arguments.get("reason")),
             "campaign.resume": lambda r, i, s: results.set_campaign_paused(s, False, i.agent_id, r.arguments.get("reason")),
             "campaign.control_status": lambda _r, _i, s: s.campaign_control_state(),

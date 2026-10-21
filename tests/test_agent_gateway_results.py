@@ -195,6 +195,53 @@ def test_requeue_refused_for_merit_duplicate_and_non_interruption(tmp_path, stat
     assert not response.ok and response.error["code"] == "requeue_not_allowed"
 
 
+def _retest(tmp_path, **arguments):
+    return _ask(_gateway(tmp_path), "campaign.retest", DRAFTER, reason="stage 1 screens in-sample only", **arguments)
+
+
+@pytest.mark.parametrize("state,code", [("survivor", "passed"), ("screened_out", "no_survivor"), ("failed", "run_error")])
+def test_retest_queues_a_settled_idea_with_the_reason(tmp_path, state, code):
+    _event(tmp_path, state, code)
+    response = _retest(tmp_path, candidate_id="idea_requeue1")
+    assert response.ok, response.error
+    assert response.result["count"] == 1
+    latest = response.result["latest_event"]
+    assert (latest["state"], latest["reason_code"], latest["reason_detail"], latest["packet_sha256"]) == (
+        "queued", "requeued_after_fix", "stage 1 screens in-sample only", "abc")
+
+
+@pytest.mark.parametrize("state,code", [("running", "started"), ("queued", "waiting")])
+def test_retest_refuses_open_ideas_and_unknown_ideas(tmp_path, state, code):
+    _event(tmp_path, state, code)
+    assert _retest(tmp_path, candidate_id="idea_requeue1").error["code"] == "retest_not_allowed"
+    assert _retest(tmp_path, candidate_id="idea_unknown").error["code"] == "retest_not_allowed"
+    assert _ask(_gateway(tmp_path), "campaign.retest", DRAFTER, candidate_id="idea_requeue1").error["code"] == "retest_reason_required"
+    assert _ask(_gateway(tmp_path), "campaign.retest", READER, candidate_id="idea_requeue1", reason="x").error["code"] == "authority_denied"
+
+
+def test_retest_all_settled_is_idempotent_and_skips_open_ideas(tmp_path):
+    store = GatewayStore(tmp_path / "gateway.sqlite3")
+    try:
+        for candidate, state, code in (("idea_a", "survivor", "passed"), ("idea_b", "screened_out", "no_survivor"),
+                                       ("idea_c", "running", "started")):
+            store.append_campaign_event(candidate_id=candidate, policy_id=POLICY_ID, state=state,
+                                        reason_code=code, packet_sha256="abc")
+    finally:
+        store.close()
+    first = _retest(tmp_path, all_settled=True)
+    assert first.ok and first.result["count"] == 2 and first.result["queued"] == ["idea_a", "idea_b"]
+    second = _retest(tmp_path, all_settled=True)
+    assert second.ok and second.result["count"] == 0
+    store = GatewayStore(tmp_path / "gateway.sqlite3")
+    try:
+        events = store.connection.execute(
+            "SELECT candidate_id, state FROM campaign_events ORDER BY event_id").fetchall()
+    finally:
+        store.close()
+    assert [tuple(row) for row in events] == [("idea_a", "survivor"), ("idea_b", "screened_out"), ("idea_c", "running"),
+                                              ("idea_a", "queued"), ("idea_b", "queued")]
+
+
 def test_requeue_needs_authority_and_does_not_reset_interruption_budget(tmp_path):
     _event(tmp_path, "failed", "run_error", "The test was interrupted 3 times before finishing and was not started again.")
     assert _ask(_gateway(tmp_path), "campaign.requeue", READER, candidate_id="idea_requeue1").error["code"] == "authority_denied"
