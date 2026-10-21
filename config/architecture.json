@@ -6,8 +6,8 @@
       "dashboard.run_detail_adapter": 1304,
       "orchestration.candidate_pipeline_runtime": 1047,
       "orchestration.research_launch_claims": 1353,
-      "persistence.repositories": 1222,
-      "persistence.service": 1757
+      "persistence.repositories": 1218,
+      "persistence.service": 1755
     }
   },
   "components": {
