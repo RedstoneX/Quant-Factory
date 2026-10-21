@@ -1,6 +1,6 @@
 import pandas as pd
 
-from backtesting.out_of_sample import ChronologicalSplitConfig, split_chronologically
+from backtesting.out_of_sample import ChronologicalSplitConfig, in_sample_slice, split_chronologically
 
 
 def _bars(days: int, freq: str) -> pd.DataFrame:
@@ -42,4 +42,16 @@ def test_daily_counts_unchanged():
         60,
         20,
         20,
+    )
+
+
+def test_in_sample_slice_is_train_plus_selection_and_stops_before_test():
+    data = _bars(7, "15min")
+    config = ChronologicalSplitConfig(minimum_rows_per_partition=10)
+    split = split_chronologically(data, config)
+    in_sample = in_sample_slice(data, config)
+    assert in_sample.index[-1] < split.test.data.index[0]
+    assert len(in_sample) == split.train.row_count + split.selection.row_count
+    pd.testing.assert_frame_equal(
+        in_sample, pd.concat([split.train.data, split.selection.data])
     )

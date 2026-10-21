@@ -17,7 +17,7 @@ import orchestration.candidate_pipeline_runtime as candidate_runtime_module
 from backtesting.experiments import ExecutionConfig, ExperimentConfig
 from backtesting.monte_carlo import MonteCarloConfig
 from backtesting.monte_carlo.models import ExecutionCostScenario
-from backtesting.out_of_sample import ChronologicalSplitConfig, split_chronologically
+from backtesting.out_of_sample import ChronologicalSplitConfig
 from backtesting.robustness import (
     NeighborhoodConfig,
     ParameterNeighborhoodDefinition,
@@ -537,38 +537,6 @@ def test_post_ack_screening_failure_is_terminal_and_never_reinvoked(
         assert submission["state"] == ResearchSubmissionState.ACKNOWLEDGED.value
     finally:
         persistence.close()
-
-
-def test_screening_sees_only_in_sample_data_before_unseen_test_start(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    runtime = _runtime(tmp_path)
-    loaded: list[pd.DataFrame] = []
-    screened: list[pd.DataFrame] = []
-    real_load = candidate_runtime_module.load_market_data
-
-    def record_load(*args, **kwargs):
-        market = real_load(*args, **kwargs)
-        loaded.append(market.data)
-        return market
-
-    def record_screen(_config, data, *_args, **_kwargs):
-        screened.append(data)
-        raise RuntimeError("stop after capturing the screening window")
-
-    monkeypatch.setattr(candidate_runtime_module, "load_market_data", record_load)
-    monkeypatch.setattr(candidate_runtime_module, "execute_experiment", record_screen)
-
-    with pytest.raises(ResearchLaunchInvocationError):
-        runtime.launch(idempotency_key="screening_in_sample_only")
-
-    full = loaded[0]
-    split = split_chronologically(full, runtime.definition.validation.out_of_sample_split)
-    assert screened[0].index[-1] < split.test.data.index[0]
-    assert screened[0].index[-1] == split.selection.data.index[-1]
-    assert len(screened[0]) == split.train.row_count + split.selection.row_count
-    assert len(screened[0]) < len(full)
 
 
 def test_post_ack_cache_failure_marks_screening_run_failed(

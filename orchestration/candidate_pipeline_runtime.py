@@ -21,7 +21,8 @@ from backtesting.experiments.metrics import configure_candidate_metric_policy
 from backtesting.monte_carlo import MonteCarloConfig, SourceSeries, run_monte_carlo
 from backtesting.monte_carlo.models import ExecutionCostScenario
 from backtesting.out_of_sample import (
-    ChronologicalSplitConfig, OutOfSampleConfig, OutOfSampleProgressionError, execute_out_of_sample, in_sample_slice,
+    ChronologicalSplitConfig, OutOfSampleConfig, OutOfSampleProgressionError,
+    execute_out_of_sample, in_sample_slice,
 )
 from backtesting.robustness import (
     FixedRuleCostStressPlan,
