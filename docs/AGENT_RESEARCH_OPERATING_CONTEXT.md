@@ -77,6 +77,9 @@ checksum. `run trades`: entry/exit time (Eastern), side, prices, P&L per trade.
 - The same rules and variables (title and id ignored) on the same symbol and
   timeframe, already tested with a result, are closed as `duplicate_closed` /
   `same_rules`. Any change to the rule_spec or a variable's values is a new strategy.
+- `campaign retest` (after a testing-method fix) builds a fresh setup from the
+  idea's packet with the current method; the old setup and its runs are kept.
+  A restart or a later data cut-off re-runs the saved setup unchanged.
 - On submit you may attach `lineage` with only these fields: `parent_candidate_id`,
   `parent_run_id`, `change_reason`, `evidence_cited`, `rule_changed`,
   `material_difference`, `falsification`, `bounded_search_space`.

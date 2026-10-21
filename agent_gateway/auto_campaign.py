@@ -17,7 +17,7 @@ import sys
 import threading
 from typing import Any, Callable, Mapping
 
-from agent_gateway.store import GatewayStore
+from agent_gateway.store import REQUEUED_AFTER_FIX, GatewayStore
 from orchestration.auto_campaign import (
     POLICY_ID,
     AutoTestOutcome,
@@ -225,6 +225,7 @@ class AutoTestCampaign:
                 f"No verified local dataset with recorded trading costs exists for {symbol or 'an unnamed market'} "
                 f"at {timeframe or 'an unstated timeframe'}.",
             )
+        rebuild = (store.latest_campaign_event(draft.draft_id) or {}).get("reason_code") == REQUEUED_AFTER_FIX
         attempt = store.campaign_attempts(draft.draft_id, digest)
         recent = store.campaign_attempts_since_requeue(draft.draft_id, digest)
         if recent >= MAX_ATTEMPTS:
@@ -237,6 +238,7 @@ class AutoTestCampaign:
             AutoTestRequest(
                 candidate_id=draft.draft_id, definition=definition, profile=profile,
                 database=str(self.database), artifact_root=str(self.artifact_root), attempt=attempt,
+                rebuild=rebuild,
             )
         )
         record(outcome.state, outcome.reason_code, outcome.reason_detail, outcome.run_id)
