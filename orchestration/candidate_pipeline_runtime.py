@@ -21,8 +21,7 @@ from backtesting.experiments.metrics import configure_candidate_metric_policy
 from backtesting.monte_carlo import MonteCarloConfig, SourceSeries, run_monte_carlo
 from backtesting.monte_carlo.models import ExecutionCostScenario
 from backtesting.out_of_sample import (
-    ChronologicalSplitConfig, OutOfSampleConfig, OutOfSampleProgressionError,
-    execute_out_of_sample,
+    ChronologicalSplitConfig, OutOfSampleConfig, OutOfSampleProgressionError, execute_out_of_sample, in_sample_slice,
 )
 from backtesting.robustness import (
     FixedRuleCostStressPlan,
@@ -819,12 +818,13 @@ class CandidatePipelineRuntime:
                     ),
                     allow_download=not self.cache_only,
                 )
+                in_sample = in_sample_slice(market.data, self.definition.validation.out_of_sample_split)
                 combination_count = len(self.definition.experiment.parameter_combinations)
                 evidence_capture_limit = 64
                 captured_portfolios: dict[str, Any] = {}
                 screening_result = execute_experiment(
                     self.definition.experiment,
-                    market.data,
+                    in_sample,
                     market.audit,
                     write_output=False,
                     portfolio_observer=(
@@ -842,7 +842,7 @@ class CandidatePipelineRuntime:
                 )
                 persist_captured_screening_evidence(
                     persistence=persistence, artifact_root=self.artifact_root, run_id=submission.run_id,
-                    result=screening_result, config=self.definition.experiment, data=market.data,
+                    result=screening_result, config=self.definition.experiment, data=in_sample,
                     captured_portfolios=captured_portfolios,
                 )
                 persistence.persist_run_manifest(

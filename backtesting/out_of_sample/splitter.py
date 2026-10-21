@@ -59,3 +59,11 @@ def split_chronologically(
     if not (split.train.end < split.selection.start < split.test.start):
         raise ValueError("chronological partitions overlap or are out of order")
     return split
+
+
+def in_sample_slice(
+    data: pd.DataFrame, config: ChronologicalSplitConfig
+) -> pd.DataFrame:
+    """Return every row before the held-out test partition, by the same split rule."""
+    split = split_chronologically(data, config)
+    return data[data.index < split.test.data.index[0]].copy()
