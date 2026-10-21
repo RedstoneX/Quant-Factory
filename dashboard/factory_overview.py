@@ -42,6 +42,7 @@ ABANDONED_AFTER = timedelta(days=1)
 CRASH_FIXES = (("memory", "Fix: split the grid into smaller parts, or re-queue it after the memory is raised."), ("restart", "Nothing to do: it was stopped by a restart and is safe to run again."))
 
 
+LAST_TEST_WORDS = {"passed": "passed the gates"}  # the idle line: a pass means only the two gates (costs, unseen data), never the scores
 _EMPTY = {"paused": None, "pause_bands": [], "last_test": None, "tiles": [], "running": [], "alerts": [], "old_runs": None, "queue": {"total": 0, "next": [], "next_start": None}, "timeline": [], "hourly": [], "health": [], "log": []}
 
 
@@ -355,7 +356,7 @@ def load_factory_overview(*, database: str | Path | None = None, gateway: str | 
     top, top_n = reasons.most_common(1)[0] if reasons else ("none", 0)
     crash_reason = "none" if not reasons else f"mostly {crash_label(top)} ({top_n})" if top_n > 1 else crash_label(top)
     crash_reason = crash_reason if len(crash_reason) <= 44 else "see What happened"
-    last_test = {"name": latest_finished["title"], "outcome": OUTCOME_WORDS[latest_finished["outcome"]].lower(), "when": clock(latest_finished["completed_at"], now), "candidate_id": latest_finished["candidate_id"]} if latest_finished else None
+    last_test = {"name": latest_finished["title"], "outcome": LAST_TEST_WORDS.get(latest_finished["outcome"]) or OUTCOME_WORDS[latest_finished["outcome"]].lower(), "when": clock(latest_finished["completed_at"], now), "candidate_id": latest_finished["candidate_id"]} if latest_finished else None
     tiles = [
         {"label": "Running now", "value": "Paused", "sub": f"since {paused_since}", "color": "amber"} if paused else
         {"label": "Running now", "value": f"{len(live)}" if live else "Idle", "sub": ONE_AT_A_TIME, "color": "indigo" if live else "idle"},

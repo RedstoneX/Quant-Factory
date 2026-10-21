@@ -219,3 +219,34 @@ def test_unscored_luck_test_has_one_phrase_from_the_recorded_numbers() -> None:
              {"stage": "monte_carlo", "label": "Shuffle test", "status": "Not scored", "value": "Not scored — not enough data (5 of 10 needed)", "fraction": None}]
     assert report.gates_line(tests) == [("Passed the gates", "green"), (" · Holds over time: failed (3 of 18 windows made money)", "red"),
                                         (" · Stress test: failed (19 of 29 checks passed)", "red"), (" · Shuffle test: not scored — not enough data (5 of 10 needed)", "grey")]
+
+
+def test_every_test_card_states_its_passes_if_rule() -> None:
+    assert set(report.RULES) == {stage for stage, _label in report.STAGES}
+    assert all(rule.startswith("Passes if") for rule in report.RULES.values())
+    for stage in report.RULES:
+        measure = report._test_measure(stage, {"run_id": None}, {}, {"periods": [], "checks": []}, None, None)
+        assert measure["rule"] == report.RULES[stage]
+
+
+def test_shuffle_card_line_is_the_measured_result_not_the_rule() -> None:
+    from dashboard.idea_results_projection import check_rows, shuffle_result_line
+    normalized = {"threshold_results": [{"threshold_id": "loss_probability", "status": "passed", "observed": 0.08, "threshold": 0.25},
+                                        {"threshold_id": "lower_percentile_return", "status": "passed", "observed": -0.012, "threshold": -0.05}]}
+    line = shuffle_result_line(check_rows(normalized))
+    assert "Shuffles that lost money 8% (needs 25%)" in line and "Worst-case shuffle return" in line
+    assert "Shuffled trades still made money" not in line and shuffle_result_line([]) == ""
+
+
+def test_shuffle_panel_names_the_test_and_keeps_the_luck_score_on_its_own_line() -> None:
+    ui = pytest.importorskip("dashboard.ui.idea_report")
+    test = {"stage": "monte_carlo", "run_id": "r", "detail": {"checks": [{"check": "Shuffles that lost money", "measured": "8.0%", "needed": "25.0%"}]}}
+    panel = str(ui.luck_panel({"tests": [test], "luck": 0.874}))
+    assert "Shuffle test" in panel and "Is it luck?" not in panel and "Luck score" in panel and "0.87" in panel
+    assert "not scored" in str(ui.luck_panel({"tests": [test], "luck": None}))
+
+
+def test_cost_screen_line_names_the_screen_not_a_positive_sharpe() -> None:
+    from dashboard import idea_results_projection as results
+    card = results._test_card(None, "screening", "Survives costs", {"run_id": "r"}, {"screening_count": 3, "screened_out_count": 2})
+    assert card["line"].startswith("1 of 3 settings cleared the cost screen") and "made money" not in card["line"]

@@ -116,3 +116,10 @@ def test_no_trade_row_has_five_grey_dots_and_dashes_in_panel_strip() -> None:
     assert str(ui.stat_strip(row)).count("—") == 3  # a real zero trades stays 0
     full = str(ui.stat_strip({"total_return": 5.0, "worst_drop": -3.0, "sharpe": 1.25, "trades": 1234}))
     assert "+5.0%" in full and "-3.0%" in full and "1.25" in full and "1,234" in full
+
+
+def test_result_column_fits_passed_the_gates_on_one_line() -> None:
+    ui = pytest.importorskip("dashboard.ui.results_workbench")
+    assert ui.RESULT_COLUMN_WIDTH >= 150  # PASSED THE GATES at 11px bold upper-case needs about 136px; the old 120 clipped it
+    chip = ui.chip_html("Passed the gates")
+    assert "white-space:nowrap" in chip and "Passed the gates" in chip

@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import sys
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote
 
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
@@ -39,6 +39,17 @@ from dashboard.data_freshness import load_stale_price_banner
 from dashboard.score_projection import load_waiting_for_you, waiting_banner_text
 from dashboard.time_display import eastern_time_label
 from dashboard.ui.theme import ACCENT, COLUMN_DEFAULTS, FONT_URL, UP, grid_options, hide_when_narrow
+
+
+def legacy_redirect(pathname: str | None, search: str | None) -> str | None:
+    """Where an old idea link (/candidates or /results naming a candidate_id or run_id) now lands: the Report; None for every current page."""
+    if pathname not in ("/candidates", "/results"):
+        return None
+    query = parse_qs((search or "").lstrip("?"))
+    for key in ("candidate_id", "run_id"):
+        if query.get(key, [None])[0]:
+            return f"/report?{key}={quote(str(query[key][0]), safe='')}"
+    return None
 
 
 def _application_revision() -> str:
@@ -409,6 +420,8 @@ def create_app() -> Dash:
 
     @application.callback(Output("route-page", "children"), Input("router-location", "pathname"), Input("router-location", "search"))
     def route(pathname: str | None, search: str | None):
+        target = legacy_redirect(pathname, search)
+        if target: return dcc.Location(id="legacy-redirect", href=target, refresh=True)  # an old link opened directly lands on the Report
         if pathname == "/candidates": return page_content(candidates_layout(search))
         if pathname == "/results": return page_content(results_layout(search))
         if pathname == "/report": return page_content(idea_report_layout(search))

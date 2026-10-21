@@ -150,10 +150,11 @@ def luck_panel(report: dict[str, Any]) -> dmc.Paper | None:
     if not test["run_id"]:
         return None
     rows = [dmc.Group([dmc.Text(c["check"], size="sm"), dmc.Text(f"{c['measured']} · needs {c['needed']}", size="sm", ff=MONO, c=MUTED)], justify="space-between") for c in test["detail"]["checks"]]
-    if not rows:  # no chart and no numbers: the Luck card already says why
+    if not rows:  # no chart and no numbers: the Shuffle test card already says why
         return None
-    body = rows
-    return _panel("Is it luck?", "Shuffle test number and pass line", dmc.Stack(body, gap="xs", mt="sm"))
+    luck = report.get("luck")  # the deflated-Sharpe number is a separate score, not a shuffle check
+    luck_line = dmc.Text(["Luck score ", html.Span("not scored" if luck is None else f"{float(luck):.2f}", style={"fontFamily": MONO}), " · chance the result is skill, not luck from trying many settings"], size="xs", c=MUTED, mt="xs")
+    return _panel("Shuffle test", "Measured · needed, per check", dmc.Stack(rows, gap="xs", mt="sm"), luck_line)
 
 
 def _bin(pnl: pd.Series) -> float:

@@ -15,15 +15,23 @@ from typing import Any
 import pandas as pd
 
 from dashboard.idea_results_projection import (
-    STAGES, TRADE_STAGES, load_idea, load_period_price, load_stage_detail, load_trade_view,
+    STAGES, TRADE_STAGES, load_idea, load_period_price, load_stage_detail, load_trade_view, shuffle_result_line,
 )
 from dashboard.overview_projection import _validated_connection, configured_database_path
+from dashboard.score_projection import load_run_scores
 from dashboard.plain_labels import OUR_SIDE_WORDS, is_our_side_mismatch, plain_unseen_reason, unseen_loss_text
 from dashboard.results_model import ResultsDataError
 from dashboard.results_projection import oos_report_metrics
 
 UNSEEN_RULE = "Passes if it made money on years it never saw, after costs"  # owner ruling 19 Oct 2026
-SHUFFLE_RULE = "Shuffled trades still made money"  # the Shuffle test (stage 5) pass line
+SHUFFLE_RULE = "Passes if shuffled trades still made money"  # the Shuffle test (stage 5) rule; the card's line below it carries the measured numbers
+RULES = {  # one "Passes if…" line per test, so every card reads the same way (design review 21 Oct 2026)
+    "screening": "Passes if at least one setting clears the cost screen: enough trades and enough return after costs",
+    "oos": UNSEEN_RULE,
+    "walk_forward": "Passes if it kept making money window by window on rolling periods",
+    "robustness": "Passes if every stress check holds: nearby settings and worse costs",
+    "monte_carlo": SHUFFLE_RULE,
+}
 
 
 UNSAVED_UNSEEN_NOTE = "The unseen-period chart and trades weren't saved for this run; its result is in test 2 below."
@@ -282,7 +290,7 @@ def settings_grid(rows: list[dict[str, Any]], chosen_row_id: str | None) -> dict
 
 def _test_measure(stage: str, test: dict[str, Any], idea: dict[str, Any], detail: dict[str, Any], database: Path, built_return: float | None) -> dict[str, Any]:
     """The value shown on a test's bar, the bar's length and its pass line (None when no line was saved)."""
-    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None, "rule": UNSEEN_RULE if stage == "oos" else SHUFFLE_RULE if stage == "monte_carlo" else None, "scores": []}
+    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None, "rule": RULES[stage], "scores": []}
     if not test["run_id"]:
         return out
     if stage == "screening":
@@ -344,6 +352,9 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
         stored = next((t for t in idea.get("tests") or [] if t["stage"] == test["stage"]), {})
         if test["stage"] == "monte_carlo" and stored.get("status") == "insufficient_evidence" and str(stored.get("line") or "").startswith("Needs at least"):
             test.update(value=too_few_phrase(stored.get("line")), line="")  # one phrase, from the recorded numbers
+        elif test["stage"] == "monte_carlo" and test["detail"]["checks"]:
+            test["line"] = shuffle_result_line(test["detail"]["checks"])  # the measured result, never the rule repeated
+    luck = load_run_scores((runs.get("monte_carlo") or {}).get("run_id"), database=path).get("luck") if runs.get("monte_carlo") else None
     crash_chip = ("Crashed", "red") if campaign and campaign[0] == "failed" and not any(t["status"] == CRASHED for t in tests) else overall_chip(tests)  # a crash no stage run carries shows in the header only
     survivor_chip = gates_chip(verdict, {test["stage"]: test.get("value") for test in tests}) if campaign and campaign[0] == "survivor" else None  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
     if campaign and campaign[0] == "screened_out" and campaign[1] == "oos":  # the unseen-data reason in words, never the stored source-lock text
@@ -376,7 +387,7 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
                  "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if unseen_equity else NOT_SAVED},
         "performance": performance, "sharpe": next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None),
         "unseen_return": next((test for test in tests if test["stage"] == "oos"), {}).get("value"),
-        "monthly": monthly_returns(whole), "trades": trades, "unseen_trades_saved": bool(unseen_view.get("trades")) if unseen_view.get("available") else False,
+        "luck": luck, "monthly": monthly_returns(whole), "trades": trades, "unseen_trades_saved": bool(unseen_view.get("trades")) if unseen_view.get("available") else False,
         "pnl": [float(trade["pnl"]) for trade in trades if trade.get("pnl") is not None],
         "grid": settings_grid(rows, screening_view.get("row_id")),
     }

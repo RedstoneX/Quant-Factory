@@ -244,3 +244,13 @@ def test_a_crash_with_no_research_run_is_counted_the_same_by_every_panel(tmp_pat
     texts = [row["text"] for row in data["log"]]
     assert sum("crashed" in t and "our side" in t for t in texts) == 1 and sum("Idea" in t and "failed" in t for t in texts) >= 2
     assert any(row["t"].startswith("Fri") for row in data["log"])  # the earlier day is labelled
+
+
+def test_idle_line_says_the_last_test_passed_the_gates() -> None:
+    import pytest
+    from dashboard.factory_history import OUTCOME_WORDS
+    from dashboard.factory_overview import LAST_TEST_WORDS
+    assert LAST_TEST_WORDS["passed"] == "passed the gates" and OUTCOME_WORDS["passed"] == "Passed"
+    ui = pytest.importorskip("dashboard.ui.factory_oversight")
+    text = str(ui.running_cards({"running": [], "last_test": {"name": "T", "candidate_id": "c", "when": "09:00", "outcome": LAST_TEST_WORDS["passed"]}}))
+    assert "passed the gates" in text
