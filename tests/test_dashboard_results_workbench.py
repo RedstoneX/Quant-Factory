@@ -144,4 +144,8 @@ def test_phone_list_clamps_name_and_subline_and_shows_full_sharpe_header() -> No
     bounds = {"total_return": (0.0, 1.0), "worst_drop": (0.0, 1.0)}
     phone = {c["field"]: c for c in ui.columns(True, bounds)}
     desktop = {c["field"]: c for c in ui.columns(False, bounds)}
-    assert phone["sharpe"]["width"] >= 96 and desktop["sharpe"]["width"] == 92
+    assert phone["sharpe"]["width"] == ui.SHARPE_PHONE_WIDTH == 64 and phone["sharpe"]["type"] == "rightAligned" and desktop["sharpe"]["width"] == 92
+    assert "result_html" not in phone and phone["result"]["hide"] is True and phone["idea_md"].get("flex") == 1 and "valueGetter" in phone["idea_md"]  # Result lives in the drawer on phone
+    assert "valueGetter" not in desktop["idea_md"] and desktop["result_html"].get("hide") is None  # desktop unchanged
+    row = ui.grid_rows(frame, "ideas")[0]
+    assert row["idea_phone_md"].startswith("[T](/report?candidate_id=q)\n\n<span") and "</span> SPY" in row["idea_phone_md"]  # name, then chip and details on one line

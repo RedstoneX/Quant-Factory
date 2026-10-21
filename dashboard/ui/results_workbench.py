@@ -22,7 +22,9 @@ CHIP = ('<span style="display:inline-flex;align-items:center;height:20px;padding
         'white-space:nowrap;background:{bg};color:{fg};border:{border}">{text}</span>')
 TONE_BG = {"green": "rgba(94,234,176,0.14)", "amber": "rgba(245,184,65,0.14)", "red": "rgba(242,84,91,0.14)", "grey": "rgba(155,161,171,0.14)"}
 TYPE_ALL = "All strategy types"
-SHARPE_PHONE_WIDTH = 96  # "Sharpe" header (13px bold) plus the sort icon and cell padding needs ~92px; 84 truncated it to "Sha…"
+RESULT_ALL = "Any result"
+SORTS = (("new", "Newest first", "created_at", "desc"), ("sharpe_desc", "Sharpe, high to low", "sharpe", "desc"), ("sharpe_asc", "Sharpe, low to high", "sharpe", "asc"), ("result", "Result, A to Z", "result", "asc"))
+SHARPE_PHONE_WIDTH = 64  # fixed, right-aligned; the header shows "Sharpe" in full with the sort icon hidden by the narrow column
 RESULT_COLUMN_WIDTH = 150  # fits the longest chip, PASSED THE GATES (16 upper-case characters at 11px bold, plus padding), on one line
 SHELL_HEADER = "48px"
 MONO = "'Geist Mono', ui-monospace, monospace"
@@ -70,6 +72,7 @@ def grid_rows(frame: pd.DataFrame, mode: str) -> list[dict[str, Any]]:
     out["result"] = ["No trades" if empty else text for empty, text in zip(no_trades, out["result"])]
     out["dots_html"] = [("".join(DOT.format(TONE["grey"]) for _ in tones) if empty else "".join(DOT.format(TONE[tone]) for tone in tones)) for empty, tones in zip(no_trades, out["dots"])]  # no trades: five grey dots
     out["result_html"] = [chip_html(text) for text in out["result"]]
+    out["idea_phone_md"] = [name.split("\n\n")[0] + "\n\n" + chip + " " + _markdown_safe(text) for name, chip, text in zip(out["idea_md"], out["result_html"], sub)]  # phone cell: name, then chip and details on one line
     out = out.drop(columns=["dots"]).astype(object).where(out.notna(), None)
     return out.to_dict("records")
 
@@ -111,11 +114,13 @@ def columns(phone: bool, bounds: dict[str, tuple[float, float]]) -> list[dict[st
     scale_drop = max(abs(bounds["worst_drop"][0]), abs(bounds["worst_drop"][1])) or 1.0
     idea = {"field": "idea_md", "headerName": "Idea", "cellRenderer": "markdown", "minWidth": 110 if phone else 200, "flex": 1, "filter": "agTextColumnFilter", "tooltipField": "title",
             "cellStyle": {"lineHeight": "1.35", "paddingTop": "6px", **({"display": "flex", "alignItems": "center"} if phone else {})}, **({"wrapText": True, "autoHeight": True} if phone else {})}
-    sharpe = {"field": "sharpe", "headerName": "Sharpe", "width": SHARPE_PHONE_WIDTH if phone else 92, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".2f"), "cellStyle": SHARPE_STYLE}
+    sharpe = {"field": "sharpe", "headerName": "Sharpe", "width": 92, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".2f"), "cellStyle": SHARPE_STYLE}
     chip = {"field": "result_html", "headerName": "Result", "width": RESULT_COLUMN_WIDTH + (14 if phone else 0), "cellStyle": {"display": "flex", "alignItems": "center", **({"paddingRight": "14px"} if phone else {})}, "cellRenderer": "markdown", "filter": "agTextColumnFilter", "filterValueGetter": _expression("params.data.result")}
     hidden = [{"field": "family", "hide": True, "filter": "agTextColumnFilter"}, {"field": "created_at", "headerName": "Submitted", "hide": True, "sort": "desc"}]  # newest first
-    if phone:  # phone: Idea, Sharpe and the Result chip only
-        return [idea, sharpe, chip, *hidden]
+    if phone:  # phone: Idea (name, then chip and details) and Sharpe; Result is hidden and sorted or filtered from the Filters drawer
+        idea.update(valueGetter=_expression("params.data ? params.data.idea_phone_md : null"), filterValueGetter=_expression("params.data ? params.data.idea_md : null"), minWidth=110)
+        sharpe.update(width=SHARPE_PHONE_WIDTH, suppressHeaderFilterButton=True, type="rightAligned", cellStyle=_expression(SHARPE_STYLE["function"].replace("alignItems: 'center'", "alignItems: 'center', justifyContent: 'flex-end'")))
+        return [idea, sharpe, {"field": "result", "hide": True, "filter": "agTextColumnFilter"}, *hidden]
     return [idea, sharpe,
             {"field": "total_return", "headerName": "Return", "width": 100, "filter": "agNumberColumnFilter", "valueFormatter": fmt("+.1f", "%"), "cellStyle": _return_bar(scale_return)},
             {"field": "worst_drop", "headerName": "Worst drop", "width": 118, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".1f", "%"), "cellStyle": _drop_bar(scale_drop)},
@@ -198,7 +203,11 @@ def results_workbench_layout(search: str | None = None) -> html.Div:
             dmc.Button("Filters", id="wb-filters-button", variant="default", hiddenFrom="sm"),
         ], gap="sm")
         brushes = brush_cards(ideas)
-        filters = dmc.Collapse(dmc.SimpleGrid(brushes, cols={"base": 1, "sm": 2, "lg": len(brushes)}, spacing="md"), id="wb-filters", opened=False, className="wb-filters") if brushes else None
+        results = sorted({"No trades" if empty else text for empty, text in zip(ideas["trades"].fillna(0) == 0, ideas["result"])})
+        phone_filters = dmc.SimpleGrid([dmc.Select(id="wb-result", label="Result", value=RESULT_ALL, data=[RESULT_ALL, *results], allowDeselect=False),
+                                        dmc.Select(id="wb-sort", label="Sort by", value=SORTS[0][0], data=[{"value": value, "label": label} for value, label, *_ in SORTS], allowDeselect=False)],
+                                       cols=2, spacing="md", hiddenFrom="sm")  # phone only: the Result column is hidden, so its sort and filter live here
+        filters = dmc.Collapse(dmc.Stack([phone_filters, dmc.SimpleGrid(brushes, cols={"base": 1, "sm": 2, "lg": len(brushes)}, spacing="md")], gap="md"), id="wb-filters", opened=False, className="wb-filters") if brushes else None
 
         def wrap(mode: str) -> dmc.Box:
             return dmc.Box([dmc.Box(_grid(mode, False, ideas if mode == "ideas" else settings, first), visibleFrom="sm"),
@@ -217,11 +226,13 @@ def register_workbench_callbacks(application: Dash) -> None:
 
     @application.callback([Output(f"wb-hist-{key}", "figure") for key in keys] + [Output(f"wb-range-{key}", "children") for key in keys]
                           + [Output(grid_id(mode, phone), "filterModel") for mode, phone in GRIDS] + [Output("wb-filters-button", "children")],
-                          [Input(f"wb-slider-{key}", "value") for key in keys] + [Input("wb-type", "value"), State("wb-mode", "value")], prevent_initial_call=True)
+                          [Input(f"wb-slider-{key}", "value") for key in keys] + [Input("wb-type", "value"), Input("wb-result", "value"), State("wb-mode", "value")], prevent_initial_call=True)
     def brush(*args: Any):
-        *ranges, strategy_type, mode = args
+        *ranges, strategy_type, result, mode = args
         frame = load_workbench()["ideas" if mode == "ideas" else "settings"]
         model: dict[str, Any] = {} if strategy_type == TYPE_ALL else {"family": {"filterType": "text", "type": "equals", "filter": strategy_type}}
+        if result != RESULT_ALL:
+            model["result"] = {"filterType": "text", "type": "equals", "filter": result}
         figures, labels = [], []
         for key, (low, high) in zip(keys, ranges):
             full = (float(frame[key].min()), float(frame[key].max()))
@@ -230,6 +241,13 @@ def register_workbench_callbacks(application: Dash) -> None:
             if (low, high) != full:
                 model[key] = {"filterType": "number", "type": "inRange", "filter": low, "filterTo": high}
         return [*figures, *labels, *[model] * len(GRIDS), f"Filters · {len(model)}" if model else "Filters"]
+
+    @application.callback([Output(grid_id(mode, True), "columnState") for mode in ("ideas", "settings")], Input("wb-sort", "value"), prevent_initial_call=True)
+    def sort_phone(choice: str):
+        """AG Grid's documented column state: one hidden-or-shown state per phone column with the chosen sort on one of them."""
+        _value, _label, field, direction = next(item for item in SORTS if item[0] == choice)
+        state = [{"colId": col, "hide": col not in ("idea_md", "sharpe"), "sort": direction if col == field else None} for col in ("idea_md", "sharpe", "result", "family", "created_at")]
+        return [state] * 2
 
     @application.callback(Output("wb-filters", "opened"), Input("wb-filters-button", "n_clicks"), State("wb-filters", "opened"), prevent_initial_call=True)
     def toggle_filters(_clicks: int, opened: bool):
