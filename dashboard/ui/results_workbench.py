@@ -22,6 +22,7 @@ CHIP = ('<span style="display:inline-flex;align-items:center;height:20px;padding
         'white-space:nowrap;background:{bg};color:{fg};border:{border}">{text}</span>')
 TONE_BG = {"green": "rgba(94,234,176,0.14)", "amber": "rgba(245,184,65,0.14)", "red": "rgba(242,84,91,0.14)", "grey": "rgba(155,161,171,0.14)"}
 TYPE_ALL = "All strategy types"
+SHARPE_PHONE_WIDTH = 96  # "Sharpe" header (13px bold) plus the sort icon and cell padding needs ~92px; 84 truncated it to "Sha…"
 RESULT_COLUMN_WIDTH = 150  # fits the longest chip, PASSED THE GATES (16 upper-case characters at 11px bold, plus padding), on one line
 SHELL_HEADER = "48px"
 MONO = "'Geist Mono', ui-monospace, monospace"
@@ -64,7 +65,7 @@ def grid_rows(frame: pd.DataFrame, mode: str) -> list[dict[str, Any]]:
     out = frame.copy()
     link = out["candidate_id"].map(lambda value: f"/report?candidate_id={quote(str(value), safe='')}")
     sub = out["market"].astype(str) + " · " + out["timeframe"].astype(str) + " · " + out["family"].astype(str) + (" · " + out["setting"].astype(str) if mode == "settings" else "")
-    out["idea_md"] = ["[" + _markdown_safe(title) + "](" + url + ")  \n" + _markdown_safe(text) for title, url, text in zip(out["title"], link, sub)]
+    out["idea_md"] = ["[" + _markdown_safe(title) + "](" + url + ")\n\n" + _markdown_safe(text) for title, url, text in zip(out["title"], link, sub)]
     no_trades = out["trades"].fillna(0) == 0
     out["result"] = ["No trades" if empty else text for empty, text in zip(no_trades, out["result"])]
     out["dots_html"] = [("".join(DOT.format(TONE["grey"]) for _ in tones) if empty else "".join(DOT.format(TONE[tone]) for tone in tones)) for empty, tones in zip(no_trades, out["dots"])]  # no trades: five grey dots
@@ -110,7 +111,7 @@ def columns(phone: bool, bounds: dict[str, tuple[float, float]]) -> list[dict[st
     scale_drop = max(abs(bounds["worst_drop"][0]), abs(bounds["worst_drop"][1])) or 1.0
     idea = {"field": "idea_md", "headerName": "Idea", "cellRenderer": "markdown", "minWidth": 110 if phone else 200, "flex": 1, "filter": "agTextColumnFilter", "tooltipField": "title",
             "cellStyle": {"lineHeight": "1.35", "paddingTop": "6px", **({"display": "flex", "alignItems": "center"} if phone else {})}, **({"wrapText": True, "autoHeight": True} if phone else {})}
-    sharpe = {"field": "sharpe", "headerName": "Sharpe", "width": 84 if phone else 92, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".2f"), "cellStyle": SHARPE_STYLE}
+    sharpe = {"field": "sharpe", "headerName": "Sharpe", "width": SHARPE_PHONE_WIDTH if phone else 92, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".2f"), "cellStyle": SHARPE_STYLE}
     chip = {"field": "result_html", "headerName": "Result", "width": RESULT_COLUMN_WIDTH + (14 if phone else 0), "cellStyle": {"display": "flex", "alignItems": "center", **({"paddingRight": "14px"} if phone else {})}, "cellRenderer": "markdown", "filter": "agTextColumnFilter", "filterValueGetter": _expression("params.data.result")}
     hidden = [{"field": "family", "hide": True, "filter": "agTextColumnFilter"}, {"field": "created_at", "headerName": "Submitted", "hide": True, "sort": "desc"}]  # newest first
     if phone:  # phone: Idea, Sharpe and the Result chip only

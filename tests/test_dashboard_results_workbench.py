@@ -131,3 +131,17 @@ def test_result_column_fits_passed_the_gates_on_one_line() -> None:
     assert ui.RESULT_COLUMN_WIDTH >= 150  # PASSED THE GATES at 11px bold upper-case needs about 136px; the old 120 clipped it
     chip = ui.chip_html("Passed the gates")
     assert "white-space:nowrap" in chip and "Passed the gates" in chip
+
+
+def test_phone_list_clamps_name_and_subline_and_shows_full_sharpe_header() -> None:
+    ui = pytest.importorskip("dashboard.ui.results_workbench")
+    from pathlib import Path
+    css = (Path(ui.__file__).parent / "assets" / "workbench.css").read_text()
+    assert "-webkit-line-clamp: 2" in css and "text-overflow: ellipsis" in css and "max-width: 47.99em" in css
+    frame = pd.DataFrame([{"candidate_id": "q", "title": "T", "market": "SPY", "timeframe": "1 min", "family": "Orb", "created_at": "2026-10-16", "result": "Passed",
+                           "dots": ["green"] * 5, "sharpe": 1.2, "total_return": 5.0, "worst_drop": -3.0, "trades": 100, "settings_tried": 3}])
+    assert "\n\nSPY" in ui.grid_rows(frame, "ideas")[0]["idea_md"]  # name and sub-line are separate paragraphs so each clamps on its own
+    bounds = {"total_return": (0.0, 1.0), "worst_drop": (0.0, 1.0)}
+    phone = {c["field"]: c for c in ui.columns(True, bounds)}
+    desktop = {c["field"]: c for c in ui.columns(False, bounds)}
+    assert phone["sharpe"]["width"] >= 96 and desktop["sharpe"]["width"] == 92
