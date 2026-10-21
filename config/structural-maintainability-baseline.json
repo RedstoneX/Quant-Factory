@@ -35,7 +35,6 @@
     "prefect_spike/fixture_flow.py": 651,
     "prefect_spike/spym_vectorbt_fixture.py": 689,
     "tests/test_evidence_decision_artifacts.py": 1093,
-    "tests/test_lockbox_gate.py": 879,
     "tests/test_research_launch_claims.py": 1136,
     "tests/test_robustness_artifacts.py": 635,
     "tests/test_run_lineage.py": 915,
