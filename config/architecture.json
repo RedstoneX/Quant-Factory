@@ -4,7 +4,7 @@
     "max_lines": 1000,
     "grandfathered_modules": {
       "dashboard.run_detail_adapter": 1304,
-      "orchestration.candidate_pipeline_runtime": 1109,
+      "orchestration.candidate_pipeline_runtime": 1047,
       "orchestration.research_launch_claims": 1353,
       "persistence.repositories": 1222,
       "persistence.service": 1757
