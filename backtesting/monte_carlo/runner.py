@@ -1,7 +1,7 @@
 """Monte Carlo validation, simulation, summaries, and thresholds."""
 from datetime import datetime, timezone
 import numpy as np
-from backtesting.monte_carlo.metrics import cumulative_return, maximum_drawdown, path_metrics, path_sharpe
+from backtesting.monte_carlo.metrics import annualized_return, cumulative_return, maximum_drawdown, path_metrics, path_sharpe
 from backtesting.monte_carlo.models import ExecutionStressResult, MonteCarloResult, ThresholdResult
 from backtesting.monte_carlo.resampling import resample_paths
 
@@ -28,7 +28,7 @@ def run_monte_carlo(source, config):
     volatilities = paths.std(axis=1, ddof=1)
     distributions = {"terminal_return": _summary(terminals, config.percentiles), "maximum_drawdown": _summary(drawdowns, config.percentiles), "path_volatility": _summary(volatilities, config.percentiles)}
     if config.annualization_factor is not None:
-        annualized = np.power(1.0 + terminals, config.annualization_factor / len(values)) - 1.0
+        annualized = annualized_return(paths, config.annualization_factor)
         distributions["annualized_return"] = _summary(annualized, config.percentiles)
     finite_sharpes = sharpes[np.isfinite(sharpes)]
     if finite_sharpes.size: distributions["sharpe_ratio"] = _summary(finite_sharpes, config.percentiles)

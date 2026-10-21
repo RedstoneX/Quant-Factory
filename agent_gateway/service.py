@@ -21,7 +21,18 @@ from agent_gateway.contracts import (
     failure,
     success,
 )
-from agent_gateway import results
+from agent_gateway import idea_status, results
+from agent_gateway.candidate_summary import (
+    _SECRET_KEY,
+    _SECRET_VALUE,
+    _bounded_text,
+    _candidate_document,
+    _candidate_summary,
+    _redact_text,
+    _redact_value,
+    _run_summary,
+    _text,
+)
 from agent_gateway.store import GatewayStore
 from orchestration import committed_price_files as data_files
 from orchestration.auto_campaign import POLICY_ID as CAMPAIGN_POLICY_ID
@@ -37,12 +48,6 @@ _AUTOMATIC_RUNS_MESSAGE = "Runs start automatically for every valid idea that ha
 _STATE_CHANGING = {"candidate.submit", "research.note.add", "run.request", "campaign.requeue",
                   "campaign.pause", "campaign.resume"}
 _WORD = re.compile(r"[a-z0-9]+")
-_SECRET_KEY = re.compile(
-    r"(?i)(api[_-]?key|access[_-]?token|auth(?:orization)?|credential|password|private[_-]?key|secret|token)"
-)
-_SECRET_VALUE = re.compile(
-    r"(?i)(?:api[_-]?key|access[_-]?token|password|secret|token|signature|sig)\s*[:=]\s*[^\s&]+"
-)
 
 
 class AgentResearchGateway:
@@ -162,7 +167,8 @@ class AgentResearchGateway:
             "candidate.validate": self._candidate_validate,
             "candidate.submit": self._candidate_submit,
             "candidate.get": self._candidate_get,
-            "candidate.list": self._candidate_list,
+            "candidate.list": lambda *_: idea_status.candidate_list(self.database),
+            "candidate.status": lambda r, i, s: idea_status.candidate_status(s, self.database, r, i),
             "research.note.add": self._note_add,
             "lineage.get": self._lineage_get,
             "run.request": self._run_request,
@@ -270,13 +276,6 @@ class AgentResearchGateway:
             if draft is None:
                 raise GatewayError("not_found", "Candidate was not found")
             return _redact_value(_candidate_document(draft))
-        finally:
-            service.close()
-
-    def _candidate_list(self, *_: Any) -> dict[str, Any]:
-        service = PersistenceService(self.database)
-        try:
-            return {"candidates": [_candidate_summary(row) for row in service.idea_drafts.list()]}
         finally:
             service.close()
 
@@ -415,45 +414,6 @@ def _validation_document(validation: Any) -> dict[str, Any]:
     }
 
 
-def _candidate_summary(draft: Any) -> dict[str, Any]:
-    status = "idea"
-    if draft.candidate_json:
-        try:
-            document = json.loads(draft.candidate_json)
-            status = _text((document.get("candidate") or {}).get("status")) or "draft"
-        except (AttributeError, json.JSONDecodeError):
-            status = "invalid"
-    return {
-        "candidate_id": draft.draft_id,
-        "title": draft.title,
-        "status": status,
-        "configuration_id": draft.configuration_id,
-        "updated_at": draft.updated_at,
-    }
-
-
-def _candidate_document(draft: Any) -> dict[str, Any]:
-    summary = _candidate_summary(draft)
-    summary["candidate"] = json.loads(draft.candidate_json) if draft.candidate_json else None
-    return summary
-
-
-def _run_summary(run: Any) -> dict[str, Any]:
-    return {
-        "run_id": run.run_id,
-        "configuration_id": run.configuration_id,
-        "strategy_id": run.strategy_id,
-        "strategy_version": run.strategy_version,
-        "stage": run.stage.value,
-        "status": run.status.value,
-        "created_at": run.created_at,
-        "started_at": run.started_at,
-        "completed_at": run.completed_at,
-        "error_summary": _redact_text(run.error_summary) if run.error_summary else None,
-        "attempt_count": run.attempt_count,
-    }
-
-
 def _permitted_run(service: PersistenceService, run_id: str) -> Any:
     run = service.runs.get(run_id)
     if run is None:
@@ -522,17 +482,6 @@ def _identifier(value: Any, label: str) -> str:
     return text
 
 
-def _bounded_text(value: Any, label: str, maximum: int) -> str:
-    text = _text(value)
-    if not text or len(text) > maximum:
-        raise GatewayError("invalid_text", f"{label} must contain 1 to {maximum} characters")
-    return text
-
-
-def _text(value: Any) -> str:
-    return str(value).strip() if value is not None else ""
-
-
 def _overlap_score(terms: set[str], text: str) -> int:
     haystack = set(_WORD.findall(text.lower()))
     return len(terms & haystack)
@@ -571,22 +520,3 @@ def _reject_secret_material(value: Any) -> None:
             _reject_secret_material(child)
     elif isinstance(value, str) and _SECRET_VALUE.search(value):
         raise GatewayError("secret_material_denied", "secret-like material is not accepted")
-
-
-def _redact_text(value: str) -> str:
-    return _SECRET_VALUE.sub("[REDACTED]", value)[:1_000]
-
-
-def _redact_value(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {
-            str(key): (
-                "[REDACTED]" if _SECRET_KEY.search(str(key)) else _redact_value(child)
-            )
-            for key, child in value.items()
-        }
-    if isinstance(value, list):
-        return [_redact_value(child) for child in value]
-    if isinstance(value, str):
-        return _redact_text(value)
-    return value

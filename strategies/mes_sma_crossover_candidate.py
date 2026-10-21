@@ -82,21 +82,22 @@ def generate_candidate_signals(data: pd.DataFrame, *, schedule: pd.DataFrame | N
         fast = day["Close"].rolling(10, min_periods=10).mean()
         slow = day["Close"].rolling(30, min_periods=30).mean()
         exit_signal = session_close - pd.Timedelta(minutes=10)
-        # The prior pair is defined first on bar 30; bar 31 is the first eligible cross.
-        for position in range(30, len(day) - 2):
-            timestamp = expected[position]
-            if timestamp >= exit_signal:
-                break
-            previous_fast, previous_slow = fast.iloc[position - 1], slow.iloc[position - 1]
-            current_fast, current_slow = fast.iloc[position], slow.iloc[position]
-            if previous_fast <= previous_slow and current_fast > current_slow:
+        # The prior pair is defined first on bar 30; bar 31 is the first eligible cross, and the last eligible
+        # bar is the one before the exit signal (two bars before the close).
+        position = np.arange(len(day))
+        eligible = (position >= 30) & (position < len(day) - 2) & (expected < exit_signal)
+        previous_fast, previous_slow = fast.shift(1), slow.shift(1)
+        crossed_up = (previous_fast <= previous_slow) & (fast > slow) & eligible
+        crossed_down = (previous_fast >= previous_slow) & (fast < slow) & eligible
+        first_cross = crossed_up | crossed_down
+        if first_cross.any():
+            timestamp = first_cross.idxmax()
+            if crossed_up.at[timestamp]:
                 entries.at[timestamp] = True
                 exits.at[exit_signal] = True
-                break
-            if previous_fast >= previous_slow and current_fast < current_slow:
+            else:
                 short_entries.at[timestamp] = True
                 short_exits.at[exit_signal] = True
-                break
     return SignalResult(entries=entries, exits=exits, short_entries=short_entries, short_exits=short_exits, parameters={})
 
 

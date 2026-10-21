@@ -30,11 +30,13 @@ def test_input_statuses():
     assert run_monte_carlo(source((.1,np.nan,.2)),config()).status=="invalid_input"
     assert run_monte_carlo(source((.1,np.inf,.2)),config()).status=="invalid_input"
     assert run_monte_carlo(source((.1,-1,.2)),config()).status=="invalid_input"
+@pytest.mark.licensed_vectorbt
 def test_metrics():
     vals=(.1,-.2,.1)
     assert cumulative_return(vals)==pytest.approx(1.1*.8*1.1-1)
     assert equity_path(vals).tolist()==pytest.approx([1.1,.88,.968])
     assert maximum_drawdown(vals)==pytest.approx(-.2)
+@pytest.mark.licensed_vectorbt
 def test_summaries_probabilities_and_thresholds():
     r=run_monte_carlo(source(),config())
     assert "p5" in r.distributions["terminal_return"]
@@ -43,6 +45,7 @@ def test_summaries_probabilities_and_thresholds():
     assert passed.status=="passed"
     failed=run_monte_carlo(source((-.2,-.1,-.05)),config(maximum_loss_probability=0,maximum_drawdown_breach_probability=0,minimum_lower_percentile_return=0))
     assert failed.status=="failed" and len(failed.reasons)>=2
+@pytest.mark.licensed_vectorbt
 def test_immutability_cost_stress_and_serialization():
     vals=[.02,.01,-.01]; original=vals.copy()
     trade_source = replace(source(vals), source_kind="trade_returns")
@@ -50,14 +53,17 @@ def test_immutability_cost_stress_and_serialization():
     assert vals==original
     assert r.execution_stress[0].stressed_cumulative_return<=r.execution_stress[0].original_cumulative_return
     json.dumps(r.to_dict(),default=str)
+@pytest.mark.licensed_vectorbt
 def test_block_too_large_and_zero_variance():
     assert run_monte_carlo(source(),config(method="moving_block_bootstrap",block_length=9)).status=="invalid_input"
     assert "zero variance" in " ".join(run_monte_carlo(source((.01,.01,.01)),config()).warnings)
 
+@pytest.mark.licensed_vectorbt
 def test_period_execution_stress_is_insufficient():
     result = run_monte_carlo(source(), config(execution_cost_scenarios=(ExecutionCostScenario("stress", fee_increase=.001),)))
     assert result.execution_stress[0].status == "insufficient_evidence"
 
+@pytest.mark.licensed_vectorbt
 def test_permutation_terminal_invariance_and_drawdown_variation():
     values = (.4, -.3, .2, -.1, .05)
     paths = resample_paths(values, config(method="path_permutation", simulation_count=50))
@@ -84,6 +90,7 @@ def test_source_and_scenario_validation():
     with pytest.raises(ValueError): ExecutionCostScenario(" ")
     with pytest.raises(ValueError): ExecutionCostScenario("x", fee_increase=float("nan"))
 
+@pytest.mark.licensed_vectorbt
 def test_strict_report_round_trip(tmp_path):
     result = run_monte_carlo(source(), config())
     path = tmp_path / "report.json"

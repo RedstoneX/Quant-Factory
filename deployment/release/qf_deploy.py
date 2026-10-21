@@ -58,7 +58,7 @@ LICENSED_LANE = (
     "import sys, pytest\n"
     "from tests.conftest import LICENSED_VECTORBT_NODE_IDS as ids\n"
     "files = sorted({node.split('::')[0] for node in ids})\n"
-    "sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', '-m', 'licensed_vectorbt', *files]))\n"
+    "sys.exit(pytest.main(['-q', '-rfE', '-p', 'no:cacheprovider', '-m', 'licensed_vectorbt', *files]))\n"
 )
 PYTEST_SUMMARY = re.compile(r"\b(\d+) (?:failed|errors?)\b")
 # Tracked privileged files and where they are installed; only --install-infra copies them.
@@ -99,7 +99,8 @@ def succeeds(*args: str) -> bool:
 
 def licensed_lane_command(release: Path, revision: str) -> list[str]:
     """The throwaway, network-less container run of the licensed lane in ``revision``'s image."""
-    return ["docker", "run", "--rm", "--network", "none", "--cpus", "2", "--entrypoint", "python",
+    return ["docker", "run", "--rm", "--name", licensed_container_name(revision),
+            "--network", "none", "--cpus", "2", "--entrypoint", "python",
             "--workdir", "/app", "--volume", f"{release / TEST_DEPS}:/opt/qf-pytest:ro",
             # The image is runtime-only (.dockerignore leaves tests out); the release export has them.
             "--volume", f"{release / 'tests'}:/app/tests:ro",
@@ -108,6 +109,17 @@ def licensed_lane_command(release: Path, revision: str) -> list[str]:
             "--volume", f"{RESEARCH / 'config' / 'data_locations.local.toml'}:/app/config/data_locations.local.toml:ro",
             "--env", "QUANT_FACTORY_DATA_LOCATIONS=/app/config/data_locations.local.toml",
             "--env", "PYTHONPATH=/app:/opt/qf-pytest", f"{IMAGE}:{revision}", "-c", LICENSED_LANE]
+
+
+def licensed_container_name(revision: str) -> str:
+    """Deterministic name of the lane container, so a leftover from a timed-out run can be removed."""
+    return f"qf-licensed-{revision[:12]}"
+
+
+def failed_node_ids(output: str, limit: int = 20) -> list[str]:
+    """The FAILED/ERROR lines of pytest's ``-rfE`` short summary, at most ``limit``."""
+    lines = [line.strip() for line in output.splitlines()]
+    return [line for line in lines if line.startswith(("FAILED ", "ERROR "))][:limit]
 
 
 def failing_count(output: str) -> int:
@@ -229,9 +241,13 @@ def verify_image(release: Path, revision: str, venv: Path) -> None:
     shutil.rmtree(deps, ignore_errors=True)  # never reuse a half-finished install
     run(str(venv / "bin" / "python"), "-m", "pip", "install", "--quiet", "--no-cache-dir", "--only-binary=:all:",
         "--target", str(deps), "--constraint", str(release / "requirements-ci.txt"), "pytest")
+    # A lane killed by a timeout leaves its container running; the fixed name lets us clear it first.
+    subprocess.run(["docker", "rm", "-f", licensed_container_name(revision)], check=False, capture_output=True)
     log(f"running licensed tests in research image {revision[:12]}")
     result = subprocess.run(licensed_lane_command(release, revision), check=False, text=True, capture_output=True)
     if result.returncode != 0:
+        for line in failed_node_ids(result.stdout or ""):
+            log(line)
         raise DeployError(f"licensed tests failed on {revision[:12]}: {failing_count(result.stdout)} failing "
                           f"(pytest exit {result.returncode}); not switching")
 

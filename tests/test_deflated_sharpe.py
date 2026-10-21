@@ -41,19 +41,15 @@ def test_flat_settings_are_undefined() -> None:
 # --- Runner integration: the luck check is recorded but never screens. ---
 from dataclasses import replace  # noqa: E402
 from pathlib import Path  # noqa: E402
-from types import SimpleNamespace  # noqa: E402
 
 import pandas as pd  # noqa: E402
 
-import backtesting.experiments.runner as runner_module  # noqa: E402
 from backtesting.experiments import (  # noqa: E402
     ExecutionConfig,
     ExperimentConfig,
-    SignalResult,
     execute_experiment,
 )
 from market_data import DataAudit, MarketDataConfig  # noqa: E402
-from strategies import get_strategy  # noqa: E402
 
 CASH = 10_000.0
 COMBINATIONS = (
@@ -116,96 +112,6 @@ def _config(tmp_path: Path, **execution_overrides: object) -> ExperimentConfig:
     )
 
 
-class _Trades:
-    def __init__(self, count: int) -> None:
-        self._count = count
-        self.win_rate = 0.5
-
-    def count(self) -> int:
-        return self._count
-
-
-class _Column:
-    """Deterministic long-only engine whose value depends on every input."""
-
-    def __init__(self, close, entries, exits, price, sl_stop, tp_stop) -> None:
-        held, position, trades = [], False, 0
-        for entry, exit_ in zip(entries, exits):
-            if not position and entry:
-                position, trades = True, trades + 1
-            elif position and exit_:
-                position = False
-            held.append(position)
-        held = pd.Series(held, index=close.index)
-        stop_drag = (sl_stop.fillna(0) - tp_stop.fillna(0) * 0.1) if sl_stop is not None else 0
-        pnl = held.shift(1, fill_value=False) * (price.diff().fillna(0) - stop_drag)
-        self.value = CASH + pnl.cumsum()
-        returns = self.value / self.value.shift(1).fillna(CASH) - 1
-        self.total_return = float(self.value.iloc[-1] / CASH - 1)
-        self.annualized_return = self.total_return * 4
-        self.sharpe_ratio = float(returns.mean() / returns.std()) if returns.std() else 0.0
-        self.max_drawdown = float((self.value / self.value.cummax() - 1).min())
-        self.trades = _Trades(trades)
-
-
-class _Portfolio:
-    calls: list[dict] = []
-
-    @classmethod
-    def from_signals(cls, *, close, entries, exits, price, **kwargs):
-        cls.calls.append(dict(kwargs, entries=entries, exits=exits, price=price))
-        if not isinstance(entries, pd.DataFrame):
-            return _Column(
-                close, entries, exits, price, kwargs.get("sl_stop"), kwargs.get("tp_stop")
-            )
-        column = lambda frame, position: None if frame is None else frame.iloc[:, position]  # noqa: E731
-        return _Sweep(
-            [
-                _Column(
-                    close,
-                    entries.iloc[:, position],
-                    exits.iloc[:, position],
-                    price.iloc[:, position],
-                    column(kwargs.get("sl_stop"), position),
-                    column(kwargs.get("tp_stop"), position),
-                )
-                for position in range(entries.shape[1])
-            ]
-        )
-
-
-class _Sweep:
-    """One column per setting: each property holds one value per column, like VectorBT."""
-
-    def __init__(self, columns: list[_Column]) -> None:
-        self.value = pd.concat([column.value for column in columns], axis=1)
-        for name in ("total_return", "annualized_return", "sharpe_ratio", "max_drawdown"):
-            setattr(self, name, pd.Series([getattr(column, name) for column in columns]))
-        self.trades = _Trades(pd.Series([column.trades.count() for column in columns]))
-        self.trades.win_rate = pd.Series([column.trades.win_rate for column in columns])
-
-
-@pytest.fixture
-def engine(monkeypatch: pytest.MonkeyPatch):
-    strategy = get_strategy("rsi_mean_reversion")
-
-    def signals(data: pd.DataFrame, parameters: dict) -> SignalResult:
-        normalized = strategy.validate_parameters(parameters)
-        offset = normalized["window"] % 5
-        entries = pd.Series(False, index=data.index)
-        exits = pd.Series(False, index=data.index)
-        entries.iloc[offset::11] = True
-        exits.iloc[offset + 5 :: 11] = True
-        return SignalResult(entries=entries, exits=exits, parameters=normalized)
-
-    monkeypatch.setattr(strategy, "generate_signals", signals)
-    _Portfolio.calls = []
-    monkeypatch.setattr(
-        runner_module, "require_vectorbtpro", lambda: SimpleNamespace(Portfolio=_Portfolio)
-    )
-    return _Portfolio
-
-
 def _run(config: ExperimentConfig):
     data = _data()
     return execute_experiment(
@@ -213,7 +119,8 @@ def _run(config: ExperimentConfig):
     )
 
 
-def test_deflated_sharpe_is_record_only(engine, tmp_path) -> None:
+def test_deflated_sharpe_is_record_only(tmp_path) -> None:
+    # Real VectorBT PRO engine on a small synthetic series: the luck score is recorded, never gating.
     recorded = _run(_config(tmp_path))
     luck = recorded.deflated_sharpe
     assert luck is not None and luck.trials == len(recorded.normalized_parameters) >= 2

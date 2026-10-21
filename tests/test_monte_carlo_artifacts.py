@@ -159,6 +159,7 @@ def _registered_document(
     return artifact
 
 
+@pytest.mark.licensed_vectorbt
 def test_monte_carlo_evidence_document_is_canonical() -> None:
     document = build_monte_carlo_evidence_document(
         run_id="mc-run",
@@ -174,6 +175,7 @@ def test_monte_carlo_evidence_document_is_canonical() -> None:
     assert document["evidence"]["normalized_evidence"]["status"] == "passed"
 
 
+@pytest.mark.licensed_vectorbt
 def test_monte_carlo_evidence_identity_is_deterministic_and_changes() -> None:
     source = {"run_id": "mc-run"}
     first = build_monte_carlo_evidence_document(
@@ -202,6 +204,7 @@ def test_monte_carlo_evidence_identity_is_deterministic_and_changes() -> None:
     assert first["artifact"]["evidence_identity"] != changed["artifact"]["evidence_identity"]
 
 
+@pytest.mark.licensed_vectorbt
 def test_monte_carlo_paths_are_not_embedded_when_requested() -> None:
     document = build_monte_carlo_evidence_document(
         run_id="mc-run",
@@ -220,6 +223,7 @@ def test_monte_carlo_paths_are_not_embedded_when_requested() -> None:
     }
 
 
+@pytest.mark.licensed_vectorbt
 def test_monte_carlo_pass_persists_retrieves_and_manifests(tmp_path: Path) -> None:
     service = _service_with_run(tmp_path)
     root = tmp_path / "artifacts"
@@ -260,6 +264,7 @@ def test_monte_carlo_pass_persists_retrieves_and_manifests(tmp_path: Path) -> No
         service.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_monte_carlo_failed_status_and_reasons_survive_persistence(
     tmp_path: Path,
 ) -> None:
@@ -313,6 +318,7 @@ def test_monte_carlo_insufficient_evidence_survives_persistence(
         service.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_monte_carlo_corruption_and_lineage_mismatch_fail_closed(
     tmp_path: Path,
 ) -> None:
@@ -363,6 +369,7 @@ def test_monte_carlo_corruption_and_lineage_mismatch_fail_closed(
         ("protected_data_state", "ready", "protected-data state"),
     ),
 )
+@pytest.mark.licensed_vectorbt
 def test_monte_carlo_retrieval_rejects_progression_contract_mismatch(
     tmp_path: Path,
     field: str,
@@ -398,6 +405,7 @@ def test_monte_carlo_retrieval_rejects_progression_contract_mismatch(
         service.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_monte_carlo_wrong_stage_fails_closed(tmp_path: Path) -> None:
     service = _service_with_run(tmp_path, stage=RunStage.FIXTURE)
     try:

@@ -1,20 +1,58 @@
 """Fixed-rule stress is a real, fail-closed screen, not an informational label."""
 
+import math
+from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
 import backtesting.robustness.fixed_rule as fixed_rule
+from backtesting.experiments import execute_experiment
 from backtesting.experiments.models import ExecutionConfig, ExperimentConfig
 from backtesting.robustness.models import FixedRuleCostStressPlan, FractionalCostStressPlan
 from backtesting.screening import ScreeningConfig
-from market_data import MarketDataConfig
+from market_data import DataAudit, MarketDataConfig
 from strategies.mes_vwap_orb_candidate import STRATEGY_ID
 
+LENIENT = ScreeningConfig(
+    minimum_trades=0, minimum_total_return=-1.0, minimum_annualized_return=-1.0,
+    minimum_sharpe_ratio=None, maximum_drawdown=1.0,
+)
 
-def _experiment(tmp_path: Path) -> ExperimentConfig:
+
+def _session(day: str, *, breakout: bool) -> pd.DataFrame:
+    index = pd.date_range(
+        f"{day} 09:30", f"{day} 16:00", freq="5min", inclusive="left", tz="America/New_York"
+    ).tz_convert("UTC")
+    data = pd.DataFrame(
+        {"Open": 100.0, "High": 100.5, "Low": 99.5, "Close": 100.0, "Volume": 10.0}, index=index
+    )
+    if breakout:
+        signal_time = pd.Timestamp(f"{day} 10:00", tz="America/New_York").tz_convert("UTC")
+        data.loc[signal_time, ["Open", "High", "Low", "Close"]] = [100.5, 101.6, 100.3, 101.5]
+        data.loc[signal_time + pd.Timedelta(minutes=5), ["Open", "High"]] = [101.5, 101.5]
+    return data
+
+
+def _session_data() -> pd.DataFrame:
+    """Two regular MES sessions: one long opening-range breakout at 10:00, then a flat day."""
+    return pd.concat([_session("2025-01-15", breakout=True), _session("2025-01-16", breakout=False)])
+
+
+def _audit(data: pd.DataFrame) -> DataAudit:
+    return DataAudit(
+        cache_schema_version=2, symbol="MES", provider="Databento", provider_implementation="fixture",
+        interval="5m", requested_start=data.index[0].date().isoformat(), requested_dynamic_end_policy="fixed",
+        latest_completed_exchange_session=data.index[-1].date().isoformat(), prices_adjusted=False,
+        adjustment_verification="raw", download_time="2025-01-16T00:00:00+00:00", download_timezone="UTC",
+        actual_first_row_date=data.index[0].isoformat(), actual_last_row_date=data.index[-1].isoformat(),
+        row_count=len(data), duplicate_timestamp_count=0, missing_open_count=0, missing_high_count=0,
+        missing_low_count=0, missing_close_count=0, missing_volume_count=0, expected_session_gap_count=0,
+    )
+
+
+def _experiment(tmp_path: Path, screening: ScreeningConfig | None = None) -> ExperimentConfig:
     return ExperimentConfig(
         experiment_id="fixed-mes-candidate",
         strategy_id=STRATEGY_ID,
@@ -33,32 +71,43 @@ def _experiment(tmp_path: Path) -> ExperimentConfig:
             slippage_ticks=1, tick_size=0.25,
         ),
         ranking_columns=("total_return",), ranking_ascending=(False,),
-        output_path=tmp_path / "unused.csv", screening=ScreeningConfig.provisional_defaults(),
+        output_path=tmp_path / "unused.csv",
+        screening=screening or ScreeningConfig.provisional_defaults(),
     )
 
 
-@pytest.mark.parametrize("passed", [True, False])
-def test_fixed_rule_cost_stress_uses_higher_costs_as_gate(tmp_path, monkeypatch, passed) -> None:
-    observed = {}
+def _run(experiment: ExperimentConfig, data: pd.DataFrame, **costs):
+    """The real engine's screen at the given costs, for cross-checking the stress gate."""
+    result = execute_experiment(
+        replace(experiment, execution=replace(experiment.execution, **costs)), data, _audit(data), write_output=False
+    )
+    row = result.ranked_results.iloc[0]
+    finite = all(math.isfinite(float(row[key])) for key in ("total_return", "annualized_return", "sharpe_ratio", "max_drawdown"))
+    return result.screening_results[0], row, finite
 
-    def fake_execute(experiment, data, audit, *, write_output):
-        observed["execution"] = experiment.execution
-        observed["write_output"] = write_output
-        rule = SimpleNamespace(rule_id="minimum_total_return", status="passed" if passed else "failed", observed_value=0.01 if passed else -0.01, threshold=0.0, message="stressed total return")
-        screen = SimpleNamespace(passed=passed, rule_results=(rule,))
-        row = pd.DataFrame([{"number_of_trades": 30, "total_return": rule.observed_value, "annualized_return": 0.01, "sharpe_ratio": 0.6, "max_drawdown": -0.1}])
-        return SimpleNamespace(screening_results=(screen,), ranked_results=row)
 
-    monkeypatch.setattr(fixed_rule, "execute_experiment", fake_execute)
+@pytest.mark.licensed_vectorbt
+@pytest.mark.parametrize("screening", [ScreeningConfig.provisional_defaults(), LENIENT], ids=["provisional", "lenient"])
+def test_fixed_rule_cost_stress_uses_higher_costs_as_gate(tmp_path, screening) -> None:
+    data = _session_data()
+    experiment = _experiment(tmp_path, screening)
+    stressed_costs = {"fixed_fee_per_contract_per_side": 1.24, "slippage_ticks": 2}
+    screen, row, finite = _run(experiment, data, **stressed_costs)
+    _, baseline_row, _ = _run(experiment, data)
+
     result = fixed_rule.run_fixed_rule_cost_stress(
-        _experiment(tmp_path), FixedRuleCostStressPlan(1.24, 2), pd.DataFrame(), object()
+        experiment, FixedRuleCostStressPlan(1.24, 2), data, _audit(data)
     )
 
-    assert observed["execution"].fixed_fee_per_contract_per_side == 1.24
-    assert observed["execution"].slippage_ticks == 2
-    assert observed["write_output"] is False
-    assert result.status == ("passed" if passed else "failed")
-    assert result.threshold_results[0].rule_id == "stressed_minimum_total_return"
+    assert result.stressed_costs == stressed_costs
+    assert result.stressed_metrics["total_return"] == pytest.approx(float(row["total_return"]))
+    assert result.stressed_metrics["total_return"] < float(baseline_row["total_return"])
+    assert result.status == ("passed" if screen.passed and finite else "failed")
+    assert [item.rule_id for item in result.threshold_results] == [
+        f"stressed_{rule.rule_id}" for rule in screen.rule_results
+    ]
+    assert "stressed_return.total_minimum" in {item.rule_id for item in result.threshold_results}
+    assert not (tmp_path / "unused.csv").exists()
 
 
 def test_fixed_rule_cost_stress_rejects_non_stress(tmp_path) -> None:
@@ -68,49 +117,40 @@ def test_fixed_rule_cost_stress_rejects_non_stress(tmp_path) -> None:
         )
 
 
-def _fake_execute(observed):
-    def fake_execute(experiment, data, audit, *, write_output):
-        observed["execution"] = experiment.execution
-        rule = SimpleNamespace(rule_id="minimum_total_return", status="passed", observed_value=0.01, threshold=0.0, message="m")
-        row = pd.DataFrame([{"number_of_trades": 30, "total_return": 0.01, "annualized_return": 0.01, "sharpe_ratio": 0.6, "max_drawdown": -0.1}])
-        return SimpleNamespace(screening_results=(SimpleNamespace(passed=True, rule_results=(rule,)),), ranked_results=row)
-    return fake_execute
-
-
-def test_mes_fixed_rule_stress_costs_are_unchanged(tmp_path, monkeypatch) -> None:
-    observed = {}
-    monkeypatch.setattr(fixed_rule, "execute_experiment", _fake_execute(observed))
-    baseline = _experiment(tmp_path)
-    result = fixed_rule.run_fixed_rule_cost_stress(baseline, FixedRuleCostStressPlan(1.24, 2.0), pd.DataFrame(), object())
-    from dataclasses import replace
-    assert observed["execution"] == replace(baseline.execution, fixed_fee_per_contract_per_side=1.24, slippage_ticks=2.0)
+@pytest.mark.licensed_vectorbt
+def test_mes_fixed_rule_stress_costs_are_unchanged(tmp_path) -> None:
+    data = _session_data()
+    result = fixed_rule.run_fixed_rule_cost_stress(
+        _experiment(tmp_path), FixedRuleCostStressPlan(1.24, 2.0), data, _audit(data)
+    )
     assert result.baseline_costs == {"fixed_fee_per_contract_per_side": 0.62, "slippage_ticks": 1}
     assert result.stressed_costs == {"fixed_fee_per_contract_per_side": 1.24, "slippage_ticks": 2.0}
 
 
 def _stock_experiment(tmp_path: Path) -> ExperimentConfig:
-    from dataclasses import replace
     execution = ExecutionConfig.next_bar_open(
         initial_cash=10_000, fees=0.00002, slippage=0.0001, direction="both", leverage=1,
         accumulate=False, position_sizing="all_cash_whole_shares", order_size=1.0, tick_size=0.01,
     )
-    return replace(_experiment(tmp_path), execution=execution)
+    return replace(_experiment(tmp_path, LENIENT), execution=execution)
 
 
-def test_whole_share_stress_doubles_slippage_and_keeps_fees(tmp_path, monkeypatch) -> None:
-    observed = {}
-    monkeypatch.setattr(fixed_rule, "execute_experiment", _fake_execute(observed))
+@pytest.mark.licensed_vectorbt
+def test_whole_share_stress_doubles_slippage_and_keeps_fees(tmp_path) -> None:
+    data = _session_data()
+    experiment = _stock_experiment(tmp_path)
+    screen, row, finite = _run(experiment, data, fees=0.00002, slippage=0.0002)
     result = fixed_rule.run_fixed_rule_cost_stress(
-        _stock_experiment(tmp_path), FractionalCostStressPlan(fees=0.00002, slippage=0.0002), pd.DataFrame(), object()
+        experiment, FractionalCostStressPlan(fees=0.00002, slippage=0.0002), data, _audit(data)
     )
-    assert (observed["execution"].fees, observed["execution"].slippage) == (0.00002, 0.0002)
     assert result.stressed_costs == {"fees": 0.00002, "slippage": 0.0002}
-    assert result.status == "passed"
+    assert result.stressed_metrics["total_return"] == pytest.approx(float(row["total_return"]))
+    assert result.status == ("passed" if screen.passed and finite else "failed")
     with pytest.raises(ValueError, match="must raise slippage"):
         fixed_rule.run_fixed_rule_cost_stress(
-            _stock_experiment(tmp_path), FractionalCostStressPlan(fees=0.00002, slippage=0.0001), pd.DataFrame(), object()
+            experiment, FractionalCostStressPlan(fees=0.00002, slippage=0.0001), data, _audit(data)
         )
     with pytest.raises(ValueError, match="requires whole-share sizing"):
         fixed_rule.run_fixed_rule_cost_stress(
-            _experiment(tmp_path), FractionalCostStressPlan(fees=0.0, slippage=0.0002), pd.DataFrame(), object()
+            _experiment(tmp_path), FractionalCostStressPlan(fees=0.0, slippage=0.0002), data, _audit(data)
         )

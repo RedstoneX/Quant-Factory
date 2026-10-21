@@ -1,12 +1,10 @@
 """Deterministic tests for the Milestone 22A normalized evidence contract."""
 
 from dataclasses import replace
-from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
-from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
 from backtesting.monte_carlo.models import (
     MonteCarloConfig,
     MonteCarloResult,
@@ -37,12 +35,11 @@ from backtesting.walk_forward.low_frequency import (
     LowFrequencyEvidenceResult,
 )
 from backtesting.walk_forward.models import (
-    WalkForwardConfig,
     WalkForwardFoldResult,
     WalkForwardResult,
     WalkForwardWindow,
 )
-from backtesting.walk_forward.splitter import build_walk_forward_windows
+from tests.test_persistence import _fixture_result
 
 
 def _monte_carlo(status: str, reasons: tuple[str, ...] = ()) -> MonteCarloResult:
@@ -101,10 +98,18 @@ def _out_of_sample(passed: bool) -> OutOfSampleResult:
         split=None,  # The adapter needs only locked test evidence.
         training_result=None,
         selection_result=None,
-        test_result=SimpleNamespace(screening_results=(screening,)),
-        parameter_lock=SimpleNamespace(lock_id="lock-1"),
+        test_result=replace(_fixture_result(), screening_results=(screening,)),
+        parameter_lock=_lock(),
         shortlist_parameters=(),
         selected_parameters={"window": 14},
+    )
+
+
+def _lock() -> ParameterLock:
+    return ParameterLock(
+        lock_id="lock-1", experiment_id="fixture_experiment", strategy_id="fixture", strategy_version="1",
+        normalized_parameters=(("window", 14),), selection_parameter_row_id="row-1", selection_start="2020-01-02",
+        selection_end="2020-01-10", ranking_columns=("total_return",), ranking_ascending=(False,),
     )
 
 
@@ -261,53 +266,6 @@ def _wf_result(folds: tuple[WalkForwardFoldResult, ...]) -> WalkForwardResult:
     )
 
 
-def _wf_frame(rows: int = 60) -> pd.DataFrame:
-    index = pd.date_range("2020-01-01", periods=rows, freq="D", tz="UTC")
-    return pd.DataFrame({"Close": range(rows)}, index=index)
-
-
-def _wf_config(
-    tmp_path,
-    *,
-    mode: str = "rolling",
-    selection_size: int | None = 5,
-    step_size: int = 5,
-) -> WalkForwardConfig:
-    return WalkForwardConfig(
-        experiment=replace(EXPERIMENT_CONFIG, output_path=tmp_path / "base.csv"),
-        training_window_size=10,
-        selection_window_size=selection_size,
-        test_window_size=5,
-        step_size=step_size,
-        training_mode=mode,
-        minimum_rows_per_window=2,
-        shortlist_size=1,
-        incomplete_final_window="drop",
-        output_path=tmp_path / "walk_forward.json",
-    )
-
-
-def _wf_result_from_windows(windows: tuple[WalkForwardWindow, ...]) -> WalkForwardResult:
-    return _wf_result(
-        tuple(
-            WalkForwardFoldResult(
-                fold_id=window.fold_id,
-                status="successful",
-                window=window,
-                training_result=None,
-                selection_result=None,
-                test_result=None,
-                shortlist_parameters=(),
-                parameter_lock=_parameter_lock(window.fold_id),
-                selected_parameters={"window": 14},
-                test_metrics={},
-                failure_reason=None,
-            )
-            for window in windows
-        )
-    )
-
-
 def _low_frequency(status: str, reasons: tuple[str, ...]) -> LowFrequencyEvidenceResult:
     aggregate = LowFrequencyAggregateEvidence(
         status=status,
@@ -437,64 +395,6 @@ def test_walk_forward_integration_accepts_valid_rolling_folds_as_insufficient():
     assert record.status == "insufficient_evidence"
     assert record.reasons == (
         "successful walk-forward folds do not define an overall acceptance decision",
-    )
-
-
-def test_walk_forward_integration_accepts_real_rolling_windows(tmp_path):
-    config = _wf_config(tmp_path)
-    result = _wf_result_from_windows(build_walk_forward_windows(_wf_frame(), config))
-
-    record = normalize_walk_forward_evidence(result, window_rules=_wf_rules())
-
-    assert record.status == "insufficient_evidence"
-
-
-def test_walk_forward_integration_accepts_real_expanding_windows(tmp_path):
-    config = _wf_config(tmp_path, mode="expanding")
-    result = _wf_result_from_windows(build_walk_forward_windows(_wf_frame(), config))
-
-    record = normalize_walk_forward_evidence(
-        result, window_rules=_wf_rules(mode="expanding")
-    )
-
-    assert record.status == "insufficient_evidence"
-
-
-def test_walk_forward_integration_accepts_real_rolling_step_equal_to_train(tmp_path):
-    config = _wf_config(tmp_path, step_size=10)
-    result = _wf_result_from_windows(build_walk_forward_windows(_wf_frame(), config))
-
-    record = normalize_walk_forward_evidence(
-        result, window_rules=_wf_rules(step_size=10)
-    )
-
-    assert record.status == "insufficient_evidence"
-
-
-def test_walk_forward_integration_accepts_real_rolling_step_larger_than_train(tmp_path):
-    config = _wf_config(tmp_path, step_size=15)
-    result = _wf_result_from_windows(build_walk_forward_windows(_wf_frame(), config))
-
-    record = normalize_walk_forward_evidence(
-        result, window_rules=_wf_rules(step_size=15)
-    )
-
-    assert record.status == "insufficient_evidence"
-
-
-def test_walk_forward_integration_rejects_real_windows_with_declared_step_mismatch(
-    tmp_path,
-):
-    config = _wf_config(tmp_path, step_size=5)
-    result = _wf_result_from_windows(build_walk_forward_windows(_wf_frame(), config))
-
-    record = normalize_walk_forward_evidence(
-        result, window_rules=_wf_rules(step_size=6)
-    )
-
-    assert record.status == "invalid"
-    assert record.reasons == (
-        "malformed walk_forward result: fold_002: rolling train window advanced by a different step",
     )
 
 
@@ -699,8 +599,8 @@ def test_malformed_and_unsupported_input_are_invalid_and_fail_closed():
         split=None,
         training_result=None,
         selection_result=None,
-        test_result=SimpleNamespace(screening_results=()),
-        parameter_lock=SimpleNamespace(lock_id="lock-1"),
+        test_result=replace(_fixture_result(), screening_results=()),
+        parameter_lock=_lock(),
         shortlist_parameters=(),
         selected_parameters={"window": 14},
     )

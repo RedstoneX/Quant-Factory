@@ -337,12 +337,22 @@ def packet_market(packet: Mapping[str, Any]) -> tuple[str, str]:
 
 
 def packet_requested_start(packet: Mapping[str, Any]) -> str | None:
-    """The packet's market.requested_start as an ISO date, or None when absent or malformed."""
+    """The packet's data_needs.requested_start (the qf_candidate_v1 field) as an ISO date, or None when absent.
+
+    Raises ValueError when the date is malformed or when the start sits under market, a
+    location this builder never read: a silent default tested the whole history once.
+    """
     market = packet.get("market") if isinstance(packet.get("market"), Mapping) else {}
-    try:
-        return date.fromisoformat(str(market.get("requested_start"))[:10]).isoformat()
-    except ValueError:
+    if market.get("requested_start") is not None:
+        raise ValueError("market.requested_start is not a packet field; put the start date in data_needs.requested_start")
+    needs = packet.get("data_needs") if isinstance(packet.get("data_needs"), Mapping) else {}
+    requested = needs.get("requested_start")
+    if requested is None:
         return None
+    try:
+        return date.fromisoformat(str(requested)[:10]).isoformat()
+    except ValueError:
+        raise ValueError(f"data_needs.requested_start {requested!r} is not an ISO date") from None
 
 
 def _draft_market(candidate_json: str) -> tuple[str, str] | None:

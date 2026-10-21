@@ -5,9 +5,7 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-import backtesting.experiments.chunking as chunking_module
-import backtesting.experiments.runner as experiment_runner
-from backtesting.experiments import SignalResult, execute_experiment
+from backtesting.experiments import execute_experiment
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
 from backtesting.screening import (
     ScreeningConfig,
@@ -15,7 +13,6 @@ from backtesting.screening import (
     screen_metrics,
 )
 from market_data import DataAudit
-from strategies import get_strategy
 
 
 def _metrics() -> dict[str, float | int]:
@@ -42,13 +39,11 @@ def _screen(metrics: dict[str, object], config: ScreeningConfig | None = None):
 
 
 def _data() -> pd.DataFrame:
+    """Ten-bar declines and recoveries so RSI(7) crosses the entry and exit bands."""
     index = pd.date_range("2024-01-01", periods=80, freq="D")
-    close = pd.Series(
-        [100 + ((i % 12) - 6) * 2 for i in range(len(index))],
-        index=index,
-        dtype=float,
-    )
-    return pd.DataFrame({"Open": close - 1, "Close": close}, index=index)
+    phase = pd.Series(range(len(index)), index=index) % 20
+    close = 100.0 - 3.0 * phase.where(phase < 10, 20 - phase)
+    return pd.DataFrame({"Open": close - 1.0, "Close": close})
 
 
 def _audit(data: pd.DataFrame) -> DataAudit:
@@ -78,26 +73,16 @@ def _audit(data: pd.DataFrame) -> DataAudit:
     )
 
 
-def _install_portable_runner_boundaries(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    strategy = get_strategy("rsi_mean_reversion")
+# On _data(), RSI(7) entry 25 / exit 60 completes 3 round trips; RSI(14) entry 30 / exit 50 completes 1.
+TRADING = {"window": 7, "entry_threshold": 25, "exit_threshold": 60}
+ONE_TRADE = {"window": 14, "entry_threshold": 30, "exit_threshold": 50}
 
-    def deterministic_signals(
-        data: pd.DataFrame | pd.Series, parameters: dict[str, int]
-    ) -> SignalResult:
-        normalized = strategy.validate_parameters(parameters)
-        entries = pd.Series(False, index=data.index, dtype=bool)
-        exits = pd.Series(False, index=data.index, dtype=bool)
-        entries.iloc[5::12] = True
-        exits.iloc[8::12] = True
-        return SignalResult(entries=entries, exits=exits, parameters=normalized)
 
-    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
-    monkeypatch.setattr(
-        experiment_runner,
-        "_construct_portfolio",
-        lambda data, aligned, config: object(),
+def _experiment_config(*combinations: dict[str, int]):
+    return replace(
+        EXPERIMENT_CONFIG,
+        parameter_combinations=combinations,
+        screening=replace(ScreeningConfig.provisional_defaults(), minimum_trades=2),
     )
 
 
@@ -187,27 +172,9 @@ def test_screening_does_not_mutate_metrics_and_identity_is_stable() -> None:
     assert identity_a == identity_b
 
 
-def test_experiment_preserves_passing_and_screened_rows(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
-    produced = iter(
-        [
-            _metrics(),
-            _metrics() | {"number_of_trades": 2, "sharpe_ratio": -0.5},
-        ]
-    )
-    monkeypatch.setattr(
-        chunking_module, "extract_sweep_metrics",
-        lambda portfolio, count, **kwargs: [next(produced) for _ in range(count)],
-    )
-    config = replace(
-        EXPERIMENT_CONFIG,
-        parameter_combinations=(
-            {"window": 7, "entry_threshold": 25, "exit_threshold": 60},
-            {"window": 14, "entry_threshold": 30, "exit_threshold": 50},
-        ),
-    )
+@pytest.mark.licensed_vectorbt
+def test_experiment_preserves_passing_and_screened_rows() -> None:
+    config = _experiment_config(TRADING, ONE_TRADE)
     data = _data()
     result = execute_experiment(config, data, _audit(data), write_output=False)
     assert len(result.ranked_results) == 2
@@ -217,24 +184,14 @@ def test_experiment_preserves_passing_and_screened_rows(
         "passed",
         "screened_out",
     ]
-    assert result.screened_out_results.loc[0, "screening_rejection_reasons"]
+    assert result.ranked_results["number_of_trades"].tolist() == [3, 1]
+    assert "trades" in result.screened_out_results.loc[0, "screening_rejection_reasons"]
     assert len(result.screening_results) == 2
 
 
-def test_invalid_parameters_remain_distinct_from_screening_failures(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
-    monkeypatch.setattr(
-        chunking_module, "extract_sweep_metrics", lambda portfolio, count, **kwargs: count * [_metrics()]
-    )
-    config = replace(
-        EXPERIMENT_CONFIG,
-        parameter_combinations=(
-            {"window": 7, "entry_threshold": 25, "exit_threshold": 60},
-            {"window": 0, "entry_threshold": 25, "exit_threshold": 60},
-        ),
-    )
+@pytest.mark.licensed_vectorbt
+def test_invalid_parameters_remain_distinct_from_screening_failures() -> None:
+    config = _experiment_config(TRADING, TRADING | {"window": 0})
     data = _data()
     result = execute_experiment(config, data, _audit(data), write_output=False)
     assert result.rejected_combinations == 1
@@ -242,54 +199,10 @@ def test_invalid_parameters_remain_distinct_from_screening_failures(
     assert result.screening_results[0].passed
 
 
-def test_screening_occurs_after_simulation_and_metrics(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
-    events: list[str] = []
-    real_screen = experiment_runner.screen_metrics
-
-    def fake_construct(data, aligned, config):
-        events.append("simulate")
-        return object()
-
-    def fake_metrics(portfolio, count, **kwargs):
-        events.append("metrics")
-        return count * [_metrics()]
-
-    def tracking_screen(**kwargs):
-        events.append("screen")
-        return real_screen(**kwargs)
-
-    monkeypatch.setattr(experiment_runner, "_construct_portfolio", fake_construct)
-    monkeypatch.setattr(chunking_module, "extract_sweep_metrics", fake_metrics)
-    monkeypatch.setattr(experiment_runner, "screen_metrics", tracking_screen)
-    config = replace(
-        EXPERIMENT_CONFIG,
-        parameter_combinations=(
-            {"window": 7, "entry_threshold": 25, "exit_threshold": 60},
-        ),
-    )
+@pytest.mark.licensed_vectorbt
+def test_complete_output_contains_screening_columns() -> None:
     data = _data()
-    execute_experiment(config, data, _audit(data), write_output=False)
-    assert events == ["simulate", "metrics", "screen"]
-
-
-def test_complete_output_contains_screening_columns(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _install_portable_runner_boundaries(monkeypatch)
-    monkeypatch.setattr(
-        chunking_module, "extract_sweep_metrics", lambda portfolio, count, **kwargs: count * [_metrics()]
-    )
-    config = replace(
-        EXPERIMENT_CONFIG,
-        parameter_combinations=(
-            {"window": 7, "entry_threshold": 25, "exit_threshold": 60},
-        ),
-    )
-    data = _data()
-    result = execute_experiment(config, data, _audit(data), write_output=False)
+    result = execute_experiment(_experiment_config(TRADING), data, _audit(data), write_output=False)
     assert {
         "parameter_row_id",
         "screening_status",

@@ -13,9 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import backtesting.experiments.runner as experiment_runner
 import orchestration.candidate_pipeline_runtime as candidate_runtime_module
-import strategies.rsi_mean_reversion as rsi_strategy
 from backtesting.experiments import ExecutionConfig, ExperimentConfig
 from backtesting.monte_carlo import MonteCarloConfig
 from backtesting.monte_carlo.models import ExecutionCostScenario
@@ -48,7 +46,6 @@ from persistence import (
     canonical_json,
 )
 from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
-from tests.fake_vectorbt import FAKE_VECTORBT
 
 
 def _direct_pipeline_launcher(*, runtime, submission):
@@ -77,13 +74,14 @@ def _cached_market_data(tmp_path: Path) -> MarketDataConfig:
 
     sessions = mcal.get_calendar("NYSE").schedule(
         start_date=config.requested_start,
-        end_date="2020-06-30",
+        end_date="2020-12-31",
     ).index
     index = sessions.tz_localize(config.market_timezone)
-    close = pd.Series(
-        100.0 + np.sin(np.arange(len(index)) * np.pi / 4.0) * 4.0,
-        index=index,
-    )
+    # Sawtooth: 12 sessions up 1.0, then 25 down 0.5.  RSI(14) crosses below 25 and
+    # back above 55 once per 37-session cycle, so the approved setting closes a trade
+    # in every 50-session walk-forward window on the real engine [measured].
+    steps = np.tile(np.r_[np.full(12, 1.0), np.full(25, -0.5)], len(index) // 37 + 1)
+    close = pd.Series(100.0 + np.cumsum(steps[: len(index)]), index=index)
     frame = pd.DataFrame(
         {
             "Open": close - 0.25,
@@ -102,10 +100,10 @@ def _cached_market_data(tmp_path: Path) -> MarketDataConfig:
         interval=config.interval,
         requested_start=config.requested_start,
         requested_dynamic_end_policy=config.end_date_policy,
-        latest_completed_exchange_session="2020-06-30",
+        latest_completed_exchange_session="2020-12-31",
         prices_adjusted=True,
         adjustment_verification="deterministic infrastructure fixture",
-        download_time="2020-06-30T18:00:00-04:00",
+        download_time="2020-12-31T18:00:00-05:00",
         download_timezone=config.market_timezone,
         actual_first_row_date=str(index[0].date()),
         actual_last_row_date=str(index[-1].date()),
@@ -125,12 +123,19 @@ def _cached_market_data(tmp_path: Path) -> MarketDataConfig:
     return config
 
 
-def _definition(tmp_path: Path, *, robustness_minimum_return: float = -1.0):
+def _definition(
+    tmp_path: Path,
+    *,
+    robustness_minimum_return: float = -1.0,
+    walk_forward_window_size: int = 50,
+):
     experiment = ExperimentConfig(
         experiment_id="backend-completion-deterministic-fixture",
         strategy_id=RSI_MEAN_REVERSION_SPEC.identity.strategy_id,
+        # Two settings: the record-only luck score needs more than one trial.
         parameter_combinations=(
             {"window": 14, "entry_threshold": 25, "exit_threshold": 55},
+            {"window": 14, "entry_threshold": 25, "exit_threshold": 60},
         ),
         market_data=_cached_market_data(tmp_path),
         execution=ExecutionConfig.next_bar_open(
@@ -180,10 +185,10 @@ def _definition(tmp_path: Path, *, robustness_minimum_return: float = -1.0):
         ),
         out_of_sample_shortlist_size=1,
         walk_forward_rules=WalkForwardWindowRules(
-            training_window_size=30,
-            selection_window_size=10,
-            test_window_size=10,
-            step_size=10,
+            training_window_size=walk_forward_window_size,
+            selection_window_size=walk_forward_window_size,
+            test_window_size=walk_forward_window_size,
+            step_size=walk_forward_window_size,
             training_mode="rolling",
             minimum_rows_per_window=5,
             incomplete_final_window="drop",
@@ -206,7 +211,7 @@ def _definition(tmp_path: Path, *, robustness_minimum_return: float = -1.0):
             maximum_drawdown_breach_probability=1.0,
             minimum_lower_percentile_return=-1.0,
         ),
-        data_as_of="2020-06-30T18:00:00-04:00",
+        data_as_of="2020-12-31T18:00:00-05:00",
     )
     return CandidatePipelineDefinition(
         experiment=experiment,
@@ -219,11 +224,13 @@ def _runtime(
     tmp_path: Path,
     *,
     robustness_minimum_return: float = -1.0,
+    walk_forward_window_size: int = 50,
 ) -> CandidatePipelineRuntime:
     database = tmp_path / "state" / "factory.sqlite3"
     definition = _definition(
         tmp_path,
         robustness_minimum_return=robustness_minimum_return,
+        walk_forward_window_size=walk_forward_window_size,
     )
     persistence = PersistenceService(database)
     try:
@@ -422,12 +429,10 @@ def test_runtime_forwards_operator_operation_and_source_identity(
     }
 
 
+@pytest.mark.licensed_vectorbt
 def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
     tmp_path: Path,
-    monkeypatch, no_licensed_luck_score,
 ) -> None:
-    monkeypatch.setattr(experiment_runner, "require_vectorbtpro", lambda: FAKE_VECTORBT)
-    monkeypatch.setattr(rsi_strategy, "require_vectorbtpro", lambda: FAKE_VECTORBT)
     runtime = _runtime(tmp_path)
     key = "backend_completion_decisive_fixture"
     first = runtime.launch(idempotency_key=key)
@@ -468,12 +473,10 @@ def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
         persistence.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_persisted_robustness_merit_failure_is_scored_and_continues(
     tmp_path: Path,
-    monkeypatch, no_licensed_luck_score,
 ) -> None:
-    monkeypatch.setattr(experiment_runner, "require_vectorbtpro", lambda: FAKE_VECTORBT)
-    monkeypatch.setattr(rsi_strategy, "require_vectorbtpro", lambda: FAKE_VECTORBT)
     runtime = _runtime(tmp_path, robustness_minimum_return=2.0)
 
     result = runtime.launch(idempotency_key="backend_completion_stop_fixture")
@@ -565,25 +568,10 @@ def test_post_ack_cache_failure_marks_screening_run_failed(
         persistence.close()
 
 
-def test_post_ack_stage_failure_is_terminal_and_never_reinvoked(
-    tmp_path: Path,
-    monkeypatch, no_licensed_luck_score,
-) -> None:
-    monkeypatch.setattr(experiment_runner, "require_vectorbtpro", lambda: FAKE_VECTORBT)
-    monkeypatch.setattr(rsi_strategy, "require_vectorbtpro", lambda: FAKE_VECTORBT)
-    runtime = _runtime(tmp_path)
-    calls = 0
-
-    def fail_walk_forward(*_args, **_kwargs):
-        nonlocal calls
-        calls += 1
-        raise RuntimeError("controlled walk-forward failure")
-
-    monkeypatch.setattr(
-        candidate_runtime_module,
-        "execute_walk_forward",
-        fail_walk_forward,
-    )
+@pytest.mark.licensed_vectorbt
+def test_post_ack_stage_failure_is_terminal_and_never_reinvoked(tmp_path: Path) -> None:
+    # Walk-forward windows wider than the fixture history make the real engine fail that stage.
+    runtime = _runtime(tmp_path, walk_forward_window_size=100_000)
     key = "backend_completion_stage_fail_closed"
 
     with pytest.raises(ResearchLaunchInvocationError):
@@ -594,10 +582,10 @@ def test_post_ack_stage_failure_is_terminal_and_never_reinvoked(
     ):
         runtime.launch(idempotency_key=key)
 
-    assert calls == 1
     persistence = PersistenceService(runtime.database)
     try:
         runs = persistence.runs.list()
+        assert [run.stage for run in runs].count(RunStage.WALK_FORWARD) == 1
         assert {run.stage for run in runs} == {
             RunStage.SCREENING,
             RunStage.OOS,

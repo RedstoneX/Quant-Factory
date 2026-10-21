@@ -8,7 +8,12 @@ from typing import Mapping
 import numpy as np
 import pandas as pd
 
-from backtesting.monte_carlo.metrics import cumulative_return, maximum_drawdown
+from backtesting.monte_carlo.metrics import (
+    cumulative_return,
+    maximum_drawdown,
+    path_sharpe,
+    returns_accessor,
+)
 from backtesting.robustness.models import (
     RegimeConfig,
     RegimeEvaluationResult,
@@ -39,11 +44,9 @@ def label_regimes(close: pd.Series, config: RegimeConfig) -> RegimeLabels:
     if (close <= 0).any():
         raise ValueError("close must be positive")
 
-    moving_average = close.rolling(
-        config.trend_window,
-        min_periods=config.trend_window,
-        center=False,
-    ).mean()
+    import vectorbtpro  # noqa: F401  registers the .vbt accessor
+
+    moving_average = close.vbt.rolling_mean(config.trend_window, minp=config.trend_window)
     relative_distance = close / moving_average - 1.0
     trend = pd.Series("unknown", index=close.index, dtype="object")
     usable_trend = moving_average.notna()
@@ -52,11 +55,10 @@ def label_regimes(close: pd.Series, config: RegimeConfig) -> RegimeLabels:
     trend.loc[usable_trend & (relative_distance.abs() <= config.trend_neutral_tolerance)] = "neutral"
 
     period_returns = close.pct_change(fill_method=None)
-    realized_volatility = period_returns.rolling(
-        config.volatility_window,
-        min_periods=config.volatility_window,
-        center=False,
-    ).std(ddof=1) * math.sqrt(config.annualization_factor)
+    realized_volatility = returns_accessor(
+        period_returns.to_numpy(dtype=float), config.annualization_factor
+    ).rolling_annualized_volatility(config.volatility_window, minp=config.volatility_window)
+    realized_volatility = pd.Series(realized_volatility.to_numpy(dtype=float), index=close.index)
     volatility = pd.Series("unknown", index=close.index, dtype="object")
     usable_volatility = realized_volatility.notna()
     volatility.loc[usable_volatility & (realized_volatility <= config.volatility_threshold)] = "low_volatility"
@@ -113,10 +115,8 @@ def attribute_returns_to_regimes(
 def _sharpe(values: np.ndarray, annualization_factor: float) -> float | None:
     if len(values) < 2:
         return None
-    standard_deviation = float(values.std(ddof=1))
-    if standard_deviation == 0 or not math.isfinite(standard_deviation):
-        return None
-    return float(values.mean() / standard_deviation * math.sqrt(annualization_factor))
+    sharpe = path_sharpe(values, annualization_factor)
+    return sharpe if math.isfinite(sharpe) else None
 
 
 def evaluate_regimes(

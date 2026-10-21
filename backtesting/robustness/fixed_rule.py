@@ -25,6 +25,13 @@ from market_data import DataAudit
 from strategies import get_strategy
 
 
+def non_finite_metrics_reason(number_of_trades: int) -> str:
+    """Explain non-finite stressed metrics: zero trades means the entry rule never fired."""
+    if number_of_trades == 0:
+        return "made no trades: the entry rule never fired under the stressed costs"
+    return "stressed trade metrics are missing or non-finite"
+
+
 def run_fixed_rule_cost_stress(
     experiment: ExperimentConfig,
     plan: FixedRuleCostStressPlan | FractionalCostStressPlan,
@@ -100,7 +107,7 @@ def run_fixed_rule_cost_stress(
     reasons = tuple(rule.message for rule in thresholds if rule.status != "passed")
     if not finite:
         status = "insufficient_evidence"
-        reasons += ("stressed trade metrics are missing or non-finite",)
+        reasons += (non_finite_metrics_reason(metrics["number_of_trades"]),)
     if not thresholds:
         status = "insufficient_evidence"
         reasons += ("stressed screen produced no threshold evidence",)

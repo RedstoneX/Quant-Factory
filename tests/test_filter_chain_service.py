@@ -326,6 +326,7 @@ def test_screened_out_run_stops_without_invoking_later_filters(tmp_path: Path) -
         service.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_survivor_advances_in_fixed_order_from_validated_evidence(
     tmp_path: Path,
 ) -> None:
@@ -413,6 +414,7 @@ def test_callers_cannot_inject_a_protected_test_gate() -> None:
     assert "protected_test_gate" not in parameters
 
 
+@pytest.mark.licensed_vectorbt
 def test_replay_reopens_the_same_handoffs_without_reinvoking_adapters(
     tmp_path: Path,
 ) -> None:
@@ -440,6 +442,7 @@ def test_replay_reopens_the_same_handoffs_without_reinvoking_adapters(
         service.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_atomic_reservation_prevents_two_workers_from_invoking_same_stage(
     tmp_path: Path,
 ) -> None:

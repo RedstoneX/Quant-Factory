@@ -80,6 +80,13 @@ jobs:
           --requirement requirements-runtime.txt
           --requirement requirements-ci.txt
           --requirement requirements-dashboard.txt
+      - name: Standard code checks (ruff bug rules, import-linter architecture contracts)
+        if: steps.scope.outputs.full == 'true'
+        run: |
+          ruff --version
+          ruff check .
+          lint-imports --version
+          lint-imports
       - name: Validate complete test-lane inventory
         if: steps.scope.outputs.full == 'true'
         run: >-

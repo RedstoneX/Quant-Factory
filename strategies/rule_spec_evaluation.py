@@ -96,10 +96,7 @@ class SessionBars:
 
 def shift_bars(values: np.ndarray, bars: int) -> np.ndarray:
     """Session-scoped lag: the value ``bars`` rows earlier, NaN at the session start."""
-    result = np.full(values.shape, np.nan)
-    if bars < values.shape[0]:
-        result[bars:] = values[: values.shape[0] - bars]
-    return result
+    return pd.DataFrame(values, dtype=float).shift(bars).to_numpy(dtype=float).reshape(values.shape)
 
 
 def _window(obj: pd.Series | pd.DataFrame, operator: str, length: int) -> pd.Series | pd.DataFrame:
@@ -248,17 +245,14 @@ class RuleEvaluator:
 
     @staticmethod
     def same_sign_run(values: np.ndarray) -> np.ndarray:
+        # Length of the current same-sign run, restarted at every session (column) start and whenever the sign
+        # changes: pandas groups each run (column-major flattening) and counts its members.
         signs = _signs(values)
-        runs = np.zeros(values.shape)
-        for row in range(values.shape[0]):
-            current = signs[row]
-            started = (current != 0).astype(float)
-            if row == 0:
-                runs[row] = started
-                continue
-            continuing = (current != 0) & (current == signs[row - 1])
-            runs[row] = np.where(continuing, runs[row - 1] + 1.0, started)
-        return runs
+        flat = pd.Series(signs.reshape(-1, order="F"))
+        session_start = np.zeros(flat.shape, dtype=bool)
+        session_start[:: values.shape[0]] = True
+        runs = flat.groupby((flat.ne(flat.shift()) | session_start).cumsum()).cumcount() + 1
+        return (runs.to_numpy(dtype=float) * (flat != 0).to_numpy()).reshape(values.shape, order="F")
 
     def condition(self, node: Mapping[str, Any]) -> np.ndarray:
         return self.cached("condition", node, lambda: self._condition(node))

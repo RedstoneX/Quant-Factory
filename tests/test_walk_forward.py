@@ -1,14 +1,20 @@
-"""Deterministic tests for rolling walk-forward evaluation."""
+"""Rolling walk-forward evaluation driven by the real experiment engine.
+
+The price series is a 12-bar sawtooth (ten bars of -2, two bars of +11) so the
+real RSI mean-reversion strategy enters once per cycle near the trough and exits
+on the rebound.  Flattening a region removes every trade in it, which is how
+screening failures are triggered with real inputs.
+"""
 
 from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from backtesting.run_rsi_demo import EXPERIMENT_CONFIG
-from backtesting.screening import parameter_row_identity
+from backtesting.screening import ScreeningConfig
 from backtesting.walk_forward import (
     WalkForwardConfig,
     build_walk_forward_windows,
@@ -16,17 +22,32 @@ from backtesting.walk_forward import (
 )
 from market_data.models import DataAudit
 
+licensed = pytest.mark.licensed_vectorbt
 
-def _frame(rows: int = 40) -> pd.DataFrame:
+FAST_EXIT = {"window": 7, "entry_threshold": 30, "exit_threshold": 50}
+SLOW_EXIT = {"window": 7, "entry_threshold": 30, "exit_threshold": 60}
+SCREENING = ScreeningConfig(
+    minimum_trades=1,
+    minimum_total_return=0.0,
+    minimum_annualized_return=0.0,
+    minimum_sharpe_ratio=None,
+    maximum_drawdown=0.35,
+)
+
+
+def _frame(rows: int = 120, flat: tuple[tuple[int, int], ...] = ()) -> pd.DataFrame:
     index = pd.date_range("2020-01-01", periods=rows, freq="D", tz="UTC")
-    values = pd.Series(range(rows), index=index, dtype=float)
+    steps = np.tile(np.array([-2.0] * 10 + [11.0] * 2), rows // 12 + 1)[:rows]
+    close = pd.Series(100 + np.cumsum(steps), index=index)
+    for start, end in flat:
+        close.iloc[start:end] = close.iloc[start]
     return pd.DataFrame(
         {
-            "Open": values + 100,
-            "High": values + 101,
-            "Low": values + 99,
-            "Close": values + 100,
-            "Volume": 1_000,
+            "Open": close,
+            "High": close + 0.5,
+            "Low": close - 0.5,
+            "Close": close,
+            "Volume": 1_000.0,
         },
         index=index,
     )
@@ -63,24 +84,23 @@ def _config(
     tmp_path: Path,
     *,
     mode: str = "rolling",
-    selection_size: int | None = 5,
-    step: int = 5,
+    selection_size: int | None = 12,
+    step: int = 36,
     final_policy: str = "drop",
     shortlist_size: int = 2,
+    parameters: tuple[dict[str, int], ...] = (FAST_EXIT, SLOW_EXIT),
 ) -> WalkForwardConfig:
     experiment = replace(
         EXPERIMENT_CONFIG,
-        parameter_combinations=(
-            {"window": 7, "entry_threshold": 20, "exit_threshold": 50},
-            {"window": 14, "entry_threshold": 25, "exit_threshold": 55},
-        ),
+        parameter_combinations=parameters,
+        screening=SCREENING,
         output_path=tmp_path / "base.csv",
     )
     return WalkForwardConfig(
         experiment=experiment,
-        training_window_size=10,
+        training_window_size=24,
         selection_window_size=selection_size,
-        test_window_size=5,
+        test_window_size=12,
         step_size=step,
         training_mode=mode,
         minimum_rows_per_window=2,
@@ -90,88 +110,27 @@ def _config(
     )
 
 
-def _fake_evaluator(
-    calls: list[dict[str, object]],
-    *,
-    fail_training: set[str] = frozenset(),
-    fail_selection: set[str] = frozenset(),
-    selection_choice: dict[str, int] | None = None,
-):
-    def evaluate(config, data, audit, *, write_output):
-        parts = config.experiment_id.split(":")
-        fold_id, stage = parts[-2], parts[-1]
-        parameters = tuple(dict(item) for item in config.parameter_combinations)
-        calls.append(
-            {
-                "fold_id": fold_id,
-                "stage": stage,
-                "parameters": parameters,
-                "start": str(data.index[0].date()),
-                "end": str(data.index[-1].date()),
-            }
-        )
-        rows = []
-        screening = []
-        for normalized in parameters:
-            row_id = parameter_row_identity(
-                config.experiment_id, config.strategy_id, normalized
-            )
-            passed = not (
-                stage == "train" and fold_id in fail_training
-                or stage == "selection" and fold_id in fail_selection
-            )
-            preferred = (selection_choice or {}).get(fold_id, 14)
-            if stage == "selection":
-                score = 100 if normalized["window"] == preferred else 1
-            else:
-                score = normalized["window"]
-            rows.append(
-                {
-                    "parameter_row_id": row_id,
-                    "screening_status": "passed" if passed else "screened_out",
-                    "window": normalized["window"],
-                    "total_return": normalized["window"] / 100,
-                    "annualized_return": normalized["window"] / 200,
-                    "sharpe_ratio": score / 10,
-                    "max_drawdown": -normalized["window"] / 1000,
-                    "number_of_trades": normalized["window"],
-                    "win_rate": 0.5,
-                    "score": score,
-                }
-            )
-            screening.append(
-                SimpleNamespace(
-                    parameter_row_id=row_id,
-                    normalized_parameters=dict(normalized),
-                    passed=passed,
-                )
-            )
-        ranked = pd.DataFrame(rows).sort_values(
-            ["screening_status", "score", "window"],
-            ascending=[True, False, True],
-            key=lambda values: values.map({"passed": 0, "screened_out": 1})
-            if values.name == "screening_status"
-            else values,
-            kind="mergesort",
-        ).reset_index(drop=True)
-        passing = ranked.loc[ranked.screening_status == "passed"].reset_index(
-            drop=True
-        )
-        return SimpleNamespace(
-            ranked_results=ranked,
-            passing_results=passing,
-            screening_results=tuple(screening),
-            strategy_id=config.strategy_id,
-            strategy_version="1.0.0",
-        )
+def _run(tmp_path, data, **config_kwargs):
+    return execute_walk_forward(
+        _config(tmp_path, **config_kwargs), data, _audit(data), write_output=False
+    )
 
-    return evaluate
+
+def _stage(result) -> str:
+    return result.experiment_id.split(":")[-1]
+
+
+def _top_passing_parameters(result) -> dict[str, int]:
+    """Parameters of the best-ranked row that passed the real screen."""
+    row_id = result.passing_results.iloc[0]["parameter_row_id"]
+    match = next(item for item in result.screening_results if item.parameter_row_id == row_id)
+    return dict(match.normalized_parameters)
 
 
 def test_rolling_windows_are_ordered_and_non_overlapping(tmp_path):
     windows = build_walk_forward_windows(_frame(), _config(tmp_path))
-    assert len(windows) == 5
-    assert windows[0].train.row_count == 10
+    assert len(windows) == 3
+    assert windows[0].train.row_count == 24
     assert windows[1].train.start > windows[0].train.start
     for fold in windows:
         assert fold.train.end < fold.selection.start < fold.test.start
@@ -184,24 +143,24 @@ def test_expanding_windows_keep_start_and_grow(tmp_path):
         _frame(), _config(tmp_path, mode="expanding")
     )
     assert windows[0].train.start == windows[1].train.start
-    assert windows[0].train.row_count == 10
-    assert windows[1].train.row_count == 15
+    assert windows[0].train.row_count == 24
+    assert windows[1].train.row_count == 60
 
 
 def test_step_size_controls_test_spacing(tmp_path):
-    windows = build_walk_forward_windows(_frame(), _config(tmp_path, step=10))
-    assert len(windows) == 3
-    assert windows[1].test.start == "2020-01-26"
+    windows = build_walk_forward_windows(_frame(), _config(tmp_path, step=12))
+    assert len(windows) == 7
+    assert windows[1].test.start == "2020-02-18"
 
 
 def test_incomplete_final_window_policy(tmp_path):
-    data = _frame(37)
-    dropped = build_walk_forward_windows(data, _config(tmp_path))
+    data = _frame(122)
+    dropped = build_walk_forward_windows(data, _config(tmp_path, step=12))
     included = build_walk_forward_windows(
-        data, _config(tmp_path, final_policy="include")
+        data, _config(tmp_path, step=12, final_policy="include")
     )
-    assert len(dropped) == 4
-    assert len(included) == 5
+    assert len(dropped) == 7
+    assert len(included) == 8
     assert included[-1].test.row_count == 2
 
 
@@ -219,134 +178,101 @@ def test_invalid_configuration(tmp_path, field, value, message):
         replace(_config(tmp_path), **{field: value})
 
 
+@licensed
 def test_training_shortlist_and_locked_test_parameters(tmp_path):
-    calls = []
-    result = execute_walk_forward(
-        _config(tmp_path, shortlist_size=1),
-        _frame(),
-        _audit(_frame()),
-        evaluator=_fake_evaluator(calls),
-        write_output=False,
+    result = _run(tmp_path, _frame(), shortlist_size=1)
+    fold = result.folds[0]
+    stages = (fold.training_result, fold.selection_result, fold.test_result)
+    assert [_stage(stage) for stage in stages] == ["train", "selection", "test"]
+    assert all(stage.experiment_id.split(":")[-2] == "fold_001" for stage in stages)
+    assert len(fold.training_result.normalized_parameters) == 2
+    assert fold.shortlist_parameters == (_top_passing_parameters(fold.training_result),)
+    assert fold.selection_result.normalized_parameters == fold.shortlist_parameters
+    assert fold.test_result.normalized_parameters == (fold.selected_parameters,)
+    assert fold.parameter_lock is not None
+    assert (
+        fold.training_result.market_data_audit.actual_last_row_date
+        < fold.selection_result.market_data_audit.actual_first_row_date
+        <= fold.selection_result.market_data_audit.actual_last_row_date
+        < fold.test_result.market_data_audit.actual_first_row_date
     )
-    first = [call for call in calls if call["fold_id"] == "fold_001"]
-    assert [call["stage"] for call in first] == ["train", "selection", "test"]
-    assert len(first[0]["parameters"]) == 2
-    assert first[1]["parameters"] == (first[0]["parameters"][1],)
-    assert first[2]["parameters"] == first[1]["parameters"]
-    assert result.folds[0].parameter_lock is not None
+    assert fold.test_metrics["number_of_trades"] >= 1
 
 
+@licensed
 def test_failed_training_fold_continues_without_selection_or_test(tmp_path):
-    calls = []
-    result = execute_walk_forward(
-        _config(tmp_path),
-        _frame(),
-        _audit(_frame()),
-        evaluator=_fake_evaluator(calls, fail_training={"fold_002"}),
-        write_output=False,
-    )
-    second = [call["stage"] for call in calls if call["fold_id"] == "fold_002"]
-    assert second == ["train"]
+    # Fold 2 trains on bars 36-60; a flat training slice has no trade to pass.
+    result = _run(tmp_path, _frame(flat=((36, 60),)))
+    second = result.folds[1]
+    assert second.status == "failed"
+    assert second.training_result is not None
+    assert second.selection_result is None and second.test_result is None
+    assert "selection was not evaluated" in second.failure_reason
     assert result.failed_fold_ids == ("fold_002",)
-    assert result.successful_fold_count == 4
+    assert result.successful_fold_count == 2
 
 
+@licensed
 def test_failed_selection_fold_never_evaluates_test(tmp_path):
-    calls = []
-    result = execute_walk_forward(
-        _config(tmp_path),
-        _frame(),
-        _audit(_frame()),
-        evaluator=_fake_evaluator(calls, fail_selection={"fold_003"}),
-        write_output=False,
-    )
-    third = [call["stage"] for call in calls if call["fold_id"] == "fold_003"]
-    assert third == ["train", "selection"]
-    assert result.folds[2].parameter_lock is None
-    assert "selection screening" in result.folds[2].failure_reason
+    # Fold 3 selects on bars 96-108; flattening only that slice fails selection.
+    result = _run(tmp_path, _frame(flat=((96, 108),)))
+    third = result.folds[2]
+    assert third.status == "failed"
+    assert _stage(third.selection_result) == "selection"
+    assert third.test_result is None
+    assert third.parameter_lock is None
+    assert "parameters were not locked" in third.failure_reason
+    assert result.failed_fold_ids == ("fold_003",)
 
 
+@licensed
 def test_test_and_future_mutations_do_not_change_first_fold_selection(tmp_path):
-    data = _frame()
-    first = execute_walk_forward(
-        _config(tmp_path),
-        data,
-        _audit(data),
-        evaluator=_fake_evaluator([]),
-        write_output=False,
-    )
-    changed = data.copy()
-    changed.iloc[15:, changed.columns.get_loc("Close")] = -999_999
-    second = execute_walk_forward(
-        _config(tmp_path),
-        changed,
-        _audit(changed),
-        evaluator=_fake_evaluator([]),
-        write_output=False,
-    )
+    first = _run(tmp_path, _frame())
+    second = _run(tmp_path, _frame(flat=((36, 120),)))
     assert first.folds[0].shortlist_parameters == second.folds[0].shortlist_parameters
     assert first.folds[0].selected_parameters == second.folds[0].selected_parameters
     assert first.folds[0].parameter_lock.lock_id == second.folds[0].parameter_lock.lock_id
+    assert first.folds[0].test_metrics != second.folds[0].test_metrics
 
 
+@licensed
 def test_optional_selection_locks_best_passing_training_row(tmp_path):
-    calls = []
-    result = execute_walk_forward(
-        _config(tmp_path, selection_size=None),
-        _frame(),
-        _audit(_frame()),
-        evaluator=_fake_evaluator(calls),
-        write_output=False,
-    )
-    assert result.folds[0].selection_result is None
-    assert result.folds[0].selected_parameters["window"] == 14
-    assert [call["stage"] for call in calls[:2]] == ["train", "test"]
+    result = _run(tmp_path, _frame(), selection_size=None, step=24)
+    fold = result.folds[0]
+    assert fold.selection_result is None
+    assert [_stage(fold.training_result), _stage(fold.test_result)] == ["train", "test"]
+    best = fold.training_result.passing_results.iloc[0]
+    assert fold.selected_parameters == _top_passing_parameters(fold.training_result)
+    assert fold.parameter_lock.selection_parameter_row_id == best["parameter_row_id"]
 
 
+@licensed
 def test_stability_and_aggregate_calculations_are_deterministic(tmp_path):
-    choices = {
-        "fold_001": 14,
-        "fold_002": 14,
-        "fold_003": 7,
-        "fold_004": 7,
-        "fold_005": 14,
-    }
-    config = _config(tmp_path)
-    first = execute_walk_forward(
-        config,
-        _frame(),
-        _audit(_frame()),
-        evaluator=_fake_evaluator([], selection_choice=choices),
-        write_output=False,
-    )
-    second = execute_walk_forward(
-        config,
-        _frame(),
-        _audit(_frame()),
-        evaluator=_fake_evaluator([], selection_choice=choices),
-        write_output=False,
-    )
+    first = _run(tmp_path, _frame())
+    second = _run(tmp_path, _frame())
     assert first.selected_parameters_by_fold == second.selected_parameters_by_fold
-    assert first.unique_parameter_set_count == 2
-    assert first.parameter_change_percentage == pytest.approx(0.5)
-    assert first.maximum_consecutive_persistence == 2
-    expected = (1.14 * 1.14 * 1.07 * 1.07 * 1.14) - 1
-    assert first.compounded_return == pytest.approx(expected)
-    assert first.total_trades == 56
-    assert first.average_fold_metrics["total_return"] == pytest.approx(0.112)
-    assert first.median_fold_metrics["total_return"] == pytest.approx(0.14)
+    assert first.successful_fold_count == 3
+    assert first.unique_parameter_set_count == 1
+    assert first.parameter_change_percentage == pytest.approx(0.0)
+    assert first.maximum_consecutive_persistence == 3
+    returns = [fold.test_metrics["total_return"] for fold in first.folds]
+    assert first.compounded_return == pytest.approx(float(np.prod([1 + r for r in returns]) - 1))
+    assert first.total_trades == sum(
+        int(fold.test_metrics["number_of_trades"]) for fold in first.folds
+    )
+    assert first.total_trades >= 3
+    assert first.average_fold_metrics["total_return"] == pytest.approx(np.mean(returns))
+    assert first.median_fold_metrics["total_return"] == pytest.approx(np.median(returns))
 
 
+@licensed
 def test_report_contains_fold_provenance_and_failures(tmp_path):
     config = _config(tmp_path)
-    result = execute_walk_forward(
-        config,
-        _frame(),
-        _audit(_frame()),
-        evaluator=_fake_evaluator([], fail_training={"fold_001"}),
-    )
+    data = _frame(flat=((0, 24),))
+    result = execute_walk_forward(config, data, _audit(data))
     text = config.output_path.read_text(encoding="utf-8")
-    assert result.total_fold_count == 5
+    assert result.total_fold_count == 3
+    assert result.failed_fold_ids == ("fold_001",)
     assert '"fold_001"' in text
     assert '"failed_folds": 1' in text
     assert '"parameter_change_percentage"' in text
@@ -354,7 +280,7 @@ def test_report_contains_fold_provenance_and_failures(tmp_path):
 
 def test_intraday_row_windows_never_split_a_day(tmp_path):
     # 7 bars per day: row-count cuts land mid-day and must move to the next day's first bar.
-    days = pd.bdate_range("2024-01-01", periods=12, tz="UTC")
+    days = pd.bdate_range("2024-01-01", periods=30, tz="UTC")
     index = pd.DatetimeIndex([day + pd.Timedelta(hours=14, minutes=30 * bar) for day in days for bar in range(7)])
     data = pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0, "Volume": 1.0}, index=index)
     windows = build_walk_forward_windows(data, _config(tmp_path))

@@ -1,15 +1,15 @@
-"""Bounded, synthetic mechanics proof for the factory filter chain.
+"""Factory filter chain (Steps 5-9) driven by the real experiment engine.
 
-This file deliberately uses the real stage runners and evidence services with
-deterministic evaluator seams. It does not load market data or execute a
-candidate strategy; the fixture proves routing, evaluation, persistence, and
-fail-closed mechanics only, not screening profitability.
+The price series is a 12-bar sawtooth (ten bars of -2, two bars of +11) so the
+real RSI mean-reversion strategy enters once per cycle near the trough and exits
+on the rebound.  Flattening a region removes every trade in it, which is how
+screening failures are triggered with real inputs.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -31,40 +31,49 @@ from backtesting.robustness import (
     build_neighborhood,
     run_robustness_pipeline,
 )
-from backtesting.robustness import evaluation as robustness_evaluation
-from backtesting.screening import parameter_row_identity
-from backtesting.screening.models import ScreeningResult, ScreeningRuleResult
+from backtesting.screening import ScreeningConfig
 from backtesting.validation import WalkForwardWindowRules
 from backtesting.validation.lockbox_gate import evaluate_lockbox_prerequisites
 from backtesting.walk_forward import WalkForwardConfig, execute_walk_forward
 from market_data import DataAudit, MarketDataConfig
 from backtesting.validation.evidence_service import ValidationEvidenceArtifactService
 from strategies import get_strategy
-from strategies.models import SignalResult
 from tests.test_lockbox_gate import _service
 from tests.test_review_context_artifacts import _source_lock_artifact, _target_run
 
+licensed = pytest.mark.licensed_vectorbt
 
 FIXTURE_ID = "factory-filter-chain-fixture-v1"
 STRATEGY_ID = "rsi_mean_reversion"
-STRATEGY_VERSION = "1.0.0"
-LOCKED_PARAMETERS = {
-    "window": 14,
-    "entry_threshold": 25,
-    "exit_threshold": 55,
-}
+STRATEGY_VERSION = get_strategy(STRATEGY_ID).spec.identity.version
+LOCKED_PARAMETERS = {"window": 7, "entry_threshold": 30, "exit_threshold": 50}
+SLOW_EXIT = {"window": 7, "entry_threshold": 30, "exit_threshold": 60}
+SCREENING = ScreeningConfig(
+    minimum_trades=1,
+    minimum_total_return=0.0,
+    minimum_annualized_return=0.0,
+    minimum_sharpe_ratio=None,
+    maximum_drawdown=0.35,
+)
+# 120 rows split 60/20/20: train bars 0-72, selection 72-96, test 96-120.
+SELECTION = (72, 96)
+# Rolling walk-forward 24/12/12 stepping 36: fold 1 trains on bars 0-24.
+FIRST_TRAINING = (0, 24)
 
 
-def _data(rows: int = 50) -> pd.DataFrame:
+def _data(rows: int = 120, flat: tuple[tuple[int, int], ...] = ()) -> pd.DataFrame:
     index = pd.date_range("2020-01-01", periods=rows, freq="D", tz="UTC")
-    close = pd.Series(100.0 + np.arange(rows, dtype=float), index=index)
+    steps = np.tile(np.array([-2.0] * 10 + [11.0] * 2), rows // 12 + 1)[:rows]
+    close = pd.Series(100 + np.cumsum(steps), index=index)
+    for start, end in flat:
+        close.iloc[start:end] = close.iloc[start]
     return pd.DataFrame(
         {
             "Open": close,
-            "High": close + 1.0,
-            "Low": close - 1.0,
+            "High": close + 0.5,
+            "Low": close - 0.5,
             "Close": close,
-            "Volume": 1_000,
+            "Volume": 1_000.0,
         },
         index=index,
     )
@@ -118,7 +127,7 @@ def _experiment(tmp_path: Path) -> ExperimentConfig:
     return ExperimentConfig(
         experiment_id=FIXTURE_ID,
         strategy_id=STRATEGY_ID,
-        parameter_combinations=(LOCKED_PARAMETERS,),
+        parameter_combinations=(LOCKED_PARAMETERS, SLOW_EXIT),
         market_data=market_data,
         execution=ExecutionConfig.next_bar_open(
             initial_cash=10_000,
@@ -131,108 +140,59 @@ def _experiment(tmp_path: Path) -> ExperimentConfig:
         ranking_columns=("total_return", "sharpe_ratio"),
         ranking_ascending=(False, False),
         output_path=tmp_path / "unused.csv",
+        screening=SCREENING,
     )
 
 
-def _evaluator(calls: list[dict[str, object]], *, fail_stages: set[str] = ()):
-    """Synthetic screening evaluator seam; this proves mechanics, not edge evidence."""
-
-    def evaluate(config, data, audit, *, write_output):
-        assert write_output is False
-        stage = config.experiment_id.rsplit(":", 1)[-1]
-        calls.append(
-            {
-                "experiment_id": config.experiment_id,
-                "stage": stage,
-                "start": str(data.index[0].date()),
-                "end": str(data.index[-1].date()),
-                "parameters": tuple(dict(item) for item in config.parameter_combinations),
-            }
-        )
-        passed = stage not in fail_stages
-        rows: list[dict[str, object]] = []
-        screenings: list[ScreeningResult] = []
-        for parameters in config.parameter_combinations:
-            normalized = dict(parameters)
-            row_id = parameter_row_identity(
-                config.experiment_id,
-                config.strategy_id,
-                normalized,
-            )
-            rows.append(
-                {
-                    "parameter_row_id": row_id,
-                    "screening_status": "passed" if passed else "screened_out",
-                    "total_return": 0.02,
-                    "annualized_return": 0.04,
-                    "sharpe_ratio": 1.0,
-                    "max_drawdown": -0.05,
-                    "number_of_trades": 25,
-                    "win_rate": 0.60,
-                    **normalized,
-                }
-            )
-            rule = ScreeningRuleResult(
-                rule_id="fixture_survivor",
-                metric="number_of_trades",
-                observed_value=25,
-                threshold=1,
-                status="passed" if passed else "failed",
-                message=(
-                    "synthetic survivor admitted"
-                    if passed
-                    else "synthetic survivor rejected for stop test"
-                ),
-            )
-            screenings.append(
-                ScreeningResult(
-                    parameter_row_id=row_id,
-                    passed=passed,
-                    rule_results=(rule,),
-                    passed_rule_count=1 if passed else 0,
-                    failed_rule_count=0 if passed else 1,
-                    strategy_id=config.strategy_id,
-                    strategy_version=STRATEGY_VERSION,
-                    normalized_parameters=normalized,
-                    execution_assumptions={"fixture": FIXTURE_ID},
-                    rejection_reasons=()
-                    if passed
-                    else ("synthetic survivor rejected for stop test",),
-                )
-            )
-        ranked = pd.DataFrame(rows)
-        passing = ranked.loc[ranked["screening_status"] == "passed"].reset_index(
-            drop=True
-        )
-        screened_out = ranked.loc[
-            ranked["screening_status"] == "screened_out"
-        ].reset_index(drop=True)
-        return SimpleNamespace(
-            ranked_results=ranked,
-            passing_results=passing,
-            screened_out_results=screened_out,
-            experiment_id=config.experiment_id,
-            strategy_id=config.strategy_id,
-            strategy_name="Synthetic RSI fixture",
-            strategy_version=STRATEGY_VERSION,
-            normalized_parameters=tuple(dict(item) for item in config.parameter_combinations),
-            market_data_audit=audit,
-            execution_assumptions={"fixture": FIXTURE_ID},
-            screening_results=tuple(screenings),
-        )
-
-    return evaluate
+def _out_of_sample(tmp_path: Path, data: pd.DataFrame, *, write_output: bool = False):
+    return execute_out_of_sample(
+        OutOfSampleConfig(
+            experiment=_experiment(tmp_path),
+            split=ChronologicalSplitConfig(
+                train_fraction=0.60,
+                selection_fraction=0.20,
+                test_fraction=0.20,
+                minimum_rows_per_partition=10,
+            ),
+            output_path=tmp_path / "oos.json",
+            shortlist_size=1,
+        ),
+        data,
+        _audit(data),
+        write_output=write_output,
+    )
 
 
 def _walk_forward_rules() -> WalkForwardWindowRules:
     return WalkForwardWindowRules(
-        training_window_size=10,
-        selection_window_size=5,
-        test_window_size=5,
-        step_size=5,
+        training_window_size=24,
+        selection_window_size=12,
+        test_window_size=12,
+        step_size=36,
         training_mode="rolling",
         minimum_rows_per_window=2,
         incomplete_final_window="drop",
+    )
+
+
+def _walk_forward(tmp_path: Path, data: pd.DataFrame):
+    rules = _walk_forward_rules()
+    return execute_walk_forward(
+        WalkForwardConfig(
+            experiment=_experiment(tmp_path),
+            training_window_size=rules.training_window_size,
+            selection_window_size=rules.selection_window_size,
+            test_window_size=rules.test_window_size,
+            step_size=rules.step_size,
+            training_mode=rules.training_mode,
+            minimum_rows_per_window=rules.minimum_rows_per_window,
+            shortlist_size=1,
+            incomplete_final_window=rules.incomplete_final_window,
+            output_path=tmp_path / "walk_forward.json",
+        ),
+        data,
+        _audit(data),
+        write_output=False,
     )
 
 
@@ -251,88 +211,26 @@ def _execution_assumptions(experiment: ExperimentConfig) -> dict[str, object]:
 
 
 def _robustness_result(
-    monkeypatch: pytest.MonkeyPatch,
     experiment: ExperimentConfig,
     data: pd.DataFrame,
     audit: DataAudit,
     *,
     source_artifact_id: str,
 ):
-    """Use the real robustness runner with deterministic, non-backtest seams."""
+    """Run the real robustness pipeline: every neighbour is a real backtest.
 
-    def deterministic_execute(config, received_data, received_audit, *, write_output, portfolio_observer=None):
-        del received_audit
-        assert write_output is False
-        rows = []
-        screenings = []
-        for parameters in config.parameter_combinations:
-            normalized = dict(parameters)
-            row_id = parameter_row_identity(
-                config.experiment_id,
-                config.strategy_id,
-                normalized,
-            )
-            rows.append(
-                {
-                    "parameter_row_id": row_id,
-                    "total_return": 0.10 if normalized == LOCKED_PARAMETERS else 0.09,
-                    "max_drawdown": -0.10,
-                    "sharpe_ratio": 1.0,
-                    "number_of_trades": 25,
-                }
-            )
-            screenings.append(
-                ScreeningResult(
-                    parameter_row_id=row_id,
-                    passed=True,
-                    rule_results=(),
-                    passed_rule_count=0,
-                    failed_rule_count=0,
-                    strategy_id=config.strategy_id,
-                    strategy_version=STRATEGY_VERSION,
-                    normalized_parameters=normalized,
-                    execution_assumptions={"fixture": FIXTURE_ID},
-                    rejection_reasons=(),
-                )
-            )
-        for screening in screenings:
-            portfolio_observer(
-                screening.parameter_row_id,
-                SimpleNamespace(
-                    returns=pd.Series(0.01, index=received_data.index, name="strategy_return")
-                ),
-            )
-        return SimpleNamespace(
-            ranked_results=pd.DataFrame(rows),
-            screening_results=tuple(screenings),
-        )
-
+    Only the exit level is varied: RSI(14)/RSI(21) never reach 30 on the sawtooth
+    and entry 25 catches a fraction of the troughs, so those neighbours are real
+    degradations rather than a stable neighbourhood.
+    """
     strategy = get_strategy(STRATEGY_ID)
-
-    def deterministic_signals(received_data, parameters):
-        false = pd.Series(False, index=received_data.index)
-        return SignalResult(
-            entries=false,
-            exits=false.copy(),
-            parameters=dict(parameters),
-        )
-
-    monkeypatch.setattr(robustness_evaluation, "execute_experiment", deterministic_execute)
-    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
-
     neighborhood = NeighborhoodConfig(
         definitions=(
-            ParameterNeighborhoodDefinition(
-                "window", "explicit_values", explicit_values=(7, 14, 21)
-            ),
-            ParameterNeighborhoodDefinition(
-                "entry_threshold", "explicit_values", explicit_values=(20, 25, 30)
-            ),
             ParameterNeighborhoodDefinition(
                 "exit_threshold", "explicit_values", explicit_values=(50, 55, 60)
             ),
         ),
-        minimum_valid_neighbors=3,
+        minimum_valid_neighbors=2,
         required_pass_proportion=0.60,
         maximum_absolute_degradation=0.25,
         maximum_relative_degradation=0.50,
@@ -343,8 +241,8 @@ def _robustness_result(
         locked_parameters=LOCKED_PARAMETERS,
         experiment_id=FIXTURE_ID,
         source_artifact_id=source_artifact_id,
-        source_start="2020-01-01",
-        source_end="2020-02-19",
+        source_start=audit.actual_first_row_date,
+        source_end=audit.actual_last_row_date,
         data_provenance={"provider": "fixture"},
         execution_assumptions=_execution_assumptions(experiment),
         neighborhood=neighborhood,
@@ -357,75 +255,41 @@ def _robustness_result(
         maximum_drawdown=0.35,
     )
     construction = build_neighborhood(strategy, LOCKED_PARAMETERS, neighborhood)
-    result = run_robustness_pipeline(
-        config,
-        construction,
-        experiment,
-        data,
-        audit,
-    )
+    result = run_robustness_pipeline(config, construction, experiment, data, audit)
     assert result.parameter_points
     assert result.regime_results
     return result
 
 
+@licensed
 def test_synthetic_survivor_advances_through_real_filter_mechanics_and_persists(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Prove Steps 5–9 routing/evaluation mechanics without edge evidence."""
+    """Prove Steps 5-9 routing/evaluation mechanics without edge evidence."""
     data = _data()
     audit = _audit(data)
     experiment = _experiment(tmp_path)
-    calls: list[dict[str, object]] = []
 
-    oos = execute_out_of_sample(
-        OutOfSampleConfig(
-            experiment=experiment,
-            split=ChronologicalSplitConfig(
-                train_fraction=0.60,
-                selection_fraction=0.20,
-                test_fraction=0.20,
-                minimum_rows_per_partition=10,
-            ),
-            output_path=tmp_path / "oos.json",
-            shortlist_size=1,
-        ),
-        data,
-        audit,
-        evaluator=_evaluator(calls),
-        write_output=False,
-    )
+    oos = _out_of_sample(tmp_path, data)
     assert oos.selected_parameters == LOCKED_PARAMETERS
     assert oos.parameter_lock.normalized_parameters == tuple(sorted(LOCKED_PARAMETERS.items()))
-    assert [item["stage"] for item in calls[:3]] == ["train", "selection", "test"]
+    stages = (oos.training_result, oos.selection_result, oos.test_result)
+    assert [stage.experiment_id.rsplit(":", 1)[-1] for stage in stages] == [
+        "train",
+        "selection",
+        "test",
+    ]
+    assert oos.test_result.ranked_results.iloc[0]["number_of_trades"] >= 1
 
     rules = _walk_forward_rules()
-    walk_forward = execute_walk_forward(
-        WalkForwardConfig(
-            experiment=experiment,
-            training_window_size=10,
-            selection_window_size=5,
-            test_window_size=5,
-            step_size=5,
-            training_mode="rolling",
-            minimum_rows_per_window=2,
-            shortlist_size=1,
-            incomplete_final_window="drop",
-            output_path=tmp_path / "walk_forward.json",
-        ),
-        data,
-        audit,
-        evaluator=_evaluator(calls),
-        write_output=False,
-    )
+    walk_forward = _walk_forward(tmp_path, data)
+    assert walk_forward.total_fold_count == 3
     assert walk_forward.successful_fold_count == walk_forward.total_fold_count
     assert all(fold.selected_parameters == LOCKED_PARAMETERS for fold in walk_forward.folds)
     assert all(fold.parameter_lock is not None for fold in walk_forward.folds)
-    assert tuple(walk_forward.out_of_sample_returns) == (0.02,) * walk_forward.total_fold_count
+    assert all(value > 0 for value in walk_forward.out_of_sample_returns)
 
     robustness = _robustness_result(
-        monkeypatch,
         experiment,
         data,
         audit,
@@ -480,8 +344,8 @@ def test_synthetic_survivor_advances_through_real_filter_mechanics_and_persists(
             strategy_id=STRATEGY_ID,
             strategy_version=STRATEGY_VERSION,
             experiment_id=FIXTURE_ID,
-            source_start="2020-01-01",
-            source_end="2020-02-19",
+            source_start=audit.actual_first_row_date,
+            source_end=audit.actual_last_row_date,
             execution_assumptions=_execution_assumptions(experiment),
             parameter_lock_id=oos.parameter_lock.lock_id,
         )
@@ -554,59 +418,34 @@ def test_synthetic_survivor_advances_through_real_filter_mechanics_and_persists(
         persistence.close()
 
 
+@licensed
 def test_filter_chain_stops_before_downstream_stage_when_unseen_data_has_no_survivor(
     tmp_path: Path,
 ) -> None:
-    data = _data()
-    calls: list[dict[str, object]] = []
-    experiment = _experiment(tmp_path)
+    # A flat selection slice has no trade, so the real screen rejects every candidate.
     with pytest.raises(
         OutOfSampleProgressionError,
-        match="selection screening produced no passing candidates; parameters were not locked",
+        match="parameters were not locked",
     ):
-        execute_out_of_sample(
-            OutOfSampleConfig(
-                experiment=experiment,
-                split=ChronologicalSplitConfig(minimum_rows_per_partition=10),
-                output_path=tmp_path / "oos-stop.json",
-                shortlist_size=1,
-            ),
-            data,
-            _audit(data),
-            evaluator=_evaluator(calls, fail_stages={"selection"}),
-            write_output=False,
-        )
-    assert [call["stage"] for call in calls] == ["train", "selection"]
-    assert all(call["stage"] != "test" for call in calls)
+        _out_of_sample(tmp_path, _data(flat=(SELECTION,)), write_output=True)
+    report = json.loads((tmp_path / "oos.json").read_text())
+    assert report["training_status"] == "passed"
+    assert report["selection_status"] == "screened_out"
+    assert report["test_status"] == "not_run"
+    assert report["parameter_lock"] is None
 
 
+@licensed
 def test_walk_forward_records_failed_fold_without_evaluating_its_test_window(
     tmp_path: Path,
 ) -> None:
-    data = _data()
-    calls: list[dict[str, object]] = []
-    result = execute_walk_forward(
-        WalkForwardConfig(
-            experiment=_experiment(tmp_path),
-            training_window_size=10,
-            selection_window_size=5,
-            test_window_size=5,
-            step_size=5,
-            training_mode="rolling",
-            minimum_rows_per_window=2,
-            shortlist_size=1,
-            incomplete_final_window="drop",
-            output_path=tmp_path / "walk-forward-stop.json",
-        ),
-        data,
-        _audit(data),
-        evaluator=_evaluator(calls, fail_stages={"train"}),
-        write_output=False,
-    )
-    first_fold_calls = [
-        call for call in calls if str(call["experiment_id"]).endswith("fold_001:train")
-    ]
-    assert first_fold_calls
-    assert result.folds[0].status == "failed"
-    assert result.folds[0].test_result is None
-    assert "training screening" in (result.folds[0].failure_reason or "")
+    # A flat first training slice has no trade, so fold 1 fails at training.
+    result = _walk_forward(tmp_path, _data(flat=(FIRST_TRAINING,)))
+    first = result.folds[0]
+    assert first.status == "failed"
+    assert first.training_result is not None
+    assert first.selection_result is None
+    assert first.test_result is None
+    assert "selection was not evaluated" in (first.failure_reason or "")
+    assert result.failed_fold_ids == ("fold_001",)
+    assert result.successful_fold_count == result.total_fold_count - 1

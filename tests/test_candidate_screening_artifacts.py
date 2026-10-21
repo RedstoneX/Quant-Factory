@@ -1,11 +1,12 @@
 """Focused evidence checks for Candidate screening artifacts."""
 
+from dataclasses import replace
 import json
 from pathlib import Path
 import sqlite3
-from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 from backtesting.experiments import ExecutionConfig, ExperimentConfig, MetricPolicy
 from market_data import MarketDataConfig
@@ -15,8 +16,10 @@ from orchestration.candidate_screening_artifacts import (
     screening_bars_hash,
 )
 from tests.test_artifact_contracts import _service_with_run
+from tests.test_persistence import _fixture_result
 
 
+@pytest.mark.licensed_vectorbt
 def test_metrics_artifact_persists_candidate_annualization() -> None:
     index = pd.date_range("2026-01-02 09:30", periods=3, freq="5min", tz="UTC")
     data = pd.DataFrame(
@@ -73,20 +76,14 @@ def test_metrics_artifact_persists_candidate_annualization() -> None:
             source="saved contract test",
         ),
     )
-    records = pd.DataFrame(
-        {"Entry Price": [100.5], "Exit Price": [102.5], "PnL": [2.0]}
-    )
-    portfolio = SimpleNamespace(
-        trades=SimpleNamespace(records_readable=records),
-        orders=SimpleNamespace(records_readable=pd.DataFrame({"Price": [100.5]})),
-        value=pd.Series([100_000.0, 100_001.0, 100_002.0], index=index),
+    import vectorbtpro as vbt
+
+    portfolio = vbt.Portfolio.from_signals(
+        data["Close"], entries=pd.Series([True, False, False], index=index),
+        exits=pd.Series([False, False, True], index=index), init_cash=100_000, freq="5min",
     )
     other = {**row, "parameter_row_id": "row-0", "total_return": 0.02}
-    result = SimpleNamespace(
-        ranked_results=pd.DataFrame([other, row]),
-        strategy_id="strategy",
-        strategy_version="1.0.0",
-    )
+    result = replace(_fixture_result(), ranked_results=pd.DataFrame([other, row]), strategy_id="strategy", strategy_version="1.0.0")
 
     artifacts = _screening_artifacts(
         result=result,
