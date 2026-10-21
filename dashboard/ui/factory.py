@@ -25,7 +25,7 @@ RUN_COLUMNS = [
 ]
 
 
-STAGE_WORDS = {"screening": "First check", "oos": "Unseen-data test", "walk_forward": "Rolling test", "monte_carlo": "Shuffle test"}
+STAGE_WORDS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time", "robustness": "Stress test", "monte_carlo": "Shuffle test"}
 
 
 def _stage_word(stage: Any) -> str:

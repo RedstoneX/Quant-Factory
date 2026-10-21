@@ -34,7 +34,7 @@ def starter_kit_json() -> str:
 
 
 def idea_link(candidate_id: Any) -> str:
-    return f"/candidates?candidate_id={candidate_id}"
+    return f"/report?candidate_id={candidate_id}"
 
 
 def _latest_state(candidate_id: Any) -> tuple[str, str]:

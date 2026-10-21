@@ -15,14 +15,23 @@ from typing import Any
 import pandas as pd
 
 from dashboard.idea_results_projection import (
-    STAGES, TRADE_STAGES, load_idea, load_period_price, load_stage_detail, load_trade_view,
+    STAGES, TRADE_STAGES, load_idea, load_period_price, load_stage_detail, load_trade_view, shuffle_result_line,
 )
 from dashboard.overview_projection import _validated_connection, configured_database_path
+from dashboard.score_projection import load_run_scores
 from dashboard.plain_labels import OUR_SIDE_WORDS, is_our_side_mismatch, plain_unseen_reason, unseen_loss_text
 from dashboard.results_model import ResultsDataError
 from dashboard.results_projection import oos_report_metrics
 
 UNSEEN_RULE = "Passes if it made money on years it never saw, after costs"  # owner ruling 19 Oct 2026
+SHUFFLE_RULE = "Passes if shuffled trades still made money"  # the Shuffle test (stage 5) rule; the card's line below it carries the measured numbers
+RULES = {  # one "Passes if…" line per test, so every card reads the same way (design review 21 Oct 2026)
+    "screening": "Passes if at least one setting clears the cost screen: enough trades and enough return after costs",
+    "oos": UNSEEN_RULE,
+    "walk_forward": "Passes if it kept making money window by window on rolling periods",
+    "robustness": "Passes if every stress check holds: nearby settings and worse costs",
+    "monte_carlo": SHUFFLE_RULE,
+}
 
 
 UNSAVED_UNSEEN_NOTE = "The unseen-period chart and trades weren't saved for this run; its result is in test 2 below."
@@ -34,14 +43,14 @@ def _slice_score(name: str, metrics: dict[str, Any]) -> tuple[str, str | None]:
     return name, None if sharpe is None else f"{float(sharpe):.2f}"
 
 
-TEST_LABELS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time", "robustness": "Stress test", "monte_carlo": "Luck test"}
+TEST_LABELS = {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time", "robustness": "Stress test", "monte_carlo": "Shuffle test"}
 PASSED, CLOSE_CALL, FAILED, CANT_TEST, CRASHED = "Passed", "Close call", "Failed", "Can't test", "Crashed"
 NOT_SCORED = "Not scored"  # a score stage of a gateway survivor with no usable result; shown in the grey Can't test style
 STATUS_TONE = {PASSED: "green", CLOSE_CALL: "amber", FAILED: "red", CANT_TEST: "grey", CRASHED: "red", NOT_SCORED: "grey"}
 NOT_SAVED = "Not saved for this run."
 GATES_CHIP = ("Passed the gates", "green")
 TOO_FEW_WINDOWS = "Too few windows"  # log wording only; never a stage status on the Report
-NOT_ENOUGH = "Not scored — not enough data"  # the one phrase for an unscored Luck test, everywhere
+NOT_ENOUGH = "Not scored — not enough data"  # the one phrase for an unscored Shuffle test, everywhere
 SCORE_STAGES = ("walk_forward", "robustness", "monte_carlo")
 
 
@@ -64,14 +73,14 @@ _NEEDS = re.compile(r"Needs at least (?P<needed>\d+)\D.*?had (?P<had>\d+)", re.S
 
 
 def too_few_phrase(line: Any) -> str:
-    """The one phrase for an unscored Luck test, from the recorded numbers: 'Not scored — not enough data (5 of 10 needed)'."""
+    """The one phrase for an unscored Shuffle test, from the recorded numbers: 'Not scored — not enough data (5 of 10 needed)'."""
     found = _NEEDS.search(str(line or ""))
     return NOT_ENOUGH + (f" ({found['had']} of {found['needed']} needed)" if found else "")
 
 
 def score_statuses(candidate_id: str | None, database: str | Path | None = None, run_id: str | None = None) -> dict[str, str]:
-    """The Report page's status word for the three recorded scores (Holds over time, Stress test, Luck test), from the same stored stage results the Report reads; {} when none are available.
-    `run_id` (a screening run) scopes it to that test's stage runs, as the Report does; a Luck test with too few results gets the too_few_phrase."""
+    """The Report page's status word for the three recorded scores (Holds over time, Stress test, Shuffle test), from the same stored stage results the Report reads; {} when none are available.
+    `run_id` (a screening run) scopes it to that test's stage runs, as the Report does; a Shuffle test with too few results gets the too_few_phrase."""
     idea = load_idea(candidate_id, run_id=run_id, database=_database(database))
     if not idea.get("available"):
         return {}
@@ -166,17 +175,20 @@ def overall_chip(tests: list[dict[str, Any]]) -> tuple[str, str]:
     return " · ".join(f"{count} {word.lower()}" for word, count in counts if count), "red" if any(t["status"] == CRASHED for t in tests) else "grey"
 
 
-def summary_strip(whole: pd.Series, trades: list[dict[str, Any]], sharpe: float | None) -> list[tuple[str, str]]:
-    """Return, worst drop, Sharpe after costs, trades and win rate from stored account value and trades; anything not computable is left out."""
+def summary_strip(row: dict[str, Any], trades: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    """Return, worst drop, Sharpe after costs and trades from the shown setting's saved cost-screen row (the same numbers the Results list shows), win rate from its trades; anything not saved is left out."""
     items: list[tuple[str, str]] = []
-    if len(whole) > 1:
-        items.append(("Return", f"{(whole.iloc[-1] / whole.iloc[0] - 1) * 100:+.1f}%"))
-        items.append(("Worst drop", f"{drawdown(whole).min():.1f}%"))
-    if sharpe is not None:
-        items.append(("Sharpe after costs", f"{float(sharpe):.2f}"))
+    if row.get("total_return") is not None:
+        items.append(("Return", f"{float(row['total_return']):+.1f}%"))
+    if row.get("max_drawdown") is not None:
+        items.append(("Worst drop", f"{-abs(float(row['max_drawdown'])):.1f}%"))
+    if row.get("sharpe_ratio") is not None:
+        items.append(("Sharpe after costs", f"{float(row['sharpe_ratio']):.2f}"))
+    if row.get("number_of_trades") is not None:
+        items.append(("Trades", f"{int(row['number_of_trades']):,}"))
     pnl = pd.Series([trade["pnl"] for trade in trades if trade.get("pnl") is not None], dtype=float)
     if not pnl.empty:
-        items += [("Trades", f"{len(pnl):,}"), ("Win rate", f"{(pnl > 0).mean() * 100:.0f}%")]
+        items.append(("Win rate", f"{(pnl > 0).mean() * 100:.0f}%"))
     return items
 
 
@@ -233,19 +245,17 @@ def _series(rows: list[dict[str, Any]]) -> pd.Series:
     return pd.Series(frame["value"].astype(float).to_numpy(), index=pd.to_datetime(frame["timestamp"]), dtype=float).sort_index()
 
 
-def hero_series(screening_equity: list[dict[str, Any]], unseen_equity: list[dict[str, Any]]) -> dict[str, pd.Series]:
-    """Built-on account value up to where the unseen period begins, then the unseen period joined on to it.
+def hero_series(screening_equity: list[dict[str, Any]], unseen_start: str | None) -> dict[str, pd.Series]:
+    """The one saved whole-window account value of the shown setting, split at the unseen-data start date: built-on before, unseen from that date on.
 
-    The unseen test saves its own account value from its own start; it is scaled to continue from the last
-    built-on value so the two read as one line. With no unseen history everything is built-on.
+    One curve, two colours; nothing from another run is stitched on. Without a known unseen start everything is built-on.
     """
-    whole, unseen = _series(screening_equity), _series(unseen_equity)
-    if unseen.empty:
-        return {"built": whole, "unseen": unseen}
-    built = whole[whole.index < unseen.index[0]]
-    if built.empty:
-        return {"built": built, "unseen": unseen}
-    return {"built": built, "unseen": unseen / unseen.iloc[0] * built.iloc[-1]}
+    whole = _series(screening_equity)
+    if not unseen_start or whole.empty:
+        return {"built": whole, "unseen": pd.Series(dtype=float)}
+    start = pd.Timestamp(unseen_start)
+    start = start.tz_localize(whole.index.tz) if start.tzinfo is None and whole.index.tz is not None else start.tz_convert(whole.index.tz) if whole.index.tz is not None else start.tz_localize(None)
+    return {"built": whole[whole.index < start], "unseen": whole[whole.index >= start]}
 
 
 def drawdown(values: pd.Series) -> pd.Series:
@@ -261,6 +271,14 @@ def monthly_returns(values: pd.Series) -> pd.DataFrame:
     change = (month_end.pct_change().fillna(month_end / values.iloc[0] - 1) * 100).rename("pct")
     frame = change.to_frame().assign(year=change.index.year, month=change.index.month)
     return frame.pivot(index="year", columns="month", values="pct").reindex(columns=range(1, 13))
+
+
+def locked_row_id(rows: list[dict[str, Any]], locked: dict[str, Any]) -> str | None:
+    """The cost-screen row whose setting equals the unseen test's locked parameters (compared as text); None when nothing was locked or no row matches."""
+    if not locked:
+        return None
+    wanted = {str(key): str(value) for key, value in locked.items()}
+    return next((row["row_id"] for row in rows if {str(k): str(v) for k, v in (row.get("parameters") or {}).items()} == wanted), None)
 
 
 def settings_grid(rows: list[dict[str, Any]], chosen_row_id: str | None) -> dict[str, Any] | None:
@@ -281,7 +299,7 @@ def settings_grid(rows: list[dict[str, Any]], chosen_row_id: str | None) -> dict
 
 def _test_measure(stage: str, test: dict[str, Any], idea: dict[str, Any], detail: dict[str, Any], database: Path, built_return: float | None) -> dict[str, Any]:
     """The value shown on a test's bar, the bar's length and its pass line (None when no line was saved)."""
-    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None, "rule": UNSEEN_RULE if stage == "oos" else None, "scores": []}
+    out: dict[str, Any] = {"value": NOT_SAVED if test["run_id"] else "Not run", "fraction": None, "pass_line": None, "rule": RULES[stage], "scores": []}
     if not test["run_id"]:
         return out
     if stage == "screening":
@@ -331,11 +349,11 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     verdict = apply_campaign_verdict([test["status"] for test in tests], campaign)
     for test, status in zip(tests, verdict):
         test["status"] = status
-    screening_view = load_trade_view(idea, "screening", database=path) if "screening" in runs else {"available": False}
-    unseen_view = load_trade_view(idea, "oos", database=path) if "oos" in runs else {"available": False}
+    unseen_report = oos_report_metrics(database=path, run_id=(runs.get("oos") or {}).get("run_id")) or {}
+    locked_row = locked_row_id(idea.get("screening_rows") or [], unseen_report.get("_locked_parameters") or {})  # every Report number is the locked setting; only the settings bars show the others
+    screening_view = load_trade_view(idea, "screening", locked_row, database=path) if "screening" in runs else {"available": False}
     screening_equity = screening_view.get("equity") or [] if screening_view.get("available") else []
-    unseen_equity = unseen_view.get("equity") or [] if unseen_view.get("available") else []
-    series = hero_series(screening_equity, unseen_equity)
+    series = hero_series(screening_equity, unseen_report.get("_unseen_start"))  # one saved curve, coloured built-on / unseen at the unseen-data start
     whole = pd.concat([part for part in (series["built"], series["unseen"]) if not part.empty]) if not (series["built"].empty and series["unseen"].empty) else series["built"]
     built_return = float(series["built"].iloc[-1] / series["built"].iloc[0] - 1) if len(series["built"]) > 1 else None
     for test in tests:
@@ -343,6 +361,9 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
         stored = next((t for t in idea.get("tests") or [] if t["stage"] == test["stage"]), {})
         if test["stage"] == "monte_carlo" and stored.get("status") == "insufficient_evidence" and str(stored.get("line") or "").startswith("Needs at least"):
             test.update(value=too_few_phrase(stored.get("line")), line="")  # one phrase, from the recorded numbers
+        elif test["stage"] == "monte_carlo" and test["detail"]["checks"]:
+            test["line"] = shuffle_result_line(test["detail"]["checks"])  # the measured result, never the rule repeated
+    luck = load_run_scores((runs.get("monte_carlo") or {}).get("run_id"), database=path).get("luck") if runs.get("monte_carlo") else None
     crash_chip = ("Crashed", "red") if campaign and campaign[0] == "failed" and not any(t["status"] == CRASHED for t in tests) else overall_chip(tests)  # a crash no stage run carries shows in the header only
     survivor_chip = gates_chip(verdict, {test["stage"]: test.get("value") for test in tests}) if campaign and campaign[0] == "survivor" else None  # the gateway's survivor means only the two gates (costs, unseen data) were cleared
     if campaign and campaign[0] == "screened_out" and campaign[1] == "oos":  # the unseen-data reason in words, never the stored source-lock text
@@ -363,19 +384,21 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
             close = pd.Series(bars["close"].astype(float).to_numpy(), index=pd.to_datetime(bars["timestamp"]))
             close = close[(close.index >= whole.index[0]) & (close.index <= whole.index[-1])]
             hold = close / close.iloc[0] * whole.iloc[0] if not close.empty else close
-    trades = (screening_view.get("trades") if screening_view.get("available") else None) or (unseen_view.get("trades") if unseen_view.get("available") else None) or []
+    trades = (screening_view.get("trades") if screening_view.get("available") else None) or []
     has_chart = not whole.empty
-    performance = ((unseen_view.get("performance") if unseen_equity else None) or screening_view.get("performance") or {}).get("performance", {}).get("all") or {}
+    performance = (screening_view.get("performance") or {}).get("performance", {}).get("all") or {}
     rows = idea.get("screening_rows") or []
+    shown = next((row for row in rows if row.get("row_id") == screening_view.get("row_id")), {})  # the shown setting's saved row: the single source the Results list reads too
+    has_unseen = not series["unseen"].empty
     return {
         "available": True, "title": idea["title"], "symbol": idea.get("symbol") or "", "candidate_id": idea.get("candidate_id") or candidate_id,
-        "verdict": survivor_chip or crash_chip[0], "verdict_line": gates_line(tests) if survivor_chip else None, "verdict_tone": GATES_CHIP[1] if survivor_chip else crash_chip[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
+        "verdict": survivor_chip or crash_chip[0], "verdict_line": gates_line(tests) if survivor_chip else None, "verdict_tone": GATES_CHIP[1] if survivor_chip else crash_chip[1], "strip": [] if not has_chart else summary_strip(shown, trades),
         "tested": _tested_label(path, (runs.get("screening") or {}).get("run_id")), "tests": tests,
         "hero": {"kind": "chart" if has_chart else "never_ran", **({} if has_chart else never_ran_card(idea, tests)),
-                 "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if unseen_equity else NOT_SAVED},
-        "performance": performance, "sharpe": next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None),
+                 "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if has_unseen else NOT_SAVED},
+        "performance": performance, "sharpe": shown.get("sharpe_ratio"),
         "unseen_return": next((test for test in tests if test["stage"] == "oos"), {}).get("value"),
-        "monthly": monthly_returns(whole), "trades": trades, "unseen_trades_saved": bool(unseen_view.get("trades")) if unseen_view.get("available") else False,
+        "luck": luck, "monthly": monthly_returns(whole), "trades": trades, "unseen_trades_saved": has_unseen,
         "pnl": [float(trade["pnl"]) for trade in trades if trade.get("pnl") is not None],
         "grid": settings_grid(rows, screening_view.get("row_id")),
     }

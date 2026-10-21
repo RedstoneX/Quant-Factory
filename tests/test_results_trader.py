@@ -139,7 +139,7 @@ def test_results_is_one_page_per_idea_with_a_test_strip_and_strategy_tester_tabs
     monkeypatch.setattr(page, "_resolve", lambda search: (FAKE_IDEA, "oos"))
     monkeypatch.setattr(page, "top_line", lambda idea: [])
     layout = json.dumps(page.results_layout("?candidate_id=c1").to_plotly_json(), default=lambda item: item.to_plotly_json())
-    for words in ("Costs test", "Unseen data", "Rolling test", "Stress test", "Shuffle test", "Overview", "Performance summary",
+    for words in ("Survives costs", "Unseen data", "Holds over time", "Stress test", "Shuffle test", "Overview", "Performance summary",
                   "Price chart and trades", "Settings tried", "MES idea"):
         assert words in layout
     assert '"id": "results-test"' in layout and '"id": "results-settings-grid"' in layout

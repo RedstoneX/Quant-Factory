@@ -13,7 +13,7 @@ from dashboard.plain_labels import OUR_SIDE_WORDS, is_our_side_mismatch, plain_u
 from dashboard.time_display import EASTERN, eastern_label
 
 
-STEPS = (("screening", "Survives costs"), ("oos", "Unseen data"), ("walk_forward", "Holds over time"), ("robustness", "Stress test"), ("monte_carlo", "Luck test"))
+STEPS = (("screening", "Survives costs"), ("oos", "Unseen data"), ("walk_forward", "Holds over time"), ("robustness", "Stress test"), ("monte_carlo", "Shuffle test"))
 
 
 STEP_NAME = dict(STEPS)
@@ -81,11 +81,11 @@ def hour_floor(moment: datetime) -> datetime:
     return moment.replace(minute=0, second=0, microsecond=0)
 
 
-SCORE_STEPS = (("walk_forward", "Holds over time"), ("robustness", "Stress test"), ("monte_carlo", "Luck test"))
+SCORE_STEPS = (("walk_forward", "Holds over time"), ("robustness", "Stress test"), ("monte_carlo", "Shuffle test"))
 
 
 def score_text(scores: dict[str, str] | None) -> str:
-    """The three recorded scores (not gates) as 'Holds over time: passed, Stress test: failed, Luck test: not enough data'; 'not enough data' only when the recorded reason is too few windows, otherwise a missing score is 'not scored'.
+    """The three recorded scores (not gates) as 'Holds over time: passed, Stress test: failed, Shuffle test: not enough data'; 'not enough data' only when the recorded reason is too few windows, otherwise a missing score is 'not scored'.
     `scores` maps stage to the Report page's status word (Passed, Close call, Failed, Can't test, Crashed)."""
     marks = []
     for stage, label in SCORE_STEPS:

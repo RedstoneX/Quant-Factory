@@ -27,7 +27,7 @@ from dashboard.run_detail_adapter import _candidate_trade_rows
 from dashboard.time_display import eastern_plot_timestamp
 
 STAGES = (
-    ("screening", "Costs test"), ("oos", "Unseen data"), ("walk_forward", "Rolling test"),
+    ("screening", "Survives costs"), ("oos", "Unseen data"), ("walk_forward", "Holds over time"),
     ("robustness", "Stress test"), ("monte_carlo", "Shuffle test"),
 )
 TRADE_STAGES = ("screening", "oos")
@@ -43,7 +43,9 @@ CHECK_WORDS = {
     "minimum_valid_neighbors": "Nearby settings tested", "required_pass_proportion": "Share of nearby settings that pass",
     "degradation_proportion": "Share that hold up with worse costs", "worst_drawdown": "Worst drop from peak",
     "locked_point": "Chosen setting checked",
+    "loss_probability": "Shuffles that lost money", "drawdown_breach_probability": "Shuffles with a deep drop", "lower_percentile_return": "Worst-case shuffle return",
 }
+SHUFFLE_LINE_FALLBACK = "Shuffled trades still made money."  # only when the shuffle test saved no check numbers
 REASON_WORDS = (
     (r"training screening produced no passing candidates.*", "No setting passed on the training years, so this period was skipped."),
     (r"selection screening produced no passing candidates.*", "No setting passed on the checking years, so this period was skipped."),
@@ -63,7 +65,22 @@ CHECK_KINDS = {  # check key -> how its numbers read: percent, ratio (return per
     "minimum_return": "percent", "maximum_drawdown": "percent", "worst_drawdown": "percent", "required_pass_proportion": "percent",
     "degradation_proportion": "percent", "locked_point": "percent", "minimum_sharpe": "ratio",
     "minimum_observations": "count", "minimum_valid_neighbors": "count",
+    "loss_probability": "percent", "drawdown_breach_probability": "percent", "lower_percentile_return": "percent",
 }
+
+
+def check_rows(normalized: dict[str, Any]) -> list[dict[str, Any]]:
+    """Each saved check as its plain name, result word, measured and needed values."""
+    return [
+        {"check": _check_name(item.get("threshold_id")), "result": STATUS_WORDS.get(item.get("status"), str(item.get("status")).capitalize()),
+         "measured": _check_value(item.get("threshold_id"), item.get("observed")), "needed": _check_value(item.get("threshold_id"), item.get("threshold"))}
+        for item in normalized.get("threshold_results") or []
+    ]
+
+
+def shuffle_result_line(checks: list[dict[str, Any]]) -> str:
+    """The shuffle test's actual numbers: 'Shuffles that lost money 8.0% (needs 25.0% or less) · ...'; empty when no check was saved."""
+    return " · ".join(f"{check['check']} {check['measured']} (needs {check['needed']})" for check in checks)
 
 
 def _check_value(threshold_id: str, value: Any) -> str:
@@ -151,7 +168,7 @@ def _test_card(database: Path, stage: str, label: str, run: dict[str, Any] | Non
     if run_id and stage == "screening":
         total, out = int(screening.get("screening_count") or 0), int(screening.get("screened_out_count") or 0)
         status = "passed" if total > out else "failed"
-        line = f"{total - out:,} of {total:,} settings still made money after costs."
+        line = f"{total - out:,} of {total:,} settings cleared the cost screen (enough trades and enough return after costs)."  # the screen's rules, not merely a positive Sharpe
     elif run_id and stage == "oos":
         report = oos_report_metrics(database=database, run_id=run_id) or {}
         status = report.get("_test_status")
@@ -178,7 +195,7 @@ def _test_card(database: Path, stage: str, label: str, run: dict[str, Any] | Non
             line = f"{failed} of {len(checks)} checks failed." if failed else f"All {len(checks)} checks passed."
         else:
             reasons = normalized.get("reasons") or []
-            line = plain_reason(reasons[0]) if reasons else "Shuffled trades still made money." if status == "passed" else "No detail was saved."
+            line = plain_reason(reasons[0]) if reasons else shuffle_result_line(check_rows(normalized)) or (SHUFFLE_LINE_FALLBACK if status == "passed" else "No detail was saved.")
         if not evidence:
             status, line = "crashed" if (run or {}).get("status") == "failed" else None, "No result was saved for this test."
     score = stage not in TRADE_STAGES and status == "failed"  # a weak score is amber, never red
@@ -283,7 +300,7 @@ def load_trade_view(idea: dict[str, Any] | None, stage: str, row_id: str | None 
             "available": True, "stage": stage, "run_id": run_id, "trades": _with_cumulative(trades), "trade_count": int(record.get("trade_count") or 0),
             "equity": _thin(record.get("equity") or []), "equity_from_trades": bool(record.get("equity_from_trades")),
             "price_run_id": target.get("source_run_id"), "period": [target["start"], target["end"]] if target else None,
-            "performance": _performance(database_path, run_id), "label": "Unseen-data test",
+            "performance": _performance(database_path, run_id), "label": "Unseen data",
         }
     rows = (idea or {}).get("screening_rows") or []
     row = next((item for item in rows if item.get("row_id") == row_id), rows[0] if rows else None)
@@ -300,7 +317,7 @@ def load_trade_view(idea: dict[str, Any] | None, stage: str, row_id: str | None 
     return {
         "available": True, "stage": stage, "run_id": run_id, "row_id": row["row_id"], "trades": _with_cumulative(trades), "trade_count": len(trades),
         "equity": _thin(equity), "equity_from_trades": False, "price_run_id": run_id, "period": None,
-        "performance": _performance(database_path, run_id, namespace) or _performance(database_path, run_id), "label": f"Costs test · setting {row.get('rank')}",
+        "performance": _performance(database_path, run_id, namespace) or _performance(database_path, run_id), "label": f"Survives costs · setting {row.get('rank')}",
     }
 
 
@@ -367,11 +384,7 @@ def load_stage_detail(idea: dict[str, Any] | None, stage: str, *, database: str 
             "net_return": None if metrics.get("total_return") is None else round(float(metrics["total_return"]) * 100, 2),
             "note": plain_reason(fold.get("failure_reason")) if fold.get("failure_reason") else "",
         })
-    checks = [
-        {"check": _check_name(item.get("threshold_id")), "result": STATUS_WORDS.get(item.get("status"), str(item.get("status")).capitalize()),
-         "measured": _check_value(item.get("threshold_id"), item.get("observed")), "needed": _check_value(item.get("threshold_id"), item.get("threshold"))}
-        for item in normalized.get("threshold_results") or []
-    ]
+    checks = check_rows(normalized)
     reasons = [] if checks or periods else [plain_reason(reason) for reason in (normalized.get("reasons") or [])][:12]  # periods and checks already say why
     return {"run_id": run_id, "status": normalized.get("status"), "periods": periods, "checks": checks, "reasons": reasons}
 

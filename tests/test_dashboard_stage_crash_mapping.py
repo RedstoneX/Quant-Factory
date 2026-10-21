@@ -10,7 +10,7 @@ def test_walk_forward_scored_robustness_crashed_monte_carlo_not_run(monkeypatch,
     monkeypatch.setattr(results, "_evidence", lambda database, run_id, stage: {"folds": folds, "normalized_evidence": {"status": "failed"}} if stage == "walk_forward" else {})
     wf = results._test_card(tmp_path, "walk_forward", "Holds over time", {"run_id": "w", "status": "succeeded"}, {})
     rb = results._test_card(tmp_path, "robustness", "Stress test", {"run_id": "r", "status": "failed"}, {})
-    mc = results._test_card(tmp_path, "monte_carlo", "Luck test", None, {})
+    mc = results._test_card(tmp_path, "monte_carlo", "Shuffle test", None, {})
     assert wf["line"] == "10 of 46 rolling periods made money."
     assert (rb["status"], rb["status_text"]) == ("crashed", "Crashed")
     assert mc["status"] is None and mc["run_id"] is None

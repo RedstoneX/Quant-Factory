@@ -44,7 +44,7 @@ def test_after_submit_shows_status_and_link():
     text = str(notice)
     assert "Submitted · Testing" in text
     assert "Waiting for its turn to be tested" in text
-    assert "/candidates?candidate_id=qfc_abc" in text
+    assert "/report?candidate_id=qfc_abc" in text
 
 
 def test_valid_but_not_submittable_says_why_in_plain_words():

@@ -116,3 +116,18 @@ def test_no_trade_row_has_five_grey_dots_and_dashes_in_panel_strip() -> None:
     assert str(ui.stat_strip(row)).count("—") == 3  # a real zero trades stays 0
     full = str(ui.stat_strip({"total_return": 5.0, "worst_drop": -3.0, "sharpe": 1.25, "trades": 1234}))
     assert "+5.0%" in full and "-3.0%" in full and "1.25" in full and "1,234" in full
+
+
+def test_list_shows_the_setting_locked_for_the_unseen_test_else_the_winner() -> None:
+    rows = [{"row_id": "a", "normalized_parameters_json": '{"trail": 0.3}', "metrics_json": '{"sharpe_ratio": 0.52}'},
+            {"row_id": "b", "normalized_parameters_json": '{"trail": 0.5}', "metrics_json": '{"sharpe_ratio": 0.43}'}]
+    assert workbench.shown_row(rows, {"trail": 0.5})["row_id"] == "b"  # same rule as the Report: the parameter lock wins
+    assert workbench.shown_row(rows, {})["row_id"] == "a" and workbench.shown_row(rows, {"trail": 0.9})["row_id"] == "a"  # nothing locked or no match: the cost-screen winner
+    assert workbench._locked(None, {"screening": {"run_id": "s"}}) == {}  # no unseen-data run: nothing is locked
+
+
+def test_result_column_fits_passed_the_gates_on_one_line() -> None:
+    ui = pytest.importorskip("dashboard.ui.results_workbench")
+    assert ui.RESULT_COLUMN_WIDTH >= 150  # PASSED THE GATES at 11px bold upper-case needs about 136px; the old 120 clipped it
+    chip = ui.chip_html("Passed the gates")
+    assert "white-space:nowrap" in chip and "Passed the gates" in chip

@@ -22,6 +22,7 @@ CHIP = ('<span style="display:inline-flex;align-items:center;height:20px;padding
         'white-space:nowrap;background:{bg};color:{fg};border:{border}">{text}</span>')
 TONE_BG = {"green": "rgba(94,234,176,0.14)", "amber": "rgba(245,184,65,0.14)", "red": "rgba(242,84,91,0.14)", "grey": "rgba(155,161,171,0.14)"}
 TYPE_ALL = "All strategy types"
+RESULT_COLUMN_WIDTH = 150  # fits the longest chip, PASSED THE GATES (16 upper-case characters at 11px bold, plus padding), on one line
 SHELL_HEADER = "48px"
 MONO = "'Geist Mono', ui-monospace, monospace"
 
@@ -110,7 +111,7 @@ def columns(phone: bool, bounds: dict[str, tuple[float, float]]) -> list[dict[st
     idea = {"field": "idea_md", "headerName": "Idea", "cellRenderer": "markdown", "minWidth": 110 if phone else 200, "flex": 1, "filter": "agTextColumnFilter", "tooltipField": "title",
             "cellStyle": {"lineHeight": "1.35", "paddingTop": "6px", **({"display": "flex", "alignItems": "center"} if phone else {})}, **({"wrapText": True, "autoHeight": True} if phone else {})}
     sharpe = {"field": "sharpe", "headerName": "Sharpe", "width": 84 if phone else 92, "filter": "agNumberColumnFilter", "valueFormatter": fmt(".2f"), "cellStyle": SHARPE_STYLE}
-    chip = {"field": "result_html", "headerName": "Result", "width": 134 if phone else 120, "cellStyle": {"display": "flex", "alignItems": "center", **({"paddingRight": "14px"} if phone else {})}, "cellRenderer": "markdown", "filter": "agTextColumnFilter", "filterValueGetter": _expression("params.data.result")}
+    chip = {"field": "result_html", "headerName": "Result", "width": RESULT_COLUMN_WIDTH + (14 if phone else 0), "cellStyle": {"display": "flex", "alignItems": "center", **({"paddingRight": "14px"} if phone else {})}, "cellRenderer": "markdown", "filter": "agTextColumnFilter", "filterValueGetter": _expression("params.data.result")}
     hidden = [{"field": "family", "hide": True, "filter": "agTextColumnFilter"}, {"field": "created_at", "headerName": "Submitted", "hide": True, "sort": "desc"}]  # newest first
     if phone:  # phone: Idea, Sharpe and the Result chip only
         return [idea, sharpe, chip, *hidden]

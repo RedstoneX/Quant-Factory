@@ -21,6 +21,15 @@ def test_stat_card_colour_is_never_null(monkeypatch) -> None:
 
 
 def test_stage_names_use_plain_words() -> None:
-    assert _stage_word("oos") == "Unseen-data test"
-    assert _stage_word("walk_forward") == "Rolling test"
+    assert _stage_word("oos") == "Unseen data"
+    assert _stage_word("walk_forward") == "Holds over time"
     assert _stage_word("custom_stage") == "Custom Stage"
+
+
+def test_old_idea_links_redirect_to_the_report() -> None:
+    import pytest
+    app = pytest.importorskip("dashboard.ui.app")
+    assert app.legacy_redirect("/candidates", "?candidate_id=qfc 1") == "/report?candidate_id=qfc%201"
+    assert app.legacy_redirect("/results", "?run_id=run_7&test=oos") == "/report?run_id=run_7"
+    assert app.legacy_redirect("/results", "") is None and app.legacy_redirect("/candidates", None) is None
+    assert app.legacy_redirect("/report", "?candidate_id=x") is None and app.legacy_redirect("/factory", "") is None

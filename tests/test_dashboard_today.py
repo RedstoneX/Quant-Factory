@@ -26,7 +26,7 @@ def _ideas() -> pd.DataFrame:
 
 def test_funnel_counts_ideas_standing_after_each_test() -> None:
     steps = today.funnel(_ideas())
-    assert [(step["label"], step["count"]) for step in steps] == [("Submitted", 7), ("Survives costs", 4), ("Unseen data", 3), ("Holds over time", 3), ("Stress test", 2), ("Luck test", 3)]
+    assert [(step["label"], step["count"]) for step in steps] == [("Submitted", 7), ("Survives costs", 4), ("Unseen data", 3), ("Holds over time", 3), ("Stress test", 2), ("Shuffle test", 3)]
     assert steps[1]["share"] == pytest.approx(4 / 7)  # bars are drawn to true scale from this share
 
 

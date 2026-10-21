@@ -10,7 +10,7 @@ from dashboard import idea_report_projection as report
 
 def test_labels_are_the_agreed_plain_words() -> None:
     assert report.TEST_LABELS == {"screening": "Survives costs", "oos": "Unseen data", "walk_forward": "Holds over time",
-                                  "robustness": "Stress test", "monte_carlo": "Luck test"}
+                                  "robustness": "Stress test", "monte_carlo": "Shuffle test"}
 
 
 @pytest.mark.parametrize(("stage", "stored", "run", "expected"), [
@@ -49,14 +49,12 @@ def test_missing_idea_reports_unavailable(tmp_path) -> None:
     assert report.load_report("qfc_missing", database=tmp_path / "none.sqlite3")["available"] is False
 
 
-def test_hero_series_joins_unseen_onto_built_on() -> None:
+def test_hero_series_is_one_curve_split_at_the_unseen_start() -> None:
     whole = [{"timestamp": f"2024-01-0{day}T10:00:00", "value": 100.0 + day} for day in range(1, 6)]
-    unseen = [{"timestamp": "2024-01-04T10:00:00", "value": 50.0}, {"timestamp": "2024-01-05T10:00:00", "value": 55.0}]
-    series = report.hero_series(whole, unseen)
-    assert list(series["built"]) == [101.0, 102.0, 103.0]
-    assert series["unseen"].iloc[0] == pytest.approx(103.0)
-    assert series["unseen"].iloc[1] == pytest.approx(103.0 * 1.1)
-    assert report.hero_series(whole, [])["unseen"].empty
+    series = report.hero_series(whole, "2024-01-04")
+    assert list(series["built"]) == [101.0, 102.0, 103.0] and list(series["unseen"]) == [104.0, 105.0]  # the saved values, never rescaled or stitched from another run
+    assert report.hero_series(whole, None)["unseen"].empty and len(report.hero_series(whole, None)["built"]) == 5
+    assert report.hero_series([], "2024-01-04")["built"].empty
 
 
 def test_drawdown_and_monthly_returns() -> None:
@@ -89,10 +87,10 @@ def test_header_chip() -> None:
 
 
 def test_summary_strip_leaves_out_what_cannot_be_computed() -> None:
-    values = pd.Series([100.0, 110.0, 99.0], index=pd.to_datetime(["2024-01-02", "2024-01-03", "2024-01-04"]))
-    items = dict(report.summary_strip(values, [{"pnl": 5.0}, {"pnl": -1.0}, {"pnl": 2.0}], 0.456))
-    assert items == {"Return": "-1.0%", "Worst drop": "-10.0%", "Sharpe after costs": "0.46", "Trades": "3", "Win rate": "67%"}
-    assert report.summary_strip(pd.Series(dtype=float), [], None) == []
+    row = {"total_return": 31.91, "max_drawdown": 18.27, "sharpe_ratio": 0.433, "number_of_trades": 2676}  # the saved cost-screen row, as the Results list reads it
+    items = dict(report.summary_strip(row, [{"pnl": 5.0}, {"pnl": -1.0}, {"pnl": 2.0}]))
+    assert items == {"Return": "+31.9%", "Worst drop": "-18.3%", "Sharpe after costs": "0.43", "Trades": "2,676", "Win rate": "67%"}
+    assert report.summary_strip({}, []) == []
 
 
 def test_unseen_run_that_succeeded_with_a_saved_failed_verdict_shows_failed(monkeypatch, tmp_path) -> None:
@@ -149,7 +147,7 @@ def test_survivor_with_failed_scores_keeps_gates_chip_and_stays_in_review() -> N
     statuses = report.apply_campaign_verdict(["Passed", "Passed", "Failed", "Passed", "Can't test"], ("survivor", "awaiting_owner_review"))
     assert report.gates_chip(statuses) == "Passed the gates · Holds over time: failed"
     result = workbench.overall_status(statuses, survivor=True)
-    assert result == "Passed the gates · Holds over time: failed" and workbench.chip_tone(result) == "amber"
+    assert result == "Passed the gates" and workbench.chip_tone(result) == "amber"  # the grid chip is the outcome only; the failed score shows in its dot and the panel
 
 
 def test_close_call_score_reads_close_call_in_the_chip() -> None:
@@ -185,7 +183,7 @@ def test_recorded_failed_walk_forward_with_3_of_18_windows_reads_failed_everywhe
     assert "close call" not in chip.lower()
     assert score_text(dict(zip(report.SCORE_STAGES, statuses[2:]))).startswith("Holds over time: failed, Stress test: failed")  # Factory log line
     today_chip = workbench.overall_status(statuses, survivor=True)  # the Today / grid chip
-    assert today_chip == "Passed the gates · Holds over time: failed · Stress test: failed"
+    assert today_chip == "Passed the gates"  # outcome only; the two failed scores are red dots and panel lines
 
 
 def test_our_side_settings_mismatch_is_cant_test_never_failed() -> None:
@@ -209,13 +207,64 @@ def test_survivor_log_line_reads_the_same_recorded_stages_as_the_report(monkeypa
     scores = report.score_statuses("qfc_a", "unused.sqlite3", run_id="run_screening")
     assert seen["run_id"] == "run_screening"  # that test's own stage runs
     event = {"state": "survivor", "reason_code": "awaiting_owner_review", "reason_detail": ""}
-    assert event_sentence(event, "SPY inside-bar", "Codex", scores)[0].endswith("scores: Holds over time: failed, Stress test: failed, Luck test: passed.")
+    assert event_sentence(event, "SPY inside-bar", "Codex", scores)[0].endswith("scores: Holds over time: failed, Stress test: failed, Shuffle test: passed.")
 
 
 def test_unscored_luck_test_has_one_phrase_from_the_recorded_numbers() -> None:
     assert report.too_few_phrase("Needs at least 10 results to shuffle; it had 5.") == "Not scored — not enough data (5 of 10 needed)"
     tests = [{"stage": "walk_forward", "label": "Holds over time", "status": "Failed", "value": "3 of 18 windows", "fraction": 3 / 18},
              {"stage": "robustness", "label": "Stress test", "status": "Failed", "value": "19 of 29 checks", "fraction": 19 / 29},
-             {"stage": "monte_carlo", "label": "Luck test", "status": "Not scored", "value": "Not scored — not enough data (5 of 10 needed)", "fraction": None}]
+             {"stage": "monte_carlo", "label": "Shuffle test", "status": "Not scored", "value": "Not scored — not enough data (5 of 10 needed)", "fraction": None}]
     assert report.gates_line(tests) == [("Passed the gates", "green"), (" · Holds over time: failed (3 of 18 windows made money)", "red"),
-                                        (" · Stress test: failed (19 of 29 checks passed)", "red"), (" · Luck test: not scored — not enough data (5 of 10 needed)", "grey")]
+                                        (" · Stress test: failed (19 of 29 checks passed)", "red"), (" · Shuffle test: not scored — not enough data (5 of 10 needed)", "grey")]
+
+
+def test_every_test_card_states_its_passes_if_rule() -> None:
+    assert set(report.RULES) == {stage for stage, _label in report.STAGES}
+    assert all(rule.startswith("Passes if") for rule in report.RULES.values())
+    for stage in report.RULES:
+        measure = report._test_measure(stage, {"run_id": None}, {}, {"periods": [], "checks": []}, None, None)
+        assert measure["rule"] == report.RULES[stage]
+
+
+def test_shuffle_card_line_is_the_measured_result_not_the_rule() -> None:
+    from dashboard.idea_results_projection import check_rows, shuffle_result_line
+    normalized = {"threshold_results": [{"threshold_id": "loss_probability", "status": "passed", "observed": 0.08, "threshold": 0.25},
+                                        {"threshold_id": "lower_percentile_return", "status": "passed", "observed": -0.012, "threshold": -0.05}]}
+    line = shuffle_result_line(check_rows(normalized))
+    assert "Shuffles that lost money 8% (needs 25%)" in line and "Worst-case shuffle return" in line
+    assert "Shuffled trades still made money" not in line and shuffle_result_line([]) == ""
+
+
+def test_shuffle_panel_names_the_test_and_keeps_the_luck_score_on_its_own_line() -> None:
+    ui = pytest.importorskip("dashboard.ui.idea_report")
+    test = {"stage": "monte_carlo", "run_id": "r", "detail": {"checks": [{"check": "Shuffles that lost money", "measured": "8.0%", "needed": "25.0%"}]}}
+    panel = str(ui.luck_panel({"tests": [test], "luck": 0.874}))
+    assert "Shuffle test" in panel and "Is it luck?" not in panel and "Luck score" in panel and "0.87" in panel
+    assert "not scored" in str(ui.luck_panel({"tests": [test], "luck": None}))
+
+
+def test_cost_screen_line_names_the_screen_not_a_positive_sharpe() -> None:
+    from dashboard import idea_results_projection as results
+    card = results._test_card(None, "screening", "Survives costs", {"run_id": "r"}, {"screening_count": 3, "screened_out_count": 2})
+    assert card["line"].startswith("1 of 3 settings cleared the cost screen") and "made money" not in card["line"]
+
+
+def test_report_numbers_follow_the_setting_locked_for_the_unseen_test(monkeypatch) -> None:
+    rows = [{"row_id": "a", "rank": 1, "parameters": {"trail": 0.3}}, {"row_id": "b", "rank": 2, "parameters": {"trail": 0.5}}]
+    assert report.locked_row_id(rows, {"trail": 0.5}) == "b"  # the unseen test locked trail 0.5; the cost-screen winner (rank 1) is not the Report's setting
+    assert report.locked_row_id(rows, {"trail": "0.5"}) == "b" and report.locked_row_id(rows, {}) is None and report.locked_row_id(rows, {"trail": 0.9}) is None
+    from dashboard import results_projection as results
+    monkeypatch.setattr(results, "_artifact_document", lambda **kw: {"artifact_kind": "out_of_sample", "metrics": {"sharpe_ratio": 1.18}, "test_status": "passed", "selected_parameters": {"trail": 0.5}})
+    assert results.oos_report_metrics(database=None, run_id="r")["_locked_parameters"] == {"trail": 0.5}
+
+
+def test_cards_show_rule_number_and_bar_only_except_card_2() -> None:
+    ui = pytest.importorskip("dashboard.ui.idea_report")
+    base = {"run_id": "r", "label": "T", "status": "Passed", "value": "3 of 18 windows", "fraction": 0.2, "pass_line": None, "rule": "Passes if x", "line": "DETAIL LINE", "detail": {"periods": [], "checks": []}}
+    for stage in ("screening", "walk_forward", "robustness", "monte_carlo"):
+        text = str(ui.test_card(1, {**base, "stage": stage}))
+        assert "DETAIL LINE" not in text and "Passes if x" in text and "3 of 18 windows" in text and "Per-window" not in text
+    unseen = str(ui.test_card(2, {**base, "stage": "oos", "scores": [("Built-on years", "0.23"), ("Unseen years", "1.18")]}))
+    assert "DETAIL LINE" in unseen and "Built-on years" in unseen and "1.18" in unseen
+    assert ui.SETTINGS_NOTE == "Sharpe after costs · all years, unseen included · white outline = setting locked for the unseen test"
