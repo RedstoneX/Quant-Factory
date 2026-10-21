@@ -16,8 +16,10 @@ from orchestration.auto_campaign import (
     POLICY_ID,
     AutoTestOutcome,
     InstalledRuleStrategy,
+    auto_test_definition,
     campaign_idempotency_key,
     dataset_profile,
+    packet_market,
     packet_requested_start,
     outcome_from_chain,
     run_auto_test,
@@ -561,11 +563,26 @@ def test_operator_requeue_after_fix_restarts_the_interruption_budget(tmp_path):
 
 
 def test_packet_start_date_narrows_the_tested_history():
-    assert packet_requested_start({"market": {"requested_start": "2021-01-04"}}) == "2021-01-04"
-    assert packet_requested_start({"market": {"requested_start": "soon"}}) is None
+    assert packet_requested_start({"data_needs": {"requested_start": "2021-01-04"}}) == "2021-01-04"
     assert packet_requested_start({}) is None
+    with pytest.raises(ValueError, match="data_needs.requested_start"):
+        packet_requested_start({"data_needs": {"requested_start": "soon"}})
+    with pytest.raises(ValueError, match="market.requested_start"):
+        packet_requested_start({"market": {"requested_start": "2021-01-04"}})
     assert dataset_profile("MES", "5m", "2021-01-04").requested_start == "2021-01-04"
     # Outside the dataset, or not later than its start, the dataset's own start stands.
     assert dataset_profile("MES", "5m", "2010-01-01").requested_start == "2019-05-06"
     assert dataset_profile("MES", "5m", "2030-01-01").requested_start == "2019-05-06"
     assert dataset_profile("MES", "5m").requested_start == "2019-05-06"
+
+
+def test_configuration_starts_at_the_packets_data_needs_start():
+    """A real packet carries its start under data_needs only; the saved configuration must use it."""
+    packet = json.loads((Path(__file__).parent / "fixtures" / "qfc_d21077c94c96d40b205628d2ef90fee3.json").read_text())
+    packet["data_needs"]["requested_start"] = "2021-01-04"
+    profile = dataset_profile(*packet_market(packet), packet_requested_start(packet))
+    definition = auto_test_definition(
+        candidate_id="idea_start0001", strategy_id="five_bar_run_exhaustion", strategy_version="1",
+        variables=packet["variables"], profile=profile,
+    )
+    assert definition.configuration_document()["market_data"]["requested_start"] == "2021-01-04"
