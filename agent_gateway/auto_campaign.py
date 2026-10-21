@@ -214,7 +214,11 @@ class AutoTestCampaign:
         )
         if earlier is not None:
             return record("duplicate_closed", "same_rules", earlier)
-        profile = dataset_profile(symbol, timeframe, packet_requested_start(packet))
+        try:
+            requested_start = packet_requested_start(packet)
+        except ValueError as exc:
+            return record("implementation_blocked", "rules_invalid", f"The start date is invalid: {safe_detail(exc)}")
+        profile = dataset_profile(symbol, timeframe, requested_start)
         if profile is None:
             return record(
                 "implementation_blocked", "data_unavailable",
