@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 from dash import dcc, html
 from plotly.subplots import make_subplots
 
-from dashboard.idea_report_projection import NOT_SAVED, STATUS_TONE, UNSAVED_UNSEEN_NOTE, load_report
+from dashboard.idea_report_projection import STATUS_TONE, UNSAVED_UNSEEN_NOTE, load_report
 from dashboard.ui.results import TRADE_COLUMNS
 
 FONT_URL = "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
@@ -100,20 +100,22 @@ def strip(report: dict[str, Any]) -> dmc.Paper | None:
     return dmc.Paper(dmc.SimpleGrid(cells, cols={"base": 2, "sm": len(cells)}, spacing="md"), p="lg", radius="lg", bg=PANEL, style=CARD, className="idea-report-strip")
 
 
+LINE_STAGES = ("oos", "shortfall")  # the only cards that keep a detail line under the bar (design review 21 Oct 2026)
+SETTINGS_NOTE = "Sharpe after costs · whole history, unseen years included · white outline = chosen"  # the screen runs every setting over the full data window, not the built-on years alone
+
+
 def test_card(index: int, test: dict[str, Any]) -> dmc.Paper:
     tone = TONE[STATUS_TONE[test["status"]]]
     bar: list[Any] = []
     if test["fraction"] is not None:
         tick = [html.Div(style={"position": "absolute", "top": -4, "left": f"{test['pass_line'] * 100:.1f}%", "width": 2, "height": 14, "background": TEXT})] if test["pass_line"] is not None else []
         bar = [html.Div([dmc.Progress(value=max(0, min(1, test["fraction"])) * 100, color=tone, size=6), *tick], style={"position": "relative", "marginBottom": 10})]
-    saved_note = []
-    if test["stage"] == "walk_forward" and test["run_id"] and not test["detail"]["periods"]:
-        saved_note = [dmc.Text("Per-window numbers: " + NOT_SAVED.lower(), size="xs", c=FAINT)]
+    detail = test["stage"] in LINE_STAGES and test.get("line")  # rule, number and bar only; card 2 keeps its Sharpe lines and reason, the panel's shortfall card its check name
     return dmc.Paper([
         dmc.Group([dmc.Text(f"{index} · {test['label']}", fw=500, size="sm"), *([dmc.Badge(test["status"], color=tone, variant="light", size="sm")] if test["run_id"] else [])], justify="space-between", gap="xs"),
         *([dmc.Text(test["rule"], size="xs", c=MUTED)] if test.get("rule") else []),
         dmc.Text(test["value"], size="sm", c=MUTED) if str(test["value"]).startswith("Not scored") else dmc.Text(test["value"], size="lg", ff=MONO), *bar,
-        *[dmc.Text([f"{name} · not saved"] if value is None else [f"{name} · Sharpe ", html.Span(value, style={"fontFamily": MONO})], size="xs") for name, value in test.get("scores") or []], *([dmc.Text(test["line"], size="xs", c=MUTED)] if test["line"] else []), *saved_note,
+        *[dmc.Text([f"{name} · not saved"] if value is None else [f"{name} · Sharpe ", html.Span(value, style={"fontFamily": MONO})], size="xs") for name, value in test.get("scores") or []], *([dmc.Text(test["line"], size="xs", c=MUTED)] if detail else []),
     ], p="md", radius="md", bg=INNER, style={"border": f"1px solid {LINE}"}, className="idea-report-test")
 
 
@@ -142,7 +144,7 @@ def settings_panel(report: dict[str, Any]) -> dmc.Paper | None:
         figure.update_xaxes(type="category", title=across)
         figure.update_yaxes(type="category", title=down)
     figure.update_layout(hovermode="closest")
-    return _panel("Every setting tried", "Sharpe after costs · white outline = chosen", _figure(figure, 300), dmc.Text(f"{grid['count']:,} settings tried.", size="xs", c=MUTED))
+    return _panel("Every setting tried", SETTINGS_NOTE, _figure(figure, 300), dmc.Text(f"{grid['count']:,} settings tried.", size="xs", c=MUTED))
 
 
 def luck_panel(report: dict[str, Any]) -> dmc.Paper | None:

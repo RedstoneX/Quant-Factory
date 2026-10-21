@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-from dashboard.idea_report_projection import CANT_TEST, gates_chip, CLOSE_CALL, STATUS_TONE, TEST_LABELS, apply_campaign_verdict, campaign_row, report_status
+from dashboard.idea_report_projection import CANT_TEST, GATES_CHIP, gates_chip, CLOSE_CALL, STATUS_TONE, TEST_LABELS, apply_campaign_verdict, campaign_row, report_status
 from dashboard.idea_results_projection import STAGES, TRADE_STAGES, _check_name, _check_value, _evidence, _stage_runs, _test_card
 from dashboard.overview_projection import TEST_TITLE_PATTERNS, _validated_connection, configured_database_path
 
@@ -81,7 +81,7 @@ def overall_status(statuses: list[str], trades: Any = None, survivor: bool = Fal
     if trades is not None and not pd.isna(trades) and trades == 0:
         return "No trades"
     if survivor and gates_chip(statuses):  # scores are not gates: a survivor stays Passed the gates whatever its scores
-        return "Passed" if all(status in ("Passed", "Not scored") for status in statuses) else gates_chip(statuses)
+        return "Passed" if all(status in ("Passed", "Not scored") for status in statuses) else GATES_CHIP[0]  # outcome only; failed scores show in the five-test dots and the side panel
     failed = next((SHORT_STAGE[stage] for stage, status in zip(STAGE_NAMES, statuses) if status == "Failed"), None)
     if failed:
         return f"Failed: {failed}"

@@ -149,7 +149,7 @@ def test_survivor_with_failed_scores_keeps_gates_chip_and_stays_in_review() -> N
     statuses = report.apply_campaign_verdict(["Passed", "Passed", "Failed", "Passed", "Can't test"], ("survivor", "awaiting_owner_review"))
     assert report.gates_chip(statuses) == "Passed the gates · Holds over time: failed"
     result = workbench.overall_status(statuses, survivor=True)
-    assert result == "Passed the gates · Holds over time: failed" and workbench.chip_tone(result) == "amber"
+    assert result == "Passed the gates" and workbench.chip_tone(result) == "amber"  # the grid chip is the outcome only; the failed score shows in its dot and the panel
 
 
 def test_close_call_score_reads_close_call_in_the_chip() -> None:
@@ -185,7 +185,7 @@ def test_recorded_failed_walk_forward_with_3_of_18_windows_reads_failed_everywhe
     assert "close call" not in chip.lower()
     assert score_text(dict(zip(report.SCORE_STAGES, statuses[2:]))).startswith("Holds over time: failed, Stress test: failed")  # Factory log line
     today_chip = workbench.overall_status(statuses, survivor=True)  # the Today / grid chip
-    assert today_chip == "Passed the gates · Holds over time: failed · Stress test: failed"
+    assert today_chip == "Passed the gates"  # outcome only; the two failed scores are red dots and panel lines
 
 
 def test_our_side_settings_mismatch_is_cant_test_never_failed() -> None:
@@ -250,3 +250,14 @@ def test_cost_screen_line_names_the_screen_not_a_positive_sharpe() -> None:
     from dashboard import idea_results_projection as results
     card = results._test_card(None, "screening", "Survives costs", {"run_id": "r"}, {"screening_count": 3, "screened_out_count": 2})
     assert card["line"].startswith("1 of 3 settings cleared the cost screen") and "made money" not in card["line"]
+
+
+def test_cards_show_rule_number_and_bar_only_except_card_2() -> None:
+    ui = pytest.importorskip("dashboard.ui.idea_report")
+    base = {"run_id": "r", "label": "T", "status": "Passed", "value": "3 of 18 windows", "fraction": 0.2, "pass_line": None, "rule": "Passes if x", "line": "DETAIL LINE", "detail": {"periods": [], "checks": []}}
+    for stage in ("screening", "walk_forward", "robustness", "monte_carlo"):
+        text = str(ui.test_card(1, {**base, "stage": stage}))
+        assert "DETAIL LINE" not in text and "Passes if x" in text and "3 of 18 windows" in text and "Per-window" not in text
+    unseen = str(ui.test_card(2, {**base, "stage": "oos", "scores": [("Built-on years", "0.23"), ("Unseen years", "1.18")]}))
+    assert "DETAIL LINE" in unseen and "Built-on years" in unseen and "1.18" in unseen
+    assert "whole history, unseen years included" in ui.SETTINGS_NOTE and "built-on years" not in ui.SETTINGS_NOTE
