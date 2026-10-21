@@ -196,3 +196,15 @@ def test_a_failed_licensed_lane_refuses_the_revision(tmp_path: Path, monkeypatch
     assert subprocess_calls[0] == ["docker", "rm", "-f", f"qf-licensed-{SHA_A[:12]}"]
     assert subprocess_calls[1][:2] == ["docker", "run"]
     assert "FAILED tests/test_x.py::test_a - AssertionError" in logged
+    assert f"licensed tests on {SHA_A[:12]}: 1 failed, 5 passed in 1.00s (pytest exit 1)" in logged
+
+
+def test_a_passing_licensed_lane_logs_its_counts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    logged: list[str] = []
+    monkeypatch.setattr(qf_deploy, "run", lambda *_, **__: "")
+    monkeypatch.setattr(qf_deploy, "log", logged.append)
+    monkeypatch.setattr(qf_deploy.subprocess, "run", lambda args, **__: qf_deploy.subprocess.CompletedProcess(
+        args, 0, stdout="....\n87 passed, 2 skipped in 120.00s\n"))
+
+    qf_deploy.verify_image(tmp_path, SHA_A, tmp_path / "venv")
+    assert f"licensed tests on {SHA_A[:12]}: 87 passed, 2 skipped in 120.00s (pytest exit 0)" in logged

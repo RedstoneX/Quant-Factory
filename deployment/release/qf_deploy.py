@@ -9,7 +9,8 @@ systemd unit) changes only when an administrator runs ``qf-deploy --install-infr
 until then the automatic deploy waits and records why.
 
 Before anything switches, the licensed VectorBT test lane (the tests GitHub CI cannot
-run) runs inside the newly built research image with no network.  A failing revision
+run) runs inside the newly built research image with no network, and its pytest
+summary (pass/fail counts) is logged.  A failing revision
 is refused, recorded as ``failed_revision`` and not retried until main moves.
 """
 from __future__ import annotations
@@ -122,10 +123,15 @@ def failed_node_ids(output: str, limit: int = 20) -> list[str]:
     return [line for line in lines if line.startswith(("FAILED ", "ERROR "))][:limit]
 
 
+def summary_line(output: str) -> str:
+    """Pytest's final summary line, e.g. ``87 passed in 120.00s`` (empty when there is no output)."""
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
 def failing_count(output: str) -> int:
     """Failed plus errored tests on pytest's final summary line (0 when it reports none)."""
-    lines = [line for line in output.splitlines() if line.strip()]
-    return sum(int(count) for count in PYTEST_SUMMARY.findall(lines[-1])) if lines else 0
+    return sum(int(count) for count in PYTEST_SUMMARY.findall(summary_line(output)))
 
 
 def set_env_revision(text: str, revision: str) -> str:
@@ -245,6 +251,8 @@ def verify_image(release: Path, revision: str, venv: Path) -> None:
     subprocess.run(["docker", "rm", "-f", licensed_container_name(revision)], check=False, capture_output=True)
     log(f"running licensed tests in research image {revision[:12]}")
     result = subprocess.run(licensed_lane_command(release, revision), check=False, text=True, capture_output=True)
+    log(f"licensed tests on {revision[:12]}: {summary_line(result.stdout or '') or 'no pytest summary'} "
+        f"(pytest exit {result.returncode})")
     if result.returncode != 0:
         for line in failed_node_ids(result.stdout or ""):
             log(line)
