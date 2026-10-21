@@ -472,13 +472,7 @@ class IdeaDraftRepository:
         assert record is not None
         return record
 
-    def link_configuration(
-        self,
-        draft_id: str,
-        configuration_id: str,
-        *,
-        replace: bool = False,
-    ) -> IdeaDraftRecord:
+    def link_configuration(self, draft_id: str, configuration_id: str, *, replace: bool = False) -> IdeaDraftRecord:
         existing = self.get(draft_id)
         if existing is None:
             raise KeyError(f"unknown idea draft {draft_id}")

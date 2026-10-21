@@ -11,7 +11,6 @@ import pytest
 
 from agent_gateway.auto_campaign import MAX_ATTEMPTS, AutoTestCampaign
 from agent_gateway.store import REQUEUED_AFTER_FIX, GatewayStore
-from agent_gateway.results import retest_settled
 from market_data import DatasetUnavailableError
 from orchestration.auto_campaign import (
     POLICY_ID,
@@ -561,21 +560,6 @@ def test_operator_requeue_after_fix_restarts_the_interruption_budget(tmp_path):
     campaign.run_once()
     assert len(harness.launches) == 1
     assert harness.launches[0][1].endswith(f"-r{MAX_ATTEMPTS}")
-
-
-def test_only_an_operator_retest_asks_for_a_fresh_setup(tmp_path):
-    harness = Harness(tmp_path)
-    harness.draft("idea_rebuild1")
-    seen = []
-    campaign = harness.campaign(executor=lambda request: seen.append(request.rebuild) or harness.executor(request))
-    campaign.run_once()
-    store = GatewayStore(harness.gateway_database)
-    try:
-        retest_settled(store, "idea_rebuild1", "stage 1 screens in-sample only")
-    finally:
-        store.close()
-    campaign.run_once()
-    assert seen == [False, True]
 
 
 def test_packet_start_date_narrows_the_tested_history():

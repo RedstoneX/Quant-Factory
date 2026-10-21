@@ -1035,18 +1035,11 @@ class PersistenceService:
         document: dict[str, Any],
         replace: bool = False,
     ) -> tuple[IdeaDraftRecord, ConfigurationRecord]:
-        """Persist immutable setup and its draft link in one transaction.
-
-        ``replace`` moves an existing link to the new setup (an operator retest); the old setup is kept.
-        """
+        """Persist immutable setup and its draft link in one transaction; ``replace`` relinks (old setup kept)."""
 
         with transaction(self.connection):
             configuration = self.configurations.upsert(document)
-            draft = self.idea_drafts.link_configuration(
-                draft_id,
-                configuration.configuration_id,
-                replace=replace,
-            )
+            draft = self.idea_drafts.link_configuration(draft_id, configuration.configuration_id, replace=replace)
             return draft, configuration
 
     def create_run(
