@@ -197,7 +197,9 @@ def oos_report_metrics(*, database: Path, run_id: str | None) -> dict[str, Any] 
         return None
     training = report.get("training_metrics")
     locked = report.get("selected_parameters")  # the setting the unseen test locked on the selection slice
-    return {**metrics, "_test_status": report.get("test_status"), "_training_metrics": training if isinstance(training, dict) else {}, "_locked_parameters": locked if isinstance(locked, dict) else {}}
+    unseen_start = ((report.get("split") or {}).get("test") or {}).get("start") or report.get("source_start")  # first day of the unseen slice
+    return {**metrics, "_test_status": report.get("test_status"), "_training_metrics": training if isinstance(training, dict) else {}, "_locked_parameters": locked if isinstance(locked, dict) else {},
+            "_unseen_start": str(unseen_start) if unseen_start else None}
 
 
 def _price_source(

@@ -175,17 +175,20 @@ def overall_chip(tests: list[dict[str, Any]]) -> tuple[str, str]:
     return " · ".join(f"{count} {word.lower()}" for word, count in counts if count), "red" if any(t["status"] == CRASHED for t in tests) else "grey"
 
 
-def summary_strip(whole: pd.Series, trades: list[dict[str, Any]], sharpe: float | None) -> list[tuple[str, str]]:
-    """Return, worst drop, Sharpe after costs, trades and win rate from stored account value and trades; anything not computable is left out."""
+def summary_strip(row: dict[str, Any], trades: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    """Return, worst drop, Sharpe after costs and trades from the shown setting's saved cost-screen row (the same numbers the Results list shows), win rate from its trades; anything not saved is left out."""
     items: list[tuple[str, str]] = []
-    if len(whole) > 1:
-        items.append(("Return", f"{(whole.iloc[-1] / whole.iloc[0] - 1) * 100:+.1f}%"))
-        items.append(("Worst drop", f"{drawdown(whole).min():.1f}%"))
-    if sharpe is not None:
-        items.append(("Sharpe after costs", f"{float(sharpe):.2f}"))
+    if row.get("total_return") is not None:
+        items.append(("Return", f"{float(row['total_return']):+.1f}%"))
+    if row.get("max_drawdown") is not None:
+        items.append(("Worst drop", f"{-abs(float(row['max_drawdown'])):.1f}%"))
+    if row.get("sharpe_ratio") is not None:
+        items.append(("Sharpe after costs", f"{float(row['sharpe_ratio']):.2f}"))
+    if row.get("number_of_trades") is not None:
+        items.append(("Trades", f"{int(row['number_of_trades']):,}"))
     pnl = pd.Series([trade["pnl"] for trade in trades if trade.get("pnl") is not None], dtype=float)
     if not pnl.empty:
-        items += [("Trades", f"{len(pnl):,}"), ("Win rate", f"{(pnl > 0).mean() * 100:.0f}%")]
+        items.append(("Win rate", f"{(pnl > 0).mean() * 100:.0f}%"))
     return items
 
 
@@ -242,19 +245,17 @@ def _series(rows: list[dict[str, Any]]) -> pd.Series:
     return pd.Series(frame["value"].astype(float).to_numpy(), index=pd.to_datetime(frame["timestamp"]), dtype=float).sort_index()
 
 
-def hero_series(screening_equity: list[dict[str, Any]], unseen_equity: list[dict[str, Any]]) -> dict[str, pd.Series]:
-    """Built-on account value up to where the unseen period begins, then the unseen period joined on to it.
+def hero_series(screening_equity: list[dict[str, Any]], unseen_start: str | None) -> dict[str, pd.Series]:
+    """The one saved whole-window account value of the shown setting, split at the unseen-data start date: built-on before, unseen from that date on.
 
-    The unseen test saves its own account value from its own start; it is scaled to continue from the last
-    built-on value so the two read as one line. With no unseen history everything is built-on.
+    One curve, two colours; nothing from another run is stitched on. Without a known unseen start everything is built-on.
     """
-    whole, unseen = _series(screening_equity), _series(unseen_equity)
-    if unseen.empty:
-        return {"built": whole, "unseen": unseen}
-    built = whole[whole.index < unseen.index[0]]
-    if built.empty:
-        return {"built": built, "unseen": unseen}
-    return {"built": built, "unseen": unseen / unseen.iloc[0] * built.iloc[-1]}
+    whole = _series(screening_equity)
+    if not unseen_start or whole.empty:
+        return {"built": whole, "unseen": pd.Series(dtype=float)}
+    start = pd.Timestamp(unseen_start)
+    start = start.tz_localize(whole.index.tz) if start.tzinfo is None and whole.index.tz is not None else start.tz_convert(whole.index.tz) if whole.index.tz is not None else start.tz_localize(None)
+    return {"built": whole[whole.index < start], "unseen": whole[whole.index >= start]}
 
 
 def drawdown(values: pd.Series) -> pd.Series:
@@ -348,13 +349,11 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     verdict = apply_campaign_verdict([test["status"] for test in tests], campaign)
     for test, status in zip(tests, verdict):
         test["status"] = status
-    locked = (oos_report_metrics(database=path, run_id=(runs.get("oos") or {}).get("run_id")) or {}).get("_locked_parameters") or {}
-    locked_row = locked_row_id(idea.get("screening_rows") or [], locked)  # every Report number is the locked setting; only the settings bars show the others
+    unseen_report = oos_report_metrics(database=path, run_id=(runs.get("oos") or {}).get("run_id")) or {}
+    locked_row = locked_row_id(idea.get("screening_rows") or [], unseen_report.get("_locked_parameters") or {})  # every Report number is the locked setting; only the settings bars show the others
     screening_view = load_trade_view(idea, "screening", locked_row, database=path) if "screening" in runs else {"available": False}
-    unseen_view = load_trade_view(idea, "oos", database=path) if "oos" in runs else {"available": False}
     screening_equity = screening_view.get("equity") or [] if screening_view.get("available") else []
-    unseen_equity = unseen_view.get("equity") or [] if unseen_view.get("available") else []
-    series = hero_series(screening_equity, unseen_equity)
+    series = hero_series(screening_equity, unseen_report.get("_unseen_start"))  # one saved curve, coloured built-on / unseen at the unseen-data start
     whole = pd.concat([part for part in (series["built"], series["unseen"]) if not part.empty]) if not (series["built"].empty and series["unseen"].empty) else series["built"]
     built_return = float(series["built"].iloc[-1] / series["built"].iloc[0] - 1) if len(series["built"]) > 1 else None
     for test in tests:
@@ -385,19 +384,21 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
             close = pd.Series(bars["close"].astype(float).to_numpy(), index=pd.to_datetime(bars["timestamp"]))
             close = close[(close.index >= whole.index[0]) & (close.index <= whole.index[-1])]
             hold = close / close.iloc[0] * whole.iloc[0] if not close.empty else close
-    trades = (screening_view.get("trades") if screening_view.get("available") else None) or (unseen_view.get("trades") if unseen_view.get("available") else None) or []
+    trades = (screening_view.get("trades") if screening_view.get("available") else None) or []
     has_chart = not whole.empty
-    performance = ((unseen_view.get("performance") if unseen_equity else None) or screening_view.get("performance") or {}).get("performance", {}).get("all") or {}
+    performance = (screening_view.get("performance") or {}).get("performance", {}).get("all") or {}
     rows = idea.get("screening_rows") or []
+    shown = next((row for row in rows if row.get("row_id") == screening_view.get("row_id")), {})  # the shown setting's saved row: the single source the Results list reads too
+    has_unseen = not series["unseen"].empty
     return {
         "available": True, "title": idea["title"], "symbol": idea.get("symbol") or "", "candidate_id": idea.get("candidate_id") or candidate_id,
-        "verdict": survivor_chip or crash_chip[0], "verdict_line": gates_line(tests) if survivor_chip else None, "verdict_tone": GATES_CHIP[1] if survivor_chip else crash_chip[1], "strip": [] if not has_chart else summary_strip(whole, trades, next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None)),
+        "verdict": survivor_chip or crash_chip[0], "verdict_line": gates_line(tests) if survivor_chip else None, "verdict_tone": GATES_CHIP[1] if survivor_chip else crash_chip[1], "strip": [] if not has_chart else summary_strip(shown, trades),
         "tested": _tested_label(path, (runs.get("screening") or {}).get("run_id")), "tests": tests,
         "hero": {"kind": "chart" if has_chart else "never_ran", **({} if has_chart else never_ran_card(idea, tests)),
-                 "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if unseen_equity else NOT_SAVED},
-        "performance": performance, "sharpe": next((row.get("sharpe_ratio") for row in rows if row.get("row_id") == screening_view.get("row_id")), None),
+                 "built": series["built"], "unseen": series["unseen"], "hold": hold, "drawdown": drawdown(whole), "unseen_label_note": "" if has_unseen else NOT_SAVED},
+        "performance": performance, "sharpe": shown.get("sharpe_ratio"),
         "unseen_return": next((test for test in tests if test["stage"] == "oos"), {}).get("value"),
-        "luck": luck, "monthly": monthly_returns(whole), "trades": trades, "unseen_trades_saved": bool(unseen_view.get("trades")) if unseen_view.get("available") else False,
+        "luck": luck, "monthly": monthly_returns(whole), "trades": trades, "unseen_trades_saved": has_unseen,
         "pnl": [float(trade["pnl"]) for trade in trades if trade.get("pnl") is not None],
         "grid": settings_grid(rows, screening_view.get("row_id")),
     }

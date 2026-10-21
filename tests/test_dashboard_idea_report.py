@@ -49,14 +49,12 @@ def test_missing_idea_reports_unavailable(tmp_path) -> None:
     assert report.load_report("qfc_missing", database=tmp_path / "none.sqlite3")["available"] is False
 
 
-def test_hero_series_joins_unseen_onto_built_on() -> None:
+def test_hero_series_is_one_curve_split_at_the_unseen_start() -> None:
     whole = [{"timestamp": f"2024-01-0{day}T10:00:00", "value": 100.0 + day} for day in range(1, 6)]
-    unseen = [{"timestamp": "2024-01-04T10:00:00", "value": 50.0}, {"timestamp": "2024-01-05T10:00:00", "value": 55.0}]
-    series = report.hero_series(whole, unseen)
-    assert list(series["built"]) == [101.0, 102.0, 103.0]
-    assert series["unseen"].iloc[0] == pytest.approx(103.0)
-    assert series["unseen"].iloc[1] == pytest.approx(103.0 * 1.1)
-    assert report.hero_series(whole, [])["unseen"].empty
+    series = report.hero_series(whole, "2024-01-04")
+    assert list(series["built"]) == [101.0, 102.0, 103.0] and list(series["unseen"]) == [104.0, 105.0]  # the saved values, never rescaled or stitched from another run
+    assert report.hero_series(whole, None)["unseen"].empty and len(report.hero_series(whole, None)["built"]) == 5
+    assert report.hero_series([], "2024-01-04")["built"].empty
 
 
 def test_drawdown_and_monthly_returns() -> None:
@@ -89,10 +87,10 @@ def test_header_chip() -> None:
 
 
 def test_summary_strip_leaves_out_what_cannot_be_computed() -> None:
-    values = pd.Series([100.0, 110.0, 99.0], index=pd.to_datetime(["2024-01-02", "2024-01-03", "2024-01-04"]))
-    items = dict(report.summary_strip(values, [{"pnl": 5.0}, {"pnl": -1.0}, {"pnl": 2.0}], 0.456))
-    assert items == {"Return": "-1.0%", "Worst drop": "-10.0%", "Sharpe after costs": "0.46", "Trades": "3", "Win rate": "67%"}
-    assert report.summary_strip(pd.Series(dtype=float), [], None) == []
+    row = {"total_return": 31.91, "max_drawdown": 18.27, "sharpe_ratio": 0.433, "number_of_trades": 2676}  # the saved cost-screen row, as the Results list reads it
+    items = dict(report.summary_strip(row, [{"pnl": 5.0}, {"pnl": -1.0}, {"pnl": 2.0}]))
+    assert items == {"Return": "+31.9%", "Worst drop": "-18.3%", "Sharpe after costs": "0.43", "Trades": "2,676", "Win rate": "67%"}
+    assert report.summary_strip({}, []) == []
 
 
 def test_unseen_run_that_succeeded_with_a_saved_failed_verdict_shows_failed(monkeypatch, tmp_path) -> None:
