@@ -34,11 +34,11 @@ from backtesting.validation import WalkForwardWindowRules
 from market_data import DatasetUnavailableError, MarketDataConfig, load_market_data
 from market_data.alpaca_sip_universe import UNIVERSE
 from orchestration.auto_campaign_stocks import STOCK_INTERVAL, StockCostsUnavailable, stock_profile_fields
+from orchestration.candidate_pipeline_definition import CandidateValidationPlan
 from orchestration.candidate_pipeline_runtime import (
     CandidatePipelineDefinition,
     CandidatePipelineReplayIncompleteError,
     CandidatePipelineRuntime,
-    CandidateValidationPlan,
 )
 from orchestration.research_launch_claims import ResearchLaunchError, ResearchLaunchInvocationError
 from persistence import PersistenceService, StrategyLifecycle, canonical_json

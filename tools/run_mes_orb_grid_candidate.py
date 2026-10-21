@@ -17,7 +17,8 @@ from backtesting.screening import ScreeningConfig
 from backtesting.validation import WalkForwardWindowRules
 from dashboard.run_adapter import IdeaDraftView, list_idea_drafts
 from market_data import MarketDataConfig, load_market_data
-from orchestration.candidate_pipeline_runtime import CandidatePipelineDefinition, CandidateValidationPlan
+from orchestration.candidate_pipeline_definition import CandidateValidationPlan
+from orchestration.candidate_pipeline_runtime import CandidatePipelineDefinition
 from persistence import PersistenceService, StrategyLifecycle, canonical_json
 from research_intake import parse_candidate_packet, validate_candidate_packet
 from strategies.mes_opening_range_breakout import MES_ORB_GRID_SPEC

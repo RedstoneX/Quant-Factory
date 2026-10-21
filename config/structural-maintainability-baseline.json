@@ -27,7 +27,7 @@
     "backtesting/validation/evidence_service.py": 833,
     "dashboard/run_adapter.py": 823,
     "dashboard/run_detail_adapter.py": 1304,
-    "orchestration/candidate_pipeline_runtime.py": 1109,
+    "orchestration/candidate_pipeline_runtime.py": 1047,
     "orchestration/research_launch_claims.py": 1353,
     "orchestration/run_service.py": 926,
     "persistence/repositories.py": 1222,
