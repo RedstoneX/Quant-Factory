@@ -476,11 +476,13 @@ class IdeaDraftRepository:
         self,
         draft_id: str,
         configuration_id: str,
+        *,
+        replace: bool = False,
     ) -> IdeaDraftRecord:
         existing = self.get(draft_id)
         if existing is None:
             raise KeyError(f"unknown idea draft {draft_id}")
-        if existing.configuration_id not in (None, configuration_id):
+        if not replace and existing.configuration_id not in (None, configuration_id):
             raise ValueError("idea draft is already linked to an immutable configuration")
         self.connection.execute(
             """

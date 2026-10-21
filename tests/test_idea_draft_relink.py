@@ -7,11 +7,11 @@ from persistence import PersistenceService
 from tests.test_auto_campaign import RULES, FakeAdapter, _chain
 
 
-def _run(tmp_path, adapter, rules, profile, launches):
+def _run(tmp_path, adapter, rules, profile, launches, rebuild=False):
     definition = adapter.definition(candidate_id="idea_relink01", title="Relink", rule_spec=rules, variables={})
     request = AutoTestRequest(
         candidate_id="idea_relink01", definition=definition, profile=profile,
-        database=str(tmp_path / "qf.sqlite3"), artifact_root=str(tmp_path / "artifacts"),
+        database=str(tmp_path / "qf.sqlite3"), artifact_root=str(tmp_path / "artifacts"), rebuild=rebuild,
     )
 
     def launch(configuration_id, key):
@@ -49,3 +49,31 @@ def test_rerun_with_changed_rules_fails_in_plain_english(tmp_path):
     outcome = _run(tmp_path, adapter, {**RULES, "max_trades_per_session": 2}, profile, launches)
     assert (outcome.state, outcome.reason_code) == ("failed", "rules_changed")
     assert "different rules" in outcome.reason_detail and len(launches) == 1
+
+
+def test_operator_retest_builds_a_new_setup_and_keeps_the_old_one(tmp_path):
+    adapter = FakeAdapter(tmp_path / "rule_strategies")
+    profile = dataset_profile("MES", "5m")
+    _draft(tmp_path)
+    launches: list[str] = []
+    _run(tmp_path, adapter, RULES, profile, launches)
+    corrected = dataclasses.replace(profile, requested_start="2021-05-03")
+    assert _run(tmp_path, adapter, RULES, corrected, launches, rebuild=True).state == "survivor"
+    assert len(launches) == 2 and launches[0] != launches[1]
+    service = PersistenceService(tmp_path / "qf.sqlite3")
+    try:
+        assert service.idea_drafts.get("idea_relink01").configuration_id == launches[1]
+        assert service.configurations.get(launches[0]) is not None  # the old setup is kept
+        assert "2021-05-03" in service.configurations.get(launches[1]).canonical_config_json
+    finally:
+        service.close()
+
+
+def test_operator_retest_still_refuses_changed_rules(tmp_path):
+    adapter = FakeAdapter(tmp_path / "rule_strategies")
+    profile = dataset_profile("MES", "5m")
+    _draft(tmp_path)
+    launches: list[str] = []
+    _run(tmp_path, adapter, RULES, profile, launches)
+    outcome = _run(tmp_path, adapter, {**RULES, "max_trades_per_session": 2}, profile, launches, rebuild=True)
+    assert (outcome.state, outcome.reason_code) == ("failed", "rules_changed") and len(launches) == 1

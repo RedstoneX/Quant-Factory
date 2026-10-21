@@ -188,6 +188,7 @@ class AutoTestRequest:
     database: str
     artifact_root: str
     attempt: int = 0  # earlier runs of this exact packet that a restart cut short
+    rebuild: bool = False  # an operator retest after a method fix: build the setup afresh, never re-run the old one
 
 
 @dataclass(frozen=True)
@@ -460,7 +461,12 @@ def run_auto_test(
                 "failed", "rules_changed",
                 "This idea was already tested with different rules. Submit the changed rules as a new idea.",
             )
-        # Same rules, only the data cut-off or costs moved: the linked configuration is immutable, so re-run it as saved.
+        elif request.rebuild:
+            # The method changed (e.g. how the start date is read): a new immutable setup replaces the link;
+            # the old setup and its runs stay in the store for comparison.
+            _draft, configuration = service.upsert_idea_configuration(
+                draft_id=request.candidate_id, document=document, replace=True)
+        # Otherwise same rules, only the data cut-off or costs moved: re-run the linked configuration as saved.
     finally:
         service.close()
     key = campaign_idempotency_key(request.candidate_id, installed.strategy_id, request.attempt)
