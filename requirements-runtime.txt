@@ -18,6 +18,8 @@ plotly==6.8.0
 matplotlib==3.11.2
 tsdownsample==0.1.5.1
 prefect==3.7.8
+# prefect 3.7.8 server breaks on fastapi>=0.157 (Body min_items removed); pin until prefect is upgraded on purpose
+fastapi==0.150.0
 pyarrow==24.0.0
 requests==2.34.2
 PyYAML==6.0.3
