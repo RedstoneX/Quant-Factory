@@ -2,7 +2,7 @@
 
 Composition only; every step is an existing function:
 CandidatePipelineDefinition.from_configuration_document -> load_market_data ->
-strategy.validate_parameters -> strategy.generate_signals -> build_portfolio ->
+in_sample_slice -> strategy.validate_parameters -> strategy.generate_signals -> build_portfolio ->
 extract_metrics.  Nothing is recomputed by hand and nothing is persisted.
 """
 
@@ -19,6 +19,7 @@ import pandas as pd
 
 from backtesting.experiments import build_portfolio
 from backtesting.experiments.metrics import extract_metrics
+from backtesting.out_of_sample import in_sample_slice
 from market_data import load_market_data
 from orchestration.candidate_data_window import session_closed_data_end
 from orchestration.candidate_pipeline_runtime import CandidatePipelineDefinition
@@ -99,7 +100,11 @@ def prove_same_data(audit: Any, saved: SavedSetting) -> None:
 
 
 def rebuild_portfolio(saved: SavedSetting, data: pd.DataFrame) -> SettingRebuild:
-    """Re-run the saved setting on ``data``; refuse unless the stored metrics come back exactly."""
+    """Re-run the saved setting on ``data``; refuse unless the stored metrics come back exactly.
+
+    The stage 1 screen scores only the in-sample years, so the rebuild uses the same slice.
+    """
+    data = in_sample_slice(data, saved.definition.validation.out_of_sample_split)
     experiment = saved.definition.experiment
     strategy = get_strategy(experiment.strategy_id)
     signals = strategy.generate_signals(data, strategy.validate_parameters(saved.parameters))
