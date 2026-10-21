@@ -187,8 +187,9 @@ def test_baseline_runner_produces_exact_six_rows(tmp_path: Path) -> None:
         cache_path=tmp_path / "spy.csv",
         legacy_cache_paths=(),
     )
-    frame = _ohlc([100 + (i % 12) for i in range(90)])
-    frame.index = pd.DatetimeIndex(sessions)
+    # A 60-session decline then a 30-session rally, so Donchian breakouts actually occur.
+    frame = _ohlc([130 - i for i in range(60)] + [70 + 2 * i for i in range(30)])
+    frame.index = pd.DatetimeIndex(sessions).tz_localize(config.market_timezone)
     audit = replace(
         _audit(frame),
         provider_implementation=config.provider_implementation,
@@ -196,6 +197,7 @@ def test_baseline_runner_produces_exact_six_rows(tmp_path: Path) -> None:
         requested_dynamic_end_policy=config.end_date_policy,
         latest_completed_exchange_session=pd.Timestamp(last).date().isoformat(),
         download_time=pd.Timestamp.now(tz="UTC").isoformat(),
+        cache_schema_version=config.cache_schema_version,
     )
     write_cache(frame, audit, config)
 
