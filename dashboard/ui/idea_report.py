@@ -101,7 +101,7 @@ def strip(report: dict[str, Any]) -> dmc.Paper | None:
 
 
 LINE_STAGES = ("oos", "shortfall")  # the only cards that keep a detail line under the bar (design review 21 Oct 2026)
-SETTINGS_NOTE = "Sharpe after costs · whole history, unseen years included · white outline = chosen"  # the screen runs every setting over the full data window, not the built-on years alone
+SETTINGS_NOTE = "Sharpe after costs · all years, unseen included · white outline = setting locked for the unseen test"  # the screen runs every setting over the full data window; the outline is the unseen test's parameter lock
 
 
 def test_card(index: int, test: dict[str, Any]) -> dmc.Paper:

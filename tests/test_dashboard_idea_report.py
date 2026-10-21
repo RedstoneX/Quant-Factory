@@ -252,6 +252,15 @@ def test_cost_screen_line_names_the_screen_not_a_positive_sharpe() -> None:
     assert card["line"].startswith("1 of 3 settings cleared the cost screen") and "made money" not in card["line"]
 
 
+def test_report_numbers_follow_the_setting_locked_for_the_unseen_test(monkeypatch) -> None:
+    rows = [{"row_id": "a", "rank": 1, "parameters": {"trail": 0.3}}, {"row_id": "b", "rank": 2, "parameters": {"trail": 0.5}}]
+    assert report.locked_row_id(rows, {"trail": 0.5}) == "b"  # the unseen test locked trail 0.5; the cost-screen winner (rank 1) is not the Report's setting
+    assert report.locked_row_id(rows, {"trail": "0.5"}) == "b" and report.locked_row_id(rows, {}) is None and report.locked_row_id(rows, {"trail": 0.9}) is None
+    from dashboard import results_projection as results
+    monkeypatch.setattr(results, "_artifact_document", lambda **kw: {"artifact_kind": "out_of_sample", "metrics": {"sharpe_ratio": 1.18}, "test_status": "passed", "selected_parameters": {"trail": 0.5}})
+    assert results.oos_report_metrics(database=None, run_id="r")["_locked_parameters"] == {"trail": 0.5}
+
+
 def test_cards_show_rule_number_and_bar_only_except_card_2() -> None:
     ui = pytest.importorskip("dashboard.ui.idea_report")
     base = {"run_id": "r", "label": "T", "status": "Passed", "value": "3 of 18 windows", "fraction": 0.2, "pass_line": None, "rule": "Passes if x", "line": "DETAIL LINE", "detail": {"periods": [], "checks": []}}
@@ -260,4 +269,4 @@ def test_cards_show_rule_number_and_bar_only_except_card_2() -> None:
         assert "DETAIL LINE" not in text and "Passes if x" in text and "3 of 18 windows" in text and "Per-window" not in text
     unseen = str(ui.test_card(2, {**base, "stage": "oos", "scores": [("Built-on years", "0.23"), ("Unseen years", "1.18")]}))
     assert "DETAIL LINE" in unseen and "Built-on years" in unseen and "1.18" in unseen
-    assert "whole history, unseen years included" in ui.SETTINGS_NOTE and "built-on years" not in ui.SETTINGS_NOTE
+    assert ui.SETTINGS_NOTE == "Sharpe after costs · all years, unseen included · white outline = setting locked for the unseen test"

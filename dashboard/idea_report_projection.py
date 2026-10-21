@@ -272,6 +272,14 @@ def monthly_returns(values: pd.Series) -> pd.DataFrame:
     return frame.pivot(index="year", columns="month", values="pct").reindex(columns=range(1, 13))
 
 
+def locked_row_id(rows: list[dict[str, Any]], locked: dict[str, Any]) -> str | None:
+    """The cost-screen row whose setting equals the unseen test's locked parameters (compared as text); None when nothing was locked or no row matches."""
+    if not locked:
+        return None
+    wanted = {str(key): str(value) for key, value in locked.items()}
+    return next((row["row_id"] for row in rows if {str(k): str(v) for k, v in (row.get("parameters") or {}).items()} == wanted), None)
+
+
 def settings_grid(rows: list[dict[str, Any]], chosen_row_id: str | None) -> dict[str, Any] | None:
     """Sharpe after costs for every setting tried, laid out on the first two settings that varied."""
     if not rows:
@@ -340,7 +348,9 @@ def load_report(candidate_id: str | None = None, *, run_id: str | None = None, d
     verdict = apply_campaign_verdict([test["status"] for test in tests], campaign)
     for test, status in zip(tests, verdict):
         test["status"] = status
-    screening_view = load_trade_view(idea, "screening", database=path) if "screening" in runs else {"available": False}
+    locked = (oos_report_metrics(database=path, run_id=(runs.get("oos") or {}).get("run_id")) or {}).get("_locked_parameters") or {}
+    locked_row = locked_row_id(idea.get("screening_rows") or [], locked)  # every Report number is the locked setting; only the settings bars show the others
+    screening_view = load_trade_view(idea, "screening", locked_row, database=path) if "screening" in runs else {"available": False}
     unseen_view = load_trade_view(idea, "oos", database=path) if "oos" in runs else {"available": False}
     screening_equity = screening_view.get("equity") or [] if screening_view.get("available") else []
     unseen_equity = unseen_view.get("equity") or [] if unseen_view.get("available") else []

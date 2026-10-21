@@ -196,7 +196,8 @@ def oos_report_metrics(*, database: Path, run_id: str | None) -> dict[str, Any] 
     if not report or report.get("artifact_kind") != "out_of_sample" or not isinstance(metrics, dict) or not metrics:
         return None
     training = report.get("training_metrics")
-    return {**metrics, "_test_status": report.get("test_status"), "_training_metrics": training if isinstance(training, dict) else {}}
+    locked = report.get("selected_parameters")  # the setting the unseen test locked on the selection slice
+    return {**metrics, "_test_status": report.get("test_status"), "_training_metrics": training if isinstance(training, dict) else {}, "_locked_parameters": locked if isinstance(locked, dict) else {}}
 
 
 def _price_source(
