@@ -14,9 +14,10 @@ from typing import Any
 
 import pandas as pd
 
-from dashboard.idea_report_projection import CANT_TEST, GATES_CHIP, gates_chip, CLOSE_CALL, STATUS_TONE, TEST_LABELS, apply_campaign_verdict, campaign_row, report_status
+from dashboard.idea_report_projection import CANT_TEST, GATES_CHIP, gates_chip, CLOSE_CALL, STATUS_TONE, TEST_LABELS, apply_campaign_verdict, campaign_row, locked_row_id, report_status
 from dashboard.idea_results_projection import STAGES, TRADE_STAGES, _check_name, _check_value, _evidence, _stage_runs, _test_card
 from dashboard.overview_projection import TEST_TITLE_PATTERNS, _validated_connection, configured_database_path
+from dashboard.results_projection import oos_report_metrics
 
 STAGE_NAMES = [stage for stage, _label in STAGES]
 # Submissions that only exercised the plumbing, not an idea: the shared throwaway-title patterns plus these notes in the attribution.
@@ -97,6 +98,17 @@ def chip_tone(text: str) -> str:
     return "green" if text == "Passed" else "amber" if text == "Close call" or text.startswith("Passed the gates") else "red" if text.startswith("Failed") or text == "Crashed" else "grey"
 
 
+def _locked(database: Path, runs: dict[str, Any]) -> dict[str, Any]:
+    """The parameters the unseen-data test locked, from its saved report; {} when that test has not run or saved none."""
+    return ((oos_report_metrics(database=database, run_id=(runs.get("oos") or {}).get("run_id")) or {}).get("_locked_parameters") or {}) if "oos" in runs else {}
+
+
+def shown_row(rows: list[Any], locked: dict[str, Any]) -> Any:
+    """The cost-screen row whose numbers the list shows: the one matching the locked setting (same rule as the Report), else the cost-screen winner (rank 1)."""
+    wanted = locked_row_id([{"row_id": row["row_id"], "parameters": _metrics(row["normalized_parameters_json"])} for row in rows], locked)
+    return next((row for row in rows if row["row_id"] == wanted), rows[0])
+
+
 def _build(database: Path) -> dict[str, pd.DataFrame]:
     connection, _error = _validated_connection(database)
     if connection is None:
@@ -123,7 +135,7 @@ def _build(database: Path) -> dict[str, pd.DataFrame]:
             statuses, _ = _statuses(database, connection, head["configuration_id"], screening, head["candidate_id"])
             row = connection.execute("SELECT state FROM qf_campaign_admissions WHERE candidate_id=?", [head["candidate_id"]]).fetchone()
             survivor = bool(row and row[0] == "survivor")
-            best = _metrics(rows[0]["metrics_json"]) if rows else {}
+            best = _metrics(shown_row(rows, _locked(database, runs))["metrics_json"]) if rows else {}  # the Report's setting: locked for the unseen test, else the cost-screen winner
             common = {"candidate_id": head["candidate_id"], "title": head["title"], "market": head["market"], "timeframe": INTERVALS.get(head["interval"], head["interval"] or ""),
                       "family": str(head["family"]).replace("_", " ").capitalize(), "sharpe_line": head["sharpe_line"], "created_at": head["created_at"], "result": overall_status(statuses, survivor=survivor), "dots": five_dots(statuses)}
             ideas.append({**common, "sharpe": best.get("sharpe_ratio"), "total_return": _pct(best.get("total_return")), "worst_drop": _pct(best.get("max_drawdown")),
