@@ -547,6 +547,8 @@ def test_host_provisioning_is_key_only_dynamic_and_has_recoverable_rollback():
         "qf-agent run trades run_12345678 extra",
         "qf-agent campaign requeue qfc_12345678 extra",
         "qf-agent campaign requeue",
+        "qf-agent campaign retest qfc_12345678",
+        "qf-agent campaign retest qfc_12345678 --reason 'method changed' extra",
     ],
 )
 def test_ssh_forced_command_rejects_shell_files_and_transport_overrides(command):
@@ -572,6 +574,8 @@ def test_ssh_forced_command_rejects_shell_files_and_transport_overrides(command)
         "qf-agent campaign status qfc_12345678",
         "qf-agent run trades run_12345678",
         "qf-agent campaign requeue qfc_12345678",
+        "qf-agent campaign retest qfc_12345678 --reason 'stage 1 screens in-sample only'",
+        "qf-agent campaign retest --all-settled --reason 'stage 1 screens in-sample only'",
     ],
 )
 def test_ssh_forced_command_accepts_only_documented_grammar(command):

@@ -30,6 +30,8 @@ def allowed_arguments(command: str) -> list[str]:
         return args
     if len(args) == 3 and args[:2] == ["campaign", "requeue"]:
         return args
+    if len(args) == 5 and args[:2] == ["campaign", "retest"] and args[3] == "--reason":
+        return args
     if args in (["candidate", "validate", "-"], ["candidate", "submit", "-"]):
         return args
     if len(args) == 3 and args[:2] == ["run", "request"]:
