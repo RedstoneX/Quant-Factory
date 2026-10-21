@@ -4,18 +4,20 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
-
 import pandas as pd
+import pandas_market_calendars as mcal
+import pytest
 
 from backtesting.run_spym_intraday_momentum import (
     DATASET_ID,
     EXPECTED_DATASET_ROWS,
     EXPECTED_DATASET_SHA256,
+    EXPECTED_FIRST_TIMESTAMP,
+    EXPECTED_LAST_TIMESTAMP,
     SPYMMomentumExecution,
+    execute_spym_intraday_momentum,
 )
 from backtesting.run_spym_intraday_momentum_durable import run_durable_screening
-from backtesting.screening import ScreeningResult
 from dashboard.run_detail_adapter import (
     RunDetailDashboardAdapter,
     _is_legacy_spym_fixture_notice,
@@ -27,13 +29,41 @@ from market_data.catalog import DatasetManifest
 from persistence import PersistenceService, RunStatus
 
 
+def _synthetic_sessions() -> pd.DataFrame:
+    """The three boundary bars per NYSE session the rule reads, sized to Decision 296.
+
+    One prior session supplies the first 15:59 close, then exactly 133 eligible sessions:
+    the first 70 open higher (long), the remaining 63 open lower (short), and every
+    session moves in the signalled direction by a varying amount so the daily returns
+    are positive with non-zero dispersion.
+    """
+    days = mcal.get_calendar("NYSE").schedule(start_date=EXPECTED_FIRST_TIMESTAMP[:10], end_date=EXPECTED_LAST_TIMESTAMP[:10]).index[:134]
+
+    def at(day: pd.Timestamp, wall_time: str) -> pd.Timestamp:
+        return pd.Timestamp(f"{day.date()} {wall_time}", tz="America/New_York").tz_convert("UTC")
+
+    previous_close = 100.0
+    rows = [(at(days[0], "15:59"), previous_close, previous_close)]
+    for number, day in enumerate(days[1:]):
+        is_long = number < 70
+        open_0959 = previous_close + (0.5 if is_long else -0.5)
+        move = (0.5 + 0.1 * (number % 3)) * (1 if is_long else -1)
+        rows += [(at(day, "09:59"), open_0959, open_0959), (at(day, "15:30"), open_0959, open_0959), (at(day, "15:59"), open_0959 + move, open_0959 + move)]
+        previous_close = open_0959 + move
+    index = pd.DatetimeIndex([row[0] for row in rows])
+    opens = [row[1] for row in rows]
+    closes = [row[2] for row in rows]
+    return pd.DataFrame({"Open": opens, "High": [max(o, c) for o, c in zip(opens, closes)], "Low": [min(o, c) for o, c in zip(opens, closes)], "Close": closes}, index=index)
+
+
 def _fixture() -> SPYMMomentumExecution:
-    index = pd.DatetimeIndex(["2025-10-31T13:30:00+00:00", "2026-07-13T19:59:00+00:00"])
-    data = pd.DataFrame({"Open": [100.0, 101.0], "High": [101.0, 102.0], "Low": [99.0, 100.0], "Close": [100.5, 101.5]}, index=index)
+    """The real loader's output shape with the approved dataset identity and synthetic bars."""
+    data = _synthetic_sessions()
+    index = data.index
     metadata = {
         "dataset_id": DATASET_ID, "dataset": "EQUS.MINI", "schema": "ohlcv-1m", "symbol": "SPYM",
         "coverage_start": "2025-10-31", "latest_completed_session": "2026-07-13",
-        "earliest_timestamp": index[0].isoformat(), "latest_timestamp": index[-1].isoformat(),
+        "earliest_timestamp": EXPECTED_FIRST_TIMESTAMP, "latest_timestamp": EXPECTED_LAST_TIMESTAMP,
         "observed_regular_session_bar_count": 53_528, "possible_regular_session_minute_count": 67_110,
         "missing_regular_session_bar_count": 13_582, "missing_session_count": 0, "synthetic_bar_count": 0,
     }
@@ -49,28 +79,10 @@ def _fixture() -> SPYMMomentumExecution:
     return SPYMMomentumExecution(data=data, audit=audit, manifest=manifest, dataset_path=Path("/tmp/SPYM.parquet"))
 
 
-def _executor(data, audit):
-    del audit
-    row = {"total_return": 0.02, "annualized_return": 0.1, "sharpe_ratio": 0.8, "max_drawdown": -0.03,
-           "number_of_trades": 133, "win_rate": 0.5, "parameter_row_id": "fixed", "screening_status": "passed",
-           "screening_passed_rule_count": 7, "screening_failed_rule_count": 0, "screening_rejection_reasons": ""}
-    screening = ScreeningResult(parameter_row_id="fixed", passed=True, rule_results=(), passed_rule_count=7, failed_rule_count=0,
-                                strategy_id="spym_intraday_momentum", strategy_version="1.0.0", normalized_parameters={}, execution_assumptions={}, rejection_reasons=())
-    result = SimpleNamespace(ranked_results=pd.DataFrame([row]), passing_results=pd.DataFrame([row]), screened_out_results=pd.DataFrame(), experiment_id="decision_296_spym_intraday_momentum",
-                             strategy_id="spym_intraday_momentum", strategy_version="1.0.0", evaluated_combinations=1,
-                             screening_results=(screening,), validation_results=({"gate_id": "adapter", "status": "passed"},))
-    records = pd.DataFrame({"Timestamp": [data.index[-1]] * 133, "Price": [101.5] * 133, "Size": [1.0] * 133, "Fees": [0.1] * 133,
-                            "Status": ["Closed"] * 133, "Direction": ["Long"] * 70 + ["Short"] * 63})
-    orders = pd.DataFrame({"Timestamp": [data.index[-1]] * 266, "Price": [101.5] * 266, "Size": [1.0] * 266, "Fees": [0.1] * 266})
-    portfolio = SimpleNamespace(orders=SimpleNamespace(records_readable=orders), trades=SimpleNamespace(records_readable=records),
-                                value=pd.Series([10_000.0, 10_200.0], index=data.index))
-    bundle = SimpleNamespace(signals=SimpleNamespace(metadata={"eligible_session_count": 133, "excluded_session_count": 40, "long_session_count": 70, "short_session_count": 63, "zero_signal_count": 0}))
-    return result, portfolio, bundle
-
-
+@pytest.mark.licensed_vectorbt
 def test_durable_success_persists_one_dashboard_readable_row_and_integrity_manifest(tmp_path: Path) -> None:
     database = tmp_path / "state" / "screen.sqlite3"
-    outcome = run_durable_screening(database=database, artifact_root=tmp_path, run_id="spym-success", loader=_fixture, executor=_executor)
+    outcome = run_durable_screening(database=database, artifact_root=tmp_path, run_id="spym-success", loader=_fixture)
 
     assert outcome.exit_code == 0
     service = PersistenceService(database)
@@ -143,9 +155,10 @@ def test_data_failure_marks_terminal_run_without_compute_or_success_evidence(tmp
         service.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_durable_run_fails_before_artifacts_when_ranked_trade_metric_disagrees_with_ledger(tmp_path: Path) -> None:
     def mismatched_executor(data, audit):
-        result, portfolio, bundle = _executor(data, audit)
+        result, portfolio, bundle = execute_spym_intraday_momentum(data, audit)
         result.ranked_results.loc[0, "number_of_trades"] = 2
         result.passing_results.loc[0, "number_of_trades"] = 2
         return result, portfolio, bundle
@@ -162,17 +175,13 @@ def test_durable_run_fails_before_artifacts_when_ranked_trade_metric_disagrees_w
         service.close()
 
 
-def test_artifact_write_failure_rolls_back_success_evidence(tmp_path: Path, monkeypatch) -> None:
+@pytest.mark.licensed_vectorbt
+def test_artifact_write_failure_rolls_back_success_evidence(tmp_path: Path) -> None:
     database = tmp_path / "state" / "atomic.sqlite3"
-    original = Path.write_bytes
-
-    def fail_metrics(path: Path, content: bytes):
-        if path.name == "metrics.json":
-            raise OSError("injected artifact write failure")
-        return original(path, content)
-
-    monkeypatch.setattr(Path, "write_bytes", fail_metrics)
-    outcome = run_durable_screening(database=database, artifact_root=tmp_path, run_id="spym-atomic", loader=_fixture, executor=_executor)
+    # A plain file where the artifact directory must be created makes the real staging write fail.
+    database.parent.mkdir(parents=True)
+    (tmp_path / "state" / "artifacts").write_bytes(b"not a directory")
+    outcome = run_durable_screening(database=database, artifact_root=tmp_path, run_id="spym-atomic", loader=_fixture)
     assert outcome.exit_code == 1
     service = PersistenceService(database)
     try:

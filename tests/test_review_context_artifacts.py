@@ -210,6 +210,7 @@ def test_review_context_malformed_parameter_envelopes_fail_closed(
         ValidationEvidenceArtifactService._effective_strategy_parameters(parameters)
 
 
+@pytest.mark.licensed_vectorbt
 def test_review_context_persists_retrieves_and_evaluates_explicit_context(
     tmp_path: Path,
 ) -> None:
@@ -234,6 +235,7 @@ def test_review_context_persists_retrieves_and_evaluates_explicit_context(
     )
 
 
+@pytest.mark.licensed_vectorbt
 def test_review_context_operator_cli_invokes_service_boundary(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -280,6 +282,7 @@ def test_review_context_operator_cli_invokes_service_boundary(
         reopened.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_review_context_after_sealed_manifest_is_idempotent_and_conflict_safe(
     tmp_path: Path,
 ) -> None:
@@ -331,6 +334,7 @@ def test_review_context_after_sealed_manifest_is_idempotent_and_conflict_safe(
     assert service.reviews.history("run", "review-target") == ()
 
 
+@pytest.mark.licensed_vectorbt
 def test_review_context_missing_referenced_run_fails_closed(tmp_path: Path) -> None:
     service = _review_service(tmp_path)
     root = tmp_path / "artifacts"
@@ -350,6 +354,7 @@ def test_review_context_missing_referenced_run_fails_closed(tmp_path: Path) -> N
         )
 
 
+@pytest.mark.licensed_vectorbt
 def test_review_context_parameter_lock_mismatch_fails_before_mutation(
     tmp_path: Path,
 ) -> None:
@@ -385,6 +390,7 @@ def test_review_context_rejects_fabricated_source_lock_boundary() -> None:
     assert "source_lock_run_id" in signature.parameters
 
 
+@pytest.mark.licensed_vectorbt
 def test_review_context_source_artifact_checksum_is_validated(tmp_path: Path) -> None:
     service = _review_service(tmp_path)
     root = tmp_path / "artifacts"
@@ -414,6 +420,7 @@ def test_review_context_source_artifact_checksum_is_validated(tmp_path: Path) ->
         ),
     ),
 )
+@pytest.mark.licensed_vectorbt
 def test_review_context_target_strategy_mismatch_fails_before_mutation(
     tmp_path: Path,
     run_kwargs: dict[str, str],
@@ -445,6 +452,7 @@ def test_review_context_target_strategy_mismatch_fails_before_mutation(
     assert tuple(service.list_run_artifacts("review-target")) == before
 
 
+@pytest.mark.licensed_vectorbt
 def test_review_context_target_lineage_mismatch_fails_before_mutation(
     tmp_path: Path,
 ) -> None:
@@ -465,6 +473,7 @@ def test_review_context_target_lineage_mismatch_fails_before_mutation(
     assert tuple(service.list_run_artifacts("review-target")) == before
 
 
+@pytest.mark.licensed_vectorbt
 def test_corrupt_review_context_fails_closed(tmp_path: Path) -> None:
     service = _review_service(tmp_path)
     root = tmp_path / "artifacts"

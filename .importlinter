@@ -1,0 +1,498 @@
+# import-linter contracts: the architecture boundaries from config/architecture.json
+# expressed as standard forbidden/layers contracts. Run with `lint-imports`.
+# Component vocabulary (same names as config/architecture.json):
+#   licensed_engine      = backtesting.vectorbt_runtime
+#   research_entrypoints = backtesting.run_*
+#   backtesting (core)   = every other backtesting subpackage/module
+#   dashboard_public     = the dashboard package module itself
+#   dashboard_ui         = dashboard.ui
+#   dashboard_models     = every other dashboard module
+[importlinter]
+root_packages =
+    agent_gateway
+    backtesting
+    dashboard
+    deployment
+    execution
+    market_data
+    orchestration
+    persistence
+    prefect_spike
+    research_intake
+    rule_language
+    strategies
+    tools
+include_external_packages = False
+exclude_type_checking_imports = True
+
+[importlinter:contract:top-layers]
+name = Top-level layering (tools > deployment > entry surfaces > prefect > services)
+type = layers
+layers =
+    tools
+    deployment
+    agent_gateway | dashboard | execution
+    prefect_spike
+    orchestration | research_intake
+
+[importlinter:contract:foundation-layers]
+name = Foundation layering (persistence/market_data > strategies > rule_language)
+type = layers
+layers =
+    persistence | market_data
+    strategies
+    rule_language
+
+[importlinter:contract:licensed-engine]
+name = licensed_engine imports nothing from the project
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    backtesting.vectorbt_runtime
+forbidden_modules =
+    agent_gateway
+    backtesting.execution_comparison
+    backtesting.experiments
+    backtesting.monte_carlo
+    backtesting.out_of_sample
+    backtesting.portability
+    backtesting.robustness
+    backtesting.screening
+    backtesting.validation
+    backtesting.walk_forward
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+    dashboard
+    deployment
+    execution
+    market_data
+    orchestration
+    persistence
+    prefect_spike
+    research_intake
+    rule_language
+    strategies
+    tools
+
+[importlinter:contract:rule-language]
+name = rule_language imports nothing from the project
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    rule_language
+forbidden_modules =
+    agent_gateway
+    backtesting
+    dashboard
+    deployment
+    execution
+    market_data
+    orchestration
+    persistence
+    prefect_spike
+    research_intake
+    strategies
+    tools
+
+[importlinter:contract:strategies]
+name = strategies may import only licensed_engine and rule_language
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    strategies
+forbidden_modules =
+    agent_gateway
+    backtesting.execution_comparison
+    backtesting.experiments
+    backtesting.monte_carlo
+    backtesting.out_of_sample
+    backtesting.portability
+    backtesting.robustness
+    backtesting.screening
+    backtesting.validation
+    backtesting.walk_forward
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+    dashboard
+    deployment
+    execution
+    market_data
+    orchestration
+    persistence
+    prefect_spike
+    research_intake
+    tools
+
+[importlinter:contract:market-data]
+name = market_data may import only licensed_engine and strategies
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    market_data
+forbidden_modules =
+    agent_gateway
+    backtesting.execution_comparison
+    backtesting.experiments
+    backtesting.monte_carlo
+    backtesting.out_of_sample
+    backtesting.portability
+    backtesting.robustness
+    backtesting.screening
+    backtesting.validation
+    backtesting.walk_forward
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+    dashboard
+    deployment
+    execution
+    orchestration
+    persistence
+    prefect_spike
+    research_intake
+    rule_language
+    tools
+
+[importlinter:contract:persistence]
+name = persistence may import only strategies
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    persistence
+forbidden_modules =
+    agent_gateway
+    backtesting
+    dashboard
+    deployment
+    execution
+    market_data
+    orchestration
+    prefect_spike
+    research_intake
+    rule_language
+    tools
+
+[importlinter:contract:backtesting-core]
+name = backtesting core may import only licensed_engine, market_data, persistence, strategies
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    backtesting.execution_comparison
+    backtesting.experiments
+    backtesting.monte_carlo
+    backtesting.out_of_sample
+    backtesting.portability
+    backtesting.robustness
+    backtesting.screening
+    backtesting.validation
+    backtesting.walk_forward
+forbidden_modules =
+    agent_gateway
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+    dashboard
+    deployment
+    execution
+    orchestration
+    prefect_spike
+    research_intake
+    rule_language
+    tools
+
+[importlinter:contract:orchestration]
+name = orchestration may import only backtesting, market_data, persistence, strategies
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    orchestration
+forbidden_modules =
+    agent_gateway
+    backtesting.vectorbt_runtime
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+    dashboard
+    deployment
+    execution
+    prefect_spike
+    research_intake
+    rule_language
+    tools
+
+[importlinter:contract:prefect-adapter]
+name = prefect_spike may import only the research stack (backtesting, market_data, orchestration, persistence, strategies)
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    prefect_spike
+forbidden_modules =
+    agent_gateway
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+    dashboard
+    deployment
+    execution
+    research_intake
+    rule_language
+    tools
+
+[importlinter:contract:research-entrypoints]
+name = research_entrypoints (backtesting.run_*) stay off the UI, gateway, intake, deployment and tools layers
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+forbidden_modules =
+    agent_gateway
+    dashboard
+    deployment
+    execution
+    research_intake
+    rule_language
+    tools
+
+[importlinter:contract:research-intake]
+name = research_intake may import only persistence and rule_language
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    research_intake
+forbidden_modules =
+    agent_gateway
+    backtesting
+    dashboard
+    deployment
+    execution
+    market_data
+    orchestration
+    prefect_spike
+    strategies
+    tools
+
+[importlinter:contract:agent-gateway]
+name = agent_gateway may import only backtesting, orchestration, persistence, research_intake
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    agent_gateway
+forbidden_modules =
+    backtesting.vectorbt_runtime
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+    dashboard
+    deployment
+    execution
+    market_data
+    prefect_spike
+    rule_language
+    strategies
+    tools
+
+[importlinter:contract:execution]
+name = execution may import only market_data, persistence, strategies
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    execution
+forbidden_modules =
+    agent_gateway
+    backtesting
+    dashboard
+    deployment
+    orchestration
+    prefect_spike
+    research_intake
+    rule_language
+    tools
+
+[importlinter:contract:dashboard-public]
+name = the dashboard package module may import only dashboard_models
+type = forbidden
+allow_indirect_imports = True
+as_packages = False
+source_modules =
+    dashboard
+forbidden_modules =
+    agent_gateway
+    agent_gateway.**
+    backtesting
+    backtesting.**
+    dashboard.ui
+    dashboard.ui.**
+    deployment
+    deployment.**
+    execution
+    execution.**
+    market_data
+    market_data.**
+    orchestration
+    orchestration.**
+    persistence
+    persistence.**
+    prefect_spike
+    prefect_spike.**
+    research_intake
+    research_intake.**
+    rule_language
+    rule_language.**
+    strategies
+    strategies.**
+    tools
+    tools.**
+
+[importlinter:contract:dashboard-ui]
+name = dashboard.ui stays off the gateway, execution, deployment, rule_language and tools
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    dashboard.ui
+forbidden_modules =
+    agent_gateway
+    deployment
+    execution
+    rule_language
+    tools
+
+[importlinter:contract:dashboard-models]
+name = dashboard_models stay off dashboard.ui, the dashboard package module, prefect, entrypoints, gateway, deployment and tools
+type = forbidden
+allow_indirect_imports = True
+as_packages = False
+source_modules =
+    dashboard.adapter
+    dashboard.candidate_launch_context
+    dashboard.candidate_workflow
+    dashboard.candidates_projection
+    dashboard.compare_projection
+    dashboard.compare_query
+    dashboard.data_freshness
+    dashboard.evidence_chart_window
+    dashboard.factory_history
+    dashboard.factory_overview
+    dashboard.factory_projection
+    dashboard.formatting
+    dashboard.health
+    dashboard.idea_report_projection
+    dashboard.idea_results_projection
+    dashboard.mes_candidate_setup
+    dashboard.new_idea_projection
+    dashboard.overview_projection
+    dashboard.plain_labels
+    dashboard.price_series_reference
+    dashboard.results_model
+    dashboard.results_projection
+    dashboard.results_workbench_projection
+    dashboard.run_adapter
+    dashboard.run_detail_adapter
+    dashboard.score_projection
+    dashboard.submit_projection
+    dashboard.time_display
+    dashboard.today_projection
+forbidden_modules =
+    agent_gateway
+    agent_gateway.**
+    backtesting.run_mes_orb
+    backtesting.run_mes_overnight_gap_reversal
+    backtesting.run_mes_overnight_gap_reversal_durable
+    backtesting.run_rsi_demo
+    backtesting.run_rsi_robustness
+    backtesting.run_spy_donchian
+    backtesting.run_spy_donchian_low_frequency_walk_forward
+    backtesting.run_spy_donchian_oos
+    backtesting.run_spym_intraday_momentum
+    backtesting.run_spym_intraday_momentum_durable
+    dashboard
+    dashboard.ui
+    dashboard.ui.**
+    deployment
+    deployment.**
+    execution
+    execution.**
+    prefect_spike
+    prefect_spike.**
+    rule_language
+    rule_language.**
+    tools
+    tools.**
+
+[importlinter:contract:deployment]
+name = deployment may not import rule_language or tools
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    deployment
+forbidden_modules =
+    rule_language
+    tools
+
+[importlinter:contract:tools]
+name = tools may not import rule_language
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    tools
+forbidden_modules =
+    rule_language

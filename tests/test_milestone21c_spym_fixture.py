@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 import json
 from pathlib import Path
-from types import SimpleNamespace
+import threading
+import time
 
 import pytest
 
-from market_data import load_dataset_manifest
 from orchestration import FixtureRunService, ResearchLaunchInvocationError
 from persistence import PersistenceService, RunStatus
 from prefect_spike.fixture_flow import (
@@ -19,10 +18,11 @@ from prefect_spike.fixture_flow import (
 from tests.test_prefect_spike import (
     deterministic_fixture_body as claimed_deterministic_fixture_body,
 )
-import prefect_spike.spym_vectorbt_fixture as spym_fixture
 from prefect_spike.spym_vectorbt_fixture import (
     ensure_spym_21c_saved_configuration,
     spym_21c_execution_assumptions,
+    spym_21c_parameters,
+    spym_21c_saved_configuration_document,
 )
 
 
@@ -139,38 +139,39 @@ def test_spym_fixture_rerun_keeps_deterministic_metrics_and_trades(
     assert trades_a == trades_b
 
 
+@pytest.mark.licensed_vectorbt
 def test_spym_fixture_cancellation_safe_point_discards_computed_result(
     tmp_path: Path,
-    monkeypatch,
 ) -> None:
     database, configuration_id, service = _configured_service(tmp_path)
     run_id = "qf-21c-cancel-after-compute"
 
-    def expensive_stub(*_args, **_kwargs):
-        persistence = PersistenceService(database)
-        try:
-            persistence.request_run_cancellation(run_id)
-        finally:
-            persistence.close()
-        return SimpleNamespace()
+    def request_cancellation_once_running() -> None:
+        # The body checks for cancellation once before computing; a request that
+        # lands after the attempt is claimed is seen at the post-compute safe point.
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            run = service.get_run(run_id)
+            if run is not None and run.attempt_count >= 1:
+                PersistenceService(database).request_run_cancellation(run_id)
+                return
+            time.sleep(0.001)
 
-    monkeypatch.setattr(spym_fixture, "execute_experiment", expensive_stub)
-    monkeypatch.setattr(
-        spym_fixture,
-        "load_spym_21c_fixture_inputs",
-        lambda **_kwargs: SimpleNamespace(config=None, data=None, audit=None),
-    )
-
-    with pytest.raises(ControlledFixtureCancellation):
-        claimed_deterministic_fixture_body(
-            database_path=database,
-            configuration_id=configuration_id,
-            quant_factory_run_id=run_id,
-            prefect_flow_run_id=f"prefect-{run_id}",
-            prefect_api_url="http://127.0.0.1:4200/api",
-            saved_parameters=spym_fixture.spym_21c_parameters(),
-            saved_execution_assumptions=spym_fixture.spym_21c_execution_assumptions(),
-        )
+    watcher = threading.Thread(target=request_cancellation_once_running)
+    watcher.start()
+    try:
+        with pytest.raises(ControlledFixtureCancellation):
+            claimed_deterministic_fixture_body(
+                database_path=database,
+                configuration_id=configuration_id,
+                quant_factory_run_id=run_id,
+                prefect_flow_run_id=f"prefect-{run_id}",
+                prefect_api_url="http://127.0.0.1:4200/api",
+                saved_parameters=spym_21c_parameters(),
+                saved_execution_assumptions=spym_21c_execution_assumptions(),
+            )
+    finally:
+        watcher.join()
 
     assert service.get_run(run_id).status == RunStatus.CANCELLED.value
     persistence = PersistenceService(database)
@@ -181,39 +182,34 @@ def test_spym_fixture_cancellation_safe_point_discards_computed_result(
         persistence.close()
 
 
-def test_spym_fixture_fails_closed_on_mismatched_dataset_identity(
+@pytest.mark.licensed_vectorbt
+def test_spym_fixture_fails_closed_on_mismatched_execution_contract(
     tmp_path: Path,
-    monkeypatch,
 ) -> None:
-    database, configuration_id, service = _configured_service(tmp_path)
-    manifest = load_dataset_manifest(
-        spym_fixture.SPYM_EQUITY_DATA_CONTRACT.dataset_id
-    )
-    bad_manifest = replace(
-        manifest,
-        metadata={**manifest.metadata, "dataset_id": "wrong_dataset"},
-    )
-    monkeypatch.setattr(
-        "prefect_spike.spym_vectorbt_fixture.load_dataset_manifest",
-        lambda dataset_id: bad_manifest,
-    )
+    database, _, service = _configured_service(tmp_path)
+    document = spym_21c_saved_configuration_document()
+    document["execution"] = {**document["execution"], "fees": 0.5}
+    persistence = PersistenceService(database)
+    try:
+        drifted_configuration_id = persistence.upsert_configuration(document).configuration_id
+    finally:
+        persistence.close()
 
     with pytest.raises(
         ResearchLaunchInvocationError,
         match="submission was acknowledged but invocation reported an error",
     ):
         service.launch_fixture(
-            configuration_id=configuration_id,
-            run_id="qf-21c-bad-dataset",
+            configuration_id=drifted_configuration_id,
+            run_id="qf-21c-bad-contract",
         )
 
-    failed_run = service.get_run("qf-21c-bad-dataset")
+    failed_run = service.get_run("qf-21c-bad-contract")
     assert failed_run is not None
     assert failed_run.status == RunStatus.FAILED.value
     assert failed_run.error_summary == (
         "Prefect fixture execution failed; inspect approved technical diagnostics."
     )
-    assert "wrong_dataset" not in failed_run.error_summary
-    detail = _detail(database, "qf-21c-bad-dataset")
+    detail = _detail(database, "qf-21c-bad-contract")
     assert detail["parameters"] == []
     assert detail["artifacts"] == []

@@ -49,6 +49,7 @@ def _handoff(outcome, stage: RunStage):
         (RunStage.MONTE_CARLO, "failed_monte_carlo", "fixture Monte Carlo merit failure"),
     ),
 )
+@pytest.mark.licensed_vectorbt
 def test_merit_failure_is_recorded_as_score_and_idea_continues(
     tmp_path: Path, stage: RunStage, override: str, reason: str
 ) -> None:
@@ -75,6 +76,7 @@ def test_merit_failure_is_recorded_as_score_and_idea_continues(
         service.close()
 
 
+@pytest.mark.licensed_vectorbt
 def test_too_few_windows_for_monte_carlo_is_unscored_and_idea_continues(tmp_path: Path) -> None:
     service, calls, chain, adapters = _run(tmp_path, {RunStage.MONTE_CARLO: {"insufficient_monte_carlo": True}})
     try:

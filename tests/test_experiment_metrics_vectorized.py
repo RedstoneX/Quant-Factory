@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from types import SimpleNamespace
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -15,10 +15,26 @@ from backtesting.experiments.metrics import (
     extract_sweep_metrics,
     session_close_metrics,
 )
+from backtesting.experiments.chunking import setting_portfolio
+from backtesting.experiments.models import ExecutionConfig, ExperimentConfig, MetricPolicy
+from backtesting.vectorbt_runtime import require_vectorbtpro
+from market_data import MarketDataConfig
 from market_data.calendars import get_exchange_calendar
 
 INTERVAL = pd.Timedelta("30min")
 N_COLS = 12
+MARKET = MarketDataConfig(
+    symbol="SPY",
+    provider="test",
+    provider_implementation="test",
+    interval="30min",
+    requested_start="2023-11-20",
+    end_date_policy="test",
+    adjusted=True,
+    exchange_calendar="NYSE",
+    market_timezone="America/New_York",
+    cache_path=Path("unused.csv"),
+)
 
 
 # ---- frozen copy of the pre-vectorisation implementation (do not edit) ----
@@ -125,33 +141,34 @@ def _frozen_session_close_metrics(
 
 
 def _frozen_sweep(portfolio, count, data, config):
-    value = portfolio.value
-    assets = portfolio.assets
-    session = [
-        _frozen_session_close_metrics(
-            SimpleNamespace(value=value.iloc[:, i], assets=None if assets is None else assets.iloc[:, i]),
-            data,
-            config,
-        )
+    return [
+        _frozen_session_close_metrics(setting_portfolio(portfolio, i), data, config)
         for i in range(count)
     ]
-    return session
 
 
-
-def _config():
-    policy = SimpleNamespace(
-        sampling="exchange_session_close", periods_per_year=252.0, risk_free_rate=0.03
-    )
-    return SimpleNamespace(
-        metric_policy=policy,
-        market_data=SimpleNamespace(exchange_calendar="NYSE", interval="30min"),
-        execution=SimpleNamespace(initial_cash=100_000.0),
+def _config() -> ExperimentConfig:
+    return ExperimentConfig(
+        experiment_id="vectorized_metrics",
+        strategy_id="rsi_mean_reversion",
+        parameter_combinations=({"window": 7, "entry_threshold": 25, "exit_threshold": 60},),
+        market_data=MARKET,
+        execution=ExecutionConfig.next_bar_open(
+            initial_cash=100_000.0, fees=0.0, slippage=0.0, direction="longonly",
+            accumulate=False, leverage=1.0,
+        ),
+        ranking_columns=("total_return",),
+        ranking_ascending=(False,),
+        output_path=Path("unused.csv"),
+        metric_policy=MetricPolicy(
+            sampling="exchange_session_close", periods_per_year=252.0, risk_free_rate=0.03,
+            basis="test", source="test",
+        ),
     )
 
 
 def _bar_index(start: str, end: str) -> pd.DatetimeIndex:
-    schedule = get_exchange_calendar(_config().market_data).schedule(start, end)
+    schedule = get_exchange_calendar(MARKET).schedule(start, end)
     parts = [
         pd.date_range(row.market_open, row.market_close - INTERVAL, freq=INTERVAL)
         for row in schedule.itertuples()
@@ -160,34 +177,32 @@ def _bar_index(start: str, end: str) -> pd.DatetimeIndex:
 
 
 def _portfolio(index, flat=True, seed=0):
+    """A real engine portfolio with N_COLS random-walk columns.
+
+    flat=False holds every bar; flat=True makes one round trip per session (enter on the
+    second bar, exit at noon) so equity moves while every session close is flat.
+    """
     rng = np.random.default_rng(seed)
     steps = rng.normal(0.0, 0.002, size=(len(index), N_COLS))
-    value = pd.DataFrame(100_000.0 * np.exp(steps.cumsum(axis=0)), index=index)
-    assets = pd.DataFrame(0.0 if flat else 5.0, index=index, columns=value.columns)
-    return SimpleNamespace(value=value, assets=assets)
+    close = pd.DataFrame(100.0 * np.exp(steps.cumsum(axis=0)), index=index)
+    vbt = require_vectorbtpro()
+    if not flat:
+        return vbt.Portfolio.from_holding(close, init_cash=100_000.0)
+    minute = index.hour * 60 + index.minute
+    entries = pd.Series(minute == 10 * 60, index=index)
+    exits = pd.Series(minute == 12 * 60, index=index)
+    return vbt.Portfolio.from_signals(close, entries=entries, exits=exits, init_cash=100_000.0)
 
 
 def _assert_identical(portfolio, index):
     config = _config()
     data = pd.DataFrame({"close": 1.0}, index=index)
     expected = _frozen_sweep(portfolio, N_COLS, data, config)
-    got = [
-        session_close_metrics(
-            SimpleNamespace(
-                value=portfolio.value.iloc[:, i], assets=portfolio.assets.iloc[:, i]
-            ),
-            data,
-            config,
-        )
-        for i in range(N_COLS)
-    ]
+    got = [session_close_metrics(setting_portfolio(portfolio, i), data, config) for i in range(N_COLS)]
     # The statistics now come from VectorBT PRO; its summation order differs
     # from the frozen copy only at the last floating-point digits.
     assert all(all(_same(a, b) for a, b in zip(g, e)) for g, e in zip(got, expected))
     # whole-frame path used by sweeps
-    portfolio.trades = SimpleNamespace(count=lambda: np.zeros(N_COLS), win_rate=np.zeros(N_COLS))
-    portfolio.total_return = portfolio.annualized_return = portfolio.sharpe_ratio = np.zeros(N_COLS)
-    portfolio.max_drawdown = np.zeros(N_COLS)
     rows = extract_sweep_metrics(portfolio, N_COLS, data=data, config=config)
     for row, e in zip(rows, expected):
         for key, ev in zip(("total_return", "annualized_return", "sharpe_ratio"), e):
@@ -202,7 +217,7 @@ def _same(a: float, b: float) -> bool:
 @pytest.mark.licensed_vectorbt
 def test_multi_column_with_half_day_matches_frozen():
     index = _bar_index("2023-11-20", "2023-11-30")
-    schedule = get_exchange_calendar(_config().market_data).schedule("2023-11-24", "2023-11-24")
+    schedule = get_exchange_calendar(MARKET).schedule("2023-11-24", "2023-11-24")
     assert (schedule["market_close"] - schedule["market_open"]).iloc[0] < pd.Timedelta(hours=6)
     _assert_identical(_portfolio(index, flat=False), index)
 
@@ -217,6 +232,7 @@ def test_missing_closing_bar_and_absent_session_flat_matches_frozen():
     _assert_identical(_portfolio(index, flat=True, seed=1), index)
 
 
+@pytest.mark.licensed_vectorbt
 def test_missing_closing_bar_with_exposure_raises_same_error():
     index = _bar_index("2023-11-20", "2023-11-30")
     drop_close = index[index.normalize() == pd.Timestamp("2023-11-21", tz=index.tz)][-1]
@@ -225,15 +241,9 @@ def test_missing_closing_bar_with_exposure_raises_same_error():
     config = _config()
     data = pd.DataFrame({"close": 1.0}, index=index)
     with pytest.raises(RuntimeError) as old:
-        _frozen_session_close_metrics(
-            SimpleNamespace(value=portfolio.value.iloc[:, 0], assets=portfolio.assets.iloc[:, 0]),
-            data, config,
-        )
+        _frozen_session_close_metrics(setting_portfolio(portfolio, 0), data, config)
     with pytest.raises(RuntimeError) as new:
-        session_close_metrics(
-            SimpleNamespace(value=portfolio.value.iloc[:, 0], assets=portfolio.assets.iloc[:, 0]),
-            data, config,
-        )
+        session_close_metrics(setting_portfolio(portfolio, 0), data, config)
     assert str(old.value) == str(new.value)
 
 

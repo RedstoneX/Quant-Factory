@@ -1,12 +1,10 @@
 from dataclasses import replace
-from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
 
-import backtesting.robustness.evaluation as evaluation_module
-from backtesting.experiments import SignalResult
+from backtesting.experiments import execute_experiment
 from backtesting.robustness import (
     CandidateDerivation,
     EvaluatedParameterPoint,
@@ -30,20 +28,6 @@ from strategies import get_strategy
 
 
 LOCKED = {"window": 14, "entry_threshold": 25, "exit_threshold": 55}
-
-
-def install_portable_signal_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
-    strategy = get_strategy("rsi_mean_reversion")
-
-    def deterministic_signals(data, parameters):
-        normalized = strategy.validate_parameters(parameters)
-        entries = pd.Series(False, index=data.index, dtype=bool)
-        exits = pd.Series(False, index=data.index, dtype=bool)
-        entries.iloc[5::12] = True
-        exits.iloc[8::12] = True
-        return SignalResult(entries=entries, exits=exits, parameters=normalized)
-
-    monkeypatch.setattr(strategy, "generate_signals", deterministic_signals)
 
 
 def robustness_config(**kwargs) -> RobustnessConfig:
@@ -159,7 +143,10 @@ def test_insufficient_neighbors_and_status_precedence():
 
 def data_and_audit():
     index = pd.date_range("2020-01-01", periods=100, freq="D", tz="UTC")
-    close = pd.Series(100 + np.sin(np.arange(100) / 3) * 5, index=index)
+    # Flat, then 15 straight down days (RSI falls through 25 for every window), then 15
+    # straight up days (RSI rises through 55), repeated: each window trades, at its own timing.
+    daily_returns = np.tile(np.concatenate([np.zeros(5), np.full(15, -0.01), np.full(15, 0.01)]), 3)[:100]
+    close = pd.Series(100 * np.cumprod(1 + daily_returns), index=index)
     data = pd.DataFrame(
         {"Open": close, "High": close + 1, "Low": close - 1, "Close": close, "Volume": 1000},
         index=index,
@@ -191,84 +178,44 @@ def data_and_audit():
     return data, audit
 
 
-def test_pipeline_adapter_evaluates_only_valid_candidates_with_same_assumptions(monkeypatch):
-    install_portable_signal_boundary(monkeypatch)
+@pytest.mark.licensed_vectorbt
+def test_pipeline_adapter_evaluates_only_valid_candidates_with_same_assumptions():
     config = robustness_config()
     neighborhood = build_neighborhood(
         get_strategy(config.strategy_id), LOCKED, config.neighborhood
     )
     data, audit = data_and_audit()
-    captured = {}
-
-    def fake_execute(experiment, received_data, received_audit, write_output, portfolio_observer):
-        captured["parameters"] = tuple(dict(item) for item in experiment.parameter_combinations)
-        captured["execution"] = experiment.execution
-        captured["index"] = received_data.index.copy()
-        rows = []
-        screens = []
-        for parameters in experiment.parameter_combinations:
-            window = parameters["window"]
-            row_id = f"row-{window}"
-            total_return = {7: 0.08, 14: 0.10, 21: 0.09}[window]
-            rows.append(
-                {
-                    "parameter_row_id": row_id,
-                    "total_return": total_return,
-                    "max_drawdown": -0.1,
-                    "sharpe_ratio": 1.0,
-                    "number_of_trades": 25,
-                }
-            )
-            screens.append(
-                SimpleNamespace(
-                    parameter_row_id=row_id,
-                    normalized_parameters=dict(parameters),
-                    passed=True,
-                    rejection_reasons=(),
-                )
-            )
-        for screen in screens:
-            portfolio_observer(screen.parameter_row_id, FakePortfolio())
-        return SimpleNamespace(
-            ranked_results=pd.DataFrame(rows),
-            screening_results=tuple(screens),
-        )
-
-    class FakePortfolio:
-        returns = pd.Series(np.zeros(len(data)), index=data.index)
-
-    monkeypatch.setattr(evaluation_module, "execute_experiment", fake_execute)
     result = evaluate_neighborhood(
         config, neighborhood, EXPERIMENT_CONFIG, data, audit
     )
     assert len(result.points) == neighborhood.accepted_count == 3
-    assert captured["parameters"] == tuple(
+    assert [item.normalized_parameters for item in result.points] == [
         candidate.normalized_parameters for candidate in neighborhood.candidates
+    ]
+    locked = [item for item in result.points if item.is_locked_point]
+    assert len(locked) == 1 and locked[0].normalized_parameters == LOCKED
+    assert all(item.trade_count > 0 for item in result.points)
+    assert {item.total_return for item in result.points} != {locked[0].total_return}
+    for item in result.points:
+        assert item.absolute_degradation == pytest.approx(locked[0].total_return - item.total_return)
+    # The same locked execution assumptions are applied to every neighbour.
+    expected = execute_experiment(
+        replace(EXPERIMENT_CONFIG, parameter_combinations=(dict(LOCKED),)),
+        data, audit, write_output=False,
     )
-    assert captured["execution"] == EXPERIMENT_CONFIG.execution
-    assert captured["index"].equals(data.index)
-    assert any(item.is_locked_point for item in result.points)
-    assert next(item for item in result.points if item.normalized_parameters["window"] == 7).absolute_degradation == pytest.approx(0.02)
+    assert locked[0].total_return == pytest.approx(float(expected.ranked_results.iloc[0]["total_return"]))
 
 
-def test_zero_locked_return_marks_relative_degradation_unavailable(monkeypatch):
-    install_portable_signal_boundary(monkeypatch)
+@pytest.mark.licensed_vectorbt
+def test_zero_locked_return_marks_relative_degradation_unavailable():
     config = replace(robustness_config(), neighborhood=replace(robustness_config().neighborhood, degradation_mode="absolute"))
     neighborhood = build_neighborhood(get_strategy(config.strategy_id), LOCKED, config.neighborhood)
     data, audit = data_and_audit()
-
-    def fake_execute(experiment, received_data, received_audit, write_output, portfolio_observer):
-        rows, screens = [], []
-        for parameters in experiment.parameter_combinations:
-            row_id = f"row-{parameters['window']}"
-            rows.append({"parameter_row_id": row_id, "total_return": 0.0, "max_drawdown": -0.1, "sharpe_ratio": 0.0, "number_of_trades": 25})
-            screens.append(SimpleNamespace(parameter_row_id=row_id, normalized_parameters=dict(parameters), passed=True, rejection_reasons=()))
-        for screen in screens:
-            portfolio_observer(screen.parameter_row_id, SimpleNamespace(returns=pd.Series(np.zeros(len(data)), index=data.index)))
-        return SimpleNamespace(ranked_results=pd.DataFrame(rows), screening_results=tuple(screens))
-
-    monkeypatch.setattr(evaluation_module, "execute_experiment", fake_execute)
+    # A flat price never crosses an RSI threshold, so every point returns exactly zero.
+    for column in ("Open", "High", "Low", "Close"):
+        data[column] = 100.0
     result = evaluate_neighborhood(config, neighborhood, EXPERIMENT_CONFIG, data, audit)
+    assert all(item.total_return == 0.0 for item in result.points)
     assert all(item.relative_degradation is None for item in result.points)
     assert all(item.warnings for item in result.points)
 
