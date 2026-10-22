@@ -46,6 +46,26 @@ python -m pytest tests/test_qf_research_context_v1.py
 
 CI runs the full portable suite on every pull request.
 
+## Running a backtest locally
+
+`tools.local_run` runs one idea through the whole pipeline (in-sample screen,
+out-of-sample, walk-forward, robustness, Monte Carlo) in one process, with no
+Prefect and no gateway. It uses the same intake, `run_auto_test` and
+`CandidatePipelineRuntime` as the gateway, so runs record the same provenance.
+
+```bash
+export QUANT_FACTORY_DB_PATH=/abs/qf.sqlite3 QUANT_FACTORY_ARTIFACT_ROOT=/abs/artifacts \
+       QUANT_FACTORY_DATA_LOCATIONS=/abs/data_locations.local.toml
+python -m tools.local_run --packet idea.yaml          # or --configuration-id ID, or --run-id ID
+python -m tools.local_run --rerun RUN_ID              # reproduce a run, list every metric difference
+```
+
+Exit codes: 0 finished (survivor or screened out), 2 not run or failed, 3 a
+reproduction differs. Data is read from the local catalog only, never downloaded.
+`--rerun` reproduces on the saved setup's fixed data cut-off and also reports a
+changed data checksum as a difference. Local runs store `local-<run id>` where a
+Prefect flow-run id would go.
+
 ## Deployment
 
 Only merged `main` goes live. The server deploys it automatically and rolls
