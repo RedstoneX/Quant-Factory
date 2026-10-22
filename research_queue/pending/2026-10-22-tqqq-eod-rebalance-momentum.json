@@ -1,0 +1,213 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "TQQQ big-move day continues into the close",
+    "one_line": "If TQQQ is up or down a lot on the day at 15:30, trade the same direction to 15:55. Source: CXO Advisory summary of leveraged-ETF end-of-day rebalancing study.",
+    "family": "intraday_momentum",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "published_research",
+      "role": "primary",
+      "title": "Front-Running Leveraged ETFs at the End of the Day",
+      "creator": "CXO Advisory (Steve LeCompte), summarising a leveraged-ETF rebalancing study",
+      "claim": "After a market move of at least 2% by mid-afternoon, buying SSO or SDS and exiting at the close averaged 0.60% gross per trade, June 2006 to July 2011; leveraged-ETF rebalancing is about a third of late-day volatility, over half on days moving 3%+.",
+      "url": "https://www.cxoadvisory.com/volatility-effects/front-running-leveraged-etfs-at-the-end-of-the-day"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Leveraged ETFs must buy after up days and sell after down days at the close, so large-move days continue into the final half hour.",
+    "failure_theory": [
+      "Source sample is 2006-2011 and gross of costs; profits clustered in late 2008.",
+      "Leveraged ETF rebalancing share of closing volume has fallen since 2011.",
+      "Few qualifying days; may fail the 20-trade minimum at high thresholds.",
+      "Source uses a 2% market move; TQQQ thresholds here are about 3x that and not tuned."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "TQQQ"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_TQQQ_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "TQQQ regular session 09:30-16:00 ET on 1m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "TQQQ day return from prior close above threshold at 15:30."
+    ],
+    "short_entry": [
+      "TQQQ day return below minus threshold at 15:30."
+    ],
+    "exits": {
+      "rule": "Flat at 15:55.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 1
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "min_abs_ret": {
+      "values": [
+        0.04,
+        0.06,
+        0.08
+      ],
+      "rationale": "Minimum absolute day return for TQQQ (about 3x the source 2% market move, so 6% centre)."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "time_is": "15:30"
+            },
+            {
+              "gt": [
+                {
+                  "abs": {
+                    "div": [
+                      {
+                        "sub": [
+                          "close",
+                          {
+                            "value_at": {
+                              "sub": [
+                                {
+                                  "sum": "close",
+                                  "length": 2,
+                                  "across_sessions": true
+                                },
+                                "close"
+                              ]
+                            },
+                            "time": "09:31"
+                          }
+                        ]
+                      },
+                      {
+                        "value_at": {
+                          "sub": [
+                            {
+                              "sum": "close",
+                              "length": 2,
+                              "across_sessions": true
+                            },
+                            "close"
+                          ]
+                        },
+                        "time": "09:31"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "param": "min_abs_ret"
+                }
+              ]
+            }
+          ]
+        },
+        "side": {
+          "sign_of": {
+            "div": [
+              {
+                "sub": [
+                  "close",
+                  {
+                    "value_at": {
+                      "sub": [
+                        {
+                          "sum": "close",
+                          "length": 2,
+                          "across_sessions": true
+                        },
+                        "close"
+                      ]
+                    },
+                    "time": "09:31"
+                  }
+                ]
+              },
+              {
+                "value_at": {
+                  "sub": [
+                    {
+                      "sum": "close",
+                      "length": 2,
+                      "across_sessions": true
+                    },
+                    "close"
+                  ]
+                },
+                "time": "09:31"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "exit": {},
+    "max_trades_per_session": 1
+  },
+  "prior_work": {
+    "closest_tried": "dummy-2026-10-22-spy-fhh (SPY first-half-hour momentum, 15:30 entry)",
+    "claimed_difference": "Triggers on a large whole-day move traded on the leveraged fund, with a stated rebalancing mechanism, not the first-half-hour return used by the tried SPY packet."
+  }
+}
