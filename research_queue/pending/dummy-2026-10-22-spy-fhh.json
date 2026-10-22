@@ -1,0 +1,214 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "DUMMY loop test: SPY first-half-hour momentum (shifted thresholds)",
+    "one_line": "At 15:30, take the sign of the prior-close-to-10:00 return; hold to 15:55. Source: Gao, Han, Li and Zhou (2018), Market Intraday Momentum, Journal of Financial Economics.",
+    "family": "intraday_momentum",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "published_research",
+      "role": "primary",
+      "title": "Gao, Han, Li and Zhou (2018), Market Intraday Momentum, Journal of Financial Economics",
+      "creator": "Lei Gao; Yufeng Han; Sophia Zhengzi Li; Guofu Zhou",
+      "claim": "At 15:30, take the sign of the prior-close-to-10:00 return; hold to 15:55.",
+      "url": "https://doi.org/10.1016/j.jfineco.2018.05.009"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Loop test only. The first half-hour return predicts the last half-hour return in SPY.",
+    "failure_theory": [
+      "The published effect may have decayed after 2013.",
+      "Exit at 15:55 instead of 16:00 drops the final five minutes.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "SPY"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_SPY_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "SPY regular session 09:30-16:00 ET on 1m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "At 15:30, if |return| exceeds threshold and positive: long."
+    ],
+    "exits": {
+      "rule": "Flat at 15:55.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 1,
+    "short_entry": [
+      "Negative: short (same signal, sign_of)."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "min_abs_ret": {
+      "values": [
+        0.0005,
+        0.0015,
+        0.0025
+      ],
+      "rationale": "Minimum absolute first-half-hour return."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "time_is": "15:30"
+            },
+            {
+              "gt": [
+                {
+                  "abs": {
+                    "div": [
+                      {
+                        "sub": [
+                          {
+                            "value_at": "close",
+                            "time": "10:00"
+                          },
+                          {
+                            "value_at": {
+                              "sub": [
+                                {
+                                  "sum": "close",
+                                  "length": 2,
+                                  "across_sessions": true
+                                },
+                                "close"
+                              ]
+                            },
+                            "time": "09:31"
+                          }
+                        ]
+                      },
+                      {
+                        "value_at": {
+                          "sub": [
+                            {
+                              "sum": "close",
+                              "length": 2,
+                              "across_sessions": true
+                            },
+                            "close"
+                          ]
+                        },
+                        "time": "09:31"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "param": "min_abs_ret"
+                }
+              ]
+            }
+          ]
+        },
+        "side": {
+          "sign_of": {
+            "div": [
+              {
+                "sub": [
+                  {
+                    "value_at": "close",
+                    "time": "10:00"
+                  },
+                  {
+                    "value_at": {
+                      "sub": [
+                        {
+                          "sum": "close",
+                          "length": 2,
+                          "across_sessions": true
+                        },
+                        "close"
+                      ]
+                    },
+                    "time": "09:31"
+                  }
+                ]
+              },
+              {
+                "value_at": {
+                  "sub": [
+                    {
+                      "sum": "close",
+                      "length": 2,
+                      "across_sessions": true
+                    },
+                    "close"
+                  ]
+                },
+                "time": "09:31"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "exit": {},
+    "max_trades_per_session": 1
+  }
+}
