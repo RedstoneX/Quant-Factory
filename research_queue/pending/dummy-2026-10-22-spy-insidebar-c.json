@@ -1,0 +1,246 @@
+{
+  "candidate": {
+    "family": "price_action",
+    "one_line": "After an inside bar (prior bar inside bar-before), enter on close beyond inside-bar extreme with VWAP side; % stop/trail.",
+    "status": "ready_for_review",
+    "title": "DUMMY loop test 4: SPY inside-bar breakout with VWAP filter"
+  },
+  "data_needs": {
+    "dataset_id": "equities_SPY_1m_alpaca_sip",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m",
+    "requested_start": "2016-01-04"
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filters beyond the rule_spec."
+  ],
+  "execution": {
+    "use_qf_defaults": true
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "entry_fill": "next_bar_open",
+    "max_trades_per_session": 2,
+    "time_exit": "15:55 ET"
+  },
+  "hypothesis": {
+    "behavior": "Inside-bar compression then breakout continues in the breakout direction on SPY.",
+    "failure_theory": [
+      "Many inside bars are noise on 1m.",
+      "Better on 5m/15m once every_minutes is live."
+    ]
+  },
+  "market": {
+    "holding_style": "intraday",
+    "instruments": {
+      "preferred": [
+        "SPY"
+      ]
+    },
+    "overnight_positions": false,
+    "session": "NYSE regular session, America/New_York",
+    "timeframe": "1m"
+  },
+  "open_questions": [],
+  "prior_work": {
+    "claimed_difference": [
+      "Inside-bar breakout (not ORB)."
+    ],
+    "possible_duplicates": [
+      "SPY/QQQ/IWM ORB trail grids 2026-10-14",
+      "QQQ gap-day ORB",
+      "SPY gap fade",
+      "SPY late-day momentum",
+      "swing-confirm ORB probes"
+    ]
+  },
+  "rule_spec": {
+    "bar": "1m",
+    "exit": {
+      "stop_loss": {
+        "percent": {
+          "param": "stop"
+        }
+      },
+      "trailing_stop": {
+        "percent": {
+          "param": "trail"
+        }
+      }
+    },
+    "flat_at": "15:55",
+    "language": "qf_rules_v1",
+    "max_trades_per_session": 2,
+    "session": {
+      "close": "16:00",
+      "open": "09:30",
+      "timezone": "America/New_York"
+    },
+    "signals": [
+      {
+        "side": "long",
+        "when": {
+          "all": [
+            {
+              "time_between": [
+                "09:45",
+                "15:30"
+              ]
+            },
+            {
+              "lt": [
+                {
+                  "bars": 1,
+                  "prev": "high"
+                },
+                {
+                  "bars": 2,
+                  "prev": "high"
+                }
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "bars": 1,
+                  "prev": "low"
+                },
+                {
+                  "bars": 2,
+                  "prev": "low"
+                }
+              ]
+            },
+            {
+              "gt": [
+                "close",
+                {
+                  "bars": 1,
+                  "prev": "high"
+                }
+              ]
+            },
+            {
+              "gt": [
+                "close",
+                {
+                  "vwap": {}
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "side": "short",
+        "when": {
+          "all": [
+            {
+              "time_between": [
+                "09:45",
+                "15:30"
+              ]
+            },
+            {
+              "lt": [
+                {
+                  "bars": 1,
+                  "prev": "high"
+                },
+                {
+                  "bars": 2,
+                  "prev": "high"
+                }
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "bars": 1,
+                  "prev": "low"
+                },
+                {
+                  "bars": 2,
+                  "prev": "low"
+                }
+              ]
+            },
+            {
+              "lt": [
+                "close",
+                {
+                  "bars": 1,
+                  "prev": "low"
+                }
+              ]
+            },
+            {
+              "lt": [
+                "close",
+                {
+                  "vwap": {}
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "tick_size": 0.01
+  },
+  "rules": {
+    "exits": {
+      "stop_loss": "percent",
+      "time_exit": "Flat 15:55",
+      "trailing_stop": "percent"
+    },
+    "long_entry": [
+      "Inside bar then close > inside high and close > VWAP."
+    ],
+    "max_trades_per_session": 2,
+    "setup": [
+      "Inside bar: high[1]<high[2] and low[1]>low[2]. Breakout: close beyond high[1]/low[1]. VWAP filter."
+    ],
+    "short_entry": [
+      "Mirror short."
+    ]
+  },
+  "schema": "qf_candidate_v1",
+  "sources": [
+    {
+      "creator": "classic price-action",
+      "title": "Inside bar breakout (public domain); related Pin Bar Magic structure on GitHub",
+      "type": "open_source_pine",
+      "url": "https://github.com/Alorse/pinescript-strategies/blob/master/strategies/other/Pin%20Bar%20Magic%20v1.pine"
+    }
+  ],
+  "variables": {
+    "stop": {
+      "rationale": "Stop.",
+      "values": [
+        0.25,
+        0.4
+      ]
+    },
+    "trail": {
+      "rationale": "Trail.",
+      "values": [
+        0.5,
+        0.6,
+        0.7
+      ]
+    }
+  },
+  "variants": []
+}
