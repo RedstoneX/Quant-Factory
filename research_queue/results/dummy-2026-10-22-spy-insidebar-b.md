@@ -1,4 +1,4 @@
-# dummy-2026-10-22-spy-insidebar-b: survivor
+# dummy-2026-10-22-spy-insidebar-b: rejected (reclassified: walk_forward + stable-region failed; finalist rule added after this run)
 
 - Title: DUMMY loop test 3: SPY inside-bar breakout with VWAP filter
 - Hypothesis: Inside-bar compression then breakout continues in the breakout direction on SPY.
