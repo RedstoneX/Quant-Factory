@@ -1,0 +1,76 @@
+{
+  "id": "dummy-2026-10-22-spy-insidebar-b",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-22T13:30:04-04:00",
+  "title": "DUMMY loop test 3: SPY inside-bar breakout with VWAP filter",
+  "hypothesis": "Inside-bar compression then breakout continues in the breakout direction on SPY.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 12,
+      "title": "DUMMY loop test 2: SPY inside-bar breakout with VWAP filter",
+      "id": "idea_6be3300034f04036b1a95ce2303a357c"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY inside-bar breakout with VWAP filter",
+      "id": "qfc_85c2016855ce7d16a06524b90b20a21f"
+    },
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "SPY 15-min ORB gap-day aligned, wide % trail",
+      "id": "qfc_6293c3f8c270ec05ee0b40d9f68b429f"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "IWM 15-min ORB gap-day aligned, wide % trail",
+      "id": "qfc_17213b104cc0fc301f321aa29e08ef68"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "QQQ 15-min ORB gap-day + VWAP side, wide % trail",
+      "id": "qfc_0fb2201ab73dbfdd60022c0bd1b29714"
+    }
+  ],
+  "state": "survivor",
+  "reason": "awaiting_owner_review",
+  "run_id": "run_b83edc6841704bb0acba4bfff6474690",
+  "detail": "Protected test remains locked until separate authority is granted.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": null,
+  "metrics": {
+    "stages": {
+      "chain": "ready_for_protected_test",
+      "oos": "passed",
+      "walk_forward": "failed",
+      "robustness": "failed",
+      "monte_carlo": "failed"
+    },
+    "settings_tested": 6,
+    "settings_passing_screen": 2,
+    "best_screen_setting": {
+      "parameters": {
+        "stop": 0.25,
+        "trail": 0.6
+      },
+      "sharpe_ratio": 0.5346,
+      "total_return": 0.2554,
+      "annualized_return": 0.0322,
+      "max_drawdown": -0.13,
+      "number_of_trades": 1789.0,
+      "win_rate": 0.37
+    }
+  },
+  "scored_stage_fails": [
+    "walk_forward",
+    "robustness",
+    "monte_carlo"
+  ],
+  "stable_region": "failed",
+  "verdict": "survivor",
+  "failed_stage": null
+}
