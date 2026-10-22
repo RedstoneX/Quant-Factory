@@ -10,6 +10,7 @@ from typing import Any, Mapping
 
 import pandas as pd
 
+from backtesting.monte_carlo.metrics import returns_accessor
 from backtesting.screening import ScreeningConfig, screen_metrics
 from backtesting.vectorbt_runtime import require_vectorbtpro
 from market_data import DataAudit, MarketDataConfig
@@ -358,8 +359,8 @@ def daily_metrics(portfolio, bundle) -> dict[str, float | int]:
         raise RuntimeError("at least two daily equity observations are required for annualized metrics")
     total_return = float(daily_equity.iloc[-1] / INITIAL_CASH - 1.0)
     annualized_return = float((1.0 + total_return) ** (SESSIONS_PER_YEAR / len(returns)) - 1.0)
-    volatility = float(returns.std(ddof=1))
-    sharpe_ratio = 0.0 if volatility == 0 else float((returns.mean() - RISK_FREE_RATE / SESSIONS_PER_YEAR) / volatility * SESSIONS_PER_YEAR ** 0.5)
+    sharpe_ratio = float(returns_accessor(returns, SESSIONS_PER_YEAR).sharpe_ratio(risk_free=RISK_FREE_RATE / SESSIONS_PER_YEAR))
+    sharpe_ratio = sharpe_ratio if math.isfinite(sharpe_ratio) else 0.0  # zero volatility
     equity_with_baseline = pd.concat([pd.Series([INITIAL_CASH]), daily_equity.reset_index(drop=True)], ignore_index=True)
     max_drawdown = float((equity_with_baseline / equity_with_baseline.cummax() - 1.0).min())
     trade_count = int(float(portfolio.trades.count()))
