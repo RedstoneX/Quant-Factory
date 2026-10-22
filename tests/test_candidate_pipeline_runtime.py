@@ -1,0 +1,597 @@
+"""Decisive deterministic proof for the generic candidate runtime path."""
+
+from __future__ import annotations
+
+from dataclasses import replace
+from copy import deepcopy
+import json
+from pathlib import Path
+from types import SimpleNamespace
+from uuid import UUID, uuid4
+
+import numpy as np
+import pandas as pd
+import pytest
+
+import orchestration.candidate_pipeline_runtime as candidate_runtime_module
+from backtesting.experiments import ExecutionConfig, ExperimentConfig
+from backtesting.monte_carlo import MonteCarloConfig
+from backtesting.monte_carlo.models import ExecutionCostScenario
+from backtesting.out_of_sample import ChronologicalSplitConfig
+from backtesting.robustness import (
+    NeighborhoodConfig,
+    ParameterNeighborhoodDefinition,
+    RegimeConfig,
+)
+from backtesting.screening import ScreeningConfig
+from backtesting.validation import WalkForwardWindowRules
+from market_data import DataAudit, MarketDataConfig
+from market_data.cache import write_cache
+from orchestration import (
+    CandidatePipelineDefinition,
+    CandidatePipelineReplayIncompleteError,
+    CandidatePipelineRuntime,
+    CandidateValidationPlan,
+    ResearchLaunchInvocationError,
+    VALIDATION_RUNTIME_KEY,
+)
+from orchestration.survivor_read_model import SURVIVOR_EVENT_MESSAGE, verified_survivor_run_ids
+from persistence import (
+    PersistenceService,
+    ResearchLaunchOperation,
+    ResearchSubmissionState,
+    RunStage,
+    RunStatus,
+    StrategyLifecycle,
+    canonical_json,
+)
+from strategies.rsi_mean_reversion import RSI_MEAN_REVERSION_SPEC
+
+
+def _direct_pipeline_launcher(*, runtime, submission):
+    """Exercise orchestration directly without importing or constructing Prefect."""
+
+    return runtime.execute_flow(
+        submission=submission,
+        prefect_flow_run_id=str(uuid4()),
+    )
+
+
+def _cached_market_data(tmp_path: Path) -> MarketDataConfig:
+    config = MarketDataConfig(
+        symbol="SYNTHETIC",
+        provider="Yahoo Finance",
+        provider_implementation="vectorbtpro.YFData.pull",
+        interval="1 day",
+        requested_start="2020-01-02",
+        end_date_policy="fixed deterministic backend fixture",
+        adjusted=True,
+        exchange_calendar="NYSE",
+        market_timezone="America/New_York",
+        cache_path=tmp_path / "market" / "synthetic.csv",
+    )
+    import pandas_market_calendars as mcal
+
+    sessions = mcal.get_calendar("NYSE").schedule(
+        start_date=config.requested_start,
+        end_date="2020-12-31",
+    ).index
+    index = sessions.tz_localize(config.market_timezone)
+    # Sawtooth: 12 sessions up 1.0, then 25 down 0.5.  RSI(14) crosses below 25 and
+    # back above 55 once per 37-session cycle, so the approved setting closes a trade
+    # in every 50-session walk-forward window on the real engine [measured].
+    steps = np.tile(np.r_[np.full(12, 1.0), np.full(25, -0.5)], len(index) // 37 + 1)
+    close = pd.Series(100.0 + np.cumsum(steps[: len(index)]), index=index)
+    frame = pd.DataFrame(
+        {
+            "Open": close - 0.25,
+            "High": close + 0.50,
+            "Low": close - 0.50,
+            "Close": close,
+            "Volume": 1_000,
+        },
+        index=index,
+    )
+    audit = DataAudit(
+        cache_schema_version=2,
+        symbol=config.symbol,
+        provider=config.provider,
+        provider_implementation=config.provider_implementation,
+        interval=config.interval,
+        requested_start=config.requested_start,
+        requested_dynamic_end_policy=config.end_date_policy,
+        latest_completed_exchange_session="2020-12-31",
+        prices_adjusted=True,
+        adjustment_verification="deterministic infrastructure fixture",
+        download_time="2020-12-31T18:00:00-05:00",
+        download_timezone=config.market_timezone,
+        actual_first_row_date=str(index[0].date()),
+        actual_last_row_date=str(index[-1].date()),
+        row_count=len(frame),
+        duplicate_timestamp_count=0,
+        missing_open_count=0,
+        missing_high_count=0,
+        missing_low_count=0,
+        missing_close_count=0,
+        missing_volume_count=0,
+        expected_session_gap_count=0,
+        cache_path=str(config.cache_path),
+        cache_action="created",
+        cache_decision_reason="deterministic backend fixture",
+    )
+    write_cache(frame, audit, config)
+    return config
+
+
+def _definition(
+    tmp_path: Path,
+    *,
+    robustness_minimum_return: float = -1.0,
+    walk_forward_window_size: int = 50,
+):
+    experiment = ExperimentConfig(
+        experiment_id="backend-completion-deterministic-fixture",
+        strategy_id=RSI_MEAN_REVERSION_SPEC.identity.strategy_id,
+        # Two settings: the record-only luck score needs more than one trial.
+        parameter_combinations=(
+            {"window": 14, "entry_threshold": 25, "exit_threshold": 55},
+            {"window": 14, "entry_threshold": 25, "exit_threshold": 60},
+        ),
+        market_data=_cached_market_data(tmp_path),
+        execution=ExecutionConfig.next_bar_open(
+            initial_cash=10_000.0,
+            fees=0.0,
+            slippage=0.0,
+            direction="longonly",
+            leverage=1.0,
+            accumulate=False,
+            position_sizing="fixed_units",
+            order_size=1.0,
+        ),
+        ranking_columns=("total_return",),
+        ranking_ascending=(False,),
+        output_path=tmp_path / "unused.csv",
+        screening=ScreeningConfig(
+            minimum_trades=1,
+            minimum_total_return=-1.0,
+            minimum_annualized_return=-1.0,
+            minimum_sharpe_ratio=-1.0,
+            maximum_drawdown=1.0,
+        ),
+    )
+    neighborhood = NeighborhoodConfig(
+        definitions=(
+            ParameterNeighborhoodDefinition(
+                "window", "explicit_values", explicit_values=(7, 14, 21)
+            ),
+            ParameterNeighborhoodDefinition(
+                "entry_threshold", "explicit_values", explicit_values=(20, 25, 30)
+            ),
+            ParameterNeighborhoodDefinition(
+                "exit_threshold", "explicit_values", explicit_values=(50, 55, 60)
+            ),
+        ),
+        minimum_valid_neighbors=3,
+        required_pass_proportion=0.0,
+        maximum_absolute_degradation=1.0,
+        maximum_relative_degradation=1.0,
+    )
+    validation = CandidateValidationPlan(
+        out_of_sample_split=ChronologicalSplitConfig(
+            train_fraction=0.60,
+            selection_fraction=0.20,
+            test_fraction=0.20,
+            minimum_rows_per_partition=10,
+        ),
+        out_of_sample_shortlist_size=1,
+        walk_forward_rules=WalkForwardWindowRules(
+            training_window_size=walk_forward_window_size,
+            selection_window_size=walk_forward_window_size,
+            test_window_size=walk_forward_window_size,
+            step_size=walk_forward_window_size,
+            training_mode="rolling",
+            minimum_rows_per_window=5,
+            incomplete_final_window="drop",
+        ),
+        walk_forward_shortlist_size=1,
+        robustness_neighborhood=neighborhood,
+        robustness_regimes=RegimeConfig(
+            trend_window=2,
+            volatility_window=2,
+            minimum_observations=1,
+        ),
+        robustness_maximum_drawdown=1.0,
+        robustness_minimum_return=robustness_minimum_return,
+        robustness_minimum_sharpe=None,
+        monte_carlo=MonteCarloConfig(
+            simulation_count=20,
+            minimum_observations=3,
+            percentiles=(5, 50, 95),
+            maximum_loss_probability=1.0,
+            maximum_drawdown_breach_probability=1.0,
+            minimum_lower_percentile_return=-1.0,
+        ),
+        data_as_of="2020-12-31T18:00:00-05:00",
+    )
+    return CandidatePipelineDefinition(
+        experiment=experiment,
+        strategy_version=RSI_MEAN_REVERSION_SPEC.identity.version,
+        validation=validation,
+    )
+
+
+def _runtime(
+    tmp_path: Path,
+    *,
+    robustness_minimum_return: float = -1.0,
+    walk_forward_window_size: int = 50,
+) -> CandidatePipelineRuntime:
+    database = tmp_path / "state" / "factory.sqlite3"
+    definition = _definition(
+        tmp_path,
+        robustness_minimum_return=robustness_minimum_return,
+        walk_forward_window_size=walk_forward_window_size,
+    )
+    persistence = PersistenceService(database)
+    try:
+        spec = RSI_MEAN_REVERSION_SPEC
+        persistence.register_strategy(
+            strategy_id=spec.identity.strategy_id,
+            strategy_version=spec.identity.version,
+            display_name=spec.identity.name,
+            description="Deterministic non-profitability backend fixture",
+            lifecycle=StrategyLifecycle.CANDIDATE,
+        )
+        configuration = persistence.upsert_configuration(
+            definition.configuration_document()
+        )
+    finally:
+        persistence.close()
+    return CandidatePipelineRuntime(
+        database=database,
+        artifact_root=tmp_path / "artifacts",
+        configuration_id=configuration.configuration_id,
+        definition=definition,
+        pipeline_launcher=_direct_pipeline_launcher,
+        dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
+    )
+
+
+def test_saved_definition_strictly_reconstructs_typed_nested_contract(
+    tmp_path: Path,
+) -> None:
+    original = _definition(tmp_path)
+    experiment = replace(
+        original.experiment,
+        market_data=replace(
+            original.experiment.market_data,
+            legacy_cache_paths=(tmp_path / "legacy-one.csv", tmp_path / "legacy-two.csv"),
+        ),
+        parameter_output_names=(("window", "Window"),),
+    )
+    validation = replace(
+        original.validation,
+        monte_carlo=replace(
+            original.validation.monte_carlo,
+            execution_cost_scenarios=(
+                ExecutionCostScenario(
+                    name="wider fills",
+                    fee_increase=0.25,
+                    slippage_increase=0.5,
+                    execution_price_penalty=0.125,
+                ),
+            ),
+        ),
+    )
+    definition = replace(original, experiment=experiment, validation=validation)
+    document = json.loads(canonical_json(definition.configuration_document()))
+
+    restored = CandidatePipelineDefinition.from_configuration_document(document)
+
+    assert canonical_json(restored.configuration_document()) == canonical_json(document)
+    assert restored.experiment.parameter_combinations == experiment.parameter_combinations
+    assert isinstance(restored.experiment.market_data.cache_path, Path)
+    assert restored.experiment.market_data.legacy_cache_paths == (
+        tmp_path / "legacy-one.csv",
+        tmp_path / "legacy-two.csv",
+    )
+    assert restored.experiment.parameter_output_names == (("window", "Window"),)
+    assert restored.validation.monte_carlo.execution_cost_scenarios == (
+        ExecutionCostScenario(
+            name="wider fills",
+            fee_increase=0.25,
+            slippage_increase=0.5,
+            execution_price_penalty=0.125,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing_nested", "extra_nested", "wrong_list_type", "version_mismatch"),
+)
+def test_saved_definition_rejects_non_exact_documents(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    document = deepcopy(
+        json.loads(canonical_json(_definition(tmp_path).configuration_document()))
+    )
+    if mutation == "missing_nested":
+        del document[VALIDATION_RUNTIME_KEY]["monte_carlo"]["persist_paths"]
+    elif mutation == "extra_nested":
+        document[VALIDATION_RUNTIME_KEY]["robustness"]["regimes"]["surprise"] = 1
+    elif mutation == "wrong_list_type":
+        document["ranking"]["columns"] = "total_return"
+    else:
+        document["strategy_version"] = "999.0.0"
+
+    with pytest.raises(ValueError):
+        CandidatePipelineDefinition.from_configuration_document(document)
+
+
+def test_runtime_reconstructs_saved_configuration_in_cache_only_mode(
+    tmp_path: Path,
+) -> None:
+    persisted = _runtime(tmp_path)
+
+    restored = CandidatePipelineRuntime.from_saved_configuration(
+        database=persisted.database,
+        artifact_root=persisted.artifact_root,
+        configuration_id=persisted.configuration_id,
+        pipeline_launcher=_direct_pipeline_launcher,
+        dispatcher_instance_id="aa5f06ca-2909-4b59-9c15-cb7f3a6421e7",
+    )
+
+    assert restored.cache_only is True
+    assert restored.configuration_id == persisted.configuration_id
+    assert (
+        canonical_json(restored.definition.configuration_document())
+        == canonical_json(persisted.definition.configuration_document())
+    )
+
+
+def test_prefect_adapter_invokes_only_the_candidate_execution_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import prefect_spike.candidate_pipeline_flow as adapter
+
+    flow_run_id = uuid4()
+    submission = object()
+    expected = object()
+    captured: dict[str, object] = {}
+
+    class FakeExecution:
+        def execute_flow(self, **kwargs):
+            captured.update(kwargs)
+            return expected
+
+    monkeypatch.setattr(
+        adapter.FlowRunContext,
+        "get",
+        lambda: SimpleNamespace(flow_run=SimpleNamespace(id=flow_run_id)),
+    )
+
+    result = adapter.run_candidate_pipeline_flow.fn(
+        runtime=FakeExecution(),
+        submission=submission,
+    )
+
+    assert result is expected
+    assert captured == {
+        "submission": submission,
+        "prefect_flow_run_id": str(flow_run_id),
+    }
+
+
+def test_runtime_forwards_operator_operation_and_source_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = _runtime(tmp_path)
+    captured: dict[str, object] = {}
+    expected_chain = object()
+
+    class FakeCandidateService:
+        def __init__(self, **kwargs):
+            captured["constructor"] = kwargs
+
+        def launch_screening(self, **kwargs):
+            captured["launch"] = kwargs
+            return SimpleNamespace(
+                dispatch=SimpleNamespace(invoked=False),
+                claim=SimpleNamespace(run=SimpleNamespace(run_id="new-screening-run")),
+            )
+
+    monkeypatch.setattr(
+        candidate_runtime_module,
+        "CandidateRunService",
+        FakeCandidateService,
+    )
+    monkeypatch.setattr(
+        runtime,
+        "_reopen_completed_chain",
+        lambda run_id: expected_chain if run_id == "new-screening-run" else None,
+    )
+
+    result = runtime.launch(
+        idempotency_key="candidate_operation_forwarding",
+        operation=ResearchLaunchOperation.REPRODUCTION,
+        source_run_id="source-screening-run",
+        source_lineage={"reproduction_of_run_id": "source-screening-run"},
+    )
+
+    assert result.chain is expected_chain
+    assert captured["launch"]["operation"] == ResearchLaunchOperation.REPRODUCTION
+    assert captured["launch"]["source_run_id"] == "source-screening-run"
+    assert captured["launch"]["source_lineage"] == {
+        "reproduction_of_run_id": "source-screening-run"
+    }
+
+
+@pytest.mark.licensed_vectorbt
+def test_real_runtime_path_reaches_protected_ready_and_replays_without_work(
+    tmp_path: Path,
+) -> None:
+    runtime = _runtime(tmp_path)
+    key = "backend_completion_decisive_fixture"
+    first = runtime.launch(idempotency_key=key)
+    assert first.chain.status == "ready_for_protected_test", first.chain
+    assert first.chain.stopped_at is None
+    assert first.chain.protected_test_gate.status == "passed"
+    assert first.chain.protected_test_gate.protected_data_state == "gated"
+    assert first.chain.protected_test_gate.eligible_to_execute_lockbox is True
+    assert first.chain.protected_test_gate.eligible_to_progress is False
+    second = runtime.launch(idempotency_key=key)
+    assert second.chain == first.chain
+    assert verified_survivor_run_ids(database=runtime.database) == frozenset({first.launch.claim.run.run_id})
+    assert first.launch.dispatch.invoked is True
+    assert second.launch.dispatch.invoked is False
+    assert first.launch.dispatch.submission.state == ResearchSubmissionState.ACKNOWLEDGED
+    UUID(first.launch.dispatch.submission.prefect_flow_run_id or "")
+
+    persistence = PersistenceService(runtime.database)
+    try:
+        runs = persistence.runs.list()
+        assert len(runs) == 5
+        assert {run.stage for run in runs} == {
+            RunStage.SCREENING,
+            RunStage.OOS,
+            RunStage.WALK_FORWARD,
+            RunStage.ROBUSTNESS,
+            RunStage.MONTE_CARLO,
+        }
+        assert all(run.status == RunStatus.SUCCEEDED for run in runs)
+        assert sum(event.message == SURVIVOR_EVENT_MESSAGE for event in persistence.events.list_for_run(first.launch.claim.run.run_id)) == 1
+        assert all(persistence.read_persisted_run_manifest(run.run_id) for run in runs)
+        assert {a.logical_name.split(":")[0] for a in persistence.list_run_artifacts(first.chain.completed[0].run_id)} == {"source_lock_evidence", "trades_and_orders", "performance_summary"}
+        assert all(
+            persistence.list_run_artifacts(handoff.run_id)
+            for handoff in first.chain.completed[1:]
+        )
+    finally:
+        persistence.close()
+
+
+@pytest.mark.licensed_vectorbt
+def test_persisted_robustness_merit_failure_is_scored_and_continues(
+    tmp_path: Path,
+) -> None:
+    runtime = _runtime(tmp_path, robustness_minimum_return=2.0)
+
+    result = runtime.launch(idempotency_key="backend_completion_stop_fixture")
+    replay = runtime.launch(idempotency_key="backend_completion_stop_fixture")
+
+    assert result.chain.status == "ready_for_protected_test", result.chain
+    assert replay.chain == result.chain
+    assert replay.launch.dispatch.invoked is False
+    assert tuple(item.stage for item in result.chain.completed) == (
+        RunStage.OOS,
+        RunStage.WALK_FORWARD,
+        RunStage.ROBUSTNESS,
+        RunStage.MONTE_CARLO,
+    )
+    persistence = PersistenceService(runtime.database)
+    try:
+        robustness = result.chain.completed[2]
+        assert robustness.status == "failed"
+        assert robustness.eligible_to_progress is True
+        assert persistence.runs.get(robustness.run_id).status == RunStatus.SUCCEEDED
+        assert persistence.read_persisted_run_manifest(robustness.run_id) is not None
+    finally:
+        persistence.close()
+
+
+def test_post_ack_screening_failure_is_terminal_and_never_reinvoked(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime = _runtime(tmp_path)
+    calls = 0
+
+    def fail_screening(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("controlled screening failure")
+
+    monkeypatch.setattr(candidate_runtime_module, "execute_experiment", fail_screening)
+    key = "backend_completion_fail_closed"
+
+    with pytest.raises(ResearchLaunchInvocationError):
+        runtime.launch(idempotency_key=key)
+    with pytest.raises(CandidatePipelineReplayIncompleteError):
+        runtime.launch(idempotency_key=key)
+
+    assert calls == 1
+    persistence = PersistenceService(runtime.database)
+    try:
+        runs = persistence.runs.list()
+        assert len(runs) == 1
+        assert runs[0].stage == RunStage.SCREENING
+        assert runs[0].status == RunStatus.FAILED
+        assert runs[0].error_summary == "controlled screening failure"
+        submission = persistence.connection.execute(
+            "SELECT state FROM research_run_submissions WHERE run_id=?",
+            (runs[0].run_id,),
+        ).fetchone()
+        assert submission["state"] == ResearchSubmissionState.ACKNOWLEDGED.value
+    finally:
+        persistence.close()
+
+
+def test_post_ack_cache_failure_marks_screening_run_failed(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime = _runtime(tmp_path)
+
+    def fail_cache_load(*_args, **_kwargs):
+        raise RuntimeError("controlled cache-only load failure")
+
+    monkeypatch.setattr(
+        candidate_runtime_module,
+        "load_market_data",
+        fail_cache_load,
+    )
+
+    with pytest.raises(ResearchLaunchInvocationError):
+        runtime.launch(idempotency_key="candidate_cache_failure_after_ack")
+
+    persistence = PersistenceService(runtime.database)
+    try:
+        runs = persistence.runs.list()
+        assert len(runs) == 1
+        assert runs[0].stage == RunStage.SCREENING
+        assert runs[0].status == RunStatus.FAILED
+        assert runs[0].error_summary == "controlled cache-only load failure"
+    finally:
+        persistence.close()
+
+
+@pytest.mark.licensed_vectorbt
+def test_post_ack_stage_failure_is_terminal_and_never_reinvoked(tmp_path: Path) -> None:
+    # Walk-forward windows wider than the fixture history make the real engine fail that stage.
+    runtime = _runtime(tmp_path, walk_forward_window_size=100_000)
+    key = "backend_completion_stage_fail_closed"
+
+    with pytest.raises(ResearchLaunchInvocationError):
+        runtime.launch(idempotency_key=key)
+    with pytest.raises(
+        CandidatePipelineReplayIncompleteError,
+        match="persisted walk_forward stage is failed",
+    ):
+        runtime.launch(idempotency_key=key)
+
+    persistence = PersistenceService(runtime.database)
+    try:
+        runs = persistence.runs.list()
+        assert [run.stage for run in runs].count(RunStage.WALK_FORWARD) == 1
+        assert {run.stage for run in runs} == {
+            RunStage.SCREENING,
+            RunStage.OOS,
+            RunStage.WALK_FORWARD,
+        }
+        walk_forward = next(run for run in runs if run.stage == RunStage.WALK_FORWARD)
+        assert walk_forward.status == RunStatus.FAILED
+    finally:
+        persistence.close()

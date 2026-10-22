@@ -1,0 +1,53 @@
+name: Dependency Review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-24.04
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify dependency scope
+        id: scope
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          git diff --name-only "$BASE_REF" HEAD > "$RUNNER_TEMP/changed-files.txt"
+          if grep -Eq '(^|/)(requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|Pipfile(\.lock)?|package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.(toml|lock)|go\.(mod|sum)|Dockerfile[^/]*)$|^\.github/workflows/dependency-review\.yml$' "$RUNNER_TEMP/changed-files.txt"; then
+            echo "dependencies=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dependencies=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: No dependency change
+        if: steps.scope.outputs.dependencies == 'false'
+        run: echo "No dependency manifest or dependency-review policy changed."
+      # actions/dependency-review-action v5.0.0
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
+        if: steps.scope.outputs.dependencies == 'true'
+        with:
+          fail-on-severity: moderate
+          fail-on-scopes: runtime, development, unknown
+          allow-licenses: >-
+            0BSD, Apache-2.0, BSD-2-Clause, BSD-3-Clause, CC0-1.0, ISC, MIT,
+            MPL-2.0, PSF-2.0, Python-2.0, Zlib,
+            Apache-2.0 WITH LLVM-exception
+          # TA-Lib's bundled C library is BSD-2-Clause-Views: BSD-2-Clause plus a
+          # line that the authors' views are their own. Permissive; exempted for
+          # this one package rather than allowed for every dependency.
+          # Matplotlib's own licence is the PSF-based Matplotlib licence, which the
+          # scanner reports as LicenseRef-scancode-matplotlib-1.3.0. Permissive;
+          # needed because VectorBT PRO's charts import it. Exempted for this
+          # one package only.
+          # grimp (import-linter's import-graph engine, CI only) is also
+          # BSD-2-Clause-Views; exempted for this one package only.
+          allow-dependencies-licenses: pkg:pypi/ta-lib, pkg:pypi/matplotlib, pkg:pypi/grimp

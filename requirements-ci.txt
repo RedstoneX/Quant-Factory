@@ -1,0 +1,19 @@
+# Public dependencies for GitHub-hosted portable-test jobs.
+# VectorBT Pro remains deliberately excluded. Exact marker/inventory accounting
+# keeps real-engine, external-Prefect, and controlled-data coverage visible;
+# the public jobs run every test in the portable lane.
+exchange-calendars==4.13.2
+numpy==2.4.6
+pandas==2.3.3
+pandas-market-calendars==5.4.0
+pyarrow==24.0.0
+prefect==3.7.8
+# prefect 3.7.8 server breaks on fastapi>=0.157 (Body min_items removed); pin until prefect is upgraded on purpose
+fastapi==0.150.0
+pytest==9.1.1
+requests==2.34.2
+tsdownsample==0.1.5.1
+PyYAML==6.0.3
+ruff==0.17.1
+import-linter==2.15
+grimp==3.17

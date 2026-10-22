@@ -1,0 +1,86 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES intraday 10/30 SMA crossover",
+    "one_line": "Trade the first same-session 10-bar versus 30-bar simple moving average cross and exit before the cash close.",
+    "family": "trend_following",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "owner_observation",
+      "title": "Terry's fixed SMA crossover request, 2026-10-06",
+      "creator": "Terry"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "A fresh 10-bar/30-bar crossover within the US cash session may predict directional MES continuation before that session closes.",
+    "failure_theory": [
+      "Frequent intraday whipsaws may erase gross crossover gains.",
+      "Waiting for 30 same-session bars may enter too late.",
+      "Fixed per-contract fees and adverse next-bar execution may erase an apparent edge."
+    ]
+  },
+  "market": {
+    "instruments": {"preferred": ["MES"]},
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "data_as_of": "2026-02-13T21:55:00Z",
+    "fields": ["Open", "High", "Low", "Close", "Volume"],
+    "minimum_resolution": "5m"
+  },
+  "rules": {
+    "setup": [
+      "Reset both close-based simple moving averages at each complete NYSE regular session.",
+      "Skip missing or non-contiguous five-minute sessions and early closes; never compute a crossover across a futures roll or session gap."
+    ],
+    "long_entry": ["Take the first completed-bar cross of the 10-bar SMA above the 30-bar SMA after both and their prior values exist; enter at the next contiguous five-minute open."],
+    "short_entry": ["Take the first completed-bar cross of the 10-bar SMA below the 30-bar SMA after both and their prior values exist; enter at the next contiguous five-minute open."],
+    "exits": {"time_exit": "Signal exit at 15:50 ET for a 15:55 ET next-bar-open fill; no position remains after the session."},
+    "max_trades_per_session": 1
+  },
+  "fixed": {
+    "fast_sma_bars": 10,
+    "slow_sma_bars": 30,
+    "bar_interval": "5m",
+    "session_reset": true,
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open",
+    "time_exit": "15:55 ET",
+    "fixed_fee_per_contract_per_side": 0.62,
+    "slippage_ticks_per_side": 1,
+    "stress_fee_per_contract_per_side": 1.24,
+    "stress_slippage_ticks_per_side": 2
+  },
+  "variables": {},
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "direction": "long and short",
+      "position_size": "one MES contract, no accumulation",
+      "roll_gaps": "same-session indicators and flat-at-close trades; no cross-session return counted"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "At least 20 completed trades, positive total and annualized return, Sharpe at least 0.5, and drawdown at most 35% after baseline costs.",
+      "Run the declared chronological out-of-sample, walk-forward, higher-cost, regime, and simulation gates only if earlier gates pass.",
+      "Keep the protected test closed; no parameter tuning or second average pair after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No crossover across session or futures roll gaps.",
+    "No optimization, parameter sweep, alternate average pair, stop, target, or hidden filter in this Candidate.",
+    "No paper/live trading or automatic promotion."
+  ]
+}

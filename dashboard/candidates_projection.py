@@ -1,0 +1,260 @@
+"""Bounded, read-only projection for the Candidates workspace."""
+
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+import sqlite3
+from typing import Any
+
+from dashboard.overview_projection import (
+    BASE_CTE,
+    ADVANCING_CONDITION,
+    CANDIDATE_PAGE_LIMIT,
+    _base_params,
+    _finite_number,
+    _scalar,
+    _validated_connection,
+    configured_database_path,
+)
+from dashboard.results_projection import oos_report_metrics
+
+
+COUNT_KEYS = ("survivor", "advancing", "blocked", "duplicate", "crashed", "needs_review", "rejected", "all")
+
+
+CANDIDATE_SORT_FIELDS = {
+    "title": "title", "symbol": "symbol", "family": "family",
+    "lifecycle": "lifecycle", "sharpe": "sharpe", "max_drawdown": "max_drawdown",
+    "retained": "retained", "net_return": "net_return", "robustness": "robustness",
+    "paper": "paper", "updated_at": "observed_at",
+}
+
+
+def _candidate_source() -> str:
+    return """
+        SELECT c.candidate_id, c.configuration_id, c.candidate_json, c.description,
+               c.title, c.symbol, c.asset_class,
+               COALESCE(json_extract(c.candidate_json, '$.candidate.family'), 'Not recorded') AS family,
+               COALESCE(json_extract(c.candidate_json, '$.candidate.status'), 'received') AS packet_status,
+               c.run_id, c.oos_run_id, c.stage, c.run_status, c.screening_status, c.error_summary,
+               c.campaign_policy_id, c.campaign_state, c.campaign_reason_code,
+               c.campaign_reason_detail,
+               c.survivor, c.observed_at,
+               CAST(json_extract(c.oos_metrics_json, '$.sharpe_ratio') AS REAL) AS sharpe,
+               CAST(json_extract(c.oos_metrics_json, '$.max_drawdown') AS REAL) AS max_drawdown,
+               CAST(json_extract(c.oos_metrics_json, '$.total_return') AS REAL) AS net_return,
+               CAST(json_extract(c.metrics_json, '$.sharpe_ratio') AS REAL) AS screening_sharpe,
+               CAST(json_extract(c.metrics_json, '$.max_drawdown') AS REAL) AS screening_max_drawdown,
+               CAST(json_extract(c.metrics_json, '$.total_return') AS REAL) AS screening_return,
+               CAST(json_extract(c.metrics_json, '$.annualized_return') AS REAL) AS screening_annualized_return,
+               CAST(json_extract(c.metrics_json, '$.number_of_trades') AS INTEGER) AS screening_trades,
+               CAST(json_extract(c.metrics_json, '$.win_rate') AS REAL) AS screening_win_rate,
+               (SELECT p.rejection_reasons FROM parameter_results p
+                WHERE p.run_id=c.run_id ORDER BY p.ranking_position,p.row_id LIMIT 1) AS screening_reasons,
+               (SELECT COUNT(*) FROM parameter_results p WHERE p.run_id=c.run_id) AS screening_count,
+               (SELECT COUNT(*) FROM parameter_results p
+                WHERE p.run_id=c.run_id AND p.screening_status='screened_out') AS screened_out_count,
+               NULL AS retained,
+               CASE
+                 WHEN c.survivor=1 OR c.campaign_state='survivor' THEN 'survivor'
+                 WHEN c.campaign_state='exception_hold' THEN 'needs_review'
+                 WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), '')) IN ('needs_review','exception_hold') THEN 'needs_review'
+                 WHEN c.campaign_state='implementation_blocked' THEN 'blocked'
+                 WHEN c.campaign_state='duplicate_closed' THEN 'duplicate'
+                 WHEN c.campaign_state='failed' THEN 'crashed'
+                 WHEN """ + ADVANCING_CONDITION + """ THEN 'advancing'
+                 WHEN c.campaign_state IN ('invalid','prior_work_conflict','budget_blocked','deterministic_failure','screened_out','insufficient') THEN 'rejected'
+                 WHEN LOWER(COALESCE(json_extract(c.candidate_json, '$.candidate.status'), ''))='rejected'
+                   OR c.run_status IN ('failed','cancelled')
+                   OR c.screening_status IN ('screened_out','invalid','insufficient') THEN 'rejected'
+                 ELSE 'received' END AS lifecycle,
+               CASE
+                 WHEN c.stage IN ('robustness','monte_carlo') AND c.run_status='succeeded' THEN 'Passed'
+                 WHEN c.stage IN ('robustness','monte_carlo') AND c.run_status IN ('created','running') THEN 'Testing'
+                 ELSE 'Not run' END AS robustness,
+               CASE WHEN c.survivor=1 THEN 'Not started' ELSE '' END AS paper,
+               c.is_test AS is_test
+        FROM candidates c
+    """
+
+
+def _candidate_conditions(
+    *, lifecycle: str, market: str, family: str, evidence: str, search: str, show_test: bool = False,
+) -> tuple[list[str], list[Any]]:
+    conditions = ["1=1" if show_test else "is_test=0"]
+    params: list[Any] = []
+    if lifecycle != "all":
+        conditions.append("lifecycle=?"); params.append(lifecycle)
+    if market != "all":
+        conditions.append("asset_class=?"); params.append(market)
+    if family != "all":
+        conditions.append("LOWER(family)=LOWER(?)"); params.append(family)
+    if evidence == "all_gates":
+        conditions.append("survivor=1")
+    elif evidence == "failed_oos":
+        conditions.append("stage='oos' AND COALESCE(screening_status,'')<>'passed'")
+    elif evidence == "semantic_exception":
+        conditions.append("lifecycle='needs_review'")
+    if search.strip():
+        token = f"%{search.strip().lower()}%"
+        conditions.append("(LOWER(title) LIKE ? OR LOWER(symbol) LIKE ? OR LOWER(family) LIKE ? OR LOWER(candidate_id) LIKE ?)")
+        params.extend([token, token, token, token])
+    return conditions, params
+
+
+def _first_number(*values: Any) -> float | None:
+    return next((n for n in map(_finite_number, values) if n is not None), None)
+
+
+def _oos_for(row: sqlite3.Row, database: Path) -> dict[str, Any] | None:
+    if row["sharpe"] is not None or not row["oos_run_id"]:
+        return None
+    return oos_report_metrics(database=database, run_id=str(row["oos_run_id"]))
+
+
+def _candidate_grid_row(row: sqlite3.Row, *, rank: int | None = None, oos: dict[str, Any] | None = None) -> dict[str, Any]:
+    def percent(value: Any, *, absolute: bool = False) -> float | None:
+        number = _finite_number(value)
+        if number is None:
+            return None
+        number = abs(number) if absolute else number
+        return number * 100 if abs(number) <= 1 else number
+
+    candidate_json = str(row["candidate_json"] or "")
+    return {
+        "candidate_id": str(row["candidate_id"]),
+        "candidate_version": hashlib.sha256(candidate_json.encode()).hexdigest() if candidate_json else None,
+        "configuration_id": str(row["configuration_id"]) if row["configuration_id"] else None,
+        "run_id": str(row["run_id"]) if row["run_id"] else None,
+        "title": str(row["title"] or "Untitled Candidate"), "description": str(row["description"] or ""),
+        "symbol": str(row["symbol"] or "Unrecorded"), "family": str(row["family"] or "Not recorded"),
+        "lifecycle": str(row["lifecycle"]), "packet_status": str(row["packet_status"]),
+        "stage": str(row["stage"] or "not_run"), "run_status": str(row["run_status"] or "not_run"),
+        "screening_status": str(row["screening_status"] or "not_run"), "error_summary": row["error_summary"],
+        "campaign_policy_id": str(row["campaign_policy_id"] or ""),
+        "campaign_state": str(row["campaign_state"] or "not_admitted"),
+        "campaign_reason_code": str(row["campaign_reason_code"] or ""),
+        "campaign_reason_detail": str(row["campaign_reason_detail"] or ""),
+        "sharpe": _first_number(row["sharpe"], (oos or {}).get("sharpe_ratio")),
+        "max_drawdown": percent(_first_number(row["max_drawdown"], (oos or {}).get("max_drawdown")), absolute=True),
+        "retained": _finite_number(row["retained"]),
+        "net_return": percent(_first_number(row["net_return"], (oos or {}).get("total_return"))),
+        "screening_sharpe": _finite_number(row["screening_sharpe"]),
+        "screening_max_drawdown": percent(row["screening_max_drawdown"], absolute=True),
+        "screening_return": percent(row["screening_return"]),
+        "screening_annualized_return": percent(row["screening_annualized_return"]),
+        "screening_trades": int(row["screening_trades"]) if row["screening_trades"] is not None else None,
+        "screening_win_rate": percent(row["screening_win_rate"]),
+        "screening_reasons": str(row["screening_reasons"] or ""),
+        "screening_count": int(row["screening_count"] or 0),
+        "screened_out_count": int(row["screened_out_count"] or 0),
+        "robustness": str(row["robustness"]), "paper": str(row["paper"]), "is_test": bool(row["is_test"]),
+        "updated_at": str(row["observed_at"]), "rank": rank,
+    }
+
+
+def load_candidates_summary(*, database: str | Path | None = None) -> dict[str, Any]:
+    """Aggregate the complete Candidate population and return bounded facets."""
+    database_path = Path(database) if database is not None else configured_database_path()
+    connection, error = _validated_connection(database_path)
+    if connection is None:
+        return {"available": False, "message": error, "counts": {key: 0 for key in COUNT_KEYS}, "families": []}
+    try:
+        source = BASE_CTE + ", candidate_records AS (" + _candidate_source() + ")"
+        rows = connection.execute(source + " SELECT lifecycle, COUNT(*) AS count FROM candidate_records WHERE is_test=0 GROUP BY lifecycle", _base_params()).fetchall()
+        counts = {key: 0 for key in COUNT_KEYS}
+        for row in rows:
+            key = str(row["lifecycle"]); counts[key] = int(row["count"]); counts["all"] += int(row["count"])
+        families = [str(row[0]) for row in connection.execute(source + " SELECT DISTINCT family FROM candidate_records ORDER BY LOWER(family) LIMIT 100", _base_params())]
+        return {"available": True, "message": "Read-only Candidate state loaded.", "counts": counts, "families": families}
+    except (sqlite3.Error, ValueError, TypeError) as exc:
+        return {"available": False, "message": f"Candidate state could not be projected safely: {exc}", "counts": {key: 0 for key in COUNT_KEYS}, "families": []}
+    finally:
+        connection.close()
+
+
+def load_candidates_page(
+    *, lifecycle: str = "survivor", market: str = "all", family: str = "all",
+    evidence: str = "any", search: str = "", show_test: bool = False, start: int = 0, end: int = 50,
+    sort_model: list[dict[str, Any]] | None = None,
+    filter_model: dict[str, dict[str, Any]] | None = None,
+    database: str | Path | None = None,
+) -> dict[str, Any]:
+    """Return one capped server-sorted and server-filtered Candidate page."""
+    database_path = Path(database) if database is not None else configured_database_path()
+    connection, _error = _validated_connection(database_path)
+    if connection is None:
+        return {"rowData": [], "rowCount": 0}
+    try:
+        conditions, params = _candidate_conditions(lifecycle=lifecycle, market=market, family=family, evidence=evidence, search=search, show_test=show_test)
+        for field, model in (filter_model or {}).items():
+            column = CANDIDATE_SORT_FIELDS.get(field)
+            value = model.get("filter")
+            if column and value not in (None, ""):
+                if str(model.get("filterType")) == "number":
+                    operator = {"greaterThan": ">", "greaterThanOrEqual": ">=", "lessThan": "<", "lessThanOrEqual": "<=", "equals": "="}.get(str(model.get("type")), "=")
+                    conditions.append(f"{column} {operator} ?"); params.append(float(value))
+                else:
+                    conditions.append(f"LOWER(COALESCE(CAST({column} AS TEXT),'')) LIKE ?"); params.append(f"%{str(value).lower()}%")
+        order = "sharpe DESC, max_drawdown ASC, candidate_id ASC"
+        if sort_model:
+            requested = sort_model[0]; column = CANDIDATE_SORT_FIELDS.get(str(requested.get("colId")))
+            if column:
+                direction = "DESC" if requested.get("sort") == "desc" else "ASC"
+                order = f"{column} {direction}, candidate_id ASC"
+        source = BASE_CTE + ", candidate_records AS (" + _candidate_source() + ")"
+        where = " AND ".join(conditions)
+        base_params = _base_params() + params
+        total = _scalar(connection, source + f" SELECT COUNT(*) FROM candidate_records WHERE {where}", base_params)
+        limit = min(CANDIDATE_PAGE_LIMIT, max(1, int(end) - int(start)))
+        rows = connection.execute(source + f" SELECT * FROM candidate_records WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?", base_params + [limit, max(0, int(start))]).fetchall()
+        return {"rowData": [_candidate_grid_row(row, rank=max(0, int(start)) + index + 1, oos=_oos_for(row, database_path)) for index, row in enumerate(rows)], "rowCount": total}
+    except (sqlite3.Error, ValueError, TypeError):
+        return {"rowData": [], "rowCount": 0}
+    finally:
+        connection.close()
+
+
+def _results_run_id(progression: list[dict[str, Any]]) -> str | None:
+    """The run worth opening: unseen-data test first, then the first check; later stages have no chart."""
+    for stage in ("oos", "screening"):
+        run = next((p for p in progression if p["stage"] == stage and p["status"] == "succeeded"), None)
+        if run:
+            return str(run["run_id"])
+    return None
+
+
+def load_candidate_detail(candidate_id: str | None, *, database: str | Path | None = None) -> dict[str, Any] | None:
+    """Hydrate one exact Candidate plus bounded latest-per-stage lineage."""
+    if not candidate_id:
+        return None
+    database_path = Path(database) if database is not None else configured_database_path()
+    connection, _error = _validated_connection(database_path)
+    if connection is None:
+        return None
+    try:
+        source = BASE_CTE + ", candidate_records AS (" + _candidate_source() + ")"
+        row = connection.execute(source + " SELECT * FROM candidate_records WHERE candidate_id=?", _base_params() + [candidate_id]).fetchone()
+        if row is None:
+            return None
+        detail = _candidate_grid_row(row, oos=_oos_for(row, database_path))
+        stages = connection.execute("""
+            WITH ranked AS (
+              SELECT run_id, stage, status, created_at, completed_at, error_summary,
+                     (SELECT COUNT(*) FROM parameter_results p WHERE p.run_id=experiment_runs.run_id AND p.screening_status='passed') AS passed_count,
+                     (SELECT COUNT(*) FROM parameter_results p WHERE p.run_id=experiment_runs.run_id) AS result_count,
+                     ROW_NUMBER() OVER (PARTITION BY stage ORDER BY created_at DESC, run_id DESC) AS recency
+              FROM experiment_runs WHERE configuration_id=?
+            ) SELECT run_id,stage,status,created_at,completed_at,error_summary,passed_count,result_count FROM ranked WHERE recency=1 ORDER BY created_at
+        """, [detail["configuration_id"]]).fetchall() if detail["configuration_id"] else []
+        detail["progression"] = [dict(stage) for stage in stages]
+        detail["results_run_id"] = _results_run_id(detail["progression"]) or detail["run_id"]
+        return detail
+    except (sqlite3.Error, ValueError, TypeError):
+        return None
+    finally:
+        connection.close()
+
+
+__all__ = ["load_candidates_summary", "load_candidates_page", "load_candidate_detail"]

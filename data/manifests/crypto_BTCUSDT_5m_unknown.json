@@ -1,0 +1,69 @@
+{
+  "format": "parquet",
+  "source_archive": "quant_factory_FULL_BACKUP_20260217.tar.gz",
+  "timeframe": "5m",
+  "duplicate_timestamp_count": 0,
+  "monotonic_increasing": true,
+  "apparent_bar_interval": "5 minutes (modal positive timestamp delta: 300 seconds)",
+  "imported_at_utc": "2026-07-07T17:09:09Z",
+  "validated_by": "Codex controlled legacy import",
+  "dataset_id": "crypto_BTCUSDT_5m_unknown",
+  "status": "quarantined",
+  "asset_class": "crypto",
+  "symbol": "BTC/USDT",
+  "provider": "unresolved",
+  "canonical_relative_path": "quarantine/crypto/BTC/5m/BTCUSD_5m.parquet",
+  "original_source_path": "data/BTCUSD/5m/BTCUSD_5m.parquet",
+  "sha256": "1aba46d1d0d0a2ccbf559fdccd9b924a37df1962d3535933a1bd922e5a58bb1b",
+  "size_bytes": 10956474,
+  "row_count": 209088,
+  "earliest_timestamp": "2020-07-27T08:40:00",
+  "latest_timestamp": "2022-07-27T08:40:00",
+  "timezone": "unresolved (naive timestamps)",
+  "timestamp_field": "datetime",
+  "columns": [
+    "unix",
+    "datetime",
+    "symbol",
+    "open",
+    "high",
+    "low",
+    "close",
+    "Volume BTC",
+    "Volume USDT",
+    "tradecount"
+  ],
+  "schema": {
+    "unix": "int64",
+    "datetime": "timestamp[ms]",
+    "symbol": "large_string",
+    "open": "double",
+    "high": "double",
+    "low": "double",
+    "close": "double",
+    "Volume BTC": "double",
+    "Volume USDT": "double",
+    "tradecount": "int64"
+  },
+  "null_counts": {
+    "unix": 0,
+    "datetime": 0,
+    "symbol": 0,
+    "open": 0,
+    "high": 0,
+    "low": 0,
+    "close": 0,
+    "Volume BTC": 0,
+    "Volume USDT": 0,
+    "tradecount": 0
+  },
+  "ohlc_violation_count": 0,
+  "validation_notes": [
+    "Readable and internally identifies BTC/USDT, not BTC/USD.",
+    "Provider and timezone are unresolved; prior audit Markdown was not located."
+  ],
+  "approved_uses": [],
+  "restrictions": [
+    "Quarantined: do not use until provider, timezone, and provenance are verified."
+  ]
+}

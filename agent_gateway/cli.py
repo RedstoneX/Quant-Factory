@@ -1,0 +1,240 @@
+"""Provider-neutral qf-agent command-line client."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import socket
+import sys
+from uuid import uuid4
+
+from agent_gateway.contracts import GATEWAY_PROTOCOL, MAX_REQUEST_BYTES
+
+
+DEFAULT_SOCKET = "/run/quant-factory/agent-gateway.sock"
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="qf-agent")
+    parser.add_argument("--socket", default=os.environ.get("QF_AGENT_SOCKET", DEFAULT_SOCKET))
+    parser.add_argument(
+        "--credential-file",
+        default=os.environ.get("QF_AGENT_CREDENTIAL_FILE"),
+    )
+    parser.add_argument("--pretty", action="store_true")
+    commands = parser.add_subparsers(dest="group", required=True)
+
+    commands.add_parser("bootstrap")
+
+    context = commands.add_parser("context")
+    context.add_subparsers(dest="action", required=True).add_parser("get")
+
+    prior = commands.add_parser("prior")
+    prior_search = prior.add_subparsers(dest="action", required=True).add_parser("search")
+    prior_search.add_argument("--query", required=True)
+
+    candidate = commands.add_parser("candidate")
+    candidate_actions = candidate.add_subparsers(dest="action", required=True)
+    for action in ("validate", "submit"):
+        command = candidate_actions.add_parser(action)
+        command.add_argument("file")
+        if action == "submit":
+            _lineage_options(command)
+    candidate_actions.add_parser("list")
+    candidate_actions.add_parser("status").add_argument("--finished-since", dest="finished_since")
+    candidate_get = candidate_actions.add_parser("get")
+    candidate_get.add_argument("candidate_id")
+
+    run = commands.add_parser("run")
+    run_actions = run.add_subparsers(dest="action", required=True)
+    run_request = run_actions.add_parser("request")
+    run_request.add_argument("candidate_id")
+    for action in ("status", "results", "evidence", "trades"):
+        command = run_actions.add_parser(action)
+        command.add_argument("run_id")
+
+    research = commands.add_parser("research")
+    research_actions = research.add_subparsers(dest="action", required=True)
+    note = research_actions.add_parser("note")
+    note_actions = note.add_subparsers(dest="note_action", required=True)
+    note_add = note_actions.add_parser("add")
+    note_add.add_argument("--candidate", dest="candidate_id", required=True)
+    note_add.add_argument("--file", required=True)
+
+    lineage = commands.add_parser("lineage")
+    lineage_get = lineage.add_subparsers(dest="action", required=True).add_parser("get")
+    lineage_get.add_argument("candidate_id")
+
+    campaign = commands.add_parser("campaign")
+    campaign_actions = campaign.add_subparsers(dest="action", required=True)
+    for action in ("status", "requeue"):
+        campaign_actions.add_parser(action).add_argument("candidate_id")
+    campaign_actions.add_parser("control_status")
+    retest = campaign_actions.add_parser("retest")
+    retest.add_argument("candidate_id", nargs="?")
+    retest.add_argument("--all-settled", action="store_true")
+    retest.add_argument("--reason", required=True)
+
+    data = commands.add_parser("data")
+    data_actions = data.add_subparsers(dest="action", required=True)
+    data_actions.add_parser("files")
+    data_actions.add_parser("download").add_argument("dataset_id")
+    return parser
+
+
+def _lineage_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--parent-candidate")
+    parser.add_argument("--parent-run")
+    parser.add_argument("--change-reason")
+    parser.add_argument("--evidence-cited")
+    parser.add_argument("--rule-changed")
+    parser.add_argument("--material-difference")
+    parser.add_argument("--falsification")
+    parser.add_argument("--bounded-search-space")
+
+
+def request_document(args: argparse.Namespace) -> dict[str, object]:
+    operation, arguments, payload = _operation(args)
+    document: dict[str, object] = {
+        "protocol": GATEWAY_PROTOCOL,
+        "request_id": f"req_{uuid4().hex}",
+        "operation": operation,
+        "arguments": arguments,
+        "payload": payload,
+    }
+    if args.credential_file:
+        document["credential"] = _read_credential(args.credential_file)
+    return document
+
+
+def _operation(args: argparse.Namespace) -> tuple[str, dict[str, object], str | None]:
+    payload = None
+    arguments: dict[str, object] = {}
+    if args.group == "bootstrap":
+        return "bootstrap", arguments, payload
+    if args.group == "context":
+        return "context.get", arguments, payload
+    if args.group == "prior":
+        return "prior.search", {"query": args.query}, payload
+    if args.group == "candidate":
+        if args.action in {"validate", "submit"}:
+            payload = _read_payload(args.file)
+            if args.action == "submit":
+                lineage = {
+                    "parent_candidate_id": args.parent_candidate,
+                    "parent_run_id": args.parent_run,
+                    "change_reason": args.change_reason,
+                    "evidence_cited": args.evidence_cited,
+                    "rule_changed": args.rule_changed,
+                    "material_difference": args.material_difference,
+                    "falsification": args.falsification,
+                    "bounded_search_space": args.bounded_search_space,
+                }
+                if any(value is not None for value in lineage.values()):
+                    arguments["lineage"] = lineage
+            return f"candidate.{args.action}", arguments, payload
+        if args.action == "get":
+            arguments["candidate_id"] = args.candidate_id
+        if args.action == "status" and args.finished_since:
+            arguments["finished_since"] = args.finished_since
+        return f"candidate.{args.action}", arguments, payload
+    if args.group == "run":
+        arguments[f"{'candidate' if args.action == 'request' else 'run'}_id"] = (
+            args.candidate_id if args.action == "request" else args.run_id
+        )
+        return f"run.{args.action}", arguments, payload
+    if args.group == "research":
+        return "research.note.add", {"candidate_id": args.candidate_id}, _read_payload(args.file)
+    if args.group == "lineage":
+        return "lineage.get", {"candidate_id": args.candidate_id}, payload
+    if args.group == "campaign":
+        if args.action == "control_status":
+            return "campaign.control_status", {}, payload
+        arguments = {"candidate_id": args.candidate_id}
+        if args.action == "retest":
+            arguments.update(reason=args.reason, all_settled=args.all_settled)
+        return f"campaign.{args.action}", arguments, payload
+    if args.group == "data":
+        return f"data.{args.action}", ({"dataset_id": args.dataset_id} if args.action == "download" else {}), payload
+    raise ValueError("unsupported command")
+
+
+def _read_payload(path: str) -> str:
+    if path == "-":
+        text = sys.stdin.read(MAX_REQUEST_BYTES + 1)
+    else:
+        text = Path(path).read_text()
+    if len(text.encode()) > MAX_REQUEST_BYTES:
+        raise ValueError("input exceeds gateway request size limit")
+    return text
+
+
+def _read_credential(path: str) -> str:
+    credential = Path(path).read_text().strip()
+    if not credential or len(credential) > 256 or not credential.replace("_", "a").replace("-", "a").isalnum():
+        raise ValueError("gateway credential file is invalid")
+    return credential
+
+
+def send(document: dict[str, object], socket_path: str) -> dict[str, object]:
+    response, files = send_with_files(document, socket_path)
+    for descriptor in files:
+        os.close(descriptor)
+    return response
+
+
+def send_with_files(document: dict[str, object], socket_path: str) -> tuple[dict[str, object], list[int]]:
+    """Send one request; return the JSON answer and any file descriptors passed with it."""
+    files: list[int] = []
+    encoded = json.dumps(document, sort_keys=True, separators=(",", ":")).encode() + b"\n"
+    if len(encoded) > MAX_REQUEST_BYTES:
+        raise ValueError("request exceeds gateway size limit")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(120)
+        client.connect(socket_path)
+        client.sendall(encoded)
+        response = b""
+        while not response.endswith(b"\n"):
+            chunk, received, _flags, _address = socket.recv_fds(client, 65_536, 1)
+            files.extend(received)
+            if not chunk:
+                break
+            response += chunk
+            if len(response) > MAX_REQUEST_BYTES * 4:
+                raise RuntimeError("gateway response exceeds size limit")
+    document = json.loads(response)
+    if not isinstance(document, dict):
+        raise RuntimeError("gateway response is invalid")
+    return document, files
+
+
+def download(document: dict[str, object], socket_path: str) -> dict[str, object]:
+    """Copy the passed read-only file to stdout; the JSON answer goes to stderr."""
+    response, files = send_with_files(document, socket_path)
+    if response.get("ok") and len(files) == 1:
+        with os.fdopen(files.pop(), "rb") as source:
+            shutil.copyfileobj(source, sys.stdout.buffer, 1024 * 1024)
+        sys.stdout.buffer.flush()
+    elif response.get("ok"):
+        response = {"protocol": GATEWAY_PROTOCOL, "ok": False, "error": {"code": "client_error", "message": "gateway sent no file"}}
+    for descriptor in files:
+        os.close(descriptor)
+    return response
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    is_download = args.group == "data" and args.action == "download"
+    try:
+        response = (download if is_download else send)(request_document(args), args.socket)
+    except (OSError, RuntimeError, ValueError) as exc:
+        response = {"protocol": GATEWAY_PROTOCOL, "ok": False, "error": {"code": "client_error", "message": str(exc)}}
+    print(json.dumps(response, indent=2 if args.pretty else None, sort_keys=True), file=sys.stderr if is_download else sys.stdout)
+    return 0 if response.get("ok") else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

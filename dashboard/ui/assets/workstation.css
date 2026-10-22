@@ -1,0 +1,48 @@
+/* Shared workstation language: Dashboard depth and hierarchy on every route. */
+.candidates-app,.results-app,.factory-app,.submit-app,.compare-app,.paper-app{background:var(--shell)}
+.candidates-body,.results-body,.factory-body,.submit-body,.compare-body,.paper-body{position:relative}
+
+/* Candidates and Factory: distinct analytical grid and inspector cards. */
+.candidate-workspace,.factory-workspace{gap:12px;background:transparent;border:0!important;overflow:visible}
+.candidate-grid-region,.factory-workspace>.candidate-grid-region,.candidate-detail,.factory-run-detail{position:relative;background:var(--panel);border:1px solid var(--line)!important;border-radius:6px;overflow:hidden}
+.candidate-detail,.factory-run-detail{border-left:1px solid var(--line)!important}
+.candidate-detail-head,.factory-run-detail .candidate-detail-head{position:relative;background:var(--panel)}
+.candidate-filters,.candidate-lifecycle-row,.factory-toolbar,.submit-toolbar,.compare-toolbar,.results-toolbar,.results-context{position:relative;z-index:2}
+.candidates-grid .ag-row-selected,.factory-grid .ag-row-selected,.results-trade-grid .ag-row-selected,.submit-grid .ag-row-selected,.compare-grid .ag-row-selected{box-shadow:inset 3px 0 0 var(--blue)}
+
+/* Factory: live oversight cards above a bounded operational grid. */
+.factory-summary-grid{gap:10px}.factory-summary{position:relative;min-height:82px;padding:13px 14px;border-radius:6px;background:var(--panel);overflow:hidden}.factory-summary:nth-child(3):after{background:rgba(125,133,144,.10)}.factory-summary:nth-child(4):after{background:rgba(38,166,154,.09)}.factory-summary:nth-child(5):after{background:rgba(210,153,34,.09)}
+.factory-outcome-card{border-radius:6px;background:var(--panel)}
+
+/* Results: chart-first investigation followed by synchronized evidence. */
+.results-run-identity{min-width:260px;padding-left:18px;border-left:1px solid var(--line)}.results-run-kicker{color:var(--muted)!important;font-size:var(--mantine-font-size-sm)!important;text-transform:uppercase;letter-spacing:.08em}.results-run-name{color:var(--text)!important;font-size:var(--mantine-font-size-sm)!important;font-weight:600!important;margin-top:2px}.results-run-meta{color:var(--muted)!important;font-size:var(--mantine-font-size-sm)!important;margin-top:1px}.results-primary{grid-template-columns:minmax(0,1fr) 210px;gap:12px}.results-price,.results-ledger,.results-linked{position:relative;border-radius:6px!important;background:var(--panel)}.results-metrics{gap:7px}.results-metric{position:relative;border-radius:6px;padding:10px 12px;background:var(--panel);overflow:hidden}
+.results-metric:nth-child(2):after,.results-metric:nth-child(5):after{background:rgba(125,133,144,.085)}.results-metric:nth-child(3):after,.results-metric:nth-child(7):after{background:rgba(239,83,80,.075)}.results-lower{grid-template-columns:minmax(0,1.45fr) minmax(400px,.75fr);gap:12px}.results-assumptions{background:rgba(13,17,23,.28)}.results-trade-grid .ag-header-cell-menu-button,.results-trade-grid .ag-header-cell-filter-button{display:none!important}.results-trade-grid .qf-center-header .ag-header-cell-label{justify-content:center}.results-trade-grid .ag-cell{text-align:center}.results-trade-grid .ag-cell[col-id="screening_status"]{text-align:left}
+.results-linked-trade-grid{height:172px;min-height:172px}.results-linked-trade-grid .ag-header-cell-menu-button,.results-linked-trade-grid .ag-header-cell-filter-button{display:none!important}.results-linked-trade-grid .ag-cell{font-size:var(--mantine-font-size-sm)}
+
+/* Submit: intake and safety boundary visible together above the fold. */
+.submit-workspace{grid-template-columns:minmax(0,1.45fr) minmax(320px,.72fr);gap:12px;min-height:0}.submit-workspace>.panel{position:relative;border-radius:6px!important;background:var(--panel)}
+.submit-upload-zone{min-height:132px;border-radius:6px;background:rgba(88,166,255,.045)}.submit-summary-grid{background:rgba(13,17,23,.3)}.submit-budget{border-radius:6px;background:rgba(88,166,255,.09)}.submit-mandate{border-radius:6px;background:rgba(210,153,34,.09)}.submit-policy .side-body{padding:2px 15px 15px}
+
+/* Compare: analytical chart and material differences side by side. */
+.compare-primary{grid-template-columns:minmax(0,1.45fr) minmax(320px,.72fr);gap:12px}.compare-primary>.panel,.compare-table{position:relative;border-radius:6px!important;background:var(--panel)}.compare-chart .dash-graph,.compare-chart .js-plotly-plot,.compare-chart .plot-container,.compare-chart .svg-container{height:360px!important;min-height:360px}.compare-differences{background:rgba(125,133,144,.055)!important}.compare-differences .submit-empty{margin:8px 0;border-radius:6px;background:rgba(125,133,144,.035)}.compare-table{margin-top:12px}
+
+/* Paper handoff: a deliberate system boundary, not a settings card. */
+.paper-body{min-height:850px}.paper-card{position:relative;width:min(780px,100%);border-radius:6px!important;background:var(--panel)}.paper-card-body{padding:34px 38px 38px}.paper-symbol{width:62px;height:62px;border-radius:6px;background:rgba(88,166,255,.18)}.paper-card .candidate-evidence-item{padding:11px 12px;margin-top:7px;border:1px solid var(--line);border-radius:6px;background:rgba(13,17,23,.28)}
+
+@media(max-width:1100px){
+  .submit-workspace,.compare-primary{grid-template-columns:minmax(0,1fr) 300px}.candidate-workspace,.factory-workspace{grid-template-columns:minmax(0,1fr) 320px}.results-primary,.results-lower{grid-template-columns:minmax(0,1fr)}
+  .results-metrics{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:none}.results-price,.results-ledger,.results-linked{min-width:0}
+  .results-toolbar,.results-context{flex-wrap:wrap}.results-trade-grid,.results-linked-trade-grid{max-width:100%}
+}
+@media(max-width:700px){
+  .results-app{grid-template-columns:52px minmax(0,1fr)}
+  .results-topbar{height:auto;min-height:0;padding:12px;align-items:flex-start}.results-topbar>.top-spacer{display:none}.results-run-identity{order:3;width:100%;min-width:0;padding:9px 0 0;border-left:0;border-top:1px solid var(--line)}
+  .results-body{padding:10px 8px 20px}.results-run-select,.results-control,.results-session{width:100%}.results-toolbar>*,.results-context>*{flex:1 1 135px}.results-toolbar>.top-spacer,.results-context>.top-spacer{display:none}
+  .results-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.results-assumptions{grid-template-columns:repeat(2,minmax(0,1fr))}.results-assumption:nth-child(2){border-right:0}
+  .results-price .panel-head,.results-ledger .panel-head,.results-linked .panel-head{height:auto;min-height:58px;flex-wrap:wrap}.results-trade-search{width:100%;margin-top:8px}
+  .results-linked .candidate-detail-tabs [role=tablist]{overflow-x:auto;flex-wrap:nowrap}.results-linked .candidate-detail-tabs button{flex:0 0 auto;margin-right:12px}
+}
+
+.results-price .results-portfolio-graph,.results-price .results-portfolio-graph .js-plotly-plot,.results-price .results-portfolio-graph .plot-container,.results-price .results-portfolio-graph .svg-container{height:560px!important;min-height:560px;width:100%!important}
+
+.candidate-state.screened-out{color:#7d8590!important;border-color:#30363d!important;background:rgba(125,133,144,.1)!important}

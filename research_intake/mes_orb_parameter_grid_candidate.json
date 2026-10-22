@@ -1,0 +1,122 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES opening-range breakout parameter grid",
+    "one_line": "Test whether MES continues after breaking several predeclared cash-session opening ranges.",
+    "family": "opening_range_breakout",
+    "status": "ready_for_review"
+  },
+  "hypothesis": {
+    "behavior": "MES may continue in the breakout direction after a completed five-minute close exceeds the completed 09:30 ET opening range.",
+    "edge_reasoning": [
+      "Opening-range breakouts are a common intraday momentum hypothesis, but their value on MES must be tested after realistic costs."
+    ],
+    "failure_theory": [
+      "False breakouts may dominate after costs.",
+      "Long and short behavior may differ.",
+      "The result may be sensitive to the opening-window length or confirmation offset."
+    ]
+  },
+  "market": {
+    "instruments": {"preferred": ["MES"], "transferable_to": []},
+    "timeframe": "5m",
+    "session": "09:30-16:00 ET",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "rules": {
+    "setup": [
+      "Build the MES cash-session opening range from 09:30 ET for the selected predeclared number of minutes."
+    ],
+    "entry": [
+      "After the range is complete, require a completed five-minute close beyond the range by the selected tick offset.",
+      "Enter in the breakout direction at the next contiguous five-minute bar open.",
+      "Take no more than one trade per session for each configuration."
+    ],
+    "exit": [
+      "Exit at the final same-session boundary and hold no overnight position."
+    ],
+    "max_trades_per_session": 1
+  },
+  "variables": {
+    "range_minutes": {
+      "values": [5, 10, 15, 20, 30, 45, 60],
+      "rationale": "Owner-requested bounded comparison of short and conventional opening windows."
+    },
+    "breakout_offset_ticks": {
+      "values": [0, 1, 2],
+      "rationale": "Bounded confirmation sensitivity without adaptive expansion."
+    },
+    "direction_variant": {
+      "values": ["long", "short"],
+      "rationale": "Keep directional behavior separate and visible."
+    }
+  },
+  "variants": [],
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "coverage": "2019-05-06 through 2023-12-29",
+    "minimum_resolution": "5m",
+    "fields": ["open", "high", "low", "close", "volume"],
+    "requires_session_boundaries": true
+  },
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "entry_fill": "Next five-minute bar open after a completed breakout close.",
+      "costs": "One MES contract with stored commission, exchange fees, and one tick of slippage per side."
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate exactly the 42 predeclared configurations without parameter expansion.",
+      "Keep long and short variants separate in ranking and evidence."
+    ]
+  },
+  "fixed": {
+    "dataset_id": "futures_MES_5m_databento",
+    "dataset_coverage": "2019-05-06 through 2023-12-29",
+    "session": "09:30-16:00 ET",
+    "flat_by_close": true,
+    "overnight_positions": false,
+    "max_trades_per_session": 1
+  },
+  "implementation": {"strategy_id": "mes_opening_range_breakout_grid"},
+  "implementation_notes": {
+    "expected_custom_logic": "Reuse the registered MES ORB adapter with the immutable 42-configuration StudyPlan."
+  },
+  "sources": [
+    {
+      "type": "owner_observation",
+      "role": "primary",
+      "title": "Owner-authorized MES ORB parameter-grid request",
+      "creator": "Terry",
+      "claim": "Run MES ORB across 5, 10, 15, 20 and additional bounded opening-window variants so the real workflow is populated.",
+      "collected_by": "Codex (OpenAI)",
+      "retrieved_at": "2026-10-13T00:00:00Z"
+    }
+  ],
+  "source_assessment": {
+    "confidence": "low",
+    "evidence_quality": "owner_hypothesis",
+    "agreement": "This is a falsifiable owner-authorized research hypothesis, not a profitability claim.",
+    "unsupported_claims": ["No claim of profitability or robustness is made before testing."]
+  },
+  "prior_work": {
+    "possible_duplicates": ["Earlier shallow MES ORB baseline research"],
+    "claimed_difference": ["This run uses the current canonical Candidate pipeline and retained per-configuration evidence across the expanded predeclared windows."]
+  },
+  "qf_interpretation": {
+    "entry": "Next-bar entry after the first completed close beyond the selected opening-range boundary and tick offset.",
+    "exit": "Same-session boundary exit."
+  },
+  "source_rules": {"scope": "Owner-authorized bounded workflow-population study."},
+  "open_questions": [],
+  "exclusions": [
+    "No adaptive parameter expansion.",
+    "No overnight holding.",
+    "No protected-evidence inspection.",
+    "No paper or live trading."
+  ]
+}

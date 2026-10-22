@@ -1,0 +1,190 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES Parabolic SAR stop-and-reverse trend",
+    "one_line": "Go long when close crosses above SAR and short when below; always reverse; 3 ATR stop backstop. Source: J. Welles Wilder (1978), New Concepts in Technical Trading Systems (Parabolic SAR).",
+    "family": "trend_following",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "J. Welles Wilder (1978), New Concepts in Technical Trading Systems (Parabolic SAR)",
+      "creator": "J. Welles Wilder",
+      "claim": "Go long when close crosses above SAR and short when below; always reverse; 3 ATR stop backstop.",
+      "url": "https://en.wikipedia.org/wiki/Parabolic_SAR"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "A stop-and-reverse trailing system may capture intraday trends.",
+    "failure_theory": [
+      "Constant reversal in ranges.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES regular session 09:30-16:00 ET on 5m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "Close crosses above SAR, 09:45-15:30."
+    ],
+    "exits": {
+      "rule": "Reverse on opposite signal; 3 ATR(14) stop.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 6,
+    "short_entry": [
+      "Close crosses below SAR."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 6,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "af_step": {
+      "values": [
+        0.01,
+        0.02
+      ],
+      "rationale": "Acceleration step; Wilder used 0.02."
+    },
+    "af_max": {
+      "values": [
+        0.1,
+        0.2
+      ],
+      "rationale": "Acceleration cap; Wilder used 0.2."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_above": [
+                "close",
+                {
+                  "indicator": "talib:SAR",
+                  "params": {
+                    "acceleration": {
+                      "param": "af_step"
+                    },
+                    "maximum": {
+                      "param": "af_max"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:45",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_below": [
+                "close",
+                {
+                  "indicator": "talib:SAR",
+                  "params": {
+                    "acceleration": {
+                      "param": "af_step"
+                    },
+                    "maximum": {
+                      "param": "af_max"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:45",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "on_opposite_signal": true,
+      "stop_loss": {
+        "atr": {
+          "length": 14,
+          "multiple": 3
+        }
+      }
+    },
+    "max_trades_per_session": 6
+  }
+}

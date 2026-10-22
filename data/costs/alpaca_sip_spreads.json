@@ -1,0 +1,277 @@
+{
+  "measured_at": "2026-10-14T19:47:12.773806Z",
+  "method": "Median of (ask-bid)/mid in bps over every valid SIP quote (bid>0, ask>bid) in the one minute starting 10:00, 12:00 and 15:30 New York time on each of 20 complete regular sessions 2026-09-16 to 2026-10-13; slippage per side = half this median. median_mid_price = median (ask+bid)/2 over the same quotes, used to turn the per-share FINRA TAF into a fraction.",
+  "source": "Alpaca market data /v2/stocks/{symbol}/quotes, feed=sip",
+  "symbols": {
+    "APLD": {
+      "median_mid_price": 25.165,
+      "median_spread_bps": 4.172751929896937,
+      "samples": 121547,
+      "sessions": 20
+    },
+    "ASTS": {
+      "median_mid_price": 59.245000000000005,
+      "median_spread_bps": 6.541291905151128,
+      "samples": 31906,
+      "sessions": 20
+    },
+    "BMNR": {
+      "median_mid_price": 26.795,
+      "median_spread_bps": 3.7376191366105633,
+      "samples": 106688,
+      "sessions": 20
+    },
+    "BMY": {
+      "median_mid_price": 61.985,
+      "median_spread_bps": 1.681378730558724,
+      "samples": 51280,
+      "sessions": 20
+    },
+    "C": {
+      "median_mid_price": 130.995,
+      "median_spread_bps": 2.385970493498321,
+      "samples": 30680,
+      "sessions": 20
+    },
+    "CIFR": {
+      "median_mid_price": 17.005000000000003,
+      "median_spread_bps": 6.1443932411683955,
+      "samples": 101095,
+      "sessions": 20
+    },
+    "CRWV": {
+      "median_mid_price": 86.31,
+      "median_spread_bps": 4.430660168364205,
+      "samples": 51386,
+      "sessions": 20
+    },
+    "CSCO": {
+      "median_mid_price": 108.47999999999999,
+      "median_spread_bps": 1.849112426035135,
+      "samples": 79405,
+      "sessions": 20
+    },
+    "DRAM": {
+      "median_mid_price": 60.325,
+      "median_spread_bps": 1.6732201121066035,
+      "samples": 269339,
+      "sessions": 20
+    },
+    "DVN": {
+      "median_mid_price": 47.7,
+      "median_spread_bps": 2.1130480718432136,
+      "samples": 77449,
+      "sessions": 20
+    },
+    "EWY": {
+      "median_mid_price": 183.88,
+      "median_spread_bps": 1.6830766641421155,
+      "samples": 253559,
+      "sessions": 20
+    },
+    "FCX": {
+      "median_mid_price": 71.72,
+      "median_spread_bps": 2.934702861334706,
+      "samples": 81826,
+      "sessions": 20
+    },
+    "GDX": {
+      "median_mid_price": 88.78,
+      "median_spread_bps": 1.1572065035011418,
+      "samples": 302484,
+      "sessions": 20
+    },
+    "HOOD": {
+      "median_mid_price": 114.405,
+      "median_spread_bps": 3.4545297521380305,
+      "samples": 46968,
+      "sessions": 20
+    },
+    "HPE": {
+      "median_mid_price": 63.989999999999995,
+      "median_spread_bps": 4.355084561225395,
+      "samples": 46993,
+      "sessions": 20
+    },
+    "IBIT": {
+      "median_mid_price": 47.435,
+      "median_spread_bps": 2.1085925144961544,
+      "samples": 134353,
+      "sessions": 20
+    },
+    "INTC": {
+      "median_mid_price": 117.34,
+      "median_spread_bps": 1.645278051990459,
+      "samples": 362673,
+      "sessions": 20
+    },
+    "IONQ": {
+      "median_mid_price": 42.805,
+      "median_spread_bps": 4.494382022471016,
+      "samples": 111920,
+      "sessions": 20
+    },
+    "IREN": {
+      "median_mid_price": 41.855000000000004,
+      "median_spread_bps": 2.8078056998450123,
+      "samples": 187838,
+      "sessions": 20
+    },
+    "IWM": {
+      "median_mid_price": 280.315,
+      "median_spread_bps": 0.35878944441625843,
+      "samples": 660027,
+      "sessions": 20
+    },
+    "KLAC": {
+      "median_mid_price": 190.125,
+      "median_spread_bps": 1.5769139793424864,
+      "samples": 144194,
+      "sessions": 20
+    },
+    "KO": {
+      "median_mid_price": 87.64500000000001,
+      "median_spread_bps": 1.1501523951929515,
+      "samples": 77658,
+      "sessions": 20
+    },
+    "KRE": {
+      "median_mid_price": 70.58500000000001,
+      "median_spread_bps": 1.4175349067957905,
+      "samples": 152538,
+      "sessions": 20
+    },
+    "MSTR": {
+      "median_mid_price": 157.32,
+      "median_spread_bps": 5.353114365466418,
+      "samples": 63184,
+      "sessions": 20
+    },
+    "MUU": {
+      "median_mid_price": 35.955,
+      "median_spread_bps": 3.2107882485143717,
+      "samples": 180885,
+      "sessions": 20
+    },
+    "NFLX": {
+      "median_mid_price": 71.07499999999999,
+      "median_spread_bps": 1.4294903866758495,
+      "samples": 94485,
+      "sessions": 20
+    },
+    "NVDA": {
+      "median_mid_price": 229.265,
+      "median_spread_bps": 0.8695274118521035,
+      "samples": 331272,
+      "sessions": 20
+    },
+    "ORCL": {
+      "median_mid_price": 141.7,
+      "median_spread_bps": 3.6623329060619936,
+      "samples": 34905,
+      "sessions": 20
+    },
+    "PLTR": {
+      "median_mid_price": 190.14499999999998,
+      "median_spread_bps": 3.701647233018333,
+      "samples": 38450,
+      "sessions": 20
+    },
+    "QQQ": {
+      "median_mid_price": 743.5,
+      "median_spread_bps": 0.3940550232175433,
+      "samples": 767105,
+      "sessions": 20
+    },
+    "RIOT": {
+      "median_mid_price": 21.725,
+      "median_spread_bps": 5.003752814609963,
+      "samples": 113695,
+      "sessions": 20
+    },
+    "RKLB": {
+      "median_mid_price": 71.85,
+      "median_spread_bps": 4.2719829120685135,
+      "samples": 111970,
+      "sessions": 20
+    },
+    "SKHY": {
+      "median_mid_price": 186.26,
+      "median_spread_bps": 5.27676639755128,
+      "samples": 41425,
+      "sessions": 20
+    },
+    "SLB": {
+      "median_mid_price": 50.165,
+      "median_spread_bps": 2.04519889559219,
+      "samples": 54003,
+      "sessions": 20
+    },
+    "SLV": {
+      "median_mid_price": 55.425,
+      "median_spread_bps": 1.8055430170620221,
+      "samples": 215430,
+      "sessions": 20
+    },
+    "SMCI": {
+      "median_mid_price": 41.455,
+      "median_spread_bps": 2.4712714691703965,
+      "samples": 171917,
+      "sessions": 20
+    },
+    "SNXX": {
+      "median_mid_price": 16.634999999999998,
+      "median_spread_bps": 6.103143118707089,
+      "samples": 188637,
+      "sessions": 20
+    },
+    "SOXL": {
+      "median_mid_price": 145.865,
+      "median_spread_bps": 1.555451858765767,
+      "samples": 524672,
+      "sessions": 20
+    },
+    "SPCX": {
+      "median_mid_price": 153.9725,
+      "median_spread_bps": 1.7778304542357484,
+      "samples": 132048,
+      "sessions": 20
+    },
+    "SPY": {
+      "median_mid_price": 768.645,
+      "median_spread_bps": 0.25968629895063117,
+      "samples": 494657,
+      "sessions": 20
+    },
+    "TQQQ": {
+      "median_mid_price": 79.245,
+      "median_spread_bps": 1.2631844880951326,
+      "samples": 613284,
+      "sessions": 20
+    },
+    "UBER": {
+      "median_mid_price": 69.315,
+      "median_spread_bps": 1.478743068390522,
+      "samples": 61401,
+      "sessions": 20
+    },
+    "WFC": {
+      "median_mid_price": 81.88,
+      "median_spread_bps": 2.38237045860584,
+      "samples": 49725,
+      "sessions": 20
+    },
+    "WMT": {
+      "median_mid_price": 107.775,
+      "median_spread_bps": 0.9535160905831614,
+      "samples": 77973,
+      "sessions": 20
+    },
+    "XLE": {
+      "median_mid_price": 62.845,
+      "median_spread_bps": 1.5914697222893477,
+      "samples": 143687,
+      "sessions": 20
+    }
+  }
+}

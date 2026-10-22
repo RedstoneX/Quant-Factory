@@ -1,0 +1,125 @@
+name: quant-factory-research
+
+services:
+  prefect:
+    image: quant-factory-research:${QF_REVISION:?set QF_REVISION}
+    entrypoint: [prefect]
+    command: [server, start, --host, 0.0.0.0, --port, "4200"]
+    environment:
+      PREFECT_HOME: /var/lib/quant-factory-prefect
+      PREFECT_SERVER_ANALYTICS_ENABLED: "false"
+      PREFECT_SERVER_UI_ENABLED: "false"
+      PREFECT_SERVER_MEMO_STORE_PATH: /var/lib/quant-factory-prefect/memo_store.toml
+      PREFECT_SERVER_EPHEMERAL_ENABLED: "false"
+    volumes:
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/prefect:/var/lib/quant-factory-prefect
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777
+      - /home/qf:uid=10001,gid=10001,mode=0700
+    cpus: "1.0"
+    mem_limit: 1g
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks: [research-internal]
+    healthcheck:
+      test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:4200/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  agent-gateway:
+    image: quant-factory-research:${QF_REVISION:?set QF_REVISION}
+    command: [python, -m, deployment.agent_gateway_server]
+    environment:
+      QUANT_FACTORY_DB_PATH: /var/lib/quant-factory/state/quant_factory.sqlite3
+      QUANT_FACTORY_ARTIFACT_ROOT: /var/lib/quant-factory
+      QUANT_FACTORY_DATA_LOCATIONS: /app/config/data_locations.local.toml
+      PREFECT_API_URL: http://prefect:4200/api
+      QF_GATEWAY_DB_PATH: /var/lib/quant-factory-gateway/agent_gateway.sqlite3
+      QF_GATEWAY_SOCKET_PATH: /run/quant-factory/agent-gateway.sock
+      QF_GATEWAY_IDENTITY_REGISTRY: /run/secrets/qf-agent-identities.json
+      QF_GATEWAY_LOCAL_UIDS: ${QF_GATEWAY_LOCAL_UIDS:?set QF_GATEWAY_LOCAL_UIDS}
+      QF_GATEWAY_REMOTE_UID: ${QF_RESEARCH_UID:?set QF_RESEARCH_UID}
+      QF_GATEWAY_RUN_REQUESTS_ENABLED: ${QF_GATEWAY_RUN_REQUESTS_ENABLED:-false}
+      QF_AUTO_TEST_ENABLED: ${QF_AUTO_TEST_ENABLED:-true}
+      QF_REVISION: ${QF_REVISION:?set QF_REVISION}
+      HOME: /tmp
+      PREFECT_HOME: /tmp/qf-prefect
+      # Keep VectorBT's compiled code between runs; without it every test recompiles (~60 s).
+      NUMBA_CACHE_DIR: /var/lib/quant-factory/numba-cache
+    depends_on:
+      prefect:
+        condition: service_healthy
+    volumes:
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/runtime:/var/lib/quant-factory
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/market-data:/var/lib/quant-factory/market-data:ro
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/config/data_locations.local.toml:/app/config/data_locations.local.toml:ro
+      - ${QF_GATEWAY_STATE_ROOT:?set QF_GATEWAY_STATE_ROOT}:/var/lib/quant-factory-gateway
+      - ${QF_GATEWAY_SOCKET_ROOT:?set QF_GATEWAY_SOCKET_ROOT}:/run/quant-factory
+      - ${QF_GATEWAY_IDENTITY_REGISTRY_PATH:?set QF_GATEWAY_IDENTITY_REGISTRY_PATH}:/run/secrets/qf-agent-identities.json:ro
+    user: "${QF_GATEWAY_UID:?set QF_GATEWAY_UID}:${QF_GATEWAY_GID:?set QF_GATEWAY_GID}"
+    group_add:
+      - "${QF_RUNTIME_GID:-10001}"
+      - "${QF_AGENT_ACCESS_GID:?set QF_AGENT_ACCESS_GID}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:uid=${QF_GATEWAY_UID:?set QF_GATEWAY_UID},gid=${QF_GATEWAY_GID:?set QF_GATEWAY_GID},mode=1777
+    cpus: "2.0"
+    mem_limit: 5g
+    pids_limit: 256
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks: [research-internal]
+    healthcheck:
+      test: [CMD, python, -c, "from pathlib import Path; assert Path('/run/quant-factory/agent-gateway.sock').is_socket()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nightly Alpaca SIP one-minute top-up. The CLI stays running and fires daily at
+  # 02:00 UTC (after US post-market closes in both EST and EDT). This is the ONLY
+  # service that mounts market-data read-write; every other service keeps :ro.
+  market-data-topup:
+    image: quant-factory-research:${QF_REVISION:?set QF_REVISION}
+    # The image entrypoint requires the research database; the downloader has none.
+    entrypoint: [python, -m, market_data.alpaca_sip_cli]
+    command: [--all, --daily-at, "02:00"]
+    environment:
+      QUANT_FACTORY_DATA_LOCATIONS: /app/config/data_locations.local.toml
+      QF_ALPACA_API_KEY: ${QF_ALPACA_API_KEY:-}
+      QF_ALPACA_SECRET_KEY: ${QF_ALPACA_SECRET_KEY:-}
+      PYTHONUNBUFFERED: "1"
+      HOME: /tmp
+    volumes:
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/market-data:/var/lib/quant-factory/market-data:rw
+      - ${QF_DEPLOY_ROOT:?set QF_DEPLOY_ROOT}/config/data_locations.local.toml:/app/config/data_locations.local.toml:ro
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777
+    cpus: "1.0"
+    mem_limit: 2g
+    pids_limit: 64
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks: [market-data-egress]
+
+networks:
+  research-internal:
+    internal: true
+  # Outbound internet for the Alpaca download only; research services stay internal.
+  market-data-egress: {}

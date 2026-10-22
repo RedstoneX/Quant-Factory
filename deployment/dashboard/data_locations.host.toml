@@ -1,0 +1,10 @@
+# Host paths for the dashboard service (the research containers use config/data_locations.local.toml).
+[data]
+root = "/opt/quant-factory-research/market-data"
+manifests = "/opt/quant-factory-dashboard/current/data/manifests"
+quarantine = "/opt/quant-factory-research/market-data/quarantine"
+
+[policy]
+preserve_originals = true
+verify_sha256_before_use = true
+allow_raw_data_in_repository = false

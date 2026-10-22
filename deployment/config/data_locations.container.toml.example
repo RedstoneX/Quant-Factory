@@ -1,0 +1,10 @@
+# Copy outside Git to ${QF_DEPLOY_ROOT}/config/data_locations.local.toml.
+[data]
+root = "/var/lib/quant-factory/market-data"
+manifests = "/app/data/manifests"
+quarantine = "/var/lib/quant-factory/market-data/quarantine"
+
+[policy]
+preserve_originals = true
+verify_sha256_before_use = true
+allow_raw_data_in_repository = false

@@ -1,0 +1,34 @@
+# Direct runtime dependencies.  Transitive dependencies are resolved by pip at image build.
+# VectorBT Pro is deliberately absent: the licensed 2026.10.5 wheel is supplied as a
+# private BuildKit context named vectorbt_private.
+dash==4.3.0
+dash-ag-grid==35.2.0
+blosc2==4.7.0
+cachetools==7.2.1
+databento==0.80.0
+dill==0.4.1
+exchange-calendars==4.13.2
+gunicorn==26.2.0
+numpy==2.4.6
+orjson==3.12.0
+pandas==2.3.3
+pandas-market-calendars==5.4.0
+plotly==6.8.0
+# VectorBT PRO Portfolio charts import matplotlib and raise ImportError without it.
+matplotlib==3.11.2
+tsdownsample==0.1.5.1
+prefect==3.7.8
+# prefect 3.7.8 server breaks on fastapi>=0.157 (Body min_items removed); pin until prefect is upgraded on purpose
+fastapi==0.150.0
+pyarrow==24.0.0
+requests==2.34.2
+PyYAML==6.0.3
+sqlalchemy==2.0.51
+yfinance==1.6.0
+TA-Lib==0.8.2
+alpaca-py==0.44.0
+# Match the locally validated numerical engine when building on the target.
+numba==0.66.0
+llvmlite==0.48.0
+scipy==1.18.0
+scikit-learn==1.9.0
