@@ -11,6 +11,7 @@ from typing import Any, Mapping, Sequence
 
 import pandas as pd
 
+from backtesting.monte_carlo.metrics import returns_accessor
 from backtesting.screening import ScreeningConfig, screen_metrics
 from backtesting.vectorbt_runtime import require_vectorbtpro
 from market_data import (
@@ -567,10 +568,9 @@ def schedule_complete_metrics(
         raise RuntimeError("win rate is undefined with zero completed trades")
     final_equity = float(equity.iloc[-1])
     total_return = final_equity / INITIAL_CASH - 1.0
-    annualized_return = (final_equity / INITIAL_CASH) ** (
-        SESSIONS_PER_YEAR / len(equity)
-    ) - 1.0
-    sharpe = math.sqrt(SESSIONS_PER_YEAR) * float(daily_returns.mean()) / volatility
+    annualized_return = (final_equity / INITIAL_CASH) ** (SESSIONS_PER_YEAR / len(equity)) - 1.0
+    accessor = returns_accessor(daily_returns, SESSIONS_PER_YEAR)
+    sharpe = float(accessor.sharpe_ratio(risk_free=RISK_FREE_RATE / SESSIONS_PER_YEAR))
     equity_with_baseline = pd.concat(
         [pd.Series([INITIAL_CASH], dtype=float), equity.reset_index(drop=True)],
         ignore_index=True,
