@@ -1,0 +1,71 @@
+{
+  "id": "dummy-2026-10-22-spy-insidebar",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-22T13:26:37-04:00",
+  "title": "DUMMY loop test 2: SPY inside-bar breakout with VWAP filter",
+  "hypothesis": "Inside-bar compression then breakout continues in the breakout direction on SPY.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 10,
+      "title": "SPY inside-bar breakout with VWAP filter",
+      "id": "qfc_85c2016855ce7d16a06524b90b20a21f"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "DUMMY loop test: SPY first-half-hour momentum (shifted thresholds)",
+      "id": "idea_8472cfafbdcc47d398e3acce837e75f1"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "SPY 15-min ORB gap-day aligned, wide % trail",
+      "id": "qfc_6293c3f8c270ec05ee0b40d9f68b429f"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "SPY Donchian breakout with VWAP side filter, ATR trail",
+      "id": "qfc_8e98985451a8c732548989d595eb17af"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "IWM 15-min ORB gap-day aligned, wide % trail",
+      "id": "qfc_17213b104cc0fc301f321aa29e08ef68"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "oos",
+  "run_id": "run_e3ebf373f5e440a2849acc12de687203",
+  "detail": "source-lock run contains unavailable evidence: artifact_location_escapes_root, artifact_location_escapes_root",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "oos",
+  "metrics": {
+    "stages": {
+      "chain": "stopped",
+      "oos": "invalid"
+    },
+    "settings_tested": 6,
+    "settings_passing_screen": 2,
+    "best_screen_setting": {
+      "parameters": {
+        "stop": 0.25,
+        "trail": 0.6
+      },
+      "sharpe_ratio": 0.5346,
+      "total_return": 0.2554,
+      "annualized_return": 0.0322,
+      "max_drawdown": -0.13,
+      "number_of_trades": 1789.0,
+      "win_rate": 0.37
+    }
+  },
+  "scored_stage_fails": [
+    "oos"
+  ],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "oos"
+}
