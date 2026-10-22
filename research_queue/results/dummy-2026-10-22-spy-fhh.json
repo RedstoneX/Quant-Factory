@@ -1,0 +1,67 @@
+{
+  "id": "dummy-2026-10-22-spy-fhh",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-22T13:23:41-04:00",
+  "title": "DUMMY loop test: SPY first-half-hour momentum (shifted thresholds)",
+  "hypothesis": "Loop test only. The first half-hour return predicts the last half-hour return in SPY.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "SPY first-hour trend continuation at 10:30, wide % trail",
+      "id": "qfc_cb807936c23f3cec355ff3dc90283a59"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "SPY first-half-hour predicts last-half-hour (Gao et al.)",
+      "id": "qfc_12b933db2d04c258eca3777351b76f98"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "SPY intraday momentum: first half-hour predicts last half-hour",
+      "id": "qfc_db8b6d8c41dc0e936086382ea864db7e"
+    },
+    {
+      "kind": "candidate",
+      "score": 5,
+      "title": "SPY midday-range late breakout (12:00-14:30), trail, flat 15:55",
+      "id": "qfc_925bed466e031ab0909878aeaf4f1c50"
+    },
+    {
+      "kind": "candidate",
+      "score": 4,
+      "title": "SPY 15-min ORB gap-day + VWAP side, wide % trail",
+      "id": "qfc_5c37b72b0071539d26abc644690e2492"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_eb636d370cd04a1698ae47a37b58d949",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.13025483643008684. | annualized_return failed: expected > 0.0 (exclusive); observed -0.019242219276032868. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -0.4865080436786949.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 3,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "min_abs_ret": 0.0005
+      },
+      "sharpe_ratio": -0.4576,
+      "total_return": -0.1337,
+      "annualized_return": -0.0198,
+      "max_drawdown": -0.1848,
+      "number_of_trades": 1615.0,
+      "win_rate": 0.4817
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
