@@ -1,0 +1,247 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "IWM overnight gap reverses in the first half hour",
+    "one_line": "If IWM opens beyond a gap threshold from the prior close, trade against the gap at 09:31 and hold about 30 minutes. Source: Iwanaga and Sakemoto (2025), Intraday time series reversal.",
+    "family": "intraday_reversal",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "paper",
+      "role": "primary",
+      "title": "Intraday time series reversal",
+      "creator": "Iwanaga and Sakemoto (Nov 2025)",
+      "url": "https://studylib.net/doc/28584823/5807282",
+      "claim": "Overnight return predicts the opposite first half-hour return in US index ETFs; stronger in volatile periods, weaker after the 2010s; absent in non-US index ETFs."
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Overnight retail buying/selling is unwound by arbitrageurs in the first 30 minutes, so the gap partly reverses.",
+    "failure_theory": [
+      "Effect reported weaker after the 2010s.",
+      "Gao et al. 2018 found first half-hour momentum into the last half-hour, a different horizon but opposite flavour.",
+      "Costs and the 0.75% stop may erase a small edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "IWM"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_IWM_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "IWM regular session on 1m bars; signals use completed bars and fill at next bar open."
+    ],
+    "long_entry": [
+      "Gap down beyond threshold at 09:31: long."
+    ],
+    "short_entry": [
+      "Gap up beyond threshold at 09:31: short."
+    ],
+    "exits": {
+      "rule": "Exit after N bars; 0.75% stop.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 1
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "gap_frac": {
+      "values": [
+        0.001,
+        0.002,
+        0.004
+      ],
+      "rationale": "Minimum absolute overnight gap."
+    },
+    "hold_bars": {
+      "values": [
+        15,
+        30,
+        45
+      ],
+      "rationale": "Hold bars; source window is the first 30 minutes."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "time_is": "09:31"
+            },
+            {
+              "lt": [
+                {
+                  "div": [
+                    {
+                      "sub": [
+                        {
+                          "session_open": {}
+                        },
+                        {
+                          "value_at": {
+                            "sub": [
+                              {
+                                "sum": "close",
+                                "length": 2,
+                                "across_sessions": true
+                              },
+                              "close"
+                            ]
+                          },
+                          "time": "09:31"
+                        }
+                      ]
+                    },
+                    {
+                      "value_at": {
+                        "sub": [
+                          {
+                            "sum": "close",
+                            "length": 2,
+                            "across_sessions": true
+                          },
+                          "close"
+                        ]
+                      },
+                      "time": "09:31"
+                    }
+                  ]
+                },
+                {
+                  "neg": {
+                    "param": "gap_frac"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "time_is": "09:31"
+            },
+            {
+              "gt": [
+                {
+                  "div": [
+                    {
+                      "sub": [
+                        {
+                          "session_open": {}
+                        },
+                        {
+                          "value_at": {
+                            "sub": [
+                              {
+                                "sum": "close",
+                                "length": 2,
+                                "across_sessions": true
+                              },
+                              "close"
+                            ]
+                          },
+                          "time": "09:31"
+                        }
+                      ]
+                    },
+                    {
+                      "value_at": {
+                        "sub": [
+                          {
+                            "sum": "close",
+                            "length": 2,
+                            "across_sessions": true
+                          },
+                          "close"
+                        ]
+                      },
+                      "time": "09:31"
+                    }
+                  ]
+                },
+                {
+                  "param": "gap_frac"
+                }
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "after_bars": {
+        "param": "hold_bars"
+      },
+      "stop_loss": {
+        "percent": 0.75
+      }
+    },
+    "max_trades_per_session": 1
+  },
+  "prior_work": {
+    "closest_tried": "none tried in this queue (pilot SPY gap fade untested)",
+    "claimed_difference": "Different symbol (IWM) and hold window centred on the paper's first half-hour."
+  }
+}

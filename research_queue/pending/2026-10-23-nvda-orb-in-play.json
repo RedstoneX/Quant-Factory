@@ -1,0 +1,262 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "NVDA 5-minute opening range breakout on high opening-volume days",
+    "one_line": "On days with heavy first-5-minute volume, trade the first 5-minute candle's direction when price breaks its extreme; flat 15:55. Source: Zarattini, Barbon and Aziz (2024), SSRN 4729284.",
+    "family": "intraday_momentum",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "paper",
+      "role": "primary",
+      "title": "A Profitable Day Trading Strategy For The U.S. Equity Market",
+      "creator": "Carlo Zarattini; Andrea Barbon; Andrew Aziz",
+      "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4729284",
+      "claim": "5-minute ORB on Stocks in Play (high relative volume), 7,000+ stocks 2016-2023: top-20 portfolio 1,600% net, Sharpe 2.81."
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Heavy early volume marks news-driven order imbalance, so the first candle's direction continues.",
+    "failure_theory": [
+      "Independent replication found net edge near zero after spread and slippage.",
+      "Paper has no out-of-sample period and charges no slippage.",
+      "Single stock lacks the paper's daily top-20 selection; our volume ratio uses the all-day 14-day minute average, not the same-time average."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "NVDA"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_NVDA_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "NVDA 1m; opening range 09:30-09:35; trade 09:35-11:00."
+    ],
+    "long_entry": [
+      "First candle up, opening volume ratio above threshold, close breaks range high: long."
+    ],
+    "short_entry": [
+      "First candle down, same volume filter, close breaks range low: short."
+    ],
+    "exits": {
+      "rule": "Percent stop; flat 15:55.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 1
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "open_vol_ratio": {
+      "values": [
+        1.0,
+        1.5,
+        2.0
+      ],
+      "rationale": "Opening 5-min volume per minute vs 14-day average per minute (paper uses 100% relative volume)."
+    },
+    "stop_pct": {
+      "values": [
+        0.5,
+        1.0,
+        2.0
+      ],
+      "rationale": "Stop distance percent; paper stops at the other side of the first candle."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "time_between": [
+                "09:35",
+                "11:00"
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "div": [
+                    {
+                      "value_at": {
+                        "sum": "volume",
+                        "length": 5
+                      },
+                      "time": "09:34"
+                    },
+                    {
+                      "mul": [
+                        5,
+                        {
+                          "sma": "volume",
+                          "length": 5460,
+                          "across_sessions": true
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "param": "open_vol_ratio"
+                }
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "value_at": "close",
+                  "time": "09:34"
+                },
+                {
+                  "session_open": {}
+                }
+              ]
+            },
+            {
+              "gt": [
+                "close",
+                {
+                  "range_high": {
+                    "from": "09:30",
+                    "to": "09:35"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "time_between": [
+                "09:35",
+                "11:00"
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "div": [
+                    {
+                      "value_at": {
+                        "sum": "volume",
+                        "length": 5
+                      },
+                      "time": "09:34"
+                    },
+                    {
+                      "mul": [
+                        5,
+                        {
+                          "sma": "volume",
+                          "length": 5460,
+                          "across_sessions": true
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "param": "open_vol_ratio"
+                }
+              ]
+            },
+            {
+              "lt": [
+                {
+                  "value_at": "close",
+                  "time": "09:34"
+                },
+                {
+                  "session_open": {}
+                }
+              ]
+            },
+            {
+              "lt": [
+                "close",
+                {
+                  "range_low": {
+                    "from": "09:30",
+                    "to": "09:35"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "stop_loss": {
+        "percent": {
+          "param": "stop_pct"
+        }
+      }
+    },
+    "max_trades_per_session": 1
+  },
+  "prior_work": {
+    "closest_tried": "none tried in this queue (pilot MES ORB untested)",
+    "claimed_difference": "Single stock (NVDA), first-candle direction plus opening-volume filter; not a fixed 15-minute range."
+  }
+}
