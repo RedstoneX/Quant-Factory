@@ -1,0 +1,55 @@
+{
+  "id": "2026-10-23-nvda-orb-in-play",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-23T10:40:55-04:00",
+  "title": "NVDA 5-minute opening range breakout on high opening-volume days",
+  "hypothesis": "Heavy early volume marks news-driven order imbalance, so the first candle's direction continues.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "QQQ 60-min ORB, wide % trail",
+      "id": "qfc_a03417d4dc39c8fc323c79d165b47220"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY 60-min ORB, wide % trail",
+      "id": "qfc_cc5d424055d657a76909a2a13e383f53"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "QQQ 45-min ORB, wide % trail",
+      "id": "qfc_ade808530f2d4b5f2232d954c1d04806"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY 45-min ORB, wide % trail",
+      "id": "qfc_7a58a1624ffc53ed0722b91b191d26e2"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY 15-min ORB gap-day + VWAP side, wide % trail",
+      "id": "qfc_5c37b72b0071539d26abc644690e2492"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_a86a2ca45a1f46f68731221f45928472",
+  "detail": "no trades: the entry rule never fired in this period | no trades: the entry rule never fired in this period | total_return failed: expected > 0.0 (exclusive); observed 0.0. | annualized_return failed: expected > 0.0 (exclusive); observed 0.0. | sharpe_ratio failed: expected >= 0.5 (inclusive); obser",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 9
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
