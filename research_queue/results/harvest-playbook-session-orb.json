@@ -1,0 +1,67 @@
+{
+  "id": "harvest-playbook-session-orb",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T10:43:01-04:00",
+  "title": "MES 15-minute opening-range breakout (Crabel) [ideas:harvest-playbook-session-orb]",
+  "hypothesis": "Ideas thesis: Define RTH opening range (e.g. first 15\u201330m); buy break of OR high / sell break of OR low; stop mid-OR or opposite side; time-stop by session end. | Pilot behavior: A completed close beyond the first 15 minutes' range may continue in the breakout direction for the rest of the session.",
+  "prior_matches": [
+    {
+      "kind": "prior_work",
+      "score": 8,
+      "title": ""
+    },
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "NVDA 5-minute opening range breakout on high opening-volume days",
+      "id": "idea_e02fbf558e73490e8f245e3930004ae0"
+    },
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "MES 15-minute opening-range breakout (Crabel)",
+      "id": "qfc_0c730552cf121377ad731e07b9b32c2f"
+    },
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "IWM 15-min ORB, 5-min close confirm, trailing-stop exit grid",
+      "id": "qfc_b21574bbd2ed6efdb056fdd0f4a0eb22"
+    },
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "MES 5-min ORB, 5-min close confirm, trailing-stop exit grid",
+      "id": "qfc_b2d15fe3a7ad4908b3e77e8737009994"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_cac45b49fa9a47bfb133c8c9864c33e9",
+  "detail": "sharpe_ratio failed: expected >= 0.5 (inclusive); observed 0.1845578193629714.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 12,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "offset_ticks": 4,
+        "stop_atr": 1.0
+      },
+      "sharpe_ratio": 0.1875,
+      "total_return": 0.0113,
+      "annualized_return": 0.0025,
+      "max_drawdown": -0.0266,
+      "number_of_trades": 1083.0,
+      "win_rate": 0.2456
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
