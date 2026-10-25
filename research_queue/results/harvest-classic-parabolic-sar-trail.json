@@ -1,0 +1,68 @@
+{
+  "id": "harvest-classic-parabolic-sar-trail",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T15:06:07-04:00",
+  "title": "MES Parabolic SAR stop-and-reverse trend [ideas:harvest-classic-parabolic-sar-trail]",
+  "hypothesis": "Ideas thesis: Long while SAR dots below price; flip short when SAR flips above (and vice versa). AF start 0.02, step 0.02, max 0.20 (Wilder defaults). Pure mechanical trail/flip. | Pilot behavior: A stop-and-reverse trailing system may capture intraday trends.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "MES Keltner channel breakout [ideas:harvest-classic-keltner-chesler]",
+      "id": "idea_9e5c6b5fcb844e0791d8ec9f1d9203c4"
+    },
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday [ideas:harvest-playbook-donchian-turtle]",
+      "id": "idea_7cb144690b9244fe9bb8faec637bad59"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "SPY MACD signal-line trend [ideas:harvest-classic-elder-triple-screen]",
+      "id": "idea_25cb8524c0e74165a34be5aabc04af4a"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "SPY Parabolic SAR flip, % trail",
+      "id": "qfc_a852c1d6c742ebea95d009515abdcc46"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "MES Parabolic SAR stop-and-reverse trend",
+      "id": "qfc_6e33301c7de362adbbda4dd01a627048"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_b1dac6880bea4cdfbce0f987b6f6854f",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.07877671346411697. | annualized_return failed: expected > 0.0 (exclusive); observed -0.017974491244404533. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -1.1598710158681536.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 4,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "af_max": 0.1,
+        "af_step": 0.01
+      },
+      "sharpe_ratio": -1.1599,
+      "total_return": -0.0788,
+      "annualized_return": -0.018,
+      "max_drawdown": -0.0815,
+      "number_of_trades": 1984.0,
+      "win_rate": 0.3765
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
