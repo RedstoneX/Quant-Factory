@@ -1,0 +1,280 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MNQ VWAP pullback continuation (5m)",
+    "one_line": "On MNQ 5m, require a short same-side-of-VWAP trend, pullback to VWAP within an ATR band, then enter on the first close back through VWAP in the trend direction; ATR stop, 2R target, max 2 trades, flat 15:55. Source: Tarrow Futures VWAP pullback rule card (adapted 1m\u21925m).",
+    "family": "trend_following",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "VWAP Pullback Strategy: Rules on Real MNQ Charts",
+      "creator": "Tarrow Futures",
+      "claim": "Trend: last N closes on one side of session VWAP; pullback to the 1\u03c3/ATR band; enter on first close back in trend direction; stop at pullback extreme; target 2R; window 10:00-14:30; max 2 trades/day.",
+      "url": "https://tarrowfutures.com/resources/strategies/vwap-pullback/"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "On MNQ trend days, institutional VWAP participation creates pullbacks to session VWAP that resume the morning trend once price reclaims the line.",
+    "failure_theory": [
+      "Source is a teaching rule card with selected example days, not a published multi-year backtest.",
+      "5m adaptation of a 1m rule card changes timing and may miss or invent signals.",
+      "Range days produce repeated VWAP crosses that stop out under a 2-trade cap."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MNQ"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MNQ_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m"
+  },
+  "rules": {
+    "setup": [
+      "MNQ RTH 09:30-16:00 ET on 5m bars; session VWAP from the cash open; signals on completed bars, fill next open."
+    ],
+    "long_entry": [
+      "10:00-14:30: SMA(close,trend_bars) above VWAP; low tags within band_atr*ATR of VWAP; bullish close still above VWAP."
+    ],
+    "short_entry": [
+      "Mirror: SMA below VWAP; high tags VWAP band; bearish close still below VWAP."
+    ],
+    "exits": {
+      "rule": "ATR stop; take-profit 2R; flat 15:55.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 2
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 2,
+    "entry_fill": "next_contiguous_bar_open",
+    "r_multiple": 2.0
+  },
+  "variables": {
+    "trend_bars": {
+      "values": [
+        3,
+        4,
+        6
+      ],
+      "rationale": "5m bars for same-side-of-VWAP trend (~15/20/30 minutes); source uses 20 one-minute closes."
+    },
+    "band_atr": {
+      "values": [
+        0.25,
+        0.5,
+        1.0
+      ],
+      "rationale": "How close the pullback low/high must get to VWAP, in ATR(14) multiples (proxy for source 1\u03c3 band)."
+    },
+    "stop_atr": {
+      "values": [
+        1.0,
+        1.5,
+        2.0
+      ],
+      "rationale": "Stop distance in ATR(14); source uses pullback extreme \u2014 ATR is the expressible proxy."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec.",
+    "Honest 5m adaptation of a 1m rule card; SMA same-side proxy replaces 'last N closes all on one side'; ATR band proxies 1\u03c3; stop is ATR not pullback extreme."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "gt": [
+                {
+                  "sma": "close",
+                  "length": {
+                    "param": "trend_bars"
+                  }
+                },
+                {
+                  "vwap": {}
+                }
+              ]
+            },
+            {
+              "lte": [
+                "low",
+                {
+                  "add": [
+                    {
+                      "vwap": {}
+                    },
+                    {
+                      "mul": [
+                        {
+                          "atr": {
+                            "length": 14
+                          }
+                        },
+                        {
+                          "param": "band_atr"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "gt": [
+                "close",
+                {
+                  "vwap": {}
+                }
+              ]
+            },
+            {
+              "gt": [
+                "close",
+                "open"
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "14:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "lt": [
+                {
+                  "sma": "close",
+                  "length": {
+                    "param": "trend_bars"
+                  }
+                },
+                {
+                  "vwap": {}
+                }
+              ]
+            },
+            {
+              "gte": [
+                "high",
+                {
+                  "sub": [
+                    {
+                      "vwap": {}
+                    },
+                    {
+                      "mul": [
+                        {
+                          "atr": {
+                            "length": 14
+                          }
+                        },
+                        {
+                          "param": "band_atr"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "lt": [
+                "close",
+                {
+                  "vwap": {}
+                }
+              ]
+            },
+            {
+              "lt": [
+                "close",
+                "open"
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "14:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "stop_loss": {
+        "atr": {
+          "length": 14,
+          "multiple": {
+            "param": "stop_atr"
+          }
+        }
+      },
+      "take_profit": {
+        "r_multiple": 2.0
+      }
+    },
+    "max_trades_per_session": 2
+  },
+  "prior_work": {
+    "closest_tried": "2026-10-22-qqq-vwap-trend (rejected VWAP side-hold); QF also has SPY VWAP mean-reversion and VWAP trendfollow break\u00b1ATR",
+    "claimed_difference": "MNQ futures, pullback-to-VWAP then resume (not side-hold, not fade stretch); requires same-side trend filter before the reclaim cross."
+  }
+}
