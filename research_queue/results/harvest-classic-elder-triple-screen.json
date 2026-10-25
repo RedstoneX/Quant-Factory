@@ -1,0 +1,68 @@
+{
+  "id": "harvest-classic-elder-triple-screen",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T12:33:53-04:00",
+  "title": "SPY MACD signal-line trend [ideas:harvest-classic-elder-triple-screen]",
+  "hypothesis": "Ideas thesis: Screen1: weekly/impulse trend via MACD-Histogram or EMA slope (trade only with weekly tide). Screen2: daily oscillator pullback (Force Index or Stoch) against the weekly tide. Screen3: intraday breakout entry in tide direction with stop bey | Pilot behavior: MACD crosses on the trend side of zero may capture intraday trend legs.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "SPY RSI(2) pullback in uptrend (Connors), intraday [ideas:harvest-classic-connors-rsi2]",
+      "id": "idea_9d955b744c6449d187a92ba1fb5a10ac"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday [ideas:harvest-playbook-donchian-turtle]",
+      "id": "idea_7cb144690b9244fe9bb8faec637bad59"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "SPY Parabolic SAR flip, % trail",
+      "id": "qfc_a852c1d6c742ebea95d009515abdcc46"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "SPY MACD signal-line trend",
+      "id": "qfc_756277df150e1ea7ec53923e166f7d6c"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "QQQ Bollinger band mean reversion [ideas:harvest-classic-bb-pctb-mr]",
+      "id": "idea_c5efa765d7a24bb1b5a88035082d0ddc"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_467ed3e4c82149e796cb7b95ce657832",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.004669038806452419. | annualized_return failed: expected > 0.0 (exclusive); observed -0.0006513640959542322. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed 0.036507697499347125.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 4,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "fast": 12,
+        "slow": 39
+      },
+      "sharpe_ratio": 0.0365,
+      "total_return": -0.0047,
+      "annualized_return": -0.0007,
+      "max_drawdown": -0.1897,
+      "number_of_trades": 4305.0,
+      "win_rate": 0.3921
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
