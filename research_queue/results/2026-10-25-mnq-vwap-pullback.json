@@ -1,0 +1,90 @@
+{
+  "id": "2026-10-25-mnq-vwap-pullback",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T00:25:56-04:00",
+  "title": "MNQ VWAP pullback continuation (5m)",
+  "hypothesis": "On MNQ trend days, institutional VWAP participation creates pullbacks to session VWAP that resume the morning trend once price reclaims the line.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 4,
+      "title": "TEST ONLY - Claude usability check 2026-10-13 (ignore)",
+      "id": "qfc_6da4bf9738cc34f886fd81e47ee5c21c"
+    },
+    {
+      "kind": "candidate",
+      "score": 3,
+      "title": "QQQ VWAP side trend, reverse on cross",
+      "id": "idea_4140d889c84b48aa98149e7e337696a0"
+    },
+    {
+      "kind": "candidate",
+      "score": 3,
+      "title": "SPY first-hour trend continuation at 10:30, wide % trail",
+      "id": "qfc_cb807936c23f3cec355ff3dc90283a59"
+    },
+    {
+      "kind": "candidate",
+      "score": 3,
+      "title": "SPY VWAP trendfollow: break VWAP\u00b11ATR with VWAP slope filter",
+      "id": "qfc_f546979cbf021d0ee54f639b54829ce6"
+    },
+    {
+      "kind": "candidate",
+      "score": 3,
+      "title": "SPY EMA 9/21 cross with EMA100 filter, % stop/trail",
+      "id": "qfc_df106919127fb2251652832e4f75a057"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "oos",
+  "run_id": "run_1a2c1c4347c648a1b22050780f2777a5",
+  "detail": "out-of-sample run has no single valid source-lock artifact: source-lock evidence is invalid: test did not pass",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "oos",
+  "metrics": {
+    "stages": {
+      "chain": "stopped",
+      "oos": "invalid"
+    },
+    "settings_tested": 27,
+    "settings_passing_screen": 17,
+    "best_screen_setting": {
+      "parameters": {
+        "band_atr": 0.5,
+        "stop_atr": 1.5,
+        "trend_bars": 3
+      },
+      "sharpe_ratio": 0.9437,
+      "total_return": 0.0839,
+      "annualized_return": 0.018,
+      "max_drawdown": -0.0296,
+      "number_of_trades": 976.0,
+      "win_rate": 0.4037
+    },
+    "out_of_sample": {
+      "status": "screened_out",
+      "total_return": -0.0047,
+      "max_drawdown": -0.0406,
+      "win_rate": 0.4125,
+      "number_of_trades": 257,
+      "sharpe_ratio": -0.1572,
+      "selected_parameters": {
+        "band_atr": 1.0,
+        "stop_atr": 2.0,
+        "trend_bars": 3
+      }
+    },
+    "locked_parameters": {
+      "band_atr": 1.0,
+      "stop_atr": 2.0,
+      "trend_bars": 3
+    }
+  },
+  "scored_stage_fails": [
+    "oos"
+  ],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "oos"
+}
