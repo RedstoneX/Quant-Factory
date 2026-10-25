@@ -1,0 +1,244 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "QQQ inside-bar breakout [ideas:harvest-classic-inside-day-break]",
+    "one_line": "From Ideas `harvest-classic-inside-day-break`. After an inside bar, trade the break of its high or low; percent stop, N-bar time exit. Source: Inside-bar pattern (Thomas Bulkowski, Encyclopedia of Candlestick Charts).",
+    "family": "volatility_breakout",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "supporting",
+      "title": "Ideas registry: Inside-day breakout (Crabel)",
+      "creator": "Ideas feeder (OVH)",
+      "claim": "Day T is inside day (high < prior high and low > prior low). Day T+1: buy stop above inside high, sell stop below inside low; cancel unfilled EOD; stop at opposite side. Classic short-term pattern."
+    },
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Inside-bar pattern (Thomas Bulkowski, Encyclopedia of Candlestick Charts)",
+      "creator": "Thomas Bulkowski",
+      "claim": "After an inside bar, trade the break of its high or low; percent stop, N-bar time exit.",
+      "url": "https://thepatternsite.com/"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Ideas thesis: Day T is inside day (high < prior high and low > prior low). Day T+1: buy stop above inside high, sell stop below inside low; cancel unfilled EOD; stop at opposite side. Classic short-term pattern. | Pilot behavior: A bar inside the prior bar marks compression that may resolve directionally.",
+    "failure_theory": [
+      "One-minute inside bars are frequent and may carry no information.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "QQQ"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_QQQ_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "QQQ regular session 09:30-16:00 ET on 1m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "Prior bar inside and close above its high, 09:45-15:30."
+    ],
+    "exits": {
+      "rule": "Exit after N bars; percent stop.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 4,
+    "short_entry": [
+      "Close below its low."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 4,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "hold_bars": {
+      "values": [
+        10,
+        20,
+        30
+      ],
+      "rationale": "Time exit in 1m bars."
+    },
+    "stop_pct": {
+      "values": [
+        0.2,
+        0.4
+      ],
+      "rationale": "Stop percent."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "all": [
+                {
+                  "lt": [
+                    {
+                      "prev": "high",
+                      "bars": 1
+                    },
+                    {
+                      "prev": "high",
+                      "bars": 2
+                    }
+                  ]
+                },
+                {
+                  "gt": [
+                    {
+                      "prev": "low",
+                      "bars": 1
+                    },
+                    {
+                      "prev": "low",
+                      "bars": 2
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "gt": [
+                "close",
+                {
+                  "prev": "high",
+                  "bars": 1
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:45",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "all": [
+                {
+                  "lt": [
+                    {
+                      "prev": "high",
+                      "bars": 1
+                    },
+                    {
+                      "prev": "high",
+                      "bars": 2
+                    }
+                  ]
+                },
+                {
+                  "gt": [
+                    {
+                      "prev": "low",
+                      "bars": 1
+                    },
+                    {
+                      "prev": "low",
+                      "bars": 2
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "lt": [
+                "close",
+                {
+                  "prev": "low",
+                  "bars": 1
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:45",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "after_bars": {
+        "param": "hold_bars"
+      },
+      "stop_loss": {
+        "percent": {
+          "param": "stop_pct"
+        }
+      }
+    },
+    "max_trades_per_session": 4
+  },
+  "prior_work": {
+    "closest_tried": "pilot / prior QF drafts for this family",
+    "claimed_difference": "OVH Ideas feeder auto-packet from `harvest-classic-inside-day-break` (source=other, market=equity); template=10_qqq_inside_bar_breakout."
+  }
+}
