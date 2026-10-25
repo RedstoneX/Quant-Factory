@@ -1,0 +1,7 @@
+{
+  "id": "harvest-arxiv-1906-07432",
+  "verdict": "error",
+  "failed_stage": "runner",
+  "detail": "memory guard (rss 707 MB, avail 1426 MB)",
+  "data_cutoff": "2025-01-01T00:00:00Z"
+}
