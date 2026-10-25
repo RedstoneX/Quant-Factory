@@ -1,0 +1,68 @@
+{
+  "id": "harvest-classic-keltner-chesler",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T13:16:52-04:00",
+  "title": "MES Keltner channel breakout [ideas:harvest-classic-keltner-chesler]",
+  "hypothesis": "Ideas thesis: Keltner mid = EMA(20) or SMA of typical price; bands = mid \u00b1 2\u00d7ATR(10) (Chesler/modern) or 10-day SMA of high/low (original). Long close above upper; short close below lower; trail mid or opposite band. | Pilot behavior: Closes outside a volatility channel may mark intraday trend starts.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday [ideas:harvest-playbook-donchian-turtle]",
+      "id": "idea_7cb144690b9244fe9bb8faec637bad59"
+    },
+    {
+      "kind": "candidate",
+      "score": 5,
+      "title": "MES NR4/NR7 narrow-range bar breakout (Crabel) [ideas:harvest-playbook-nr7-break]",
+      "id": "idea_2aca5053667a43a4a3fc6695519b2f28"
+    },
+    {
+      "kind": "candidate",
+      "score": 5,
+      "title": "MES Keltner channel breakout",
+      "id": "qfc_2099da61de632c93d428a89514048519"
+    },
+    {
+      "kind": "candidate",
+      "score": 4,
+      "title": "SPY MACD signal-line trend [ideas:harvest-classic-elder-triple-screen]",
+      "id": "idea_25cb8524c0e74165a34be5aabc04af4a"
+    },
+    {
+      "kind": "candidate",
+      "score": 4,
+      "title": "QQQ Bollinger band mean reversion [ideas:harvest-classic-bb-pctb-mr]",
+      "id": "idea_c5efa765d7a24bb1b5a88035082d0ddc"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_6f6af97e924b4477bbccc66534362c3f",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.0021044308524041933. | annualized_return failed: expected > 0.0 (exclusive); observed -0.0004655717336043974. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -0.05351938704656518.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 6,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "kc_mult": 2.5,
+        "trail_atr": 3
+      },
+      "sharpe_ratio": -0.0535,
+      "total_return": -0.0021,
+      "annualized_return": -0.0005,
+      "max_drawdown": -0.0263,
+      "number_of_trades": 586.0,
+      "win_rate": 0.4317
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
