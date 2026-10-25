@@ -1,0 +1,69 @@
+{
+  "id": "harvest-classic-connors-rsi2",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T12:09:35-04:00",
+  "title": "SPY RSI(2) pullback in uptrend (Connors), intraday [ideas:harvest-classic-connors-rsi2]",
+  "hypothesis": "Ideas thesis: Long only when close > SMA200 and RSI(2) \u2264 5 at the close; exit on first close above SMA5. Short mirror when close < SMA200 and RSI(2) \u2265 95, exit below SMA5. No stop in the published book rules (Connors & Alvarez, Short-Term Trading Strateg | Pilot behavior: Very short-term oversold pullbacks inside an uptrend may revert upward within the session.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY RSI(2) pullback in uptrend (Connors), intraday",
+      "id": "qfc_e986677cb9dda44789c52b76b122bbb7"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "QQQ Bollinger band mean reversion [ideas:harvest-classic-bb-pctb-mr]",
+      "id": "idea_c5efa765d7a24bb1b5a88035082d0ddc"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "SPY Double 7s (Connors), intraday",
+      "id": "qfc_f0154c0ab7419c479b08bd21fe68c36e"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "QQQ VWAP deviation reversion [ideas:harvest-playbook-vwap-bands]",
+      "id": "idea_cb0e1bc295714a54b8dff5d894e592ed"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "MNQ VWAP pullback continuation (5m)",
+      "id": "idea_3461b7ea103a43b5b93f3e5fcd59c58b"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_2fd3245ae2934d0c89179cc6444a46b0",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.03889623610269621. | annualized_return failed: expected > 0.0 (exclusive); observed -0.005508293318916224. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -0.17389448961286647.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 12,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "hold_bars": 60,
+        "rsi_entry": 5,
+        "target_pct": 0.1
+      },
+      "sharpe_ratio": -0.1717,
+      "total_return": -0.0445,
+      "annualized_return": -0.0063,
+      "max_drawdown": -0.1596,
+      "number_of_trades": 3508.0,
+      "win_rate": 0.6582
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
