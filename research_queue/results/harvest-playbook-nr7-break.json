@@ -1,0 +1,68 @@
+{
+  "id": "harvest-playbook-nr7-break",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T11:19:24-04:00",
+  "title": "MES NR4/NR7 narrow-range bar breakout (Crabel) [ideas:harvest-playbook-nr7-break]",
+  "hypothesis": "Ideas thesis: Identify NR7 (narrowest range of last 7 bars); enter break of NR7 high/low next session; stop opposite side. Crabel-style. | Pilot behavior: Range contraction tends to precede range expansion.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 10,
+      "title": "MES NR4/NR7 narrow-range bar breakout (Crabel)",
+      "id": "qfc_76dbf262891290682768ef9eacb95bc8"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "MES 15-minute opening-range breakout (Crabel) [ideas:harvest-playbook-session-orb]",
+      "id": "idea_589c59952d694d509ac99c65b92d1250"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday [ideas:harvest-playbook-donchian-turtle]",
+      "id": "idea_7cb144690b9244fe9bb8faec637bad59"
+    },
+    {
+      "kind": "prior_work",
+      "score": 5,
+      "title": ""
+    },
+    {
+      "kind": "candidate",
+      "score": 5,
+      "title": "QQQ VWAP deviation reversion [ideas:harvest-playbook-vwap-bands]",
+      "id": "idea_cb0e1bc295714a54b8dff5d894e592ed"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_2cb5d460e7ad46aab3500dede7d0a231",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.09674820048772415. | annualized_return failed: expected > 0.0 (exclusive); observed -0.022241890226123884. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -1.5738039767873269.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 12,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "hold_bars": 12,
+        "nr_bars": 4,
+        "stop_atr": 2.0
+      },
+      "sharpe_ratio": -1.554,
+      "total_return": -0.1017,
+      "annualized_return": -0.0234,
+      "max_drawdown": -0.105,
+      "number_of_trades": 3299.0,
+      "win_rate": 0.4556
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
