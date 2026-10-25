@@ -1,0 +1,68 @@
+{
+  "id": "2026-10-25-mes-orb-failure-fade",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T00:25:35-04:00",
+  "title": "MES 15-min ORB failure fade",
+  "hypothesis": "Failed MES opening-range breaks are stop-runs that reverse once price reclaims the range; fading the reclaim captures forced-exit liquidity.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "IWM 15-min ORB gap-day aligned, wide % trail",
+      "id": "qfc_17213b104cc0fc301f321aa29e08ef68"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "SPY VWAP mean-reversion (ATR bands), TP toward VWAP",
+      "id": "qfc_53816d8da7d095674b3806d900723e74"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "SPY Bollinger mean-reversion (touch outer band), TP to mid approx",
+      "id": "qfc_6886ca55503aae8fb0bca81dd147e188"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "SPY Bollinger breakout (20,2), trail to mid-band approx via % trail",
+      "id": "qfc_75c6c5510d824b7eccae0c4399cc0eb9"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "SPY RSI oversold/overbought with EMA50/200 trend filter",
+      "id": "qfc_9206f082a470d0b284cfc35b6598729a"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_3a3ea5db9d384d65a87c080dbcbde967",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.008061933499105445. | annualized_return failed: expected > 0.0 (exclusive); observed -0.0017877341886849418. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -0.23551739307603492.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 9,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "hold_bars": 18,
+        "stop_atr": 2.0
+      },
+      "sharpe_ratio": -0.2355,
+      "total_return": -0.0081,
+      "annualized_return": -0.0018,
+      "max_drawdown": -0.0241,
+      "number_of_trades": 551.0,
+      "win_rate": 0.4483
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
