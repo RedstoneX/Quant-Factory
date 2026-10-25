@@ -1,0 +1,68 @@
+{
+  "id": "harvest-playbook-vwap-bands",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T10:43:22-04:00",
+  "title": "QQQ VWAP deviation reversion [ideas:harvest-playbook-vwap-bands]",
+  "hypothesis": "Ideas thesis: Fade touches of \u00b11\u20132\u03c3 VWAP bands back toward VWAP in mean-revert mode, or break-and-hold beyond \u00b12\u03c3 in trend mode; flatten at VWAP or opposite band. | Pilot behavior: Institutional VWAP execution may pull stretched prices back toward VWAP.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 5,
+      "title": "SPY VWAP mean-reversion (ATR bands), TP toward VWAP",
+      "id": "qfc_53816d8da7d095674b3806d900723e74"
+    },
+    {
+      "kind": "candidate",
+      "score": 5,
+      "title": "QQQ VWAP deviation reversion",
+      "id": "qfc_fc81049594ebf30fb2c06f273da9fc92"
+    },
+    {
+      "kind": "candidate",
+      "score": 4,
+      "title": "MNQ VWAP pullback continuation (5m)",
+      "id": "idea_3461b7ea103a43b5b93f3e5fcd59c58b"
+    },
+    {
+      "kind": "candidate",
+      "score": 4,
+      "title": "IWM 15-min ORB gap-day aligned, wide % trail",
+      "id": "qfc_17213b104cc0fc301f321aa29e08ef68"
+    },
+    {
+      "kind": "candidate",
+      "score": 4,
+      "title": "SPY Bollinger mean-reversion (touch outer band), TP to mid approx",
+      "id": "qfc_6886ca55503aae8fb0bca81dd147e188"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_9fffc912b5f24ede937e1ac81a7562a0",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.3215476798210616. | annualized_return failed: expected > 0.0 (exclusive); observed -0.0525789646709689. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -0.9308397813407793.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 6,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "dev_frac": 0.005,
+        "hold_bars": 30
+      },
+      "sharpe_ratio": -0.8175,
+      "total_return": -0.3606,
+      "annualized_return": -0.0604,
+      "max_drawdown": -0.4006,
+      "number_of_trades": 3374.0,
+      "win_rate": 0.471
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
