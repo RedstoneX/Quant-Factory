@@ -1,0 +1,218 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES 15-minute opening-range breakout (Crabel) [ideas:harvest-playbook-session-orb]",
+    "one_line": "From Ideas `harvest-playbook-session-orb`. Trade the first close beyond the 09:30-09:45 range plus an offset, ATR stop, flat by 15:55. Source: Toby Crabel (1990), Day Trading with Short Term Price Patterns and Opening Range Breakout.",
+    "family": "opening_range_breakout",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "supporting",
+      "title": "Ideas registry: Session opening-range breakout",
+      "creator": "Ideas feeder (OVH)",
+      "claim": "Define RTH opening range (e.g. first 15\u201330m); buy break of OR high / sell break of OR low; stop mid-OR or opposite side; time-stop by session end."
+    },
+    {
+      "type": "book",
+      "role": "primary",
+      "title": "Day Trading with Short Term Price Patterns and Opening Range Breakout (Traders Press, 1990)",
+      "creator": "Toby Crabel",
+      "claim": "Trade the first close beyond the 09:30-09:45 range plus an offset, ATR stop, flat by 15:55."
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Ideas thesis: Define RTH opening range (e.g. first 15\u201330m); buy break of OR high / sell break of OR low; stop mid-OR or opposite side; time-stop by session end. | Pilot behavior: A completed close beyond the first 15 minutes' range may continue in the breakout direction for the rest of the session.",
+    "failure_theory": [
+      "False breakouts may dominate on MES.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES regular session 09:30-16:00 ET on 5m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "Close above 15-minute range high plus offset ticks between 09:50 and 15:00."
+    ],
+    "exits": {
+      "rule": "ATR(14) stop at a chosen multiple; else flat at 15:55.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 1,
+    "short_entry": [
+      "Close below range low minus offset ticks."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "offset_ticks": {
+      "values": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "rationale": "Breakout confirmation offset in ticks."
+    },
+    "stop_atr": {
+      "values": [
+        1,
+        1.5,
+        2
+      ],
+      "rationale": "Stop distance in ATR(14) multiples."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "gt": [
+                "close",
+                {
+                  "add": [
+                    {
+                      "range_high": {
+                        "from": "09:30",
+                        "to": "09:45"
+                      }
+                    },
+                    {
+                      "mul": [
+                        {
+                          "param": "offset_ticks"
+                        },
+                        0.25
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:00"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "lt": [
+                "close",
+                {
+                  "sub": [
+                    {
+                      "range_low": {
+                        "from": "09:30",
+                        "to": "09:45"
+                      }
+                    },
+                    {
+                      "mul": [
+                        {
+                          "param": "offset_ticks"
+                        },
+                        0.25
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:00"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "stop_loss": {
+        "atr": {
+          "length": 14,
+          "multiple": {
+            "param": "stop_atr"
+          }
+        }
+      }
+    },
+    "max_trades_per_session": 1
+  },
+  "prior_work": {
+    "closest_tried": "pilot / prior QF drafts for this family",
+    "claimed_difference": "OVH Ideas feeder auto-packet from `harvest-playbook-session-orb` (source=other, market=equity); template=01_mes_opening_range_breakout."
+  }
+}
