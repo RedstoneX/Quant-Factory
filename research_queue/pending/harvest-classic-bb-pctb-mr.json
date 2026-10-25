@@ -1,0 +1,196 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "QQQ Bollinger band mean reversion [ideas:harvest-classic-bb-pctb-mr]",
+    "one_line": "From Ideas `harvest-classic-bb-pctb-mr`. Fade closes that cross outside the 20-bar Bollinger band; exit after N bars or 0.5% stop. Source: John Bollinger (2001), Bollinger on Bollinger Bands.",
+    "family": "mean_reversion",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "supporting",
+      "title": "Ideas registry: Bollinger %B mean-reversion (close back inside)",
+      "creator": "Ideas feeder (OVH)",
+      "claim": "BB(20,2). Long: close below lower band (%B<0) then next close back above lower band; stop under outside-bar low; target middle band; time-stop ~8 bars. Short mirror. Skip if outside \u22653 bars (band walk) or during a squeeze.",
+      "url": "https://therighttrader.com/learn/trading-strategies/bollinger-band-reversion"
+    },
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "John Bollinger (2001), Bollinger on Bollinger Bands",
+      "creator": "John Bollinger",
+      "claim": "Fade closes that cross outside the 20-bar Bollinger band; exit after N bars or 0.5% stop.",
+      "url": "https://en.wikipedia.org/wiki/Bollinger_Bands"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Ideas thesis: BB(20,2). Long: close below lower band (%B<0) then next close back above lower band; stop under outside-bar low; target middle band; time-stop ~8 bars. Short mirror. Skip if outside \u22653 bars (band walk) or during a squeeze. | Pilot behavior: Closes outside a volatility band may snap back toward the mean within an hour.",
+    "failure_theory": [
+      "Band breaks may instead mark trend starts.",
+      "Costs and next-bar fills may erase a published gross edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "QQQ"
+      ]
+    },
+    "timeframe": "1m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "equities_QQQ_1m_alpaca_sip",
+    "requested_start": "2016-01-04",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "1m"
+  },
+  "rules": {
+    "setup": [
+      "QQQ regular session 09:30-16:00 ET on 1m bars; signals use completed bars and fill at the next bar open."
+    ],
+    "long_entry": [
+      "Close crosses below the lower band, 09:50-15:30."
+    ],
+    "exits": {
+      "rule": "Exit after N bars; 0.5% stop.",
+      "time_exit": "Flat by 15:55 ET; no overnight position."
+    },
+    "max_trades_per_session": 4,
+    "short_entry": [
+      "Close crosses above the upper band."
+    ]
+  },
+  "fixed": {
+    "bar_interval": "1m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 4,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "std_mult": {
+      "values": [
+        2,
+        2.5,
+        3
+      ],
+      "rationale": "Band width in standard deviations."
+    },
+    "hold_bars": {
+      "values": [
+        15,
+        30,
+        60
+      ],
+      "rationale": "Time exit in 1m bars."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "1m",
+    "tick_size": 0.01,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_below": [
+                "close",
+                {
+                  "bollinger": "close",
+                  "length": 20,
+                  "std_mult": {
+                    "param": "std_mult"
+                  },
+                  "output": "lower"
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "crosses_above": [
+                "close",
+                {
+                  "bollinger": "close",
+                  "length": 20,
+                  "std_mult": {
+                    "param": "std_mult"
+                  },
+                  "output": "upper"
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "09:50",
+                "15:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "after_bars": {
+        "param": "hold_bars"
+      },
+      "stop_loss": {
+        "percent": 0.5
+      }
+    },
+    "max_trades_per_session": 4
+  },
+  "prior_work": {
+    "closest_tried": "pilot / prior QF drafts for this family",
+    "claimed_difference": "OVH Ideas feeder auto-packet from `harvest-classic-bb-pctb-mr` (source=other, market=equity); template=03_qqq_bollinger_mean_reversion."
+  }
+}
