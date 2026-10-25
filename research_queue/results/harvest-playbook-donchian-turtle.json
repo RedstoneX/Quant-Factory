@@ -1,0 +1,68 @@
+{
+  "id": "harvest-playbook-donchian-turtle",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T11:18:43-04:00",
+  "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday [ideas:harvest-playbook-donchian-turtle]",
+  "hypothesis": "Ideas thesis: Enter on N-day Donchian channel breakout (classic 20); exit on shorter M-day channel opposite (classic 10) or ATR trail; voluntary unit sizing optional. | Pilot behavior: A break of a multi-day channel may continue intraday.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 11,
+      "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday",
+      "id": "qfc_2e32059768ce3f773b3e8d820de0e41a"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY Donchian breakout with VWAP side filter, ATR trail",
+      "id": "qfc_8e98985451a8c732548989d595eb17af"
+    },
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "MES 15-minute opening-range breakout (Crabel) [ideas:harvest-playbook-session-orb]",
+      "id": "idea_589c59952d694d509ac99c65b92d1250"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "MES Keltner channel breakout",
+      "id": "qfc_2099da61de632c93d428a89514048519"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "IWM 15-min ORB, 5-min close confirm, trailing-stop exit grid",
+      "id": "qfc_b21574bbd2ed6efdb056fdd0f4a0eb22"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_3f5de73db27f46389382b1f348d69d18",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.012248548931112602. | annualized_return failed: expected > 0.0 (exclusive); observed -0.0027205850421810895. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -1.2512428593303035.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 6,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "channel_bars": 1560,
+        "stop_atr": 3
+      },
+      "sharpe_ratio": -0.5296,
+      "total_return": -0.014,
+      "annualized_return": -0.0031,
+      "max_drawdown": -0.0206,
+      "number_of_trades": 189.0,
+      "win_rate": 0.4921
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
