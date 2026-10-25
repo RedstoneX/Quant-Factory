@@ -1,0 +1,68 @@
+{
+  "id": "harvest-classic-inside-day-break",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T14:02:04-04:00",
+  "title": "QQQ inside-bar breakout [ideas:harvest-classic-inside-day-break]",
+  "hypothesis": "Ideas thesis: Day T is inside day (high < prior high and low > prior low). Day T+1: buy stop above inside high, sell stop below inside low; cancel unfilled EOD; stop at opposite side. Classic short-term pattern. | Pilot behavior: A bar inside the prior bar marks compression that may resolve directionally.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "MES Keltner channel breakout [ideas:harvest-classic-keltner-chesler]",
+      "id": "idea_9e5c6b5fcb844e0791d8ec9f1d9203c4"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "QQQ Bollinger band mean reversion [ideas:harvest-classic-bb-pctb-mr]",
+      "id": "idea_c5efa765d7a24bb1b5a88035082d0ddc"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "MES NR4/NR7 narrow-range bar breakout (Crabel) [ideas:harvest-playbook-nr7-break]",
+      "id": "idea_2aca5053667a43a4a3fc6695519b2f28"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday [ideas:harvest-playbook-donchian-turtle]",
+      "id": "idea_7cb144690b9244fe9bb8faec637bad59"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "MES 15-minute opening-range breakout (Crabel) [ideas:harvest-playbook-session-orb]",
+      "id": "idea_589c59952d694d509ac99c65b92d1250"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_3e8b64180cf24918ba4b58a51bc68aba",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.34915219378716744. | annualized_return failed: expected > 0.0 (exclusive); observed -0.05804231780311386. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -0.9327926542006645. | drawdown_magnitude failed: expected <= 0.35 (incl",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 6,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "hold_bars": 20,
+        "stop_pct": 0.2
+      },
+      "sharpe_ratio": -0.9328,
+      "total_return": -0.3492,
+      "annualized_return": -0.058,
+      "max_drawdown": -0.3975,
+      "number_of_trades": 7154.0,
+      "win_rate": 0.4403
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
