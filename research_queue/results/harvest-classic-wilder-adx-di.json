@@ -1,0 +1,68 @@
+{
+  "id": "harvest-classic-wilder-adx-di",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-25T15:06:26-04:00",
+  "title": "QQQ EMA cross filtered by ADX trend strength [ideas:harvest-classic-wilder-adx-di]",
+  "hypothesis": "Ideas thesis: +DI crosses above \u2212DI and ADX(14) rising above 25 \u2192 long; reverse when \u2212DI > +DI with ADX strong. Exit/flat when ADX rolls over below ~20 (trendless). Classic New Concepts in Technical Trading Systems. | Pilot behavior: Moving-average crosses work better when ADX confirms a trend.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 10,
+      "title": "QQQ EMA cross filtered by ADX trend strength",
+      "id": "qfc_615425b6399a4c0a7df9c8cb375ae968"
+    },
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "SPY MACD signal-line trend [ideas:harvest-classic-elder-triple-screen]",
+      "id": "idea_25cb8524c0e74165a34be5aabc04af4a"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "MES Parabolic SAR stop-and-reverse trend [ideas:harvest-classic-parabolic-sar-trail]",
+      "id": "idea_67b81239d05f49eb978c6fada326f13d"
+    },
+    {
+      "kind": "candidate",
+      "score": 7,
+      "title": "QQQ Bollinger band mean reversion [ideas:harvest-classic-bb-pctb-mr]",
+      "id": "idea_c5efa765d7a24bb1b5a88035082d0ddc"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "MES Keltner channel breakout [ideas:harvest-classic-keltner-chesler]",
+      "id": "idea_9e5c6b5fcb844e0791d8ec9f1d9203c4"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_5ba9fc396f824db9b0d624279821ecec",
+  "detail": "sharpe_ratio failed: expected >= 0.5 (inclusive); observed 0.05585160792005536.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 6,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "adx_min": 30,
+        "fast": 12
+      },
+      "sharpe_ratio": 0.0559,
+      "total_return": 0.0106,
+      "annualized_return": 0.0015,
+      "max_drawdown": -0.1009,
+      "number_of_trades": 532.0,
+      "win_rate": 0.4342
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
