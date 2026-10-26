@@ -200,7 +200,7 @@ def results_workbench_layout(search: str | None = None) -> html.Div:
         controls = dmc.Group([
             dmc.SegmentedControl(
                 id="wb-mode", className="wb-mode", value="ideas", color=INDIGO, size="sm", radius="md", fz=14,
-                bg=PANEL, bd="1px solid #262930",  # same border as the strategy-type select; the page background was hiding the rail
+                withItemsBorders=False,
                 styles={"root": {"cursor": "pointer"}, "label": {"fontSize": "14px", "cursor": "pointer"}},
                 data=[{"value": "ideas", "label": f"Ideas · {len(ideas):,}"}, {"value": "settings", "label": f"Every setting tried · {len(settings):,}"}],
             ),
