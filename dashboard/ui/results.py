@@ -161,10 +161,15 @@ def _equity_figure(rows: list[dict[str, Any]], empty_message: str) -> go.Figure:
     return figure
 
 
+# AG Grid's page-size selector accepts numbers only. The last size is the All choice: one page holds every trade these tables load.
+TRADE_PAGE_SIZE = 10
+TRADE_PAGE_SIZES = [10, 25, 50, 100, 100_000]
+
+
 def _trade_grid(grid_id: str) -> dag.AgGrid:
     """The one trade table (same columns and format wherever trades are listed)."""
     return dag.AgGrid(id=grid_id, columnDefs=TRADE_COLUMNS, rowData=[], defaultColDef={**COLUMN_DEFAULTS, "filter": True, "suppressHeaderMenuButton": True, "suppressHeaderFilterButton": True},
-                      dashGridOptions=grid_options("No trades for this run.", rowSelection={"mode": "singleRow", "checkboxes": False, "enableClickSelection": True}, pagination=True, paginationPageSize=10, paginationPageSizeSelector=False, animateRows=False, domLayout="autoHeight"),
+                      dashGridOptions=grid_options("No trades for this run.", rowSelection={"mode": "singleRow", "checkboxes": False, "enableClickSelection": True}, pagination=True, paginationPageSize=TRADE_PAGE_SIZE, paginationPageSizeSelector=TRADE_PAGE_SIZES, animateRows=False, domLayout="autoHeight"),
                       getRowId="params.data.trade_id || params.data.row_id")  # phones scroll sideways (column minWidth) rather than lose the running total
 
 

@@ -14,7 +14,7 @@ from dash import dcc, html
 from plotly.subplots import make_subplots
 
 from dashboard.idea_report_projection import STATUS_TONE, UNSAVED_UNSEEN_NOTE, load_report
-from dashboard.ui.results import TRADE_COLUMNS
+from dashboard.ui.results import TRADE_COLUMNS, TRADE_PAGE_SIZE, TRADE_PAGE_SIZES
 
 FONT_URL = "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
 SANS, MONO = "Geist, ui-sans-serif, -apple-system, sans-serif", "'Geist Mono', ui-monospace, monospace"
@@ -218,7 +218,7 @@ def trades_panel(report: dict[str, Any]) -> dmc.Paper | None:
 
     def grid(grid_id: str, phone: bool) -> dag.AgGrid:
         return dag.AgGrid(id=grid_id, columnDefs=_columns(phone), rowData=rows, defaultColDef={"sortable": True, "filter": True, "resizable": True},
-                          dashGridOptions={"theme": GRID_THEME, "pagination": True, "paginationPageSize": 10, "paginationPageSizeSelector": False},
+                          dashGridOptions={"theme": GRID_THEME, "pagination": True, "paginationPageSize": TRADE_PAGE_SIZE, "paginationPageSizeSelector": TRADE_PAGE_SIZES},
                           style={"height": 480}, getRowId="params.data.trade_id")
     # Mantine's own breakpoint props pick the layout (no grid scripting): the phone grid below "sm", the desktop grid from "sm" up
     return _panel("Trades", "Sort or filter any column", *note, dmc.Box(grid("idea-report-trades", False), visibleFrom="sm"), dmc.Box(grid("idea-report-trades-phone", True), hiddenFrom="sm"))
