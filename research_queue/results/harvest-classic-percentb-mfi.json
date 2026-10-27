@@ -1,0 +1,69 @@
+{
+  "id": "harvest-classic-percentb-mfi",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-27T18:08:08-04:00",
+  "title": "MES Bollinger %B + MFI exhaustion fade [ideas:harvest-classic-percentb-mfi]",
+  "hypothesis": "Band excursions backed by extreme money flow exhaust and revert to the mean intraday.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 8,
+      "title": "QQQ Bollinger band mean reversion [ideas:harvest-classic-bb-pctb-mr]",
+      "id": "idea_c5efa765d7a24bb1b5a88035082d0ddc"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "MES opening-range failure fade (break, then close back inside) [ideas:harvest-playbook-orf-failure]",
+      "id": "idea_d043098cdcda4160abba3305b02fdde1"
+    },
+    {
+      "kind": "candidate",
+      "score": 6,
+      "title": "MES Momentum Pinball intraday (RSI3 of 1-bar ROC) with EMA50 side [ideas:harvest-classic-momentum-pinball]",
+      "id": "idea_ed39305fea634819a74e71d1d7d08204"
+    },
+    {
+      "kind": "candidate",
+      "score": 5,
+      "title": "SPY slow stochastic oversold/overbought reversal [ideas:harvest-arxiv-1412-7649]",
+      "id": "idea_9e80046e969d403b8b07a88712c74250"
+    },
+    {
+      "kind": "candidate",
+      "score": 5,
+      "title": "SPY opening gap fade [ideas:harvest-arxiv-2605-04004]",
+      "id": "idea_487719a151304effaae0543719fcbcbd"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_62f041be4a134b6495e89b0dee66dd35",
+  "detail": "total_return failed: expected > 0.0 (exclusive); observed -0.020388590000834372. | annualized_return failed: expected > 0.0 (exclusive); observed -0.004543179276257914. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -1.0715880958587551.",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 12,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "bb_len": 40,
+        "mfi_lo": 20,
+        "stop_atr": 3.0
+      },
+      "sharpe_ratio": -0.8231,
+      "total_return": -0.0214,
+      "annualized_return": -0.0048,
+      "max_drawdown": -0.0215,
+      "number_of_trades": 337.0,
+      "win_rate": 0.4599
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
