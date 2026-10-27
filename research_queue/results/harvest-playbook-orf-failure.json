@@ -1,0 +1,55 @@
+{
+  "id": "harvest-playbook-orf-failure",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-27T17:37:13-04:00",
+  "title": "MES opening-range failure fade (break, then close back inside) [ideas:harvest-playbook-orf-failure]",
+  "hypothesis": "Failed opening-range breakouts trap breakout traders; the reversal back through the range runs toward the opposite side.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 12,
+      "title": "MES 15-min ORB failure fade",
+      "id": "idea_9ee7807f9d024b6cbccd69bb78a04d6d"
+    },
+    {
+      "kind": "candidate",
+      "score": 10,
+      "title": "SPY ORB retest failure (5m OR), continuation",
+      "id": "qfc_a3576a7bc592e3b28cc126c0e99535b3"
+    },
+    {
+      "kind": "candidate",
+      "score": 10,
+      "title": "SPY ORB retest failure (30m OR), continuation",
+      "id": "qfc_1ba3ec57c5a4a1827da02c232b13b268"
+    },
+    {
+      "kind": "candidate",
+      "score": 10,
+      "title": "SPY ORB retest failure (15m OR), continuation",
+      "id": "qfc_d1311893ca204c887291d9ac80f08717"
+    },
+    {
+      "kind": "candidate",
+      "score": 10,
+      "title": "QQQ ORB retest failure (5m OR), continuation",
+      "id": "qfc_8fe5147b4763580a70cebdf0ecbfa1c6"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_2cc4fd353de94c5589b75af10078a1e1",
+  "detail": "no trades: the entry rule never fired in this period | no trades: the entry rule never fired in this period | total_return failed: expected > 0.0 (exclusive); observed 0.0. | annualized_return failed: expected > 0.0 (exclusive); observed 0.0. | sharpe_ratio failed: expected >= 0.5 (inclusive); obser",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 9
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
