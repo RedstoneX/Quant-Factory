@@ -1,0 +1,234 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES opening-range failure fade (break, then close back inside) [ideas:harvest-playbook-orf-failure]",
+    "one_line": "After price pokes beyond the 09:30-10:00 opening range by a minimum distance and then closes back inside it, fade toward the other side; stop at the signal bar extreme.",
+    "family": "mean_reversion",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Opening-range failure / failed breakout playbook (Crabel-style ORB literature; Dalton auction failure)",
+      "creator": "Toby Crabel / trading playbooks",
+      "claim": "After price pokes beyond the 09:30-10:00 opening range by a minimum distance and then closes back inside it, fade toward the other side; stop at the signal bar extreme.",
+      "url": "https://en.wikipedia.org/wiki/Opening_range_breakout"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Failed opening-range breakouts trap breakout traders; the reversal back through the range runs toward the opposite side.",
+    "failure_theory": [
+      "Real breakouts often retest the range edge, so many fades get stopped out.",
+      "Stops at the session extreme can be wide; costs and next-bar fills may erase the edge."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES 5m, OR = 09:30-10:00 high/low; signals on completed bars, fill next bar open."
+    ],
+    "short_entry": [
+      "Session high (through prior bar) exceeded OR high by >= break_pts, and close crosses back below OR high, 10:05-14:30."
+    ],
+    "long_entry": [
+      "Session low exceeded OR low by >= break_pts below, and close crosses back above OR low, 10:05-14:30."
+    ],
+    "exits": {
+      "rule": "Stop at the signal bar's high (short) / low (long); take profit at tp_r x stop distance.",
+      "time_exit": "Flat 15:55 ET."
+    },
+    "max_trades_per_session": 1
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 1,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "break_pts": {
+      "values": [
+        1,
+        2,
+        4
+      ],
+      "rationale": "Minimum poke beyond OR (points)."
+    },
+    "tp_r": {
+      "values": [
+        1,
+        1.5,
+        2
+      ],
+      "rationale": "Target in R."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results.",
+      "Holdout from 2025-01-01 stays closed."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "gt": [
+                {
+                  "prev": {
+                    "donchian": {},
+                    "length": 78,
+                    "output": "upper"
+                  },
+                  "bars": 1
+                },
+                {
+                  "add": [
+                    {
+                      "range_high": {
+                        "from": "09:30",
+                        "to": "10:00"
+                      }
+                    },
+                    {
+                      "param": "break_pts"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "crosses_below": [
+                "close",
+                {
+                  "range_high": {
+                    "from": "09:30",
+                    "to": "10:00"
+                  }
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "10:05",
+                "14:30"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "lt": [
+                {
+                  "prev": {
+                    "donchian": {},
+                    "length": 78,
+                    "output": "lower"
+                  },
+                  "bars": 1
+                },
+                {
+                  "sub": [
+                    {
+                      "range_low": {
+                        "from": "09:30",
+                        "to": "10:00"
+                      }
+                    },
+                    {
+                      "param": "break_pts"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "crosses_above": [
+                "close",
+                {
+                  "range_low": {
+                    "from": "09:30",
+                    "to": "10:00"
+                  }
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "10:05",
+                "14:30"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      }
+    ],
+    "exit": {
+      "stop_loss": {
+        "signal_bar": true
+      },
+      "take_profit": {
+        "r_multiple": {
+          "param": "tp_r"
+        }
+      }
+    },
+    "max_trades_per_session": 1
+  }
+}

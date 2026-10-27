@@ -1,0 +1,240 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES Momentum Pinball intraday (RSI3 of 1-bar ROC) with EMA50 side [ideas:harvest-classic-momentum-pinball]",
+    "one_line": "Connors/Raschke Momentum Pinball transferred to 5m: buy when RSI(3) of 1-bar ROC is deeply oversold above EMA50; short mirror; time/ATR exit.",
+    "family": "mean_reversion",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "Connors & Raschke (1995), Street Smarts: Momentum Pinball",
+      "creator": "Larry Connors, Linda Raschke",
+      "claim": "Connors/Raschke Momentum Pinball transferred to 5m: buy when RSI(3) of 1-bar ROC is deeply oversold above EMA50; short mirror; time/ATR exit.",
+      "url": "https://www.amazon.com/Street-Smarts-Probability-Short-Term-Strategies/dp/0965046109"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Short bursts of selling inside an intraday uptrend mean-revert within an hour or two.",
+    "failure_theory": [
+      "Original is daily; 5m transfer may be noise.",
+      "Cost per trade vs small mean-reversion moves."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES 5m; signals on completed bars; fill next open."
+    ],
+    "long_entry": [
+      "close > EMA50 and RSI3(ROC1) < low_th, 10:00-15:00."
+    ],
+    "short_entry": [
+      "close < EMA50 and RSI3(ROC1) > 100-low_th, 10:00-15:00."
+    ],
+    "exits": {
+      "rule": "Exit when RSI3(ROC1) crosses back past 50, or after hold_bars; 2 ATR stop.",
+      "time_exit": "Flat 15:55 ET."
+    },
+    "max_trades_per_session": 3
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 3,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "low_th": {
+      "values": [
+        10,
+        20,
+        30
+      ],
+      "rationale": "Oversold threshold."
+    },
+    "hold_bars": {
+      "values": [
+        6,
+        12,
+        24
+      ],
+      "rationale": "Max hold bars."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results.",
+      "Holdout from 2025-01-01 stays closed."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "gt": [
+                "close",
+                {
+                  "ema": "close",
+                  "length": 50
+                }
+              ]
+            },
+            {
+              "lt": [
+                {
+                  "rsi": {
+                    "roc": "close",
+                    "length": 1
+                  },
+                  "length": 3
+                },
+                {
+                  "param": "low_th"
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "15:00"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "lt": [
+                "close",
+                {
+                  "ema": "close",
+                  "length": 50
+                }
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "rsi": {
+                    "roc": "close",
+                    "length": 1
+                  },
+                  "length": 3
+                },
+                {
+                  "sub": [
+                    100,
+                    {
+                      "param": "low_th"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "15:00"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "after_bars": {
+        "param": "hold_bars"
+      },
+      "stop_loss": {
+        "atr": {
+          "length": 14,
+          "multiple": 2
+        }
+      },
+      "exit_when": {
+        "long": {
+          "gt": [
+            {
+              "rsi": {
+                "roc": "close",
+                "length": 1
+              },
+              "length": 3
+            },
+            50
+          ]
+        },
+        "short": {
+          "lt": [
+            {
+              "rsi": {
+                "roc": "close",
+                "length": 1
+              },
+              "length": 3
+            },
+            50
+          ]
+        }
+      }
+    },
+    "max_trades_per_session": 3
+  }
+}
