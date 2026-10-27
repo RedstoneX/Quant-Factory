@@ -1,0 +1,68 @@
+{
+  "id": "harvest-classic-momentum-pinball",
+  "data_cutoff": "2025-01-01T00:00:00Z",
+  "tested_at": "2026-10-27T17:36:49-04:00",
+  "title": "MES Momentum Pinball intraday (RSI3 of 1-bar ROC) with EMA50 side [ideas:harvest-classic-momentum-pinball]",
+  "hypothesis": "Short bursts of selling inside an intraday uptrend mean-revert within an hour or two.",
+  "prior_matches": [
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY slow stochastic oversold/overbought reversal [ideas:harvest-arxiv-1412-7649]",
+      "id": "idea_9e80046e969d403b8b07a88712c74250"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY opening gap fade [ideas:harvest-arxiv-2605-04004]",
+      "id": "idea_487719a151304effaae0543719fcbcbd"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY RSI(2) pullback in uptrend (Connors), intraday [ideas:harvest-classic-connors-rsi2]",
+      "id": "idea_9d955b744c6449d187a92ba1fb5a10ac"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "MES Donchian 20/55-day channel breakout (Turtle), intraday [ideas:harvest-playbook-donchian-turtle]",
+      "id": "idea_7cb144690b9244fe9bb8faec637bad59"
+    },
+    {
+      "kind": "candidate",
+      "score": 9,
+      "title": "SPY RSI oversold/overbought with EMA50/200 trend filter",
+      "id": "qfc_9206f082a470d0b284cfc35b6598729a"
+    }
+  ],
+  "state": "screened_out",
+  "reason": "screening",
+  "run_id": "run_f7f486d789894864b075da667f3dcba4",
+  "detail": "number_of_trades failed: expected >= 20 (inclusive); observed 12. | total_return failed: expected > 0.0 (exclusive); observed -0.000252354556428247. | annualized_return failed: expected > 0.0 (exclusive); observed -5.578912233050737e-05. | sharpe_ratio failed: expected >= 0.5 (inclusive); observed -",
+  "data_end_seen": "2024-12-31 00:00:00+00:00",
+  "stopped_at": "screening",
+  "metrics": {
+    "stages": {
+      "chain": "screened_out"
+    },
+    "settings_tested": 9,
+    "settings_passing_screen": 0,
+    "best_screen_setting": {
+      "parameters": {
+        "hold_bars": 12,
+        "low_th": 10
+      },
+      "sharpe_ratio": -0.1936,
+      "total_return": -0.0003,
+      "annualized_return": -0.0001,
+      "max_drawdown": -0.0007,
+      "number_of_trades": 12.0,
+      "win_rate": 0.5
+    }
+  },
+  "scored_stage_fails": [],
+  "stable_region": null,
+  "verdict": "rejected",
+  "failed_stage": "screening"
+}
