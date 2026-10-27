@@ -1,0 +1,255 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES Bollinger %B + MFI exhaustion fade [ideas:harvest-classic-percentb-mfi]",
+    "one_line": "Fade closes outside the Bollinger band only when MFI(14) confirms volume-weighted exhaustion; exit at the middle band; ATR stop.",
+    "family": "mean_reversion",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "reference",
+      "role": "primary",
+      "title": "John Bollinger (2001), Bollinger on Bollinger Bands: %b with MFI confirmation",
+      "creator": "John Bollinger",
+      "claim": "Fade closes outside the Bollinger band only when MFI(14) confirms volume-weighted exhaustion; exit at the middle band; ATR stop.",
+      "url": "https://www.bollingerbands.com/bollinger-band-rules"
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Band excursions backed by extreme money flow exhaust and revert to the mean intraday.",
+    "failure_theory": [
+      "Trend days walk the band; fades get run over.",
+      "MFI on futures volume may add little to %B."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES 5m; completed bars; next-open fill."
+    ],
+    "long_entry": [
+      "%B < 0 and MFI14 < mfi_lo, 10:00-15:00."
+    ],
+    "short_entry": [
+      "%B > 1 and MFI14 > 100-mfi_lo, 10:00-15:00."
+    ],
+    "exits": {
+      "rule": "Exit when %B crosses 0.5 (middle band); stop_atr x ATR14 stop.",
+      "time_exit": "Flat 15:55 ET."
+    },
+    "max_trades_per_session": 3
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 3,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "mfi_lo": {
+      "values": [
+        15,
+        20,
+        30
+      ],
+      "rationale": "MFI extreme."
+    },
+    "bb_len": {
+      "values": [
+        20,
+        40
+      ],
+      "rationale": "Band length."
+    },
+    "stop_atr": {
+      "values": [
+        1.5,
+        3
+      ],
+      "rationale": "Stop ATR multiple."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared grid; no expansion after seeing results.",
+      "Holdout from 2025-01-01 stays closed."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "lt": [
+                {
+                  "bollinger": "close",
+                  "length": {
+                    "param": "bb_len"
+                  },
+                  "std_mult": 2,
+                  "output": "percent_b"
+                },
+                0
+              ]
+            },
+            {
+              "lt": [
+                {
+                  "indicator": "talib:MFI",
+                  "params": {
+                    "timeperiod": 14
+                  },
+                  "output": "real"
+                },
+                {
+                  "param": "mfi_lo"
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "15:00"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "gt": [
+                {
+                  "bollinger": "close",
+                  "length": {
+                    "param": "bb_len"
+                  },
+                  "std_mult": 2,
+                  "output": "percent_b"
+                },
+                1
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "indicator": "talib:MFI",
+                  "params": {
+                    "timeperiod": 14
+                  },
+                  "output": "real"
+                },
+                {
+                  "sub": [
+                    100,
+                    {
+                      "param": "mfi_lo"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "15:00"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "stop_loss": {
+        "atr": {
+          "length": 14,
+          "multiple": {
+            "param": "stop_atr"
+          }
+        }
+      },
+      "exit_when": {
+        "long": {
+          "gt": [
+            {
+              "bollinger": "close",
+              "length": {
+                "param": "bb_len"
+              },
+              "std_mult": 2,
+              "output": "percent_b"
+            },
+            0.5
+          ]
+        },
+        "short": {
+          "lt": [
+            {
+              "bollinger": "close",
+              "length": {
+                "param": "bb_len"
+              },
+              "std_mult": 2,
+              "output": "percent_b"
+            },
+            0.5
+          ]
+        }
+      }
+    },
+    "max_trades_per_session": 3
+  }
+}
