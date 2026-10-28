@@ -247,6 +247,9 @@ LICENSED_VECTORBT_NODE_IDS = frozenset(
         "tests/test_walk_forward.py::test_optional_selection_locks_best_passing_training_row",
         "tests/test_walk_forward.py::test_stability_and_aggregate_calculations_are_deterministic",
         "tests/test_walk_forward.py::test_report_contains_fold_provenance_and_failures",
+        "tests/test_research_script_drawdown_standard.py::test_mes_max_drawdown_matches_old_formula",
+        "tests/test_research_script_drawdown_standard.py::test_spym_max_drawdown_matches_old_formula",
+        "tests/test_research_script_drawdown_standard.py::test_spym_max_drawdown_is_zero_when_equity_is_flat",
     }
 )
 

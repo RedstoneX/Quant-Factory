@@ -14,6 +14,7 @@ import pandas as pd
 from backtesting.monte_carlo.metrics import returns_accessor
 from backtesting.screening import ScreeningConfig, screen_metrics
 from backtesting.vectorbt_runtime import require_vectorbtpro
+from backtesting.monte_carlo.metrics import maximum_drawdown
 from market_data import (
     DataAudit,
     DatasetManifest,
@@ -575,9 +576,7 @@ def schedule_complete_metrics(
         [pd.Series([INITIAL_CASH], dtype=float), equity.reset_index(drop=True)],
         ignore_index=True,
     )
-    max_drawdown = float(
-        (equity_with_baseline / equity_with_baseline.cummax() - 1.0).min()
-    )
+    max_drawdown = maximum_drawdown(equity_with_baseline.pct_change().iloc[1:])
     win_rate = sum(item.net_pnl > 0 for item in bundle.completed_trades) / completed
     metrics: dict[str, float | int] = {
         "total_return": total_return,
