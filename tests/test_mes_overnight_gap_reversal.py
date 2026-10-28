@@ -346,6 +346,7 @@ def test_loader_rejects_any_materialized_row_at_the_prospective_cutoff(tmp_path:
         )
 
 
+@pytest.mark.licensed_vectorbt
 def test_schedule_complete_metrics_include_flat_sessions_and_exact_formulas() -> None:
     bundle = generate_mes_overnight_gap_reversal_bundle(
         _data(),
