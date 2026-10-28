@@ -16,6 +16,8 @@ from persistence import ArtifactType, PersistenceService, RunStage, RunStatus
 
 FINISHED = frozenset({RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED})
 _OOS_KEYS = ("total_return", "max_drawdown", "win_rate", "number_of_trades", "sharpe_ratio")
+# The idea-level luck checks the walk-forward builder records; passed through, never recomputed.
+_LUCK_KEYS = ("deflated_sharpe_probability", "trial_count", "pbo", "pbo_split_count", "returns_basis")
 EASTERN = "US/Eastern"
 
 
@@ -81,7 +83,7 @@ def oos_results(service: PersistenceService, run: Any, artifact_root: Path) -> d
 
 
 def walk_forward_results(service: PersistenceService, run: Any, artifact_root: Path) -> dict[str, Any]:
-    """Per-fold walk-forward Sharpe read from the persisted evidence."""
+    """Per-fold walk-forward Sharpe and the recorded luck checks, read from the persisted evidence."""
     require_finished(run)
     docs = [
         doc
@@ -90,8 +92,11 @@ def walk_forward_results(service: PersistenceService, run: Any, artifact_root: P
     ]
     if not docs:
         return {"walk_forward": None, "note": "no walk-forward evidence was saved for this run"}
-    folds = (docs[0].get("evidence") or {}).get("folds") or []
+    evidence = docs[0].get("evidence") or {}
+    folds = evidence.get("folds") or []
+    recorded = evidence.get("idea_overfitting")
     return {
+        "luck": {key: recorded.get(key) for key in _LUCK_KEYS} if isinstance(recorded, dict) else None,
         "walk_forward": [
             {
                 "fold_id": fold.get("fold_id"),

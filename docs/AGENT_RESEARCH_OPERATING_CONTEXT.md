@@ -68,7 +68,9 @@ finish time). Add `--finished-since <ISO time>` to see only ideas whose latest r
 finished after that time; use it instead of polling each run.
 `run status`: stage and state. `run results`: costs screen, every setting's
 parameters, metrics, rank, screening status and rejection reasons; unseen data, test
-status and locked parameters; walk-forward, each fold's status, Sharpe and return.
+status and locked parameters; walk-forward, each fold's status, Sharpe and return,
+plus `luck`: the recorded Deflated Sharpe probability, PBO (overfitting probability),
+settings tried, PBO splits and returns basis (null when not recorded or undefined).
 `run evidence`: each stage's validated evidence (status, reasons, may progress) with
 checksum. `run trades`: entry/exit time (Eastern), side, prices, P&L per trade.
 
