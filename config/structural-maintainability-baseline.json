@@ -22,7 +22,7 @@
     "[\"tests/test_run_lineage.py\",\"test_v3_database_migrates_and_version_one_and_two_manifest_rows_remain_readable\",\"FunctionDef\",1]": 158
   },
   "oversized_source_files": {
-    "backtesting/run_mes_overnight_gap_reversal.py": 662,
+    "backtesting/run_mes_overnight_gap_reversal.py": 661,
     "backtesting/run_mes_overnight_gap_reversal_durable.py": 809,
     "backtesting/validation/evidence_service.py": 833,
     "dashboard/run_adapter.py": 823,
