@@ -12,6 +12,7 @@ import pandas as pd
 
 from backtesting.screening import ScreeningConfig, screen_metrics
 from backtesting.vectorbt_runtime import require_vectorbtpro
+from backtesting.monte_carlo.metrics import maximum_drawdown
 from market_data import DataAudit, MarketDataConfig
 from market_data.catalog import DatasetManifest, load_data_locations, load_dataset_manifest, verify_dataset_file
 from market_data.equity_contract import SPYM_EQUITY_DATA_CONTRACT, validate_spym_manifest
@@ -361,7 +362,7 @@ def daily_metrics(portfolio, bundle) -> dict[str, float | int]:
     volatility = float(returns.std(ddof=1))
     sharpe_ratio = 0.0 if volatility == 0 else float((returns.mean() - RISK_FREE_RATE / SESSIONS_PER_YEAR) / volatility * SESSIONS_PER_YEAR ** 0.5)
     equity_with_baseline = pd.concat([pd.Series([INITIAL_CASH]), daily_equity.reset_index(drop=True)], ignore_index=True)
-    max_drawdown = float((equity_with_baseline / equity_with_baseline.cummax() - 1.0).min())
+    max_drawdown = maximum_drawdown(equity_with_baseline.pct_change().iloc[1:])
     trade_count = int(float(portfolio.trades.count()))
     return {"total_return": total_return, "annualized_return": annualized_return, "sharpe_ratio": sharpe_ratio,
             "max_drawdown": max_drawdown, "number_of_trades": trade_count,
