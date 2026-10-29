@@ -1,4 +1,11 @@
-/* Results workbench: idea names in the normal text colour, underlined on hover only; the phone filter drawer is always open from the small breakpoint up. */
+/* Results workbench: idea names in the normal text colour, underlined on hover only; the phone filter drawer is always open from the small breakpoint up.
+   Ideas / Every setting tried are two buttons. The page background matches Mantine's own segmented-control rail, so that rail read as plain text. */
+#wb-mode { background: transparent; border: 0; gap: 8px; padding: 0; overflow: visible; cursor: pointer; }
+#wb-mode .mantine-SegmentedControl-indicator { display: none; }
+#wb-mode label { font-size: 14px; cursor: pointer; color: #ECEDEE; background: #1A1C21; border: 1px solid #9BA1AB; border-radius: 8px; padding: 8px 14px; }
+#wb-mode label[data-active] { background: #818CF8; border-color: #818CF8; color: #08090B; }
+#wb-mode label:not([data-active]):hover { background: #262930; color: #ECEDEE; }
+
 .wb-grid a { color: inherit; text-decoration: none; }
 .wb-grid a:hover { text-decoration: underline; }
 @media (min-width: 48em) {

@@ -133,6 +133,25 @@ def test_result_column_fits_passed_the_gates_on_one_line() -> None:
     assert "white-space:nowrap" in chip and "Passed the gates" in chip
 
 
+def test_mode_switch_is_a_bordered_pair_of_buttons() -> None:
+    ui = pytest.importorskip("dashboard.ui.results_workbench")
+    from pathlib import Path
+    css = (Path(ui.__file__).parent / "assets" / "workbench.css").read_text()
+    assert "#wb-mode" in css and "border: 1px solid #9BA1AB" in css and "cursor: pointer" in css
+    assert "font-size: 14px" in css and "label[data-active]" in css and ":hover" in css and "#818CF8" in css
+    ideas = pd.DataFrame([{"candidate_id": "c1", "title": "T", "market": "SPY", "timeframe": "5 min", "family": "Orb", "created_at": "2026-10-01",
+                           "result": "Passed", "dots": ["green"] * 5, "sharpe": 1.0, "total_return": 2.0, "worst_drop": -1.0, "trades": 4, "settings_tried": 2, "sharpe_line": 0.5}])
+    settings = ideas.assign(row_id="c1:a", setting="trail 0.3", kept=True)
+    monkeypatch_target = ui.load_workbench
+    ui.load_workbench = lambda: {"ideas": ideas, "settings": settings}
+    try:
+        text = str(ui.results_workbench_layout())
+    finally:
+        ui.load_workbench = monkeypatch_target
+    assert "wb-mode" in text and ui.INDIGO in text and "14px" in text
+    assert "Ideas · 1" in text and "Every setting tried · 1" in text
+
+
 def test_phone_list_clamps_name_and_subline_and_shows_full_sharpe_header() -> None:
     ui = pytest.importorskip("dashboard.ui.results_workbench")
     from pathlib import Path

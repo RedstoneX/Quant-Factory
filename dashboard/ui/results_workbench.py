@@ -198,7 +198,12 @@ def results_workbench_layout(search: str | None = None) -> html.Div:
         first = newest_real_idea(ideas)
         head = dmc.Stack([dmc.Text("Results", size="xs", c=FAINT), dmc.Title("Results", order=1, size=26, fw=600)], gap=4)
         controls = dmc.Group([
-            dmc.SegmentedControl(id="wb-mode", value="ideas", data=[{"value": "ideas", "label": f"Ideas · {len(ideas):,}"}, {"value": "settings", "label": f"Every setting tried · {len(settings):,}"}]),
+            dmc.SegmentedControl(
+                id="wb-mode", className="wb-mode", value="ideas", color=INDIGO, size="sm", radius="md", fz=14,
+                withItemsBorders=False,
+                styles={"root": {"cursor": "pointer"}, "label": {"fontSize": "14px", "cursor": "pointer"}},
+                data=[{"value": "ideas", "label": f"Ideas · {len(ideas):,}"}, {"value": "settings", "label": f"Every setting tried · {len(settings):,}"}],
+            ),
             dmc.Select(id="wb-type", value=TYPE_ALL, data=[TYPE_ALL, *sorted(ideas["family"].unique())], allowDeselect=False, w=260),
             dmc.Button("Filters", id="wb-filters-button", variant="default", hiddenFrom="sm"),
         ], gap="sm")
