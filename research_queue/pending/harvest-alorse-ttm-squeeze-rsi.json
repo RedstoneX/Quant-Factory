@@ -1,0 +1,327 @@
+{
+  "schema": "qf_candidate_v1",
+  "candidate": {
+    "title": "MES TTM squeeze release breakout with EMA/RSI direction [ideas:harvest-alorse-ttm-squeeze-rsi]",
+    "one_line": "When Bollinger Bands were inside Keltner Channels on the prior bar and expand outside now, enter in the direction of close vs EMA with RSI agreement; exit on EMA recross or ATR stop, flat by 15:55. Source: John Carter TTM Squeeze (Mastering the Trade); Alorse Pine repo variant.",
+    "family": "volatility_squeeze_breakout",
+    "status": "ready_for_review"
+  },
+  "sources": [
+    {
+      "type": "book",
+      "role": "primary",
+      "title": "Mastering the Trade (TTM Squeeze)",
+      "creator": "John F. Carter",
+      "claim": "Volatility compression (BB inside KC) tends to precede directional expansion."
+    },
+    {
+      "type": "web",
+      "role": "secondary",
+      "title": "Alorse pinescript-strategies TTM squeeze + RSI",
+      "creator": "Alorse",
+      "claim": "Squeeze release with RSI direction filter."
+    }
+  ],
+  "hypothesis": {
+    "behavior": "Intraday volatility compression on MES releases into a directional move that persists long enough to beat costs.",
+    "failure_theory": [
+      "Squeeze releases may be mostly noise on 5m bars.",
+      "Costs and next-bar fills may erase the edge.",
+      "Breakout families (Keltner/Chesler, Donchian, NR7) already failed here."
+    ]
+  },
+  "market": {
+    "instruments": {
+      "preferred": [
+        "MES"
+      ]
+    },
+    "timeframe": "5m",
+    "session": "NYSE regular session, America/New_York",
+    "holding_style": "intraday",
+    "overnight_positions": false
+  },
+  "data_needs": {
+    "dataset_id": "futures_MES_5m_databento",
+    "requested_start": "2019-05-06",
+    "fields": [
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume"
+    ],
+    "minimum_resolution": "5m",
+    "data_as_of": "2026-02-13T21:55:00Z"
+  },
+  "rules": {
+    "setup": [
+      "MES 5m; completed bars; next-open fill."
+    ],
+    "long_entry": [
+      "%B < 0 and MFI14 < mfi_lo, 10:00-15:00."
+    ],
+    "short_entry": [
+      "%B > 1 and MFI14 > 100-mfi_lo, 10:00-15:00."
+    ],
+    "exits": {
+      "rule": "Exit when %B crosses 0.5 (middle band); stop_atr x ATR14 stop.",
+      "time_exit": "Flat 15:55 ET."
+    },
+    "max_trades_per_session": 3
+  },
+  "fixed": {
+    "bar_interval": "5m",
+    "session_reset": true,
+    "flat_at": "15:55",
+    "max_trades_per_session": 2,
+    "entry_fill": "next_contiguous_bar_open"
+  },
+  "variables": {
+    "kc_mult": {
+      "values": [
+        1.0,
+        1.5,
+        2.0
+      ],
+      "rationale": "Keltner width defining the squeeze."
+    },
+    "ema_len": {
+      "values": [
+        20,
+        50
+      ],
+      "rationale": "Direction / exit EMA."
+    },
+    "stop_atr": {
+      "values": [
+        1.5,
+        3
+      ],
+      "rationale": "Stop ATR multiple."
+    }
+  },
+  "variants": [],
+  "open_questions": [],
+  "execution": {
+    "use_qf_defaults": true,
+    "special_assumptions": {
+      "position_size": "one unit, no accumulation",
+      "direction": "long and short"
+    }
+  },
+  "evaluation": {
+    "use_qf_standard_screen": true,
+    "candidate_specific_checks": [
+      "Evaluate only the predeclared 12-setting grid; no expansion after seeing results.",
+      "Holdout from 2025-01-01 locked."
+    ]
+  },
+  "exclusions": [
+    "No overnight position.",
+    "No paper/live trading or automatic promotion.",
+    "No filter beyond the rule_spec."
+  ],
+  "rule_spec": {
+    "language": "qf_rules_v1",
+    "bar": "5m",
+    "tick_size": 0.25,
+    "session": {
+      "timezone": "America/New_York",
+      "open": "09:30",
+      "close": "16:00"
+    },
+    "flat_at": "15:55",
+    "signals": [
+      {
+        "when": {
+          "all": [
+            {
+              "lt": [
+                {
+                  "prev": {
+                    "bollinger": "close",
+                    "length": 20,
+                    "std_mult": 2,
+                    "output": "upper"
+                  },
+                  "bars": 1
+                },
+                {
+                  "prev": {
+                    "keltner": {},
+                    "length": 20,
+                    "atr_length": 20,
+                    "mult": {
+                      "param": "kc_mult"
+                    },
+                    "output": "upper"
+                  },
+                  "bars": 1
+                }
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "bollinger": "close",
+                  "length": 20,
+                  "std_mult": 2,
+                  "output": "upper"
+                },
+                {
+                  "keltner": {},
+                  "length": 20,
+                  "atr_length": 20,
+                  "mult": {
+                    "param": "kc_mult"
+                  },
+                  "output": "upper"
+                }
+              ]
+            },
+            {
+              "gt": [
+                "close",
+                {
+                  "ema": "close",
+                  "length": {
+                    "param": "ema_len"
+                  }
+                }
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "rsi": "close",
+                  "length": 14
+                },
+                50
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "15:00"
+              ]
+            }
+          ]
+        },
+        "side": "long"
+      },
+      {
+        "when": {
+          "all": [
+            {
+              "lt": [
+                {
+                  "prev": {
+                    "bollinger": "close",
+                    "length": 20,
+                    "std_mult": 2,
+                    "output": "upper"
+                  },
+                  "bars": 1
+                },
+                {
+                  "prev": {
+                    "keltner": {},
+                    "length": 20,
+                    "atr_length": 20,
+                    "mult": {
+                      "param": "kc_mult"
+                    },
+                    "output": "upper"
+                  },
+                  "bars": 1
+                }
+              ]
+            },
+            {
+              "gt": [
+                {
+                  "bollinger": "close",
+                  "length": 20,
+                  "std_mult": 2,
+                  "output": "upper"
+                },
+                {
+                  "keltner": {},
+                  "length": 20,
+                  "atr_length": 20,
+                  "mult": {
+                    "param": "kc_mult"
+                  },
+                  "output": "upper"
+                }
+              ]
+            },
+            {
+              "lt": [
+                "close",
+                {
+                  "ema": "close",
+                  "length": {
+                    "param": "ema_len"
+                  }
+                }
+              ]
+            },
+            {
+              "lt": [
+                {
+                  "rsi": "close",
+                  "length": 14
+                },
+                50
+              ]
+            },
+            {
+              "time_between": [
+                "10:00",
+                "15:00"
+              ]
+            }
+          ]
+        },
+        "side": "short"
+      }
+    ],
+    "exit": {
+      "stop_loss": {
+        "atr": {
+          "length": 14,
+          "multiple": {
+            "param": "stop_atr"
+          }
+        }
+      },
+      "exit_when": {
+        "long": {
+          "lt": [
+            "close",
+            {
+              "ema": "close",
+              "length": {
+                "param": "ema_len"
+              }
+            }
+          ]
+        },
+        "short": {
+          "gt": [
+            "close",
+            {
+              "ema": "close",
+              "length": {
+                "param": "ema_len"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "max_trades_per_session": 2
+  }
+}
